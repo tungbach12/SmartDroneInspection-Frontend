@@ -10,6 +10,9 @@ const LoginPage = lazy(
 const DashboardPage = lazy(
   () => import('@/features/ai/pages/DashboardPage'),
 );
+const AssetsPage = lazy(
+  () => import('@/features/assets/pages/AssetsPage'),
+);
 
 export const router = createBrowserRouter([
   {
@@ -29,9 +32,13 @@ export const router = createBrowserRouter([
         path: 'dashboard',
         element: <DashboardPage />,
       },
+      {
+        path: 'assets',
+        element: <AssetsPage />,
+      },
       // Module routes are added per-feature as they are built:
-      // /assets (assets module), /inspections, /reports, /defects,
-      // /tickets, /ai, /users — each with its own roles config.
+      // /inspections, /reports, /defects, /tickets, /ai, /users
+      // — each with its own roles config.
     ],
   },
   { path: '*', element: <Navigate to="/dashboard" replace /> },
