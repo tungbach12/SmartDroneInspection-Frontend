@@ -1,50 +1,42 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 export type Role =
-  | 'Administrator'
-  | 'InspectionManager'
-  | 'Inspector'
-  | 'MaintenanceEngineer'
-  | 'Viewer';
+  | 'ADMIN'
+  | 'CLIENT'
+  | 'SERVICE_MANAGER'
+  | 'INSPECTOR'
+  | 'MAINTENANCE_ENGINEER';
 
 interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   userId: string | null;
   userName: string | null;
   roles: Role[];
   setSession: (session: {
     accessToken: string;
-    refreshToken: string;
     userId: string;
     userName: string;
     roles: Role[];
   }) => void;
+  setAccessToken: (accessToken: string) => void;
   clearSession: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+export const useAuthStore = create<AuthState>((set) => ({
+  accessToken: null,
+  userId: null,
+  userName: null,
+  roles: [],
+  setSession: (session) => set(session),
+  setAccessToken: (accessToken) => set({ accessToken }),
+  clearSession: () =>
+    set({
       accessToken: null,
-      refreshToken: null,
       userId: null,
       userName: null,
       roles: [],
-      setSession: (session) => set(session),
-      clearSession: () =>
-        set({
-          accessToken: null,
-          refreshToken: null,
-          userId: null,
-          userName: null,
-          roles: [],
-        }),
     }),
-    { name: 'sdi-auth' },
-  ),
-);
+}));
 
 export function useHasRole(): (roles: Role[]) => boolean {
   const roles = useAuthStore((s) => s.roles);
