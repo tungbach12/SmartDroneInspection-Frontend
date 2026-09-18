@@ -1,8 +1,12 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'https://localhost:7080/api',
+  baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
   timeout: 30_000,
+  withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
 let isRefreshing = false;
@@ -19,7 +23,7 @@ function processQueue(error: unknown, token?: string) {
 }
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -53,18 +57,14 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post<{ accessToken: string }>(
-        `${api.defaults.baseURL}/auth/refresh`,
-        { refreshToken: localStorage.getItem('refreshToken') },
-      );
-      localStorage.setItem('accessToken', data.accessToken);
+      const { data } = await api.post<{ accessToken: string }>('/auth/refresh');
+      useAuthStore.getState().setAccessToken(data.accessToken);
       processQueue(undefined, data.accessToken);
       original.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(original);
     } catch (refreshError) {
       processQueue(refreshError);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      useAuthStore.getState().clearSession();
       window.location.href = '/login';
       return Promise.reject(refreshError);
     } finally {
