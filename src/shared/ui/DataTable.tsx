@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Box,
   InputAdornment,
+  Paper,
   Table,
   TableBody,
   TableCell,
@@ -11,7 +12,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  Paper,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 
@@ -47,19 +47,10 @@ export function DataTable<T>({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim().toLowerCase()), 300);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [debounced, rowsPerPage]);
-
-  const filtered = searchable && debounced && searchPredicate
-    ? rows.filter((r) => searchPredicate(r, debounced))
+  const filtered = searchable && normalizedQuery && searchPredicate
+    ? rows.filter((row) => searchPredicate(row, normalizedQuery))
     : rows;
 
   const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -73,7 +64,10 @@ export function DataTable<T>({
             size="small"
             placeholder={searchPlaceholder}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(0);
+            }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -86,13 +80,13 @@ export function DataTable<T>({
           />
         </Box>
       )}
-      <TableContainer>
-        <Table size="small">
+      <TableContainer sx={{ overflowX: 'auto' }}>
+        <Table size="small" aria-label="Data table">
           <TableHead>
             <TableRow>
-              {columns.map((col) => (
-                <TableCell key={col.id} width={col.width} align={col.align}>
-                  {col.label}
+              {columns.map((column) => (
+                <TableCell key={column.id} width={column.width} align={column.align}>
+                  {column.label}
                 </TableCell>
               ))}
             </TableRow>
@@ -101,10 +95,7 @@ export function DataTable<T>({
             {paged.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Typography
-                    color="text.secondary"
-                    sx={{ py: 4, textAlign: 'center' }}
-                  >
+                  <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
                     {emptyMessage}
                   </Typography>
                 </TableCell>
@@ -113,13 +104,13 @@ export function DataTable<T>({
               paged.map((row) => (
                 <TableRow
                   key={rowKey(row)}
-                  hover={!!onRowClick}
+                  hover={Boolean(onRowClick)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   sx={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
-                  {columns.map((col) => (
-                    <TableCell key={col.id} align={col.align}>
-                      {col.render(row)}
+                  {columns.map((column) => (
+                    <TableCell key={column.id} align={column.align}>
+                      {column.render(row)}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -132,9 +123,12 @@ export function DataTable<T>({
         component="div"
         count={filtered.length}
         page={page}
-        onPageChange={(_, p) => setPage(p)}
+        onPageChange={(_, nextPage) => setPage(nextPage)}
         rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(parseInt(event.target.value, 10));
+          setPage(0);
+        }}
         rowsPerPageOptions={[5, 10, 25]}
       />
     </Paper>

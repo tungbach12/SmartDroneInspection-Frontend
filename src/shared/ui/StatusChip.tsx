@@ -1,5 +1,6 @@
 import { Chip } from '@mui/material';
 import type { ChipProps } from '@mui/material';
+import { layoutTokens } from '@/app/theme/tokens';
 
 type StatusVariant = 'success' | 'warning' | 'error' | 'info' | 'default';
 
@@ -34,6 +35,7 @@ export function StatusChip({ status, size }: StatusChipProps) {
       color={color}
       size={size ?? 'small'}
       variant={color === 'default' ? 'outlined' : 'filled'}
+      sx={{ borderRadius: layoutTokens.pillRadius, fontWeight: 700 }}
     />
   );
 }
