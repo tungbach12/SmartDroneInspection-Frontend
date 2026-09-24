@@ -5,9 +5,9 @@ export const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: '#1b6fd8' },
-        secondary: { main: '#0f9d8a' },
-        background: { default: '#f7faf8', paper: '#ffffff' },
+        primary: { main: '#087c92' },
+        secondary: { main: '#109c91' },
+        background: { default: '#f3f8fb', paper: '#ffffff' },
         divider: 'rgba(21, 36, 44, 0.12)',
         success: { main: statusTokens.success.light },
         warning: { main: statusTokens.warning.light },
