@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { unwrapApiResponse } from './apiResponse';
 
 interface AuthenticatedRefreshResponse {
   step: 'AUTHENTICATED';
@@ -141,7 +142,7 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => unwrapApiResponse(response),
   async (error: AxiosError) => {
     const original = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
