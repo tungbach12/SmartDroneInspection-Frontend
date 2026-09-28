@@ -38,6 +38,14 @@ const DashboardPage = lazy(
   () => import('@/features/dashboard/pages/DashboardPage'),
 );
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
+const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
+const AssetReviewPage = lazy(() => import('@/features/assets/pages/AssetReviewPage'));
+const ScheduleProposalsPage = lazy(
+  () => import('@/features/assets/pages/ScheduleProposalsPage'),
+);
+const InspectionSchedulesPage = lazy(
+  () => import('@/features/assets/pages/InspectionSchedulesPage'),
+);
 const InspectionsPage = lazy(
   () => import('@/features/inspections/pages/InspectionsPage'),
 );
@@ -49,6 +57,8 @@ const MaintenancePage = lazy(
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   assets: <AssetsPage />,
+  'asset-catalog': <AssetCatalogPage />,
+  'asset-review': <AssetReviewPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
@@ -89,6 +99,26 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           </RequireAuth>
         ),
       })),
+      ...(portal === 'client'
+        ? [
+            {
+              path: 'schedule-proposals/:assetId',
+              element: (
+                <RequireAuth roles={['CLIENT']}>
+                  <ScheduleProposalsPage />
+                </RequireAuth>
+              ),
+            },
+            {
+              path: 'inspection-schedules/:assetId',
+              element: (
+                <RequireAuth roles={['CLIENT']}>
+                  <InspectionSchedulesPage />
+                </RequireAuth>
+              ),
+            },
+          ]
+        : []),
       {
         path: 'account/security',
         element: <AccountSecurityPage />,

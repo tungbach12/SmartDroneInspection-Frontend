@@ -25,6 +25,8 @@ import {
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import CategoryIcon from '@mui/icons-material/Category';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BuildIcon from '@mui/icons-material/Build';
@@ -54,6 +56,8 @@ const DRAWER_WIDTH = 240;
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <DashboardIcon /> },
   { section: 'assets', icon: <ApartmentIcon /> },
+  { section: 'asset-catalog', icon: <CategoryIcon /> },
+  { section: 'asset-review', icon: <FactCheckIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
   { section: 'reports', icon: <AssignmentIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
