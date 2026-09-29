@@ -10,6 +10,7 @@ const STATUS_COLORS: Record<string, StatusVariant> = {
   completed: 'success',
   closed: 'success',
   pending: 'warning',
+  pending_review: 'warning',
   inprogress: 'warning',
   in_progress: 'warning',
   scheduled: 'info',

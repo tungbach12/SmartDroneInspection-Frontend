@@ -19,6 +19,8 @@ export const PORTAL_CONFIG = {
 export const SECTION_IDS = [
   'dashboard',
   'assets',
+  'asset-catalog',
+  'asset-review',
   'inspections',
   'reports',
   'maintenance',
@@ -29,6 +31,8 @@ export type SectionId = (typeof SECTION_IDS)[number];
 export const SECTION_LABELS: Record<SectionId, string> = {
   dashboard: 'Dashboard',
   assets: 'Assets',
+  'asset-catalog': 'Asset catalog',
+  'asset-review': 'Asset review',
   inspections: 'Inspections',
   reports: 'Reports',
   maintenance: 'Maintenance',
@@ -38,6 +42,8 @@ const SECTION_ROLE_ACCESS = {
   admin: {
     dashboard: ['ADMIN'],
     assets: ['ADMIN'],
+    'asset-catalog': ['ADMIN'],
+    'asset-review': [],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
     maintenance: ['ADMIN'],
@@ -45,6 +51,8 @@ const SECTION_ROLE_ACCESS = {
   client: {
     dashboard: ['CLIENT'],
     assets: ['CLIENT'],
+    'asset-catalog': [],
+    'asset-review': [],
     inspections: ['CLIENT'],
     reports: ['CLIENT'],
     maintenance: ['CLIENT'],
@@ -52,6 +60,8 @@ const SECTION_ROLE_ACCESS = {
   operations: {
     dashboard: ['SERVICE_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
     assets: [],
+    'asset-catalog': [],
+    'asset-review': ['SERVICE_MANAGER'],
     inspections: ['SERVICE_MANAGER', 'INSPECTOR'],
     reports: ['SERVICE_MANAGER', 'INSPECTOR'],
     maintenance: ['SERVICE_MANAGER', 'MAINTENANCE_ENGINEER'],
