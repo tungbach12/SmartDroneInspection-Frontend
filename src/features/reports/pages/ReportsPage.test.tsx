@@ -63,6 +63,7 @@ describe('ReportsPage', () => {
         roles: ['CLIENT'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
+        providerId: null,
       },
     });
     mocks.reportQuery = { data: [releasedReport], isLoading: false, error: null, refetch: vi.fn() };
@@ -114,6 +115,7 @@ describe('ReportsPage', () => {
         roles: ['INSPECTOR'],
         actorZone: 'SERVICE_WORKFORCE',
         organizationId: 'org-1',
+        providerId: 'provider-1',
       },
     });
 

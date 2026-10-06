@@ -18,6 +18,7 @@ const authenticatedFlow = {
     roles: ['CLIENT'] as const,
     actorZone: 'CUSTOMER_ORGANIZATION',
     organizationId: 'org-1',
+    providerId: null,
   },
 };
 

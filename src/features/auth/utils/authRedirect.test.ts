@@ -7,7 +7,7 @@ describe('getAuthRedirectTarget', () => {
     expect(getAuthRedirectTarget(null, ['INSPECTOR'])).toBe(
       '/operations/dashboard',
     );
-    expect(getAuthRedirectTarget(null, ['ADMIN'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget(null, ['PLATFORM_ADMIN'])).toBe('/admin/dashboard');
   });
 
   it('asks a cross-workspace user to choose a workspace', () => {
@@ -44,8 +44,8 @@ describe('getAuthRedirectTarget', () => {
   });
 
   it('does not send a signed-in user back to a public auth page', () => {
-    expect(getAuthRedirectTarget('/login', ['ADMIN'])).toBe('/admin/dashboard');
-    expect(getAuthRedirectTarget('/register', ['ADMIN'])).toBe(
+    expect(getAuthRedirectTarget('/login', ['PLATFORM_ADMIN'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget('/register', ['PLATFORM_ADMIN'])).toBe(
       '/admin/dashboard',
     );
   });
