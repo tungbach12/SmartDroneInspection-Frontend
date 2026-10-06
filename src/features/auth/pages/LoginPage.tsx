@@ -22,6 +22,13 @@ import {
   login,
 } from '../api/authApi';
 import {
+  PORTAL_ROLE_ACCESS,
+  hasAnyRole,
+  type PortalId,
+} from '@/app/permissions/accessPolicy';
+import { getPortalForHost } from '../utils/domainPortal';
+export { getPortalForHost } from '../utils/domainPortal';
+import {
   loginSchema,
   passwordSetupSchema,
   type LoginFormValues,
@@ -83,6 +90,13 @@ export default function LoginPage() {
       if (!result.accessToken) {
         throw new Error('The sign-in response did not include an access token.');
       }
+      const portal: PortalId | null = getPortalForHost(
+        window.location.hostname,
+      );
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
+      }
       setSession({ accessToken: result.accessToken, user: result.user });
       navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
         replace: true,
@@ -106,6 +120,14 @@ export default function LoginPage() {
       );
       if (result.step !== 'AUTHENTICATED' || !result.accessToken) {
         throw new Error('Password setup did not complete sign-in.');
+      }
+
+      const portal: PortalId | null = getPortalForHost(
+        window.location.hostname,
+      );
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
       }
 
       setSession({ accessToken: result.accessToken, user: result.user });

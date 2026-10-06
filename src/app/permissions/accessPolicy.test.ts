@@ -30,6 +30,7 @@ const expectedAccess: Record<
     inspections: ['PLATFORM_ADMIN'],
     reports: ['PLATFORM_ADMIN'],
     maintenance: ['PLATFORM_ADMIN'],
+    team: [],
   },
   client: {
     dashboard: ['CLIENT'],
@@ -39,6 +40,7 @@ const expectedAccess: Record<
     inspections: ['CLIENT'],
     reports: ['CLIENT'],
     maintenance: ['CLIENT'],
+    team: [],
   },
   operations: {
     dashboard: ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -48,6 +50,7 @@ const expectedAccess: Record<
     inspections: ['PROVIDER_MANAGER', 'INSPECTOR'],
     reports: ['PROVIDER_MANAGER', 'INSPECTOR'],
     maintenance: ['PROVIDER_MANAGER', 'MAINTENANCE_ENGINEER'],
+    team: ['PROVIDER_MANAGER'],
   },
 };
 
