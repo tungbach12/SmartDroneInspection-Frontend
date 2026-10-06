@@ -142,7 +142,17 @@ const router = createBrowserRouter([
     path: '/',
     element: <Outlet />,
     children: [
-      { index: true, element: <LandingPage /> },
+      {
+        index: true,
+        element: <LandingPage />,
+        loader: () => {
+          const host = window.location.hostname;
+          if (host.startsWith('smartdroneinspection-admin') || host.startsWith('smartdroneinspection-provider')) {
+            return new Response(null, { status: 302, headers: { Location: '/login' } });
+          }
+          return null;
+        },
+      },
       {
         path: 'login',
         element: (
