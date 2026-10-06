@@ -110,14 +110,14 @@ export function HeroSection() {
         <Box sx={{ display: 'grid', minWidth: 0, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 0.84fr) minmax(0, 1.16fr)' }, gap: { xs: 4, lg: 8 }, alignItems: 'center' }}>
           <Box sx={{ position: 'relative', zIndex: 2, minWidth: 0, width: '100%', maxWidth: { xs: 350, lg: '100%' } }}>
             <Chip
-              label="Infrastructure inspection management"
+              label="AI-assisted infrastructure inspection"
               sx={{ bgcolor: `${colors.teal}18`, color: colors.teal, border: `1px solid ${colors.teal}44`, fontWeight: 700 }}
             />
             <Typography component="h1" sx={{ mt: 3, width: '100%', maxWidth: { xs: 350, lg: '100%' }, fontSize: { xs: 'clamp(2rem, 8vw, 3.6rem)', lg: 'clamp(4rem, 5.4vw, 5.8rem)' }, lineHeight: 0.98, letterSpacing: '-0.065em', fontWeight: 800, overflowWrap: 'normal', wordBreak: 'keep-all' }}>
-              Manage inspections from request to maintenance.
+              From drone imagery to approved evidence and maintenance.
             </Typography>
             <Typography variant="h6" sx={{ mt: 3, width: '100%', maxWidth: { xs: 350, lg: 560 }, fontSize: { xs: '1rem', sm: '1.25rem' }, color: colors.heroMuted, lineHeight: 1.6, fontWeight: 400, overflowWrap: 'normal', wordBreak: 'keep-all' }}>
-              Organize client requests, service assignments, inspection evidence, findings, reports, and maintenance tasks in one application.
+              One workspace connects client requests, mission planning, field capture, human-reviewed AI findings, immutable reports, and follow-up maintenance.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4, width: '100%' }}>
               <Button
@@ -126,19 +126,19 @@ export function HeroSection() {
                 endIcon={<ArrowForwardIcon />}
                 sx={{ width: { xs: '100%', sm: 'auto' }, bgcolor: colors.teal, color: colors.ink, '&:hover': { bgcolor: '#5be0cc' }, px: 2.5, py: 1.3 }}
               >
-                See the workflow
+                View workflow
               </Button>
               <Button
                 href="/login"
                 variant="outlined"
                 sx={{ width: { xs: '100%', sm: 'auto' }, color: colors.heroText, borderColor: colors.heroLine, '&:hover': { borderColor: colors.teal, color: colors.teal }, px: 2.5, py: 1.3 }}
               >
-                Open workspace
+                Open your workspace
               </Button>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ mt: 3, color: colors.heroMuted, alignItems: 'center' }}>
               <VerifiedIcon sx={{ color: colors.teal, fontSize: 17 }} />
-              <Typography variant="caption">Candidate findings are reviewed by an assigned Inspector.</Typography>
+              <Typography variant="caption">Every candidate finding stays gated until an assigned human reviews the evidence.</Typography>
             </Stack>
           </Box>
           <DroneHeroVisual />

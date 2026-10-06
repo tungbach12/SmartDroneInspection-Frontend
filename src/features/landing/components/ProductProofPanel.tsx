@@ -21,13 +21,13 @@ export function ProductProofPanel() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.82fr) minmax(0, 1.18fr)' }, gap: { xs: 5, md: 9 }, alignItems: 'center' }}>
           <Box>
             <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>
-              What the platform stores
+              Flight, report, and maintenance traceability
             </Typography>
             <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>
-              Keep the inspection record together.
+              Keep the whole inspection record in one traceable chain.
             </Typography>
             <Typography variant="body1" sx={{ mt: 2.5, color: colors.muted, lineHeight: 1.75 }}>
-              Keep asset details, evidence, findings, reports, and maintenance work available to the people responsible for them.
+              Asset context, mission evidence, reviewed findings, approval state, and follow-up maintenance stay attached to the same asset history.
             </Typography>
             <Stack spacing={2} sx={{ mt: 4 }}>
               {productItems.map((item) => {

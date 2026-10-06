@@ -1,8 +1,8 @@
-﻿﻿import { Box, Container, Stack, Typography } from '@mui/material';
+﻿import { Box, Container, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useLandingColors } from '../landingTheme';
 
-const trustItems = ['Asset and schedule records', 'Inspector-reviewed findings', 'Organization-scoped access', 'Maintenance status tracking'];
+const trustItems = ['Mission plan before flight', 'Evidence with checksum', 'Human-reviewed AI', 'Immutable reports', 'Maintenance closeout'];
 
 export function TrustStrip() {
   const colors = useLandingColors();

@@ -2,53 +2,67 @@ export const workflowSteps = [
   {
     number: '01',
     label: 'Client',
-    title: 'Request an inspection',
+    title: 'Request the inspection',
     description:
-      'Choose the asset, describe the inspection need, and submit the request for your organization.',
+      'A site owner describes the asset, scope, cadence, and expected evidence before any flight happens.',
   },
   {
     number: '02',
     label: 'Service Manager',
-    title: 'Prepare the service',
+    title: 'Quote and prepare',
     description:
-      'Review the request, prepare a quotation, create the order, and assign field staff.',
+      'The provider scopes the work, prepares the quotation, creates the order, and assigns the team.',
   },
   {
     number: '03',
     label: 'Inspector',
-    title: 'Review the findings',
+    title: 'Plan the mission',
     description:
-      'Check the evidence and confirm or update candidate findings for the assigned inspection.',
+      'GSD, AGL, overlap, airspace, permits, and shot-items are captured before approval to fly.',
   },
   {
     number: '04',
-    label: 'Maintenance Engineer',
-    title: 'Track maintenance',
+    label: 'Inspector',
+    title: 'Fly and capture',
     description:
-      'Work on assigned maintenance tasks and update their resolution status.',
+      'Field work is uploaded with source imagery, checksum, asset context, and an append-only trail.',
+  },
+  {
+    number: '05',
+    label: 'Service Manager',
+    title: 'Author verify and release',
+    description:
+      'AI candidates stay separate until human review; only a completeness-gated release becomes client-visible.',
+  },
+  {
+    number: '06',
+    label: 'Maintenance Engineer',
+    title: 'Close from evidence',
+    description:
+      'Accepted defects become repair work, before/after evidence, and a maintenance record tied back to the report.',
   },
 ] as const;
 
 export const productItems = [
   {
-    label: 'Asset records',
-    title: 'Keep asset information together',
+    label: 'Mission records',
+    title: 'Keep every flight traceable',
     description:
-      'Store asset details, inspection history, evidence, and current condition in one record.',
+      'Store equipment, GSD/AGL, overlap, airspace check, permit reference, and shot-list status with the job.',
     icon: 'asset',
   },
   {
-    label: 'Inspection findings',
-    title: 'Review candidate findings',
+    label: 'Human-reviewed AI',
+    title: 'Let AI draft, not decide',
     description:
-      'Candidate findings stay separate until an assigned Inspector confirms or updates them.',
+      'YOLO/LLM candidates remain candidates until an assigned author reviews, edits, and signs the record.',
     icon: 'finding',
   },
   {
-    label: 'Maintenance tasks',
-    title: 'Track follow-up work',
+    label: 'Maintenance output',
+    title: 'Turn findings into work',
     description:
-      'Create assigned maintenance work from accepted findings and update its status.',
+      'Approved defects spawn assigned maintenance with before/after evidence and warranty/rework context.',
     icon: 'maintenance',
   },
 ] as const;
@@ -56,23 +70,23 @@ export const productItems = [
 export const roleCards = [
   {
     role: 'Client',
-    title: 'Manage your organization’s inspections',
+    title: 'Request and accept outcomes',
     description:
-      'Request inspections, review quotations and reports, and follow maintenance work for your assets.',
+      'Create the inspection request, approve the quotation, review the immutable report, and request revisions when needed.',
     icon: 'client',
   },
   {
     role: 'Service Manager',
-    title: 'Coordinate requests and assignments',
+    title: 'Run the provider workflow',
     description:
-      'Review requests, prepare quotations, assign field staff, and release customer-visible results.',
+      'Coordinate quotation, order, inspector assignment, report release, and customer-visible closure.',
     icon: 'service',
   },
   {
     role: 'Field teams',
-    title: 'Work from assigned tasks',
+    title: 'Work from a clear assignment',
     description:
-      'Inspectors and Maintenance Engineers see the inspections or maintenance tasks assigned to them.',
+      'Inspectors and Maintenance Engineers see only the jobs assigned to them, with the checklist, shot-list, and evidence trail already attached.',
     icon: 'field',
   },
 ] as const;
