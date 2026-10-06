@@ -1,7 +1,6 @@
 import {
   DownloadOutlined,
   HistoryOutlined,
-  RateReviewOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
 import {
@@ -26,12 +25,10 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { reportApi } from '../api/reportApi';
 import {
-  useAssignReportReviewer,
   useClientReportDecision,
   useCreateReportRevision,
   useReleaseReport,
   useReports,
-  useReviewReport,
   useSubmitReportForReview,
 } from '../hooks/useReports';
 
@@ -44,17 +41,12 @@ export default function ReportsPage() {
   const userId = useAuthStore((state) => state.userId);
   const isClient = roles.includes('CLIENT');
   const isManager = roles.includes('SERVICE_MANAGER');
-  const isInspector = roles.includes('INSPECTOR');
   const query = useReports();
-  const assignReviewer = useAssignReportReviewer();
   const submit = useSubmitReportForReview();
-  const review = useReviewReport();
   const release = useReleaseReport();
   const decision = useClientReportDecision();
   const revision = useCreateReportRevision();
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [reviewerId, setReviewerId] = useState('');
-  const [reviewComments, setReviewComments] = useState('');
   const [clientReason, setClientReason] = useState('');
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
@@ -66,9 +58,6 @@ export default function ReportsPage() {
     [query.data, selectedReportId],
   );
   const isAuthor = Boolean(selected && userId === selected.authorUserId);
-  const isAssignedReviewer = Boolean(
-    selected && userId === selected.review?.reviewerUserId,
-  );
 
   const downloadEvidence = async (evidenceId: string, fileName: string) => {
     if (!selected) return;
@@ -91,9 +80,7 @@ export default function ReportsPage() {
   };
 
   const mutationError = [
-    assignReviewer.error,
     submit.error,
-    review.error,
     release.error,
     decision.error,
     revision.error,
@@ -166,68 +153,15 @@ export default function ReportsPage() {
                 </Stack>
               </Paper>
 
-              {isManager && selected.versionStatus === 'DRAFT' && (
-                <Paper variant="outlined" sx={{ p: 2.5 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 750, mb: 1 }}>Assign independent Inspector review</Typography>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <TextField
-                      label="Reviewer user ID"
-                      value={reviewerId}
-                      onChange={(event) => setReviewerId(event.target.value)}
-                      size="small"
-                      fullWidth
-                    />
-                    <Button
-                      variant="contained"
-                      disabled={!reviewerId.trim() || assignReviewer.isPending}
-                      onClick={() => assignReviewer.mutate({ reportId: selected.reportId, versionId: selected.versionId, reviewerId: reviewerId.trim() })}
-                    >
-                      Assign reviewer
-                    </Button>
-                  </Stack>
-                </Paper>
-              )}
-
-              {isAuthor && selected.versionStatus === 'DRAFT' && selected.review?.decision === 'PENDING' && (
+              {isAuthor && selected.versionStatus === 'DRAFT' && (
                 <Button
                   variant="contained"
                   disabled={submit.isPending}
                   onClick={() => submit.mutate({ reportId: selected.reportId, versionId: selected.versionId })}
                   sx={{ alignSelf: 'flex-start' }}
                 >
-                  Submit for peer review
+                  Verify and submit
                 </Button>
-              )}
-
-              {isAssignedReviewer && isInspector && selected.versionStatus === 'AWAITING_PEER_REVIEW' && (
-                <Paper variant="outlined" sx={{ p: 2.5 }}>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <RateReviewOutlined color="primary" />
-                      <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>Independent technical review</Typography>
-                    </Stack>
-                    <TextField
-                      label="Review comments (required when requesting changes)"
-                      multiline
-                      minRows={2}
-                      value={reviewComments}
-                      onChange={(event) => setReviewComments(event.target.value)}
-                      slotProps={{ htmlInput: { maxLength: 4000 } }}
-                    />
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="contained"
-                        disabled={review.isPending}
-                        onClick={() => review.mutate({ reportId: selected.reportId, versionId: selected.versionId, decision: 'APPROVED', ...(reviewComments ? { comments: reviewComments } : {}) })}
-                      >Approve version</Button>
-                      <Button
-                        color="warning"
-                        disabled={review.isPending || !reviewComments.trim()}
-                        onClick={() => review.mutate({ reportId: selected.reportId, versionId: selected.versionId, decision: 'CHANGES_REQUESTED', comments: reviewComments.trim() })}
-                      >Request changes</Button>
-                    </Stack>
-                  </Stack>
-                </Paper>
               )}
 
               {isAuthor && (selected.reportStatus === 'CHANGES_REQUESTED' || selected.reportStatus === 'REVISION_REQUESTED') && (

@@ -1,11 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   reportQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
-  assign: { mutate: vi.fn(), isPending: false, error: null },
   submit: { mutate: vi.fn(), isPending: false, error: null },
-  review: { mutate: vi.fn(), isPending: false, error: null },
   release: { mutate: vi.fn(), isPending: false, error: null },
   decision: { mutate: vi.fn(), isPending: false, error: null },
   revision: { mutate: vi.fn(), isPending: false, error: null },
@@ -13,9 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../hooks/useReports', () => ({
   useReports: () => mocks.reportQuery,
-  useAssignReportReviewer: () => mocks.assign,
   useSubmitReportForReview: () => mocks.submit,
-  useReviewReport: () => mocks.review,
   useReleaseReport: () => mocks.release,
   useClientReportDecision: () => mocks.decision,
   useCreateReportRevision: () => mocks.revision,
@@ -73,7 +69,10 @@ describe('ReportsPage', () => {
     mocks.decision.mutate.mockReset();
   });
 
-  afterEach(() => useAuthStore.getState().clearSession());
+  afterEach(() => {
+    cleanup();
+    useAuthStore.getState().clearSession();
+  });
 
   it('shows only the released version actions to a Client and submits the decision', () => {
     render(<ReportsPage />);
@@ -95,5 +94,42 @@ describe('ReportsPage', () => {
     mocks.reportQuery = { data: undefined, isLoading: true, error: null, refetch: vi.fn() };
     render(<ReportsPage />);
     expect(screen.getByText('Loading records…')).toBeTruthy();
+  });
+
+  it('labels the author verify action and gates it on DRAFT status', () => {
+    const draft = {
+      ...releasedReport,
+      reportStatus: 'DRAFT',
+      versionStatus: 'DRAFT',
+      review: null,
+      releasedAt: null,
+    };
+    mocks.reportQuery = { data: [draft], isLoading: false, error: null, refetch: vi.fn() };
+    useAuthStore.getState().setSession({
+      accessToken: 'test-token',
+      user: {
+        id: 'author-1',
+        email: 'author@example.test',
+        fullName: 'Author',
+        roles: ['INSPECTOR'],
+        actorZone: 'SERVICE_WORKFORCE',
+        organizationId: 'org-1',
+      },
+    });
+
+    render(<ReportsPage />);
+
+    expect(
+      screen.getByRole('button', { name: 'Verify and submit' }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Submit for peer review' }),
+    ).toBeNull();
+    expect(
+      screen.queryByText('Assign independent Inspector review'),
+    ).toBeNull();
+    expect(
+      screen.queryByText('Independent technical review'),
+    ).toBeNull();
   });
 });
