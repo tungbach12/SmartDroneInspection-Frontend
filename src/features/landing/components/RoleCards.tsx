@@ -18,8 +18,8 @@ export function RoleCards() {
     <Box id="roles" component="section" sx={{ bgcolor: colors.paper, py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
       <Container maxWidth="lg">
         <Box sx={{ maxWidth: 720 }}>
-          <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>For each team</Typography>
-          <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Each role sees its part of the work.</Typography>
+          <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>Designed around the people doing the work</Typography>
+          <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Each role gets the same job, shown at the level they own.</Typography>
         </Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mt: 5 }}>
           {roleCards.map((card, index) => {

@@ -15,10 +15,10 @@ export function ReviewGateSection() {
           <Box>
             <Chip label="Review gate" sx={{ bgcolor: `${colors.teal}18`, color: colors.teal, border: `1px solid ${colors.teal}44`, fontWeight: 700 }} />
             <Typography component="h2" variant="h2" sx={{ mt: 2, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em' }}>
-              Findings are reviewed before release.
+              AI findings do not become official until a human signs off.
             </Typography>
             <Typography variant="body1" sx={{ mt: 2.5, color: 'rgba(246, 251, 247, 0.68)', lineHeight: 1.75 }}>
-              Candidate findings stay separate from the official report until an assigned Inspector checks the evidence and confirms or updates the record.
+              Candidates remain separate from the signed report until an assigned Inspector checks the imagery, edits the record, and moves it through release review.
             </Typography>
           </Box>
           <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, bgcolor: colors.panel, color: colors.inverse, border: `1px solid ${colors.lightLine}`, borderRadius: '24px 24px 6px 24px' }}>
@@ -34,7 +34,7 @@ export function ReviewGateSection() {
                 <Box sx={{ flex: 1 }}><Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Inspector review</Typography><Typography variant="caption" sx={{ color: 'rgba(246, 251, 247, 0.56)' }}>Evidence checked against the asset record</Typography></Box>
                 <CheckCircleIcon sx={{ color: colors.teal }} />
               </Stack>
-              <Typography variant="caption" sx={{ pt: 1, color: 'rgba(246, 251, 247, 0.5)' }}>Only Inspector-reviewed findings can move into an official report or maintenance task.</Typography>
+              <Typography variant="caption" sx={{ pt: 1, color: 'rgba(246, 251, 247, 0.5)' }}>Only reviewed findings can move into the official report or a maintenance task.</Typography>
             </Stack>
           </Paper>
         </Box>

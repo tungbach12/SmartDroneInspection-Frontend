@@ -12,14 +12,14 @@ export function WorkflowTimeline() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.72fr) minmax(0, 1.28fr)' }, gap: { xs: 4, md: 8 }, alignItems: 'end' }}>
           <Box>
             <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>
-              How the service works
+              How a job flows
             </Typography>
             <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.05em', color: colors.text }}>
-              From request to follow-up.
+              Request → mission plan → capture → review → release → maintain.
             </Typography>
           </Box>
           <Typography variant="body1" sx={{ maxWidth: 620, color: colors.muted, lineHeight: 1.75 }}>
-            The platform records the main steps from a customer request through service delivery, report review, and maintenance follow-up.
+            One chain: client request, provider quotation, inspector field capture, human review, manager release, then maintenance closure.
           </Typography>
         </Box>
 

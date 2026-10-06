@@ -5,9 +5,9 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import { useLandingColors } from '../landingTheme';
 
 const securityItems = [
-  { title: 'Organization data', description: 'Clients see records for their own organization.', icon: ApartmentIcon },
-  { title: 'Assigned work', description: 'Field teams see inspections and tasks assigned to them.', icon: AssignmentIcon },
-  { title: 'Record history', description: 'Statuses and accepted report versions remain available.', icon: VerifiedIcon },
+  { title: 'Organization scoped', description: 'Clients see only their own organization’s requests, reports, and tickets.', icon: ApartmentIcon },
+  { title: 'Assignment scoped', description: 'Inspectors and engineers see the work assigned to them, not the whole platform.', icon: AssignmentIcon },
+  { title: 'Decision history', description: 'Statuses and accepted report versions remain queryable for accountability.', icon: VerifiedIcon },
 ];
 
 export function SecuritySection() {
@@ -18,9 +18,9 @@ export function SecuritySection() {
       <Container maxWidth="lg">
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.85fr) minmax(0, 1.15fr)' }, gap: { xs: 5, md: 9 }, alignItems: 'center' }}>
           <Box>
-            <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>Access controls</Typography>
-            <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Access follows organization and assignment.</Typography>
-            <Typography variant="body1" sx={{ mt: 2.5, color: colors.muted, lineHeight: 1.75 }}>The backend limits records based on the user role, organization, ownership, and assigned work.</Typography>
+            <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>Auditable access, not just login</Typography>
+            <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Access follows organization, provider, ownership, and assignment.</Typography>
+            <Typography variant="body1" sx={{ mt: 2.5, color: colors.muted, lineHeight: 1.75 }}>Roles decide the portal, providers scope the field work, and assignment controls who sees the exact inspection and maintenance record.</Typography>
           </Box>
           <Stack spacing={1.5}>
             {securityItems.map((item) => {
