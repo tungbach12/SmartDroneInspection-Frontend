@@ -5,14 +5,14 @@ export const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: '#087c92' },
-        secondary: { main: '#109c91' },
-        background: { default: '#f3f8fb', paper: '#ffffff' },
-        divider: 'rgba(21, 36, 44, 0.12)',
+        primary: { main: '#2fa4cc', light: '#7fd0ea', dark: '#1d7f9e' },
+        secondary: { main: '#5fc6de', light: '#a8e3f2', dark: '#3a9ab2' },
+        background: { default: '#eaf5fb', paper: '#ffffff' },
+        divider: 'rgba(23, 68, 92, 0.10)',
         success: { main: statusTokens.success.light },
         warning: { main: statusTokens.warning.light },
         error: { main: statusTokens.error.light },
-        info: { main: statusTokens.info.light },
+        info: { main: '#2f8fc4' },
       },
     },
     dark: {
@@ -29,7 +29,11 @@ export const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 12,
+  },
+  transitions: {
+    duration: { enteringScreen: 280, leavingScreen: 220 },
+    easing: { easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)' },
   },
   typography: {
     fontFamily: 'Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -44,19 +48,36 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           textTransform: 'none',
-          borderRadius: 10,
+          borderRadius: 12,
           minHeight: 40,
+          transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
+          '&:hover': { transform: 'translateY(-1px)' },
+          '&:active': { transform: 'translateY(0px) scale(0.98)' },
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
-        root: { backgroundImage: 'none' },
+        root: {
+          backgroundImage: 'none',
+          transition: 'box-shadow 200ms ease, transform 200ms ease',
+        },
       },
     },
     MuiOutlinedInput: {
       styleOverrides: {
-        root: { borderRadius: 10 },
+        root: {
+          borderRadius: 12,
+          transition: 'border-color 160ms ease, box-shadow 160ms ease',
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          transition: 'transform 220ms ease, box-shadow 220ms ease',
+          '&:hover': { transform: 'translateY(-3px)' },
+        },
       },
     },
   },
