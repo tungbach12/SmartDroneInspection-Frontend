@@ -26,7 +26,7 @@ import {
   hasAnyRole,
   type PortalId,
 } from '@/app/permissions/accessPolicy';
-import { getPortalForHost } from '../utils/domainPortal';
+import { getPortalForHost, getWorkspaceKind, getWorkspaceCopy } from '../utils/domainPortal';
 export { getPortalForHost } from '../utils/domainPortal';
 import {
   loginSchema,
@@ -262,11 +262,14 @@ export default function LoginPage() {
     );
   }
 
+  const workspaceKind = getWorkspaceKind(window.location.hostname);
+  const copy = getWorkspaceCopy(workspaceKind);
+
   return (
     <AuthPageLayout
-      eyebrow="Secure workspace access"
-      title="Welcome back"
-      description="Sign in with your account to continue to your authorized workspace."
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      description={copy.description}
     >
       <Stack
         component="form"
