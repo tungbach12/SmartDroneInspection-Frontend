@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Add, CloudUploadOutlined, DownloadOutlined } from '@mui/icons-material';
 import {
@@ -21,13 +21,14 @@ import {
 } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isPermissionDenied } from '@/shared/api/problem';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { Asset } from '../api/assetApi';
-import { documentApi } from '../api/documentApi';
+import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
 import { useAssets, useCreateAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
@@ -254,8 +255,66 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
   const [documentDate, setDocumentDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [downloadError, setDownloadError] = useState<unknown>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  // A blob URL outlives this component unless it is revoked, and a download that resolves after the
+  // drawer closed must not write state that no longer has a home.
+  const liveObjectUrls = useRef<Set<string>>(new Set());
+  const revokeTimers = useRef<Set<number>>(new Set());
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    // Read both sets through locals so cleanup acts on exactly what this effect created,
+    // independent of any later reassignment.
+    const urls = liveObjectUrls.current;
+    const timers = revokeTimers.current;
+    return () => {
+      mounted.current = false;
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+      timers.clear();
+      for (const url of urls) {
+        URL.revokeObjectURL(url);
+      }
+      urls.clear();
+    };
+  }, []);
 
   const uploadAllowed = asset?.status === 'ACTIVE' || asset?.status === 'INACTIVE';
+  const downloadDenied = isPermissionDenied(downloadError) || isPermissionDenied(documents.error);
+
+  const openDocument = async (storedDocument: AssetDocument) => {
+    if (!asset) return;
+    setDownloadError(null);
+    setDownloading(storedDocument.id);
+    try {
+      const blob = await documentApi.content(asset.id, storedDocument.id);
+      if (!mounted.current) return;
+      const url = URL.createObjectURL(blob);
+      liveObjectUrls.current.add(url);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = storedDocument.fileName;
+      anchor.click();
+      // Deferred so the browser can start the transfer; the URL is revoked here or, if the drawer
+      // closes first, by the unmount cleanup.
+      const timer = window.setTimeout(() => {
+        revokeTimers.current.delete(timer);
+        liveObjectUrls.current.delete(url);
+        URL.revokeObjectURL(url);
+      }, 1000);
+      revokeTimers.current.add(timer);
+    } catch (error) {
+      if (!mounted.current) return;
+      setDownloadError(error);
+    } finally {
+      if (mounted.current) {
+        setDownloading(null);
+      }
+    }
+  };
 
   return (
     <Drawer anchor="right" open={Boolean(asset)} onClose={onClose}>
@@ -270,7 +329,21 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
         <Typography variant="subtitle2" gutterBottom>
           Documents
         </Typography>
-        {documents.data?.length ? (
+        {downloadDenied ? (
+          <Alert severity="warning" data-testid="document-access-denied">
+            <strong>Permission required</strong> —{' '}
+            {getErrorMessage(
+              downloadError ?? documents.error,
+              'You are not allowed to view these documents.',
+            )}
+          </Alert>
+        ) : documents.isLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            Loading documents…
+          </Typography>
+        ) : documents.error ? (
+          <Alert severity="error">Could not load documents.</Alert>
+        ) : documents.data?.length ? (
           <List dense>
             {documents.data.map((document) => (
               <ListItem key={document.id} disableGutters>
@@ -280,17 +353,14 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
                     document.sizeBytes / 1024
                   ).toFixed(1)} KB`}
                 />
-                {asset && (
-                  <Button
-                    size="small"
-                    startIcon={<DownloadOutlined />}
-                    href={documentApi.contentPath(asset.id, document.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open
-                  </Button>
-                )}
+                <Button
+                  size="small"
+                  startIcon={<DownloadOutlined />}
+                  disabled={downloading === document.id}
+                  onClick={() => void openDocument(document)}
+                >
+                  Open
+                </Button>
               </ListItem>
             ))}
           </List>

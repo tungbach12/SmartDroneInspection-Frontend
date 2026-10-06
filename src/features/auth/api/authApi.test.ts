@@ -26,6 +26,7 @@ const user = {
   roles: ['CLIENT'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
+  providerId: null,
 };
 
 const authenticatedFlow = {
@@ -50,6 +51,7 @@ describe('browser auth API', () => {
       password: 'secret password',
     }, 30_000);
     expect(result).toEqual(authenticatedFlow);
+    expect(result.user.providerId).toBeNull();
     expect(result).not.toHaveProperty('refreshToken');
   });
 

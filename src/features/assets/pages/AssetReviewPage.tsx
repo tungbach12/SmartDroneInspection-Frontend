@@ -10,16 +10,20 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { getErrorMessage } from '@/shared/api/errorMessage';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { canPerform } from '@/app/permissions/capability';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { usePendingReviewAssets, useReviewAsset } from '../hooks/useAssets';
 import { useProposals, useReviewProposal } from '../hooks/useProposals';
 
 export default function AssetReviewPage() {
   const { data, isLoading, error, refetch } = usePendingReviewAssets({ page: 1, pageSize: 50 });
   const review = useReviewAsset();
+  const user = useAuthStore((state) => state.user);
+  const canReviewAssets = canPerform('assets.review', user);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [proposalAssetId, setProposalAssetId] = useState('');
   const pending = data?.items ?? [];
@@ -38,11 +42,11 @@ export default function AssetReviewPage() {
         empty={<Alert severity="info">Nothing awaiting review.</Alert>}
       >
         <Stack spacing={2}>
-          {review.isError && (
-            <Alert severity="error">
-              {getErrorMessage(review.error, 'Could not record the review decision.')}
-            </Alert>
-          )}
+          <MutationProblemAlert
+            isError={review.isError}
+            error={review.error}
+            fallbackMessage="Could not record the review decision."
+          />
           {pending.map((asset) => (
             <Card key={asset.id} variant="outlined">
               <CardContent>
@@ -66,7 +70,7 @@ export default function AssetReviewPage() {
                 <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
                   <Button
                     variant="contained"
-                    disabled={review.isPending}
+                    disabled={review.isPending || !canReviewAssets}
                     onClick={() =>
                       review.mutate(
                         {
@@ -85,7 +89,7 @@ export default function AssetReviewPage() {
                   <Button
                     color="error"
                     variant="outlined"
-                    disabled={review.isPending}
+                    disabled={review.isPending || !canReviewAssets}
                     onClick={() =>
                       review.mutate({
                         id: asset.id,
@@ -129,6 +133,8 @@ export default function AssetReviewPage() {
 function ProposalReviewList({ assetId }: { assetId: string }) {
   const { data: proposals } = useProposals(assetId);
   const review = useReviewProposal(assetId);
+  const user = useAuthStore((state) => state.user);
+  const canReviewAssets = canPerform('assets.review', user);
   const [intervals, setIntervals] = useState<Record<string, string>>({});
 
   if (!assetId) return null;
@@ -142,11 +148,13 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
 
   return (
     <Stack spacing={2} sx={{ mt: 2 }}>
-      {review.isError && (
-        <Alert severity="error">
-          {getErrorMessage(review.error, 'Could not review the proposal.')}
-        </Alert>
-      )}
+      {/* A denial mutates nothing, so the proposals stay listed and the caller is told the action
+          was refused rather than that the page failed. */}
+      <MutationProblemAlert
+        isError={review.isError}
+        error={review.error}
+        fallbackMessage="Could not review the proposal."
+      />
       {proposals.map((proposal) => (
         <Card key={proposal.id} variant="outlined">
           <CardContent>
@@ -178,7 +186,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 />
                 <Button
                   variant="contained"
-                  disabled={review.isPending}
+                  disabled={review.isPending || !canReviewAssets}
                   onClick={() =>
                     review.mutate({
                       id: proposal.id,
@@ -197,7 +205,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 <Button
                   color="error"
                   variant="outlined"
-                  disabled={review.isPending}
+                  disabled={review.isPending || !canReviewAssets}
                   onClick={() => review.mutate({ id: proposal.id, input: { action: 'REJECT' } })}
                 >
                   Reject

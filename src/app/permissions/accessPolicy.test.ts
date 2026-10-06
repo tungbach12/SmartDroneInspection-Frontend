@@ -10,9 +10,10 @@ import {
 } from './accessPolicy';
 
 const allRoles: Role[] = [
-  'ADMIN',
+  'PLATFORM_ADMIN',
+  'PLATFORM_OPERATOR',
   'CLIENT',
-  'SERVICE_MANAGER',
+  'PROVIDER_MANAGER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ];
@@ -22,13 +23,13 @@ const expectedAccess: Record<
   Record<SectionId, readonly Role[]>
 > = {
   admin: {
-    dashboard: ['ADMIN'],
-    assets: ['ADMIN'],
-    'asset-catalog': ['ADMIN'],
+    dashboard: ['PLATFORM_ADMIN'],
+    assets: ['PLATFORM_ADMIN'],
+    'asset-catalog': ['PLATFORM_ADMIN'],
     'asset-review': [],
-    inspections: ['ADMIN'],
-    reports: ['ADMIN'],
-    maintenance: ['ADMIN'],
+    inspections: ['PLATFORM_ADMIN'],
+    reports: ['PLATFORM_ADMIN'],
+    maintenance: ['PLATFORM_ADMIN'],
   },
   client: {
     dashboard: ['CLIENT'],
@@ -40,13 +41,13 @@ const expectedAccess: Record<
     maintenance: ['CLIENT'],
   },
   operations: {
-    dashboard: ['SERVICE_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
     assets: [],
     'asset-catalog': [],
-    'asset-review': ['SERVICE_MANAGER'],
-    inspections: ['SERVICE_MANAGER', 'INSPECTOR'],
-    reports: ['SERVICE_MANAGER', 'INSPECTOR'],
-    maintenance: ['SERVICE_MANAGER', 'MAINTENANCE_ENGINEER'],
+    'asset-review': ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER'],
+    inspections: ['PROVIDER_MANAGER', 'INSPECTOR'],
+    reports: ['PROVIDER_MANAGER', 'INSPECTOR'],
+    maintenance: ['PROVIDER_MANAGER', 'MAINTENANCE_ENGINEER'],
   },
 };
 
@@ -74,7 +75,7 @@ describe('role-aware portal access policy', () => {
   it('routes a single-role user to the matching portal entry', () => {
     expect(getPortalEntryPath(['CLIENT'])).toBe('/client/dashboard');
     expect(getPortalEntryPath(['INSPECTOR'])).toBe('/operations/dashboard');
-    expect(getPortalEntryPath(['ADMIN'])).toBe('/admin/dashboard');
+    expect(getPortalEntryPath(['PLATFORM_ADMIN'])).toBe('/admin/dashboard');
   });
 
   it('offers a portal choice when the user has roles in multiple portals', () => {

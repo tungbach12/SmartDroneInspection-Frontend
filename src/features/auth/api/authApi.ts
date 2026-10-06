@@ -3,7 +3,7 @@ import {
   postWithBrowserCsrf,
   withBrowserRefreshLock,
 } from '@/shared/api/client';
-import { isRole, type AuthUser, type Role } from '../store/authStore';
+import { isRole, type ActorZone, type AuthUser, type Role } from '../store/authStore';
 
 export type AuthStep = 'AUTHENTICATED' | 'PASSWORD_CHANGE_REQUIRED';
 
@@ -29,6 +29,7 @@ interface ApiUser {
   roles: unknown;
   actorZone: string;
   organizationId: string | null;
+  providerId?: unknown;
 }
 
 interface ApiAuthFlow {
@@ -61,14 +62,25 @@ function parseUser(value: unknown): AuthUser {
     throw new Error('The server returned an invalid account profile.');
   }
 
+  const actorZone = user.actorZone as ActorZone;
+  if (
+    actorZone !== 'PLATFORM' &&
+    actorZone !== 'CUSTOMER_ORGANIZATION' &&
+    actorZone !== 'SERVICE_WORKFORCE'
+  ) {
+    throw new Error('The server returned an invalid account profile.');
+  }
+
   return {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
     roles: user.roles.filter(isRole) as Role[],
-    actorZone: user.actorZone,
+    actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
+    providerId:
+      typeof user.providerId === 'string' ? user.providerId : null,
   };
 }
 

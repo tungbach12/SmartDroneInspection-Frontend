@@ -1,14 +1,19 @@
 import { create } from 'zustand';
 
 export const ROLE_CODES = [
-  'ADMIN',
+  'PLATFORM_ADMIN',
+  'PLATFORM_OPERATOR',
   'CLIENT',
-  'SERVICE_MANAGER',
+  'PROVIDER_MANAGER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;
 
 export type Role = (typeof ROLE_CODES)[number];
+export type ActorZone =
+  | 'PLATFORM'
+  | 'CUSTOMER_ORGANIZATION'
+  | 'SERVICE_WORKFORCE';
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
 export interface AuthUser {
@@ -16,8 +21,9 @@ export interface AuthUser {
   email: string;
   fullName: string;
   roles: Role[];
-  actorZone: string;
+  actorZone: ActorZone;
   organizationId: string | null;
+  providerId: string | null;
 }
 
 interface AuthSession {
@@ -33,8 +39,9 @@ interface AuthState {
   userName: string | null;
   email: string | null;
   roles: Role[];
-  actorZone: string | null;
+  actorZone: ActorZone | null;
   organizationId: string | null;
+  providerId: string | null;
   setSession: (session: AuthSession) => void;
   setAccessToken: (accessToken: string) => void;
   setStatus: (status: AuthStatus) => void;
@@ -51,6 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   roles: [],
   actorZone: null,
   organizationId: null,
+  providerId: null,
   setSession: ({ accessToken, user }) =>
     set({
       status: 'authenticated',
@@ -62,6 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       roles: user.roles,
       actorZone: user.actorZone,
       organizationId: user.organizationId,
+      providerId: user.providerId,
     }),
   setAccessToken: (accessToken) => set({ accessToken }),
   setStatus: (status) => set({ status }),
@@ -76,6 +85,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       roles: [],
       actorZone: null,
       organizationId: null,
+      providerId: null,
     }),
 }));
 

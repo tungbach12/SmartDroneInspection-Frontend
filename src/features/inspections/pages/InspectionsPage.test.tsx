@@ -54,6 +54,7 @@ function signInAsInspector() {
       roles: ['INSPECTOR'],
       actorZone: 'SERVICE_WORKFORCE',
       organizationId: null,
+      providerId: 'provider-1',
     },
   });
 }
