@@ -24,6 +24,7 @@ export const SECTION_IDS = [
   'inspections',
   'reports',
   'maintenance',
+  'team',
 ] as const;
 
 export type SectionId = (typeof SECTION_IDS)[number];
@@ -36,6 +37,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   inspections: 'Inspections',
   reports: 'Reports',
   maintenance: 'Maintenance',
+  team: 'Team',
 };
 
 const SECTION_ROLE_ACCESS = {
@@ -47,6 +49,7 @@ const SECTION_ROLE_ACCESS = {
     inspections: ['PLATFORM_ADMIN'],
     reports: ['PLATFORM_ADMIN'],
     maintenance: ['PLATFORM_ADMIN'],
+    team: [],
   },
   client: {
     dashboard: ['CLIENT'],
@@ -56,6 +59,7 @@ const SECTION_ROLE_ACCESS = {
     inspections: ['CLIENT'],
     reports: ['CLIENT'],
     maintenance: ['CLIENT'],
+    team: [],
   },
   operations: {
     dashboard: ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -65,6 +69,7 @@ const SECTION_ROLE_ACCESS = {
     inspections: ['PROVIDER_MANAGER', 'INSPECTOR'],
     reports: ['PROVIDER_MANAGER', 'INSPECTOR'],
     maintenance: ['PROVIDER_MANAGER', 'MAINTENANCE_ENGINEER'],
+    team: ['PROVIDER_MANAGER'],
   },
 } as const satisfies Record<
   PortalId,

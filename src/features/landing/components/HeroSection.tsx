@@ -1,4 +1,4 @@
-﻿﻿import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
+﻿import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { useLandingColors } from '../landingTheme';
@@ -134,6 +134,13 @@ export function HeroSection() {
                 sx={{ width: { xs: '100%', sm: 'auto' }, color: colors.heroText, borderColor: colors.heroLine, '&:hover': { borderColor: colors.teal, color: colors.teal }, px: 2.5, py: 1.3 }}
               >
                 Open your workspace
+              </Button>
+              <Button
+                href="/register-provider"
+                variant="text"
+                sx={{ width: { xs: '100%', sm: 'auto' }, color: colors.teal, '&:hover': { color: '#5be0cc' }, px: 2.5, py: 1.3 }}
+              >
+                Register your provider organization
               </Button>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ mt: 3, color: colors.heroMuted, alignItems: 'center' }}>

@@ -19,6 +19,8 @@ const NO_REFRESH_ENDPOINTS = [
   '/auth/register',
   '/auth/password/setup',
   '/auth/refresh',
+  '/auth/provider/register',
+  '/auth/provider/activate',
 ];
 
 const NO_BEARER_ENDPOINTS = [
@@ -27,6 +29,8 @@ const NO_BEARER_ENDPOINTS = [
   '/auth/register',
   '/auth/password/setup',
   '/auth/refresh',
+  '/auth/provider/register',
+  '/auth/provider/activate',
 ];
 
 interface CsrfResponse {

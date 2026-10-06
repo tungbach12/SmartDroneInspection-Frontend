@@ -53,6 +53,15 @@ const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
+const ProviderTeamPage = lazy(
+  () => import('@/features/operations/pages/ProviderTeamPage'),
+);
+const ProviderRegistrationPage = lazy(
+  () => import('@/features/auth/pages/ProviderRegistrationPage'),
+);
+const ActivateProviderPage = lazy(
+  () => import('@/features/auth/pages/ActivateProviderPage'),
+);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -62,6 +71,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
+  team: <ProviderTeamPage />,
 };
 
 function PortalEntryRedirect() {
@@ -149,6 +159,15 @@ const router = createBrowserRouter([
           </PublicOnly>
         ),
       },
+      {
+        path: 'register-provider',
+        element: (
+          <PublicOnly>
+            <ProviderRegistrationPage />
+          </PublicOnly>
+        ),
+      },
+      { path: 'activate-provider', element: <ActivateProviderPage /> },
       { path: 'forbidden', element: <AccessDeniedPage /> },
       {
         path: 'portals',
