@@ -10,9 +10,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { getErrorMessage } from '@/shared/api/errorMessage';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { usePendingReviewAssets, useReviewAsset } from '../hooks/useAssets';
 import { useProposals, useReviewProposal } from '../hooks/useProposals';
@@ -38,11 +38,11 @@ export default function AssetReviewPage() {
         empty={<Alert severity="info">Nothing awaiting review.</Alert>}
       >
         <Stack spacing={2}>
-          {review.isError && (
-            <Alert severity="error">
-              {getErrorMessage(review.error, 'Could not record the review decision.')}
-            </Alert>
-          )}
+          <MutationProblemAlert
+            isError={review.isError}
+            error={review.error}
+            fallbackMessage="Could not record the review decision."
+          />
           {pending.map((asset) => (
             <Card key={asset.id} variant="outlined">
               <CardContent>
@@ -142,11 +142,13 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
 
   return (
     <Stack spacing={2} sx={{ mt: 2 }}>
-      {review.isError && (
-        <Alert severity="error">
-          {getErrorMessage(review.error, 'Could not review the proposal.')}
-        </Alert>
-      )}
+      {/* A denial mutates nothing, so the proposals stay listed and the caller is told the action
+          was refused rather than that the page failed. */}
+      <MutationProblemAlert
+        isError={review.isError}
+        error={review.error}
+        fallbackMessage="Could not review the proposal."
+      />
       {proposals.map((proposal) => (
         <Card key={proposal.id} variant="outlined">
           <CardContent>

@@ -135,4 +135,34 @@ describe('documentApi', () => {
     expect((form as FormData).get('documentDate')).toBe('2026-01-01');
     expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' } });
   });
+
+  it('surfaces the server-assigned id on upload rather than assuming it is null', async () => {
+    const stored = {
+      id: 'd-uuid-1',
+      documentType: 'PERMIT',
+      fileName: 'permit.png',
+      contentType: 'image/png',
+      sizeBytes: 12,
+      checksumSha256: 'abc',
+      documentDate: null,
+      createdAt: '2026-09-25T00:00:00Z',
+    };
+    vi.mocked(api.post).mockResolvedValue({ data: stored });
+
+    const uploaded = await documentApi.upload('a1', new File(['x'], 'permit.png'), 'PERMIT');
+
+    // The client must carry the id the server assigned; that the server populates it is backend
+    // evidence, which this assertion cannot demonstrate.
+    expect(uploaded.id).toBe('d-uuid-1');
+  });
+
+  it('streams document content as a blob through the authenticated client', async () => {
+    const blob = new Blob(['pdf']);
+    vi.mocked(api.get).mockResolvedValue({ data: blob });
+
+    await expect(documentApi.content('a1', 'd1')).resolves.toBe(blob);
+    expect(api.get).toHaveBeenCalledWith('/assets/a1/documents/d1/content', {
+      responseType: 'blob',
+    });
+  });
 });

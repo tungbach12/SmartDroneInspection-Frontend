@@ -32,6 +32,17 @@ export const documentApi = {
       .then((r) => r.data);
   },
 
-  contentPath: (assetId: string, documentId: string) =>
-    `/api/v1/assets/${assetId}/documents/${documentId}/content`,
+  /**
+   * Streams document bytes through the shared authenticated client.
+   *
+   * The content endpoint is organization-scoped and bearer-authenticated, so a plain link or a
+   * bare URL cannot reach it. The upload response carries the stored document id precisely so this
+   * call can be made with the id the server assigned.
+   */
+  content: (assetId: string, documentId: string) =>
+    api
+      .get<Blob>(`/assets/${assetId}/documents/${documentId}/content`, {
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
 };

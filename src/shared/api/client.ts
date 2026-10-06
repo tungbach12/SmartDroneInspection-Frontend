@@ -5,6 +5,7 @@ import axios, {
 } from 'axios';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { unwrapApiResponse } from './apiResponse';
+import { decodeBlobProblemBody } from './errorMessage';
 
 interface AuthenticatedRefreshResponse {
   step: 'AUTHENTICATED';
@@ -147,6 +148,10 @@ api.interceptors.response.use(
     const original = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
+
+    // A blob download fails with its body still as raw bytes, which hides the server's reason from
+    // getErrorMessage. Decoding it here keeps one rejection path for every caller.
+    await decodeBlobProblemBody(error);
 
     if (
       error.response?.status !== 401 ||
