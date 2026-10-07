@@ -1,13 +1,27 @@
 ﻿import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedIcon from '@mui/icons-material/Verified';
+import { useEffect, useRef } from 'react';
+import { animate } from 'animejs';
 import { useLandingColors } from '../landingTheme';
 
 function DroneHeroVisual() {
   const colors = useLandingColors();
+  const figureRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!figureRef.current) return;
+    animate(figureRef.current, {
+      opacity: [0, 1],
+      translateY: [18, 0],
+      duration: 900,
+      easing: 'easeOutExpo',
+    });
+  }, []);
 
   return (
     <Box
+      ref={figureRef}
       component="figure"
       sx={{
         m: 0,
