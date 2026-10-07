@@ -1,41 +1,45 @@
-﻿﻿import { Box, Container, Paper, Stack, Typography } from '@mui/material';
-import ApartmentIcon from '@mui/icons-material/Apartment';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import VerifiedIcon from '@mui/icons-material/Verified';
-import { useLandingColors } from '../landingTheme';
+﻿import { Box, Container, Stack, Typography } from '@mui/material';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 const securityItems = [
-  { title: 'Organization scoped', description: 'Clients see only their own organization’s requests, reports, and tickets.', icon: ApartmentIcon },
-  { title: 'Assignment scoped', description: 'Inspectors and engineers see the work assigned to them, not the whole platform.', icon: AssignmentIcon },
-  { title: 'Decision history', description: 'Statuses and accepted report versions remain queryable for accountability.', icon: VerifiedIcon },
+  {
+    title: 'Organization scoped',
+    description: 'Clients see only their own requests, reports, and tickets.',
+  },
+  {
+    title: 'Assignment scoped',
+    description: 'Inspectors and engineers see the work assigned to them.',
+  },
+  {
+    title: 'Decision history',
+    description: 'Statuses and accepted report versions stay queryable.',
+  },
 ];
 
 export function SecuritySection() {
-  const colors = useLandingColors();
-
   return (
-    <Box id="security" component="section" sx={{ bgcolor: colors.surface, py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
+    <Box id="security" component="section" sx={{ bgcolor: '#ffffff', py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
       <Container maxWidth="lg">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.85fr) minmax(0, 1.15fr)' }, gap: { xs: 5, md: 9 }, alignItems: 'center' }}>
-          <Box>
-            <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>Auditable access, not just login</Typography>
-            <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Access follows organization, provider, ownership, and assignment.</Typography>
-            <Typography variant="body1" sx={{ mt: 2.5, color: colors.muted, lineHeight: 1.75 }}>Roles decide the portal, providers scope the field work, and assignment controls who sees the exact inspection and maintenance record.</Typography>
-          </Box>
-          <Stack spacing={1.5}>
-            {securityItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Paper key={item.title} elevation={0} sx={{ p: 2.25, bgcolor: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 2 }}>
-                  <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                    <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: `${colors.teal}16`, color: colors.tealDark, borderRadius: '12px 12px 4px 12px' }}><Icon fontSize="small" /></Box>
-                    <Box><Typography variant="subtitle1" sx={{ color: colors.text, fontWeight: 800 }}>{item.title}</Typography><Typography variant="body2" sx={{ mt: 0.25, color: colors.muted }}>{item.description}</Typography></Box>
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
-        </Box>
+        <Typography component="h2" sx={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1, letterSpacing: '-0.045em', color: '#12222b', fontWeight: 700 }}>
+          Access follows the work.
+        </Typography>
+        <Stack spacing={2} sx={{ mt: 4 }}>
+          {securityItems.map((item) => (
+            <Stack key={item.title} direction="row" spacing={2} sx={{ alignItems: 'flex-start', py: 1 }}>
+              <Box sx={{ mt: 0.5, color: '#3aa5bd' }}>
+                <VerifiedUserIcon fontSize="small" />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ color: '#12222b', fontWeight: 700 }}>
+                  {item.title}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: '#5a7280' }}>
+                  {item.description}
+                </Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
       </Container>
     </Box>
   );
