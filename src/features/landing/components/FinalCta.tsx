@@ -15,7 +15,7 @@ export function FinalCta() {
             <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em' }}>Start with one asset or site, then expand from there.</Typography>
             <Typography variant="body1" sx={{ mt: 2.5, color: 'rgba(246, 251, 247, 0.68)', lineHeight: 1.75 }}>Sign in to your workspace or create a Client account. The workflow carries the asset, mission, evidence, report, and maintenance trail forward.</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4 }}>
-              <Button href="#workflow" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ bgcolor: colors.teal, color: colors.ink, '&:hover': { bgcolor: '#5be0cc' }, px: 2.5, py: 1.3 }}>View workflow</Button>
+              <Button href="/register" variant="contained" endIcon={<ArrowForwardIcon />} sx={{ bgcolor: colors.teal, color: colors.ink, '&:hover': { bgcolor: '#5be0cc' }, px: 2.5, py: 1.3 }}>Create Client account</Button>
               <Button href="/login" variant="outlined" sx={{ color: colors.inverse, borderColor: colors.lightLine, '&:hover': { borderColor: colors.teal, color: colors.teal }, px: 2.5, py: 1.3 }}>Open workspace</Button>
               <Button href="/register-provider" variant="text" sx={{ color: colors.teal, '&:hover': { color: '#5be0cc' }, px: 2.5, py: 1.3 }}>Register your provider organization</Button>
             </Stack>

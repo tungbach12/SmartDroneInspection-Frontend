@@ -16,7 +16,7 @@ export function ProductProofPanel() {
   const colors = useLandingColors();
 
   return (
-    <Box component="section" sx={{ bgcolor: colors.surface, py: { xs: 8, md: 12 } }}>
+    <Box id="features" component="section" sx={{ bgcolor: colors.surface, py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
       <Container maxWidth="lg">
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.82fr) minmax(0, 1.18fr)' }, gap: { xs: 5, md: 9 }, alignItems: 'center' }}>
           <Box>

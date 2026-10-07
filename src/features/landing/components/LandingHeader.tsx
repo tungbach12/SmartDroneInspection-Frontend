@@ -1,4 +1,4 @@
-﻿﻿import { useState } from 'react';
+﻿import { useState } from 'react';
 import {
   Box,
   Button,
@@ -16,7 +16,7 @@ import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
 import { useLandingColors } from '../landingTheme';
 
 const navigationItems = [
-  { label: 'How it works', href: '#workflow' },
+  { label: 'Features', href: '#features' },
   { label: 'For teams', href: '#roles' },
   { label: 'Security', href: '#security' },
 ] as const;
