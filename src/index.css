@@ -8,6 +8,8 @@ html {
 
 body {
   margin: 0;
+  background-color: #eaf5fb;
+  color: #173a52;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   transition: background-color 240ms ease, color 240ms ease;

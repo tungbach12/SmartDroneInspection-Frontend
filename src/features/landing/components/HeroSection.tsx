@@ -121,12 +121,12 @@ export function HeroSection() {
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4, width: '100%' }}>
               <Button
-                href="#workflow"
+                href="/register"
                 variant="contained"
                 endIcon={<ArrowForwardIcon />}
                 sx={{ width: { xs: '100%', sm: 'auto' }, bgcolor: colors.teal, color: colors.ink, '&:hover': { bgcolor: '#5be0cc' }, px: 2.5, py: 1.3 }}
               >
-                View workflow
+                Create Client account
               </Button>
               <Button
                 href="/login"
