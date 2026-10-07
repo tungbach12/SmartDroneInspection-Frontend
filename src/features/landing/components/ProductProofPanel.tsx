@@ -5,6 +5,7 @@ import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { productItems } from '../content';
 import { useLandingColors } from '../landingTheme';
+import { useAnimeStagger } from '../hooks/useAnimeStagger';
 
 const icons = {
   asset: ApartmentIcon,
@@ -14,6 +15,7 @@ const icons = {
 
 export function ProductProofPanel() {
   const colors = useLandingColors();
+  const ref = useAnimeStagger('[data-product-item]', { delay: 110, duration: 680 }) as React.RefObject<HTMLDivElement>;
 
   return (
     <Box id="features" component="section" sx={{ bgcolor: colors.surface, py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
@@ -29,11 +31,11 @@ export function ProductProofPanel() {
             <Typography variant="body1" sx={{ mt: 2.5, color: colors.muted, lineHeight: 1.75 }}>
               Asset context, mission evidence, reviewed findings, approval state, and follow-up maintenance stay attached to the same asset history.
             </Typography>
-            <Stack spacing={2} sx={{ mt: 4 }}>
+            <Stack ref={ref} spacing={2} sx={{ mt: 4 }}>
               {productItems.map((item) => {
                 const Icon = icons[item.icon];
                 return (
-                  <Stack key={item.label} direction="row" spacing={1.75} sx={{ alignItems: 'flex-start' }}>
+                  <Stack data-product-item key={item.label} direction="row" spacing={1.75} sx={{ alignItems: 'flex-start' }}>
                     <Box sx={{ flexShrink: 0, width: 38, height: 38, display: 'grid', placeItems: 'center', borderRadius: '12px 12px 4px 12px', bgcolor: `${colors.teal}16`, color: colors.tealDark }}>
                       <Icon fontSize="small" />
                     </Box>
