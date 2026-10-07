@@ -18,9 +18,9 @@ const securityItems = [
 
 export function SecuritySection() {
   return (
-    <Box id="security" component="section" sx={{ bgcolor: '#ffffff', py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
+    <Box id="security" component="section" sx={{ bgcolor: 'background.paper', py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
       <Container maxWidth="lg">
-        <Typography component="h2" sx={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1, letterSpacing: '-0.045em', color: '#12222b', fontWeight: 700 }}>
+        <Typography component="h2" sx={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1, letterSpacing: '-0.045em', color: 'text.primary', fontWeight: 700 }}>
           Access follows the work.
         </Typography>
         <Stack spacing={2} sx={{ mt: 4 }}>
@@ -30,10 +30,10 @@ export function SecuritySection() {
                 <VerifiedUserIcon fontSize="small" />
               </Box>
               <Box>
-                <Typography variant="subtitle1" sx={{ color: '#12222b', fontWeight: 700 }}>
+                <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 700 }}>
                   {item.title}
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 0.5, color: '#5a7280' }}>
+                <Typography variant="body2" sx={{ mt: 0.5, color: 'text.secondary' }}>
                   {item.description}
                 </Typography>
               </Box>

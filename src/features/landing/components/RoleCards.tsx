@@ -6,12 +6,12 @@ export function RoleCards() {
   const ref = useAnimeStagger('[data-role-card]', { delay: 90, duration: 640 }) as React.RefObject<HTMLDivElement>;
 
   return (
-    <Box id="roles" component="section" sx={{ bgcolor: '#f4f8fa', py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
+    <Box id="roles" component="section" sx={{ bgcolor: 'background.default', py: { xs: 8, md: 12 }, scrollMarginTop: 2 }}>
       <Container maxWidth="lg">
-        <Typography component="h2" sx={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1, letterSpacing: '-0.045em', color: '#12222b', fontWeight: 700 }}>
+        <Typography component="h2" sx={{ fontSize: 'clamp(2rem, 4vw, 3.4rem)', lineHeight: 1, letterSpacing: '-0.045em', color: 'text.primary', fontWeight: 700 }}>
           One workspace, four roles.
         </Typography>
-        <Typography variant="body1" sx={{ mt: 2, color: '#5a7280', maxWidth: 560 }}>
+        <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary', maxWidth: 560 }}>
           Everyone sees the same job at their level of ownership.
         </Typography>
         <Box
@@ -24,7 +24,7 @@ export function RoleCards() {
               key={card.role}
               sx={{
                 p: 3,
-                bgcolor: '#ffffff',
+                bgcolor: 'background.paper',
                 border: '1px solid #dde8ee',
                 borderRadius: 4,
                 minHeight: 260,
@@ -33,10 +33,10 @@ export function RoleCards() {
               <Typography variant="overline" sx={{ color: '#3aa5bd', fontWeight: 700, letterSpacing: '0.14em' }}>
                 {card.role}
               </Typography>
-              <Typography variant="h6" sx={{ mt: 1.5, color: '#12222b', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              <Typography variant="h6" sx={{ mt: 1.5, color: 'text.primary', fontWeight: 700, letterSpacing: '-0.02em' }}>
                 {card.title}
               </Typography>
-              <Typography variant="body2" sx={{ mt: 1.5, color: '#5a7280', lineHeight: 1.6 }}>
+              <Typography variant="body2" sx={{ mt: 1.5, color: 'text.secondary', lineHeight: 1.6 }}>
                 {card.description}
               </Typography>
             </Box>

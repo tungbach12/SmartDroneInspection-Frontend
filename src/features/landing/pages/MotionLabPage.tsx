@@ -56,13 +56,13 @@ export function MotionLabPage() {
   }, []);
 
   return (
-    <Box sx={{ bgcolor: '#eaf5fb', minHeight: '100vh', py: 10 }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', py: 10 }}>
       <Container maxWidth="md">
         <div ref={rootRef}>
-          <Typography data-scramble variant="h3" sx={{ fontWeight: 800, letterSpacing: '-0.03em', color: '#173a52' }}>
+          <Typography data-scramble variant="h3" sx={{ fontWeight: 800, letterSpacing: '-0.03em', color: 'text.primary' }}>
             Autonomous survey trajectory
           </Typography>
-          <Typography variant="body1" sx={{ mt: 1, color: '#5a7a8c' }}>
+          <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
             Anime.js v4 - createDrawable flight path, spring nodes, split text.
           </Typography>
           <svg viewBox="0 0 660 260" width="100%" style={{ marginTop: 32 }}>

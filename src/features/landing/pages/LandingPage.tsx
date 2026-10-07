@@ -20,7 +20,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <Box sx={{ bgcolor: '#f4f8fa', overflowX: 'hidden' }}>
+    <Box sx={{ bgcolor: 'background.default', overflowX: 'hidden' }}>
       <LandingHeader />
       <main>
         <HeroSection />
