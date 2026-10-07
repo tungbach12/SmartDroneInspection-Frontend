@@ -7,9 +7,11 @@ import { useColorScheme } from '@mui/material/styles';
 import { ColorModeContext } from './app/layouts/ColorModeContext';
 import { theme } from './app/theme/theme';
 import { RouterWithToast } from './app/router/router';
-import '@fontsource/roboto/400.css';
-import '@fontsource/roboto/500.css';
-import '@fontsource/roboto/700.css';
+import '@fontsource/geist-sans/400.css';
+import '@fontsource/geist-sans/500.css';
+import '@fontsource/geist-sans/600.css';
+import '@fontsource/geist-sans/700.css';
+import '@fontsource/geist-sans/800.css';
 import './index.css';
 
 const queryClient = new QueryClient({

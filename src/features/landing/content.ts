@@ -83,10 +83,17 @@ export const roleCards = [
     icon: 'service',
   },
   {
-    role: 'Field teams',
-    title: 'Work from a clear assignment',
+    role: 'Inspector',
+    title: 'Plan and fly the mission',
     description:
-      'Inspectors and Maintenance Engineers see only the jobs assigned to them, with the checklist, shot-list, and evidence trail already attached.',
+      'Set GSD/AGL, overlap, airspace clearance, permits, and shot-items; capture evidence with checksum on site.',
     icon: 'field',
+  },
+  {
+    role: 'Maintenance Engineer',
+    title: 'Close from reviewed defects',
+    description:
+      'Pick up approved defects, record before/after evidence, and close maintenance with a traceable record.',
+    icon: 'asset',
   },
 ] as const;

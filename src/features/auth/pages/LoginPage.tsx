@@ -270,6 +270,8 @@ export default function LoginPage() {
       eyebrow={copy.eyebrow}
       title={copy.title}
       description={copy.description}
+      workspaceCopy={{ sideLabel: copy.sideLabel, sideTitle: copy.sideTitle, sideBody: copy.sideBody }}
+      sideLabels={workspaceKind === 'admin' ? ['Platform admin', 'Provider vetting', 'User policy'] : workspaceKind === 'provider' ? ['Service manager', 'Field inspector', 'Maintenance engineer'] : ['Client workspace', 'Field operations', 'Admin']}
     >
       <Stack
         component="form"
