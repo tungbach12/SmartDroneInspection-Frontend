@@ -25,6 +25,7 @@ import {
 } from '@/features/auth/components/AuthSessionBootstrapper';
 import AccessDeniedPage from '@/features/auth/pages/AccessDeniedPage';
 import LandingPage from '@/features/landing/pages/LandingPage';
+import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
 import PortalSelectionPage from '@/app/pages/PortalSelectionPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { ToastHost } from '@/shared/ui/Toast';
@@ -152,6 +153,10 @@ const router = createBrowserRouter([
           }
           return null;
         },
+      },
+      {
+        path: 'motion-lab',
+        element: <MotionLabPage />,
       },
       {
         path: 'login',
