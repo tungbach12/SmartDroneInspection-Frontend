@@ -2,84 +2,84 @@ import { useState } from 'react';
 import { Box, Container, Stack, Typography } from '@mui/material';
 import { StatusChip, type StatusType } from './StatusChip';
 
-interface EventSpan {
+interface LifecycleStep {
   id: string;
   name: string;
-  startLabel: string;
-  durationLabel: string;
+  phaseLabel: string;
+  timeLabel: string;
   offsetPct: number;
   widthPct: number;
   status: StatusType;
   details: string;
 }
 
-const eventSpans: EventSpan[] = [
+const lifecycleSteps: LifecycleStep[] = [
   {
-    id: 'EVT-101',
-    name: 'mission.scope.client_cadence_authorization',
-    startLabel: '+00:00:00.000',
-    durationLabel: '140.2ms',
+    id: 'STEP-01',
+    name: '1. Site Scope & Flight Cadence Approval',
+    phaseLabel: 'PLANNING',
+    timeLabel: 'PRE-FLIGHT',
     offsetPct: 0,
-    widthPct: 12,
+    widthPct: 14,
     status: 'pass',
-    details: 'Client approved quote and site clearance for High-Voltage Tower Sector B.',
+    details: 'Asset owner approves inspection cadence, airspace corridor, and target structural areas.',
   },
   {
-    id: 'EVT-102',
-    name: 'flight.rtk.waypoint_trajectory_lock',
-    startLabel: '+00:00:00.140',
-    durationLabel: '280.5ms',
-    offsetPct: 12,
-    widthPct: 18,
+    id: 'STEP-02',
+    name: '2. Autonomous Waypoint Trajectory',
+    phaseLabel: 'EXECUTION',
+    timeLabel: 'FLIGHT',
+    offsetPct: 14,
+    widthPct: 20,
     status: 'pass',
-    details: 'Dual-frequency RTK fixed, sub-centimeter waypoint flight plan active.',
+    details: 'Autonomous drone follows 3D CAD waypoints at 0.8mm/px GSD with zero human climbing risk.',
   },
   {
-    id: 'EVT-103',
-    name: 'payload.sensor.highres_raw_capture_stream',
-    startLabel: '+00:00:00.420',
-    durationLabel: '1,420.0ms',
-    offsetPct: 30,
-    widthPct: 38,
+    id: 'STEP-03',
+    name: '3. Raw Evidence Ingestion & Cryptographic Seal',
+    phaseLabel: 'INGEST',
+    timeLabel: 'EVIDENCE',
+    offsetPct: 34,
+    widthPct: 32,
     status: 'active',
-    details: '4K orthophoto + radiometric thermal capture with 0.8mm/px GSD resolution.',
+    details: 'High-res 4K & thermal radiometric images stamped with on-device SHA-256 hash chains.',
   },
   {
-    id: 'EVT-104',
-    name: 'crypto.evidence.sha256_tamper_evident_seal',
-    startLabel: '+00:00:01.840',
-    durationLabel: '190.4ms',
-    offsetPct: 68,
-    widthPct: 12,
+    id: 'STEP-04',
+    name: '4. AI Vision Screening (Cracks & Spalling)',
+    phaseLabel: 'AI VISION',
+    timeLabel: 'SCREENING',
+    offsetPct: 66,
+    widthPct: 14,
     status: 'pass',
-    details: 'Cryptographic hash chain generated on-device, preserving immutable chain of custody.',
+    details: 'Computer-vision flags micro-fractures, corrosion pitting, and structural thermal anomalies.',
   },
   {
-    id: 'EVT-105',
-    name: 'ai.detection.candidate_screening_ensemble',
-    startLabel: '+00:00:02.030',
-    durationLabel: '320.1ms',
+    id: 'STEP-05',
+    name: '5. Licensed Inspector Verification Gate',
+    phaseLabel: 'QUALITY GATE',
+    timeLabel: 'REVIEW',
     offsetPct: 80,
     widthPct: 10,
-    status: 'pass',
-    details: 'YOLOv11 & SAM-2 screening: 3 concrete crack candidates, 1 rebar exposure flagged.',
+    status: 'warn',
+    details: 'Certified inspector reviews all AI candidate defects to guarantee zero false-positive releases.',
   },
   {
-    id: 'EVT-106',
-    name: 'manager.gate.human_verification_signoff',
-    startLabel: '+00:00:02.350',
-    durationLabel: 'HOLD',
+    id: 'STEP-06',
+    name: '6. Maintenance Workorder & Closeout',
+    phaseLabel: 'CLOSEOUT',
+    timeLabel: 'REPAIR',
     offsetPct: 90,
     widthPct: 10,
-    status: 'warn',
-    details: 'Assigned Service Manager must review AI bounding boxes before client release.',
+    status: 'pass',
+    details: 'Approved defects generate repair tickets for field engineers with before and after photo proof.',
   },
 ];
 
 export function EventStreamTable() {
-  const [selectedId, setSelectedId] = useState<string>('EVT-103');
+  const [selectedId, setSelectedId] = useState<string>('STEP-03');
 
-  const selectedSpan = eventSpans.find((s) => s.id === selectedId) || eventSpans[2];
+  const selectedStep = lifecycleSteps.find((s) => s.id === selectedId) || lifecycleSteps[2];
 
   return (
     <Box
@@ -92,7 +92,7 @@ export function EventStreamTable() {
       }}
     >
       <Container maxWidth="lg">
-        {/* Section Heading */}
+        {/* Section Heading: Outcome & Value Focus */}
         <Box sx={{ mb: 4 }}>
           <Typography
             sx={{
@@ -104,7 +104,7 @@ export function EventStreamTable() {
               mb: 1,
             }}
           >
-            MISSION TELEMETRY & LIFECYCLE AUDIT
+            END-TO-END INSPECTION LIFECYCLE
           </Typography>
           <Typography
             component="h2"
@@ -116,7 +116,7 @@ export function EventStreamTable() {
               color: '#FFFFFF',
             }}
           >
-            Inspection Mission Event Stream
+            From Flight to Fix in Six Steps
           </Typography>
           <Typography
             sx={{
@@ -126,11 +126,11 @@ export function EventStreamTable() {
               maxWidth: '680px',
             }}
           >
-            Follow the live lifecycle of an infrastructure inspection: flight mission planning, raw sensor telemetry, SHA-256 evidence hashing, and human verification gates.
+            See how SmartDroneInspection turns complex aerial missions into certified reports and actionable repair tickets with zero human climbing risk.
           </Typography>
         </Box>
 
-        {/* Card-based Table per spec (#0a0a0a, 1px ring border rgba(255,255,255,0.145)) */}
+        {/* Card-based Table */}
         <Box
           sx={{
             bgcolor: '#0a0a0a',
@@ -139,7 +139,7 @@ export function EventStreamTable() {
             overflow: 'hidden',
           }}
         >
-          {/* Header Bar: Trace ID & Duration Chips */}
+          {/* Header Bar */}
           <Box
             sx={{
               p: { xs: 2, sm: 2.5 },
@@ -162,19 +162,19 @@ export function EventStreamTable() {
                   letterSpacing: '0.04em',
                 }}
               >
-                MISSION-ID: SDI-MSN-2026-9041A
+                LIFECYCLE FLOW: MISSION #SDI-2026-9041A
               </Typography>
-              <StatusChip status="pass" label="FLIGHT ACTIVE" />
+              <StatusChip status="pass" label="ACTIVE LIFECYCLE" />
             </Stack>
 
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <StatusChip status="pass" label="RTK ACCURACY: 0.8CM" />
-              <StatusChip status="active" label="FLIGHT TIME: 42m 18s" />
-              <StatusChip status="fail" label="EVIDENCE: SHA-256 SEALED" />
+              <StatusChip status="pass" label="GSD: 0.8MM/PX" />
+              <StatusChip status="active" label="AI SCREENING: ENABLED" />
+              <StatusChip status="fail" label="INSPECTOR SIGN-OFF: REQUIRED" />
             </Stack>
           </Box>
 
-          {/* Split View: Left Sidebar 260px + Right Table */}
+          {/* Split View */}
           <Box
             sx={{
               display: 'grid',
@@ -182,7 +182,7 @@ export function EventStreamTable() {
               minHeight: '400px',
             }}
           >
-            {/* Left Sidebar: 260px event checkpoints & trajectory thumbnail */}
+            {/* Left Sidebar */}
             <Box
               sx={{
                 borderRight: { xs: 'none', md: '1px solid rgba(255, 255, 255, 0.145)' },
@@ -206,16 +206,16 @@ export function EventStreamTable() {
                     px: 1,
                   }}
                 >
-                  MISSION CHECKPOINTS
+                  LIFECYCLE PHASES
                 </Typography>
 
                 <Stack spacing={0.5}>
-                  {eventSpans.map((span) => {
-                    const isSelected = span.id === selectedId;
+                  {lifecycleSteps.map((step) => {
+                    const isSelected = step.id === selectedId;
                     return (
                       <Box
-                        key={span.id}
-                        onClick={() => setSelectedId(span.id)}
+                        key={step.id}
+                        onClick={() => setSelectedId(step.id)}
                         sx={{
                           p: '8px 10px',
                           cursor: 'pointer',
@@ -236,7 +236,7 @@ export function EventStreamTable() {
                               width: 6,
                               height: 6,
                               borderRadius: '50%',
-                              bgcolor: span.status === 'pass' ? '#62c073' : span.status === 'active' ? '#52a8ff' : '#ededed',
+                              bgcolor: step.status === 'pass' ? '#62c073' : step.status === 'active' ? '#52a8ff' : '#ededed',
                             }}
                           />
                           <Typography
@@ -247,17 +247,17 @@ export function EventStreamTable() {
                               fontWeight: isSelected ? 600 : 400,
                             }}
                           >
-                            {span.id}
+                            {step.id}
                           </Typography>
                         </Stack>
                         <Typography
                           sx={{
                             fontFamily: '"Geist Mono", monospace',
-                            fontSize: '11px',
+                            fontSize: '10px',
                             color: '#999999',
                           }}
                         >
-                          {span.durationLabel}
+                          {step.phaseLabel}
                         </Typography>
                       </Box>
                     );
@@ -265,7 +265,7 @@ export function EventStreamTable() {
                 </Stack>
               </Box>
 
-              {/* 3D Waypoint Trajectory Asset Preview */}
+              {/* 3D Flight Mission CAD Preview */}
               <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <Box
                   sx={{
@@ -281,7 +281,7 @@ export function EventStreamTable() {
                   <Box
                     component="img"
                     src="/images/landing/flight-mission-plan.jpg"
-                    alt="3D Flight Trajectory Waypoint CAD"
+                    alt="Autonomous 3D Drone Flight Plan"
                     sx={{
                       width: '100%',
                       height: '100%',
@@ -290,11 +290,11 @@ export function EventStreamTable() {
                     }}
                   />
                   <Box sx={{ position: 'absolute', bottom: 6, left: 6 }}>
-                    <StatusChip status="active" label="3D WAYPOINTS" />
+                    <StatusChip status="active" label="AUTONOMOUS 3D FLIGHT" />
                   </Box>
                 </Box>
 
-                {/* Selected checkpoint log details */}
+                {/* Selected Details */}
                 <Typography
                   sx={{
                     fontFamily: '"Geist Mono", monospace',
@@ -306,19 +306,19 @@ export function EventStreamTable() {
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                   }}
                 >
-                  {selectedSpan?.details ?? 'Flight telemetry and verification checkpoint active.'}
+                  {selectedStep?.details ?? 'Lifecycle step active and monitored.'}
                 </Typography>
               </Box>
             </Box>
 
-            {/* Right Side: Table with SPAN, START (Progress visualization), and DURATION */}
+            {/* Right Side: Timeline Table */}
             <Box sx={{ overflowX: 'auto', p: { xs: 2, sm: 3 } }}>
               <Box sx={{ minWidth: '560px' }}>
-                {/* Table Header */}
+                {/* Header */}
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(210px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
+                    gridTemplateColumns: 'minmax(220px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
                     pb: 1.5,
                     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                     fontFamily: '"Geist Mono", monospace',
@@ -327,23 +327,23 @@ export function EventStreamTable() {
                     letterSpacing: '0.08em',
                   }}
                 >
-                  <Box>SPAN & EVENT PIPELINE</Box>
-                  <Box>OFFSET & TIMELINE (EXECUTION)</Box>
-                  <Box sx={{ textAlign: 'right' }}>DURATION</Box>
+                  <Box>INSPECTION STAGE</Box>
+                  <Box>PIPELINE PROGRESSION</Box>
+                  <Box sx={{ textAlign: 'right' }}>PHASE</Box>
                   <Box sx={{ textAlign: 'right' }}>STATUS</Box>
                 </Box>
 
-                {/* Table Body Rows (all monospace per spec) */}
+                {/* Rows */}
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
-                  {eventSpans.map((span) => {
-                    const isSelected = span.id === selectedId;
+                  {lifecycleSteps.map((step) => {
+                    const isSelected = step.id === selectedId;
                     return (
                       <Box
-                        key={span.id}
-                        onClick={() => setSelectedId(span.id)}
+                        key={step.id}
+                        onClick={() => setSelectedId(step.id)}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(210px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
+                          gridTemplateColumns: 'minmax(220px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
                           alignItems: 'center',
                           p: '10px 12px',
                           cursor: 'pointer',
@@ -355,34 +355,24 @@ export function EventStreamTable() {
                           },
                         }}
                       >
-                        {/* Span Name */}
+                        {/* Name */}
                         <Typography
                           sx={{
-                            fontFamily: '"Geist Mono", monospace',
-                            fontSize: '12px',
+                            fontFamily: '"Geist Sans", sans-serif',
+                            fontSize: '13px',
                             color: isSelected ? '#52a8ff' : '#FFFFFF',
+                            fontWeight: 500,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                             pr: 1,
                           }}
                         >
-                          {span.name}
+                          {step.name}
                         </Typography>
 
-                        {/* START & Timeline progress-bar visualization (1.5h / 6px) */}
+                        {/* Progress Bar */}
                         <Box sx={{ pr: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography
-                              sx={{
-                                fontFamily: '"Geist Mono", monospace',
-                                fontSize: '10px',
-                                color: '#999999',
-                              }}
-                            >
-                              {span.startLabel}
-                            </Typography>
-                          </Box>
                           <Box
                             sx={{
                               position: 'relative',
@@ -398,9 +388,9 @@ export function EventStreamTable() {
                                 position: 'absolute',
                                 top: 0,
                                 bottom: 0,
-                                left: `${span.offsetPct}%`,
-                                width: `${span.widthPct}%`,
-                                bgcolor: isSelected || span.status === 'active' ? '#52a8ff' : 'rgba(255, 255, 255, 0.18)',
+                                left: `${step.offsetPct}%`,
+                                width: `${step.widthPct}%`,
+                                bgcolor: isSelected || step.status === 'active' ? '#52a8ff' : 'rgba(255, 255, 255, 0.18)',
                                 borderRadius: '2px',
                                 boxShadow: isSelected ? '0 0 8px rgba(82, 168, 255, 0.8)' : 'none',
                               }}
@@ -408,21 +398,21 @@ export function EventStreamTable() {
                           </Box>
                         </Box>
 
-                        {/* Duration */}
+                        {/* Phase label */}
                         <Typography
                           sx={{
                             fontFamily: '"Geist Mono", monospace',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             color: '#999999',
                             textAlign: 'right',
                           }}
                         >
-                          {span.durationLabel}
+                          {step.timeLabel}
                         </Typography>
 
                         {/* Status */}
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                          <StatusChip status={span.status} label={span.status} />
+                          <StatusChip status={step.status} label={step.status} />
                         </Box>
                       </Box>
                     );

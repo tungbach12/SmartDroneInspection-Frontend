@@ -40,8 +40,8 @@ export function DarkFinalCta() {
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
-            <StatusChip status="pass" label="PLATFORM ACTIVE" />
-            <StatusChip status="active" label="V2.4 ENGINE" />
+            <StatusChip status="pass" label="START TODAY" />
+            <StatusChip status="active" label="ZERO COMMITMENT" />
           </Stack>
 
           <Typography
@@ -52,11 +52,11 @@ export function DarkFinalCta() {
               fontWeight: 500,
               letterSpacing: '-2px',
               color: '#FFFFFF',
-              maxWidth: '720px',
+              maxWidth: '740px',
               lineHeight: 1.08,
             }}
           >
-            Deploy High-Integrity Inspection Infrastructure Today
+            Ready to Protect Your Infrastructure with Drone AI?
           </Typography>
 
           <Typography
@@ -68,7 +68,7 @@ export function DarkFinalCta() {
               lineHeight: 1.65,
             }}
           >
-            Start with a single bridge, transmission corridor, or facility roof. Experience automated mission logging, cryptographic evidence seals, and human-verified defect resolution.
+            Start with a single bridge, solar farm, or industrial facility. Experience 10x faster defect detection, zero climbing hazard, and instant repair dispatch.
           </Typography>
 
           <Stack
@@ -100,7 +100,7 @@ export function DarkFinalCta() {
                 },
               }}
             >
-              Create Client Account
+              Start Free Inspection
               <NorthEastIcon sx={{ fontSize: 16 }} />
             </Box>
 
@@ -129,10 +129,21 @@ export function DarkFinalCta() {
                 },
               }}
             >
-              Onboard Inspection Provider
+              Partner as a Drone Provider
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>
+
+          <Typography
+            sx={{
+              fontFamily: '"Geist Mono", monospace',
+              fontSize: '12px',
+              color: '#999999',
+              mt: 2.5,
+            }}
+          >
+            No credit card required · Free onboarding support · Setup in minutes
+          </Typography>
         </Box>
       </Container>
     </Box>

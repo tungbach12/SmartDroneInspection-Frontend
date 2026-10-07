@@ -39,11 +39,11 @@ export function DarkHero() {
         pb: { xs: 8, md: 12 },
       }}
     >
-      {/* Background Image with object-fit: cover */}
+      {/* Background Drone Visual with object-fit: cover */}
       <Box
         component="img"
         src="/images/landing/dark-drone-hero.jpg"
-        alt="High-voltage transmission inspection drone with technical camera gimbal"
+        alt="Automated infrastructure drone inspection"
         loading="eager"
         sx={{
           position: 'absolute',
@@ -57,7 +57,7 @@ export function DarkHero() {
         }}
       />
 
-      {/* Scrim Gradients: bottom 40-70% per spec linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.76) 40%, rgba(0,0,0,0) 93.785%) */}
+      {/* Scrim Overlay */}
       <Box
         aria-hidden="true"
         sx={{
@@ -67,7 +67,7 @@ export function DarkHero() {
         }}
       />
 
-      {/* Subtle blue accent glow behind bottom content */}
+      {/* Subtle blue accent glow */}
       <Box
         aria-hidden="true"
         sx={{
@@ -93,37 +93,37 @@ export function DarkHero() {
         }}
       >
         <div ref={contentRef}>
-          {/* Status Indicators (Pills per spec) */}
+          {/* Status Indicators: Value propositions */}
           <Stack
             data-hero-anim
             direction="row"
             spacing={1.5}
             sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}
           >
-            <StatusChip status="pass" label="RTK GPS LOCKED" />
-            <StatusChip status="active" label="SHA-256 RAW VERIFICATION" />
-            <StatusChip status="warn" label="HUMAN-GATED REVIEW" />
+            <StatusChip status="pass" label="ZERO HUMAN CLIMBING RISK" />
+            <StatusChip status="active" label="AI VISION DEFECT SCREENING" />
+            <StatusChip status="pass" label="CERTIFIED INSPECTOR SIGN-OFF" />
           </Stack>
 
-          {/* Headline: Inter Display / Geist, 500 weight, fluid 32px to 60px, -1px to -3.36px tracking */}
+          {/* Outcome-driven Headline: What the visitor achieves */}
           <Typography
             data-hero-anim
             component="h1"
             sx={{
               fontFamily: '"Geist Sans", "Inter Display", sans-serif',
               fontWeight: 500,
-              fontSize: 'clamp(32px, 5.5vw, 60px)',
+              fontSize: 'clamp(32px, 5.5vw, 62px)',
               lineHeight: 1.05,
               letterSpacing: { xs: '-1.2px', md: '-2.8px' },
               color: '#FFFFFF',
-              maxWidth: '752px',
+              maxWidth: '820px',
               textWrap: 'balance',
             }}
           >
-            High-Integrity Drone Telemetry & Cryptographic Inspection
+            Inspect Infrastructure 10x Faster with Drones and AI
           </Typography>
 
-          {/* Subtext: 16px, #e7e7e7, max-width 640px */}
+          {/* Subtext: Who it is for & the painful problem it eliminates */}
           <Typography
             data-hero-anim
             sx={{
@@ -132,13 +132,13 @@ export function DarkHero() {
               fontSize: '16px',
               lineHeight: 1.65,
               color: '#e7e7e7',
-              maxWidth: '640px',
+              maxWidth: '680px',
             }}
           >
-            Automate mission plans, capture raw imagery with immutable checksums, screen defects through neural models, and mandate assigned human validation before release.
+            Eliminate costly scaffolding and hazardous rope access. SmartDroneInspection coordinates autonomous drone flights, flags structural cracks with computer vision, and delivers audit-ready repair tickets certified by licensed inspectors.
           </Typography>
 
-          {/* Square CTAs (0px border-radius, background #FFFFFF, text #121212) */}
+          {/* Square CTAs (0px border-radius, brutalist contrast) */}
           <Stack
             data-hero-anim
             direction={{ xs: 'column', sm: 'row' }}
@@ -161,7 +161,7 @@ export function DarkHero() {
                 textDecoration: 'none',
                 fontFamily: '"Geist Sans", sans-serif',
                 fontWeight: 600,
-                fontSize: { xs: '16px', md: '18px' },
+                fontSize: { xs: '16px', md: '17px' },
                 transition: 'all 0.2s ease',
                 '&:hover': {
                   bgcolor: '#ededed',
@@ -169,7 +169,7 @@ export function DarkHero() {
                 },
               }}
             >
-              Deploy Inspection Workspace
+              Start Free Inspection
               <NorthEastIcon sx={{ fontSize: 16 }} />
             </Box>
 
@@ -198,10 +198,23 @@ export function DarkHero() {
                 },
               }}
             >
-              Register Provider Node
+              Join as Drone Provider
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>
+
+          {/* Friction-reducing microcopy */}
+          <Typography
+            data-hero-anim
+            sx={{
+              fontFamily: '"Geist Mono", monospace',
+              fontSize: '12px',
+              color: '#999999',
+              mt: 2,
+            }}
+          >
+            No credit card required · Instant setup · End-to-end audit compliance
+          </Typography>
         </div>
       </Container>
     </Box>
