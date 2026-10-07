@@ -2,24 +2,24 @@ import { Box, Container, Typography } from '@mui/material';
 
 const metrics = [
   {
-    value: '99.98',
+    value: '0.8',
+    unit: 'mm',
+    label: 'Ground Sampling Distance (GSD) sub-millimeter optical crack detection',
+  },
+  {
+    value: '100',
     unit: '%',
-    label: 'Telemetry and evidence checksum integrity across all flights',
+    label: 'Human-in-the-loop review gate prior to any client-facing report release',
   },
   {
-    value: '42',
-    unit: 'ms',
-    label: 'Raw sensor ingestion and cryptographic hashing pipeline latency',
+    value: 'SHA',
+    unit: '256',
+    label: 'Cryptographic tamper-evident hash chaining on raw drone evidence packages',
   },
   {
-    value: '1.8',
-    unit: 'M',
-    label: 'Dense orthophoto pointcloud coordinates indexed per infrastructure scan',
-  },
-  {
-    value: '0',
-    unit: 'FAIL',
-    label: 'Unverified defect escapes across production releases',
+    value: '48',
+    unit: 'h',
+    label: 'Standard turnaround from autonomous flight landing to maintenance closeout',
   },
 ];
 
@@ -48,7 +48,7 @@ export function MetricsGrid() {
               mb: 1,
             }}
           >
-            SYSTEM BENCHMARKS & RELIABILITY
+            INSPECTION SERVICE BENCHMARKS
           </Typography>
           <Typography
             component="h2"
@@ -70,7 +70,7 @@ export function MetricsGrid() {
               maxWidth: '680px',
             }}
           >
-            Hard numbers measured across autonomous flights, raw sensor ingestion, and human-verified releases.
+            Engineering tolerances measured across autonomous waypoint missions, raw evidence ingest, and human-verified closeouts.
           </Typography>
         </Box>
 

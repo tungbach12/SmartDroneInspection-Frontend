@@ -5,10 +5,10 @@ import MenuIcon from '@mui/icons-material/Menu';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 
 const navLinks = [
-  { label: 'Event Stream', href: '#event-stream' },
-  { label: 'Bento Matrix', href: '#bento-matrix' },
-  { label: 'Metrics Grid', href: '#metrics' },
-  { label: 'Security & Audit', href: '#security' },
+  { label: 'Mission Stream', href: '#event-stream' },
+  { label: 'Inspection Matrix', href: '#bento-matrix' },
+  { label: 'Operational Metrics', href: '#metrics' },
+  { label: 'Role Console', href: '#security' },
 ];
 
 export function DarkHeader() {
@@ -35,7 +35,7 @@ export function DarkHeader() {
           justifyContent: 'space-between',
         }}
       >
-        {/* Left: Geometric SVG Logo + Brand */}
+        {/* Left: Generated AI Logo + Brand Name */}
         <Link
           href="/"
           underline="none"
@@ -47,20 +47,20 @@ export function DarkHeader() {
           }}
         >
           <Box
-            component="svg"
-            viewBox="0 0 28 28"
-            sx={{ width: 26, height: 26, flexShrink: 0 }}
-          >
-            <polygon
-              points="14,2 26,8 26,20 14,26 2,20 2,8"
-              fill="none"
-              stroke="#52a8ff"
-              strokeWidth="2"
-            />
-            <circle cx="14" cy="14" r="4" fill="#FFFFFF" />
-            <line x1="14" y1="2" x2="14" y2="10" stroke="#52a8ff" strokeWidth="1.5" />
-            <line x1="14" y1="18" x2="14" y2="26" stroke="#52a8ff" strokeWidth="1.5" />
-          </Box>
+            component="img"
+            src="/images/landing/logo.png"
+            alt="SmartDroneInspection Logo"
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '2px',
+              border: '1px solid rgba(82, 168, 255, 0.4)',
+              boxShadow: '0 0 12px rgba(82, 168, 255, 0.25)',
+              flexShrink: 0,
+              objectFit: 'contain',
+              bgcolor: '#000000',
+            }}
+          />
           <Typography
             sx={{
               fontFamily: '"Geist Sans", "Inter Display", sans-serif',
@@ -87,12 +87,12 @@ export function DarkHeader() {
               href={item.href}
               underline="none"
               sx={{
-                fontSize: '16px',
+                fontSize: '15px',
                 fontWeight: 400,
                 color: '#FFFFFF',
                 opacity: 0.82,
                 transition: 'opacity 0.2s ease',
-                '&:hover': { opacity: 1 },
+                '&:hover': { opacity: 1, color: '#52a8ff' },
               }}
             >
               {item.label}
@@ -111,7 +111,7 @@ export function DarkHeader() {
               gap: '6px',
               bgcolor: '#FFFFFF',
               color: '#121212',
-              px: '14px',
+              px: '16px',
               py: '8px',
               borderRadius: '0px',
               textDecoration: 'none',
@@ -125,7 +125,7 @@ export function DarkHeader() {
               },
             }}
           >
-            Launch Console
+            Access Portal
             <NorthEastIcon sx={{ fontSize: 13 }} />
           </Box>
 
@@ -158,9 +158,17 @@ export function DarkHeader() {
       >
         <Stack spacing={3}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography sx={{ color: '#999999', fontFamily: '"Geist Mono", monospace', fontSize: '13px' }}>
-              NAVIGATION
-            </Typography>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <Box
+                component="img"
+                src="/images/landing/logo.png"
+                alt="SmartDroneInspection Logo"
+                sx={{ width: 28, height: 28 }}
+              />
+              <Typography sx={{ color: '#FFFFFF', fontFamily: '"Geist Sans", sans-serif', fontWeight: 600, fontSize: '16px' }}>
+                SmartDroneInspection
+              </Typography>
+            </Stack>
             <IconButton onClick={() => setMobileOpen(false)} sx={{ color: '#FFFFFF' }}>
               <CloseIcon />
             </IconButton>
@@ -202,7 +210,7 @@ export function DarkHeader() {
               mt: 3,
             }}
           >
-            Launch Console
+            Access Portal
             <NorthEastIcon sx={{ fontSize: 14 }} />
           </Box>
         </Stack>

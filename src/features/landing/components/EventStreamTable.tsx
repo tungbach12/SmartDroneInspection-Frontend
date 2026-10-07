@@ -16,63 +16,63 @@ interface EventSpan {
 const eventSpans: EventSpan[] = [
   {
     id: 'EVT-101',
-    name: 'mission.preflight.airspace_clearance',
+    name: 'mission.scope.client_cadence_authorization',
     startLabel: '+00:00:00.000',
-    durationLabel: '180.2ms',
+    durationLabel: '140.2ms',
     offsetPct: 0,
-    widthPct: 14,
+    widthPct: 12,
     status: 'pass',
-    details: 'NOTAM check verified, FAA/CAAV corridor unlocked, battery 99.4%',
+    details: 'Client approved quote and site clearance for High-Voltage Tower Sector B.',
   },
   {
     id: 'EVT-102',
-    name: 'telemetry.rtk.kinematic_lock',
-    startLabel: '+00:00:00.180',
-    durationLabel: '342.1ms',
-    offsetPct: 14,
+    name: 'flight.rtk.waypoint_trajectory_lock',
+    startLabel: '+00:00:00.140',
+    durationLabel: '280.5ms',
+    offsetPct: 12,
     widthPct: 18,
     status: 'pass',
-    details: 'Base station dual-frequency RTK fixed, sub-centimeter fix',
+    details: 'Dual-frequency RTK fixed, sub-centimeter waypoint flight plan active.',
   },
   {
     id: 'EVT-103',
-    name: 'payload.raw_capture.sensor_ingest',
-    startLabel: '+00:00:00.522',
-    durationLabel: '1,280.4ms',
-    offsetPct: 32,
-    widthPct: 36,
+    name: 'payload.sensor.highres_raw_capture_stream',
+    startLabel: '+00:00:00.420',
+    durationLabel: '1,420.0ms',
+    offsetPct: 30,
+    widthPct: 38,
     status: 'active',
-    details: '4K orthophoto + thermal radiometric stream at 30fps with GSD 0.8mm/px',
+    details: '4K orthophoto + radiometric thermal capture with 0.8mm/px GSD resolution.',
   },
   {
     id: 'EVT-104',
-    name: 'crypto.checksum.sha256_audit_block',
-    startLabel: '+00:00:01.802',
-    durationLabel: '210.0ms',
+    name: 'crypto.evidence.sha256_tamper_evident_seal',
+    startLabel: '+00:00:01.840',
+    durationLabel: '190.4ms',
     offsetPct: 68,
     widthPct: 12,
     status: 'pass',
-    details: 'Image hash chain verified against on-disk immutable ledger',
+    details: 'Cryptographic hash chain generated on-device, preserving immutable chain of custody.',
   },
   {
     id: 'EVT-105',
-    name: 'ai.detection.candidate_screening',
-    startLabel: '+00:00:02.012',
-    durationLabel: '315.6ms',
+    name: 'ai.detection.candidate_screening_ensemble',
+    startLabel: '+00:00:02.030',
+    durationLabel: '320.1ms',
     offsetPct: 80,
-    widthPct: 12,
+    widthPct: 10,
     status: 'pass',
-    details: '4 crack candidates isolated, 0.94 confidence threshold passed',
+    details: 'YOLOv11 & SAM-2 screening: 3 concrete crack candidates, 1 rebar exposure flagged.',
   },
   {
     id: 'EVT-106',
-    name: 'reviewer.human_gate.signature_required',
-    startLabel: '+00:00:02.327',
-    durationLabel: 'PENDING',
-    offsetPct: 92,
-    widthPct: 8,
+    name: 'manager.gate.human_verification_signoff',
+    startLabel: '+00:00:02.350',
+    durationLabel: 'HOLD',
+    offsetPct: 90,
+    widthPct: 10,
     status: 'warn',
-    details: 'Assigned Service Manager must sign before release to Client',
+    details: 'Assigned Service Manager must review AI bounding boxes before client release.',
   },
 ];
 
@@ -104,7 +104,7 @@ export function EventStreamTable() {
               mb: 1,
             }}
           >
-            REALTIME TELEMETRY & TRACE AUDIT
+            MISSION TELEMETRY & LIFECYCLE AUDIT
           </Typography>
           <Typography
             component="h2"
@@ -116,7 +116,7 @@ export function EventStreamTable() {
               color: '#FFFFFF',
             }}
           >
-            Inspection Event Stream Table
+            Inspection Mission Event Stream
           </Typography>
           <Typography
             sx={{
@@ -126,7 +126,7 @@ export function EventStreamTable() {
               maxWidth: '680px',
             }}
           >
-            Trace flight operations at sub-millisecond precision. Inspect sensor payloads, telemetry offsets, cryptographic evidence seals, and human review gates.
+            Follow the live lifecycle of an infrastructure inspection: flight mission planning, raw sensor telemetry, SHA-256 evidence hashing, and human verification gates.
           </Typography>
         </Box>
 
@@ -162,130 +162,148 @@ export function EventStreamTable() {
                   letterSpacing: '0.04em',
                 }}
               >
-                TRACE: SDI-MSN-2026-9041A
+                MISSION-ID: SDI-MSN-2026-9041A
               </Typography>
-              <StatusChip status="pass" label="ACTIVE STREAM" />
+              <StatusChip status="pass" label="FLIGHT ACTIVE" />
             </Stack>
 
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <StatusChip status="pass" label="RTK FIX: 100%" />
-              <StatusChip status="active" label="DURATION: 42m 18s" />
-              <StatusChip status="fail" label="PAYLOAD: 1.4 GB SHA-256" />
+              <StatusChip status="pass" label="RTK ACCURACY: 0.8CM" />
+              <StatusChip status="active" label="FLIGHT TIME: 42m 18s" />
+              <StatusChip status="fail" label="EVIDENCE: SHA-256 SEALED" />
             </Stack>
           </Box>
 
-          {/* Split View: Left Sidebar 240px + Right Table */}
+          {/* Split View: Left Sidebar 260px + Right Table */}
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-              minHeight: '380px',
+              gridTemplateColumns: { xs: '1fr', md: '260px 1fr' },
+              minHeight: '400px',
             }}
           >
-            {/* Left Sidebar: 240px event IDs with status dots */}
+            {/* Left Sidebar: 260px event checkpoints & trajectory thumbnail */}
             <Box
               sx={{
                 borderRight: { xs: 'none', md: '1px solid rgba(255, 255, 255, 0.145)' },
                 borderBottom: { xs: '1px solid rgba(255, 255, 255, 0.145)', md: 'none' },
                 bgcolor: '#0a0a0a',
                 p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
               }}
             >
-              <Typography
-                sx={{
-                  fontFamily: '"Geist Mono", monospace',
-                  fontSize: '11px',
-                  color: '#999999',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  mb: 1.5,
-                  px: 1,
-                }}
-              >
-                EVENT CHECKPOINTS
-              </Typography>
-
-              <Stack spacing={0.5}>
-                {eventSpans.map((span) => {
-                  const isSelected = span.id === selectedId;
-                  return (
-                    <Box
-                      key={span.id}
-                      onClick={() => setSelectedId(span.id)}
-                      sx={{
-                        p: '8px 12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        bgcolor: isSelected ? 'rgba(82, 168, 255, 0.12)' : 'transparent',
-                        borderLeft: isSelected ? '2px solid #52a8ff' : '2px solid transparent',
-                        transition: 'all 0.15s ease',
-                        '&:hover': {
-                          bgcolor: isSelected ? 'rgba(82, 168, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
-                        },
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <Box
-                          sx={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            bgcolor: span.status === 'pass' ? '#62c073' : span.status === 'active' ? '#52a8ff' : '#ededed',
-                          }}
-                        />
-                        <Typography
-                          sx={{
-                            fontFamily: '"Geist Mono", monospace',
-                            fontSize: '12px',
-                            color: isSelected ? '#FFFFFF' : '#999999',
-                            fontWeight: isSelected ? 600 : 400,
-                          }}
-                        >
-                          {span.id}
-                        </Typography>
-                      </Stack>
-                      <Typography
-                        sx={{
-                          fontFamily: '"Geist Mono", monospace',
-                          fontSize: '11px',
-                          color: '#999999',
-                        }}
-                      >
-                        {span.durationLabel}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Stack>
-
-              {/* Selected Span Detail card */}
-              <Box
-                sx={{
-                  mt: 3,
-                  p: 1.5,
-                  bgcolor: '#141414',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                }}
-              >
+              <Box>
                 <Typography
                   sx={{
                     fontFamily: '"Geist Mono", monospace',
-                    fontSize: '10px',
-                    color: '#52a8ff',
+                    fontSize: '11px',
+                    color: '#999999',
                     textTransform: 'uppercase',
-                    mb: 0.5,
+                    letterSpacing: '0.08em',
+                    mb: 1.5,
+                    px: 1,
                   }}
                 >
-                  ACTIVE INSPECTOR LOG
+                  MISSION CHECKPOINTS
                 </Typography>
+
+                <Stack spacing={0.5}>
+                  {eventSpans.map((span) => {
+                    const isSelected = span.id === selectedId;
+                    return (
+                      <Box
+                        key={span.id}
+                        onClick={() => setSelectedId(span.id)}
+                        sx={{
+                          p: '8px 10px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          bgcolor: isSelected ? 'rgba(82, 168, 255, 0.12)' : 'transparent',
+                          borderLeft: isSelected ? '2px solid #52a8ff' : '2px solid transparent',
+                          transition: 'all 0.15s ease',
+                          '&:hover': {
+                            bgcolor: isSelected ? 'rgba(82, 168, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                          },
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: span.status === 'pass' ? '#62c073' : span.status === 'active' ? '#52a8ff' : '#ededed',
+                            }}
+                          />
+                          <Typography
+                            sx={{
+                              fontFamily: '"Geist Mono", monospace',
+                              fontSize: '12px',
+                              color: isSelected ? '#FFFFFF' : '#999999',
+                              fontWeight: isSelected ? 600 : 400,
+                            }}
+                          >
+                            {span.id}
+                          </Typography>
+                        </Stack>
+                        <Typography
+                          sx={{
+                            fontFamily: '"Geist Mono", monospace',
+                            fontSize: '11px',
+                            color: '#999999',
+                          }}
+                        >
+                          {span.durationLabel}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+
+              {/* 3D Waypoint Trajectory Asset Preview */}
+              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '110px',
+                    borderRadius: '2px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    mb: 1.5,
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src="/images/landing/flight-mission-plan.jpg"
+                    alt="3D Flight Trajectory Waypoint CAD"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: 'contrast(1.2) brightness(0.9)',
+                    }}
+                  />
+                  <Box sx={{ position: 'absolute', bottom: 6, left: 6 }}>
+                    <StatusChip status="active" label="3D WAYPOINTS" />
+                  </Box>
+                </Box>
+
+                {/* Selected checkpoint log details */}
                 <Typography
                   sx={{
                     fontFamily: '"Geist Mono", monospace',
                     fontSize: '11px',
                     color: '#e7e7e7',
                     lineHeight: 1.45,
+                    bgcolor: '#141414',
+                    p: 1.25,
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
                   }}
                 >
                   {selectedSpan?.details ?? 'Flight telemetry and verification checkpoint active.'}
@@ -300,7 +318,7 @@ export function EventStreamTable() {
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(200px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
+                    gridTemplateColumns: 'minmax(210px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
                     pb: 1.5,
                     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                     fontFamily: '"Geist Mono", monospace',
@@ -309,8 +327,8 @@ export function EventStreamTable() {
                     letterSpacing: '0.08em',
                   }}
                 >
-                  <Box>SPAN</Box>
-                  <Box>START & OFFSET (TIMELINE)</Box>
+                  <Box>SPAN & EVENT PIPELINE</Box>
+                  <Box>OFFSET & TIMELINE (EXECUTION)</Box>
                   <Box sx={{ textAlign: 'right' }}>DURATION</Box>
                   <Box sx={{ textAlign: 'right' }}>STATUS</Box>
                 </Box>
@@ -325,7 +343,7 @@ export function EventStreamTable() {
                         onClick={() => setSelectedId(span.id)}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: 'minmax(200px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
+                          gridTemplateColumns: 'minmax(210px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
                           alignItems: 'center',
                           p: '10px 12px',
                           cursor: 'pointer',
