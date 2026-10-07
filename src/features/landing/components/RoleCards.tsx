@@ -1,5 +1,6 @@
-﻿﻿import { Box, Container, Paper, Typography } from '@mui/material';
+﻿import { Box, Container, Paper, Typography } from '@mui/material';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import { roleCards } from '../content';
@@ -9,6 +10,7 @@ const icons = {
   client: ApartmentIcon,
   service: ManageAccountsIcon,
   field: EngineeringIcon,
+  asset: BuildCircleIcon,
 } as const;
 
 export function RoleCards() {
@@ -21,7 +23,7 @@ export function RoleCards() {
           <Typography variant="overline" sx={{ color: colors.tealDark, letterSpacing: '0.16em', fontWeight: 800 }}>Designed around the people doing the work</Typography>
           <Typography component="h2" variant="h2" sx={{ mt: 1, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 1, letterSpacing: '-0.055em', color: colors.text }}>Each role gets the same job, shown at the level they own.</Typography>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 1.5, mt: 5 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.5, mt: 5 }}>
           {roleCards.map((card, index) => {
             const Icon = icons[card.icon];
             return (

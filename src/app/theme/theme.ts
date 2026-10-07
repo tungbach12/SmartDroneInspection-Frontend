@@ -36,11 +36,11 @@ export const theme = createTheme({
     easing: { easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)' },
   },
   typography: {
-    fontFamily: 'Roboto, "Helvetica Neue", Arial, sans-serif',
-    h1: { fontWeight: 800 },
-    h2: { fontWeight: 800 },
-    h3: { fontWeight: 800 },
-    button: { fontWeight: 700 },
+    fontFamily: '"Geist Sans", "Helvetica Neue", Arial, sans-serif',
+    h1: { fontWeight: 800, letterSpacing: '-0.03em' },
+    h2: { fontWeight: 800, letterSpacing: '-0.025em' },
+    h3: { fontWeight: 800, letterSpacing: '-0.02em' },
+    button: { fontWeight: 600 },
   },
   components: {
     MuiButton: {
