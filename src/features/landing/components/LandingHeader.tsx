@@ -27,7 +27,7 @@ export function LandingHeader() {
       }}
     >
       <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, py: 1.5 }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', position: 'relative' }}>
           <Link href="/" underline="none" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mr: 'auto', color: '#12222b' }}>
             <Box sx={{ width: 32, height: 32, display: 'grid', placeItems: 'center', color: '#3aa5bd' }}>
               <TrackChangesIcon fontSize="small" />
@@ -37,7 +37,7 @@ export function LandingHeader() {
             </Typography>
           </Link>
 
-          <Stack component="nav" direction="row" spacing={3} sx={{ display: { xs: 'none', md: 'flex' } }}>
+          <Stack component="nav" direction="row" spacing={3} sx={{ display: { xs: 'none', md: 'flex' }, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
             {navigationItems.map((item) => (
               <Link key={item.href} href={item.href} underline="none" sx={{ fontSize: '0.875rem', color: '#4d6673', '&:hover': { color: '#12222b' } }}>
                 {item.label}
