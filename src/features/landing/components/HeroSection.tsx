@@ -20,7 +20,7 @@ export function HeroSection() {
   }, []);
 
   return (
-    <Box component="section" sx={{ bgcolor: '#f4f8fa', color: '#12222b' }}>
+    <Box component="section" sx={{ bgcolor: 'background.default', color: 'text.primary' }}>
       <Container maxWidth="lg" sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 6, md: 10 } }}>
         <Box
           sx={{
@@ -50,7 +50,7 @@ export function HeroSection() {
             >
               From flight plan to maintenance record.
             </Typography>
-            <Typography variant="body1" sx={{ mt: 2.5, color: '#4d6673', maxWidth: 520, lineHeight: 1.7 }}>
+            <Typography variant="body1" sx={{ mt: 2.5, color: 'text.secondary', maxWidth: 520, lineHeight: 1.7 }}>
               Scope the asset, plan the mission, capture evidence with checksum, review AI candidates, and close
               defects with before and after proof.
             </Typography>
@@ -61,7 +61,7 @@ export function HeroSection() {
                 variant="contained"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
-                sx={{ bgcolor: '#12222b', color: '#f4f8fa', px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600 }}
+                sx={{ bgcolor: 'background.paper', color: 'text.primary', px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600 }}
               >
                 Create Client account
               </Button>
@@ -70,7 +70,7 @@ export function HeroSection() {
                 href="/register-provider"
                 variant="outlined"
                 size="large"
-                sx={{ px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600, borderColor: '#c4d4dd', color: '#12222b' }}
+                sx={{ px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600, borderColor: 'divider', color: 'text.primary' }}
               >
                 Register as provider
               </Button>

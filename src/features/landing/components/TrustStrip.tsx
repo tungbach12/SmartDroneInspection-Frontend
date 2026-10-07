@@ -10,7 +10,7 @@ const signals = [
 
 export function TrustStrip() {
   return (
-    <Box component="section" sx={{ bgcolor: '#10222b', color: '#9fb9c7' }}>
+    <Box component="section" sx={{ bgcolor: 'background.paper', color: 'text.secondary' }}>
       <Container maxWidth="lg" sx={{ py: 1.75 }}>
         <Stack
           direction="row"

@@ -3,6 +3,7 @@ import { Box, Button, Container, Drawer, IconButton, Link, Stack, Typography } f
 import CloseIcon from '@mui/icons-material/Close';
 import MenuIcon from '@mui/icons-material/Menu';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
 
 const navigationItems = [
   { label: 'Features', href: '#features' },
@@ -27,7 +28,7 @@ export function LandingHeader() {
     >
       <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, py: 1.5 }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', position: 'relative' }}>
-          <Link href="/" underline="none" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mr: 'auto', color: '#12222b' }}>
+          <Link href="/" underline="none" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mr: 'auto', color: 'text.primary' }}>
             <Box sx={{ width: 32, height: 32, display: 'grid', placeItems: 'center', color: '#3aa5bd' }}>
               <TrackChangesIcon fontSize="small" />
             </Box>
@@ -38,18 +39,19 @@ export function LandingHeader() {
 
           <Stack component="nav" direction="row" spacing={3} sx={{ display: { xs: 'none', md: 'flex' }, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
             {navigationItems.map((item) => (
-              <Link key={item.href} href={item.href} underline="none" sx={{ fontSize: '0.875rem', color: '#4d6673', '&:hover': { color: '#12222b' } }}>
+              <Link key={item.href} href={item.href} underline="none" sx={{ fontSize: '0.875rem', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}>
                 {item.label}
               </Link>
             ))}
           </Stack>
 
-          <Button href="/login" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' }, borderColor: '#c4d4dd', color: '#12222b', textTransform: 'none', fontWeight: 600, borderRadius: 999 }}>
+          <Button href="/login" variant="outlined" sx={{ display: { xs: 'none', sm: 'inline-flex' }, borderColor: 'divider', color: 'text.primary', textTransform: 'none', fontWeight: 600, borderRadius: 999 }}>
             Log in
           </Button>
           <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
+            <ColorModeToggle />
           </Box>
-          <IconButton aria-label="Open navigation menu" onClick={() => setMobileOpen(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, color: '#12222b' }}>
+          <IconButton aria-label="Open navigation menu" onClick={() => setMobileOpen(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, color: 'text.primary' }}>
             <MenuIcon />
           </IconButton>
         </Stack>
@@ -63,16 +65,16 @@ export function LandingHeader() {
             </IconButton>
           </Stack>
           {navigationItems.map((item) => (
-            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} underline="none" sx={{ p: 1, fontSize: '1.125rem', color: '#12222b' }}>
+            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} underline="none" sx={{ p: 1, fontSize: '1.125rem', color: 'text.primary' }}>
               {item.label}
             </Link>
           ))}
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 1 }}>
-            <Typography variant="body2" sx={{ color: '#5a7280' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Appearance
             </Typography>
           </Stack>
-          <Button href="/login" variant="contained" onClick={() => setMobileOpen(false)} sx={{ bgcolor: '#12222b' }}>
+          <Button href="/login" variant="contained" onClick={() => setMobileOpen(false)} sx={{ bgcolor: 'background.paper' }}>
             Log in
           </Button>
         </Stack>
