@@ -1,168 +1,119 @@
-﻿import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
+﻿import { Box, Button, Container, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import VerifiedIcon from '@mui/icons-material/Verified';
 import { useEffect, useRef } from 'react';
 import { animate } from 'animejs';
-import { useLandingColors } from '../landingTheme';
 
-function DroneHeroVisual() {
-  const colors = useLandingColors();
-  const figureRef = useRef<HTMLElement | null>(null);
+export function HeroSection() {
+  const figureRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!figureRef.current) return;
-    animate(figureRef.current, {
+    const animation = animate(figureRef.current, {
       opacity: [0, 1],
-      translateY: [18, 0],
+      translateY: [24, 0],
       duration: 900,
-      easing: 'easeOutExpo',
+      ease: 'outExpo',
     });
+    return () => {
+      animation.pause();
+    };
   }, []);
 
   return (
-    <Box
-      ref={figureRef}
-      component="figure"
-      sx={{
-        m: 0,
-        position: 'relative',
-        width: '100%',
-        minWidth: 0,
-        overflow: 'hidden',
-        minHeight: { xs: 280, sm: 410 },
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          width: { xs: 260, sm: 420 },
-          height: { xs: 260, sm: 420 },
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${colors.teal}35 0%, ${colors.teal}0e 38%, transparent 70%)`,
-          filter: 'blur(2px)',
-        }}
-      />
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          width: '82%',
-          height: '58%',
-          border: `1px solid ${colors.heroLine}`,
-          borderRadius: '50%',
-          transform: 'rotate(-14deg)',
-          boxShadow: `0 0 60px ${colors.teal}18`,
-        }}
-      />
-      <Box
-        component="img"
-        src="/images/landing/inspection-drone-hero.png"
-        alt="Professional quadcopter inspection drone with a stabilized camera"
-        loading="eager"
-        sx={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'block',
-          width: '100%',
-          maxWidth: '100%',
-          height: 'auto',
-          borderRadius: { xs: 3, sm: 5 },
-          filter: 'contrast(1.06) saturate(1.08)',
-          boxShadow: '0 32px 90px rgba(0, 0, 0, 0.38)',
-        }}
-      />
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{
-          position: 'absolute',
-          zIndex: 2,
-          left: { xs: 8, sm: 18 },
-          bottom: { xs: 8, sm: 18 },
-          alignItems: 'center',
-          px: 1.25,
-          py: 0.75,
-          bgcolor: colors.heroOverlay,
-          border: `1px solid ${colors.heroLine}`,
-          borderRadius: 2,
-          backdropFilter: 'blur(10px)',
-        }}
-      >
-        <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: colors.teal, boxShadow: `0 0 0 5px ${colors.teal}24` }} />
-        <Typography variant="caption" sx={{ color: colors.heroText, fontWeight: 800, letterSpacing: '0.06em' }}>
-          INSPECTION DRONE
-        </Typography>
-      </Stack>
-      <Typography component="figcaption" variant="caption" sx={{ position: 'absolute', right: { xs: 8, sm: 18 }, bottom: { xs: 12, sm: 22 }, zIndex: 2, color: colors.heroCaption }}>
-        Camera gimbal / carbon frame
-      </Typography>
-    </Box>
-  );
-}
-
-export function HeroSection() {
-  const colors = useLandingColors();
-
-  return (
-    <Box component="section" sx={{ position: 'relative', width: '100%', maxWidth: '100vw', overflow: 'hidden', bgcolor: colors.hero, color: colors.heroText }}>
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          opacity: 0.7,
-          background: `radial-gradient(circle at 75% 35%, ${colors.teal}18 0, transparent 30%), linear-gradient(90deg, transparent 0 49.9%, ${colors.heroLine} 50%, transparent 50.1%)`,
-          backgroundSize: 'auto, 72px 72px',
-          maskImage: 'linear-gradient(to bottom, black, transparent 80%)',
-        }}
-      />
-      <Container maxWidth="lg" sx={{ position: 'relative', width: '100%', maxWidth: { xs: '100%', lg: 1240 }, boxSizing: 'border-box', mx: 'auto', overflow: 'hidden', px: { xs: 2, sm: 3 }, pt: { xs: 13, sm: 15, lg: 18 }, pb: { xs: 8, sm: 9, lg: 13 } }}>
-        <Box sx={{ display: 'grid', minWidth: 0, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 0.84fr) minmax(0, 1.16fr)' }, gap: { xs: 4, lg: 8 }, alignItems: 'center' }}>
-          <Box sx={{ position: 'relative', zIndex: 2, minWidth: 0, width: '100%', maxWidth: { xs: 350, lg: '100%' } }}>
-            <Chip
-              label="AI-assisted infrastructure inspection"
-              sx={{ bgcolor: `${colors.teal}18`, color: colors.teal, border: `1px solid ${colors.teal}44`, fontWeight: 700 }}
-            />
-            <Typography component="h1" sx={{ mt: 3, width: '100%', maxWidth: { xs: 350, lg: '100%' }, fontSize: { xs: 'clamp(2rem, 8vw, 3.6rem)', lg: 'clamp(4rem, 5.4vw, 5.8rem)' }, lineHeight: 0.98, letterSpacing: '-0.065em', fontWeight: 800, overflowWrap: 'normal', wordBreak: 'keep-all' }}>
-              From drone imagery to approved evidence and maintenance.
+    <Box component="section" sx={{ bgcolor: '#f4f8fa', color: '#12222b' }}>
+      <Container maxWidth="lg" sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 6, md: 10 } }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.05fr) minmax(0, 0.95fr)' },
+            gap: { xs: 5, md: 8 },
+            alignItems: 'center',
+          }}
+        >
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{ color: '#3aa5bd', fontWeight: 700, letterSpacing: '0.22em' }}
+            >
+              DRONE INSPECTION, MANAGED
             </Typography>
-            <Typography variant="h6" sx={{ mt: 3, width: '100%', maxWidth: { xs: 350, lg: 560 }, fontSize: { xs: '1rem', sm: '1.25rem' }, color: colors.heroMuted, lineHeight: 1.6, fontWeight: 400, overflowWrap: 'normal', wordBreak: 'keep-all' }}>
-              One workspace connects client requests, mission planning, field capture, human-reviewed AI findings, immutable reports, and follow-up maintenance.
+            <Typography
+              component="h1"
+              variant="h1"
+              sx={{
+                mt: 2,
+                fontSize: 'clamp(2.4rem, 5vw, 4.6rem)',
+                lineHeight: 1.02,
+                letterSpacing: '-0.045em',
+                fontWeight: 700,
+              }}
+            >
+              From flight plan to maintenance record.
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4, width: '100%' }}>
+            <Typography variant="body1" sx={{ mt: 2.5, color: '#4d6673', maxWidth: 520, lineHeight: 1.7 }}>
+              Scope the asset, plan the mission, capture evidence with checksum, review AI candidates, and close
+              defects with before and after proof.
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 4 }}>
               <Button
+                component="a"
                 href="/register"
                 variant="contained"
+                size="large"
                 endIcon={<ArrowForwardIcon />}
-                sx={{ width: { xs: '100%', sm: 'auto' }, bgcolor: colors.teal, color: colors.ink, '&:hover': { bgcolor: '#5be0cc' }, px: 2.5, py: 1.3 }}
+                sx={{ bgcolor: '#12222b', color: '#f4f8fa', px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600 }}
               >
                 Create Client account
               </Button>
               <Button
-                href="/login"
-                variant="outlined"
-                sx={{ width: { xs: '100%', sm: 'auto' }, color: colors.heroText, borderColor: colors.heroLine, '&:hover': { borderColor: colors.teal, color: colors.teal }, px: 2.5, py: 1.3 }}
-              >
-                Open your workspace
-              </Button>
-              <Button
+                component="a"
                 href="/register-provider"
-                variant="text"
-                sx={{ width: { xs: '100%', sm: 'auto' }, color: colors.teal, '&:hover': { color: '#5be0cc' }, px: 2.5, py: 1.3 }}
+                variant="outlined"
+                size="large"
+                sx={{ px: 3.5, py: 1.5, borderRadius: 999, textTransform: 'none', fontWeight: 600, borderColor: '#c4d4dd', color: '#12222b' }}
               >
-                Register your provider organization
+                Register as provider
               </Button>
-            </Stack>
-            <Stack direction="row" spacing={1} sx={{ mt: 3, color: colors.heroMuted, alignItems: 'center' }}>
-              <VerifiedIcon sx={{ color: colors.teal, fontSize: 17 }} />
-              <Typography variant="caption">Every candidate finding stays gated until an assigned human reviews the evidence.</Typography>
             </Stack>
           </Box>
-          <DroneHeroVisual />
+
+          <Box
+            ref={figureRef}
+            component="figure"
+            sx={{
+              m: 0,
+              position: 'relative',
+              minHeight: { xs: 300, md: 480 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Box
+              aria-hidden="true"
+              sx={{
+                position: 'absolute',
+                width: { xs: 240, md: 380 },
+                height: { xs: 240, md: 380 },
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(58,165,189,0.22) 0%, rgba(58,165,189,0.05) 55%, transparent 75%)',
+              }}
+            />
+            <Box
+              component="img"
+              src="/images/landing/hero-asset.jpg"
+              alt="Professional quadcopter inspection drone with a stabilized camera"
+              loading="eager"
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                width: '100%',
+                maxWidth: 520,
+                borderRadius: 4,
+                boxShadow: '0 32px 80px rgba(18,34,43,0.22)',
+              }}
+            />
+          </Box>
         </Box>
       </Container>
     </Box>

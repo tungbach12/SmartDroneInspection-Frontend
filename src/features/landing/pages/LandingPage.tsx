@@ -8,11 +8,8 @@ import { ProductProofPanel } from '../components/ProductProofPanel';
 import { RoleCards } from '../components/RoleCards';
 import { SecuritySection } from '../components/SecuritySection';
 import { TrustStrip } from '../components/TrustStrip';
-import { useLandingColors } from '../landingTheme';
 
 export default function LandingPage() {
-  const colors = useLandingColors();
-
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SmartDroneInspection | Inspection management';
@@ -23,7 +20,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <Box sx={{ bgcolor: colors.paper, overflowX: 'hidden' }}>
+    <Box sx={{ bgcolor: '#f4f8fa', overflowX: 'hidden' }}>
       <LandingHeader />
       <main>
         <HeroSection />

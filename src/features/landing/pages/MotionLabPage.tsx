@@ -63,7 +63,7 @@ export function MotionLabPage() {
             Autonomous survey trajectory
           </Typography>
           <Typography variant="body1" sx={{ mt: 1, color: '#5a7a8c' }}>
-            Anime.js v4 — createDrawable flight path, spring nodes, split text.
+            Anime.js v4 - createDrawable flight path, spring nodes, split text.
           </Typography>
           <svg viewBox="0 0 660 260" width="100%" style={{ marginTop: 32 }}>
             <path
