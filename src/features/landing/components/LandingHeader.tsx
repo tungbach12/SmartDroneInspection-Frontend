@@ -3,7 +3,6 @@ import { Box, Button, Container, Drawer, IconButton, Link, Stack, Typography } f
 import CloseIcon from '@mui/icons-material/Close';
 import MenuIcon from '@mui/icons-material/Menu';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
-import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
 
 const navigationItems = [
   { label: 'Features', href: '#features' },
@@ -49,7 +48,6 @@ export function LandingHeader() {
             Log in
           </Button>
           <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
-            <ColorModeToggle />
           </Box>
           <IconButton aria-label="Open navigation menu" onClick={() => setMobileOpen(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, color: '#12222b' }}>
             <MenuIcon />
@@ -73,7 +71,6 @@ export function LandingHeader() {
             <Typography variant="body2" sx={{ color: '#5a7280' }}>
               Appearance
             </Typography>
-            <ColorModeToggle />
           </Stack>
           <Button href="/login" variant="contained" onClick={() => setMobileOpen(false)} sx={{ bgcolor: '#12222b' }}>
             Log in
