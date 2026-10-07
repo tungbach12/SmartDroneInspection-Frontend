@@ -28,18 +28,18 @@ export function DarkFooter() {
           <Box>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
               <Box
-                component="svg"
-                viewBox="0 0 28 28"
-                sx={{ width: 22, height: 22, flexShrink: 0 }}
-              >
-                <polygon
-                  points="14,2 26,8 26,20 14,26 2,20 2,8"
-                  fill="none"
-                  stroke="#52a8ff"
-                  strokeWidth="2"
-                />
-                <circle cx="14" cy="14" r="4" fill="#FFFFFF" />
-              </Box>
+                component="img"
+                src="/images/landing/logo.png"
+                alt="SmartDroneInspection Logo"
+                sx={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '2px',
+                  border: '1px solid rgba(82, 168, 255, 0.35)',
+                  bgcolor: '#000000',
+                  objectFit: 'contain',
+                }}
+              />
               <Typography
                 sx={{
                   fontFamily: '"Geist Sans", sans-serif',
@@ -59,7 +59,7 @@ export function DarkFooter() {
                 mt: 1,
               }}
             >
-              High-Integrity Telemetry & Evidence Verification Engine
+              Infrastructure Inspection & Defect Lifecycle Platform
             </Typography>
           </Box>
 
@@ -74,14 +74,14 @@ export function DarkFooter() {
               underline="none"
               sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
             >
-              Event Stream
+              Mission Stream
             </Link>
             <Link
               href="#bento-matrix"
               underline="none"
               sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
             >
-              Bento Matrix
+              Inspection Matrix
             </Link>
             <Link
               href="#metrics"
@@ -95,19 +95,19 @@ export function DarkFooter() {
               underline="none"
               sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
             >
-              Security
+              Role Console
             </Link>
             <Link
               href="/login"
               underline="none"
               sx={{ fontSize: '14px', color: '#52a8ff', '&:hover': { color: '#FFFFFF' } }}
             >
-              Sign In ↗
+              Access Portal ↗
             </Link>
           </Stack>
 
           {/* Status Indicator Pill */}
-          <StatusChip status="pass" label="ALL SYSTEMS OPERATIONAL" />
+          <StatusChip status="pass" label="ALL PIPELINES OPERATIONAL" />
         </Box>
 
         {/* Bottom row */}
@@ -128,7 +128,7 @@ export function DarkFooter() {
               color: '#666666',
             }}
           >
-            © 2026 SmartDroneInspection. All rights reserved. Cryptographic telemetry verification platform.
+            © 2026 SmartDroneInspection. All rights reserved. Cryptographic evidence verification engine.
           </Typography>
 
           <Typography
@@ -138,7 +138,7 @@ export function DarkFooter() {
               color: '#555555',
             }}
           >
-            LATENCY: 42MS // REGION: VN-ORACLE-ARM64
+            EVIDENCE INTEGRITY: SHA-256 // CLOUD: ORACLE-ARM64
           </Typography>
         </Box>
       </Container>

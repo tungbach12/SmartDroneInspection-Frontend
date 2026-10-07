@@ -37,7 +37,7 @@ export function BentoGrid() {
               color: '#FFFFFF',
             }}
           >
-            Bento Feature Grid
+            Inspection Intelligence Grid
           </Typography>
           <Typography
             sx={{
@@ -47,11 +47,11 @@ export function BentoGrid() {
               maxWidth: '680px',
             }}
           >
-            Continuous structural screening, cluster anomaly analytics, and an append-only cryptographic audit trail.
+            Visual defect AI candidate screening, radiometric thermal anomaly clustering, and cryptographic report sign-off.
           </Typography>
         </Box>
 
-        {/* 3-Column Bento Grid */}
+        {/* 3-Column Bento Grid with Generated Assets */}
         <Box
           sx={{
             display: 'grid',
@@ -59,7 +59,7 @@ export function BentoGrid() {
             gap: 3,
           }}
         >
-          {/* Card 1: Regression / Defect Screening */}
+          {/* Card 1: AI Defect Vision Screening */}
           <Box
             sx={{
               bgcolor: '#0a0a0a',
@@ -93,25 +93,54 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Defect Regression Matrix
+                AI Defect Detection
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 3 }}>
-                Automated detection screening comparing current flight imagery to historical asset baseline.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
+                Automated bounding box detection for concrete fractures, rust pitting, and structural spalling.
               </Typography>
 
-              {/* Vertical list of status rows with PASS/FAIL chips and percentage changes */}
-              <Stack spacing={1.5}>
+              {/* Generated Image Asset: Camera POV with Bounding Boxes */}
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '180px',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  mb: 2.5,
+                }}
+              >
+                <Box
+                  component="img"
+                  src="/images/landing/defect-detection-preview.jpg"
+                  alt="Drone camera defect bounding box detection"
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    filter: 'contrast(1.1) brightness(0.95)',
+                  }}
+                />
+                <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                  <StatusChip status="pass" label="YOLOv11: 96.4%" />
+                </Box>
+                <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
+                  <StatusChip status="warn" label="HUMAN REVIEW REQUIRED" />
+                </Box>
+              </Box>
+
+              {/* Key Defect Summary */}
+              <Stack spacing={1}>
                 {[
-                  { name: 'Surface Micro-Crack', delta: '+12.4%', status: 'fail' as const, chip: 'ACTION' },
-                  { name: 'Rebar Rust Pitting', delta: '-4.1%', status: 'pass' as const, chip: 'PASS' },
-                  { name: 'High-Bolt Torque Lock', delta: '0.0%', status: 'pass' as const, chip: 'PASS' },
-                  { name: 'Spalling Delamination', delta: '+8.9%', status: 'warn' as const, chip: 'WARN' },
-                  { name: 'Thermal Insulation Loss', delta: '-1.2%', status: 'pass' as const, chip: 'PASS' },
-                ].map((row) => (
+                  { name: 'Bridge Pier Crack #04', delta: '+12.4%', chip: 'ACTION', status: 'fail' as const },
+                  { name: 'Rebar Rust Exposure', delta: '-2.1%', chip: 'MONITOR', status: 'warn' as const },
+                  { name: 'High-Torque Bolt Gap', delta: '0.0%', chip: 'PASS', status: 'pass' as const },
+                ].map((item) => (
                   <Box
-                    key={row.name}
+                    key={item.name}
                     sx={{
-                      p: 1.5,
+                      p: 1.25,
                       bgcolor: '#121212',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                       display: 'flex',
@@ -121,19 +150,19 @@ export function BentoGrid() {
                   >
                     <Box>
                       <Typography sx={{ fontSize: '13px', color: '#FFFFFF', fontWeight: 500 }}>
-                        {row.name}
+                        {item.name}
                       </Typography>
                       <Typography
                         sx={{
                           fontFamily: '"Geist Mono", monospace',
                           fontSize: '11px',
-                          color: row.delta.startsWith('+') ? '#ededed' : '#62c073',
+                          color: '#999999',
                         }}
                       >
-                        DELTA: {row.delta}
+                        GSD: 0.8mm // DELTA: {item.delta}
                       </Typography>
                     </Box>
-                    <StatusChip status={row.status} label={row.chip} />
+                    <StatusChip status={item.status} label={item.chip} />
                   </Box>
                 ))}
               </Stack>
@@ -149,11 +178,11 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              YOLOv11 & SAM-2 SCREENING ENSEMBLE
+              ZERO DEFECT AUTO-RELEASES // HUMAN GATE MANDATORY
             </Typography>
           </Box>
 
-          {/* Card 2: Failure Clustering & Heatmap */}
+          {/* Card 2: Thermal & Spatial Anomaly Clustering */}
           <Box
             sx={{
               bgcolor: '#0a0a0a',
@@ -187,21 +216,22 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Failure Clustering
+                Thermal & Spatial Map
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2 }}>
-                Spatial density and failure clustering mapped to realworld LiDAR and radiometric coordinates.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
+                LiDAR false-color point clouds and radiometric orthomosaics for solar, turbine, and roof surveys.
               </Typography>
 
-              {/* Generated Ortho Heatmap Preview */}
+              {/* Generated Image Asset: LiDAR False Color Heatmap */}
               <Box
                 sx={{
                   position: 'relative',
                   width: '100%',
-                  height: '140px',
+                  height: '180px',
+                  borderRadius: '2px',
                   overflow: 'hidden',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
                   mb: 2.5,
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
                 }}
               >
                 <Box
@@ -215,24 +245,20 @@ export function BentoGrid() {
                     filter: 'contrast(1.15) brightness(0.9)',
                   }}
                 />
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                  }}
-                >
-                  <StatusChip status="active" label="LIDAR OVERLAY" />
+                <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                  <StatusChip status="active" label="RADIOMETRIC HUD" />
+                </Box>
+                <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
+                  <StatusChip status="pass" label="RTK GPS SUB-CM" />
                 </Box>
               </Box>
 
-              {/* Stacked Horizontal Bar Charts for error metrics */}
-              <Stack spacing={1.75}>
+              {/* Severity breakdown */}
+              <Stack spacing={1.5}>
                 {[
-                  { label: 'Surface Fatigue Zone A', value: 78, bar1: 52, bar2: 26, color: '#52a8ff' },
-                  { label: 'Rebar Corrosion Cluster', value: 64, bar1: 40, bar2: 24, color: '#62c073' },
-                  { label: 'Structural Tilt / Vibration', value: 38, bar1: 20, bar2: 18, color: '#ededed' },
-                  { label: 'Thermal Loss Anomalies', value: 85, bar1: 60, bar2: 25, color: '#52a8ff' },
+                  { label: 'Surface Thermal Delta (Solar/Roof)', value: 82, color: '#52a8ff' },
+                  { label: 'Structural Concrete Spalling Area', value: 64, color: '#62c073' },
+                  { label: 'High-Voltage Corridor Clear Space', value: 95, color: '#52a8ff' },
                 ].map((item) => (
                   <Box key={item.label}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -250,11 +276,9 @@ export function BentoGrid() {
                         bgcolor: 'rgba(255, 255, 255, 0.08)',
                         borderRadius: '2px',
                         overflow: 'hidden',
-                        display: 'flex',
                       }}
                     >
-                      <Box sx={{ width: `${item.bar1}%`, bgcolor: item.color, height: '100%' }} />
-                      <Box sx={{ width: `${item.bar2}%`, bgcolor: 'rgba(255, 255, 255, 0.25)', height: '100%' }} />
+                      <Box sx={{ width: `${item.value}%`, bgcolor: item.color, height: '100%' }} />
                     </Box>
                   </Box>
                 ))}
@@ -271,11 +295,11 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              SPATIAL POINT DENSITY: 12,400 PTS/M2
+              RADIOMETRIC ACCURACY: ±2°C // TIFF COG SERVING
             </Typography>
           </Box>
 
-          {/* Card 3: Version Replay & Code Diff */}
+          {/* Card 3: Cryptographic Report & Audit Verification */}
           <Box
             sx={{
               bgcolor: '#0a0a0a',
@@ -309,89 +333,83 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Version Replay & Checksum Diff
+                Immutable Reports
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 3 }}>
-                Cryptographic audit trail with green and blue side-borders for added and verified lines.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
+                Cryptographic PDF certificates tied to SHA-256 evidence records and maintenance repair workorders.
               </Typography>
 
-              {/* Code-diff View per spec */}
+              {/* Generated Image Asset: Immutable Inspection Certificate */}
               <Box
                 sx={{
-                  bgcolor: '#060606',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  p: 2,
-                  fontFamily: '"Geist Mono", monospace',
-                  fontSize: '11.5px',
-                  lineHeight: 1.6,
+                  position: 'relative',
+                  width: '100%',
+                  height: '180px',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  mb: 2.5,
                 }}
               >
-                <Stack spacing={1}>
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      bgcolor: 'rgba(98, 192, 115, 0.08)',
-                      borderLeft: '3px solid #62c073',
-                      color: '#62c073',
-                    }}
-                  >
-                    + sha256: d8a902...b41c0 (raw evidence verified)
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      bgcolor: 'rgba(82, 168, 255, 0.08)',
-                      borderLeft: '3px solid #52a8ff',
-                      color: '#52a8ff',
-                    }}
-                  >
-                    ~ signer: "ServiceManager" signed release v2.1
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      bgcolor: 'rgba(255, 255, 255, 0.03)',
-                      borderLeft: '3px solid rgba(255, 255, 255, 0.2)',
-                      color: '#999999',
-                    }}
-                  >
-                    &nbsp;&nbsp;asset_id: "TOWER-N204-SECTOR-A"
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      bgcolor: 'rgba(98, 192, 115, 0.08)',
-                      borderLeft: '3px solid #62c073',
-                      color: '#62c073',
-                    }}
-                  >
-                    + maintenance_ticket: "TK-402 routed to engineer"
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      bgcolor: 'rgba(82, 168, 255, 0.08)',
-                      borderLeft: '3px solid #52a8ff',
-                      color: '#52a8ff',
-                    }}
-                  >
-                    ~ client_access: ORG_SCOPE_VERIFIED (read-only)
-                  </Box>
-
-                  <Box
-                    sx={{
-                      p: '4px 8px',
-                      color: '#666666',
-                    }}
-                  >
-                    &nbsp;&nbsp;immutable_lock: [0x41f8...99e] CLOSED
-                  </Box>
-                </Stack>
+                <Box
+                  component="img"
+                  src="/images/landing/immutable-report-preview.jpg"
+                  alt="Cryptographic immutable inspection report preview"
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    filter: 'contrast(1.1) brightness(0.95)',
+                  }}
+                />
+                <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+                  <StatusChip status="pass" label="SHA-256 VERIFIED" />
+                </Box>
+                <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
+                  <StatusChip status="active" label="REPAIR TICKET #TK-402" />
+                </Box>
               </Box>
+
+              {/* Verified Ledger Trail */}
+              <Stack spacing={1}>
+                {[
+                  { tag: '+ EVIDENCE', text: '1.4GB RAW 4K images sealed', color: '#62c073' },
+                  { tag: '~ REVIEWER', text: 'Service Manager signed v2.1', color: '#52a8ff' },
+                  { tag: '+ CLOSEOUT', text: 'Maintenance before/after attached', color: '#62c073' },
+                ].map((item) => (
+                  <Box
+                    key={item.text}
+                    sx={{
+                      p: 1.25,
+                      bgcolor: '#121212',
+                      borderLeft: `3px solid ${item.color}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontFamily: '"Geist Mono", monospace',
+                        fontSize: '11px',
+                        color: item.color,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {item.tag}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Geist Mono", monospace',
+                        fontSize: '12px',
+                        color: '#FFFFFF',
+                      }}
+                    >
+                      {item.text}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
             </Box>
 
             <Typography
@@ -404,7 +422,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              WORM STORAGE // APPEND-ONLY LEDGER
+              WORM STORAGE // TAMPER-EVIDENT ARCHIVE
             </Typography>
           </Box>
         </Box>
