@@ -2,24 +2,24 @@ import { Box, Container, Typography } from '@mui/material';
 
 const metrics = [
   {
-    value: '0.8',
-    unit: 'mm',
-    label: 'Ground Sampling Distance (GSD) sub-millimeter optical crack detection',
+    value: '85',
+    unit: '%',
+    label: 'Reduction in inspection costs compared to manual scaffolding and rope access',
+  },
+  {
+    value: '10',
+    unit: 'x',
+    label: 'Faster turnaround from flight takeoff to certified repair workorders',
+  },
+  {
+    value: '0',
+    unit: 'RISK',
+    label: 'Fatalities or field climbing incidents with 100% ground-operated drone flights',
   },
   {
     value: '100',
     unit: '%',
-    label: 'Human-in-the-loop review gate prior to any client-facing report release',
-  },
-  {
-    value: 'SHA',
-    unit: '256',
-    label: 'Cryptographic tamper-evident hash chaining on raw drone evidence packages',
-  },
-  {
-    value: '48',
-    unit: 'h',
-    label: 'Standard turnaround from autonomous flight landing to maintenance closeout',
+    label: 'Findings certified by licensed engineers before release to site owners',
   },
 ];
 
@@ -36,7 +36,7 @@ export function MetricsGrid() {
       }}
     >
       <Container maxWidth="lg">
-        {/* Section Heading */}
+        {/* Section Heading: Outcome & Value Focus */}
         <Box sx={{ mb: 6 }}>
           <Typography
             sx={{
@@ -48,7 +48,7 @@ export function MetricsGrid() {
               mb: 1,
             }}
           >
-            INSPECTION SERVICE BENCHMARKS
+            PROVEN OPERATIONAL IMPACT
           </Typography>
           <Typography
             component="h2"
@@ -60,7 +60,7 @@ export function MetricsGrid() {
               color: '#FFFFFF',
             }}
           >
-            Precision Performance Metrics
+            Measurable Value for Infrastructure Owners
           </Typography>
           <Typography
             sx={{
@@ -70,7 +70,7 @@ export function MetricsGrid() {
               maxWidth: '680px',
             }}
           >
-            Engineering tolerances measured across autonomous waypoint missions, raw evidence ingest, and human-verified closeouts.
+            Real outcomes delivered across energy grids, bridges, telecommunications, and industrial facilities.
           </Typography>
         </Box>
 

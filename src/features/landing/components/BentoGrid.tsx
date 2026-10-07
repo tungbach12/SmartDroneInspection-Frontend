@@ -13,7 +13,7 @@ export function BentoGrid() {
       }}
     >
       <Container maxWidth="lg">
-        {/* Section Heading */}
+        {/* Section Heading: Outcome & Value Focus */}
         <Box sx={{ mb: 6 }}>
           <Typography
             sx={{
@@ -25,7 +25,7 @@ export function BentoGrid() {
               mb: 1,
             }}
           >
-            INTELLIGENCE & VERIFICATION MATRIX
+            INTELLIGENT DRONE INSPECTION CAPABILITIES
           </Typography>
           <Typography
             component="h2"
@@ -37,7 +37,7 @@ export function BentoGrid() {
               color: '#FFFFFF',
             }}
           >
-            Inspection Intelligence Grid
+            How AI and Drones Protect Your Assets
           </Typography>
           <Typography
             sx={{
@@ -47,7 +47,7 @@ export function BentoGrid() {
               maxWidth: '680px',
             }}
           >
-            Visual defect AI candidate screening, radiometric thermal anomaly clustering, and cryptographic report sign-off.
+            Replace manual inspection guesswork with automated crack vision, thermal heat loss detection, and certified compliance reports.
           </Typography>
         </Box>
 
@@ -81,7 +81,7 @@ export function BentoGrid() {
                   textTransform: 'uppercase',
                 }}
               >
-                MODULE 01
+                COMPUTER VISION
               </Typography>
               <Typography
                 sx={{
@@ -93,10 +93,10 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                AI Defect Detection
+                Sub-Millimeter Defect Detection
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
-                Automated bounding box detection for concrete fractures, rust pitting, and structural spalling.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+                Neural vision models analyze 4K aerial imagery down to 0.8mm resolution, instantly spotting fractures and corrosion before structural failures occur.
               </Typography>
 
               {/* Generated Image Asset: Camera POV with Bounding Boxes */}
@@ -123,19 +123,19 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="pass" label="YOLOv11: 96.4%" />
+                  <StatusChip status="pass" label="AI CONFIDENCE: 96%" />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="warn" label="HUMAN REVIEW REQUIRED" />
+                  <StatusChip status="warn" label="HUMAN REVIEW GATE" />
                 </Box>
               </Box>
 
-              {/* Key Defect Summary */}
+              {/* Detected Defect Findings */}
               <Stack spacing={1}>
                 {[
-                  { name: 'Bridge Pier Crack #04', delta: '+12.4%', chip: 'ACTION', status: 'fail' as const },
-                  { name: 'Rebar Rust Exposure', delta: '-2.1%', chip: 'MONITOR', status: 'warn' as const },
-                  { name: 'High-Torque Bolt Gap', delta: '0.0%', chip: 'PASS', status: 'pass' as const },
+                  { name: 'Bridge Pier Surface Crack', delta: 'HIGH SEVERITY', chip: 'ACTION', status: 'fail' as const },
+                  { name: 'Rebar Corrosion Exposure', delta: 'MONITORING', chip: 'REVIEW', status: 'warn' as const },
+                  { name: 'High-Torque Flange Bolts', delta: 'NORMAL FIT', chip: 'PASS', status: 'pass' as const },
                 ].map((item) => (
                   <Box
                     key={item.name}
@@ -159,7 +159,7 @@ export function BentoGrid() {
                           color: '#999999',
                         }}
                       >
-                        GSD: 0.8mm // DELTA: {item.delta}
+                        STATUS: {item.delta}
                       </Typography>
                     </Box>
                     <StatusChip status={item.status} label={item.chip} />
@@ -178,7 +178,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              ZERO DEFECT AUTO-RELEASES // HUMAN GATE MANDATORY
+              ZERO FALSE ALARM RELEASES // VERIFIED BY INSPECTORS
             </Typography>
           </Box>
 
@@ -204,7 +204,7 @@ export function BentoGrid() {
                   textTransform: 'uppercase',
                 }}
               >
-                MODULE 02
+                RADIOMETRIC THERMAL
               </Typography>
               <Typography
                 sx={{
@@ -216,10 +216,10 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Thermal & Spatial Map
+                Thermal & Spatial Mapping
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
-                LiDAR false-color point clouds and radiometric orthomosaics for solar, turbine, and roof surveys.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+                Pinpoint invisible insulation leaks, solar cell hotspots, and roof moisture traps without drilling or dismantling physical infrastructure.
               </Typography>
 
               {/* Generated Image Asset: LiDAR False Color Heatmap */}
@@ -237,7 +237,7 @@ export function BentoGrid() {
                 <Box
                   component="img"
                   src="/images/landing/inspection-scan-ortho.jpg"
-                  alt="LiDAR orthophoto telemetry scan"
+                  alt="Thermal radiometric scan and orthomosaic map"
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -246,19 +246,19 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="active" label="RADIOMETRIC HUD" />
+                  <StatusChip status="active" label="THERMAL OVERLAY" />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="pass" label="RTK GPS SUB-CM" />
+                  <StatusChip status="pass" label="RTK GPS ACCURATE" />
                 </Box>
               </Box>
 
-              {/* Severity breakdown */}
+              {/* Heat breakdown */}
               <Stack spacing={1.5}>
                 {[
-                  { label: 'Surface Thermal Delta (Solar/Roof)', value: 82, color: '#52a8ff' },
-                  { label: 'Structural Concrete Spalling Area', value: 64, color: '#62c073' },
-                  { label: 'High-Voltage Corridor Clear Space', value: 95, color: '#52a8ff' },
+                  { label: 'Rooftop Moisture & Leak Ingress', value: 85, color: '#52a8ff' },
+                  { label: 'Solar Photovoltaic Cell Hotspots', value: 72, color: '#62c073' },
+                  { label: 'High-Voltage Insulator Heat Delta', value: 94, color: '#52a8ff' },
                 ].map((item) => (
                   <Box key={item.label}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -266,7 +266,7 @@ export function BentoGrid() {
                         {item.label}
                       </Typography>
                       <Typography sx={{ fontFamily: '"Geist Mono", monospace', fontSize: '11px', color: '#999999' }}>
-                        {item.value}%
+                        {item.value}% EFFICIENCY
                       </Typography>
                     </Box>
                     <Box
@@ -295,7 +295,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              RADIOMETRIC ACCURACY: ±2°C // TIFF COG SERVING
+              ACCURATE TEMPERATURE PROFILING // INSTANT ROI
             </Typography>
           </Box>
 
@@ -321,7 +321,7 @@ export function BentoGrid() {
                   textTransform: 'uppercase',
                 }}
               >
-                MODULE 03
+                COMPLIANCE & AUDIT
               </Typography>
               <Typography
                 sx={{
@@ -333,10 +333,10 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Immutable Reports
+                Certified Compliance Reports
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5 }}>
-                Cryptographic PDF certificates tied to SHA-256 evidence records and maintenance repair workorders.
+              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+                Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, then dispatch verified maintenance tickets.
               </Typography>
 
               {/* Generated Image Asset: Immutable Inspection Certificate */}
@@ -363,19 +363,19 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="pass" label="SHA-256 VERIFIED" />
+                  <StatusChip status="pass" label="SEALED EVIDENCE" />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="active" label="REPAIR TICKET #TK-402" />
+                  <StatusChip status="active" label="MAINTENANCE DISPATCHED" />
                 </Box>
               </Box>
 
-              {/* Verified Ledger Trail */}
+              {/* Real Value Outcomes */}
               <Stack spacing={1}>
                 {[
-                  { tag: '+ EVIDENCE', text: '1.4GB RAW 4K images sealed', color: '#62c073' },
-                  { tag: '~ REVIEWER', text: 'Service Manager signed v2.1', color: '#52a8ff' },
-                  { tag: '+ CLOSEOUT', text: 'Maintenance before/after attached', color: '#62c073' },
+                  { tag: 'EVIDENCE', text: 'Tamper-proof RAW 4K photos attached', color: '#62c073' },
+                  { tag: 'SIGN-OFF', text: 'Certified Inspector signed report', color: '#52a8ff' },
+                  { tag: 'REPAIRS', text: 'Before and after photo verification', color: '#62c073' },
                 ].map((item) => (
                   <Box
                     key={item.text}
@@ -400,8 +400,8 @@ export function BentoGrid() {
                     </Typography>
                     <Typography
                       sx={{
-                        fontFamily: '"Geist Mono", monospace',
-                        fontSize: '12px',
+                        fontFamily: '"Geist Sans", sans-serif',
+                        fontSize: '13px',
                         color: '#FFFFFF',
                       }}
                     >
@@ -422,7 +422,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              WORM STORAGE // TAMPER-EVIDENT ARCHIVE
+              INSURANCE-READY & REGULATORY-COMPLIANT
             </Typography>
           </Box>
         </Box>
