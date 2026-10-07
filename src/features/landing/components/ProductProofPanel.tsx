@@ -55,7 +55,7 @@ export function ProductProofPanel() {
               </Box>
               <Typography variant="caption" sx={{ color: colors.teal, fontWeight: 800 }}>ACTIVE</Typography>
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, mt: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1, mt: 3 }}>
               {[
                 { label: 'Evidence', value: 'Linked' },
                 { label: 'Findings', value: 'Review' },
