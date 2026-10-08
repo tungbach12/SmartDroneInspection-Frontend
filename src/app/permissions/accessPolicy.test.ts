@@ -11,8 +11,7 @@ import {
 
 const allRoles: Role[] = [
   'ADMIN',
-  'CLIENT',
-  'SERVICE_MANAGER',
+  'ORG_ADMIN',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ];
@@ -31,22 +30,22 @@ const expectedAccess: Record<
     maintenance: ['ADMIN'],
   },
   client: {
-    dashboard: ['CLIENT'],
-    assets: ['CLIENT'],
+    dashboard: ['ORG_ADMIN'],
+    assets: ['ORG_ADMIN'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['CLIENT'],
-    reports: ['CLIENT'],
-    maintenance: ['CLIENT'],
+    inspections: ['ORG_ADMIN'],
+    reports: ['ORG_ADMIN'],
+    maintenance: ['ORG_ADMIN'],
   },
   operations: {
-    dashboard: ['SERVICE_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
     assets: [],
     'asset-catalog': [],
-    'asset-review': ['SERVICE_MANAGER'],
-    inspections: ['SERVICE_MANAGER', 'INSPECTOR'],
-    reports: ['SERVICE_MANAGER', 'INSPECTOR'],
-    maintenance: ['SERVICE_MANAGER', 'MAINTENANCE_ENGINEER'],
+    'asset-review': [],
+    inspections: ['INSPECTOR'],
+    reports: ['INSPECTOR'],
+    maintenance: ['MAINTENANCE_ENGINEER'],
   },
 };
 
@@ -71,26 +70,29 @@ describe('role-aware portal access policy', () => {
     expect(actualRoles).toEqual(allowedRoles);
   });
 
-  it('routes a single-role user to the matching portal entry', () => {
-    expect(getPortalEntryPath(['CLIENT'])).toBe('/client/dashboard');
+  it('routes each canonical user role to its matching portal entry', () => {
+    expect(getPortalEntryPath(['ORG_ADMIN'])).toBe('/client/dashboard');
     expect(getPortalEntryPath(['INSPECTOR'])).toBe('/operations/dashboard');
+    expect(getPortalEntryPath(['MAINTENANCE_ENGINEER'])).toBe(
+      '/operations/dashboard',
+    );
     expect(getPortalEntryPath(['ADMIN'])).toBe('/admin/dashboard');
   });
 
   it('offers a portal choice when the user has roles in multiple portals', () => {
-    expect(getAvailablePortals(['CLIENT', 'INSPECTOR'])).toEqual([
+    expect(getAvailablePortals(['ORG_ADMIN', 'INSPECTOR'])).toEqual([
       'client',
       'operations',
     ]);
-    expect(getPortalEntryPath(['CLIENT', 'INSPECTOR'])).toBe('/portals');
+    expect(getPortalEntryPath(['ORG_ADMIN', 'INSPECTOR'])).toBe('/portals');
   });
 
   it('redirects legacy section URLs to an allowed portal or the portal chooser', () => {
-    expect(getLegacySectionRedirectPath(['CLIENT'], 'assets')).toBe(
+    expect(getLegacySectionRedirectPath(['ORG_ADMIN'], 'assets')).toBe(
       '/client/assets',
     );
     expect(
-      getLegacySectionRedirectPath(['CLIENT', 'INSPECTOR'], 'inspections'),
+      getLegacySectionRedirectPath(['ORG_ADMIN', 'INSPECTOR'], 'inspections'),
     ).toBe('/portals?section=inspections');
     expect(
       getLegacySectionRedirectPath(['MAINTENANCE_ENGINEER'], 'assets'),

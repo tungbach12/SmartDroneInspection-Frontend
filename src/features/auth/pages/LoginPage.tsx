@@ -22,6 +22,13 @@ import {
   login,
 } from '../api/authApi';
 import {
+  PORTAL_ROLE_ACCESS,
+  hasAnyRole,
+  type PortalId,
+} from '@/app/permissions/accessPolicy';
+import { getPortalForHost, getWorkspaceKind, getWorkspaceCopy } from '../utils/domainPortal';
+export { getPortalForHost } from '../utils/domainPortal';
+import {
   loginSchema,
   passwordSetupSchema,
   type LoginFormValues,
@@ -83,6 +90,13 @@ export default function LoginPage() {
       if (!result.accessToken) {
         throw new Error('The sign-in response did not include an access token.');
       }
+      const portal: PortalId | null = getPortalForHost(
+        window.location.hostname,
+      );
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
+      }
       setSession({ accessToken: result.accessToken, user: result.user });
       navigate(getAuthRedirectTarget(returnTo, result.user.roles), {
         replace: true,
@@ -106,6 +120,14 @@ export default function LoginPage() {
       );
       if (result.step !== 'AUTHENTICATED' || !result.accessToken) {
         throw new Error('Password setup did not complete sign-in.');
+      }
+
+      const portal: PortalId | null = getPortalForHost(
+        window.location.hostname,
+      );
+      if (portal && !hasAnyRole(result.user.roles, PORTAL_ROLE_ACCESS[portal])) {
+        setErrorMessage('This account does not belong to this workspace.');
+        return;
       }
 
       setSession({ accessToken: result.accessToken, user: result.user });
@@ -240,11 +262,16 @@ export default function LoginPage() {
     );
   }
 
+  const workspaceKind = getWorkspaceKind(window.location.hostname);
+  const copy = getWorkspaceCopy(workspaceKind);
+
   return (
     <AuthPageLayout
-      eyebrow="Secure workspace access"
-      title="Welcome back"
-      description="Sign in with your account to continue to your authorized workspace."
+      eyebrow={copy.eyebrow}
+      title={copy.title}
+      description={copy.description}
+      workspaceCopy={{ sideLabel: copy.sideLabel, sideTitle: copy.sideTitle, sideBody: copy.sideBody }}
+      sideLabels={workspaceKind === 'admin' ? ['Platform admin', 'User policy', 'Audit'] : workspaceKind === 'operations' ? ['Inspector', 'Maintenance engineer', 'Field operations'] : ['Organization Admin', 'Field operations', 'Admin']}
     >
       <Stack
         component="form"
@@ -254,7 +281,7 @@ export default function LoginPage() {
       >
         {registrationComplete && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
-            Your Client account is ready. Sign in to open your organization workspace.
+            Your organization and Organization Admin account are ready. Sign in to open your workspace.
           </Alert>
         )}
         {passwordChanged && (
@@ -333,7 +360,7 @@ export default function LoginPage() {
             underline="hover"
             sx={{ color: '#087c92', fontWeight: 700, whiteSpace: 'nowrap' }}
           >
-            Create a Client account
+            Create an organization account
           </Link>
         </Stack>
       </Stack>

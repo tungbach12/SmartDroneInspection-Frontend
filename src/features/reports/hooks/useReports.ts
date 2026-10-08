@@ -29,36 +29,10 @@ export function useCreateReportRevision() {
   return useReportMutation(reportApi.createRevision);
 }
 
-export function useAssignReportReviewer() {
-  return useReportMutation(
-    ({ reportId, versionId, reviewerId }: {
-      reportId: string;
-      versionId: string;
-      reviewerId: string;
-    }) => reportApi.assignReviewer(reportId, versionId, reviewerId),
-  );
-}
-
 export function useSubmitReportForReview() {
   return useReportMutation(
     ({ reportId, versionId }: { reportId: string; versionId: string }) =>
       reportApi.submitForReview(reportId, versionId),
-  );
-}
-
-export function useReviewReport() {
-  return useReportMutation(
-    ({
-      reportId,
-      versionId,
-      decision,
-      comments,
-    }: {
-      reportId: string;
-      versionId: string;
-      decision: 'APPROVED' | 'CHANGES_REQUESTED';
-      comments?: string;
-    }) => reportApi.review(reportId, versionId, decision, comments),
   );
 }
 

@@ -2,8 +2,8 @@ import type { Role } from '@/features/auth/store/authStore';
 
 export const PORTAL_ROLE_ACCESS = {
   admin: ['ADMIN'],
-  client: ['CLIENT'],
-  operations: ['SERVICE_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+  client: ['ORG_ADMIN'],
+  operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type PortalId = keyof typeof PORTAL_ROLE_ACCESS;
@@ -49,22 +49,22 @@ const SECTION_ROLE_ACCESS = {
     maintenance: ['ADMIN'],
   },
   client: {
-    dashboard: ['CLIENT'],
-    assets: ['CLIENT'],
+    dashboard: ['ORG_ADMIN'],
+    assets: ['ORG_ADMIN'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['CLIENT'],
-    reports: ['CLIENT'],
-    maintenance: ['CLIENT'],
+    inspections: ['ORG_ADMIN'],
+    reports: ['ORG_ADMIN'],
+    maintenance: ['ORG_ADMIN'],
   },
   operations: {
-    dashboard: ['SERVICE_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
     assets: [],
     'asset-catalog': [],
-    'asset-review': ['SERVICE_MANAGER'],
-    inspections: ['SERVICE_MANAGER', 'INSPECTOR'],
-    reports: ['SERVICE_MANAGER', 'INSPECTOR'],
-    maintenance: ['SERVICE_MANAGER', 'MAINTENANCE_ENGINEER'],
+    'asset-review': [],
+    inspections: ['INSPECTOR'],
+    reports: ['INSPECTOR'],
+    maintenance: ['MAINTENANCE_ENGINEER'],
   },
 } as const satisfies Record<
   PortalId,

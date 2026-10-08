@@ -13,9 +13,9 @@ const authenticatedFlow = {
   accessTokenExpiresInSeconds: 900,
   user: {
     id: 'user-1',
-    email: 'client@example.com',
-    fullName: 'Client User',
-    roles: ['CLIENT'] as const,
+    email: 'org-admin@example.com',
+    fullName: 'Organization Admin',
+    roles: ['ORG_ADMIN'] as const,
     actorZone: 'CUSTOMER_ORGANIZATION',
     organizationId: 'org-1',
   },
@@ -45,8 +45,8 @@ describe('browser session bootstrap', () => {
     expect(useAuthStore.getState()).toMatchObject({
       status: 'authenticated',
       accessToken: 'restored-memory-token',
-      email: 'client@example.com',
-      roles: ['CLIENT'],
+      email: 'org-admin@example.com',
+      roles: ['ORG_ADMIN'],
     });
   });
 

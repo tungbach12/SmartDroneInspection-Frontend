@@ -2,13 +2,13 @@ import { create } from 'zustand';
 
 export const ROLE_CODES = [
   'ADMIN',
-  'CLIENT',
-  'SERVICE_MANAGER',
+  'ORG_ADMIN',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;
 
 export type Role = (typeof ROLE_CODES)[number];
+export type ActorZone = 'PLATFORM' | 'CUSTOMER_ORGANIZATION';
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
 export interface AuthUser {
@@ -16,7 +16,7 @@ export interface AuthUser {
   email: string;
   fullName: string;
   roles: Role[];
-  actorZone: string;
+  actorZone: ActorZone;
   organizationId: string | null;
 }
 
@@ -33,7 +33,7 @@ interface AuthState {
   userName: string | null;
   email: string | null;
   roles: Role[];
-  actorZone: string | null;
+  actorZone: ActorZone | null;
   organizationId: string | null;
   setSession: (session: AuthSession) => void;
   setAccessToken: (accessToken: string) => void;

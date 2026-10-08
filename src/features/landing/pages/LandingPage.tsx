@@ -1,23 +1,18 @@
-﻿﻿import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { Box } from '@mui/material';
-import { FinalCta } from '../components/FinalCta';
-import { HeroSection } from '../components/HeroSection';
-import { ReviewGateSection } from '../components/ReviewGateSection';
-import { LandingFooter } from '../components/LandingFooter';
-import { LandingHeader } from '../components/LandingHeader';
-import { ProductProofPanel } from '../components/ProductProofPanel';
-import { RoleCards } from '../components/RoleCards';
-import { SecuritySection } from '../components/SecuritySection';
-import { TrustStrip } from '../components/TrustStrip';
-import { WorkflowTimeline } from '../components/WorkflowTimeline';
-import { useLandingColors } from '../landingTheme';
+import { DarkHeader } from '../components/DarkHeader';
+import { DarkHero } from '../components/DarkHero';
+import { EventStreamTable } from '../components/EventStreamTable';
+import { BentoGrid } from '../components/BentoGrid';
+import { MetricsGrid } from '../components/MetricsGrid';
+import { DarkRoleConsole } from '../components/DarkRoleConsole';
+import { DarkFinalCta } from '../components/DarkFinalCta';
+import { DarkFooter } from '../components/DarkFooter';
 
 export default function LandingPage() {
-  const colors = useLandingColors();
-
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'SmartDroneInspection | Inspection management';
+    document.title = 'SmartDroneInspection | High-Integrity Drone Telemetry & Cryptographic Inspection';
 
     return () => {
       document.title = previousTitle;
@@ -25,19 +20,25 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <Box sx={{ bgcolor: colors.paper, overflowX: 'hidden' }}>
-      <LandingHeader />
+    <Box
+      sx={{
+        bgcolor: '#000000',
+        color: '#FFFFFF',
+        minHeight: '100vh',
+        overflowX: 'hidden',
+        fontFamily: '"Geist Sans", sans-serif',
+      }}
+    >
+      <DarkHeader />
       <main>
-        <HeroSection />
-        <TrustStrip />
-        <WorkflowTimeline />
-        <ProductProofPanel />
-        <ReviewGateSection />
-        <RoleCards />
-        <SecuritySection />
-        <FinalCta />
+        <DarkHero />
+        <EventStreamTable />
+        <BentoGrid />
+        <MetricsGrid />
+        <DarkRoleConsole />
+        <DarkFinalCta />
       </main>
-      <LandingFooter />
+      <DarkFooter />
     </Box>
   );
 }

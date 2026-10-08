@@ -1,8 +1,10 @@
 import { useParams } from 'react-router-dom';
 import { Alert, Box, Button, Card, CardContent, Stack, Typography } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { FrequencyUnit } from '../api/catalogApi';
 import { useProposals, useSelectProposal } from '../hooks/useProposals';
@@ -22,6 +24,8 @@ export default function ScheduleProposalsPage() {
   const { assetId = '' } = useParams();
   const { data: proposals, isLoading, error, refetch } = useProposals(assetId);
   const select = useSelectProposal(assetId);
+  // One active schedule per asset is a server rule; a 409 is that rule refusing, not a failure.
+  const alreadyScheduled = isConflict(select.error);
 
   return (
     <Box>
@@ -42,7 +46,16 @@ export default function ScheduleProposalsPage() {
         }
       >
         <Stack spacing={2}>
-          {select.isError && (
+          {alreadyScheduled && (
+            // The server's own wording stands alone: this 409 comes from one rule, but a client
+            // heading would assert the reason rather than report it.
+            <RefusalNotice
+              testId="schedule-conflict"
+              reason={getErrorMessage(select.error, '')}
+              fallbackMessage="The server refused this selection."
+            />
+          )}
+          {!alreadyScheduled && select.isError && (
             <Alert severity="error">
               {getErrorMessage(select.error, 'Could not select this schedule.')}
             </Alert>
@@ -64,14 +77,22 @@ export default function ScheduleProposalsPage() {
                     )}
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    {/* Only a manager-approved proposal can be selected. clientSelect permits
+                        that status alone, so the action is hidden on every other state — which is
+                        also what stops a stale view from reaching the service's unhandled
+                        IllegalStateException (surfaced as a 500). The list itself only ever
+                        returns approved rows, so no client-side status model is invented here:
+                        the row shows the status the server sent, and nothing more. */}
                     <StatusChip status={proposal.status} />
-                    <Button
-                      variant="contained"
-                      disabled={select.isPending}
-                      onClick={() => select.mutate(proposal.id)}
-                    >
-                      Select
-                    </Button>
+                    {proposal.status === 'MANAGER_APPROVED' && (
+                      <Button
+                        variant="contained"
+                        disabled={select.isPending}
+                        onClick={() => select.mutate(proposal.id)}
+                      >
+                        Select
+                      </Button>
+                    )}
                   </Stack>
                 </Stack>
               </CardContent>

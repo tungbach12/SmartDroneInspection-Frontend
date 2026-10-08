@@ -1,11 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   reportQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
-  assign: { mutate: vi.fn(), isPending: false, error: null },
   submit: { mutate: vi.fn(), isPending: false, error: null },
-  review: { mutate: vi.fn(), isPending: false, error: null },
   release: { mutate: vi.fn(), isPending: false, error: null },
   decision: { mutate: vi.fn(), isPending: false, error: null },
   revision: { mutate: vi.fn(), isPending: false, error: null },
@@ -13,9 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../hooks/useReports', () => ({
   useReports: () => mocks.reportQuery,
-  useAssignReportReviewer: () => mocks.assign,
   useSubmitReportForReview: () => mocks.submit,
-  useReviewReport: () => mocks.review,
   useReleaseReport: () => mocks.release,
   useClientReportDecision: () => mocks.decision,
   useCreateReportRevision: () => mocks.revision,
@@ -64,7 +60,7 @@ describe('ReportsPage', () => {
         id: 'client-1',
         email: 'client@example.test',
         fullName: 'Client',
-        roles: ['CLIENT'],
+        roles: ['ORG_ADMIN'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
       },
@@ -73,27 +69,70 @@ describe('ReportsPage', () => {
     mocks.decision.mutate.mockReset();
   });
 
-  afterEach(() => useAuthStore.getState().clearSession());
+  afterEach(() => {
+    cleanup();
+    useAuthStore.getState().clearSession();
+  });
 
-  it('shows only the released version actions to a Client and submits the decision', () => {
+  it('keeps released report workflow actions unavailable without a backend contract', () => {
     render(<ReportsPage />);
 
     expect(screen.getByText('Bridge inspection')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Accept report' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Request revision' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accept report' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Request revision' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Release approved version' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Accept report' }));
-    expect(mocks.decision.mutate).toHaveBeenCalledWith({
-      reportId: 'report-1',
-      versionId: 'version-1',
-      decision: 'ACCEPT',
-    });
+    expect(mocks.decision.mutate).not.toHaveBeenCalled();
   });
 
   it('shows a loading state while the report list is being fetched', () => {
     mocks.reportQuery = { data: undefined, isLoading: true, error: null, refetch: vi.fn() };
     render(<ReportsPage />);
     expect(screen.getByText('Loading records…')).toBeTruthy();
+  });
+
+  it('does not expose removed report workflow actions even for an inspector', () => {
+    const draft = {
+      ...releasedReport,
+      reportStatus: 'DRAFT',
+      versionStatus: 'DRAFT',
+      review: null,
+      releasedAt: null,
+    };
+    mocks.reportQuery = { data: [draft], isLoading: false, error: null, refetch: vi.fn() };
+    useAuthStore.getState().setSession({
+      accessToken: 'test-token',
+      user: {
+        id: 'author-1',
+        email: 'author@example.test',
+        fullName: 'Author',
+        roles: ['INSPECTOR'],
+        actorZone: 'CUSTOMER_ORGANIZATION',
+        organizationId: 'org-1',
+      },
+    });
+
+    render(<ReportsPage />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Verify and submit' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Submit for peer review' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Release approved version' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Create linked revision' }),
+    ).toBeNull();
+    expect(
+      screen.queryByText('Assign independent Inspector review'),
+    ).toBeNull();
+    expect(
+      screen.queryByText('Independent technical review'),
+    ).toBeNull();
+    expect(mocks.submit.mutate).not.toHaveBeenCalled();
+    expect(mocks.release.mutate).not.toHaveBeenCalled();
+    expect(mocks.revision.mutate).not.toHaveBeenCalled();
   });
 });

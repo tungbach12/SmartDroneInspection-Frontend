@@ -1,8 +1,10 @@
 import { useParams } from 'react-router-dom';
 import { Alert, Box, Button, Card, CardContent, Stack, Typography } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { FrequencyUnit } from '../api/catalogApi';
 import { useSchedules, useToggleSchedule } from '../hooks/useSchedules';
@@ -18,6 +20,9 @@ export default function InspectionSchedulesPage() {
   const { assetId = '' } = useParams();
   const { data: schedules, isLoading, error, refetch } = useSchedules(assetId);
   const toggle = useToggleSchedule(assetId);
+  // One ACTIVE schedule per asset is enforced by the server; a 409 is that rule refusing, and the
+  // refusal mutates nothing, so the listed schedules are left exactly as they are.
+  const conflicting = isConflict(toggle.error);
 
   return (
     <Box>
@@ -33,7 +38,14 @@ export default function InspectionSchedulesPage() {
         empty={<Alert severity="info">No schedule selected for this asset yet.</Alert>}
       >
         <Stack spacing={2}>
-          {toggle.isError && (
+          {conflicting && (
+            <RefusalNotice
+              testId="schedule-conflict"
+              reason={getErrorMessage(toggle.error, '')}
+              fallbackMessage="The server refused this schedule change."
+            />
+          )}
+          {!conflicting && toggle.isError && (
             <Alert severity="error">
               {getErrorMessage(toggle.error, 'Could not change the schedule state.')}
             </Alert>

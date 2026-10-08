@@ -15,10 +15,10 @@ import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
-import { getAuthErrorMessage, registerClient } from '../api/authApi';
+import { getAuthErrorMessage, registerOrganization } from '../api/authApi';
 import {
-  clientRegistrationSchema,
-  type ClientRegistrationFormValues,
+  organizationRegistrationSchema,
+  type OrganizationRegistrationFormValues,
 } from '../schemas/authSchemas';
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
@@ -30,8 +30,8 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const form = useForm<ClientRegistrationFormValues>({
-    resolver: zodResolver(clientRegistrationSchema),
+  const form = useForm<OrganizationRegistrationFormValues>({
+    resolver: zodResolver(organizationRegistrationSchema),
     defaultValues: {
       fullName: '',
       organizationName: '',
@@ -50,10 +50,10 @@ export default function RegisterPage() {
     return <Navigate to={getAuthRedirectTarget(null, roles)} replace />;
   }
 
-  const onSubmit = async (values: ClientRegistrationFormValues) => {
+  const onSubmit = async (values: OrganizationRegistrationFormValues) => {
     setErrorMessage(null);
     try {
-      await registerClient({
+      await registerOrganization({
         email: values.email,
         fullName: values.fullName,
         organizationName: values.organizationName,
@@ -71,9 +71,9 @@ export default function RegisterPage() {
 
   return (
     <AuthPageLayout
-      eyebrow="Client organization onboarding"
+      eyebrow="Organization onboarding"
       title="Create your workspace"
-      description="Register your organization and its first Client account. You can invite or manage additional access after signing in."
+      description="Create your organization and its first Organization Admin account. Additional organization roles will follow the organization invite workflow."
       backLabel="Back to sign in"
       backTo="/login"
       footer={(
@@ -170,8 +170,8 @@ export default function RegisterPage() {
         />
         {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
         <Alert severity="info" sx={{ borderRadius: 2 }}>
-          Self-registration creates a Client account only. Admin and workforce
-          accounts are managed by an administrator.
+          Organization registration creates one Organization Admin. Platform
+          Admin, Inspector, and Maintenance Engineer accounts remain admin-managed.
         </Alert>
         <Button
           type="submit"
@@ -187,7 +187,7 @@ export default function RegisterPage() {
         >
           {form.formState.isSubmitting
             ? 'Creating workspace…'
-            : 'Create Client account'}
+            : 'Create Organization account'}
         </Button>
       </Stack>
     </AuthPageLayout>

@@ -3,7 +3,7 @@ import {
   postWithBrowserCsrf,
   withBrowserRefreshLock,
 } from '@/shared/api/client';
-import { isRole, type AuthUser, type Role } from '../store/authStore';
+import { isRole, type ActorZone, type AuthUser, type Role } from '../store/authStore';
 
 export type AuthStep = 'AUTHENTICATED' | 'PASSWORD_CHANGE_REQUIRED';
 
@@ -14,7 +14,7 @@ export interface AuthFlowResponse {
   user: AuthUser;
 }
 
-export interface ClientRegistrationRequest {
+export interface OrganizationRegistrationRequest {
   email: string;
   fullName: string;
   organizationName: string;
@@ -38,7 +38,7 @@ interface ApiAuthFlow {
   user: unknown;
 }
 
-export interface ClientRegistrationResponse {
+export interface OrganizationRegistrationResponse {
   organizationId: string;
   organizationName: string;
   organizationCode: string;
@@ -61,12 +61,20 @@ function parseUser(value: unknown): AuthUser {
     throw new Error('The server returned an invalid account profile.');
   }
 
+  const actorZone = user.actorZone as ActorZone;
+  if (
+    actorZone !== 'PLATFORM' &&
+    actorZone !== 'CUSTOMER_ORGANIZATION'
+  ) {
+    throw new Error('The server returned an invalid account profile.');
+  }
+
   return {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
     roles: user.roles.filter(isRole) as Role[],
-    actorZone: user.actorZone,
+    actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
   };
@@ -128,9 +136,9 @@ export async function restoreBrowserSession(): Promise<AuthFlowResponse> {
   );
 }
 
-export async function registerClient(
-  request: ClientRegistrationRequest,
-): Promise<ClientRegistrationResponse> {
+export async function registerOrganization(
+  request: OrganizationRegistrationRequest,
+): Promise<OrganizationRegistrationResponse> {
   const { data } = await postWithBrowserCsrf<{
     organizationId: string;
     organizationName: string;
@@ -145,6 +153,7 @@ export async function registerClient(
     user: parseUser(data.user),
   };
 }
+
 
 export async function logoutCurrentSession(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout');

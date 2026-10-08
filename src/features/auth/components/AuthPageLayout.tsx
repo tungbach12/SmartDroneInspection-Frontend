@@ -11,6 +11,8 @@ interface AuthPageLayoutProps extends PropsWithChildren {
   backLabel?: string;
   backTo?: string;
   footer?: ReactNode;
+  workspaceCopy?: { sideLabel: string; sideTitle: string; sideBody: string };
+  sideLabels?: readonly string[];
 }
 
 export function AuthPageLayout({
@@ -20,6 +22,13 @@ export function AuthPageLayout({
   backLabel = 'Back to overview',
   backTo = '/',
   footer,
+  workspaceCopy = {
+    sideLabel: 'A clearer view of every asset',
+    sideTitle: 'Inspection work, connected from field to report.',
+    sideBody:
+      'Bring teams, evidence and decisions together in one secure workspace built for infrastructure inspection.',
+  },
+  sideLabels = ['Client workspace', 'Field operations', 'Admin'],
   children,
 }: AuthPageLayoutProps) {
   const { mode, setMode } = useColorScheme();
@@ -129,20 +138,19 @@ export function AuthPageLayout({
               variant="overline"
               sx={{ color: '#a9f1e6', fontWeight: 800, letterSpacing: '.16em' }}
             >
-              A clearer view of every asset
+              {workspaceCopy.sideLabel}
             </Typography>
             <Typography
               variant="h3"
               sx={{ fontSize: { md: 38, lg: 44 }, lineHeight: 1.12, fontWeight: 800 }}
             >
-              Inspection work, connected from field to report.
+              {workspaceCopy.sideTitle}
             </Typography>
             <Typography sx={{ color: 'rgba(243,251,255,.8)', lineHeight: 1.8 }}>
-              Bring teams, evidence and decisions together in one secure workspace
-              built for infrastructure inspection.
+              {workspaceCopy.sideBody}
             </Typography>
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              {['Client workspace', 'Field operations', 'Admin'].map((label) => (
+              {sideLabels.map((label) => (
                 <Box
                   key={label}
                   sx={{

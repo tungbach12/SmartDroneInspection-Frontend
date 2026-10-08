@@ -25,6 +25,7 @@ import {
 } from '@/features/auth/components/AuthSessionBootstrapper';
 import AccessDeniedPage from '@/features/auth/pages/AccessDeniedPage';
 import LandingPage from '@/features/landing/pages/LandingPage';
+import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
 import PortalSelectionPage from '@/app/pages/PortalSelectionPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { ToastHost } from '@/shared/ui/Toast';
@@ -104,7 +105,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
             {
               path: 'schedule-proposals/:assetId',
               element: (
-                <RequireAuth roles={['CLIENT']}>
+                <RequireAuth roles={['ORG_ADMIN']}>
                   <ScheduleProposalsPage />
                 </RequireAuth>
               ),
@@ -112,7 +113,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
             {
               path: 'inspection-schedules/:assetId',
               element: (
-                <RequireAuth roles={['CLIENT']}>
+                <RequireAuth roles={['ORG_ADMIN']}>
                   <InspectionSchedulesPage />
                 </RequireAuth>
               ),
@@ -127,12 +128,26 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
   };
 });
 
-const router = createBrowserRouter([
+export const router = createBrowserRouter([
   {
     path: '/',
     element: <Outlet />,
     children: [
-      { index: true, element: <LandingPage /> },
+      {
+        index: true,
+        element: <LandingPage />,
+        loader: () => {
+          const host = window.location.hostname;
+          if (host.startsWith('smartdroneinspection-admin') || host.startsWith('smartdroneinspection-operations')) {
+            return new Response(null, { status: 302, headers: { Location: '/login' } });
+          }
+          return null;
+        },
+      },
+      {
+        path: 'motion-lab',
+        element: <MotionLabPage />,
+      },
       {
         path: 'login',
         element: (

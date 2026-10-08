@@ -52,8 +52,8 @@ function signInAsInspector() {
       email: 'inspector@example.test',
       fullName: 'Inspector',
       roles: ['INSPECTOR'],
-      actorZone: 'SERVICE_WORKFORCE',
-      organizationId: null,
+      actorZone: 'CUSTOMER_ORGANIZATION',
+      organizationId: 'org-1',
     },
   });
 }

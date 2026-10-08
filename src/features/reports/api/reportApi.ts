@@ -2,7 +2,6 @@ import { api } from '@/shared/api/client';
 
 export type ReportStatus =
   | 'DRAFT'
-  | 'AWAITING_PEER_REVIEW'
   | 'CHANGES_REQUESTED'
   | 'TECHNICALLY_APPROVED'
   | 'RELEASED'
@@ -60,12 +59,6 @@ export interface ReportVersion {
   reportStatus: ReportStatus;
   versionStatus: ReportStatus;
   contentSnapshot: ReportSnapshot;
-  review: {
-    reviewerUserId: string;
-    decision: 'PENDING' | 'CHANGES_REQUESTED' | 'APPROVED';
-    comments: string | null;
-    reviewedAt: string | null;
-  } | null;
   createdAt: string;
   releasedAt: string | null;
   acceptedAt: string | null;
@@ -89,32 +82,11 @@ export const reportApi = {
       .post<ReportVersion>(`/reports/${reportId}/versions`)
       .then((response) => response.data),
 
-  assignReviewer: (reportId: string, versionId: string, reviewerId: string) =>
-    api
-      .put<ReportVersion>(
-        `/reports/${reportId}/versions/${versionId}/reviewer`,
-        { reviewerId },
-      )
-      .then((response) => response.data),
-
   submitForReview: (reportId: string, versionId: string) =>
     api
       .post<ReportVersion>(
         `/reports/${reportId}/versions/${versionId}/submit-review`,
       )
-      .then((response) => response.data),
-
-  review: (
-    reportId: string,
-    versionId: string,
-    decision: 'APPROVED' | 'CHANGES_REQUESTED',
-    comments?: string,
-  ) =>
-    api
-      .post<ReportVersion>(`/reports/${reportId}/versions/${versionId}/review`, {
-        decision,
-        comments,
-      })
       .then((response) => response.data),
 
   release: (reportId: string, versionId: string) =>

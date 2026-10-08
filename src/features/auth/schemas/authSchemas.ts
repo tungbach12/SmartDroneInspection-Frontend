@@ -11,7 +11,7 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password.').max(128),
 });
 
-export const clientRegistrationSchema = z
+export const organizationRegistrationSchema = z
   .object({
     fullName: z
       .string()
@@ -71,8 +71,8 @@ export const passwordChangeSchema = z
   });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
-export type ClientRegistrationFormValues = z.infer<
-  typeof clientRegistrationSchema
+export type OrganizationRegistrationFormValues = z.infer<
+  typeof organizationRegistrationSchema
 >;
 export type PasswordSetupFormValues = z.infer<typeof passwordSetupSchema>;
 export type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
