@@ -4,44 +4,44 @@ import { StatusChip } from './StatusChip';
 
 const roles = [
   {
-    role: 'CLIENT',
-    title: 'Asset Owner & Inspection Requestor',
+    role: 'ADMIN',
+    title: 'Platform Administrator',
     description:
-      'Register site assets, submit inspection cadence requests, approve commercial quotes, and inspect immutable, signed reports with high-res evidence links.',
-    status: 'pass' as const,
-    statusLabel: 'VERIFIED ACCESS',
-    actionText: 'Client Portal',
+      'Manage platform access and maintain secure, reliable service across workspaces.',
+    status: 'active' as const,
+    statusLabel: 'PLATFORM ACCESS',
+    actionText: 'Platform Sign In',
     href: '/login',
   },
   {
-    role: 'SERVICE MANAGER',
-    title: 'Operations & Quality Lead',
+    role: 'ORG_ADMIN',
+    title: 'Organization Admin',
     description:
-      'Review client scopes, prepare detailed quotations, assign flight inspectors, and sign off on verified defect reports before customer release.',
-    status: 'active' as const,
-    statusLabel: 'RELEASE GATE',
-    actionText: 'Manager Console',
-    href: 'https://smartdroneinspection-provider.duckdns.org/login',
+      'Register site assets, submit inspection requests, and review released inspection reports.',
+    status: 'pass' as const,
+    statusLabel: 'ORGANIZATION ACCESS',
+    actionText: 'Organization Sign In',
+    href: '/login',
   },
   {
     role: 'INSPECTOR',
-    title: 'Flight Planning & Raw Evidence Capture',
+    title: 'Inspector',
     description:
-      'Configure GSD, AGL, camera overlap, airspace NOTAMs; pilot mission execution and upload cryptographic SHA-256 sealed telemetry packages.',
+      'Plan assigned inspections and capture traceable field evidence for human review.',
     status: 'pass' as const,
-    statusLabel: 'FIELD TELEMETRY',
-    actionText: 'Flight Console',
-    href: 'https://smartdroneinspection-provider.duckdns.org/login',
+    statusLabel: 'FIELD OPERATIONS',
+    actionText: 'Operations Sign In',
+    href: '/login',
   },
   {
-    role: 'MAINTENANCE ENGINEER',
-    title: 'Defect Remediation & Closeout',
+    role: 'MAINTENANCE_ENGINEER',
+    title: 'Maintenance Engineer',
     description:
-      'Receive approved defect workorders, execute physical on-site structural remediation, and upload before/after closure evidence with audit stamps.',
+      'Complete assigned maintenance work and record evidence of close-out.',
     status: 'warn' as const,
-    statusLabel: 'WORKORDERS',
-    actionText: 'Repair Desk',
-    href: 'https://smartdroneinspection-provider.duckdns.org/login',
+    statusLabel: 'MAINTENANCE',
+    actionText: 'Operations Sign In',
+    href: '/login',
   },
 ];
 

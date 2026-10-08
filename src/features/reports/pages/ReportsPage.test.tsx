@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -60,10 +60,9 @@ describe('ReportsPage', () => {
         id: 'client-1',
         email: 'client@example.test',
         fullName: 'Client',
-        roles: ['CLIENT'],
+        roles: ['ORG_ADMIN'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
-        providerId: null,
       },
     });
     mocks.reportQuery = { data: [releasedReport], isLoading: false, error: null, refetch: vi.fn() };
@@ -75,20 +74,14 @@ describe('ReportsPage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('shows only the released version actions to a Client and submits the decision', () => {
+  it('keeps released report workflow actions unavailable without a backend contract', () => {
     render(<ReportsPage />);
 
     expect(screen.getByText('Bridge inspection')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Accept report' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Request revision' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accept report' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Request revision' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Release approved version' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Accept report' }));
-    expect(mocks.decision.mutate).toHaveBeenCalledWith({
-      reportId: 'report-1',
-      versionId: 'version-1',
-      decision: 'ACCEPT',
-    });
+    expect(mocks.decision.mutate).not.toHaveBeenCalled();
   });
 
   it('shows a loading state while the report list is being fetched', () => {
@@ -97,7 +90,7 @@ describe('ReportsPage', () => {
     expect(screen.getByText('Loading records…')).toBeTruthy();
   });
 
-  it('labels the author verify action and gates it on DRAFT status', () => {
+  it('does not expose removed report workflow actions even for an inspector', () => {
     const draft = {
       ...releasedReport,
       reportStatus: 'DRAFT',
@@ -113,19 +106,24 @@ describe('ReportsPage', () => {
         email: 'author@example.test',
         fullName: 'Author',
         roles: ['INSPECTOR'],
-        actorZone: 'SERVICE_WORKFORCE',
+        actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
-        providerId: 'provider-1',
       },
     });
 
     render(<ReportsPage />);
 
     expect(
-      screen.getByRole('button', { name: 'Verify and submit' }),
-    ).toBeTruthy();
+      screen.queryByRole('button', { name: 'Verify and submit' }),
+    ).toBeNull();
     expect(
       screen.queryByRole('button', { name: 'Submit for peer review' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Release approved version' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Create linked revision' }),
     ).toBeNull();
     expect(
       screen.queryByText('Assign independent Inspector review'),
@@ -133,5 +131,8 @@ describe('ReportsPage', () => {
     expect(
       screen.queryByText('Independent technical review'),
     ).toBeNull();
+    expect(mocks.submit.mutate).not.toHaveBeenCalled();
+    expect(mocks.release.mutate).not.toHaveBeenCalled();
+    expect(mocks.revision.mutate).not.toHaveBeenCalled();
   });
 });

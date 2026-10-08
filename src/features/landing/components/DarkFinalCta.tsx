@@ -106,7 +106,7 @@ export function DarkFinalCta() {
 
             <Box
               component="a"
-              href="https://smartdroneinspection-provider.duckdns.org/register-provider"
+              href="/login"
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -129,7 +129,7 @@ export function DarkFinalCta() {
                 },
               }}
             >
-              Partner as a Drone Provider
+              Sign In for Field Operations
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>

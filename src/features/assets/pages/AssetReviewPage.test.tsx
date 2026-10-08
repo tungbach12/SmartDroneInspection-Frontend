@@ -46,10 +46,9 @@ describe('AssetReviewPage', () => {
         id: 'mgr-1',
         email: 'mgr@example.com',
         fullName: 'Mgr',
-        roles: ['PROVIDER_MANAGER'],
-        actorZone: 'SERVICE_WORKFORCE',
-        organizationId: null,
-        providerId: 'prov-1',
+        roles: ['ORG_ADMIN'],
+        actorZone: 'CUSTOMER_ORGANIZATION',
+        organizationId: 'org-1',
       },
     });
   });
@@ -71,9 +70,8 @@ describe('AssetReviewPage', () => {
         email: 'insp@example.com',
         fullName: 'Ins',
         roles: ['INSPECTOR'],
-        actorZone: 'SERVICE_WORKFORCE',
-        organizationId: null,
-        providerId: 'prov-1',
+        actorZone: 'CUSTOMER_ORGANIZATION',
+        organizationId: 'org-1',
       },
     });
 

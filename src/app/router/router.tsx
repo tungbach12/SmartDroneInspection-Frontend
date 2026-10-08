@@ -54,15 +54,6 @@ const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
-const ProviderTeamPage = lazy(
-  () => import('@/features/operations/pages/ProviderTeamPage'),
-);
-const ProviderRegistrationPage = lazy(
-  () => import('@/features/auth/pages/ProviderRegistrationPage'),
-);
-const ActivateProviderPage = lazy(
-  () => import('@/features/auth/pages/ActivateProviderPage'),
-);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -72,7 +63,6 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
-  team: <ProviderTeamPage />,
 };
 
 function PortalEntryRedirect() {
@@ -115,7 +105,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
             {
               path: 'schedule-proposals/:assetId',
               element: (
-                <RequireAuth roles={['CLIENT']}>
+                <RequireAuth roles={['ORG_ADMIN']}>
                   <ScheduleProposalsPage />
                 </RequireAuth>
               ),
@@ -123,7 +113,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
             {
               path: 'inspection-schedules/:assetId',
               element: (
-                <RequireAuth roles={['CLIENT']}>
+                <RequireAuth roles={['ORG_ADMIN']}>
                   <InspectionSchedulesPage />
                 </RequireAuth>
               ),
@@ -138,7 +128,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
   };
 });
 
-const router = createBrowserRouter([
+export const router = createBrowserRouter([
   {
     path: '/',
     element: <Outlet />,
@@ -148,7 +138,7 @@ const router = createBrowserRouter([
         element: <LandingPage />,
         loader: () => {
           const host = window.location.hostname;
-          if (host.startsWith('smartdroneinspection-admin') || host.startsWith('smartdroneinspection-provider')) {
+          if (host.startsWith('smartdroneinspection-admin') || host.startsWith('smartdroneinspection-operations')) {
             return new Response(null, { status: 302, headers: { Location: '/login' } });
           }
           return null;
@@ -174,15 +164,6 @@ const router = createBrowserRouter([
           </PublicOnly>
         ),
       },
-      {
-        path: 'register-provider',
-        element: (
-          <PublicOnly>
-            <ProviderRegistrationPage />
-          </PublicOnly>
-        ),
-      },
-      { path: 'activate-provider', element: <ActivateProviderPage /> },
       { path: 'forbidden', element: <AccessDeniedPage /> },
       {
         path: 'portals',

@@ -38,12 +38,8 @@ function formatDate(value: string | null): string {
 }
 
 export default function ReportsPage() {
-  const roles = useAuthStore((state) => state.roles);
   const userId = useAuthStore((state) => state.userId);
   const user = useAuthStore((state) => state.user);
-  const isClient = roles.includes('CLIENT');
-  const isManager =
-    roles.includes('PROVIDER_MANAGER') || roles.includes('PLATFORM_OPERATOR');
   const query = useReports();
   const submit = useSubmitReportForReview();
   const release = useReleaseReport();
@@ -167,7 +163,7 @@ export default function ReportsPage() {
                 </Button>
               )}
 
-              {isAuthor && (selected.reportStatus === 'CHANGES_REQUESTED' || selected.reportStatus === 'REVISION_REQUESTED') && (
+              {isAuthor && canPerform('reports.submit', user) && (selected.reportStatus === 'CHANGES_REQUESTED' || selected.reportStatus === 'REVISION_REQUESTED') && (
                 <Button
                   variant="outlined"
                   disabled={revision.isPending}
@@ -176,7 +172,7 @@ export default function ReportsPage() {
                 >Create linked revision</Button>
               )}
 
-              {isManager && selected.versionStatus === 'TECHNICALLY_APPROVED' && canPerform('reports.release', user) && (
+              {canPerform('reports.release', user) && selected.versionStatus === 'TECHNICALLY_APPROVED' && (
                 <Button
                   variant="contained"
                   disabled={release.isPending}
@@ -185,7 +181,7 @@ export default function ReportsPage() {
                 >Release approved version</Button>
               )}
 
-              {isClient && selected.versionStatus === 'RELEASED' && (
+              {canPerform('reports.decide', user) && selected.versionStatus === 'RELEASED' && (
                 <Paper variant="outlined" sx={{ p: 2.5 }}>
                   <Stack spacing={1.5}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>Client decision</Typography>

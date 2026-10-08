@@ -9,24 +9,25 @@ vi.mock('@/shared/api/client', () => ({
   withBrowserRefreshLock: (operation: () => Promise<unknown>) => operation(),
 }));
 
+import * as authApi from './authApi';
 import {
   completeInitialPasswordSetup,
   changePassword,
   login,
   logoutAllSessions,
   logoutCurrentSession,
-  registerClient,
+  registerOrganization,
   restoreBrowserSession,
 } from './authApi';
 
+
 const user = {
   id: 'user-1',
-  email: 'client@example.com',
-  fullName: 'Client User',
-  roles: ['CLIENT'],
+  email: 'org-admin@example.com',
+  fullName: 'Organization Admin',
+  roles: ['ORG_ADMIN'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
-  providerId: null,
 };
 
 const authenticatedFlow = {
@@ -41,18 +42,64 @@ describe('browser auth API', () => {
     transport.postWithBrowserCsrf.mockReset();
   });
 
+  it('does not expose retired provider onboarding or team APIs', () => {
+    expect(authApi).not.toHaveProperty('registerProvider');
+    expect(authApi).not.toHaveProperty('activateProvider');
+    expect(authApi).not.toHaveProperty('createProviderUser');
+  });
+
   it('obtains CSRF protection before login and returns no refresh credential', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({ data: authenticatedFlow });
 
-    const result = await login('client@example.com', 'secret password');
+    const result = await login('org-admin@example.com', 'secret password');
 
     expect(transport.postWithBrowserCsrf).toHaveBeenCalledWith('/auth/login', {
-      email: 'client@example.com',
+      email: 'org-admin@example.com',
       password: 'secret password',
     }, 30_000);
     expect(result).toEqual(authenticatedFlow);
-    expect(result.user.providerId).toBeNull();
+    expect(result.user).not.toHaveProperty('providerId');
     expect(result).not.toHaveProperty('refreshToken');
+  });
+
+  it('preserves canonical enterprise roles when parsing an authenticated user', async () => {
+    transport.postWithBrowserCsrf.mockResolvedValue({
+      data: {
+        ...authenticatedFlow,
+        user: {
+          ...user,
+          roles: [
+            'ADMIN',
+            'ORG_ADMIN',
+            'INSPECTOR',
+            'MAINTENANCE_ENGINEER',
+            'UNKNOWN_ROLE',
+          ],
+        },
+      },
+    });
+
+    const result = await login('org-admin@example.com', 'secret password');
+
+    expect(result.user.roles).toEqual([
+      'ADMIN',
+      'ORG_ADMIN',
+      'INSPECTOR',
+      'MAINTENANCE_ENGINEER',
+    ]);
+  });
+
+  it('rejects actor zones outside the canonical platform and organization zones', async () => {
+    transport.postWithBrowserCsrf.mockResolvedValue({
+      data: {
+        ...authenticatedFlow,
+        user: { ...user, actorZone: 'SERVICE_WORKFORCE' },
+      },
+    });
+
+    await expect(login('org-admin@example.com', 'secret password')).rejects.toThrow(
+      'The server returned an invalid account profile.',
+    );
   });
 
   it('keeps the mandatory first-password step separate from an authenticated session', async () => {
@@ -64,7 +111,7 @@ describe('browser auth API', () => {
       },
     });
 
-    const result = await login('client@example.com', 'temporary password');
+    const result = await login('org-admin@example.com', 'temporary password');
 
     expect(result.step).toBe('PASSWORD_CHANGE_REQUIRED');
     expect(result.accessToken).toBeNull();
@@ -103,32 +150,33 @@ describe('browser auth API', () => {
     expect(result.accessToken).toBe('memory-only-access-token');
   });
 
-  it('registers only the Client onboarding contract and normalizes known role data', async () => {
+  it('registers an organization and normalizes canonical role data', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         organizationId: 'org-1',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
-        user: { ...user, roles: ['CLIENT', 'UNKNOWN_ROLE'] },
+        user: { ...user, roles: ['ORG_ADMIN', 'UNKNOWN_ROLE'] },
       },
     });
 
-    const result = await registerClient({
-      email: 'client@example.com',
-      fullName: 'Client User',
+    const result = await registerOrganization({
+      email: 'org-admin@example.com',
+      fullName: 'Organization Admin',
       organizationName: 'Example Org',
       organizationCode: 'EXAMPLE',
       password: 'a much longer secure password',
     });
 
     expect(transport.postWithBrowserCsrf).toHaveBeenCalledWith('/auth/register', {
-      email: 'client@example.com',
-      fullName: 'Client User',
+      email: 'org-admin@example.com',
+      fullName: 'Organization Admin',
       organizationName: 'Example Org',
       organizationCode: 'EXAMPLE',
       password: 'a much longer secure password',
     });
-    expect(result.user.roles).toEqual(['CLIENT']);
+    expect(result.organizationCode).toBe('EXAMPLE');
+    expect(result.user.roles).toEqual(['ORG_ADMIN']);
   });
 
   it('uses CSRF-protected browser endpoints for one-device and all-device logout', async () => {

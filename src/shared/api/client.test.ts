@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, postWithBrowserCsrf } from './client';
 
+describe('browser API client', () => {
+  it('uses the organization API prefix', () => {
+    expect(api.defaults.baseURL).toBe('/api/v1');
+  });
+});
+
 describe('postWithBrowserCsrf', () => {
   afterEach(() => {
     vi.restoreAllMocks();

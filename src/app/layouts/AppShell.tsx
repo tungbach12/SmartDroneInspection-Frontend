@@ -30,7 +30,6 @@ import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BuildIcon from '@mui/icons-material/Build';
-import PeopleIcon from '@mui/icons-material/People';
 import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
@@ -62,7 +61,6 @@ const NAV_ITEMS = [
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
   { section: 'reports', icon: <AssignmentIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
-  { section: 'team', icon: <PeopleIcon /> },
 ] as const;
 
 interface AppShellProps {

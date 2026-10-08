@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPortalForHost } from './domainPortal';
+import { getPortalForHost, getWorkspaceKind } from './domainPortal';
 
 describe('getPortalForHost', () => {
   it('maps the admin domain to the admin portal', () => {
@@ -8,8 +8,16 @@ describe('getPortalForHost', () => {
     );
   });
 
-  it('maps the provider domain to the operations portal', () => {
-    expect(getPortalForHost('smartdroneinspection-provider.example.com')).toBe(
+  it('does not map a retired provider domain to an application portal', () => {
+    expect(getPortalForHost('smartdroneinspection-provider.example.com')).toBeNull();
+  });
+
+  it('does not identify a retired provider domain as a separate workspace', () => {
+    expect(getWorkspaceKind('smartdroneinspection-provider.example.com')).toBe('main');
+  });
+
+  it('maps the operations domain to the operations portal', () => {
+    expect(getPortalForHost('smartdroneinspection-operations.example.com')).toBe(
       'operations',
     );
   });

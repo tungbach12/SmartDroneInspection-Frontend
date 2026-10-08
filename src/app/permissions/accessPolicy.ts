@@ -1,9 +1,9 @@
 import type { Role } from '@/features/auth/store/authStore';
 
 export const PORTAL_ROLE_ACCESS = {
-  admin: ['PLATFORM_ADMIN'],
-  client: ['CLIENT'],
-  operations: ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+  admin: ['ADMIN'],
+  client: ['ORG_ADMIN'],
+  operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type PortalId = keyof typeof PORTAL_ROLE_ACCESS;
@@ -24,7 +24,6 @@ export const SECTION_IDS = [
   'inspections',
   'reports',
   'maintenance',
-  'team',
 ] as const;
 
 export type SectionId = (typeof SECTION_IDS)[number];
@@ -37,39 +36,35 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   inspections: 'Inspections',
   reports: 'Reports',
   maintenance: 'Maintenance',
-  team: 'Team',
 };
 
 const SECTION_ROLE_ACCESS = {
   admin: {
-    dashboard: ['PLATFORM_ADMIN'],
-    assets: ['PLATFORM_ADMIN'],
-    'asset-catalog': ['PLATFORM_ADMIN'],
+    dashboard: ['ADMIN'],
+    assets: ['ADMIN'],
+    'asset-catalog': ['ADMIN'],
     'asset-review': [],
-    inspections: ['PLATFORM_ADMIN'],
-    reports: ['PLATFORM_ADMIN'],
-    maintenance: ['PLATFORM_ADMIN'],
-    team: [],
+    inspections: ['ADMIN'],
+    reports: ['ADMIN'],
+    maintenance: ['ADMIN'],
   },
   client: {
-    dashboard: ['CLIENT'],
-    assets: ['CLIENT'],
+    dashboard: ['ORG_ADMIN'],
+    assets: ['ORG_ADMIN'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['CLIENT'],
-    reports: ['CLIENT'],
-    maintenance: ['CLIENT'],
-    team: [],
+    inspections: ['ORG_ADMIN'],
+    reports: ['ORG_ADMIN'],
+    maintenance: ['ORG_ADMIN'],
   },
   operations: {
-    dashboard: ['PLATFORM_OPERATOR', 'PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
     assets: [],
     'asset-catalog': [],
-    'asset-review': ['PROVIDER_MANAGER', 'PLATFORM_OPERATOR'],
-    inspections: ['PROVIDER_MANAGER', 'INSPECTOR'],
-    reports: ['PROVIDER_MANAGER', 'INSPECTOR'],
-    maintenance: ['PROVIDER_MANAGER', 'MAINTENANCE_ENGINEER'],
-    team: ['PROVIDER_MANAGER'],
+    'asset-review': [],
+    inspections: ['INSPECTOR'],
+    reports: ['INSPECTOR'],
+    maintenance: ['MAINTENANCE_ENGINEER'],
   },
 } as const satisfies Record<
   PortalId,

@@ -37,7 +37,7 @@ const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD',
 
 export function AssetsPage() {
   const roles = useAuthStore((state) => state.roles);
-  const isClient = roles.includes('CLIENT');
+  const isClient = roles.includes('ORG_ADMIN');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
   const categories = useCategories();
