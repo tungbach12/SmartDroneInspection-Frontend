@@ -271,7 +271,7 @@ export default function LoginPage() {
       title={copy.title}
       description={copy.description}
       workspaceCopy={{ sideLabel: copy.sideLabel, sideTitle: copy.sideTitle, sideBody: copy.sideBody }}
-      sideLabels={workspaceKind === 'admin' ? ['Platform admin', 'Provider vetting', 'User policy'] : workspaceKind === 'provider' ? ['Service manager', 'Field inspector', 'Maintenance engineer'] : ['Client workspace', 'Field operations', 'Admin']}
+      sideLabels={workspaceKind === 'admin' ? ['Platform admin', 'User policy', 'Audit'] : workspaceKind === 'operations' ? ['Inspector', 'Maintenance engineer', 'Field operations'] : ['Organization Admin', 'Field operations', 'Admin']}
     >
       <Stack
         component="form"
@@ -281,7 +281,7 @@ export default function LoginPage() {
       >
         {registrationComplete && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
-            Your Client account is ready. Sign in to open your organization workspace.
+            Your organization and Organization Admin account are ready. Sign in to open your workspace.
           </Alert>
         )}
         {passwordChanged && (
@@ -360,7 +360,7 @@ export default function LoginPage() {
             underline="hover"
             sx={{ color: '#087c92', fontWeight: 700, whiteSpace: 'nowrap' }}
           >
-            Create a Client account
+            Create an organization account
           </Link>
         </Stack>
       </Stack>

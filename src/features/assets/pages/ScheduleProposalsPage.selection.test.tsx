@@ -77,8 +77,8 @@ describe('ScheduleProposalsPage selection outcomes', () => {
     expect(alert.textContent).not.toContain('This asset already has an active schedule');
   });
 
-  it('offers Select only on an approved row, which is the only status the client list returns', () => {
-    // listForClient filters on MANAGER_APPROVED, so a CLIENT caller receives only that status.
+  it('offers Select only on an approved row, which is the only status the organization-admin list returns', () => {
+    // listForOrgAdmin filters on MANAGER_APPROVED, so an ORG_ADMIN caller receives only that status.
     // Every row is therefore offered the action, and the gate never hides one.
     proposals = [baseProposal, { ...baseProposal, id: 'p2', frequencyInterval: 6 }];
 
@@ -91,11 +91,11 @@ describe('ScheduleProposalsPage selection outcomes', () => {
   });
 
   it('does not offer Select on a status the server would refuse, even if a stale view showed it', () => {
-    // clientSelect permits MANAGER_APPROVED only. Offering the action on CLIENT_SELECTED would let
+    // clientSelect permits MANAGER_APPROVED only. Offering the action on ORG_ADMIN_SELECTED would let
     // a stale view reach the server's unhandled IllegalStateException (a 500), so it stays hidden.
     proposals = [
       baseProposal,
-      { ...baseProposal, id: 'p2', status: 'CLIENT_SELECTED' },
+      { ...baseProposal, id: 'p2', status: 'ORG_ADMIN_SELECTED' },
       { ...baseProposal, id: 'p3', status: 'SUPERSEDED' },
       { ...baseProposal, id: 'p4', status: 'GENERATED' },
       { ...baseProposal, id: 'p5', status: 'MANAGER_REJECTED' },
@@ -107,18 +107,18 @@ describe('ScheduleProposalsPage selection outcomes', () => {
   });
 
   it('adds no selected marker of its own for a selected-looking row', () => {
-    // listForClient filters on MANAGER_APPROVED, so a CLIENT_SELECTED row cannot reach this page;
+    // listForOrgAdmin filters on MANAGER_APPROVED, so a ORG_ADMIN_SELECTED row cannot reach this page;
     // it appears here only as a stale view. The row keeps the server's own status chip and offers
     // no selection affordance — the page does not add a client-side claim about a selection the
     // client-facing contract never reports.
     proposals = [
-      { ...baseProposal, id: 'p1', status: 'CLIENT_SELECTED' },
+      { ...baseProposal, id: 'p1', status: 'ORG_ADMIN_SELECTED' },
       baseProposal,
     ];
 
     render(<ScheduleProposalsPage />);
 
-    expect(screen.getByText('CLIENT_SELECTED')).not.toBeNull();
+    expect(screen.getByText('ORG_ADMIN_SELECTED')).not.toBeNull();
     expect(screen.queryByTestId('selected-proposal')).toBeNull();
   });
 });

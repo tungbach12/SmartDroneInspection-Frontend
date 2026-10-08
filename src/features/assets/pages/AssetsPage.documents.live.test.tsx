@@ -24,8 +24,8 @@ vi.mock('@/features/auth/store/authStore', async (importOriginal) => {
   return {
     ...actual,
     useAuthStore: Object.assign(
-      (selector: (state: unknown) => unknown) => selector({ roles: ['CLIENT'] }),
-      { getState: () => ({ roles: ['CLIENT'], accessToken: 'token-1' }) },
+      (selector: (state: unknown) => unknown) => selector({ roles: ['ORG_ADMIN'] }),
+      { getState: () => ({ roles: ['ORG_ADMIN'], accessToken: 'token-1' }) },
     ),
   };
 });

@@ -111,7 +111,7 @@ describe('proposalApi', () => {
   });
 
   it('selects a proposal', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { id: 'p1', status: 'CLIENT_SELECTED' } });
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'p1', status: 'ORG_ADMIN_SELECTED' } });
 
     await proposalApi.select('p1');
 

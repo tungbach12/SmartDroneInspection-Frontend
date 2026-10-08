@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clientRegistrationSchema,
+  organizationRegistrationSchema,
   loginSchema,
   passwordChangeSchema,
   passwordSetupSchema,
@@ -23,15 +23,15 @@ describe('authentication form validation', () => {
       confirmPassword: 'a much longer secure password',
     };
 
-    expect(clientRegistrationSchema.safeParse(valid).success).toBe(true);
+    expect(organizationRegistrationSchema.safeParse(valid).success).toBe(true);
     expect(
-      clientRegistrationSchema.safeParse({
+      organizationRegistrationSchema.safeParse({
         ...valid,
         organizationCode: 'x!',
       }).success,
     ).toBe(false);
     expect(
-      clientRegistrationSchema.safeParse({
+      organizationRegistrationSchema.safeParse({
         ...valid,
         confirmPassword: 'different password',
       }).success,

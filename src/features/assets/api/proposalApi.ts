@@ -5,7 +5,7 @@ export type ProposalStatus =
   | 'GENERATED'
   | 'MANAGER_APPROVED'
   | 'MANAGER_REJECTED'
-  | 'CLIENT_SELECTED'
+  | 'ORG_ADMIN_SELECTED'
   | 'SUPERSEDED';
 
 export interface Proposal {

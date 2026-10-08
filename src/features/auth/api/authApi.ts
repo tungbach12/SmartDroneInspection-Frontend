@@ -14,7 +14,7 @@ export interface AuthFlowResponse {
   user: AuthUser;
 }
 
-export interface ClientRegistrationRequest {
+export interface OrganizationRegistrationRequest {
   email: string;
   fullName: string;
   organizationName: string;
@@ -29,7 +29,6 @@ interface ApiUser {
   roles: unknown;
   actorZone: string;
   organizationId: string | null;
-  providerId?: unknown;
 }
 
 interface ApiAuthFlow {
@@ -39,7 +38,7 @@ interface ApiAuthFlow {
   user: unknown;
 }
 
-export interface ClientRegistrationResponse {
+export interface OrganizationRegistrationResponse {
   organizationId: string;
   organizationName: string;
   organizationCode: string;
@@ -65,8 +64,7 @@ function parseUser(value: unknown): AuthUser {
   const actorZone = user.actorZone as ActorZone;
   if (
     actorZone !== 'PLATFORM' &&
-    actorZone !== 'CUSTOMER_ORGANIZATION' &&
-    actorZone !== 'SERVICE_WORKFORCE'
+    actorZone !== 'CUSTOMER_ORGANIZATION'
   ) {
     throw new Error('The server returned an invalid account profile.');
   }
@@ -79,8 +77,6 @@ function parseUser(value: unknown): AuthUser {
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
-    providerId:
-      typeof user.providerId === 'string' ? user.providerId : null,
   };
 }
 
@@ -140,9 +136,9 @@ export async function restoreBrowserSession(): Promise<AuthFlowResponse> {
   );
 }
 
-export async function registerClient(
-  request: ClientRegistrationRequest,
-): Promise<ClientRegistrationResponse> {
+export async function registerOrganization(
+  request: OrganizationRegistrationRequest,
+): Promise<OrganizationRegistrationResponse> {
   const { data } = await postWithBrowserCsrf<{
     organizationId: string;
     organizationName: string;
@@ -158,80 +154,6 @@ export async function registerClient(
   };
 }
 
-export interface ProviderRegistrationRequest {
-  email: string;
-  fullName: string;
-  providerName: string;
-  legalName: string;
-  taxCode: string;
-  businessLicenseNo: string;
-  password: string;
-}
-
-export interface ProviderRegistrationResponse {
-  providerId: string;
-  activationLink: string | null;
-}
-
-export interface ProviderActivationResponse {
-  providerId: string;
-  status: string;
-}
-
-export interface CreateProviderUserRequest {
-  email: string;
-  fullName: string;
-  role: 'INSPECTOR' | 'MAINTENANCE_ENGINEER';
-}
-
-export interface CreateProviderUserResponse {
-  user: AuthUser;
-  temporaryPassword: string;
-}
-
-export async function registerProvider(
-  request: ProviderRegistrationRequest,
-): Promise<ProviderRegistrationResponse> {
-  const { data } = await postWithBrowserCsrf<{
-    providerId?: unknown;
-    activationLink?: unknown;
-  }>('/auth/provider/register', request);
-
-  return {
-    providerId: typeof data.providerId === 'string' ? data.providerId : '',
-    activationLink:
-      typeof data.activationLink === 'string' ? data.activationLink : null,
-  };
-}
-
-export async function activateProvider(
-  token: string,
-): Promise<ProviderActivationResponse> {
-  const { data } = await postWithBrowserCsrf<{
-    providerId?: unknown;
-    status?: unknown;
-  }>('/auth/provider/activate', { token });
-
-  return {
-    providerId: typeof data.providerId === 'string' ? data.providerId : '',
-    status: typeof data.status === 'string' ? data.status : 'ACTIVATED',
-  };
-}
-
-export async function createProviderUser(
-  request: CreateProviderUserRequest,
-): Promise<CreateProviderUserResponse> {
-  const { data } = await postWithBrowserCsrf<{
-    user: unknown;
-    temporaryPassword?: unknown;
-  }>('/providers/users', request);
-
-  return {
-    user: parseUser(data.user),
-    temporaryPassword:
-      typeof data.temporaryPassword === 'string' ? data.temporaryPassword : '',
-  };
-}
 
 export async function logoutCurrentSession(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout');

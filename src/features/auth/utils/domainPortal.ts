@@ -1,14 +1,14 @@
 import type { PortalId } from '@/app/permissions/accessPolicy';
 
-export type WorkspaceKind = 'main' | 'admin' | 'provider';
+export type WorkspaceKind = 'main' | 'admin' | 'operations';
 
 export function getWorkspaceKind(host: string): WorkspaceKind {
   const normalized = host.trim().toLowerCase();
   if (normalized.startsWith('smartdroneinspection-admin')) {
     return 'admin';
   }
-  if (normalized.startsWith('smartdroneinspection-provider')) {
-    return 'provider';
+  if (normalized.startsWith('smartdroneinspection-operations')) {
+    return 'operations';
   }
   return 'main';
 }
@@ -16,7 +16,7 @@ export function getWorkspaceKind(host: string): WorkspaceKind {
 export function getPortalForHost(host: string): PortalId | null {
   const kind = getWorkspaceKind(host);
   if (kind === 'admin') return 'admin';
-  if (kind === 'provider') return 'operations';
+  if (kind === 'operations') return 'operations';
   return null;
 }
 
@@ -36,22 +36,22 @@ export function getWorkspaceCopy(kind: WorkspaceKind): WorkspaceCopy {
         eyebrow: 'Platform administration',
         title: 'Admin sign-in',
         description:
-          'Platform administrators manage users, providers, and access policy. Sign in with your admin account.',
+          'Platform administrators manage users and access policy. Sign in with your admin account.',
         sideLabel: 'Admin workspace',
         sideTitle: 'Run the platform',
         sideBody:
-          'Review provider registration, manage platform users, and keep the service healthy across all workspaces.',
+          'Manage platform users and keep the service healthy across all workspaces.',
       };
-    case 'provider':
+    case 'operations':
       return {
-        eyebrow: 'Service provider workspace',
-        title: 'Provider sign-in',
+        eyebrow: 'Operations workspace',
+        title: 'Operations sign-in',
         description:
-          'Providers manage their team, missions, and reports here. Sign in with your provider account.',
-        sideLabel: 'Provider workspace',
-        sideTitle: 'Run your inspection service',
+          'Inspectors and maintenance engineers manage assigned field work here.',
+        sideLabel: 'Operations workspace',
+        sideTitle: 'Run field operations',
         sideBody:
-          'Coordinate inspectors and maintenance engineers, review field evidence, and release client-ready reports.',
+          'Review field evidence, complete assigned inspections, and close maintenance work.',
       };
     default:
       return {

@@ -2,28 +2,31 @@ import { describe, expect, it } from 'vitest';
 import { getAuthRedirectTarget, getLoginReturnTo } from './authRedirect';
 
 describe('getAuthRedirectTarget', () => {
-  it('routes a single-role user to the matching workspace', () => {
-    expect(getAuthRedirectTarget(null, ['CLIENT'])).toBe('/client/dashboard');
+  it('routes canonical single-role users to their matching workspace', () => {
+    expect(getAuthRedirectTarget(null, ['ORG_ADMIN'])).toBe('/client/dashboard');
     expect(getAuthRedirectTarget(null, ['INSPECTOR'])).toBe(
       '/operations/dashboard',
     );
-    expect(getAuthRedirectTarget(null, ['PLATFORM_ADMIN'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget(null, ['MAINTENANCE_ENGINEER'])).toBe(
+      '/operations/dashboard',
+    );
+    expect(getAuthRedirectTarget(null, ['ADMIN'])).toBe('/admin/dashboard');
   });
 
   it('asks a cross-workspace user to choose a workspace', () => {
-    expect(getAuthRedirectTarget(null, ['CLIENT', 'INSPECTOR'])).toBe(
+    expect(getAuthRedirectTarget(null, ['ORG_ADMIN', 'INSPECTOR'])).toBe(
       '/portals',
     );
   });
 
   it('preserves an authorized internal destination, query, and hash', () => {
     expect(
-      getAuthRedirectTarget('/client/assets?sort=name#owned', ['CLIENT']),
+      getAuthRedirectTarget('/client/assets?sort=name#owned', ['ORG_ADMIN']),
     ).toBe('/client/assets?sort=name#owned');
   });
 
   it('denies an authenticated user returning to an unauthorized workspace', () => {
-    expect(getAuthRedirectTarget('/admin/dashboard', ['CLIENT'])).toBe(
+    expect(getAuthRedirectTarget('/admin/dashboard', ['ORG_ADMIN'])).toBe(
       '/forbidden',
     );
   });
@@ -36,16 +39,16 @@ describe('getAuthRedirectTarget', () => {
 
   it('does not accept external or protocol-relative return URLs', () => {
     expect(
-      getAuthRedirectTarget('https://example.com/steal', ['CLIENT']),
+      getAuthRedirectTarget('https://example.com/steal', ['ORG_ADMIN']),
     ).toBe('/client/dashboard');
-    expect(getAuthRedirectTarget('//example.com/steal', ['CLIENT'])).toBe(
+    expect(getAuthRedirectTarget('//example.com/steal', ['ORG_ADMIN'])).toBe(
       '/client/dashboard',
     );
   });
 
   it('does not send a signed-in user back to a public auth page', () => {
-    expect(getAuthRedirectTarget('/login', ['PLATFORM_ADMIN'])).toBe('/admin/dashboard');
-    expect(getAuthRedirectTarget('/register', ['PLATFORM_ADMIN'])).toBe(
+    expect(getAuthRedirectTarget('/login', ['ADMIN'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget('/register', ['ADMIN'])).toBe(
       '/admin/dashboard',
     );
   });

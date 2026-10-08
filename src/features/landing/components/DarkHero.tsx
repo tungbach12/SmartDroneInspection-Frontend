@@ -175,7 +175,7 @@ export function DarkHero() {
 
             <Box
               component="a"
-              href="https://smartdroneinspection-provider.duckdns.org/register-provider"
+              href="/login"
               sx={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -198,7 +198,7 @@ export function DarkHero() {
                 },
               }}
             >
-              Join as Drone Provider
+              Sign In for Field Operations
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>

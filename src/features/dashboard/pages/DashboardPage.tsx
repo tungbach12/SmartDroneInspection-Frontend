@@ -2,13 +2,9 @@ import {
   AssignmentOutlined,
   AssignmentTurnedInOutlined,
   BuildOutlined,
-  CloudDoneOutlined,
   FactCheckOutlined,
   FlightTakeoffOutlined,
   FolderOutlined,
-  GroupsOutlined,
-  HandshakeOutlined,
-  QueryStatsOutlined,
   TaskAltOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
@@ -26,23 +22,18 @@ const clientAreas = [
 ] as const;
 
 const operationsAreas = [
-  { label: 'Team', description: 'Provision inspectors and engineers', icon: GroupsOutlined },
-  { label: 'Asset review', description: 'Vet new client assets', icon: VerifiedOutlined },
-  { label: 'Inspections', description: 'Mission plans and field work', icon: FlightTakeoffOutlined },
+  { label: 'Inspections', description: 'Mission plans and assigned field work', icon: FlightTakeoffOutlined },
   { label: 'Reports', description: 'Author verification and release', icon: FactCheckOutlined },
-  { label: 'Maintenance', description: 'Defect close-out per provider', icon: BuildOutlined },
+  { label: 'Maintenance', description: 'Close assigned maintenance work', icon: BuildOutlined },
 ] as const;
 
 const adminAreas = [
-  { label: 'Providers', description: 'Onboard and verify provider organizations', icon: HandshakeOutlined },
-  { label: 'Users', description: 'Manage platform access', icon: GroupsOutlined },
-  { label: 'Audit', description: 'Security and access events', icon: QueryStatsOutlined },
-  { label: 'System', description: 'Service health and readiness', icon: CloudDoneOutlined },
-] as const;
+  { label: 'Platform', description: 'Manage application access and security', icon: VerifiedOutlined },
+];
 
 function getAreas(roles: readonly string[]) {
-  if (roles.includes('CLIENT')) return clientAreas;
-  if (roles.some((role) => ['PROVIDER_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER', 'PLATFORM_OPERATOR'].includes(role))) {
+  if (roles.includes('ORG_ADMIN')) return clientAreas;
+  if (roles.some((role) => ['INSPECTOR', 'MAINTENANCE_ENGINEER'].includes(role))) {
     return operationsAreas;
   }
   return adminAreas;
@@ -57,9 +48,9 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle={
-          roles.includes('CLIENT')
-            ? 'Your assets, requests, and released reports'
-            : roles.includes('PLATFORM_ADMIN')
+          roles.includes('ORG_ADMIN')
+            ? 'Your organization, assets, and account overview'
+            : roles.includes('ADMIN')
               ? 'Platform administration at a glance'
               : 'Operations workspace — missions, reports, and maintenance'
         }

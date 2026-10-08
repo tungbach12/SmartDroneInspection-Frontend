@@ -3,16 +3,18 @@ import type { AuthUser, Role } from '@/features/auth/store/authStore';
 export type Capability =
   | 'reports.submit'
   | 'reports.release'
+  | 'reports.decide'
   | 'assets.review';
 
 const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
-  'reports.submit': ['INSPECTOR'],
-  'reports.release': ['PROVIDER_MANAGER'],
-  'assets.review': ['PROVIDER_MANAGER', 'PLATFORM_OPERATOR'],
+  'reports.submit': [],
+  'reports.release': [],
+  'reports.decide': [],
+  'assets.review': ['ORG_ADMIN'],
 };
 
 export function canPerform(
-  capability: Capability,
+  capability: Capability | string,
   user: AuthUser | null | undefined,
 ): boolean {
   if (!user || !Array.isArray(user.roles)) return false;
