@@ -21,6 +21,11 @@ export function initializeBrowserSession(): Promise<void> {
         });
       })
       .catch(() => {
+        // A demo session is synthetic (development-only quick access); never
+        // wipe it when the real backend session restore fails or resolves late.
+        if (useAuthStore.getState().accessToken?.startsWith('demo-')) {
+          return;
+        }
         useAuthStore.getState().clearSession();
       })
       .finally(() => {

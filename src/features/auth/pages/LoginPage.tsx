@@ -351,6 +351,65 @@ export default function LoginPage() {
           Sign in once; you never need to choose a role on this page.
         </Typography>
       </Box>
+
+      {import.meta.env.DEV && (
+        <Box
+          sx={{
+            mt: 2,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: '#fff8e1',
+            border: '1px solid #ffe082',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#b78103', mb: 1 }}>
+            Demo Quick Access (MF5 Testing)
+          </Typography>
+          <Stack spacing={1}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setSession({
+                  accessToken: 'demo-client-token',
+                  user: {
+                    id: 'client-1',
+                    email: 'client@example.com',
+                    fullName: 'Client Demo (Facility Owner)',
+                    roles: ['CLIENT'],
+                    actorZone: 'CUSTOMER_ORGANIZATION',
+                    organizationId: 'org-client-1',
+                  },
+                });
+                navigate('/client/maintenance', { replace: true });
+              }}
+            >
+              Sign in as CLIENT (View Maintenance Portal)
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              color="secondary"
+              onClick={() => {
+                setSession({
+                  accessToken: 'demo-provider-token',
+                  user: {
+                    id: 'pm-1',
+                    email: 'provider@example.com',
+                    fullName: 'Provider Manager Demo',
+                    roles: ['SERVICE_MANAGER'],
+                    actorZone: 'SERVICE_WORKFORCE',
+                    organizationId: 'org-provider-1',
+                  },
+                });
+                navigate('/operations/maintenance', { replace: true });
+              }}
+            >
+              Sign in as PROVIDER_MANAGER (Manage Orders & Quotes)
+            </Button>
+          </Stack>
+        </Box>
+      )}
     </AuthPageLayout>
   );
 }

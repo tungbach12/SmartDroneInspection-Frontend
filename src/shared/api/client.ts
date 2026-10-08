@@ -133,7 +133,31 @@ function redirectToLogin(): void {
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentPath)}`);
 }
 
+/**
+ * Development-only demo mode: when the session token is a synthetic `demo-*`
+ * token, answers every request locally with an empty success payload instead
+ * of calling the API. Screens fall back to their inline demo fixtures, so the
+ * flow stays explorable without a signed-in backend session. Never active in
+ * production builds (guarded by `import.meta.env.DEV`).
+ */
+function isDemoSession(): boolean {
+  return (
+    import.meta.env.DEV &&
+    useAuthStore.getState().accessToken?.startsWith('demo-') === true
+  );
+}
+
 api.interceptors.request.use((config) => {
+  if (isDemoSession()) {
+    config.adapter = async (cfg) => ({
+      data: { success: true, message: 'Demo mode', data: [] },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: cfg,
+    });
+    return config;
+  }
   const token = useAuthStore.getState().accessToken;
   if (token && !shouldSkipBearerToken(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
