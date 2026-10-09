@@ -20,27 +20,25 @@ import {
 } from '@mui/material';
 import { useState, type FormEvent } from 'react';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { useCreateReportDraft } from '@/features/reports/hooks/useReports';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
   useAnalyzeEvidence,
+  useAuthorManualDraft,
   useCreateManualFinding,
+  useDecideEvidenceQuality,
+  useEvidenceQualityHistory,
   useFindingCandidates,
-  useInspectionAssignments,
+  useGenerateReportDraft,
   useInspectionChecklist,
   useInspectionEvidence,
   useReviewFindingCandidate,
   useSaveChecklistResponse,
-  useStartInspection,
   useUploadInspectionEvidence,
 } from '../hooks/useInspections';
-import type {
-  InspectionChecklistItem,
-  InspectionAssignment,
-} from '../api/inspectionApi';
+import type { InspectionChecklistItem } from '../api/inspectionApi';
 
 function checklistChoices(item: InspectionChecklistItem): string[] {
   if (!item.validationConfig) return [];
@@ -63,31 +61,38 @@ function checklistValue(item: InspectionChecklistItem, value: string): unknown {
 export default function InspectionsPage() {
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const assignments = useInspectionAssignments(isInspector);
-  const startInspection = useStartInspection();
-  const createDraft = useCreateReportDraft();
   const [activeInspectionId, setActiveInspectionId] = useState<string | null>(null);
+  const [inspectionIdInput, setInspectionIdInput] = useState('');
   const [checklistDrafts, setChecklistDrafts] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [limitationReason, setLimitationReason] = useState('');
+  const [narrative, setNarrative] = useState('');
+  const [omissionDisclosure, setOmissionDisclosure] = useState('');
 
+  const createDraft = useGenerateReportDraft(activeInspectionId);
+  const authorManualDraft = useAuthorManualDraft(activeInspectionId);
   const checklist = useInspectionChecklist(activeInspectionId);
   const evidence = useInspectionEvidence(activeInspectionId);
+  const quality = useEvidenceQualityHistory(activeInspectionId);
   const candidates = useFindingCandidates(activeInspectionId);
   const saveResponse = useSaveChecklistResponse(activeInspectionId);
   const upload = useUploadInspectionEvidence(activeInspectionId);
+  const decideQuality = useDecideEvidenceQuality(activeInspectionId);
   const analyze = useAnalyzeEvidence(activeInspectionId);
   const reviewCandidate = useReviewFindingCandidate(activeInspectionId);
   const createManualFinding = useCreateManualFinding(activeInspectionId);
 
-  const handleOpenAssignment = async (assignment: InspectionAssignment) => {
-    try {
-      const started = await startInspection.mutateAsync(assignment.assignmentId);
-      setActiveInspectionId(started.inspectionId);
-      setChecklistDrafts({});
-      setSelectedFile(null);
-    } catch {
-      // Mutation state below renders the backend's problem detail and allows retry.
-    }
+  // Only an accepted decision makes the evidence set eligible for advisory detection.
+  const evidenceAccepted =
+    quality.data?.[0]?.decision === 'ACCEPTED' ||
+    quality.data?.[0]?.decision === 'LIMITED';
+
+  const openInspection = () => {
+    const trimmed = inspectionIdInput.trim();
+    if (!trimmed) return;
+    setActiveInspectionId(trimmed);
+    setChecklistDrafts({});
+    setSelectedFile(null);
   };
 
   const saveChecklistItem = (item: InspectionChecklistItem) => {
@@ -137,66 +142,43 @@ export default function InspectionsPage() {
         </Alert>
       ) : (
         <Stack spacing={2.5}>
-          {startInspection.isError && (
-            <Alert severity="error">
-              {getErrorMessage(startInspection.error, 'Could not open this inspection.')}
-            </Alert>
-          )}
-          <QueryState
-            isLoading={assignments.isLoading}
-            error={assignments.error}
-            isEmpty={!assignments.data?.length}
-            onRetry={() => void assignments.refetch()}
-            empty={
-              <EmptyState
-                title="No accepted assignments"
-                description="Accepted inspection assignments from your Service Manager will appear here."
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
+              <TextField
+                label="Inspection ID"
+                size="small"
+                value={inspectionIdInput}
+                onChange={(event) => setInspectionIdInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') openInspection();
+                }}
+                slotProps={{ htmlInput: { maxLength: 36 } }}
+                sx={{ flex: 1 }}
               />
-            }
-          >
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 0.8fr) minmax(0, 1.5fr)' }, gap: 2 }}>
-              <Stack spacing={1.5}>
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>Assigned work</Typography>
-                {assignments.data?.map((assignment) => (
-                  <Card key={assignment.assignmentId} variant="outlined">
-                    <CardContent>
-                      <Stack spacing={1.25}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          Asset {assignment.assetId.slice(0, 8)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Order {assignment.serviceOrderId.slice(0, 8)}
-                          {assignment.deadline ? ` · Due ${new Date(assignment.deadline).toLocaleDateString()}` : ''}
-                        </Typography>
-                        <Button
-                          variant="contained"
-                          disabled={startInspection.isPending}
-                          onClick={() => void handleOpenAssignment(assignment)}
-                        >
-                          {assignment.inspectionId ? 'Resume inspection' : 'Start inspection'}
-                        </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
+              <Button variant="contained" disabled={!inspectionIdInput.trim()} onClick={openInspection}>
+                Open inspection
+              </Button>
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              The assigned Inspector works against an inspection identifier. Only your own assigned
+              inspections are readable.
+            </Typography>
+          </Paper>
 
-              {!activeInspectionId ? (
-                <Paper variant="outlined" sx={{ p: 3, alignSelf: 'start' }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>Field record</Typography>
-                  <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    Open an accepted assignment to load its versioned checklist and evidence workspace.
-                  </Typography>
-                </Paper>
-              ) : (
-                <Stack spacing={2}>
-                  <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-                      <FactCheckOutlined color="primary" />
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>Checklist</Typography>
-                      <Chip size="small" label={activeInspectionId.slice(0, 8)} />
-                    </Stack>
-                    <QueryState
+          {!activeInspectionId ? (
+            <EmptyState
+              title="No inspection selected"
+              description="Enter an inspection identifier to load its checklist and evidence workspace."
+            />
+          ) : (
+            <Stack spacing={2}>
+              <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+                  <FactCheckOutlined color="primary" />
+                  <Typography variant="h6">Checklist</Typography>
+                  <Chip size="small" label={activeInspectionId.slice(0, 8)} />
+                </Stack>
+                <QueryState
                       isLoading={checklist.isLoading}
                       error={checklist.error}
                       isEmpty={!checklist.data?.length}
@@ -301,19 +283,104 @@ export default function InspectionsPage() {
                     >
                       <Stack spacing={1} sx={{ mt: 2 }}>
                         {evidence.data?.map((item) => (
-                          <Stack key={item.evidenceId} direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Stack key={item.id} direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                             <Box>
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>{item.fileName}</Typography>
                               <Typography variant="caption" color="text.secondary">{item.contentType} · {item.sizeBytes.toLocaleString()} bytes · {item.checksumSha256.slice(0, 12)}…</Typography>
                             </Box>
-                            <Button size="small" startIcon={<AutoAwesomeOutlined />} disabled={analyze.isPending} onClick={() => analyze.mutate(item.evidenceId)}>
+                            <Button size="small" startIcon={<AutoAwesomeOutlined />} disabled={analyze.isPending || !evidenceAccepted} onClick={() => analyze.mutate(item.id)}>
                               Analyze
                             </Button>
                           </Stack>
                         ))}
+                        {!evidenceAccepted && evidence.data?.length ? (
+                          <Alert severity="info">
+                            Accept the evidence set before running advisory detection.
+                          </Alert>
+                        ) : null}
                       </Stack>
                     </QueryState>
                     {analyze.isError && <Alert severity="warning" sx={{ mt: 1 }}>{getErrorMessage(analyze.error, 'AI analysis is unavailable; existing evidence remains available.')}</Alert>}
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Evidence quality decision
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Compare the evidence against the shot-list and record whether coverage is
+                      adequate. Only you make this call — neither the upload validator nor the
+                      model does.
+                    </Typography>
+                    {quality.data?.[0] && (
+                      <Chip
+                        size="small"
+                        sx={{ alignSelf: 'flex-start' }}
+                        color={evidenceAccepted ? 'success' : 'warning'}
+                        label={quality.data[0].decision.replaceAll('_', ' ')}
+                      />
+                    )}
+                    <TextField
+                      label="Limitation or reason (required for limited, re-upload or additional session)"
+                      multiline
+                      minRows={2}
+                      value={limitationReason}
+                      onChange={(event) => setLimitationReason(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: 2000 } }}
+                    />
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Button
+                        variant="contained"
+                        disabled={decideQuality.isPending || !evidence.data?.length}
+                        onClick={() => decideQuality.mutate({ decision: 'ACCEPTED' })}
+                      >
+                        Accept evidence set
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        disabled={decideQuality.isPending || !limitationReason.trim()}
+                        onClick={() =>
+                          decideQuality.mutate({
+                            decision: 'REUPLOAD_REQUIRED',
+                            limitationReason: limitationReason.trim(),
+                          })
+                        }
+                      >
+                        Re-upload required
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        disabled={decideQuality.isPending || !limitationReason.trim()}
+                        onClick={() =>
+                          decideQuality.mutate({
+                            decision: 'ADDITIONAL_SESSION_REQUIRED',
+                            limitationReason: limitationReason.trim(),
+                          })
+                        }
+                      >
+                        Additional session needed
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        disabled={decideQuality.isPending || !limitationReason.trim()}
+                        onClick={() =>
+                          decideQuality.mutate({
+                            decision: 'LIMITED',
+                            limitationReason: limitationReason.trim(),
+                          })
+                        }
+                      >
+                        Accept with limitation
+                      </Button>
+                    </Stack>
+                    {decideQuality.isError && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        {getErrorMessage(
+                          decideQuality.error,
+                          'The evidence decision was not recorded.',
+                        )}
+                      </Alert>
+                    )}
                   </Paper>
 
                   <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
@@ -341,7 +408,7 @@ export default function InspectionsPage() {
                                   <Stack direction="row" spacing={1}>
                                     <Button size="small" onClick={() => reviewCandidate.mutate({ candidateId: candidate.id, input: { decision: 'CONFIRM', severity: 'MEDIUM', locationDescription: 'Inspector verified location', technicalNotes: 'Confirmed by assigned Inspector' } })}>Confirm</Button>
                                     <Button size="small" onClick={() => reviewCandidate.mutate({ candidateId: candidate.id, input: { decision: 'MODIFY', defectLabel: candidate.predictedLabel, severity: 'MEDIUM', locationDescription: 'Inspector verified location', technicalNotes: 'Modified by assigned Inspector' } })}>Modify</Button>
-                                    <Button size="small" color="error" onClick={() => reviewCandidate.mutate({ candidateId: candidate.id, input: { decision: 'REJECT', rejectionReason: 'Inspector marked as false positive' } })}>Reject</Button>
+                                    <Button size="small" color="error" onClick={() => reviewCandidate.mutate({ candidateId: candidate.id, input: { decision: 'REJECT', reason: 'Inspector marked as false positive' } })}>Reject</Button>
                                   </Stack>
                                 )}
                               </Stack>
@@ -355,7 +422,7 @@ export default function InspectionsPage() {
                     <Box component="form" onSubmit={submitManualFinding} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, gridColumn: '1 / -1' }}>Add manual finding</Typography>
                       <TextField select name="evidenceId" label="Evidence" required defaultValue="">
-                        {evidence.data?.map((item) => <MenuItem key={item.evidenceId} value={item.evidenceId}>{item.fileName}</MenuItem>)}
+                        {evidence.data?.map((item) => <MenuItem key={item.id} value={item.id}>{item.fileName}</MenuItem>)}
                       </TextField>
                       <TextField name="defectLabel" label="Defect label" required slotProps={{ htmlInput: { maxLength: 160 } }} />
                       <TextField select name="severity" label="Severity" defaultValue="MEDIUM">
@@ -373,17 +440,64 @@ export default function InspectionsPage() {
 
                   <Button
                     variant="contained"
-                    disabled={createDraft.isPending}
-                    onClick={() => createDraft.mutate(activeInspectionId)}
+                    disabled={createDraft.isPending || !evidenceAccepted}
+                    onClick={() => createDraft.mutate()}
                     sx={{ alignSelf: 'flex-start' }}
                   >
-                    {createDraft.isPending ? 'Compiling report…' : 'Create report draft'}
+                    {createDraft.isPending ? 'Compiling report…' : 'Generate report draft'}
                   </Button>
-                  {createDraft.isError && <Alert severity="warning">{getErrorMessage(createDraft.error, 'Complete required checklist items and upload evidence before compiling the draft.')}</Alert>}
+                  {createDraft.isError && <Alert severity="warning">{getErrorMessage(createDraft.error, 'Accept the evidence set before generating a report draft.')}</Alert>}
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Author the draft yourself
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Report 3 keeps a structured manual draft possible when automated drafting is
+                    unavailable. State what was observed and disclose any analysis that was omitted.
+                  </Typography>
+                  <TextField
+                    label="Narrative"
+                    multiline
+                    minRows={4}
+                    value={narrative}
+                    onChange={(event) => setNarrative(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 10000 } }}
+                  />
+                  <TextField
+                    label="Omitted analysis disclosure"
+                    multiline
+                    minRows={2}
+                    value={omissionDisclosure}
+                    onChange={(event) => setOmissionDisclosure(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 2000 } }}
+                  />
+                  <Button
+                    variant="outlined"
+                    disabled={authorManualDraft.isPending || !evidenceAccepted || !narrative.trim()}
+                    onClick={() =>
+                      authorManualDraft.mutate({
+                        narrative: narrative.trim(),
+                        ...(omissionDisclosure.trim()
+                          ? { omissionDisclosure: omissionDisclosure.trim() }
+                          : {}),
+                      })
+                    }
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    {authorManualDraft.isPending ? 'Saving draft…' : 'Save structured draft'}
+                  </Button>
+                  {authorManualDraft.isError && (
+                    <Alert severity="warning">
+                      {getErrorMessage(
+                        authorManualDraft.error,
+                        'Accept the evidence set before authoring a draft.',
+                      )}
+                    </Alert>
+                  )}
                 </Stack>
               )}
-            </Box>
-          </QueryState>
         </Stack>
       )}
     </Box>

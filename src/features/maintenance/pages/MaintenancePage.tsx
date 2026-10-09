@@ -22,7 +22,7 @@ export default function MaintenancePage() {
           description="Assigned maintenance work will appear here with its source finding, owner, and resolution status."
         />
         <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 } }}>
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>Traceable follow-up</Typography>
+          <Typography variant="h6">Traceable follow-up</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
             Keep the reason for the work visible from the finding through completion.
           </Typography>

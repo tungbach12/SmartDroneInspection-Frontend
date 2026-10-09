@@ -50,8 +50,8 @@ export default function AssetReviewPage() {
           {pending.map((asset) => (
             <Card key={asset.id} variant="outlined">
               <CardContent>
-                <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                  <Typography variant="h6">
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ alignItems: { sm: 'center' } }}>
+                  <Typography variant="h6" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                     {asset.name} ({asset.code})
                   </Typography>
                   <StatusChip status={asset.status} />
@@ -67,7 +67,7 @@ export default function AssetReviewPage() {
                     setNotes((current) => ({ ...current, [asset.id]: event.target.value }))
                   }
                 />
-                <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2, '& > button': { alignSelf: 'flex-start' } }}>
                   <Button
                     variant="contained"
                     disabled={review.isPending || !canReviewAssets}
@@ -120,7 +120,7 @@ export default function AssetReviewPage() {
       <TextField
         size="small"
         label="Approved asset id"
-        sx={{ mt: 1, minWidth: 360 }}
+        sx={{ mt: 1, width: { xs: '100%', sm: 360 }, maxWidth: '100%' }}
         value={proposalAssetId}
         onChange={(event) => setProposalAssetId(event.target.value)}
         helperText="Approving an asset above fills this automatically."
@@ -169,12 +169,12 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 </Typography>
                 <StatusChip status={proposal.status} />
               </Box>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, width: { xs: '100%', sm: 'auto' } }}>
                 <TextField
                   size="small"
                   type="number"
                   label="Interval"
-                  sx={{ width: 120 }}
+                  sx={{ width: { xs: '100%', sm: 120 } }}
                   value={intervals[proposal.id] ?? String(proposal.frequencyInterval)}
                   onChange={(event) =>
                     setIntervals((current) => ({
@@ -186,6 +186,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 />
                 <Button
                   variant="contained"
+                  sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
                   disabled={review.isPending || !canReviewAssets}
                   onClick={() =>
                     review.mutate({
@@ -205,6 +206,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 <Button
                   color="error"
                   variant="outlined"
+                  sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
                   disabled={review.isPending || !canReviewAssets}
                   onClick={() => review.mutate({ id: proposal.id, input: { action: 'REJECT' } })}
                 >

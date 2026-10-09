@@ -58,9 +58,8 @@ export function DataTable<T>({
   return (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       {searchable && (
-        <Box sx={{ p: 2, pb: 0 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1.5, pb: 1 }}>
           <TextField
-            fullWidth
             size="small"
             placeholder={searchPlaceholder}
             value={query}
@@ -69,6 +68,7 @@ export function DataTable<T>({
               setPage(0);
             }}
             slotProps={{
+              htmlInput: { 'aria-label': searchPlaceholder },
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
@@ -77,6 +77,7 @@ export function DataTable<T>({
                 ),
               },
             }}
+            sx={{ width: { xs: '100%', sm: 300 } }}
           />
         </Box>
       )}
@@ -106,6 +107,16 @@ export function DataTable<T>({
                   key={rowKey(row)}
                   hover={Boolean(onRowClick)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={onRowClick ? (event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
+                      event.preventDefault();
+                      onRowClick(row);
+                    }
+                  } : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
                   sx={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {columns.map((column) => (
@@ -130,6 +141,7 @@ export function DataTable<T>({
           setPage(0);
         }}
         rowsPerPageOptions={[5, 10, 25]}
+        sx={{ borderTop: 1, borderColor: 'divider' }}
       />
     </Paper>
   );

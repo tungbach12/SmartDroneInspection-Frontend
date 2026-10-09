@@ -13,7 +13,7 @@ export function TimelineBar({ leftPercent, widthPercent, active }: TimelineBarPr
         position: 'relative',
         width: '100%',
         height: '6px',
-        bgcolor: 'rgba(255, 255, 255, 0.06)',
+        bgcolor: 'rgba(23, 54, 74, 0.08)',
         borderRadius: '2px',
         overflow: 'hidden',
       }}
@@ -25,9 +25,9 @@ export function TimelineBar({ leftPercent, widthPercent, active }: TimelineBarPr
           bottom: 0,
           left: `${leftPercent}%`,
           width: `${widthPercent}%`,
-          bgcolor: active ? '#52a8ff' : 'rgba(255, 255, 255, 0.18)',
+          bgcolor: active ? '#087E8B' : 'rgba(23, 54, 74, 0.14)',
           borderRadius: '2px',
-          boxShadow: active ? '0 0 10px rgba(82, 168, 255, 0.5)' : 'none',
+          boxShadow: active ? '0 0 10px rgba(8, 126, 139, 0.25)' : 'none',
           transition: 'all 0.3s ease',
         }}
       />
