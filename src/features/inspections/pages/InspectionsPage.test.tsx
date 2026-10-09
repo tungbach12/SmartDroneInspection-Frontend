@@ -2,11 +2,17 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  checklistQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
+  listQuery: {
+    data: undefined as
+      | { items: unknown[]; page: number; pageSize: number; totalCount: number; totalPages: number }
+      | undefined,
+    isLoading: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
   evidenceQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
   candidateQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, refetch: vi.fn() },
   qualityQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
-  save: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   upload: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   decideQuality: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   analyze: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
@@ -17,12 +23,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../hooks/useInspections', () => ({
-  useInspectionChecklist: () => mocks.checklistQuery,
+  useInspections: () => mocks.listQuery,
   useInspectionEvidence: () => mocks.evidenceQuery,
   useFindingCandidates: () => mocks.candidateQuery,
   useEvidenceQualityHistory: () => mocks.qualityQuery,
   useDecideEvidenceQuality: () => mocks.decideQuality,
-  useSaveChecklistResponse: () => mocks.save,
   useUploadInspectionEvidence: () => mocks.upload,
   useAnalyzeEvidence: () => mocks.analyze,
   useReviewFindingCandidate: () => mocks.review,
@@ -34,26 +39,45 @@ vi.mock('../hooks/useInspections', () => ({
 import InspectionsPage from './InspectionsPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 
-/** Opens the MF3 workspace for one inspection, replacing the retired assignment picker. */
-function openInspection() {
-  fireEvent.change(screen.getByLabelText('Inspection ID'), {
-    target: { value: 'inspection-1' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Open inspection' }));
+function listedInspection() {
+  return {
+    id: 'inspection-1',
+    organizationId: 'org-1',
+    assetId: 'asset-1',
+    inspectorId: 'inspector-1',
+    objective: 'Inspect the main span',
+    status: 'FIELD_COMPLETED',
+    plannedStartAt: null,
+    plannedEndAt: null,
+    createdAt: '2026-10-01T09:00:00Z',
+    updatedAt: '2026-10-01T09:00:00Z',
+    reportId: null,
+    reportStatus: null,
+    reportVersionNo: null,
+  };
 }
 
-function signInAsInspector() {
+function signInAs(roles: string[]) {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
       id: 'inspector-1',
-      email: 'inspector@example.test',
-      fullName: 'Inspector',
-      roles: ['INSPECTOR'],
+      email: 'user@example.test',
+      fullName: 'User',
+      roles,
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
     },
   });
+}
+
+function signInAsInspector() {
+  signInAs(['INSPECTOR']);
+}
+
+/** Opens the MF3 workspace by choosing a row, replacing the retired identifier input. */
+function openInspection() {
+  fireEvent.click(screen.getByRole('row', { name: /Inspect the main span/ }));
 }
 
 describe('InspectionsPage', () => {
@@ -63,23 +87,34 @@ describe('InspectionsPage', () => {
     Object.values(mocks).forEach((value) => {
       if ('mutate' in value && typeof value.mutate === 'function') value.mutate.mockReset();
     });
-    mocks.checklistQuery = {
-      data: [], isLoading: false, error: null, refetch: vi.fn(),
-    };
     mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.candidateQuery = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.listQuery = {
+      data: {
+        items: [listedInspection()],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
     mocks.upload.isError = false;
     mocks.upload.error = null;
   });
 
   afterEach(() => useAuthStore.getState().clearSession());
 
-  it('opens an inspection by identifier and retries an evidence upload with the retained file', async () => {
+  it('opens an inspection from the list and retries an evidence upload with the retained file', async () => {
     const { container, rerender } = render(<InspectionsPage />);
     openInspection();
 
-    await screen.findByText('Checklist');
+    await screen.findByRole('heading', { name: 'Evidence' });
+    expect(screen.queryByText('Checklist')).toBeNull();
+    expect(screen.getByText(/checklist execution and inspection start belong to MF1\/MF2/i)).toBeTruthy();
     const file = new File(['evidence'], 'span.png', { type: 'image/png' });
     const fileInput = container.querySelector('input[type="file"]');
     expect(fileInput).not.toBeNull();
@@ -176,6 +211,61 @@ describe('InspectionsPage', () => {
       decision: 'LIMITED',
       limitationReason: 'The east face was not observed',
     });
+  });
+
+  it('lists the inspections the backend returns and requires no typed identifier', async () => {
+    render(<InspectionsPage />);
+
+    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
+    expect(screen.getByText('FIELD_COMPLETED')).toBeTruthy();
+    // The retired identifier field is gone; rows replace it.
+    expect(screen.queryByLabelText('Inspection ID')).toBeNull();
+    expect(screen.getByText('No inspection selected')).toBeTruthy();
+  });
+
+  it('says so plainly when the caller has no inspections in scope', () => {
+    mocks.listQuery = {
+      data: { items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    render(<InspectionsPage />);
+
+    expect(screen.getByText('No inspections available')).toBeTruthy();
+  });
+
+  it('offers retry when the list cannot be loaded', async () => {
+    const refetch = vi.fn();
+    mocks.listQuery = { data: undefined, isLoading: false, error: new Error('boom'), refetch };
+
+    render(<InspectionsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it('lets an organization admin browse the list without the Inspector workspace', async () => {
+    signInAs(['ORG_ADMIN']);
+
+    render(<InspectionsPage />);
+
+    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
+
+    // Choosing a row must not open the Inspector-only evidence workspace.
+    openInspection();
+    expect(screen.queryByRole('heading', { name: 'Evidence' })).toBeNull();
+    expect(screen.getByText(/You are viewing this inspection as a reader/)).toBeTruthy();
+  });
+
+  it('tells a maintenance engineer where to look instead', async () => {
+    signInAs(['MAINTENANCE_ENGINEER']);
+
+    render(<InspectionsPage />);
+
+    expect(await screen.findByText(/available to Inspectors, organization administrators/)).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 
   it('lets the author save a structured manual draft once the evidence is accepted', async () => {

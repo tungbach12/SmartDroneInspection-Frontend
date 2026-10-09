@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
@@ -75,9 +75,15 @@ export default function DashboardPage() {
   const canReadAssets = isOrganization;
 
   const focusAreas = getAreas(roles, portal);
+  const dashboardRoleOptions: RoleId[] = portal === 'admin'
+    ? ['ADMIN']
+    : portal === 'client'
+      ? ['ORG_ADMIN']
+      : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
+  const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
   const assets = useAssets({ page: 1, pageSize: 50 }, canReadAssets);
 
-  // Default role from portal & auth state
+  // Role controls only vary presentation within roles actually assigned to the account.
   const defaultRole: RoleId = isOrganization
     ? 'ORG_ADMIN'
     : isAdmin
@@ -85,12 +91,10 @@ export default function DashboardPage() {
       : isMaintenanceEngineer && !isInspector
         ? 'MAINTENANCE_ENGINEER'
         : 'INSPECTOR';
-
-  const [activeRole, setActiveRole] = useState<RoleId>(defaultRole);
-
-  React.useEffect(() => {
-    setActiveRole(defaultRole);
-  }, [defaultRole]);
+  const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
+  const activeRole =
+    selectedRole && availableDashboardRoles.includes(selectedRole) ? selectedRole : defaultRole;
+  const handleRoleChange = (role: RoleId) => setSelectedRole(role);
 
   const config = REPORT3_ROLE_DASHBOARDS[activeRole];
 
@@ -322,7 +326,8 @@ export default function DashboardPage() {
 
         <LyticHeaderActions
           currentRole={activeRole}
-          onRoleChange={setActiveRole}
+          availableRoles={availableDashboardRoles}
+          onRoleChange={handleRoleChange}
           onRefresh={() => {
             if (canReadAssets) void assets.refetch();
           }}

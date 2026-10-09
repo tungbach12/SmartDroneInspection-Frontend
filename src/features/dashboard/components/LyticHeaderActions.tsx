@@ -7,6 +7,7 @@ import type { RoleId } from '../data/report3DashboardData';
 
 export interface LyticHeaderActionsProps {
   currentRole: RoleId;
+  availableRoles: readonly RoleId[];
   onRoleChange: (role: RoleId) => void;
   onRefresh?: () => void;
   onExport?: () => void;
@@ -14,6 +15,7 @@ export interface LyticHeaderActionsProps {
 
 export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
   currentRole,
+  availableRoles,
   onRoleChange,
   onRefresh,
   onExport,
@@ -38,7 +40,7 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
       {/* Role Switcher Pills */}
       <Box
         sx={{
-          display: { xs: 'none', md: 'flex' },
+          display: { xs: 'none', md: availableRoles.length > 1 ? 'flex' : 'none' },
           alignItems: 'center',
           bgcolor: 'var(--lytic-border-light, #f3f4f6)',
           p: 0.5,
@@ -47,7 +49,7 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
           gap: 0.5,
         }}
       >
-        {roles.map((r) => {
+        {roles.filter((role) => availableRoles.includes(role.id)).map((r) => {
           const isActive = currentRole === r.id;
           return (
             <Button

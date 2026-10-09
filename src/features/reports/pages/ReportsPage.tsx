@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { canPerform } from '@/app/permissions/capability';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
@@ -21,7 +21,11 @@ import {
   useSubmitReportVersion,
   useVerifyReportVersion,
 } from '@/features/inspections/hooks/useInspections';
-import { useReportVersions } from '@/features/inspections/hooks/useInspections';
+import {
+  useInspectionsWithReports,
+  useReportVersions,
+} from '@/features/inspections/hooks/useInspections';
+import { InspectionListTable } from '@/features/inspections/components/InspectionListTable';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -39,9 +43,15 @@ function formatDate(value: string | null): string {
 export default function ReportsPage() {
   const user = useAuthStore((state) => state.user);
   const userId = useAuthStore((state) => state.userId);
-  const [inspectionId, setInspectionId] = useState('');
-  const [reviewReason, setReviewReason] = useState('');
   const [appliedInspectionId, setAppliedInspectionId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [reviewReason, setReviewReason] = useState('');
+
+  // A report belongs to an inspection, so the review queue is the inspection collection filtered
+  // to the rows that carry one.
+  const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
+  const inspections = useInspectionsWithReports(listFilters);
 
   const versions = useReportVersions(appliedInspectionId);
   const verify = useVerifyReportVersion(appliedInspectionId);
@@ -62,30 +72,40 @@ export default function ReportsPage() {
         subtitle="Review, approve, and publish the versioned inspection record"
       />
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          <TextField
-            label="Inspection ID"
-            size="small"
-            fullWidth
-            value={inspectionId}
-            onChange={(event) => setInspectionId(event.target.value.trim())}
-            slotProps={{ htmlInput: { maxLength: 36 } }}
+      <QueryState
+        isLoading={inspections.isLoading}
+        error={inspections.error}
+        isEmpty={!inspections.data?.items.length}
+        onRetry={() => void inspections.refetch()}
+        loadingLabel="Loading reports…"
+        empty={
+          <EmptyState
+            title="No reports to review"
+            description="A report appears here once the assigned Inspector authors a draft."
           />
-          <Button
-            variant="contained"
-            disabled={!inspectionId}
-            onClick={() => setAppliedInspectionId(inspectionId)}
-          >
-            Load versions
-          </Button>
-        </Stack>
-      </Paper>
+        }
+      >
+        <InspectionListTable
+          rows={inspections.data?.items ?? []}
+          page={page}
+          pageSize={pageSize}
+          totalCount={inspections.data?.totalCount ?? 0}
+          totalPages={inspections.data?.totalPages ?? 0}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+          }}
+          onSelect={setAppliedInspectionId}
+          selectedInspectionId={appliedInspectionId}
+          showReportColumn
+        />
+      </QueryState>
 
       {!appliedInspectionId ? (
         <EmptyState
           title="No inspection selected"
-          description="Enter an inspection identifier to load its report versions and source record."
+          description="Choose an inspection above to review its report versions."
         />
       ) : (
         <QueryState
