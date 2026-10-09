@@ -236,8 +236,14 @@ export default function LoginPage() {
             disabled={setupForm.formState.isSubmitting}
             sx={{
               minHeight: 50,
-              bgcolor: '#087c92',
-              '&:hover': { bgcolor: '#06687b' },
+              borderRadius: '8px',
+              bgcolor: '#087E8B',
+              color: '#FFFFFF',
+              boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+              '&:hover': {
+                bgcolor: '#066B70',
+                boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+              },
             }}
           >
             {setupForm.formState.isSubmitting
@@ -258,42 +264,42 @@ export default function LoginPage() {
     );
   }
 
-  const darkInputSx = {
+  const authInputSx = {
     '& .MuiOutlinedInput-root': {
-      bgcolor: '#14202B',
+      bgcolor: '#F8FBFA',
       borderRadius: '8px',
-      color: '#FFFFFF',
+      color: '#173B36',
       fontSize: '14px',
       '& fieldset': {
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: '#D6E4E0',
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
       },
       '&:hover fieldset': {
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderColor: '#96BDB5',
       },
       '&.Mui-focused fieldset': {
         borderColor: '#087E8B',
         borderWidth: '1.5px',
-        boxShadow: '0 0 0 2px rgba(8, 126, 139, 0.25)',
+        boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
       },
     },
     '& .MuiInputLabel-root': {
-      color: '#7E91A0',
+      color: '#5F7872',
       fontSize: '14px',
       '&.Mui-focused': {
-        color: '#63BAC0',
+        color: '#087E8B',
       },
     },
     '& .MuiInputBase-input': {
       py: '13.5px',
       fontSize: '14px',
       '&::placeholder': {
-        color: '#5C7182',
+        color: '#607972',
         opacity: 1,
       },
     },
     '& .MuiFormHelperText-root': {
-      color: '#E06A6A',
+      color: '#B5473C',
       fontSize: '12px',
       mx: 0.5,
       mt: 0.5,
@@ -340,7 +346,7 @@ export default function LoginPage() {
           fullWidth
           error={Boolean(loginForm.formState.errors.email)}
           helperText={loginForm.formState.errors.email?.message}
-          sx={darkInputSx}
+          sx={authInputSx}
         />
         <TextField
           {...loginForm.register('password')}
@@ -351,7 +357,7 @@ export default function LoginPage() {
           fullWidth
           error={Boolean(loginForm.formState.errors.password)}
           helperText={loginForm.formState.errors.password?.message}
-          sx={darkInputSx}
+          sx={authInputSx}
           slotProps={{
             input: {
               endAdornment: (
@@ -361,7 +367,7 @@ export default function LoginPage() {
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPassword((visible) => !visible)}
                     edge="end"
-                    sx={{ color: '#8A9FA8' }}
+                    sx={{ color: '#758984' }}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -387,11 +393,12 @@ export default function LoginPage() {
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
-            boxShadow: '0 4px 14px rgba(8, 126, 139, 0.35)',
+            color: '#FFFFFF',
+            boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#0A96A6',
-              boxShadow: '0 6px 18px rgba(8, 126, 139, 0.45)',
+              bgcolor: '#066B70',
+              boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
             },
           }}
         >

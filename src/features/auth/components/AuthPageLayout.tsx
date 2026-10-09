@@ -107,7 +107,9 @@ export function AuthPageLayout({
       component="main"
       sx={{
         minHeight: '100vh',
-        bgcolor: '#131D26',
+        bgcolor: '#F1F7F5',
+        background:
+          'radial-gradient(ellipse at 10% 8%, rgba(101, 223, 186, 0.15), transparent 38%), radial-gradient(ellipse at 92% 92%, rgba(8, 126, 139, 0.1), transparent 34%), #F1F7F5',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -128,7 +130,7 @@ export function AuthPageLayout({
           width: '650px',
           height: '450px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(8, 126, 139, 0.18) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(101, 223, 186, 0.2) 0%, transparent 65%)',
           filter: 'blur(90px)',
           pointerEvents: 'none',
         }}
@@ -142,7 +144,7 @@ export function AuthPageLayout({
           width: '550px',
           height: '400px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99, 186, 192, 0.12) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(8, 126, 139, 0.12) 0%, transparent 65%)',
           filter: 'blur(80px)',
           pointerEvents: 'none',
         }}
@@ -158,9 +160,9 @@ export function AuthPageLayout({
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
             borderRadius: { xs: '20px', md: '26px' },
-            bgcolor: '#0B141C',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 35px 80px -15px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.04)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid rgba(15, 87, 77, 0.12)',
+            boxShadow: '0 32px 84px -22px rgba(21, 74, 65, 0.22), 0 3px 16px rgba(21, 74, 65, 0.05)',
             p: { xs: 2, md: '18px' },
             gap: { xs: 3, md: 4 },
             alignItems: 'stretch',
@@ -218,15 +220,15 @@ export function AuthPageLayout({
                   fontSize: '12.5px',
                   fontWeight: 500,
                   color: '#FFFFFF',
-                  bgcolor: 'rgba(255, 255, 255, 0.14)',
+                  bgcolor: 'rgba(8, 32, 30, 0.3)',
                   backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                  border: '1px solid rgba(255, 255, 255, 0.36)',
                   borderRadius: '9999px',
                   px: 1.75,
                   py: 0.6,
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.24)',
+                    bgcolor: 'rgba(8, 32, 30, 0.48)',
                     color: '#FFFFFF',
                   },
                 }}
@@ -276,7 +278,7 @@ export function AuthPageLayout({
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
-                    color: '#63BAC0',
+                    color: '#087E8B',
                     mb: 0.5,
                   }}
                 >
@@ -289,7 +291,7 @@ export function AuthPageLayout({
                   fontSize: { xs: '28px', sm: '34px' },
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
-                  color: '#FFFFFF',
+                  color: '#173B36',
                   lineHeight: 1.2,
                   mb: 0.75,
                 }}
@@ -301,7 +303,7 @@ export function AuthPageLayout({
                 <Typography
                   sx={{
                     fontSize: '14px',
-                    color: '#8A9FA8',
+                    color: '#5F7872',
                     lineHeight: 1.5,
                   }}
                 >
@@ -312,10 +314,10 @@ export function AuthPageLayout({
                       to={subtitleLinkTo}
                       underline="hover"
                       sx={{
-                        color: '#63BAC0',
+                        color: '#087E8B',
                         fontWeight: 600,
                         transition: 'color 0.2s ease',
-                        '&:hover': { color: '#88D6DC' },
+                        '&:hover': { color: '#066B70' },
                       }}
                     >
                       {subtitleLinkText}
@@ -328,7 +330,7 @@ export function AuthPageLayout({
                 <Typography
                   sx={{
                     fontSize: '14px',
-                    color: '#8A9FA8',
+                    color: '#5F7872',
                     lineHeight: 1.5,
                   }}
                 >
@@ -351,11 +353,11 @@ export function AuthPageLayout({
                     my: 1.75,
                   }}
                 >
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255, 255, 255, 0.08)' }} />
-                  <Typography sx={{ fontSize: '12px', color: '#6A7D8C' }}>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: '#DFEAE7' }} />
+                  <Typography sx={{ fontSize: '12px', color: '#607972' }}>
                     {socialPrompt}
                   </Typography>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(255, 255, 255, 0.08)' }} />
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: '#DFEAE7' }} />
                 </Box>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
@@ -366,16 +368,16 @@ export function AuthPageLayout({
                     sx={{
                       height: 44,
                       borderRadius: '8px',
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                      color: '#FFFFFF',
+                      borderColor: '#D7E5E1',
+                      color: '#23433D',
                       textTransform: 'none',
                       fontSize: '14px',
                       fontWeight: 500,
-                      bgcolor: '#14202B',
+                      bgcolor: '#F8FBFA',
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        borderColor: 'rgba(255, 255, 255, 0.22)',
-                        bgcolor: '#192837',
+                        borderColor: '#9FC8BF',
+                        bgcolor: '#EDF6F3',
                       },
                     }}
                   >
@@ -388,16 +390,16 @@ export function AuthPageLayout({
                     sx={{
                       height: 44,
                       borderRadius: '8px',
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                      color: '#FFFFFF',
+                      borderColor: '#D7E5E1',
+                      color: '#23433D',
                       textTransform: 'none',
                       fontSize: '14px',
                       fontWeight: 500,
-                      bgcolor: '#14202B',
+                      bgcolor: '#F8FBFA',
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        borderColor: 'rgba(255, 255, 255, 0.22)',
-                        bgcolor: '#192837',
+                        borderColor: '#9FC8BF',
+                        bgcolor: '#EDF6F3',
                       },
                     }}
                   >
