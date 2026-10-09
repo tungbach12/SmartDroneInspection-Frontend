@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Role, useAuthStore } from '@/features/auth/store/authStore';
 
 const mocks = vi.hoisted(() => ({
   listQuery: {
@@ -37,7 +38,6 @@ vi.mock('../hooks/useInspections', () => ({
 }));
 
 import InspectionsPage from './InspectionsPage';
-import { useAuthStore } from '@/features/auth/store/authStore';
 
 function listedInspection() {
   return {
@@ -57,7 +57,7 @@ function listedInspection() {
   };
 }
 
-function signInAs(roles: string[]) {
+function signInAs(roles: Role[]) {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {

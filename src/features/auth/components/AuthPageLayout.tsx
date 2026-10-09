@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { Box, Button, Container, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Container, Link, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { AuthHeroSlideshow } from './AuthHeroSlideshow';
 
 function GoogleIcon() {
   return (
@@ -177,13 +178,11 @@ export function AuthPageLayout({
               p: 3.5,
               position: 'relative',
               overflow: 'hidden',
-              backgroundImage:
-                "linear-gradient(180deg, rgba(8, 20, 29, 0.55) 0%, rgba(8, 20, 29, 0.15) 45%, rgba(8, 20, 29, 0.88) 100%), url('/images/auth/real-drone-building.jpg')",
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
               boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
             }}
           >
+            <AuthHeroSlideshow />
+
             {/* Top Bar: Brand Logo & Back to Website Pill */}
             <Box
               sx={{
@@ -255,34 +254,6 @@ export function AuthPageLayout({
                 {heroTagline.line2}
               </Typography>
 
-              {/* Slider Pagination Dashes (matching reference: inactive, inactive, active) */}
-              <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
-                  }}
-                />
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
-                  }}
-                />
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: '#FFFFFF',
-                    boxShadow: '0 0 10px rgba(255, 255, 255, 0.6)',
-                  }}
-                />
-              </Stack>
             </Box>
           </Box>
 
