@@ -56,7 +56,7 @@ export default function ReportsPage() {
   const isAuthor = Boolean(selected && userId === selected.authorUserId);
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--reports">
       <PageHeader
         title="Inspection reports"
         subtitle="Review, approve, and publish the versioned inspection record"

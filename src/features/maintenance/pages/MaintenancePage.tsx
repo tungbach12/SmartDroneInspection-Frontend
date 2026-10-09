@@ -11,7 +11,7 @@ const maintenanceSteps = [
 
 export default function MaintenancePage() {
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--maintenance">
       <PageHeader
         title="Maintenance"
         subtitle="Follow work created from accepted inspection findings"

@@ -130,7 +130,7 @@ export default function InspectionsPage() {
   };
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--inspections">
       <PageHeader
         title="Inspections"
         subtitle="Complete assigned checklists, capture evidence, and verify findings"

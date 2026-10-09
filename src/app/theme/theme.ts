@@ -7,9 +7,9 @@ export const theme = createTheme({
       palette: {
         primary: {
           main: paletteTokens.teal,
-          light: '#36A2AA',
-          dark: '#075B67',
-          contrastText: '#FFFFFF',
+          light: '#42B9A8',
+          dark: '#087166',
+          contrastText: '#06211E',
         },
         secondary: {
           main: paletteTokens.harbor,
@@ -35,15 +35,15 @@ export const theme = createTheme({
     dark: {
       palette: {
         primary: {
-          main: '#3758F9',
-          light: '#5E84FC',
-          dark: '#314ED9',
-          contrastText: '#FFFFFF',
+          main: '#23B9A9',
+          light: '#65DFBA',
+          dark: '#B2F1DE',
+          contrastText: '#030712',
         },
         secondary: {
-          main: '#5E84FC',
-          light: '#BECDFF',
-          dark: '#314ED9',
+          main: '#65DFBA',
+          light: '#B2F1DE',
+          dark: '#23B9A9',
           contrastText: '#030712',
         },
         background: {
@@ -62,10 +62,10 @@ export const theme = createTheme({
         action: {
           active: '#9CA3AF',
           hover: 'rgba(156, 163, 175, 0.08)',
-          selected: 'rgba(55, 88, 249, 0.14)',
+          selected: 'rgba(35, 185, 169, 0.14)',
           disabled: 'rgba(205, 205, 208, 0.32)',
           disabledBackground: 'rgba(156, 163, 175, 0.12)',
-          focus: 'rgba(55, 88, 249, 0.2)',
+          focus: 'rgba(35, 185, 169, 0.2)',
         },
       },
     },

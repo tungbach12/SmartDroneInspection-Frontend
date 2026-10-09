@@ -55,6 +55,7 @@ import {
 } from '@/features/auth/api/authApi';
 import { useToastStore } from '@/shared/ui/Toast';
 import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
+import '@/features/dashboard/styles/workspace-pages.css';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
@@ -124,8 +125,8 @@ export function AppShell({ portal }: AppShellProps) {
           to={getSectionPath(portal, 'dashboard')}
           sx={{ display: 'flex', alignItems: 'center', gap: 1.25, color: 'text.primary', textDecoration: 'none', minWidth: 0 }}
         >
-          <Box aria-hidden="true" sx={{ width: 34, height: 34, display: 'grid', flexShrink: 0, placeItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', borderRadius: 1 }}>
-            <FlightTakeoffIcon fontSize="small" />
+          <Box sx={{ width: 40, height: 40, overflow: 'hidden', display: 'grid', flexShrink: 0, placeItems: 'center', bgcolor: '#050605', borderRadius: 1.5 }}>
+            <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
           </Box>
           <Typography variant="subtitle2" noWrap sx={{ fontWeight: 650, letterSpacing: '-.025em' }}>
             SmartDroneInspection
@@ -171,13 +172,14 @@ export function AppShell({ portal }: AppShellProps) {
                   minHeight: 40,
                   mb: 0.25,
                   px: 1.25,
-                  borderRadius: 1,
+                  borderRadius: 1.5,
                   color: selected ? 'primary.dark' : 'text.secondary',
                   '& .MuiListItemIcon-root': { minWidth: 34, color: 'inherit' },
                   '&.Mui-selected': {
-                    bgcolor: 'action.selected',
+                    bgcolor: 'rgba(10, 150, 138, .10)',
+                    boxShadow: 'inset 3px 0 #0A968A',
                     color: 'primary.dark',
-                    '&:hover': { bgcolor: 'action.selected' },
+                    '&:hover': { bgcolor: 'rgba(10, 150, 138, .14)' },
                   },
                   '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
                 }}
@@ -244,7 +246,8 @@ export function AppShell({ portal }: AppShellProps) {
           bgcolor: 'background.paper',
           borderBottom: 1,
           borderColor: 'divider',
-          boxShadow: 'none',
+          backdropFilter: 'blur(14px)',
+          boxShadow: '0 8px 30px rgba(17, 53, 51, .04)',
         }}
       >
         <Toolbar sx={{ minHeight: `${layoutTokens.shellHeaderHeight}px !important`, px: { xs: 1.5, md: 3 } }}>
@@ -273,6 +276,7 @@ export function AppShell({ portal }: AppShellProps) {
             boxSizing: 'border-box',
             bgcolor: 'background.paper',
             borderRightColor: 'divider',
+            boxShadow: '8px 0 30px rgba(17, 53, 51, .025)',
           },
         }}
       >
