@@ -1,5 +1,153 @@
 import { api } from '@/shared/api/client';
 
+/**
+ * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
+ * and a qualified ORG_ADMIN reviewer who is not the author decides.
+ */
+export type ReportStatus =
+  | 'DRAFT'
+  | 'AUTHOR_VERIFIED'
+  | 'SUBMITTED'
+  | 'RETURNED'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'SUPERSEDED';
+
+export type FindingDecision = 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
+
+export type FindingSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type EvidenceQualityDecisionType =
+  | 'ACCEPTED'
+  | 'REUPLOAD_REQUIRED'
+  | 'ADDITIONAL_SESSION_REQUIRED'
+  | 'LIMITED';
+
+export interface InspectionReportVersion {
+  id: string;
+  inspectionReportId: string;
+  versionNo: number;
+  status: ReportStatus;
+  authorUserId: string;
+  authorVerifiedAt: string | null;
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  llmModel: string | null;
+  promptVersion: string | null;
+  generatedAt: string | null;
+  evidenceSnapshotHash: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+export interface EvidenceItem {
+  id: string;
+  inspectionId: string;
+  fieldSessionId: string | null;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  captureTime: string | null;
+  source: string;
+  latitude: number | null;
+  longitude: number | null;
+  externalReference: string | null;
+  uploadStatus: string;
+  createdAt: string;
+}
+
+export interface EvidenceQualityDecision {
+  id: string;
+  inspectionId: string;
+  fieldSessionId: string | null;
+  decision: EvidenceQualityDecisionType;
+  shotListComparison: string | null;
+  limitationReason: string | null;
+  decidedByUserId: string;
+  decidedAt: string;
+}
+
+export interface CandidateStatus {
+  id: string;
+  evidenceId: string;
+  modelName: string;
+  modelVersion: string;
+  predictedLabel: string;
+  confidence: number;
+  boundingBox: string;
+  status: 'PENDING' | 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+}
+
+export interface VerifiedFinding {
+  id: string;
+  inspectionId: string;
+  evidenceId: string | null;
+  aiCandidateId: string | null;
+  source: 'AI_CONFIRMED' | 'AI_MODIFIED' | 'MANUAL';
+  findingCode: string;
+  defectLabel: string;
+  severity: FindingSeverity;
+  locationDescription: string;
+  technicalNotes: string;
+  recommendedAction: string | null;
+  component: string | null;
+  description: string | null;
+  observedCondition: string | null;
+  priority: string | null;
+  measurement: string | null;
+  decision: FindingDecision | null;
+  repairRequired: boolean;
+  status: string;
+}
+
+export interface PublishedReport {
+  reportVersionId: string;
+  versionNo: number;
+  publishedAt: string;
+  repairRequiredFindingIds: string[];
+  inspectionStatus: string;
+}
+
+export interface ReviewCandidateInput {
+  decision: 'CONFIRM' | 'MODIFY' | 'REJECT';
+  defectLabel?: string;
+  severity?: FindingSeverity;
+  locationDescription?: string;
+  technicalNotes?: string;
+  recommendedAction?: string;
+  component?: string;
+  observedCondition?: string;
+  priority?: string;
+  measurement?: string;
+  reason?: string;
+  repairRequired?: boolean;
+}
+
+export interface ManualFindingInput {
+  evidenceId?: string;
+  defectLabel: string;
+  severity: FindingSeverity;
+  locationDescription: string;
+  technicalNotes: string;
+  recommendedAction?: string;
+  component?: string;
+  observedCondition?: string;
+  priority?: string;
+  measurement?: string;
+  repairRequired?: boolean;
+}
+
+export interface ManualDraftInput {
+  narrative: string;
+  omissionDisclosure?: string;
+}
+
 export interface InspectionAssignment {
   assignmentId: string;
   serviceOrderId: string;
@@ -34,55 +182,8 @@ export interface InspectionChecklistItem {
   completedAt: string | null;
 }
 
-export interface EvidenceItem {
-  evidenceId: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  checksumSha256: string;
-  source: string;
-  captureTime: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  externalReference: string | null;
-  uploadStatus: string;
-  createdAt: string;
-}
-
-export type CandidateStatus = 'PENDING' | 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
-
-export interface FindingCandidate {
-  id: string;
-  evidenceId: string;
-  modelName: string;
-  modelVersion: string;
-  predictedLabel: string;
-  confidence: number;
-  boundingBox: string;
-  status: CandidateStatus;
-  createdAt: string;
-}
-
-export interface ReviewCandidateInput {
-  decision: 'CONFIRM' | 'MODIFY' | 'REJECT';
-  defectLabel?: string;
-  severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  locationDescription?: string;
-  technicalNotes?: string;
-  recommendedAction?: string;
-  rejectionReason?: string;
-}
-
-export interface ManualFindingInput {
-  evidenceId: string;
-  defectLabel: string;
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  locationDescription: string;
-  technicalNotes: string;
-  recommendedAction?: string;
-}
-
 export const inspectionApi = {
+  // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.
   listAssignments: () =>
     api
       .get<InspectionAssignment[]>('/inspections/assignments', {
@@ -105,11 +206,13 @@ export const inspectionApi = {
     itemId: string,
     responseValue: { value: unknown },
   ) =>
-    api.put(
-      `/inspections/${inspectionId}/checklist-responses/${itemId}`,
-      { responseValue },
-    ),
+    api
+      .put(`/inspections/${inspectionId}/checklist-responses/${itemId}`, {
+        responseValue,
+      })
+      .then((response) => response.data),
 
+  // MF3-01/02 evidence intake. The server computes the checksum and treats a repeat as idempotent.
   listEvidence: (inspectionId: string) =>
     api
       .get<EvidenceItem[]>(`/inspections/${inspectionId}/evidence`)
@@ -124,27 +227,53 @@ export const inspectionApi = {
       .then((response) => response.data);
   },
 
+  evidenceContentUrl: (inspectionId: string, evidenceId: string) =>
+    `/inspections/${inspectionId}/evidence/${evidenceId}/content`,
+
+  // MF3-03/04: the assigned Inspector's own adequacy decision.
+  decideEvidenceQuality: (
+    inspectionId: string,
+    input: {
+      decision: EvidenceQualityDecisionType;
+      shotListComparison?: string;
+      limitationReason?: string;
+    },
+  ) =>
+    api
+      .post<EvidenceQualityDecision>(
+        `/inspections/${inspectionId}/evidence-quality-decisions`,
+        input,
+      )
+      .then((response) => response.data),
+
+  evidenceQualityHistory: (inspectionId: string) =>
+    api
+      .get<EvidenceQualityDecision[]>(
+        `/inspections/${inspectionId}/evidence-quality-decisions`,
+      )
+      .then((response) => response.data),
+
+  // MF3-05/06 advisory detection and human findings.
   listCandidates: (inspectionId: string) =>
     api
-      .get<FindingCandidate[]>(
-        `/inspections/${inspectionId}/finding-candidates`,
-      )
+      .get<CandidateStatus[]>(`/inspections/${inspectionId}/finding-candidates`)
       .then((response) => response.data),
 
   analyzeEvidence: (inspectionId: string, evidenceId: string) =>
     api
-      .post<FindingCandidate[]>(
+      .post<CandidateStatus[]>(
         `/inspections/${inspectionId}/evidence/${evidenceId}/analyze`,
       )
       .then((response) => response.data),
 
+  // A rejection records a decision without creating a finding, so the response has no body.
   reviewCandidate: (
     inspectionId: string,
     candidateId: string,
     input: ReviewCandidateInput,
   ) =>
     api
-      .post<FindingCandidate>(
+      .post<VerifiedFinding | null>(
         `/inspections/${inspectionId}/finding-candidates/${candidateId}/review`,
         input,
       )
@@ -152,6 +281,97 @@ export const inspectionApi = {
 
   createManualFinding: (inspectionId: string, input: ManualFindingInput) =>
     api
-      .post(`/inspections/${inspectionId}/findings`, input)
+      .post<VerifiedFinding>(`/inspections/${inspectionId}/findings`, input)
+      .then((response) => response.data),
+
+  listFindings: (inspectionId: string) =>
+    api
+      .get<VerifiedFinding[]>(`/inspections/${inspectionId}/findings`)
+      .then((response) => response.data),
+
+  // MF3-09: the reviewer's final decision on a finding.
+  decideFinding: (
+    inspectionId: string,
+    findingId: string,
+    decision: FindingDecision,
+    rationale?: string,
+  ) =>
+    api
+      .post<VerifiedFinding>(
+        `/inspections/${inspectionId}/findings/${findingId}/decision`,
+        { decision, rationale },
+      )
+      .then((response) => response.data),
+
+  // MF3-07 to MF3-11 report workflow.
+  generateDraft: (inspectionId: string) =>
+    api
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/draft`,
+      )
+      .then((response) => response.data),
+
+  /**
+   * Report 3 keeps a structured manual draft possible when automated drafting is unavailable, so
+   * the author is never blocked by a missing or failing drafting service.
+   */
+  authorManualDraft: (
+    inspectionId: string,
+    input: ManualDraftInput,
+  ) =>
+    api
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/draft/manual`,
+        input,
+      )
+      .then((response) => response.data),
+
+  verifyVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/verify`,
+      )
+      .then((response) => response.data),
+
+  submitVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/submit`,
+      )
+      .then((response) => response.data),
+
+  reviewVersion: (
+    inspectionId: string,
+    versionId: string,
+    approve: boolean,
+    reason?: string,
+  ) =>
+    api
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/review`,
+        null,
+        { params: { approve, reason } },
+      )
+      .then((response) => response.data),
+
+  publishVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<PublishedReport>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+      )
+      .then((response) => response.data),
+
+  listVersions: (inspectionId: string) =>
+    api
+      .get<InspectionReportVersion[]>(
+        `/inspections/${inspectionId}/report/versions`,
+      )
+      .then((response) => response.data),
+
+  getVersion: (inspectionId: string, versionId: string) =>
+    api
+      .get<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}`,
+      )
       .then((response) => response.data),
 };

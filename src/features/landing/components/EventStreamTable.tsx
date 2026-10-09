@@ -86,9 +86,9 @@ export function EventStreamTable() {
       id="event-stream"
       component="section"
       sx={{
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         py: { xs: 8, md: 14 },
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(23, 54, 74, 0.1)',
       }}
     >
       <Container maxWidth="lg">
@@ -98,7 +98,7 @@ export function EventStreamTable() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#52a8ff',
+              color: '#087E8B',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               mb: 1,
@@ -113,7 +113,7 @@ export function EventStreamTable() {
               fontSize: 'clamp(28px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-1.5px',
-              color: '#FFFFFF',
+              color: '#253746',
             }}
           >
             From Flight to Fix in Six Steps
@@ -122,7 +122,7 @@ export function EventStreamTable() {
             sx={{
               mt: 1.5,
               fontSize: '16px',
-              color: '#999999',
+              color: '#5D707B',
               maxWidth: '680px',
             }}
           >
@@ -133,9 +133,9 @@ export function EventStreamTable() {
         {/* Card-based Table */}
         <Box
           sx={{
-            bgcolor: '#0a0a0a',
-            border: '1px solid rgba(255, 255, 255, 0.145)',
-            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid rgba(23, 54, 74, 0.14)',
+            boxShadow: '0 18px 48px rgba(23, 54, 74, 0.1)',
             overflow: 'hidden',
           }}
         >
@@ -143,8 +143,8 @@ export function EventStreamTable() {
           <Box
             sx={{
               p: { xs: 2, sm: 2.5 },
-              bgcolor: '#0e0e0e',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.145)',
+              bgcolor: '#F7F9FA',
+              borderBottom: '1px solid rgba(23, 54, 74, 0.14)',
               display: 'flex',
               flexWrap: 'wrap',
               alignItems: 'center',
@@ -157,7 +157,7 @@ export function EventStreamTable() {
                 sx={{
                   fontFamily: '"Geist Mono", monospace',
                   fontSize: '13px',
-                  color: '#FFFFFF',
+                  color: '#253746',
                   fontWeight: 600,
                   letterSpacing: '0.04em',
                 }}
@@ -185,9 +185,9 @@ export function EventStreamTable() {
             {/* Left Sidebar */}
             <Box
               sx={{
-                borderRight: { xs: 'none', md: '1px solid rgba(255, 255, 255, 0.145)' },
-                borderBottom: { xs: '1px solid rgba(255, 255, 255, 0.145)', md: 'none' },
-                bgcolor: '#0a0a0a',
+                borderRight: { xs: 'none', md: '1px solid rgba(23, 54, 74, 0.14)' },
+                borderBottom: { xs: '1px solid rgba(23, 54, 74, 0.14)', md: 'none' },
+                bgcolor: '#F7F9FA',
                 p: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -199,7 +199,7 @@ export function EventStreamTable() {
                   sx={{
                     fontFamily: '"Geist Mono", monospace',
                     fontSize: '11px',
-                    color: '#999999',
+                    color: '#5D707B',
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                     mb: 1.5,
@@ -222,11 +222,11 @@ export function EventStreamTable() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          bgcolor: isSelected ? 'rgba(82, 168, 255, 0.12)' : 'transparent',
-                          borderLeft: isSelected ? '2px solid #52a8ff' : '2px solid transparent',
+                          bgcolor: isSelected ? 'rgba(8, 126, 139, 0.08)' : 'transparent',
+                          borderLeft: isSelected ? '2px solid #087E8B' : '2px solid transparent',
                           transition: 'all 0.15s ease',
                           '&:hover': {
-                            bgcolor: isSelected ? 'rgba(82, 168, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                            bgcolor: isSelected ? 'rgba(8, 126, 139, 0.1)' : 'rgba(23, 54, 74, 0.04)',
                           },
                         }}
                       >
@@ -236,14 +236,14 @@ export function EventStreamTable() {
                               width: 6,
                               height: 6,
                               borderRadius: '50%',
-                              bgcolor: step.status === 'pass' ? '#62c073' : step.status === 'active' ? '#52a8ff' : '#ededed',
+                              bgcolor: step.status === 'pass' ? '#62c073' : step.status === 'active' ? '#087E8B' : '#ededed',
                             }}
                           />
                           <Typography
                             sx={{
                               fontFamily: '"Geist Mono", monospace',
                               fontSize: '12px',
-                              color: isSelected ? '#FFFFFF' : '#999999',
+                              color: isSelected ? '#075B67' : '#526773',
                               fontWeight: isSelected ? 600 : 400,
                             }}
                           >
@@ -254,7 +254,7 @@ export function EventStreamTable() {
                           sx={{
                             fontFamily: '"Geist Mono", monospace',
                             fontSize: '10px',
-                            color: '#999999',
+                            color: '#5D707B',
                           }}
                         >
                           {step.phaseLabel}
@@ -266,7 +266,7 @@ export function EventStreamTable() {
               </Box>
 
               {/* 3D Flight Mission CAD Preview */}
-              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid rgba(23, 54, 74, 0.08)' }}>
                 <Box
                   sx={{
                     position: 'relative',
@@ -274,7 +274,7 @@ export function EventStreamTable() {
                     height: '110px',
                     borderRadius: '2px',
                     overflow: 'hidden',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    border: '1px solid rgba(23, 54, 74, 0.14)',
                     mb: 1.5,
                   }}
                 >
@@ -299,11 +299,11 @@ export function EventStreamTable() {
                   sx={{
                     fontFamily: '"Geist Mono", monospace',
                     fontSize: '11px',
-                    color: '#e7e7e7',
+                    color: '#526773',
                     lineHeight: 1.45,
-                    bgcolor: '#141414',
+                    bgcolor: '#F7F9FA',
                     p: 1.25,
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(23, 54, 74, 0.08)',
                   }}
                 >
                   {selectedStep?.details ?? 'Lifecycle step active and monitored.'}
@@ -320,10 +320,10 @@ export function EventStreamTable() {
                     display: 'grid',
                     gridTemplateColumns: 'minmax(220px, 1.8fr) minmax(180px, 1.6fr) minmax(90px, 0.8fr) minmax(80px, 0.8fr)',
                     pb: 1.5,
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderBottom: '1px solid rgba(23, 54, 74, 0.08)',
                     fontFamily: '"Geist Mono", monospace',
                     fontSize: '11px',
-                    color: '#999999',
+                    color: '#5D707B',
                     letterSpacing: '0.08em',
                   }}
                 >
@@ -347,11 +347,11 @@ export function EventStreamTable() {
                           alignItems: 'center',
                           p: '10px 12px',
                           cursor: 'pointer',
-                          bgcolor: isSelected ? 'rgba(82, 168, 255, 0.08)' : '#0e0e0e',
-                          border: isSelected ? '1px solid rgba(82, 168, 255, 0.35)' : '1px solid rgba(255, 255, 255, 0.05)',
+                          bgcolor: isSelected ? 'rgba(8, 126, 139, 0.06)' : '#FFFFFF',
+                          border: isSelected ? '1px solid rgba(8, 126, 139, 0.25)' : '1px solid rgba(23, 54, 74, 0.06)',
                           transition: 'all 0.15s ease',
                           '&:hover': {
-                            bgcolor: 'rgba(255, 255, 255, 0.05)',
+                            bgcolor: 'rgba(23, 54, 74, 0.06)',
                           },
                         }}
                       >
@@ -360,7 +360,7 @@ export function EventStreamTable() {
                           sx={{
                             fontFamily: '"Geist Sans", sans-serif',
                             fontSize: '13px',
-                            color: isSelected ? '#52a8ff' : '#FFFFFF',
+                            color: isSelected ? '#075B67' : '#253746',
                             fontWeight: 500,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -378,7 +378,7 @@ export function EventStreamTable() {
                               position: 'relative',
                               width: '100%',
                               height: '6px',
-                              bgcolor: 'rgba(255, 255, 255, 0.06)',
+                              bgcolor: 'rgba(23, 54, 74, 0.08)',
                               borderRadius: '2px',
                               overflow: 'hidden',
                             }}
@@ -390,9 +390,9 @@ export function EventStreamTable() {
                                 bottom: 0,
                                 left: `${step.offsetPct}%`,
                                 width: `${step.widthPct}%`,
-                                bgcolor: isSelected || step.status === 'active' ? '#52a8ff' : 'rgba(255, 255, 255, 0.18)',
+                                bgcolor: isSelected || step.status === 'active' ? '#087E8B' : 'rgba(23, 54, 74, 0.14)',
                                 borderRadius: '2px',
-                                boxShadow: isSelected ? '0 0 8px rgba(82, 168, 255, 0.8)' : 'none',
+                                boxShadow: isSelected ? '0 0 8px rgba(8, 126, 139, 0.45)' : 'none',
                               }}
                             />
                           </Box>
@@ -403,7 +403,7 @@ export function EventStreamTable() {
                           sx={{
                             fontFamily: '"Geist Mono", monospace',
                             fontSize: '11px',
-                            color: '#999999',
+                            color: '#5D707B',
                             textAlign: 'right',
                           }}
                         >

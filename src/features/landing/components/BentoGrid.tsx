@@ -7,9 +7,9 @@ export function BentoGrid() {
       id="bento-matrix"
       component="section"
       sx={{
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         py: { xs: 8, md: 14 },
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(23, 54, 74, 0.1)',
       }}
     >
       <Container maxWidth="lg">
@@ -19,7 +19,7 @@ export function BentoGrid() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#52a8ff',
+              color: '#087E8B',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               mb: 1,
@@ -34,7 +34,7 @@ export function BentoGrid() {
               fontSize: 'clamp(28px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-1.5px',
-              color: '#FFFFFF',
+              color: '#253746',
             }}
           >
             How AI and Drones Protect Your Assets
@@ -43,7 +43,7 @@ export function BentoGrid() {
             sx={{
               mt: 1.5,
               fontSize: '16px',
-              color: '#999999',
+              color: '#5D707B',
               maxWidth: '680px',
             }}
           >
@@ -62,13 +62,13 @@ export function BentoGrid() {
           {/* Card 1: AI Defect Vision Screening */}
           <Box
             sx={{
-              bgcolor: '#0a0a0a',
-              border: '1px solid rgba(255, 255, 255, 0.145)',
+              bgcolor: '#FFFFFF',
+              border: '1px solid rgba(23, 54, 74, 0.14)',
               p: 3,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.7)',
+              boxShadow: '0 12px 32px rgba(23, 54, 74, 0.08)',
             }}
           >
             <Box>
@@ -76,7 +76,7 @@ export function BentoGrid() {
                 sx={{
                   fontFamily: '"Geist Mono", monospace',
                   fontSize: '11px',
-                  color: '#999999',
+                  color: '#5D707B',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                 }}
@@ -88,14 +88,14 @@ export function BentoGrid() {
                   fontFamily: '"Geist Sans", sans-serif',
                   fontSize: '20px',
                   fontWeight: 500,
-                  color: '#FFFFFF',
+                  color: '#253746',
                   mt: 0.5,
                   mb: 1,
                 }}
               >
                 Sub-Millimeter Defect Detection
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
                 Neural vision models analyze 4K aerial imagery down to 0.8mm resolution, instantly spotting fractures and corrosion before structural failures occur.
               </Typography>
 
@@ -107,7 +107,7 @@ export function BentoGrid() {
                   height: '180px',
                   borderRadius: '2px',
                   overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(23, 54, 74, 0.14)',
                   mb: 2.5,
                 }}
               >
@@ -141,22 +141,22 @@ export function BentoGrid() {
                     key={item.name}
                     sx={{
                       p: 1.25,
-                      bgcolor: '#121212',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      bgcolor: '#FFFFFF',
+                      border: '1px solid rgba(23, 54, 74, 0.08)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                     }}
                   >
                     <Box>
-                      <Typography sx={{ fontSize: '13px', color: '#FFFFFF', fontWeight: 500 }}>
+                      <Typography sx={{ fontSize: '13px', color: '#253746', fontWeight: 500 }}>
                         {item.name}
                       </Typography>
                       <Typography
                         sx={{
                           fontFamily: '"Geist Mono", monospace',
                           fontSize: '11px',
-                          color: '#999999',
+                          color: '#5D707B',
                         }}
                       >
                         STATUS: {item.delta}
@@ -172,10 +172,10 @@ export function BentoGrid() {
               sx={{
                 fontFamily: '"Geist Mono", monospace',
                 fontSize: '11px',
-                color: '#999999',
+                color: '#5D707B',
                 mt: 3,
                 pt: 2,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid rgba(23, 54, 74, 0.08)',
               }}
             >
               ZERO FALSE ALARM RELEASES // VERIFIED BY INSPECTORS
@@ -185,13 +185,13 @@ export function BentoGrid() {
           {/* Card 2: Thermal & Spatial Anomaly Clustering */}
           <Box
             sx={{
-              bgcolor: '#0a0a0a',
-              border: '1px solid rgba(255, 255, 255, 0.145)',
+              bgcolor: '#FFFFFF',
+              border: '1px solid rgba(23, 54, 74, 0.14)',
               p: 3,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.7)',
+              boxShadow: '0 12px 32px rgba(23, 54, 74, 0.08)',
             }}
           >
             <Box>
@@ -199,7 +199,7 @@ export function BentoGrid() {
                 sx={{
                   fontFamily: '"Geist Mono", monospace',
                   fontSize: '11px',
-                  color: '#999999',
+                  color: '#5D707B',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                 }}
@@ -211,14 +211,14 @@ export function BentoGrid() {
                   fontFamily: '"Geist Sans", sans-serif',
                   fontSize: '20px',
                   fontWeight: 500,
-                  color: '#FFFFFF',
+                  color: '#253746',
                   mt: 0.5,
                   mb: 1,
                 }}
               >
                 Thermal & Spatial Mapping
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
                 Pinpoint invisible insulation leaks, solar cell hotspots, and roof moisture traps without drilling or dismantling physical infrastructure.
               </Typography>
 
@@ -230,7 +230,7 @@ export function BentoGrid() {
                   height: '180px',
                   borderRadius: '2px',
                   overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(23, 54, 74, 0.14)',
                   mb: 2.5,
                 }}
               >
@@ -256,16 +256,16 @@ export function BentoGrid() {
               {/* Heat breakdown */}
               <Stack spacing={1.5}>
                 {[
-                  { label: 'Rooftop Moisture & Leak Ingress', value: 85, color: '#52a8ff' },
+                  { label: 'Rooftop Moisture & Leak Ingress', value: 85, color: '#087E8B' },
                   { label: 'Solar Photovoltaic Cell Hotspots', value: 72, color: '#62c073' },
-                  { label: 'High-Voltage Insulator Heat Delta', value: 94, color: '#52a8ff' },
+                  { label: 'High-Voltage Insulator Heat Delta', value: 94, color: '#087E8B' },
                 ].map((item) => (
                   <Box key={item.label}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography sx={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 500 }}>
+                      <Typography sx={{ fontSize: '12px', color: '#253746', fontWeight: 500 }}>
                         {item.label}
                       </Typography>
-                      <Typography sx={{ fontFamily: '"Geist Mono", monospace', fontSize: '11px', color: '#999999' }}>
+                      <Typography sx={{ fontFamily: '"Geist Mono", monospace', fontSize: '11px', color: '#5D707B' }}>
                         {item.value}% EFFICIENCY
                       </Typography>
                     </Box>
@@ -273,7 +273,7 @@ export function BentoGrid() {
                       sx={{
                         width: '100%',
                         height: '6px',
-                        bgcolor: 'rgba(255, 255, 255, 0.08)',
+                        bgcolor: 'rgba(23, 54, 74, 0.08)',
                         borderRadius: '2px',
                         overflow: 'hidden',
                       }}
@@ -289,10 +289,10 @@ export function BentoGrid() {
               sx={{
                 fontFamily: '"Geist Mono", monospace',
                 fontSize: '11px',
-                color: '#999999',
+                color: '#5D707B',
                 mt: 3,
                 pt: 2,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid rgba(23, 54, 74, 0.08)',
               }}
             >
               ACCURATE TEMPERATURE PROFILING // INSTANT ROI
@@ -302,13 +302,13 @@ export function BentoGrid() {
           {/* Card 3: Cryptographic Report & Audit Verification */}
           <Box
             sx={{
-              bgcolor: '#0a0a0a',
-              border: '1px solid rgba(255, 255, 255, 0.145)',
+              bgcolor: '#FFFFFF',
+              border: '1px solid rgba(23, 54, 74, 0.14)',
               p: 3,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.7)',
+              boxShadow: '0 12px 32px rgba(23, 54, 74, 0.08)',
             }}
           >
             <Box>
@@ -316,7 +316,7 @@ export function BentoGrid() {
                 sx={{
                   fontFamily: '"Geist Mono", monospace',
                   fontSize: '11px',
-                  color: '#999999',
+                  color: '#5D707B',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                 }}
@@ -328,14 +328,14 @@ export function BentoGrid() {
                   fontFamily: '"Geist Sans", sans-serif',
                   fontSize: '20px',
                   fontWeight: 500,
-                  color: '#FFFFFF',
+                  color: '#253746',
                   mt: 0.5,
                   mb: 1,
                 }}
               >
                 Certified Compliance Reports
               </Typography>
-              <Typography sx={{ fontSize: '14px', color: '#999999', mb: 2.5, lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
                 Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, then dispatch verified maintenance tickets.
               </Typography>
 
@@ -347,7 +347,7 @@ export function BentoGrid() {
                   height: '180px',
                   borderRadius: '2px',
                   overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(23, 54, 74, 0.14)',
                   mb: 2.5,
                 }}
               >
@@ -374,14 +374,14 @@ export function BentoGrid() {
               <Stack spacing={1}>
                 {[
                   { tag: 'EVIDENCE', text: 'Tamper-proof RAW 4K photos attached', color: '#62c073' },
-                  { tag: 'SIGN-OFF', text: 'Certified Inspector signed report', color: '#52a8ff' },
+                  { tag: 'SIGN-OFF', text: 'Certified Inspector signed report', color: '#087E8B' },
                   { tag: 'REPAIRS', text: 'Before and after photo verification', color: '#62c073' },
                 ].map((item) => (
                   <Box
                     key={item.text}
                     sx={{
                       p: 1.25,
-                      bgcolor: '#121212',
+                      bgcolor: '#FFFFFF',
                       borderLeft: `3px solid ${item.color}`,
                       display: 'flex',
                       alignItems: 'center',
@@ -402,7 +402,7 @@ export function BentoGrid() {
                       sx={{
                         fontFamily: '"Geist Sans", sans-serif',
                         fontSize: '13px',
-                        color: '#FFFFFF',
+                        color: '#253746',
                       }}
                     >
                       {item.text}
@@ -416,10 +416,10 @@ export function BentoGrid() {
               sx={{
                 fontFamily: '"Geist Mono", monospace',
                 fontSize: '11px',
-                color: '#999999',
+                color: '#5D707B',
                 mt: 3,
                 pt: 2,
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid rgba(23, 54, 74, 0.08)',
               }}
             >
               INSURANCE-READY & REGULATORY-COMPLIANT

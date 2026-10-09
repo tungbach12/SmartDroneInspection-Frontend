@@ -51,7 +51,7 @@ export function DarkRoleConsole() {
       id="security"
       component="section"
       sx={{
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         py: { xs: 8, md: 14 },
       }}
     >
@@ -62,7 +62,7 @@ export function DarkRoleConsole() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#52a8ff',
+              color: '#087E8B',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               mb: 1,
@@ -77,7 +77,7 @@ export function DarkRoleConsole() {
               fontSize: 'clamp(28px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-1.5px',
-              color: '#FFFFFF',
+              color: '#253746',
             }}
           >
             Separation of Duties by Design
@@ -86,7 +86,7 @@ export function DarkRoleConsole() {
             sx={{
               mt: 1.5,
               fontSize: '16px',
-              color: '#999999',
+              color: '#5D707B',
               maxWidth: '680px',
             }}
           >
@@ -106,15 +106,15 @@ export function DarkRoleConsole() {
             <Box
               key={item.role}
               sx={{
-                bgcolor: '#0a0a0a',
-                border: '1px solid rgba(255, 255, 255, 0.145)',
+                bgcolor: '#FFFFFF',
+                border: '1px solid rgba(23, 54, 74, 0.14)',
                 p: { xs: 3, sm: 4 },
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 transition: 'border-color 0.2s ease',
                 '&:hover': {
-                  borderColor: 'rgba(255, 255, 255, 0.35)',
+                  borderColor: 'rgba(23, 54, 74, 0.3)',
                 },
               }}
             >
@@ -124,7 +124,7 @@ export function DarkRoleConsole() {
                     sx={{
                       fontFamily: '"Geist Mono", monospace',
                       fontSize: '12px',
-                      color: '#52a8ff',
+                      color: '#087E8B',
                       fontWeight: 600,
                       letterSpacing: '0.08em',
                     }}
@@ -139,7 +139,7 @@ export function DarkRoleConsole() {
                     fontFamily: '"Geist Sans", sans-serif',
                     fontSize: '22px',
                     fontWeight: 500,
-                    color: '#FFFFFF',
+                    color: '#253746',
                     mb: 1.5,
                   }}
                 >
@@ -149,7 +149,7 @@ export function DarkRoleConsole() {
                 <Typography
                   sx={{
                     fontSize: '14px',
-                    color: '#999999',
+                    color: '#5D707B',
                     lineHeight: 1.65,
                   }}
                 >
@@ -157,7 +157,7 @@ export function DarkRoleConsole() {
                 </Typography>
               </Box>
 
-              <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid rgba(23, 54, 74, 0.08)' }}>
                 <Box
                   component="a"
                   href={item.href}
@@ -166,8 +166,8 @@ export function DarkRoleConsole() {
                     alignItems: 'center',
                     gap: '6px',
                     bgcolor: 'transparent',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#FFFFFF',
+                    border: '1px solid rgba(23, 54, 74, 0.2)',
+                    color: '#253746',
                     px: '14px',
                     py: '8px',
                     borderRadius: '0px',
@@ -177,9 +177,9 @@ export function DarkRoleConsole() {
                     fontWeight: 500,
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: '#FFFFFF',
-                      color: '#121212',
-                      borderColor: '#FFFFFF',
+                      bgcolor: '#087E8B',
+                      color: '#FFFFFF',
+                      borderColor: '#087E8B',
                     },
                   }}
                 >

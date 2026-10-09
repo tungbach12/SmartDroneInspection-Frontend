@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
+  Box,
   Button,
+  Checkbox,
   IconButton,
   InputAdornment,
   Link,
@@ -23,12 +25,55 @@ import {
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
 
+const darkInputSx = {
+  '& .MuiOutlinedInput-root': {
+    bgcolor: '#14202B',
+    borderRadius: '8px',
+    color: '#FFFFFF',
+    fontSize: '14px',
+    '& fieldset': {
+      borderColor: 'rgba(255, 255, 255, 0.08)',
+      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+    },
+    '&:hover fieldset': {
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#087E8B',
+      borderWidth: '1.5px',
+      boxShadow: '0 0 0 2px rgba(8, 126, 139, 0.25)',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: '#7E91A0',
+    fontSize: '14px',
+    '&.Mui-focused': {
+      color: '#63BAC0',
+    },
+  },
+  '& .MuiInputBase-input': {
+    py: '13.5px',
+    fontSize: '14px',
+    '&::placeholder': {
+      color: '#5C7182',
+      opacity: 1,
+    },
+  },
+  '& .MuiFormHelperText-root': {
+    color: '#E06A6A',
+    fontSize: '12px',
+    mx: 0.5,
+    mt: 0.5,
+  },
+};
+
 export default function RegisterPage() {
   const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(true);
 
   const form = useForm<OrganizationRegistrationFormValues>({
     resolver: zodResolver(organizationRegistrationSchema),
@@ -47,19 +92,14 @@ export default function RegisterPage() {
   }
 
   if (status === 'authenticated') {
-    return <Navigate to={getAuthRedirectTarget(null, roles)} replace />;
+    const destination = getAuthRedirectTarget(null, roles);
+    return <Navigate to={destination} replace />;
   }
 
   const onSubmit = async (values: OrganizationRegistrationFormValues) => {
     setErrorMessage(null);
     try {
-      await registerOrganization({
-        email: values.email,
-        fullName: values.fullName,
-        organizationName: values.organizationName,
-        organizationCode: values.organizationCode.toUpperCase(),
-        password: values.password,
-      });
+      await registerOrganization(values);
       navigate('/login?registered=1', {
         replace: true,
         state: { email: values.email },
@@ -71,123 +111,163 @@ export default function RegisterPage() {
 
   return (
     <AuthPageLayout
-      eyebrow="Organization onboarding"
-      title="Create your workspace"
-      description="Create your organization and its first Organization Admin account. Additional organization roles will follow the organization invite workflow."
-      backLabel="Back to sign in"
-      backTo="/login"
-      footer={(
-        <Typography variant="body2" sx={{ color: '#617887' }}>
-          Already registered?{' '}
-          <Link
-            component={RouterLink}
-            to="/login"
-            underline="hover"
-            sx={{ color: '#087c92', fontWeight: 700 }}
-          >
-            Sign in
-          </Link>
-        </Typography>
-      )}
+      title="Create an account"
+      subtitleText="Already have an account?"
+      subtitleLinkText="Log in"
+      subtitleLinkTo="/login"
+      backLabel="Back to website"
+      backTo="/"
+      socialPrompt="Or register with"
+      heroTagline={{
+        line1: 'Capturing Perspectives,',
+        line2: 'Creating Confidence',
+      }}
     >
       <Stack
         component="form"
-        spacing={1.6}
+        spacing={2}
         noValidate
         onSubmit={form.handleSubmit(onSubmit)}
       >
-        <TextField
-          {...form.register('fullName')}
-          label="Your full name"
-          autoComplete="name"
-          fullWidth
-          error={Boolean(form.formState.errors.fullName)}
-          helperText={form.formState.errors.fullName?.message}
-        />
-        <TextField
-          {...form.register('organizationName')}
-          label="Organization name"
-          autoComplete="organization"
-          fullWidth
-          error={Boolean(form.formState.errors.organizationName)}
-          helperText={form.formState.errors.organizationName?.message}
-        />
-        <TextField
-          {...form.register('organizationCode')}
-          label="Organization code"
-          fullWidth
-          error={Boolean(form.formState.errors.organizationCode)}
-          helperText={
-            form.formState.errors.organizationCode?.message ??
-            'A unique code, 3–64 characters. Letters, numbers, - and _ are allowed.'
-          }
-        />
-        <TextField
-          {...form.register('email')}
-          label="Work email"
-          type="email"
-          autoComplete="email"
-          fullWidth
-          error={Boolean(form.formState.errors.email)}
-          helperText={form.formState.errors.email?.message}
-        />
-        <TextField
-          {...form.register('password')}
-          label="Password"
-          type={showPassword ? 'text' : 'password'}
-          autoComplete="new-password"
-          fullWidth
-          error={Boolean(form.formState.errors.password)}
-          helperText={
-            form.formState.errors.password?.message ??
-            'Use 15–128 characters. Avoid common passwords and account details.'
-          }
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    type="button"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    onClick={() => setShowPassword((visible) => !visible)}
-                    edge="end"
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-        <TextField
-          {...form.register('confirmPassword')}
-          label="Confirm password"
-          type={showPassword ? 'text' : 'password'}
-          autoComplete="new-password"
-          fullWidth
-          error={Boolean(form.formState.errors.confirmPassword)}
-          helperText={form.formState.errors.confirmPassword?.message}
-        />
-        {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-        <Alert severity="info" sx={{ borderRadius: 2 }}>
-          Organization registration creates one Organization Admin. Platform
-          Admin, Inspector, and Maintenance Engineer accounts remain admin-managed.
-        </Alert>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
+            {...form.register('fullName')}
+            label="Your full name"
+            placeholder="Jane Doe"
+            autoComplete="name"
+            fullWidth
+            error={Boolean(form.formState.errors.fullName)}
+            helperText={form.formState.errors.fullName?.message}
+            sx={darkInputSx}
+          />
+          <TextField
+            {...form.register('email')}
+            label="Work email"
+            placeholder="jane@company.com"
+            type="email"
+            autoComplete="email"
+            fullWidth
+            error={Boolean(form.formState.errors.email)}
+            helperText={form.formState.errors.email?.message}
+            sx={darkInputSx}
+          />
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
+            {...form.register('organizationName')}
+            label="Organization name"
+            placeholder="Acme Infrastructure"
+            autoComplete="organization"
+            fullWidth
+            error={Boolean(form.formState.errors.organizationName)}
+            helperText={form.formState.errors.organizationName?.message}
+            sx={darkInputSx}
+          />
+          <TextField
+            {...form.register('organizationCode')}
+            label="Organization code"
+            placeholder="ACME"
+            fullWidth
+            error={Boolean(form.formState.errors.organizationCode)}
+            helperText={form.formState.errors.organizationCode?.message}
+            sx={darkInputSx}
+          />
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
+            {...form.register('password')}
+            label="Password"
+            placeholder="••••••••••••"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            fullWidth
+            error={Boolean(form.formState.errors.password)}
+            helperText={form.formState.errors.password?.message}
+            sx={darkInputSx}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      type="button"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      edge="end"
+                      sx={{ color: '#7E91A0' }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+          <TextField
+            {...form.register('confirmPassword')}
+            label="Confirm password"
+            placeholder="••••••••••••"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            fullWidth
+            error={Boolean(form.formState.errors.confirmPassword)}
+            helperText={form.formState.errors.confirmPassword?.message}
+            sx={darkInputSx}
+          />
+        </Box>
+
+        {/* Agreement checkbox matching the reference design */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+          <Checkbox
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            sx={{
+              color: 'rgba(255, 255, 255, 0.25)',
+              '&.Mui-checked': { color: '#087E8B' },
+              p: 0.5,
+            }}
+          />
+          <Typography sx={{ fontSize: '13px', color: '#8A9FA8' }}>
+            I agree to the{' '}
+            <Link
+              component={RouterLink}
+              to="#"
+              underline="hover"
+              sx={{ color: '#63BAC0', fontWeight: 500 }}
+            >
+              Terms & Conditions
+            </Link>
+          </Typography>
+        </Box>
+
+        {errorMessage && (
+          <Alert severity="error" role="alert" sx={{ borderRadius: 2 }}>
+            {errorMessage}
+          </Alert>
+        )}
+
         <Button
           type="submit"
           variant="contained"
           size="large"
           disabled={form.formState.isSubmitting}
           sx={{
-            minHeight: 50,
-            mt: 0.5,
-            bgcolor: '#087c92',
-            '&:hover': { bgcolor: '#06687b' },
+            minHeight: 46,
+            borderRadius: '8px',
+            bgcolor: '#087E8B',
+            fontSize: '15px',
+            fontWeight: 600,
+            textTransform: 'none',
+            boxShadow: '0 4px 14px rgba(8, 126, 139, 0.35)',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: '#0A96A6',
+              boxShadow: '0 6px 18px rgba(8, 126, 139, 0.45)',
+            },
           }}
         >
-          {form.formState.isSubmitting
-            ? 'Creating workspace…'
-            : 'Create Organization account'}
+          {form.formState.isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
       </Stack>
     </AuthPageLayout>

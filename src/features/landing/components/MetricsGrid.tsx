@@ -29,10 +29,10 @@ export function MetricsGrid() {
       id="metrics"
       component="section"
       sx={{
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         py: { xs: 8, md: 14 },
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(23, 54, 74, 0.1)',
+        borderBottom: '1px solid rgba(23, 54, 74, 0.1)',
       }}
     >
       <Container maxWidth="lg">
@@ -42,7 +42,7 @@ export function MetricsGrid() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#52a8ff',
+              color: '#087E8B',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               mb: 1,
@@ -57,7 +57,7 @@ export function MetricsGrid() {
               fontSize: 'clamp(28px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-1.5px',
-              color: '#FFFFFF',
+              color: '#253746',
             }}
           >
             Measurable Value for Infrastructure Owners
@@ -66,7 +66,7 @@ export function MetricsGrid() {
             sx={{
               mt: 1.5,
               fontSize: '16px',
-              color: '#999999',
+              color: '#5D707B',
               maxWidth: '680px',
             }}
           >
@@ -79,8 +79,8 @@ export function MetricsGrid() {
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-            border: '1px solid rgba(255, 255, 255, 0.145)',
-            bgcolor: '#0a0a0a',
+            border: '1px solid rgba(23, 54, 74, 0.14)',
+            bgcolor: '#FFFFFF',
           }}
         >
           {metrics.map((item, index) => (
@@ -90,12 +90,12 @@ export function MetricsGrid() {
                 p: { xs: 3, md: 4 },
                 borderRight: {
                   xs: 'none',
-                  sm: index % 2 === 0 ? '1px solid rgba(255, 255, 255, 0.145)' : 'none',
-                  lg: index < 3 ? '1px solid rgba(255, 255, 255, 0.145)' : 'none',
+                  sm: index % 2 === 0 ? '1px solid rgba(23, 54, 74, 0.14)' : 'none',
+                  lg: index < 3 ? '1px solid rgba(23, 54, 74, 0.14)' : 'none',
                 },
                 borderBottom: {
-                  xs: index < 3 ? '1px solid rgba(255, 255, 255, 0.145)' : 'none',
-                  sm: index < 2 ? '1px solid rgba(255, 255, 255, 0.145)' : 'none',
+                  xs: index < 3 ? '1px solid rgba(23, 54, 74, 0.14)' : 'none',
+                  sm: index < 2 ? '1px solid rgba(23, 54, 74, 0.14)' : 'none',
                   lg: 'none',
                 },
                 display: 'flex',
@@ -113,7 +113,7 @@ export function MetricsGrid() {
                       fontWeight: 600,
                       lineHeight: 1,
                       letterSpacing: '-3.36px',
-                      color: '#FFFFFF',
+                      color: '#253746',
                     }}
                   >
                     {item.value}
@@ -124,7 +124,7 @@ export function MetricsGrid() {
                       fontFamily: '"Geist Mono", monospace',
                       fontSize: '20px',
                       fontWeight: 500,
-                      color: '#52a8ff',
+                      color: '#087E8B',
                     }}
                   >
                     {item.unit}
@@ -137,7 +137,7 @@ export function MetricsGrid() {
                   fontFamily: '"Geist Mono", monospace',
                   fontSize: '13px',
                   lineHeight: 1.6,
-                  color: '#999999',
+                  color: '#5D707B',
                   mt: 3,
                 }}
               >

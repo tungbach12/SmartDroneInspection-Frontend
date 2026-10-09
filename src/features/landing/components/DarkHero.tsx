@@ -34,7 +34,7 @@ export function DarkHero() {
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         overflow: 'hidden',
         pb: { xs: 8, md: 12 },
       }}
@@ -63,7 +63,7 @@ export function DarkHero() {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(to top, #000000 0%, rgba(0, 0, 0, 0.92) 28%, rgba(0, 0, 0, 0.76) 55%, rgba(0, 0, 0, 0.25) 90%, rgba(0, 0, 0, 0.6) 100%)',
+          background: 'linear-gradient(to top, #F7F9FA 0%, rgba(247, 249, 250, 0.96) 28%, rgba(247, 249, 250, 0.88) 55%, rgba(247, 249, 250, 0.62) 90%, rgba(247, 249, 250, 0.78) 100%)',
         }}
       />
 
@@ -77,7 +77,7 @@ export function DarkHero() {
           width: '500px',
           height: '240px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(82, 168, 255, 0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(99, 186, 192, 0.1) 0%, transparent 70%)',
           filter: 'blur(60px)',
           pointerEvents: 'none',
         }}
@@ -115,7 +115,7 @@ export function DarkHero() {
               fontSize: 'clamp(32px, 5.5vw, 62px)',
               lineHeight: 1.05,
               letterSpacing: { xs: '-1.2px', md: '-2.8px' },
-              color: '#FFFFFF',
+              color: '#253746',
               maxWidth: '820px',
               textWrap: 'balance',
             }}
@@ -131,7 +131,7 @@ export function DarkHero() {
               fontFamily: '"Geist Sans", sans-serif',
               fontSize: '16px',
               lineHeight: 1.65,
-              color: '#e7e7e7',
+              color: '#526773',
               maxWidth: '680px',
             }}
           >
@@ -153,8 +153,8 @@ export function DarkHero() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                bgcolor: '#FFFFFF',
-                color: '#121212',
+                bgcolor: '#087E8B',
+                color: '#FFFFFF',
                 px: '24px',
                 py: '14px',
                 borderRadius: '0px',
@@ -164,7 +164,7 @@ export function DarkHero() {
                 fontSize: { xs: '16px', md: '17px' },
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: '#ededed',
+                  bgcolor: '#075B67',
                   transform: 'translateY(-1px)',
                 },
               }}
@@ -182,8 +182,8 @@ export function DarkHero() {
                 justifyContent: 'center',
                 gap: '8px',
                 bgcolor: 'transparent',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255, 255, 255, 0.22)',
+                color: '#253746',
+                border: '1px solid rgba(23, 54, 74, 0.22)',
                 px: '22px',
                 py: '14px',
                 borderRadius: '0px',
@@ -193,8 +193,9 @@ export function DarkHero() {
                 fontSize: { xs: '15px', md: '16px' },
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  borderColor: '#52a8ff',
-                  color: '#52a8ff',
+                  borderColor: '#087E8B',
+                  color: '#075B67',
+                  bgcolor: 'rgba(8, 126, 139, 0.06)',
                 },
               }}
             >
@@ -209,7 +210,7 @@ export function DarkHero() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#999999',
+              color: '#5D707B',
               mt: 2,
             }}
           >

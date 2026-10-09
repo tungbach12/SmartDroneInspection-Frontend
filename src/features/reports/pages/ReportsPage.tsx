@@ -1,14 +1,9 @@
-import {
-  DownloadOutlined,
-  HistoryOutlined,
-  VerifiedOutlined,
-} from '@mui/icons-material';
+import { HistoryOutlined, VerifiedOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
   Card,
-  CardActionArea,
   CardContent,
   Chip,
   Divider,
@@ -17,264 +12,262 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { canPerform } from '@/app/permissions/capability';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import {
+  usePublishReportVersion,
+  useReviewReportVersion,
+  useSubmitReportVersion,
+  useVerifyReportVersion,
+} from '@/features/inspections/hooks/useInspections';
+import { useReportVersions } from '@/features/inspections/hooks/useInspections';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
-import { reportApi } from '../api/reportApi';
-import {
-  useClientReportDecision,
-  useCreateReportRevision,
-  useReleaseReport,
-  useReports,
-  useSubmitReportForReview,
-} from '../hooks/useReports';
 
 function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString() : '—';
 }
 
+/**
+ * MF3 report review. A version is scoped to its inspection, and each gate shows only to the role
+ * that owns it: the Inspector author verifies, a qualified ORG_ADMIN reviewer approves. A published
+ * version is immutable, so a correction is a new linked version rather than an edit.
+ */
 export default function ReportsPage() {
-  const userId = useAuthStore((state) => state.userId);
   const user = useAuthStore((state) => state.user);
-  const query = useReports();
-  const submit = useSubmitReportForReview();
-  const release = useReleaseReport();
-  const decision = useClientReportDecision();
-  const revision = useCreateReportRevision();
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [clientReason, setClientReason] = useState('');
-  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const userId = useAuthStore((state) => state.userId);
+  const [inspectionId, setInspectionId] = useState('');
+  const [reviewReason, setReviewReason] = useState('');
+  const [appliedInspectionId, setAppliedInspectionId] = useState<string | null>(null);
 
-  const selected = useMemo(
-    () =>
-      query.data?.find((report) => report.reportId === selectedReportId) ??
-      query.data?.[0] ??
-      null,
-    [query.data, selectedReportId],
-  );
+  const versions = useReportVersions(appliedInspectionId);
+  const verify = useVerifyReportVersion(appliedInspectionId);
+  const submit = useSubmitReportVersion(appliedInspectionId);
+  const review = useReviewReportVersion(appliedInspectionId);
+  const publish = usePublishReportVersion(appliedInspectionId);
+
+  const canAuthor = canPerform('inspections.authorReport', user);
+  const canReview = canPerform('reports.review', user);
+
+  const selected = versions.data?.[0] ?? null;
   const isAuthor = Boolean(selected && userId === selected.authorUserId);
-
-  const downloadEvidence = async (evidenceId: string, fileName: string) => {
-    if (!selected) return;
-    setEvidenceError(null);
-    try {
-      const blob = await reportApi.evidenceContent(
-        selected.reportId,
-        selected.versionId,
-        evidenceId,
-      );
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName;
-      anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      setEvidenceError(getErrorMessage(error, 'Evidence could not be downloaded.'));
-    }
-  };
-
-  const mutationError = [
-    submit.error,
-    release.error,
-    decision.error,
-    revision.error,
-  ].find(Boolean);
 
   return (
     <Box>
       <PageHeader
-        title="Reports"
-        subtitle="Review, release, and accept versioned inspection results"
+        title="Inspection reports"
+        subtitle="Review, approve, and publish the versioned inspection record"
       />
-      <QueryState
-        isLoading={query.isLoading}
-        error={query.error}
-        isEmpty={!query.data?.length}
-        onRetry={() => void query.refetch()}
-        empty={
-          <EmptyState
-            title="No reports available"
-            description="Drafts appear to their Inspector and reviewer; Clients see only released reports for their organization."
-          />
-        }
-      >
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(280px, 0.8fr) minmax(0, 1.5fr)' }, gap: 2 }}>
-          <Stack spacing={1.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>Report queue</Typography>
-            {query.data?.map((report) => (
-              <Card
-                key={report.reportId}
-                variant="outlined"
-                sx={{ borderColor: selected?.reportId === report.reportId ? 'primary.main' : undefined }}
-              >
-                <CardActionArea onClick={() => setSelectedReportId(report.reportId)}>
-                  <CardContent>
-                    <Stack spacing={1}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>
-                        Asset {report.contentSnapshot.assetId.slice(0, 8)} · v{report.versionNumber}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {report.contentSnapshot.checklistName} · {report.contentSnapshot.findings.length} verified findings
-                      </Typography>
-                      <Chip size="small" label={report.versionStatus.replaceAll('_', ' ')} sx={{ alignSelf: 'flex-start' }} />
-                    </Stack>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            ))}
-          </Stack>
 
-          {selected && (
-            <Stack spacing={2}>
-              <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
+          <TextField
+            label="Inspection ID"
+            size="small"
+            fullWidth
+            value={inspectionId}
+            onChange={(event) => setInspectionId(event.target.value.trim())}
+            slotProps={{ htmlInput: { maxLength: 36 } }}
+          />
+          <Button
+            variant="contained"
+            disabled={!inspectionId}
+            onClick={() => setAppliedInspectionId(inspectionId)}
+          >
+            Load versions
+          </Button>
+        </Stack>
+      </Paper>
+
+      {!appliedInspectionId ? (
+        <EmptyState
+          title="No inspection selected"
+          description="Enter an inspection identifier to load its report versions and source record."
+        />
+      ) : (
+        <QueryState
+          isLoading={versions.isLoading}
+          error={versions.error}
+          isEmpty={!versions.data?.length}
+          onRetry={() => void versions.refetch()}
+          empty={
+            <EmptyState
+              title="No report versions yet"
+              description="The assigned Inspector generates a draft once the evidence set is accepted."
+            />
+          }
+        >
+          <Stack spacing={2}>
+            {versions.data?.map((version) => (
+              <Paper key={version.id} variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
                 <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                  >
                     <VerifiedOutlined color="primary" />
                     <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                      {selected.contentSnapshot.checklistName}
+                      Version {version.versionNo}
                     </Typography>
-                    <Chip size="small" label={`Version ${selected.versionNumber}`} />
-                    <Chip size="small" color={selected.versionStatus === 'RELEASED' || selected.versionStatus === 'ACCEPTED' ? 'success' : 'default'} label={selected.versionStatus.replaceAll('_', ' ')} />
+                    <Chip
+                      size="small"
+                      color={version.status === 'PUBLISHED' ? 'success' : 'default'}
+                      label={version.status.replaceAll('_', ' ')}
+                    />
+                    {version.status === 'PUBLISHED' && (
+                      <Chip size="small" variant="outlined" label="Immutable" />
+                    )}
                   </Stack>
+
                   <Typography variant="body2" color="text.secondary">
-                    Asset {selected.contentSnapshot.assetId} · Inspection {selected.inspectionId}
+                    Inspection {appliedInspectionId}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Snapshot generated {formatDate(selected.contentSnapshot.generatedAt)} · Created {formatDate(selected.createdAt)}
+                    Author verified {formatDate(version.authorVerifiedAt)} · Reviewed{' '}
+                    {formatDate(version.reviewedAt)}
+                    {version.reviewReason ? ` · ${version.reviewReason}` : ''}
                   </Typography>
-                  {selected.sourceVersionId && <Typography variant="caption" color="text.secondary">Revises version {selected.sourceVersionId}</Typography>}
-                  {selected.clientDecisionReason && <Alert severity="info">Client requested revision: {selected.clientDecisionReason}</Alert>}
-                </Stack>
-              </Paper>
+                  <Typography variant="caption" color="text.secondary">
+                    Generated {formatDate(version.generatedAt)}
+                    {version.llmModel ? ` by ${version.llmModel}` : ''}
+                    {version.promptVersion ? ` (prompt ${version.promptVersion})` : ''} ·
+                    Evidence snapshot {version.evidenceSnapshotHash?.slice(0, 12) ?? '—'}
+                  </Typography>
 
-              {isAuthor && selected.versionStatus === 'DRAFT' && canPerform('reports.submit', user) && (
-                <Button
-                  variant="contained"
-                  disabled={submit.isPending}
-                  onClick={() => submit.mutate({ reportId: selected.reportId, versionId: selected.versionId })}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  Verify and submit
-                </Button>
-              )}
+                  <Divider />
 
-              {isAuthor && canPerform('reports.submit', user) && (selected.reportStatus === 'CHANGES_REQUESTED' || selected.reportStatus === 'REVISION_REQUESTED') && (
-                <Button
-                  variant="outlined"
-                  disabled={revision.isPending}
-                  onClick={() => revision.mutate(selected.reportId)}
-                  sx={{ alignSelf: 'flex-start' }}
-                >Create linked revision</Button>
-              )}
-
-              {canPerform('reports.release', user) && selected.versionStatus === 'TECHNICALLY_APPROVED' && (
-                <Button
-                  variant="contained"
-                  disabled={release.isPending}
-                  onClick={() => release.mutate({ reportId: selected.reportId, versionId: selected.versionId })}
-                  sx={{ alignSelf: 'flex-start' }}
-                >Release approved version</Button>
-              )}
-
-              {canPerform('reports.decide', user) && selected.versionStatus === 'RELEASED' && (
-                <Paper variant="outlined" sx={{ p: 2.5 }}>
-                  <Stack spacing={1.5}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>Client decision</Typography>
-                    <TextField
-                      label="Clarification or revision request"
-                      multiline
-                      minRows={2}
-                      value={clientReason}
-                      onChange={(event) => setClientReason(event.target.value)}
-                      slotProps={{ htmlInput: { maxLength: 2000 } }}
-                    />
-                    <Stack direction="row" spacing={1}>
+                  {isAuthor && canAuthor && (version.status === 'DRAFT' || version.status === 'RETURNED') && (
+                    <Stack spacing={1}>
+                      <Typography variant="body2" color="text.secondary">
+                        Verify this draft against its sources, then submit it for qualified review.
+                      </Typography>
                       <Button
-                        variant="contained"
-                        disabled={decision.isPending}
-                        onClick={() => decision.mutate({ reportId: selected.reportId, versionId: selected.versionId, decision: 'ACCEPT' })}
-                      >Accept report</Button>
-                      <Button
-                        color="warning"
-                        disabled={decision.isPending || !clientReason.trim()}
-                        onClick={() => decision.mutate({ reportId: selected.reportId, versionId: selected.versionId, decision: 'REQUEST_REVISION', reason: clientReason.trim() })}
-                      >Request revision</Button>
+                        variant="outlined"
+                        disabled={verify.isPending}
+                        onClick={() => verify.mutate(version.id)}
+                        sx={{ alignSelf: 'flex-start' }}
+                      >
+                        {verify.isPending ? 'Verifying…' : 'Verify as author'}
+                      </Button>
                     </Stack>
-                  </Stack>
-                </Paper>
-              )}
+                  )}
 
-              {mutationError && <Alert severity="error">{getErrorMessage(mutationError, 'The report action could not be completed.')}</Alert>}
-              {evidenceError && <Alert severity="error">{evidenceError}</Alert>}
+                  {isAuthor && canAuthor && version.status === 'AUTHOR_VERIFIED' && (
+                    <Button
+                      variant="contained"
+                      disabled={submit.isPending}
+                      onClick={() => submit.mutate(version.id)}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      {submit.isPending ? 'Submitting…' : 'Submit for review'}
+                    </Button>
+                  )}
 
-              <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-                  <HistoryOutlined color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>Checklist snapshot</Typography>
-                </Stack>
-                <Stack divider={<Divider flexItem />} spacing={1.25}>
-                  {selected.contentSnapshot.checklist.map((item) => (
-                    <Box key={item.itemId} sx={{ py: 0.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{item.itemCode} · {item.prompt}</Typography>
-                      <Typography variant="body2" color="text.secondary">Response: {item.responseValue ?? 'Not answered'}{item.notes ? ` — ${item.notes}` : ''}</Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Paper>
-
-              <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Verified findings</Typography>
-                {selected.contentSnapshot.findings.length ? (
-                  <Stack spacing={1.5}>
-                    {selected.contentSnapshot.findings.map((finding) => (
-                      <Card key={finding.id} variant="outlined">
-                        <CardContent>
-                          <Stack spacing={0.5}>
-                            <Stack direction="row" spacing={1}>
-                              <Typography sx={{ fontWeight: 750 }}>{finding.defectLabel}</Typography>
-                              <Chip size="small" label={finding.severity} />
-                              <Chip size="small" label={finding.source.replaceAll('_', ' ')} />
-                            </Stack>
-                            <Typography variant="body2">{finding.locationDescription}</Typography>
-                            <Typography variant="body2" color="text.secondary">{finding.technicalNotes}</Typography>
-                            {finding.recommendedAction && <Typography variant="body2">Recommended: {finding.recommendedAction}</Typography>}
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </Stack>
-                ) : <Typography color="text.secondary">No verified findings in this snapshot.</Typography>}
-              </Paper>
-
-              <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Released evidence</Typography>
-                <Stack spacing={1}>
-                  {selected.contentSnapshot.evidence.map((item) => (
-                    <Stack key={item.id} direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{item.fileName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{item.contentType} · {item.sizeBytes.toLocaleString()} bytes</Typography>
-                      </Box>
-                      {(selected.versionStatus === 'RELEASED' || selected.versionStatus === 'ACCEPTED') && (
+                  {canReview && !isAuthor && version.status === 'SUBMITTED' && (
+                    <Stack spacing={1.5}>
+                      <TextField
+                        label="Reason for return"
+                        multiline
+                        minRows={2}
+                        value={reviewReason}
+                        onChange={(event) => setReviewReason(event.target.value)}
+                        slotProps={{ htmlInput: { maxLength: 2000 } }}
+                      />
+                      <Stack direction="row" spacing={1}>
                         <Button
-                          size="small"
-                          startIcon={<DownloadOutlined />}
-                          onClick={() => void downloadEvidence(item.id, item.fileName)}
-                        >Download</Button>
-                      )}
+                          variant="contained"
+                          disabled={review.isPending}
+                          onClick={() =>
+                            review.mutate({
+                              versionId: version.id,
+                              approve: true,
+                            })
+                          }
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          color="warning"
+                          disabled={review.isPending || !reviewReason.trim()}
+                          onClick={() =>
+                            review.mutate({
+                              versionId: version.id,
+                              approve: false,
+                              reason: reviewReason.trim(),
+                            })
+                          }
+                        >
+                          Return with reason
+                        </Button>
+                      </Stack>
                     </Stack>
-                  ))}
+                  )}
+
+                  {canReview && !isAuthor && version.status === 'APPROVED' && (
+                    <Button
+                      variant="contained"
+                      disabled={publish.isPending}
+                      onClick={() => publish.mutate(version.id)}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      {publish.isPending ? 'Publishing…' : 'Publish immutable version'}
+                    </Button>
+                  )}
+
+                  {publish.isSuccess && (
+                    <Alert severity="success">
+                      Published version {publish.data.versionNo}.{' '}
+                      {publish.data.repairRequiredFindingIds.length
+                        ? `${publish.data.repairRequiredFindingIds.length} confirmed finding(s) handed to maintenance.`
+                        : 'No corrective work was required within the observed scope.'}
+                    </Alert>
+                  )}
                 </Stack>
               </Paper>
-            </Stack>
-          )}
-        </Box>
-      </QueryState>
+            ))}
+
+            {verify.isError && (
+              <Alert severity="error">
+                {getErrorMessage(verify.error, 'The author verification was not recorded.')}
+              </Alert>
+            )}
+            {submit.isError && (
+              <Alert severity="error">
+                {getErrorMessage(submit.error, 'The report was not submitted for review.')}
+              </Alert>
+            )}
+            {review.isError && (
+              <Alert severity="error">
+                {getErrorMessage(review.error, 'The review decision was not recorded.')}
+              </Alert>
+            )}
+            {publish.isError && (
+              <Alert severity="error">
+                {getErrorMessage(publish.error, 'The report could not be published.')}
+              </Alert>
+            )}
+
+            <Card variant="outlined">
+              <CardContent>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <HistoryOutlined color="primary" />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Version history
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {versions.data?.length ?? 0} version(s). A published version is never edited;
+                  corrections create a linked new version.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Stack>
+        </QueryState>
+      )}
     </Box>
   );
 }

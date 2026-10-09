@@ -6,9 +6,9 @@ export function DarkFooter() {
     <Box
       component="footer"
       sx={{
-        bgcolor: '#000000',
-        color: '#FFFFFF',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        bgcolor: '#FFFFFF',
+        color: '#253746',
+        borderTop: '1px solid rgba(23, 54, 74, 0.1)',
         py: { xs: 6, md: 8 },
       }}
     >
@@ -21,7 +21,7 @@ export function DarkFooter() {
             alignItems: { xs: 'flex-start', md: 'center' },
             gap: 4,
             pb: 6,
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid rgba(23, 54, 74, 0.08)',
           }}
         >
           {/* Brand */}
@@ -35,8 +35,8 @@ export function DarkFooter() {
                   width: 26,
                   height: 26,
                   borderRadius: '2px',
-                  border: '1px solid rgba(82, 168, 255, 0.35)',
-                  bgcolor: '#000000',
+                  border: '1px solid rgba(8, 126, 139, 0.25)',
+                  bgcolor: '#F7F9FA',
                   objectFit: 'contain',
                 }}
               />
@@ -45,7 +45,7 @@ export function DarkFooter() {
                   fontFamily: '"Geist Sans", sans-serif',
                   fontWeight: 500,
                   fontSize: '18px',
-                  color: '#FFFFFF',
+                  color: '#253746',
                 }}
               >
                 SmartDroneInspection
@@ -55,7 +55,7 @@ export function DarkFooter() {
               sx={{
                 fontFamily: '"Geist Mono", monospace',
                 fontSize: '12px',
-                color: '#999999',
+                color: '#5D707B',
                 mt: 1,
               }}
             >
@@ -72,35 +72,35 @@ export function DarkFooter() {
             <Link
               href="#event-stream"
               underline="none"
-              sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
+              sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
               Mission Stream
             </Link>
             <Link
               href="#bento-matrix"
               underline="none"
-              sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
+              sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
               Inspection Matrix
             </Link>
             <Link
               href="#metrics"
               underline="none"
-              sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
+              sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
               Metrics
             </Link>
             <Link
               href="#security"
               underline="none"
-              sx={{ fontSize: '14px', color: '#999999', '&:hover': { color: '#FFFFFF' } }}
+              sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
               Role Console
             </Link>
             <Link
               href="/login"
               underline="none"
-              sx={{ fontSize: '14px', color: '#52a8ff', '&:hover': { color: '#FFFFFF' } }}
+              sx={{ fontSize: '14px', color: '#087E8B', '&:hover': { color: '#253746' } }}
             >
               Access Portal ↗
             </Link>

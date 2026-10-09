@@ -2,17 +2,14 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
-  Box,
   Button,
   IconButton,
   InputAdornment,
-  Link,
   Stack,
   TextField,
-  Typography,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { Link as RouterLink, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
@@ -26,8 +23,7 @@ import {
   hasAnyRole,
   type PortalId,
 } from '@/app/permissions/accessPolicy';
-import { getPortalForHost, getWorkspaceKind, getWorkspaceCopy } from '../utils/domainPortal';
-export { getPortalForHost } from '../utils/domainPortal';
+import { getPortalForHost } from '../utils/domainPortal';
 import {
   loginSchema,
   passwordSetupSchema,
@@ -262,16 +258,61 @@ export default function LoginPage() {
     );
   }
 
-  const workspaceKind = getWorkspaceKind(window.location.hostname);
-  const copy = getWorkspaceCopy(workspaceKind);
+  const darkInputSx = {
+    '& .MuiOutlinedInput-root': {
+      bgcolor: '#14202B',
+      borderRadius: '8px',
+      color: '#FFFFFF',
+      fontSize: '14px',
+      '& fieldset': {
+        borderColor: 'rgba(255, 255, 255, 0.08)',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      },
+      '&:hover fieldset': {
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#087E8B',
+        borderWidth: '1.5px',
+        boxShadow: '0 0 0 2px rgba(8, 126, 139, 0.25)',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#7E91A0',
+      fontSize: '14px',
+      '&.Mui-focused': {
+        color: '#63BAC0',
+      },
+    },
+    '& .MuiInputBase-input': {
+      py: '13.5px',
+      fontSize: '14px',
+      '&::placeholder': {
+        color: '#5C7182',
+        opacity: 1,
+      },
+    },
+    '& .MuiFormHelperText-root': {
+      color: '#E06A6A',
+      fontSize: '12px',
+      mx: 0.5,
+      mt: 0.5,
+    },
+  };
 
   return (
     <AuthPageLayout
-      eyebrow={copy.eyebrow}
-      title={copy.title}
-      description={copy.description}
-      workspaceCopy={{ sideLabel: copy.sideLabel, sideTitle: copy.sideTitle, sideBody: copy.sideBody }}
-      sideLabels={workspaceKind === 'admin' ? ['Platform admin', 'User policy', 'Audit'] : workspaceKind === 'operations' ? ['Inspector', 'Maintenance engineer', 'Field operations'] : ['Organization Admin', 'Field operations', 'Admin']}
+      title="Welcome back"
+      subtitleText="Don't have an account?"
+      subtitleLinkText="Sign up"
+      subtitleLinkTo="/register"
+      backLabel="Back to website"
+      backTo="/"
+      socialPrompt="Or sign in with"
+      heroTagline={{
+        line1: 'Precision View,',
+        line2: 'Intelligent Insights',
+      }}
     >
       <Stack
         component="form"
@@ -292,21 +333,25 @@ export default function LoginPage() {
         <TextField
           {...loginForm.register('email')}
           label="Email address"
+          placeholder="name@company.com"
           type="email"
           autoComplete="username"
           autoFocus
           fullWidth
           error={Boolean(loginForm.formState.errors.email)}
           helperText={loginForm.formState.errors.email?.message}
+          sx={darkInputSx}
         />
         <TextField
           {...loginForm.register('password')}
           label="Password"
+          placeholder="••••••••••••"
           type={showPassword ? 'text' : 'password'}
           autoComplete="current-password"
           fullWidth
           error={Boolean(loginForm.formState.errors.password)}
           helperText={loginForm.formState.errors.password?.message}
+          sx={darkInputSx}
           slotProps={{
             input: {
               endAdornment: (
@@ -316,6 +361,7 @@ export default function LoginPage() {
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     onClick={() => setShowPassword((visible) => !visible)}
                     edge="end"
+                    sx={{ color: '#8A9FA8' }}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -335,49 +381,23 @@ export default function LoginPage() {
           size="large"
           disabled={loginForm.formState.isSubmitting}
           sx={{
-            minHeight: 50,
-            bgcolor: '#087c92',
-            '&:hover': { bgcolor: '#06687b' },
+            minHeight: 46,
+            borderRadius: '8px',
+            bgcolor: '#087E8B',
+            fontSize: '15px',
+            fontWeight: 600,
+            textTransform: 'none',
+            boxShadow: '0 4px 14px rgba(8, 126, 139, 0.35)',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              bgcolor: '#0A96A6',
+              boxShadow: '0 6px 18px rgba(8, 126, 139, 0.45)',
+            },
           }}
         >
           {loginForm.formState.isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.2}
-          sx={{
-            pt: 0.5,
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-          }}
-        >
-          <Typography variant="body2" sx={{ color: '#617887' }}>
-            Need account help? Contact your administrator.
-          </Typography>
-          <Link
-            component={RouterLink}
-            to="/register"
-            underline="hover"
-            sx={{ color: '#087c92', fontWeight: 700, whiteSpace: 'nowrap' }}
-          >
-            Create an organization account
-          </Link>
-        </Stack>
       </Stack>
-      <Box
-        sx={{
-          mt: 2.5,
-          p: 1.7,
-          borderRadius: 2,
-          bgcolor: '#f1f8fa',
-          border: '1px solid #e0eff2',
-        }}
-      >
-        <Typography variant="body2" sx={{ color: '#466271', lineHeight: 1.6 }}>
-          Your workspace is selected from the roles assigned to your account.
-          Sign in once; you never need to choose a role on this page.
-        </Typography>
-      </Box>
     </AuthPageLayout>
   );
 }
