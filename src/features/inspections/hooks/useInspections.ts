@@ -3,6 +3,7 @@ import {
   inspectionApi,
   type EvidenceQualityDecisionType,
   type FindingDecision,
+  type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
   type ReviewCandidateInput,
@@ -10,6 +11,9 @@ import {
 
 export const inspectionKeys = {
   all: ['inspections'] as const,
+  list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
+  listWithReports: (filters: InspectionListFilters) =>
+    [...inspectionKeys.all, 'list-with-reports', filters] as const,
   assignments: () => [...inspectionKeys.all, 'assignments'] as const,
   checklist: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'checklist'] as const,
@@ -24,6 +28,22 @@ export const inspectionKeys = {
   reportVersions: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
 };
+
+export function useInspections(filters: InspectionListFilters, enabled = true) {
+  return useQuery({
+    queryKey: inspectionKeys.list(filters),
+    queryFn: () => inspectionApi.list(filters),
+    enabled,
+  });
+}
+
+export function useInspectionsWithReports(filters: InspectionListFilters, enabled = true) {
+  return useQuery({
+    queryKey: inspectionKeys.listWithReports(filters),
+    queryFn: () => inspectionApi.listWithReports(filters),
+    enabled,
+  });
+}
 
 export function useInspectionAssignments(enabled = true) {
   return useQuery({

@@ -47,6 +47,8 @@ describe('dashboard', () => {
     expect(screen.getByRole('heading', { name: 'Inspection workload' })).toBeTruthy();
     expect(document.querySelector('a[href="/operations/inspections"]')).toBeTruthy();
     expect(document.querySelector('a[href="/operations/maintenance"]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Inspector' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
   });
 
@@ -66,6 +68,10 @@ describe('dashboard', () => {
     expect(document.querySelector('a[href="/admin/asset-catalog"]')).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeNull();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
+    expect(screen.getByRole('button', { name: 'Platform Admin' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Org Admin' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Inspector' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
   });
 
   it('keeps cross-portal roles in their selected client workspace', () => {

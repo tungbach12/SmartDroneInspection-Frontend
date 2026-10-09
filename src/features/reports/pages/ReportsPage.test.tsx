@@ -8,6 +8,7 @@ import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 
 vi.mock('@/features/inspections/api/inspectionApi', () => ({
   inspectionApi: {
+    listWithReports: vi.fn(),
     listVersions: vi.fn(),
     verifyVersion: vi.fn(),
     submitVersion: vi.fn(),
@@ -65,17 +66,39 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
   };
 }
 
-function loadVersions(inspectionId = 'inspection-1') {
-  fireEvent.change(screen.getByLabelText('Inspection ID'), {
-    target: { value: inspectionId },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Load versions' }));
+function listedInspection(id = 'inspection-1') {
+  return {
+    id,
+    organizationId: 'org-1',
+    assetId: 'asset-1',
+    inspectorId: 'inspector-1',
+    objective: 'Inspect the main span',
+    status: 'REPORT_DRAFT' as const,
+    plannedStartAt: null,
+    plannedEndAt: null,
+    createdAt: '2026-10-01T09:00:00Z',
+    updatedAt: '2026-10-01T09:00:00Z',
+    reportId: 'report-1',
+    reportStatus: 'SUBMITTED' as const,
+    reportVersionNo: 1,
+  };
+}
+
+async function loadVersions(inspectionId = 'inspection-1') {
+  fireEvent.click(await screen.findByRole('row', { name: new RegExp(inspectionId.slice(0, 8)) }));
 }
 
 describe('ReportsPage MF3 gates', () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mockedApi.listWithReports.mockResolvedValue({
+      items: [listedInspection()],
+      page: 1,
+      pageSize: 10,
+      totalCount: 1,
+      totalPages: 1,
+    });
     setRole(['ORG_ADMIN']);
   });
 

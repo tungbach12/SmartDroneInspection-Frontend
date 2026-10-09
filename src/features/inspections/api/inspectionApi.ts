@@ -157,6 +157,52 @@ export interface InspectionAssignment {
   inspectionId: string | null;
 }
 
+export type InspectionStatus =
+  | 'DRAFT'
+  | 'ASSIGNED'
+  | 'PREPARING'
+  | 'READY_FOR_FLIGHT'
+  | 'IN_PROGRESS'
+  | 'FIELD_COMPLETED'
+  | 'REPORT_DRAFT'
+  | 'REPORT_PUBLISHED'
+  | 'REPAIR_PENDING'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export interface InspectionListFilters {
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * A row of the inspection collection. The report summary travels with the row so the inspections
+ * and reports screens read one source and cannot disagree about a report's state.
+ */
+export interface InspectionListItem {
+  id: string;
+  organizationId: string;
+  assetId: string;
+  inspectorId: string;
+  objective: string;
+  status: InspectionStatus;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reportId: string | null;
+  reportStatus: ReportStatus | null;
+  reportVersionNo: number | null;
+}
+
+export interface InspectionPage {
+  items: InspectionListItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface StartedInspection {
   inspectionId: string;
   assignmentId: string;
@@ -183,6 +229,14 @@ export interface InspectionChecklistItem {
 }
 
 export const inspectionApi = {
+  list: (filters: InspectionListFilters) =>
+    api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
+
+  listWithReports: (filters: InspectionListFilters) =>
+    api
+      .get<InspectionPage>('/inspections/with-reports', { params: filters })
+      .then((response) => response.data),
+
   // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.
   listAssignments: () =>
     api

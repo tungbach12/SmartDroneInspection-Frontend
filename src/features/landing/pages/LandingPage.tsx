@@ -183,7 +183,7 @@ export default function LandingPage() {
             component="h1"
             sx={{
               maxWidth: 1050,
-              fontSize: 'clamp(56px, 7.3vw, 100px)',
+              fontSize: 'clamp(52px, 6.7vw, 88px)',
               fontWeight: 400,
               lineHeight: 0.98,
               letterSpacing: '-0.065em',
