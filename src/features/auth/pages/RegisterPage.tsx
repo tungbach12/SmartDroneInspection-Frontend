@@ -25,42 +25,42 @@ import {
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
 
-const darkInputSx = {
+const authInputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#14202B',
+    bgcolor: '#F8FBFA',
     borderRadius: '8px',
-    color: '#FFFFFF',
+    color: '#173B36',
     fontSize: '14px',
     '& fieldset': {
-      borderColor: 'rgba(255, 255, 255, 0.08)',
+      borderColor: '#D6E4E0',
       transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     },
     '&:hover fieldset': {
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: '#96BDB5',
     },
     '&.Mui-focused fieldset': {
       borderColor: '#087E8B',
       borderWidth: '1.5px',
-      boxShadow: '0 0 0 2px rgba(8, 126, 139, 0.25)',
+      boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
     },
   },
   '& .MuiInputLabel-root': {
-    color: '#7E91A0',
+    color: '#5F7872',
     fontSize: '14px',
     '&.Mui-focused': {
-      color: '#63BAC0',
+      color: '#087E8B',
     },
   },
   '& .MuiInputBase-input': {
     py: '13.5px',
     fontSize: '14px',
     '&::placeholder': {
-      color: '#5C7182',
+      color: '#607972',
       opacity: 1,
     },
   },
   '& .MuiFormHelperText-root': {
-    color: '#E06A6A',
+    color: '#B5473C',
     fontSize: '12px',
     mx: 0.5,
     mt: 0.5,
@@ -138,7 +138,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.fullName)}
             helperText={form.formState.errors.fullName?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
           />
           <TextField
             {...form.register('email')}
@@ -149,7 +149,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.email)}
             helperText={form.formState.errors.email?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
           />
         </Box>
 
@@ -162,7 +162,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.organizationName)}
             helperText={form.formState.errors.organizationName?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
           />
           <TextField
             {...form.register('organizationCode')}
@@ -171,7 +171,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.organizationCode)}
             helperText={form.formState.errors.organizationCode?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
           />
         </Box>
 
@@ -185,7 +185,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.password)}
             helperText={form.formState.errors.password?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
             slotProps={{
               input: {
                 endAdornment: (
@@ -195,7 +195,7 @@ export default function RegisterPage() {
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                       onClick={() => setShowPassword((visible) => !visible)}
                       edge="end"
-                      sx={{ color: '#7E91A0' }}
+                      sx={{ color: '#758984' }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -213,7 +213,7 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.confirmPassword)}
             helperText={form.formState.errors.confirmPassword?.message}
-            sx={darkInputSx}
+            sx={authInputSx}
           />
         </Box>
 
@@ -223,18 +223,18 @@ export default function RegisterPage() {
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
             sx={{
-              color: 'rgba(255, 255, 255, 0.25)',
+              color: '#758984',
               '&.Mui-checked': { color: '#087E8B' },
               p: 0.5,
             }}
           />
-          <Typography sx={{ fontSize: '13px', color: '#8A9FA8' }}>
+          <Typography sx={{ fontSize: '13px', color: '#526C66' }}>
             I agree to the{' '}
             <Link
               component={RouterLink}
               to="#"
               underline="hover"
-              sx={{ color: '#63BAC0', fontWeight: 500 }}
+              sx={{ color: '#087E8B', fontWeight: 600 }}
             >
               Terms & Conditions
             </Link>
@@ -259,11 +259,12 @@ export default function RegisterPage() {
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
-            boxShadow: '0 4px 14px rgba(8, 126, 139, 0.35)',
+            color: '#FFFFFF',
+            boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#0A96A6',
-              boxShadow: '0 6px 18px rgba(8, 126, 139, 0.45)',
+              bgcolor: '#066B70',
+              boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
             },
           }}
         >

@@ -52,7 +52,7 @@ export function AuthHeroSlideshow() {
             sx={{
               position: 'absolute',
               inset: 0,
-              backgroundImage: `linear-gradient(180deg, rgba(8, 20, 29, 0.55) 0%, rgba(8, 20, 29, 0.15) 45%, rgba(8, 20, 29, 0.88) 100%), url('${slide}')`,
+              backgroundImage: `linear-gradient(180deg, rgba(8, 20, 29, 0.26) 0%, rgba(8, 20, 29, 0.08) 45%, rgba(8, 20, 29, 0.68) 100%), url('${slide}')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               opacity: activeIndex === index ? 1 : 0,
