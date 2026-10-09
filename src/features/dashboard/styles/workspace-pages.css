@@ -1,0 +1,109 @@
+.workspace-page > header {
+  position: relative;
+  align-items: flex-end;
+  margin-bottom: 28px;
+  padding: 8px 0 22px;
+  border: 0;
+}
+
+.workspace-page > header::after {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 56px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0a968a, #65dfba);
+  content: '';
+}
+
+.workspace-page > header h1 {
+  font-size: clamp(1.8rem, 2.6vw, 2.25rem);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+}
+
+.workspace-page > header p {
+  margin-top: 7px;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.workspace-page .MuiCard-root,
+.workspace-page .MuiPaper-root.MuiPaper-outlined {
+  overflow: hidden;
+  border-color: var(--mui-palette-divider, #e3edeb);
+  border-radius: 18px;
+  background-color: var(--mui-palette-background-paper, #fff);
+  box-shadow: 0 10px 30px rgba(27, 72, 68, 0.045);
+}
+
+.workspace-page .MuiCardContent-root {
+  padding: 24px;
+}
+
+.workspace-page .MuiCardContent-root:last-child {
+  padding-bottom: 24px;
+}
+
+.workspace-page .MuiTableHead-root .MuiTableCell-root {
+  background-color: var(--mui-palette-background-default, #f3f8f7);
+  color: var(--mui-palette-text-secondary, #58716d);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.workspace-page .MuiTableBody-root .MuiTableCell-root {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.workspace-page .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root {
+  border-bottom: 0;
+}
+
+.workspace-page .MuiTableRow-hover:hover {
+  background-color: var(--mui-palette-action-hover, #f5fbf9);
+}
+
+.workspace-page .MuiOutlinedInput-root {
+  border-radius: 11px;
+  background-color: var(--mui-palette-background-paper, #fff);
+}
+
+.workspace-page .MuiAlert-root {
+  border-radius: 14px;
+}
+
+.workspace-page .MuiButton-root {
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.workspace-page .MuiChip-root {
+  border-radius: 999px;
+}
+
+.workspace-page--maintenance .MuiPaper-root.MuiPaper-outlined {
+  border-color: var(--mui-palette-divider, #dcece8);
+  background: linear-gradient(145deg, var(--mui-palette-background-paper, #fff) 0%, color-mix(in srgb, #0a968a 5%, var(--mui-palette-background-paper, #fff)) 100%);
+}
+
+.workspace-page--review .MuiCard-root {
+  border-left: 3px solid #65dfba;
+}
+
+@media (max-width: 600px) {
+  .workspace-page > header {
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+  }
+
+  .workspace-page .MuiCardContent-root,
+  .workspace-page .MuiCardContent-root:last-child {
+    padding: 18px;
+  }
+}

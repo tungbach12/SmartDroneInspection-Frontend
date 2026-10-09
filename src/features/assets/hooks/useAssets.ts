@@ -8,10 +8,11 @@ import {
   type CreateAssetInput,
 } from '../api/assetApi';
 
-export function useAssets(filters: AssetListFilters) {
+export function useAssets(filters: AssetListFilters, enabled = true) {
   return useQuery({
     queryKey: assetKeys.list(filters),
     queryFn: () => assetApi.list(filters),
+    enabled,
   });
 }
 

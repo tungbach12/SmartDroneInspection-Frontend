@@ -10,16 +10,49 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, gap: 2, mb: layoutTokens.sectionGap }}>
-      <Box sx={{ flexGrow: 1 }}>
-        <Typography variant="h4">{title}</Typography>
+    <Box
+      component="header"
+      sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'flex-end' },
+        gap: { xs: 1.5, sm: 3 },
+        mb: layoutTokens.sectionGap,
+        pb: { xs: 2, sm: 2.5 },
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Typography
+          component="h1"
+          variant="h3"
+          sx={{ color: 'text.primary', mb: subtitle ? 0.5 : 0 }}
+        >
+          {title}
+        </Typography>
         {subtitle && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: 680 }}
+          >
             {subtitle}
           </Typography>
         )}
       </Box>
-      {actions && <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'stretch', sm: 'flex-end' }, '& > *': { flex: { xs: 1, sm: 'initial' } } }}>{actions}</Box>}
+      {actions && (
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            justifyContent: { xs: 'stretch', sm: 'flex-end' },
+            '& > *': { flex: { xs: 1, sm: 'initial' } },
+          }}
+        >
+          {actions}
+        </Box>
+      )}
     </Box>
   );
 }

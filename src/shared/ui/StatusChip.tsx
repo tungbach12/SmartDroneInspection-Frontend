@@ -36,7 +36,11 @@ export function StatusChip({ status, size }: StatusChipProps) {
       color={color}
       size={size ?? 'small'}
       variant={color === 'default' ? 'outlined' : 'filled'}
-      sx={{ borderRadius: layoutTokens.pillRadius, fontWeight: 700 }}
+      sx={{
+        borderRadius: layoutTokens.controlRadius,
+        fontWeight: 600,
+        textTransform: 'capitalize',
+      }}
     />
   );
 }

@@ -43,7 +43,7 @@ export function DarkHeader() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 1.5,
-            color: '#FFFFFF',
+            color: '#253746',
           }}
         >
           <Box
@@ -54,11 +54,11 @@ export function DarkHeader() {
               width: 32,
               height: 32,
               borderRadius: '2px',
-              border: '1px solid rgba(82, 168, 255, 0.4)',
-              boxShadow: '0 0 12px rgba(82, 168, 255, 0.25)',
+              border: '1px solid rgba(8, 126, 139, 0.3)',
+              boxShadow: '0 0 12px rgba(8, 126, 139, 0.14)',
               flexShrink: 0,
               objectFit: 'contain',
-              bgcolor: '#000000',
+              bgcolor: '#FFFFFF',
             }}
           />
           <Typography
@@ -67,7 +67,7 @@ export function DarkHeader() {
               fontWeight: 500,
               fontSize: '20px',
               letterSpacing: '-0.5px',
-              color: '#FFFFFF',
+              color: '#253746',
             }}
           >
             SmartDroneInspection
@@ -89,10 +89,10 @@ export function DarkHeader() {
               sx={{
                 fontSize: '15px',
                 fontWeight: 400,
-                color: '#FFFFFF',
+                color: '#253746',
                 opacity: 0.82,
                 transition: 'opacity 0.2s ease',
-                '&:hover': { opacity: 1, color: '#52a8ff' },
+                '&:hover': { opacity: 1, color: '#087E8B' },
               }}
             >
               {item.label}
@@ -109,8 +109,8 @@ export function DarkHeader() {
               display: { xs: 'none', sm: 'inline-flex' },
               alignItems: 'center',
               gap: '6px',
-              bgcolor: '#FFFFFF',
-              color: '#121212',
+              bgcolor: '#087E8B',
+              color: '#FFFFFF',
               px: '16px',
               py: '8px',
               borderRadius: '0px',
@@ -120,7 +120,7 @@ export function DarkHeader() {
               fontSize: '14px',
               transition: 'background-color 0.2s ease, transform 0.15s ease',
               '&:hover': {
-                bgcolor: '#ededed',
+                bgcolor: '#075B67',
                 transform: 'translateY(-1px)',
               },
             }}
@@ -131,7 +131,7 @@ export function DarkHeader() {
 
           <IconButton
             onClick={() => setMobileOpen(true)}
-            sx={{ display: { xs: 'inline-flex', md: 'none' }, color: '#FFFFFF', p: 0.5 }}
+            sx={{ display: { xs: 'inline-flex', md: 'none' }, color: '#253746', p: 0.5 }}
             aria-label="Open navigation menu"
           >
             <MenuIcon />
@@ -149,8 +149,8 @@ export function DarkHeader() {
             sx: {
               width: '100%',
               maxWidth: 360,
-              bgcolor: '#0a0a0a',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.145)',
+              bgcolor: '#FFFFFF',
+              borderLeft: '1px solid rgba(23, 54, 74, 0.14)',
               p: 4,
             },
           },
@@ -165,11 +165,11 @@ export function DarkHeader() {
                 alt="SmartDroneInspection Logo"
                 sx={{ width: 28, height: 28 }}
               />
-              <Typography sx={{ color: '#FFFFFF', fontFamily: '"Geist Sans", sans-serif', fontWeight: 600, fontSize: '16px' }}>
+              <Typography sx={{ color: '#253746', fontFamily: '"Geist Sans", sans-serif', fontWeight: 600, fontSize: '16px' }}>
                 SmartDroneInspection
               </Typography>
             </Stack>
-            <IconButton onClick={() => setMobileOpen(false)} sx={{ color: '#FFFFFF' }}>
+            <IconButton onClick={() => setMobileOpen(false)} sx={{ color: '#253746' }}>
               <CloseIcon />
             </IconButton>
           </Box>
@@ -181,10 +181,10 @@ export function DarkHeader() {
                 onClick={() => setMobileOpen(false)}
                 underline="none"
                 sx={{
-                  color: '#FFFFFF',
+                  color: '#253746',
                   fontSize: '18px',
                   fontWeight: 500,
-                  '&:hover': { color: '#52a8ff' },
+                  '&:hover': { color: '#087E8B' },
                 }}
               >
                 {item.label}
@@ -200,8 +200,8 @@ export function DarkHeader() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              bgcolor: '#FFFFFF',
-              color: '#121212',
+              bgcolor: '#087E8B',
+              color: '#FFFFFF',
               py: '12px',
               borderRadius: '0px',
               textDecoration: 'none',

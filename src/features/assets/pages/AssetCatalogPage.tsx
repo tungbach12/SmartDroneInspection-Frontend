@@ -64,7 +64,7 @@ export default function AssetCatalogPage() {
   };
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--catalog">
       <PageHeader
         title="Asset catalog"
         subtitle="Maintain inspection categories and the frequencies suggested for each one"

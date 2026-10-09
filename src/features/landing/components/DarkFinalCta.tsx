@@ -7,9 +7,9 @@ export function DarkFinalCta() {
     <Box
       component="section"
       sx={{
-        bgcolor: '#000000',
+        bgcolor: '#F7F9FA',
         py: { xs: 8, md: 16 },
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        borderTop: '1px solid rgba(23, 54, 74, 0.1)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -24,7 +24,7 @@ export function DarkFinalCta() {
           width: '420px',
           height: '280px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(82, 168, 255, 0.14) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(8, 126, 139, 0.08) 0%, transparent 70%)',
           filter: 'blur(70px)',
           pointerEvents: 'none',
         }}
@@ -33,10 +33,10 @@ export function DarkFinalCta() {
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 10 }}>
         <Box
           sx={{
-            bgcolor: '#0a0a0a',
-            border: '1px solid rgba(255, 255, 255, 0.145)',
-            p: { xs: 4, md: 8 },
-            boxShadow: '0 32px 80px rgba(0, 0, 0, 0.85)',
+            bgcolor: '#FFFFFF',
+            border: '1px solid rgba(23, 54, 74, 0.14)',
+            p: { xs: 3, sm: 4, md: 7 },
+            boxShadow: '0 18px 52px rgba(23, 54, 74, 0.1)',
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
@@ -51,7 +51,7 @@ export function DarkFinalCta() {
               fontSize: 'clamp(30px, 4.5vw, 52px)',
               fontWeight: 500,
               letterSpacing: '-2px',
-              color: '#FFFFFF',
+              color: '#253746',
               maxWidth: '740px',
               lineHeight: 1.08,
             }}
@@ -63,7 +63,7 @@ export function DarkFinalCta() {
             sx={{
               mt: 2,
               fontSize: '16px',
-              color: '#999999',
+              color: '#5D707B',
               maxWidth: '640px',
               lineHeight: 1.65,
             }}
@@ -84,8 +84,8 @@ export function DarkFinalCta() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                bgcolor: '#FFFFFF',
-                color: '#121212',
+                bgcolor: '#087E8B',
+                color: '#FFFFFF',
                 px: '26px',
                 py: '14px',
                 borderRadius: '0px',
@@ -95,7 +95,7 @@ export function DarkFinalCta() {
                 fontSize: '16px',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: '#ededed',
+                  bgcolor: '#075B67',
                   transform: 'translateY(-1px)',
                 },
               }}
@@ -113,8 +113,8 @@ export function DarkFinalCta() {
                 justifyContent: 'center',
                 gap: '8px',
                 bgcolor: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.22)',
-                color: '#FFFFFF',
+                border: '1px solid rgba(23, 54, 74, 0.22)',
+                color: '#253746',
                 px: '24px',
                 py: '14px',
                 borderRadius: '0px',
@@ -124,8 +124,8 @@ export function DarkFinalCta() {
                 fontSize: '16px',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  borderColor: '#52a8ff',
-                  color: '#52a8ff',
+                  borderColor: '#087E8B',
+                  color: '#087E8B',
                 },
               }}
             >
@@ -138,7 +138,7 @@ export function DarkFinalCta() {
             sx={{
               fontFamily: '"Geist Mono", monospace',
               fontSize: '12px',
-              color: '#999999',
+              color: '#5D707B',
               mt: 2.5,
             }}
           >

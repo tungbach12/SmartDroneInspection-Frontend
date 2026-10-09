@@ -13,6 +13,11 @@ import '@fontsource/geist-sans/600.css';
 import '@fontsource/geist-sans/700.css';
 import '@fontsource/geist-sans/800.css';
 import './index.css';
+import { useAuthStore } from './features/auth/store/authStore';
+
+if (import.meta.env.DEV) {
+  (window as unknown as { __authStore: typeof useAuthStore }).__authStore = useAuthStore;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

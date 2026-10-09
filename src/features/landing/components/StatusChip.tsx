@@ -8,10 +8,10 @@ interface StatusChipProps {
 }
 
 const statusColors: Record<StatusType, string> = {
-  pass: '#62c073',
-  warn: '#999999',
-  fail: '#ededed',
-  active: '#52a8ff',
+  pass: '#176B52',
+  warn: '#8C520B',
+  fail: '#A8323B',
+  active: '#087E8B',
 };
 
 export function StatusChip({ status, label }: StatusChipProps) {
@@ -22,12 +22,12 @@ export function StatusChip({ status, label }: StatusChipProps) {
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
-        bgcolor: '#1f1f1f',
+        bgcolor: '#FFFFFF',
         borderRadius: '100px',
         px: '10px',
         py: '4px',
         gap: '6px',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        border: '1px solid rgba(23, 54, 74, 0.08)',
       }}
     >
       <Box
@@ -45,7 +45,7 @@ export function StatusChip({ status, label }: StatusChipProps) {
           fontFamily: '"Geist Mono", monospace',
           fontSize: '12px',
           lineHeight: 1,
-          color: '#999999',
+          color: '#5D707B',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
           fontWeight: 500,

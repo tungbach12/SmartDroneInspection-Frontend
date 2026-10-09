@@ -9,6 +9,21 @@ export function initializeBrowserSession(): Promise<void> {
     return Promise.resolve();
   }
 
+  if (import.meta.env.DEV) {
+    const devSaved = localStorage.getItem('sdi_dev_session');
+    if (devSaved) {
+      try {
+        const session = JSON.parse(devSaved);
+        if (session?.accessToken && session?.user) {
+          store.setSession(session);
+          return Promise.resolve();
+        }
+      } catch {
+        // continue normal flow
+      }
+    }
+  }
+
   if (!restoration) {
     restoration = restoreBrowserSession()
       .then((flow) => {

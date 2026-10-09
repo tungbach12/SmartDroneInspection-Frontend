@@ -96,7 +96,7 @@ export function AssetsPage() {
   ) : undefined;
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--assets">
       <PageHeader
         title="Assets"
         subtitle="Infrastructure assets registered for inspection"
@@ -318,7 +318,7 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
 
   return (
     <Drawer anchor="right" open={Boolean(asset)} onClose={onClose}>
-      <Box sx={{ width: 420, p: 3 }}>
+      <Box sx={{ width: { xs: '100vw', sm: 420 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
         <Typography variant="h6">{asset?.name}</Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {asset?.code} · {asset?.locationText}

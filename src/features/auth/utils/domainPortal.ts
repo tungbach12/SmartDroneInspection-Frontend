@@ -35,33 +35,29 @@ export function getWorkspaceCopy(kind: WorkspaceKind): WorkspaceCopy {
       return {
         eyebrow: 'Platform administration',
         title: 'Admin sign-in',
-        description:
-          'Platform administrators manage users and access policy. Sign in with your admin account.',
-        sideLabel: 'Admin workspace',
-        sideTitle: 'Run the platform',
-        sideBody:
-          'Manage platform users and keep the service healthy across all workspaces.',
+        description: 'Sign in to manage platform settings and organization access.',
+        sideLabel: 'Admin Workspace',
+        sideTitle: 'Central platform management',
+        sideBody: 'Oversee system security, manage user access, and maintain operational health.',
       };
     case 'operations':
       return {
         eyebrow: 'Operations workspace',
         title: 'Operations sign-in',
-        description:
-          'Inspectors and maintenance engineers manage assigned field work here.',
-        sideLabel: 'Operations workspace',
-        sideTitle: 'Run field operations',
-        sideBody:
-          'Review field evidence, complete assigned inspections, and close maintenance work.',
+        description: 'Sign in to review inspection missions and manage field assignments.',
+        sideLabel: 'Field Operations',
+        sideTitle: 'Field inspection & maintenance',
+        sideBody: 'Access drone capture records, review findings, and coordinate work orders.',
       };
     default:
       return {
-        eyebrow: 'Secure workspace access',
+        eyebrow: 'SmartDrone Platform',
         title: 'Welcome back',
-        description: 'Sign in with your account to continue to your authorized workspace.',
-        sideLabel: 'SmartDroneInspection',
-        sideTitle: 'From drone imagery to approved evidence',
+        description: 'Sign in to access your aerial inspection workspace.',
+        sideLabel: 'SmartDrone Enterprise',
+        sideTitle: 'Smarter inspections for modern infrastructure',
         sideBody:
-          'One place for client requests, mission planning, field capture, human-reviewed AI findings, and maintenance close-out.',
+          'Capture high-resolution aerial perspectives, collaborate seamlessly across teams, and maintain complete visibility over your facilities.',
       };
   }
 }
