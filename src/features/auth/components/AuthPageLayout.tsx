@@ -155,7 +155,7 @@ export function AuthPageLayout({
         <Box
           sx={{
             width: '100%',
-            maxWidth: '1020px',
+            maxWidth: '1080px',
             mx: 'auto',
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
@@ -176,7 +176,7 @@ export function AuthPageLayout({
               flexDirection: 'column',
               justifyContent: 'space-between',
               borderRadius: '20px',
-              minHeight: '560px',
+              minHeight: { md: '560px', lg: '600px' },
               p: 3.5,
               position: 'relative',
               overflow: 'hidden',
