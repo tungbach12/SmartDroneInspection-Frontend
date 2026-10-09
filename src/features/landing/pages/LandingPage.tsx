@@ -50,14 +50,14 @@ const actionSx = {
   gap: 1,
   minHeight: 46,
   px: 2.5,
-  bgcolor: '#39F20A',
+  bgcolor: '#65DFBA',
   color: '#071006',
   fontSize: 13,
   fontWeight: 600,
   textDecoration: 'none',
   transition: 'background-color 160ms ease',
-  '&:hover': { bgcolor: '#2bd500' },
-  '&:focus-visible': { outline: '2px solid #39F20A', outlineOffset: 3 },
+  '&:hover': { bgcolor: '#42CFAE' },
+  '&:focus-visible': { outline: '2px solid #65DFBA', outlineOffset: 3 },
 };
 
 export default function LandingPage() {
@@ -103,9 +103,15 @@ export default function LandingPage() {
           <Link
             href="/"
             underline="none"
+            aria-label="SmartDroneInspection home"
             sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
           >
-            SmartDroneInspection
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 38, height: 38, borderRadius: 1, objectFit: 'cover' }} />
+              <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
+                SmartDroneInspection
+              </Typography>
+            </Stack>
           </Link>
           <Stack
             component="nav"
@@ -218,7 +224,7 @@ export default function LandingPage() {
                 fontWeight: 600,
                 letterSpacing: '.12em',
                 textTransform: 'uppercase',
-                borderBottom: '1px solid #39F20A',
+                borderBottom: '1px solid #65DFBA',
                 pb: 0.5,
               }}
             >
@@ -311,7 +317,7 @@ export default function LandingPage() {
                       display: 'grid',
                       placeItems: 'center',
                       bgcolor: '#e9ece7',
-                      color: '#38bc1b',
+                      color: '#0A968A',
                     }}
                   >
                     <item.Icon sx={{ fontSize: 29, strokeWidth: 1 }} />
@@ -395,7 +401,7 @@ export default function LandingPage() {
                 }}
               />
               <Box sx={{ position: 'relative', left: { xs: 14, md: 30 }, bottom: { xs: 14, md: 30 }, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#39F20A', boxShadow: '0 0 10px #39F20A' }} />
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#65DFBA', boxShadow: '0 0 10px rgba(101,223,186,.72)' }} />
                 <Typography sx={{ color: 'rgba(255,255,255,.8)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase' }}>
                   Illustrative AI confidence — not a risk score
                 </Typography>
@@ -451,9 +457,12 @@ export default function LandingPage() {
               gap: 4,
             }}
           >
-            <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
-              SmartDroneInspection
-            </Typography>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 44, height: 44, borderRadius: 1, objectFit: 'cover' }} />
+              <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
+                SmartDroneInspection
+              </Typography>
+            </Stack>
             <Stack
               component="nav"
               aria-label="Footer navigation"

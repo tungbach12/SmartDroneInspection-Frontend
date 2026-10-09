@@ -29,7 +29,7 @@ export default function AssetReviewPage() {
   const pending = data?.items ?? [];
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--review">
       <PageHeader
         title="Asset review queue"
         subtitle="Approve a registered asset to generate its schedule proposals"

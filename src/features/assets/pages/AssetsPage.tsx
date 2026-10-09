@@ -96,7 +96,7 @@ export function AssetsPage() {
   ) : undefined;
 
   return (
-    <Box>
+    <Box className="workspace-page workspace-page--assets">
       <PageHeader
         title="Assets"
         subtitle="Infrastructure assets registered for inspection"

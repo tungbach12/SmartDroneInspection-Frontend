@@ -5,8 +5,8 @@ export const paletteTokens = {
   steel: '#E7EEF1',
   paper: '#F7F9FA',
   white: '#FFFFFF',
-  teal: '#087E8B',
-  tealSoft: '#D9EFF0',
+  teal: '#0A968A',
+  tealSoft: '#DDF5EF',
   amber: '#A96012',
   // Lytic dark reference: cool slate canvas with near-black chrome and panels.
   darkCanvas: '#111827',
