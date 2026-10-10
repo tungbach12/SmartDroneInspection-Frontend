@@ -3,14 +3,21 @@ import {
   inspectionApi,
   type EvidenceQualityDecisionType,
   type FindingDecision,
+  type ApproveReadinessInput,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
   type PreparationInput,
+  type ReturnReadinessInput,
   type ReviewCandidateInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
+  myCredentials: () => [...inspectionKeys.all, 'my-credentials'] as const,
+  readinessSources: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'readiness-sources'] as const,
+  readinessDecisions: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'readiness-decisions'] as const,
   all: ['inspections'] as const,
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
@@ -80,6 +87,70 @@ export function useFindingCandidates(inspectionId: string | null) {
     queryFn: () => inspectionApi.listCandidates(inspectionId!),
     enabled: Boolean(inspectionId),
   });
+}
+
+export function useMyCredentials(enabled = true) {
+  return useQuery({
+    queryKey: inspectionKeys.myCredentials(),
+    queryFn: inspectionApi.myCredentials,
+    enabled,
+  });
+}
+
+export function useReadinessSources(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.readinessSources(inspectionId ?? ''),
+    queryFn: () => inspectionApi.readinessSources(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+/**
+ * A decision invalidates the preparation, the compliance gate and the source lists the reviewer was
+ * looking at, so all of them are refreshed. Leaving the gate stale would let a reviewer approve
+ * against blockers the decision itself has changed.
+ */
+export function useApproveReadiness() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      input,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      input: ApproveReadinessInput;
+    }) => inspectionApi.approveReadiness(inspectionId, preparationId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      invalidateReadiness(client, inspectionId);
+    },
+  });
+}
+
+export function useReturnReadiness() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      input,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      input: ReturnReadinessInput;
+    }) => inspectionApi.returnReadiness(inspectionId, preparationId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      invalidateReadiness(client, inspectionId);
+    },
+  });
+}
+
+function invalidateReadiness(client: ReturnType<typeof useQueryClient>, inspectionId: string) {
+  client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.readinessSources(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
 }
 
 export function useInspectionPreparations(inspectionId: string | null) {

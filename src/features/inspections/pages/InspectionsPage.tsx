@@ -25,6 +25,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { InspectionListTable } from '../components/InspectionListTable';
 import InspectionPreparationPanel from './InspectionPreparationPanel';
+import ReadinessReviewPanel from './ReadinessReviewPanel';
 import {
   useAnalyzeEvidence,
   useAuthorManualDraft,
@@ -34,6 +35,7 @@ import {
   useFindingCandidates,
   useGenerateReportDraft,
   useInspectionEvidence,
+  useInspectionPreparations,
   useInspections,
   useReviewFindingCandidate,
   useUploadInspectionEvidence,
@@ -42,6 +44,7 @@ import {
 export default function InspectionsPage() {
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
+  const isReviewer = roles.includes('ORG_ADMIN');
   // The list endpoint serves Inspectors, same-org ORG_ADMINs and platform ADMINs. The evidence
   // workspace below it stays Inspector-only, because uploading and deciding are assigned acts.
   const canBrowse = isInspector || roles.includes('ORG_ADMIN') || roles.includes('ADMIN');
@@ -59,6 +62,11 @@ export default function InspectionsPage() {
   const evidence = useInspectionEvidence(activeInspectionId);
   const quality = useEvidenceQualityHistory(activeInspectionId);
   const candidates = useFindingCandidates(activeInspectionId);
+  const preparations = useInspectionPreparations(activeInspectionId);
+  // MF2-07 reviews one specific version, so the review panel is pointed at the version on screen
+  // rather than whatever a later submission might become.
+  const activePreparation = preparations.data?.[0];
+  const activePreparationId = activePreparation?.id ?? null;
   const upload = useUploadInspectionEvidence(activeInspectionId);
   const decideQuality = useDecideEvidenceQuality(activeInspectionId);
   const analyze = useAnalyzeEvidence(activeInspectionId);
@@ -166,6 +174,13 @@ export default function InspectionsPage() {
                 inspectionId={activeInspectionId}
                 isInspector={isInspector}
               />
+
+              {isReviewer && activePreparationId ? (
+                <ReadinessReviewPanel
+                  inspectionId={activeInspectionId}
+                  preparationId={activePreparationId}
+                />
+              ) : null}
 
               <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>

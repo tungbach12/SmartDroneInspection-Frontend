@@ -26,6 +26,10 @@ const mocks = vi.hoisted(() => ({
   prepareDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   submitPreparation: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   linkPermits: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  ownCredentialsQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  readinessSourcesQuery: { data: undefined as unknown, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  approveReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  returnReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -45,6 +49,10 @@ vi.mock('../hooks/useInspections', () => ({
   usePrepareShotList: () => mocks.prepareDraft,
   useSubmitPreparation: () => mocks.submitPreparation,
   useLinkPermitReferences: () => mocks.linkPermits,
+  useMyCredentials: () => mocks.ownCredentialsQuery,
+  useReadinessSources: () => mocks.readinessSourcesQuery,
+  useApproveReadiness: () => mocks.approveReadiness,
+  useReturnReadiness: () => mocks.returnReadiness,
 }));
 
 import InspectionsPage from './InspectionsPage';

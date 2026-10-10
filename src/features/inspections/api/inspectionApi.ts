@@ -269,6 +269,75 @@ export interface PreparationInput {
   safetyObservations?: string;
 }
 
+/** One credential the reviewer may rely on, as far as its stored record shows. */
+export interface ReviewCredential {
+  id: string;
+  credentialType: string;
+  issuer: string;
+  credentialReference: string;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  status: string;
+  verifiedByUserId?: string | null;
+  verifiedAt: string | null;
+  verificationReason?: string | null;
+}
+
+/** One Drone document the reviewer may rely on, as far as its stored record shows. */
+export interface ReviewDroneDocument {
+  id: string;
+  documentType: string;
+  issuer: string;
+  documentReference: string;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+  reviewedAt: string | null;
+}
+
+/**
+ * Everything MF2-07 asks the reviewer to look at, for one inspection. Without this the reviewer
+ * would have to type credential and document UUIDs, which is not a decision anyone records.
+ */
+export interface ReadinessSources {
+  inspectionId: string;
+  inspectorUserId: string | null;
+  droneId: string | null;
+  inspectorCredentials: ReviewCredential[];
+  droneDocuments: ReviewDroneDocument[];
+}
+
+export interface ApproveReadinessInput {
+  reviewerCredentialId: string;
+  inspectorCredentialIds: string[];
+  droneDocumentIds: string[];
+  applicabilityComplete: boolean;
+  applicabilityBasisReference: string;
+  /** Optional, but may be sent as undefined; the server treats blank as absent. */
+  noInspectorCredentialReason?: string | undefined;
+  noDroneDocumentReason?: string | undefined;
+  humanVerificationBasis?: string | undefined;
+}
+
+export interface ReturnReadinessInput {
+  reviewerCredentialId: string;
+  inspectorCredentialIdsObserved: string[];
+  droneDocumentIdsObserved: string[];
+  reason: string;
+}
+
+export interface ReadinessDecision {
+  id: string;
+  inspectionId: string;
+  preparationId: string | null;
+  preparationVersion: number | null;
+  decision: 'APPROVED' | 'RETURNED';
+  reviewedByUserId: string;
+  reason: string | null;
+  sourceHash: string;
+  decidedAt: string;
+}
+
 export const inspectionApi = {
   list: (filters: InspectionListFilters) =>
     api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
@@ -317,6 +386,46 @@ export const inspectionApi = {
   complianceGate: (inspectionId: string) =>
     api
       .get<ComplianceGate>(`/inspections/${inspectionId}/preparation/compliance`)
+      .then((response) => response.data),
+
+  /**
+   * MF2-07: the caller's own credentials, which an approval must reference.
+   *
+   * <p>The route takes no id or organization parameter, so a client cannot ask about anyone else.
+   */
+  myCredentials: () =>
+    api
+      .get<ReviewCredential[]>('/workforce/credentials/me')
+      .then((response) => response.data),
+
+  /** MF2-07: the assigned Inspector's credentials and the assigned Drone's documents. */
+  readinessSources: (inspectionId: string) =>
+    api
+      .get<ReadinessSources>(`/inspections/${inspectionId}/readiness/sources`)
+      .then((response) => response.data),
+
+  approveReadiness: (
+    inspectionId: string,
+    preparationId: string,
+    input: ApproveReadinessInput,
+  ) =>
+    api
+      .post<ReadinessDecision>(
+        `/inspections/${inspectionId}/readiness/${preparationId}/approval`,
+        input,
+      )
+      .then((response) => response.data),
+
+  returnReadiness: (
+    inspectionId: string,
+    preparationId: string,
+    input: ReturnReadinessInput,
+  ) =>
+    api
+      .post<ReadinessDecision>(
+        `/inspections/${inspectionId}/readiness/${preparationId}/return`,
+        input,
+      )
       .then((response) => response.data),
 
   // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.
