@@ -148,15 +148,6 @@ export interface ManualDraftInput {
   omissionDisclosure?: string;
 }
 
-export interface InspectionAssignment {
-  assignmentId: string;
-  serviceOrderId: string;
-  assetId: string;
-  deadline: string | null;
-  status: string;
-  inspectionId: string | null;
-}
-
 export type InspectionStatus =
   | 'DRAFT'
   | 'ASSIGNED'
@@ -201,16 +192,6 @@ export interface InspectionPage {
   pageSize: number;
   totalCount: number;
   totalPages: number;
-}
-
-export interface StartedInspection {
-  inspectionId: string;
-  assignmentId: string;
-  serviceOrderId: string;
-  assetId: string;
-  checklistTemplateId: string;
-  status: string;
-  startedAt: string;
 }
 
 export interface InspectionChecklistItem {
@@ -267,6 +248,31 @@ export interface PreparationInput {
   evidenceTypes?: string;
   accessConstraints?: string;
   safetyObservations?: string;
+}
+
+/**
+ * MF2-01/02: one Inspector–Drone pairing an administrator opened for this Inspector.
+ *
+ * The response carries the asset and Drone names and the validity window so a reviewer can judge the
+ * pairing without opening three other records, and the recorded response so the inbox can show what
+ * was already answered.
+ */
+export interface InspectorAssignment {
+  id: string;
+  organizationId: string;
+  assetId: string;
+  assetName: string;
+  inspectorUserId: string;
+  droneId: string;
+  droneSerialNumber: string;
+  droneServiceability: string;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+  reason: string | null;
+  assignmentResponse: 'ACCEPTED' | 'REJECTED' | null;
+  respondedAt: string | null;
+  assignedAt: string;
 }
 
 /** One credential the reviewer may rely on, as far as its stored record shows. */
@@ -428,19 +434,42 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.
-  listAssignments: () =>
+  /**
+   * MF2-01: the pairings an administrator opened for this Inspector that are still unanswered.
+   *
+   * <p>This replaces the earlier `listAssignments`, which called `/inspections/assignments` — an
+   * endpoint this backend does not have. Accepting is not readiness: it records that the Inspector
+   * took the job, and MF2-07 decides separately whether the mission may fly.
+   */
+  listMyAssignments: () =>
     api
-      .get<InspectionAssignment[]>('/inspections/assignments', {
-        params: { status: 'ACCEPTED' },
+      .get<InspectorAssignment[]>('/inspection-assignments/mine')
+      .then((response) => response.data),
+
+  getAssignment: (assignmentId: string) =>
+    api
+      .get<InspectorAssignment>(`/inspection-assignments/${assignmentId}`)
+      .then((response) => response.data),
+
+  /** MF2-02: recording the answer. A decline needs a reason the Inspector writes. */
+  respondToAssignment: (
+    assignmentId: string,
+    response: 'ACCEPTED' | 'REJECTED',
+    rejectionReason?: string,
+  ) =>
+    api
+      .post<InspectorAssignment>(`/inspection-assignments/${assignmentId}/response`, {
+        response,
+        rejectionReason,
       })
       .then((response) => response.data),
 
-  start: (assignmentId: string) =>
-    api
-      .post<StartedInspection>('/inspections/start', { assignmentId })
-      .then((response) => response.data),
-
+  /**
+   * MF3 checklist items for an inspection.
+   *
+   * <p>Note this is not MF2's pre-flight checklist, which is recorded as a note when a field session
+   * starts. This is the inspection's checklist template.
+   */
   checklist: (inspectionId: string) =>
     api
       .get<InspectionChecklistItem[]>(`/inspections/${inspectionId}/checklist`)

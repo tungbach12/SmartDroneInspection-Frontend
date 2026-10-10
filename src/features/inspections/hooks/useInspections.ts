@@ -57,11 +57,35 @@ export function useInspectionsWithReports(filters: InspectionListFilters, enable
   });
 }
 
-export function useInspectionAssignments(enabled = true) {
+/** MF2-01: pairings an administrator opened for this Inspector that are still unanswered. */
+export function useAssignmentInbox(enabled = true) {
   return useQuery({
     queryKey: inspectionKeys.assignments(),
-    queryFn: inspectionApi.listAssignments,
+    queryFn: inspectionApi.listMyAssignments,
     enabled,
+  });
+}
+
+/**
+ * MF2-02: recording the answer to a pairing.
+ *
+ * <p>A decline suspends the pairing, so the inbox is refetched afterwards rather than patched: the
+ * answered row must leave the list the server decides it belongs to.
+ */
+export function useRespondToAssignment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      assignmentId,
+      response,
+      rejectionReason,
+    }: {
+      assignmentId: string;
+      response: 'ACCEPTED' | 'REJECTED';
+      /** Optional, but may be sent as undefined; the server treats blank as absent. */
+      rejectionReason?: string | undefined;
+    }) => inspectionApi.respondToAssignment(assignmentId, response, rejectionReason),
+    onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
   });
 }
 
@@ -211,14 +235,6 @@ export function useLinkPermitReferences() {
       client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
     },
-  });
-}
-
-export function useStartInspection() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: inspectionApi.start,
-    onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
   });
 }
 

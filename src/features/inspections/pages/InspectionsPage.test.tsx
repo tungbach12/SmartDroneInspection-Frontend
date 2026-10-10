@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
   readinessSourcesQuery: { data: undefined as unknown, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   approveReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   returnReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  assignmentInboxQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  respondToAssignment: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -53,6 +55,8 @@ vi.mock('../hooks/useInspections', () => ({
   useReadinessSources: () => mocks.readinessSourcesQuery,
   useApproveReadiness: () => mocks.approveReadiness,
   useReturnReadiness: () => mocks.returnReadiness,
+  useAssignmentInbox: () => mocks.assignmentInboxQuery,
+  useRespondToAssignment: () => mocks.respondToAssignment,
 }));
 
 import InspectionsPage from './InspectionsPage';

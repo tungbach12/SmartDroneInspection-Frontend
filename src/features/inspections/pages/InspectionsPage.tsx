@@ -24,6 +24,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { InspectionListTable } from '../components/InspectionListTable';
+import AssignmentInboxPanel from './AssignmentInboxPanel';
 import InspectionPreparationPanel from './InspectionPreparationPanel';
 import ReadinessReviewPanel from './ReadinessReviewPanel';
 import {
@@ -109,6 +110,11 @@ export default function InspectionsPage() {
         title="Inspections"
         subtitle="Review field evidence, record findings, and prepare inspection reports"
       />
+
+      {/* MF2-01/02 comes first: without an answered pairing there is nothing to prepare. */}
+      <Box sx={{ mb: 2.5 }}>
+        <AssignmentInboxPanel />
+      </Box>
 
       {!canBrowse ? (
         <Alert severity="info">

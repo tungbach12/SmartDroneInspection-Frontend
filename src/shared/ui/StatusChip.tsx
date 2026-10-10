@@ -23,6 +23,8 @@ const STATUS_COLORS: Record<string, StatusVariant> = {
   draft: 'default',
   cancelled: 'error',
   rejected: 'error',
+  // A suspended pairing cannot be flown, which is the same severity as a rejected one.
+  suspended: 'error',
   failed: 'error',
 };
 
