@@ -1,38 +1,33 @@
-import { AssignmentTurnedInOutlined, RuleOutlined } from '@mui/icons-material';
+import { AssignmentTurnedInOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { useState, type FormEvent } from 'react';
-import { getErrorMessage } from '@/shared/api/errorMessage';
+import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
+import { isConflict } from '@/shared/api/problem';
+import { getErrorMessage } from '@/shared/api/errorMessage';
 import type { InspectionPreparationStatus } from '../api/inspectionApi';
 import {
-  useComplianceGate,
   useInspectionPreparations,
   useLinkPermitReferences,
   usePrepareShotList,
   useSubmitPreparation,
 } from '../hooks/useInspections';
+import { ComplianceGateSection } from './ComplianceGateSection';
 
 interface InspectionPreparationPanelProps {
   inspectionId: string;
   /** False for a reader such as an ORG_ADMIN: they may link permits and read blockers, not draft. */
   isInspector: boolean;
 }
-
-const STATUS_LABEL: Record<InspectionPreparationStatus, string> = {
-  DRAFT: 'Draft',
-  SUBMITTED: 'Submitted for review',
-  RETURNED: 'Returned for rework',
-  READY: 'Reviewed',
-};
 
 /**
  * MF2-03 to MF2-06: the inspector's mission preparation, and the compliance gate beside it.
@@ -66,7 +61,6 @@ function PreparationEditor({
 }: InspectionPreparationPanelProps & {
   preparations: ReturnType<typeof useInspectionPreparations>;
 }) {
-  const compliance = useComplianceGate(inspectionId);
   const prepare = usePrepareShotList();
   const submit = useSubmitPreparation();
   const linkPermits = useLinkPermitReferences();
@@ -118,7 +112,7 @@ function PreparationEditor({
         <AssignmentTurnedInOutlined color="primary" />
         <Typography variant="h6">Mission preparation</Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <Chip size="small" label={STATUS_LABEL[status]} />
+        <StatusChip status={status} />
       </Stack>
 
       <QueryState
@@ -146,17 +140,31 @@ function PreparationEditor({
         </Alert>
       ) : null}
 
-      {prepare.isError ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {getErrorMessage(prepare.error, 'Could not save the preparation draft.')}
-        </Alert>
-      ) : null}
+      <Box sx={{ mb: 2 }}>
+        {prepare.isError && isConflict(prepare.error) ? (
+          // The server's own wording stands alone: a 409 may be "not editable", "not allowed in this
+          // state" or "inspection is not preparing", and a client heading would assert a reason the
+          // client cannot know.
+          <RefusalNotice
+            testId="draft-refusal"
+            reason={getErrorMessage(prepare.error, '')}
+            fallbackMessage="The server refused this draft change."
+          />
+        ) : null}
+        <MutationProblemAlert
+          error={prepare.error}
+          isError={prepare.isError && !isConflict(prepare.error)}
+          fallbackMessage="Could not save the preparation draft."
+        />
+      </Box>
 
-      {submit.isError ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {getErrorMessage(submit.error, 'Could not submit the preparation.')}
-        </Alert>
-      ) : null}
+      <Box sx={{ mb: 2 }}>
+        <MutationProblemAlert
+          error={submit.error}
+          isError={submit.isError}
+          fallbackMessage="Could not submit the preparation."
+        />
+      </Box>
 
       {isInspector ? (
         <Stack
@@ -255,46 +263,15 @@ function PreparationEditor({
         </Stack>
       ) : null}
 
-      {linkPermits.isError ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {getErrorMessage(linkPermits.error, 'Could not link the permit.')}
-        </Alert>
-      ) : null}
+      <Box sx={{ mb: 2 }}>
+        <MutationProblemAlert
+          error={linkPermits.error}
+          isError={linkPermits.isError}
+          fallbackMessage="Could not link the permit."
+        />
+      </Box>
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-        <RuleOutlined color="primary" />
-        <Typography variant="subtitle1">Compliance gate</Typography>
-      </Stack>
-
-      <QueryState
-        isLoading={compliance.isLoading}
-        error={compliance.error}
-        onRetry={() => void compliance.refetch()}
-      >
-        {null}
-      </QueryState>
-
-      {compliance.data && compliance.data.blockers.length > 0 ? (
-        <Stack spacing={1} sx={{ mb: 1 }}>
-          {compliance.data.blockers.map((blocker) => (
-            <Alert key={blocker.code} severity="warning">
-              <strong>{blocker.code}</strong> — {blocker.detail}
-            </Alert>
-          ))}
-        </Stack>
-      ) : null}
-
-      {compliance.data && compliance.data.blockers.length === 0 ? (
-        <Alert severity="success" sx={{ mb: 1 }}>
-          No blocker found. A named reviewer still has to decide; this is not flight clearance.
-        </Alert>
-      ) : null}
-
-      {compliance.data?.requiresHumanVerification ? (
-        <Alert severity="info">
-          Some findings need human verification. They cannot be cleared by inference.
-        </Alert>
-      ) : null}
+      <ComplianceGateSection inspectionId={inspectionId} />
     </Paper>
   );
 }

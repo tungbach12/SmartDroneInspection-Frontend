@@ -11,6 +11,11 @@ const STATUS_COLORS: Record<string, StatusVariant> = {
   closed: 'success',
   pending: 'warning',
   pending_review: 'warning',
+  // MF2 preparation. Submitted work is waiting on a reviewer, returned work needs rework, and a
+  // reviewed preparation is the only one of the three that has a decision behind it.
+  submitted: 'warning',
+  returned: 'error',
+  ready: 'success',
   inprogress: 'warning',
   in_progress: 'warning',
   scheduled: 'info',

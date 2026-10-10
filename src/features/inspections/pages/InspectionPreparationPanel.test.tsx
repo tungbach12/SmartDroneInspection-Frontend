@@ -1,6 +1,24 @@
+import { AxiosError } from 'axios';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Role, useAuthStore } from '@/features/auth/store/authStore';
+
+/** Builds the AxiosError the shared problem helpers classify, matching the repo's other tests. */
+function problemError(status: number, detail: string, code: string): AxiosError {
+  return new AxiosError(
+    `Request failed with status code ${status}`,
+    'ERR_BAD_RESPONSE',
+    undefined,
+    undefined,
+    {
+      data: { type: 'about:blank', title: 'Error', status, detail, code },
+      status,
+      statusText: 'Error',
+      headers: {},
+      config: { headers: {} } as never,
+    },
+  );
+}
 
 const mocks = vi.hoisted(() => ({
   preparationsQuery: {
@@ -79,9 +97,36 @@ describe('InspectionPreparationPanel', () => {
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
 
     expect(screen.getByRole('heading', { name: /mission preparation/i })).toBeTruthy();
-    // The chip, not the version line, which also contains the word "submitted".
-    expect(screen.getByText('Submitted for review')).toBeTruthy();
+    expect(screen.getByText('SUBMITTED')).toBeTruthy();
     expect(screen.getByText(/version 1 · submitted/i)).toBeTruthy();
+  });
+
+  /**
+   * The status must come from the shared StatusChip, whose colour map is what the rest of the app
+   * reads. A locally chosen chip colour would make this panel look like a different product.
+   */
+  it('renders the preparation status through the shared status chip', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [submittedPreparation()];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    // StatusChip renders the raw status; submitted work is waiting on a reviewer, which the shared
+    // map colours as a warning. MUI puts the colour variant on the chip root, capitalised.
+    const chip = screen.getByText('SUBMITTED').closest('.MuiChip-root');
+    expect(chip?.className).toContain('MuiChip-colorWarning');
+  });
+
+  it('labels a refused mutation as a business rule rather than a fault', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [];
+    mocks.prepare.isError = true;
+    mocks.prepare.error = problemError(409, 'Only a draft preparation may be edited.', 'PREPARATION_NOT_EDITABLE');
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    expect(screen.getByTestId('draft-refusal')).toBeTruthy();
+    expect(screen.getByText(/Only a draft preparation may be edited/)).toBeTruthy();
   });
 
   it('lets the assigned inspector save a shot list and safety observations', () => {
