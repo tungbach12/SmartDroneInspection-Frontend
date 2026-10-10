@@ -24,6 +24,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { InspectionListTable } from '../components/InspectionListTable';
+import InspectionPreparationPanel from './InspectionPreparationPanel';
 import {
   useAnalyzeEvidence,
   useAuthorManualDraft,
@@ -156,9 +157,15 @@ export default function InspectionsPage() {
           ) : (
             <Stack spacing={2}>
               <Alert severity="info">
-                This workspace starts at MF3 evidence review. Checklist execution and inspection
-                start belong to MF1/MF2 and are not available in this backend.
+                MF2 preparation comes first: record the shot-list and hazards, submit it, and an
+                organization reviewer decides whether this mission may fly. Evidence review below
+                starts once field work has happened.
               </Alert>
+
+              <InspectionPreparationPanel
+                inspectionId={activeInspectionId}
+                isInspector={isInspector}
+              />
 
               <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>

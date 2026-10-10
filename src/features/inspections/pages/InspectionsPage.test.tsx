@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
   manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   createDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   authorManualDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  preparationQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  complianceQuery: { data: undefined as unknown, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  prepareDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  submitPreparation: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  linkPermits: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -35,6 +40,11 @@ vi.mock('../hooks/useInspections', () => ({
   useCreateManualFinding: () => mocks.manual,
   useGenerateReportDraft: () => mocks.createDraft,
   useAuthorManualDraft: () => mocks.authorManualDraft,
+  useInspectionPreparations: () => mocks.preparationQuery,
+  useComplianceGate: () => mocks.complianceQuery,
+  usePrepareShotList: () => mocks.prepareDraft,
+  useSubmitPreparation: () => mocks.submitPreparation,
+  useLinkPermitReferences: () => mocks.linkPermits,
 }));
 
 import InspectionsPage from './InspectionsPage';
@@ -114,7 +124,7 @@ describe('InspectionsPage', () => {
 
     await screen.findByRole('heading', { name: 'Evidence' });
     expect(screen.queryByText('Checklist')).toBeNull();
-    expect(screen.getByText(/checklist execution and inspection start belong to MF1\/MF2/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /mission preparation/i })).toBeTruthy();
     const file = new File(['evidence'], 'span.png', { type: 'image/png' });
     const fileInput = container.querySelector('input[type="file"]');
     expect(fileInput).not.toBeNull();

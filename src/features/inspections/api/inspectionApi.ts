@@ -228,6 +228,47 @@ export interface InspectionChecklistItem {
   completedAt: string | null;
 }
 
+export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY';
+
+export interface InspectionPreparation {
+  id: string;
+  inspectionId: string;
+  inspectorUserId: string;
+  preparationVersion: number;
+  shotList: string;
+  evidenceTypes: string | null;
+  accessConstraints: string | null;
+  safetyObservations: string | null;
+  permitDocumentReferences: string | null;
+  status: InspectionPreparationStatus;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComplianceBlocker {
+  code: string;
+  detail: string;
+}
+
+export interface ComplianceGate {
+  blockers: ComplianceBlocker[];
+  linkedPermitIds: string[];
+  requiresHumanVerification: boolean;
+}
+
+/**
+ * MF2-03 to MF2-07 preparation. The shot list and evidence types travel as JSON document strings
+ * rather than typed structures: the shape is agreed with the mobile client and pinning it here would
+ * make an ordinary client update a backend release.
+ */
+export interface PreparationInput {
+  shotList?: string;
+  evidenceTypes?: string;
+  accessConstraints?: string;
+  safetyObservations?: string;
+}
+
 export const inspectionApi = {
   list: (filters: InspectionListFilters) =>
     api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
@@ -235,6 +276,47 @@ export const inspectionApi = {
   listWithReports: (filters: InspectionListFilters) =>
     api
       .get<InspectionPage>('/inspections/with-reports', { params: filters })
+      .then((response) => response.data),
+
+  /**
+   * MF2-03 to MF2-07 preparation.
+   *
+   * <p>Newest version first, so the panel can offer the current submission rather than an older one
+   * the reviewer already returned.
+   */
+  listPreparations: (inspectionId: string) =>
+    api
+      .get<InspectionPreparation[]>(`/inspections/${inspectionId}/preparation`)
+      .then((response) => response.data),
+
+  prepareShotList: (inspectionId: string, input: PreparationInput) =>
+    api
+      .put<InspectionPreparation>(`/inspections/${inspectionId}/preparation`, input)
+      .then((response) => response.data),
+
+  submitPreparation: (inspectionId: string, preparationId: string, acknowledgment: string) =>
+    api
+      .post<InspectionPreparation>(
+        `/inspections/${inspectionId}/preparation/${preparationId}/submission`,
+        { acknowledgment },
+      )
+      .then((response) => response.data),
+
+  /** MF2-04: an administrator links a permit the organization actually holds. */
+  linkPermitReferences: (inspectionId: string, permitIds: string[]) =>
+    api
+      .post<InspectionPreparation>(`/inspections/${inspectionId}/preparation/compliance/permits`, {
+        permitIds,
+      })
+      .then((response) => response.data),
+
+  /**
+   * MF2-05. Returns the blocker list rather than failing, because MF2-07 needs every blocker at once
+   * and an empty list still means a named reviewer has to decide.
+   */
+  complianceGate: (inspectionId: string) =>
+    api
+      .get<ComplianceGate>(`/inspections/${inspectionId}/preparation/compliance`)
       .then((response) => response.data),
 
   // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.

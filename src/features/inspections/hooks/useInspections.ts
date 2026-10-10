@@ -6,6 +6,7 @@ import {
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
+  type PreparationInput,
   type ReviewCandidateInput,
 } from '../api/inspectionApi';
 
@@ -14,6 +15,10 @@ export const inspectionKeys = {
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
     [...inspectionKeys.all, 'list-with-reports', filters] as const,
+  preparations: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'preparations'] as const,
+  compliance: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'compliance'] as const,
   assignments: () => [...inspectionKeys.all, 'assignments'] as const,
   checklist: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'checklist'] as const,
@@ -74,6 +79,67 @@ export function useFindingCandidates(inspectionId: string | null) {
     queryKey: inspectionKeys.candidates(inspectionId ?? ''),
     queryFn: () => inspectionApi.listCandidates(inspectionId!),
     enabled: Boolean(inspectionId),
+  });
+}
+
+export function useInspectionPreparations(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.preparations(inspectionId ?? ''),
+    queryFn: () => inspectionApi.listPreparations(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+export function useComplianceGate(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.compliance(inspectionId ?? ''),
+    queryFn: () => inspectionApi.complianceGate(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+/**
+ * Saving a draft also refreshes the compliance gate: the gate reads the permit references recorded
+ * on the same preparation, so a stale gate after a save would tell the reviewer the wrong thing.
+ */
+export function usePrepareShotList() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inspectionId, input }: { inspectionId: string; input: PreparationInput }) =>
+      inspectionApi.prepareShotList(inspectionId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+    },
+  });
+}
+
+export function useSubmitPreparation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      acknowledgment,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      acknowledgment: string;
+    }) => inspectionApi.submitPreparation(inspectionId, preparationId, acknowledgment),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+    },
+  });
+}
+
+export function useLinkPermitReferences() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inspectionId, permitIds }: { inspectionId: string; permitIds: string[] }) =>
+      inspectionApi.linkPermitReferences(inspectionId, permitIds),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
+    },
   });
 }
 
