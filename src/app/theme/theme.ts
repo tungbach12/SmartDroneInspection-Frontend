@@ -1,7 +1,8 @@
-import { createTheme } from '@mui/material/styles';
+import { extendTheme } from '@mui/material/styles';
 import { layoutTokens, paletteTokens, statusTokens } from './tokens';
 
-export const theme = createTheme({
+export const theme = extendTheme({
+  colorSchemeSelector: 'data',
   colorSchemes: {
     light: {
       palette: {

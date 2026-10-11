@@ -2,21 +2,21 @@
 
 :root {
   --lytic-font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --lytic-bg-page: #f9fafb;
-  --lytic-bg-card: #ffffff;
-  --lytic-border: #e5e7eb;
-  --lytic-border-light: #f3f4f6;
-  --lytic-title: #1f2937;
-  --lytic-text: #6b7280;
-  --lytic-primary: #3758f9;
-  --lytic-primary-hover: #2237ee;
-  --lytic-primary-light: #eff3ff;
-  --lytic-success-bg: #dcfce7;
-  --lytic-success-text: #16a34a;
-  --lytic-error-bg: #fee2e2;
-  --lytic-error-text: #dc2626;
-  --lytic-warning-bg: #ffedd5;
-  --lytic-warning-text: #ea580c;
+  --lytic-bg-page: var(--mui-palette-background-default, #f9fafb);
+  --lytic-bg-card: var(--mui-palette-background-paper, #ffffff);
+  --lytic-border: var(--mui-palette-divider, #e5e7eb);
+  --lytic-border-light: color-mix(in srgb, var(--mui-palette-divider, #e5e7eb) 55%, transparent);
+  --lytic-title: var(--mui-palette-text-primary, #1f2937);
+  --lytic-text: var(--mui-palette-text-secondary, #6b7280);
+  --lytic-primary: var(--mui-palette-primary-main, #3758f9);
+  --lytic-primary-hover: var(--mui-palette-primary-dark, #2237ee);
+  --lytic-primary-light: color-mix(in srgb, var(--mui-palette-primary-main, #3758f9) 12%, transparent);
+  --lytic-success-bg: color-mix(in srgb, var(--mui-palette-success-main, #16a34a) 18%, transparent);
+  --lytic-success-text: var(--mui-palette-success-main, #16a34a);
+  --lytic-error-bg: color-mix(in srgb, var(--mui-palette-error-main, #dc2626) 18%, transparent);
+  --lytic-error-text: var(--mui-palette-error-main, #dc2626);
+  --lytic-warning-bg: color-mix(in srgb, var(--mui-palette-warning-main, #ea580c) 18%, transparent);
+  --lytic-warning-text: var(--mui-palette-warning-main, #ea580c);
 }
 
 * {
