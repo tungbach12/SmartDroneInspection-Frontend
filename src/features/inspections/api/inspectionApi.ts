@@ -39,7 +39,31 @@ export interface InspectionReportVersion {
   evidenceSnapshotHash: string | null;
   publishedAt: string | null;
   createdAt: string;
+  /** The document body as the author wrote it. Null for versions stored before it was exposed. */
+  narrative: string | null;
+  /** Why no automated drafting contributed, present on manual drafts only. */
+  omissionDisclosure: string | null;
+  /** Full raw JSON snapshot containing structured report fields & custom enterprise schemas. */
+  contentSnapshot?: string | null;
+  /**
+   * The authored Report 3 §3.7.2 sections. A null field is an absent section and is shown as "not
+   * supplied"; it is not an empty value the author chose.
+   */
+  sections?: ReportSections | null;
 }
+
+export type ReportOverallCondition = 'GOOD' | 'FAIR' | 'POOR' | 'CRITICAL';
+
+export interface ReportSections {
+  executiveSummary?: string | null;
+  purposeScopeCriteria?: string | null;
+  methodEquipmentConditions?: string | null;
+  conclusionsRecommendations?: string | null;
+  overallCondition?: ReportOverallCondition | null;
+  omissionDisclosure?: string | null;
+}
+
+export type ReportSectionsInput = ReportSections;
 
 export interface EvidenceItem {
   id: string;
@@ -192,21 +216,6 @@ export interface InspectionPage {
   pageSize: number;
   totalCount: number;
   totalPages: number;
-}
-
-export interface InspectionChecklistItem {
-  itemId: string;
-  itemCode: string;
-  sectionName: string | null;
-  prompt: string;
-  responseType: 'PASS_FAIL' | 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'CHOICE';
-  required: boolean;
-  displayOrder: number;
-  guidance: string | null;
-  validationConfig: string | null;
-  responseValue: { value?: unknown } | null;
-  notes: string | null;
-  completedAt: string | null;
 }
 
 export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY';
@@ -464,28 +473,6 @@ export const inspectionApi = {
       })
       .then((response) => response.data),
 
-  /**
-   * MF3 checklist items for an inspection.
-   *
-   * <p>Note this is not MF2's pre-flight checklist, which is recorded as a note when a field session
-   * starts. This is the inspection's checklist template.
-   */
-  checklist: (inspectionId: string) =>
-    api
-      .get<InspectionChecklistItem[]>(`/inspections/${inspectionId}/checklist`)
-      .then((response) => response.data),
-
-  saveChecklistResponse: (
-    inspectionId: string,
-    itemId: string,
-    responseValue: { value: unknown },
-  ) =>
-    api
-      .put(`/inspections/${inspectionId}/checklist-responses/${itemId}`, {
-        responseValue,
-      })
-      .then((response) => response.data),
-
   // MF3-01/02 evidence intake. The server computes the checksum and treats a repeat as idempotent.
   listEvidence: (inspectionId: string) =>
     api
@@ -502,7 +489,7 @@ export const inspectionApi = {
   },
 
   evidenceContentUrl: (inspectionId: string, evidenceId: string) =>
-    `/inspections/${inspectionId}/evidence/${evidenceId}/content`,
+    `${api.defaults.baseURL}/inspections/${inspectionId}/evidence/${evidenceId}/content`,
 
   // MF3-03/04: the assigned Inspector's own adequacy decision.
   decideEvidenceQuality: (
@@ -646,6 +633,40 @@ export const inspectionApi = {
     api
       .get<InspectionReportVersion>(
         `/inspections/${inspectionId}/report/versions/${versionId}`,
+      )
+      .then((response) => response.data),
+
+  /**
+   * MF3-08: saves the Report 3 §3.7.2 sections the author is accountable for. The whole authored
+   * set is sent so a partial write cannot leave a version half-updated.
+   */
+  saveReportSections: (
+    inspectionId: string,
+    versionId: string,
+    sections: ReportSectionsInput,
+  ) =>
+    api
+      .put<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/sections`,
+        sections,
+      )
+      .then((response) => response.data),
+
+  /** MF3-08: renders a draft for layout review. Not stored, not an official record. */
+  previewReport: (inspectionId: string, versionId: string) =>
+    api
+      .get<Blob>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/preview`,
+        { responseType: 'blob' },
+      )
+      .then((response) => response.data),
+
+  /** MF3-11: downloads the published deliverable stored at publication. */
+  downloadReport: (inspectionId: string, versionId: string) =>
+    api
+      .get<Blob>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/document`,
+        { responseType: 'blob' },
       )
       .then((response) => response.data),
 };
