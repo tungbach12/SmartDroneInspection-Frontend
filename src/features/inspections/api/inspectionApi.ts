@@ -148,15 +148,6 @@ export interface ManualDraftInput {
   omissionDisclosure?: string;
 }
 
-export interface InspectionAssignment {
-  assignmentId: string;
-  serviceOrderId: string;
-  assetId: string;
-  deadline: string | null;
-  status: string;
-  inspectionId: string | null;
-}
-
 export type InspectionStatus =
   | 'DRAFT'
   | 'ASSIGNED'
@@ -203,16 +194,6 @@ export interface InspectionPage {
   totalPages: number;
 }
 
-export interface StartedInspection {
-  inspectionId: string;
-  assignmentId: string;
-  serviceOrderId: string;
-  assetId: string;
-  checklistTemplateId: string;
-  status: string;
-  startedAt: string;
-}
-
 export interface InspectionChecklistItem {
   itemId: string;
   itemCode: string;
@@ -228,6 +209,141 @@ export interface InspectionChecklistItem {
   completedAt: string | null;
 }
 
+export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY';
+
+export interface InspectionPreparation {
+  id: string;
+  inspectionId: string;
+  inspectorUserId: string;
+  preparationVersion: number;
+  shotList: string;
+  evidenceTypes: string | null;
+  accessConstraints: string | null;
+  safetyObservations: string | null;
+  permitDocumentReferences: string | null;
+  status: InspectionPreparationStatus;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComplianceBlocker {
+  code: string;
+  detail: string;
+}
+
+export interface ComplianceGate {
+  blockers: ComplianceBlocker[];
+  linkedPermitIds: string[];
+  requiresHumanVerification: boolean;
+}
+
+/**
+ * MF2-03 to MF2-07 preparation. The shot list and evidence types travel as JSON document strings
+ * rather than typed structures: the shape is agreed with the mobile client and pinning it here would
+ * make an ordinary client update a backend release.
+ */
+export interface PreparationInput {
+  shotList?: string;
+  evidenceTypes?: string;
+  accessConstraints?: string;
+  safetyObservations?: string;
+}
+
+/**
+ * MF2-01/02: one Inspector–Drone pairing an administrator opened for this Inspector.
+ *
+ * The response carries the asset and Drone names and the validity window so a reviewer can judge the
+ * pairing without opening three other records, and the recorded response so the inbox can show what
+ * was already answered.
+ */
+export interface InspectorAssignment {
+  id: string;
+  organizationId: string;
+  assetId: string;
+  assetName: string;
+  inspectorUserId: string;
+  droneId: string;
+  droneSerialNumber: string;
+  droneServiceability: string;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+  reason: string | null;
+  assignmentResponse: 'ACCEPTED' | 'REJECTED' | null;
+  respondedAt: string | null;
+  assignedAt: string;
+}
+
+/** One credential the reviewer may rely on, as far as its stored record shows. */
+export interface ReviewCredential {
+  id: string;
+  credentialType: string;
+  issuer: string;
+  credentialReference: string;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  status: string;
+  verifiedByUserId?: string | null;
+  verifiedAt: string | null;
+  verificationReason?: string | null;
+}
+
+/** One Drone document the reviewer may rely on, as far as its stored record shows. */
+export interface ReviewDroneDocument {
+  id: string;
+  documentType: string;
+  issuer: string;
+  documentReference: string;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+  reviewedAt: string | null;
+}
+
+/**
+ * Everything MF2-07 asks the reviewer to look at, for one inspection. Without this the reviewer
+ * would have to type credential and document UUIDs, which is not a decision anyone records.
+ */
+export interface ReadinessSources {
+  inspectionId: string;
+  inspectorUserId: string | null;
+  droneId: string | null;
+  inspectorCredentials: ReviewCredential[];
+  droneDocuments: ReviewDroneDocument[];
+}
+
+export interface ApproveReadinessInput {
+  reviewerCredentialId: string;
+  inspectorCredentialIds: string[];
+  droneDocumentIds: string[];
+  applicabilityComplete: boolean;
+  applicabilityBasisReference: string;
+  /** Optional, but may be sent as undefined; the server treats blank as absent. */
+  noInspectorCredentialReason?: string | undefined;
+  noDroneDocumentReason?: string | undefined;
+  humanVerificationBasis?: string | undefined;
+}
+
+export interface ReturnReadinessInput {
+  reviewerCredentialId: string;
+  inspectorCredentialIdsObserved: string[];
+  droneDocumentIdsObserved: string[];
+  reason: string;
+}
+
+export interface ReadinessDecision {
+  id: string;
+  inspectionId: string;
+  preparationId: string | null;
+  preparationVersion: number | null;
+  decision: 'APPROVED' | 'RETURNED';
+  reviewedByUserId: string;
+  reason: string | null;
+  sourceHash: string;
+  decidedAt: string;
+}
+
 export const inspectionApi = {
   list: (filters: InspectionListFilters) =>
     api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
@@ -237,19 +353,123 @@ export const inspectionApi = {
       .get<InspectionPage>('/inspections/with-reports', { params: filters })
       .then((response) => response.data),
 
-  // MF2 scope, unchanged: the Inspector opens an accepted assignment and records checklist answers.
-  listAssignments: () =>
+  /**
+   * MF2-03 to MF2-07 preparation.
+   *
+   * <p>Newest version first, so the panel can offer the current submission rather than an older one
+   * the reviewer already returned.
+   */
+  listPreparations: (inspectionId: string) =>
     api
-      .get<InspectionAssignment[]>('/inspections/assignments', {
-        params: { status: 'ACCEPTED' },
+      .get<InspectionPreparation[]>(`/inspections/${inspectionId}/preparation`)
+      .then((response) => response.data),
+
+  prepareShotList: (inspectionId: string, input: PreparationInput) =>
+    api
+      .put<InspectionPreparation>(`/inspections/${inspectionId}/preparation`, input)
+      .then((response) => response.data),
+
+  submitPreparation: (inspectionId: string, preparationId: string, acknowledgment: string) =>
+    api
+      .post<InspectionPreparation>(
+        `/inspections/${inspectionId}/preparation/${preparationId}/submission`,
+        { acknowledgment },
+      )
+      .then((response) => response.data),
+
+  /** MF2-04: an administrator links a permit the organization actually holds. */
+  linkPermitReferences: (inspectionId: string, permitIds: string[]) =>
+    api
+      .post<InspectionPreparation>(`/inspections/${inspectionId}/preparation/compliance/permits`, {
+        permitIds,
       })
       .then((response) => response.data),
 
-  start: (assignmentId: string) =>
+  /**
+   * MF2-05. Returns the blocker list rather than failing, because MF2-07 needs every blocker at once
+   * and an empty list still means a named reviewer has to decide.
+   */
+  complianceGate: (inspectionId: string) =>
     api
-      .post<StartedInspection>('/inspections/start', { assignmentId })
+      .get<ComplianceGate>(`/inspections/${inspectionId}/preparation/compliance`)
       .then((response) => response.data),
 
+  /**
+   * MF2-07: the caller's own credentials, which an approval must reference.
+   *
+   * <p>The route takes no id or organization parameter, so a client cannot ask about anyone else.
+   */
+  myCredentials: () =>
+    api
+      .get<ReviewCredential[]>('/workforce/credentials/me')
+      .then((response) => response.data),
+
+  /** MF2-07: the assigned Inspector's credentials and the assigned Drone's documents. */
+  readinessSources: (inspectionId: string) =>
+    api
+      .get<ReadinessSources>(`/inspections/${inspectionId}/readiness/sources`)
+      .then((response) => response.data),
+
+  approveReadiness: (
+    inspectionId: string,
+    preparationId: string,
+    input: ApproveReadinessInput,
+  ) =>
+    api
+      .post<ReadinessDecision>(
+        `/inspections/${inspectionId}/readiness/${preparationId}/approval`,
+        input,
+      )
+      .then((response) => response.data),
+
+  returnReadiness: (
+    inspectionId: string,
+    preparationId: string,
+    input: ReturnReadinessInput,
+  ) =>
+    api
+      .post<ReadinessDecision>(
+        `/inspections/${inspectionId}/readiness/${preparationId}/return`,
+        input,
+      )
+      .then((response) => response.data),
+
+  /**
+   * MF2-01: the pairings an administrator opened for this Inspector that are still unanswered.
+   *
+   * <p>This replaces the earlier `listAssignments`, which called `/inspections/assignments` — an
+   * endpoint this backend does not have. Accepting is not readiness: it records that the Inspector
+   * took the job, and MF2-07 decides separately whether the mission may fly.
+   */
+  listMyAssignments: () =>
+    api
+      .get<InspectorAssignment[]>('/inspection-assignments/mine')
+      .then((response) => response.data),
+
+  getAssignment: (assignmentId: string) =>
+    api
+      .get<InspectorAssignment>(`/inspection-assignments/${assignmentId}`)
+      .then((response) => response.data),
+
+  /** MF2-02: recording the answer. A decline needs a reason the Inspector writes. */
+  respondToAssignment: (
+    assignmentId: string,
+    response: 'ACCEPTED' | 'REJECTED',
+    rejectionReason?: string,
+  ) =>
+    api
+      .post<InspectorAssignment>(`/inspection-assignments/${assignmentId}/response`, {
+        response,
+        rejectionReason,
+      })
+      .then((response) => response.data),
+
+  /**
+   * MF3 checklist items for an inspection.
+   *
+   * <p>Note this is not MF2's pre-flight checklist, which is recorded as a note when a field session
+   * starts. This is the inspection's checklist template.
+   */
   checklist: (inspectionId: string) =>
     api
       .get<InspectionChecklistItem[]>(`/inspections/${inspectionId}/checklist`)

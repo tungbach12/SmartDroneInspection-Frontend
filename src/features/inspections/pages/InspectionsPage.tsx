@@ -24,6 +24,9 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { InspectionListTable } from '../components/InspectionListTable';
+import AssignmentInboxPanel from './AssignmentInboxPanel';
+import InspectionPreparationPanel from './InspectionPreparationPanel';
+import ReadinessReviewPanel from './ReadinessReviewPanel';
 import {
   useAnalyzeEvidence,
   useAuthorManualDraft,
@@ -33,6 +36,7 @@ import {
   useFindingCandidates,
   useGenerateReportDraft,
   useInspectionEvidence,
+  useInspectionPreparations,
   useInspections,
   useReviewFindingCandidate,
   useUploadInspectionEvidence,
@@ -41,6 +45,7 @@ import {
 export default function InspectionsPage() {
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
+  const isReviewer = roles.includes('ORG_ADMIN');
   // The list endpoint serves Inspectors, same-org ORG_ADMINs and platform ADMINs. The evidence
   // workspace below it stays Inspector-only, because uploading and deciding are assigned acts.
   const canBrowse = isInspector || roles.includes('ORG_ADMIN') || roles.includes('ADMIN');
@@ -58,6 +63,11 @@ export default function InspectionsPage() {
   const evidence = useInspectionEvidence(activeInspectionId);
   const quality = useEvidenceQualityHistory(activeInspectionId);
   const candidates = useFindingCandidates(activeInspectionId);
+  const preparations = useInspectionPreparations(activeInspectionId);
+  // MF2-07 reviews one specific version, so the review panel is pointed at the version on screen
+  // rather than whatever a later submission might become.
+  const activePreparation = preparations.data?.[0];
+  const activePreparationId = activePreparation?.id ?? null;
   const upload = useUploadInspectionEvidence(activeInspectionId);
   const decideQuality = useDecideEvidenceQuality(activeInspectionId);
   const analyze = useAnalyzeEvidence(activeInspectionId);
@@ -100,6 +110,11 @@ export default function InspectionsPage() {
         title="Inspections"
         subtitle="Review field evidence, record findings, and prepare inspection reports"
       />
+
+      {/* MF2-01/02 comes first: without an answered pairing there is nothing to prepare. */}
+      <Box sx={{ mb: 2.5 }}>
+        <AssignmentInboxPanel />
+      </Box>
 
       {!canBrowse ? (
         <Alert severity="info">
@@ -156,9 +171,22 @@ export default function InspectionsPage() {
           ) : (
             <Stack spacing={2}>
               <Alert severity="info">
-                This workspace starts at MF3 evidence review. Checklist execution and inspection
-                start belong to MF1/MF2 and are not available in this backend.
+                MF2 preparation comes first: record the shot-list and hazards, submit it, and an
+                organization reviewer decides whether this mission may fly. Evidence review below
+                starts once field work has happened.
               </Alert>
+
+              <InspectionPreparationPanel
+                inspectionId={activeInspectionId}
+                isInspector={isInspector}
+              />
+
+              {isReviewer && activePreparationId ? (
+                <ReadinessReviewPanel
+                  inspectionId={activeInspectionId}
+                  preparationId={activePreparationId}
+                />
+              ) : null}
 
               <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>

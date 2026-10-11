@@ -3,17 +3,29 @@ import {
   inspectionApi,
   type EvidenceQualityDecisionType,
   type FindingDecision,
+  type ApproveReadinessInput,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
+  type PreparationInput,
+  type ReturnReadinessInput,
   type ReviewCandidateInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
+  myCredentials: () => [...inspectionKeys.all, 'my-credentials'] as const,
+  readinessSources: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'readiness-sources'] as const,
+  readinessDecisions: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'readiness-decisions'] as const,
   all: ['inspections'] as const,
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
     [...inspectionKeys.all, 'list-with-reports', filters] as const,
+  preparations: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'preparations'] as const,
+  compliance: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'compliance'] as const,
   assignments: () => [...inspectionKeys.all, 'assignments'] as const,
   checklist: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'checklist'] as const,
@@ -45,11 +57,35 @@ export function useInspectionsWithReports(filters: InspectionListFilters, enable
   });
 }
 
-export function useInspectionAssignments(enabled = true) {
+/** MF2-01: pairings an administrator opened for this Inspector that are still unanswered. */
+export function useAssignmentInbox(enabled = true) {
   return useQuery({
     queryKey: inspectionKeys.assignments(),
-    queryFn: inspectionApi.listAssignments,
+    queryFn: inspectionApi.listMyAssignments,
     enabled,
+  });
+}
+
+/**
+ * MF2-02: recording the answer to a pairing.
+ *
+ * <p>A decline suspends the pairing, so the inbox is refetched afterwards rather than patched: the
+ * answered row must leave the list the server decides it belongs to.
+ */
+export function useRespondToAssignment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      assignmentId,
+      response,
+      rejectionReason,
+    }: {
+      assignmentId: string;
+      response: 'ACCEPTED' | 'REJECTED';
+      /** Optional, but may be sent as undefined; the server treats blank as absent. */
+      rejectionReason?: string | undefined;
+    }) => inspectionApi.respondToAssignment(assignmentId, response, rejectionReason),
+    onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
   });
 }
 
@@ -77,11 +113,128 @@ export function useFindingCandidates(inspectionId: string | null) {
   });
 }
 
-export function useStartInspection() {
+export function useMyCredentials(enabled = true) {
+  return useQuery({
+    queryKey: inspectionKeys.myCredentials(),
+    queryFn: inspectionApi.myCredentials,
+    enabled,
+  });
+}
+
+export function useReadinessSources(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.readinessSources(inspectionId ?? ''),
+    queryFn: () => inspectionApi.readinessSources(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+/**
+ * A decision invalidates the preparation, the compliance gate and the source lists the reviewer was
+ * looking at, so all of them are refreshed. Leaving the gate stale would let a reviewer approve
+ * against blockers the decision itself has changed.
+ */
+export function useApproveReadiness() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: inspectionApi.start,
-    onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      input,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      input: ApproveReadinessInput;
+    }) => inspectionApi.approveReadiness(inspectionId, preparationId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      invalidateReadiness(client, inspectionId);
+    },
+  });
+}
+
+export function useReturnReadiness() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      input,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      input: ReturnReadinessInput;
+    }) => inspectionApi.returnReadiness(inspectionId, preparationId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      invalidateReadiness(client, inspectionId);
+    },
+  });
+}
+
+function invalidateReadiness(client: ReturnType<typeof useQueryClient>, inspectionId: string) {
+  client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.readinessSources(inspectionId) });
+  client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+}
+
+export function useInspectionPreparations(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.preparations(inspectionId ?? ''),
+    queryFn: () => inspectionApi.listPreparations(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+export function useComplianceGate(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.compliance(inspectionId ?? ''),
+    queryFn: () => inspectionApi.complianceGate(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+/**
+ * Saving a draft also refreshes the compliance gate: the gate reads the permit references recorded
+ * on the same preparation, so a stale gate after a save would tell the reviewer the wrong thing.
+ */
+export function usePrepareShotList() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inspectionId, input }: { inspectionId: string; input: PreparationInput }) =>
+      inspectionApi.prepareShotList(inspectionId, input),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+    },
+  });
+}
+
+export function useSubmitPreparation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      inspectionId,
+      preparationId,
+      acknowledgment,
+    }: {
+      inspectionId: string;
+      preparationId: string;
+      acknowledgment: string;
+    }) => inspectionApi.submitPreparation(inspectionId, preparationId, acknowledgment),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+    },
+  });
+}
+
+export function useLinkPermitReferences() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inspectionId, permitIds }: { inspectionId: string; permitIds: string[] }) =>
+      inspectionApi.linkPermitReferences(inspectionId, permitIds),
+    onSuccess: (_result, { inspectionId }) => {
+      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
+    },
   });
 }
 
