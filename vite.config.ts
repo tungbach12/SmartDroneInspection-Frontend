@@ -15,5 +15,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // `.claude/` holds agent scratch and nested worktree checkouts, not product source; without
+    // this a focused run also executes stale copies of tests from those directories.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'],
   },
 });

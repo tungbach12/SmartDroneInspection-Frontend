@@ -54,6 +54,9 @@ const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
+const WorkforcePage = lazy(
+  () => import('@/features/workforce/pages/WorkforcePage'),
+);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -63,6 +66,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
+  workforce: <WorkforcePage />,
 };
 
 function PortalEntryRedirect() {
