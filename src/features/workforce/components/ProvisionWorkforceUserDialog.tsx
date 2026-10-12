@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import {
-  Alert,
   Button,
   Checkbox,
   Dialog,
@@ -27,7 +26,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface ProvisionWorkforceUserDialogProps {
   pending: boolean;
-  errorMessage: string | null;
   onClose: () => void;
   onSubmit: (input: ProvisionWorkforceUserInput) => void;
 }
@@ -53,7 +51,6 @@ export function ProvisionWorkforceUserDialog(props: ProvisionWorkforceUserDialog
 
 function ProvisionForm({
   pending,
-  errorMessage,
   onClose,
   onSubmit,
 }: ProvisionWorkforceUserDialogProps) {
@@ -109,7 +106,6 @@ function ProvisionForm({
       <DialogTitle>Provision a workforce user</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           <TextField
             required
             label="Email"
