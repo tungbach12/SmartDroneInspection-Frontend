@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
+import { renderWithRouter as render } from '@/test/renderWithRouter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import type { Role } from '@/features/auth/store/authStore';
@@ -10,6 +11,8 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
   inspectionApi: {
     listWithReports: vi.fn(),
     listVersions: vi.fn(),
+    listFindings: vi.fn(),
+    listEvidence: vi.fn(),
     verifyVersion: vi.fn(),
     submitVersion: vi.fn(),
     reviewVersion: vi.fn(),
@@ -45,27 +48,6 @@ function renderPage() {
   );
 }
 
-function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.listVersions>>[number]>) {
-  return {
-    id: 'version-1',
-    inspectionReportId: 'report-1',
-    versionNo: 1,
-    status: 'SUBMITTED' as const,
-    authorUserId: 'someone-else',
-    authorVerifiedAt: '2026-10-01T10:00:00Z',
-    reviewerUserId: null,
-    reviewedAt: null,
-    reviewReason: null,
-    llmModel: 'test-model',
-    promptVersion: 'mf3-report-v1',
-    generatedAt: '2026-10-01T09:00:00Z',
-    evidenceSnapshotHash: 'abcdef1234567890',
-    publishedAt: null,
-    createdAt: '2026-10-01T09:00:00Z',
-    ...overrides,
-  };
-}
-
 function listedInspection(id = 'inspection-1') {
   return {
     id,
@@ -84,11 +66,7 @@ function listedInspection(id = 'inspection-1') {
   };
 }
 
-async function loadVersions(inspectionId = 'inspection-1') {
-  fireEvent.click(await screen.findByRole('row', { name: new RegExp(inspectionId.slice(0, 8)) }));
-}
-
-describe('ReportsPage MF3 gates', () => {
+describe('ReportsPage', () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -102,120 +80,30 @@ describe('ReportsPage MF3 gates', () => {
     setRole(['ORG_ADMIN']);
   });
 
-  it('prompts for an inspection before showing any version', () => {
+  it('renders top KPI metric cards and report records table', async () => {
     renderPage();
 
-    expect(screen.getByText('No inspection selected')).toBeTruthy();
-    expect(mockedApi.listVersions).not.toHaveBeenCalled();
+    expect(screen.getByText('Reports')).toBeTruthy();
+    expect(screen.getByText('Total Reports')).toBeTruthy();
+    expect(screen.getByText('In Review')).toBeTruthy();
+    expect(screen.getByText('Approved')).toBeTruthy();
+    expect(screen.getByText('Published')).toBeTruthy();
+
+    expect(await screen.findByText('Inspect the main span')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy();
   });
 
-  it('offers approve and return-with-reason to the reviewer on a submitted version', async () => {
-    mockedApi.listVersions.mockResolvedValue([version({})]);
-
-    renderPage();
-    loadVersions();
-
-    expect(await screen.findByText(/Version 1/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
-
-    // Returning requires a reason, so the button stays disabled until one is typed.
-    const returnButton = screen.getByRole('button', {
-      name: 'Return with reason',
-    }) as HTMLButtonElement;
-    expect(returnButton.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText('Reason for return'), {
-      target: { value: 'The east face coverage is not disclosed' },
-    });
-    expect(returnButton.disabled).toBe(false);
-
-    fireEvent.click(returnButton);
-    await waitFor(() =>
-      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
-    );
-  });
-
-  it('marks a published version immutable and offers no further action', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({
-        status: 'PUBLISHED',
-        versionNo: 2,
-        authorUserId: 'user-1',
-        reviewerUserId: 'user-2',
-        reviewedAt: '2026-10-01T11:00:00Z',
-        publishedAt: '2026-10-01T12:00:00Z',
-      }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    expect(await screen.findByText('Immutable')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Publish immutable version' })).toBeNull();
-  });
-
-  it('lets the Inspector author verify a draft', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'DRAFT', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the verified Inspector submit the version for review', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'AUTHOR_VERIFIED', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
-    await waitFor(() =>
-      expect(mockedApi.submitVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('hides review actions from an Inspector', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([version({})]);
-
-    renderPage();
-    loadVersions();
-
-    await screen.findByText(/Version 1/);
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
-    expect(screen.queryByLabelText('Reason for return')).toBeNull();
-  });
-
-  it('reports a no-repair publication without inventing corrective work', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'APPROVED', authorUserId: 'someone-else' }),
-    ]);
-    mockedApi.publishVersion.mockResolvedValue({
-      reportVersionId: 'version-1',
-      versionNo: 1,
-      publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: [],
-      inspectionStatus: 'COMPLETED',
+  it('displays empty state when no reports exist', async () => {
+    mockedApi.listWithReports.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalCount: 0,
+      totalPages: 0,
     });
 
     renderPage();
-    loadVersions();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/No corrective work was required/)).toBeTruthy(),
-    );
+    expect(await screen.findByText('No reports to review')).toBeTruthy();
   });
 });

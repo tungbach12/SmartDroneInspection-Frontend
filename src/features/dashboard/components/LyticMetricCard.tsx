@@ -10,13 +10,14 @@ import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 
 export interface LyticMetricCardProps {
   label: string;
   value: string;
-  change: string;
-  positive: boolean;
-  subtext: string;
+  change?: string;
+  positive?: boolean;
+  subtext?: string;
   iconType?: string;
 }
 
@@ -24,12 +25,12 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
   label,
   value,
   change,
-  positive,
+  positive = true,
   subtext,
   iconType,
 }) => {
   const renderIcon = () => {
-    const iconProps = { sx: { fontSize: 20, color: 'var(--lytic-primary, #3758F9)' } };
+    const iconProps = { sx: { fontSize: 20 } };
     switch (iconType) {
       case 'building':
         return <ApartmentOutlined {...iconProps} />;
@@ -49,11 +50,32 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
         return <BuildOutlined {...iconProps} />;
       case 'clock':
         return <AccessTimeRounded {...iconProps} />;
+      case 'report':
+        return <FactCheckOutlined {...iconProps} />;
       case 'shield':
       default:
         return <ShieldOutlined {...iconProps} />;
     }
   };
+
+  // Color theme for the icon box based on icon type
+  const getIconTheme = () => {
+    switch (iconType) {
+      case 'check-circle':
+        return { bg: '#ECFDF3', color: '#12B76A' };
+      case 'alert':
+        return { bg: '#FEF3F2', color: '#F04438' };
+      case 'wrench':
+        return { bg: '#FFFAEB', color: '#F79009' };
+      case 'plane':
+      case 'report':
+      case 'building':
+      default:
+        return { bg: '#EFF8FF', color: '#2E90FA' };
+    }
+  };
+
+  const iconTheme = getIconTheme();
 
   return (
     <Box
@@ -61,40 +83,31 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
       role="group"
       aria-label={`${label}: ${value}`}
       sx={{
-        backgroundColor: 'var(--lytic-bg-card, #ffffff)',
-        border: '1px solid var(--lytic-border, #e5e7eb)',
-        borderRadius: '12px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #eaecf0',
+        borderRadius: '16px',
+        p: { xs: 2, sm: 2.5 },
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03)',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         '&:hover': {
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04)',
         },
       }}
     >
-      {/* Top row with icon & title */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)',
-          px: 1.5,
-          py: 1.25,
-        }}
-      >
+      {/* Top row: icon & title */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
         <Box
           sx={{
             display: 'flex',
-            width: 36,
-            height: 36,
-            border: '1px solid var(--lytic-border-light, #f3f4f6)',
+            width: 38,
+            height: 38,
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: '8px',
-            bgcolor: 'var(--lytic-primary-light, #eff3ff)',
+            borderRadius: '10px',
+            bgcolor: iconTheme.bg,
+            color: iconTheme.color,
             flexShrink: 0,
           }}
         >
@@ -103,61 +116,59 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
         <Typography
           variant="body2"
           sx={{
-            color: 'var(--lytic-text, #6b7280)',
-            fontSize: '14px',
+            color: '#475467',
+            fontSize: '0.875rem',
             fontWeight: 500,
-            lineHeight: 1.2,
+            lineHeight: 1.3,
           }}
         >
           {label}
         </Typography>
       </Box>
 
-      {/* Bottom section with big value, trend pill, and subtext */}
-      <Box sx={{ px: 2, py: 1.5 }}>
-        <Typography
-          component="p"
-          sx={{
-            color: 'var(--lytic-title, #1f2937)',
-            fontSize: { xs: '22px', sm: '24px' },
-            fontWeight: 700,
-            letterSpacing: '-0.025em',
-            lineHeight: '32px',
-            mb: 1.5,
-          }}
-        >
-          {value}
-        </Typography>
+      {/* Middle: large bold value */}
+      <Typography
+        component="p"
+        sx={{
+          color: '#101828',
+          fontSize: { xs: '1.625rem', sm: '1.875rem' },
+          fontWeight: 700,
+          letterSpacing: '-0.025em',
+          lineHeight: 1.2,
+          mb: 1.5,
+        }}
+      >
+        {value}
+      </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+      {/* Bottom: trend pill & subtext */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        {change && (
           <Box
             component="span"
             sx={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 0.5,
               borderRadius: '9999px',
               fontWeight: 500,
               py: '2px',
               px: '8px',
               fontSize: '12px',
-              bgcolor: positive
-                ? 'var(--lytic-success-bg, #dcfce7)'
-                : 'var(--lytic-error-bg, #fee2e2)',
-              color: positive
-                ? 'var(--lytic-success-text, #16a34a)'
-                : 'var(--lytic-error-text, #dc2626)',
+              bgcolor: positive ? '#ECFDF3' : '#FEF3F2',
+              color: positive ? '#027A48' : '#B42318',
               lineHeight: 1.4,
               flexShrink: 0,
             }}
           >
             {change}
           </Box>
+        )}
 
+        {subtext && (
           <Typography
             variant="caption"
             sx={{
-              color: 'var(--lytic-text, #6b7280)',
+              color: '#667085',
               fontSize: '12px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -166,7 +177,7 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
           >
             {subtext}
           </Typography>
-        </Box>
+        )}
       </Box>
     </Box>
   );

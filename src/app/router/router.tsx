@@ -51,6 +51,12 @@ const InspectionsPage = lazy(
   () => import('@/features/inspections/pages/InspectionsPage'),
 );
 const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
+const ReportDetailPage = lazy(
+  () => import('@/features/reports/pages/ReportDetailPage'),
+);
+const InspectionDetailPage = lazy(
+  () => import('@/features/inspections/pages/InspectionDetailPage'),
+);
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
@@ -120,6 +126,22 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
             },
           ]
         : []),
+      {
+        path: 'inspections/:inspectionId',
+        element: (
+          <RequireAuth roles={getSectionRoles(portal, 'inspections')}>
+            <InspectionDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'reports/:inspectionId',
+        element: (
+          <RequireAuth roles={getSectionRoles(portal, 'reports')}>
+            <ReportDetailPage />
+          </RequireAuth>
+        ),
+      },
       {
         path: 'account/security',
         element: <AccountSecurityPage />,

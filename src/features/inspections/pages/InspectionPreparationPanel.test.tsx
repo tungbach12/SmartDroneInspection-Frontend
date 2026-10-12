@@ -45,10 +45,12 @@ vi.mock('../hooks/useInspections', () => ({
   usePrepareShotList: () => mocks.prepare,
   useSubmitPreparation: () => mocks.submit,
   useLinkPermitReferences: () => mocks.linkPermits,
-  useComplianceGate: () => mocks.compliance,
+  // Spy so a test can assert the hook was never reached, which is what keeps the 403 off the wire.
+  useComplianceGate: vi.fn(() => mocks.compliance),
 }));
 
 import InspectionPreparationPanel from './InspectionPreparationPanel';
+import { useComplianceGate } from '../hooks/useInspections';
 
 const INSPECTION_ID = 'inspection-1';
 
@@ -192,6 +194,28 @@ describe('InspectionPreparationPanel', () => {
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
 
     expect(screen.getByText(/PERMIT_MISSING/)).toBeTruthy();
+  });
+
+  it('does not ask an inspector for the compliance gate the backend scopes to ORG_ADMIN', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [];
+    vi.mocked(useComplianceGate).mockClear();
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    // The hook is what issues the request, so not reaching it is what keeps the 403 off the wire.
+    expect(vi.mocked(useComplianceGate)).not.toHaveBeenCalled();
+    expect(screen.queryByText(/PERMIT_MISSING/)).toBeNull();
+  });
+
+  it('still reads the gate for a compliance officer', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.preparationsQuery.data = [];
+    vi.mocked(useComplianceGate).mockClear();
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
+
+    expect(vi.mocked(useComplianceGate)).toHaveBeenCalledWith(INSPECTION_ID);
   });
 
   it('hides the preparation editor from a reader who is not the assigned inspector', () => {

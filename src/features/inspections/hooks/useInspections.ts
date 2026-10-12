@@ -10,6 +10,7 @@ import {
   type PreparationInput,
   type ReturnReadinessInput,
   type ReviewCandidateInput,
+  type ReportSectionsInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
@@ -27,8 +28,6 @@ export const inspectionKeys = {
   compliance: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'compliance'] as const,
   assignments: () => [...inspectionKeys.all, 'assignments'] as const,
-  checklist: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'checklist'] as const,
   evidence: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'evidence'] as const,
   evidenceQuality: (inspectionId: string) =>
@@ -39,6 +38,8 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'findings'] as const,
   reportVersions: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
+  reportVersion: (inspectionId: string, versionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'report-version', versionId] as const,
 };
 
 export function useInspections(filters: InspectionListFilters, enabled = true) {
@@ -86,14 +87,6 @@ export function useRespondToAssignment() {
       rejectionReason?: string | undefined;
     }) => inspectionApi.respondToAssignment(assignmentId, response, rejectionReason),
     onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
-  });
-}
-
-export function useInspectionChecklist(inspectionId: string | null) {
-  return useQuery({
-    queryKey: inspectionKeys.checklist(inspectionId ?? ''),
-    queryFn: () => inspectionApi.checklist(inspectionId!),
-    enabled: Boolean(inspectionId),
   });
 }
 
@@ -238,19 +231,6 @@ export function useLinkPermitReferences() {
   });
 }
 
-export function useSaveChecklistResponse(inspectionId: string | null) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ itemId, value }: { itemId: string; value: { value: unknown } }) =>
-      inspectionApi.saveChecklistResponse(inspectionId!, itemId, value),
-    onSuccess: () => {
-      if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.checklist(inspectionId) });
-      }
-    },
-  });
-}
-
 export function useUploadInspectionEvidence(inspectionId: string | null) {
   const client = useQueryClient();
   return useMutation({
@@ -390,6 +370,27 @@ export function useAuthorManualDraft(inspectionId: string | null) {
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+      }
+    },
+  });
+}
+
+/**
+ * MF3-08: the author saves the Report 3 §3.7.2 sections they are accountable for.
+ *
+ * <p>Saving edits an existing draft version in place; it does not create a new version.
+ */
+export function useSaveReportSections(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { versionId: string; sections: ReportSectionsInput }) =>
+      inspectionApi.saveReportSections(inspectionId!, input.versionId, input.sections),
+    onSuccess: (_data, input) => {
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({
+          queryKey: inspectionKeys.reportVersion(inspectionId, input.versionId),
+        });
       }
     },
   });
