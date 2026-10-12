@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +14,8 @@ const users: { data: WorkforceUser[] | undefined; isLoading: boolean; error: unk
 const refetch = vi.fn();
 const updateStatus = vi.fn();
 const updateRoles = vi.fn();
+const provisionReset = vi.fn();
+const rolesReset = vi.fn();
 let provisionState: { isPending: boolean; isError: boolean; error: unknown };
 
 vi.mock('../hooks/useWorkforce', () => ({
@@ -23,9 +26,9 @@ vi.mock('../hooks/useWorkforce', () => ({
     error: users.error,
     refetch,
   }),
-  useProvisionWorkforceUser: () => ({ mutate: provisionUser, isPending: provisionState.isPending, isError: provisionState.isError, error: provisionState.error }),
+  useProvisionWorkforceUser: () => ({ mutate: provisionUser, reset: provisionReset, isPending: provisionState.isPending, isError: provisionState.isError, error: provisionState.error }),
   useUpdateWorkforceUserStatus: () => ({ mutate: updateStatus, isPending: false, isError: false, error: null }),
-  useUpdateWorkforceUserRoles: () => ({ mutate: updateRoles, isPending: false, isError: false, error: null }),
+  useUpdateWorkforceUserRoles: () => ({ mutate: updateRoles, reset: rolesReset, isPending: false, isError: false, error: null }),
 }));
 
 import WorkforcePage from './WorkforcePage';
@@ -236,6 +239,41 @@ describe('WorkforcePage users tab', () => {
     // Closing the surface is what discards it: the credential is unreachable from the page.
     expect(screen.queryByDisplayValue('Temp-Password-1')).toBeNull();
     expect(document.body.innerHTML).not.toContain('Temp-Password-1');
+    // The page also resets the mutation so TanStack drops the result from its MutationCache.
+    expect(provisionReset).toHaveBeenCalled();
+  });
+
+  it('clears a failed provision error when the dialog is reopened', async () => {
+    provisionState = {
+      isPending: false,
+      isError: true,
+      error: new AxiosError(
+        'Email is already in use.',
+        AxiosError.ERR_BAD_REQUEST,
+        undefined,
+        undefined,
+        { status: 409, data: { code: 'EMAIL_ALREADY_EXISTS', detail: 'Email is already in use.' } } as never,
+      ),
+    };
+
+    renderPage();
+    await openProvisionDialog();
+
+    // The dialog is a modal, so the page-level alert is aria-hidden while it is open. Read the
+    // DOM text directly rather than the accessible tree.
+    expect(document.body.textContent).toContain('Email is already in use.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Provision a workforce user' })).toBeNull(),
+    );
+
+    // reset on close is what prevents a reopened blank form from inheriting the last failure.
+    expect(provisionReset).toHaveBeenCalled();
+
+    provisionState = { isPending: false, isError: false, error: null };
+    await openProvisionDialog();
+    expect(document.body.textContent).not.toContain('Email is already in use.');
   });
 
   it('clears the temporary password when the page unmounts with the dialog open', async () => {

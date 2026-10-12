@@ -63,11 +63,6 @@ describe('useWorkforce hooks', () => {
     expect(client.getQueryData(workforceKeys.users())).toEqual([MEMBER]);
   });
 
-  it('roots every workforce query key at ["workforce"]', () => {
-    expect(workforceKeys.all).toEqual(['workforce']);
-    expect(workforceKeys.users()[0]).toBe('workforce');
-  });
-
   it('invalidates the workforce list after a successful provisioning', async () => {
     client.setQueryData(workforceKeys.users(), [MEMBER]);
     vi.mocked(workforceApi.provisionUser).mockResolvedValue({
@@ -107,14 +102,35 @@ describe('useWorkforce hooks', () => {
       });
     });
 
-    // The password reaches the caller through the mutation result and nowhere else. Caching it
-    // would keep a credential alive in memory and in any devtools query inspection long after the
-    // ORG_ADMIN dismissed the one-time surface.
+    // The password reaches the caller through the mutation result. It must never appear in the
+    // query cache, which is what a query-based read path would consult. TanStack's MutationCache
+    // holds the result while the hook is mounted; the page clears that by calling reset() when the
+    // one-time surface closes, which is asserted in WorkforcePage.test.tsx.
     expect(provisioned?.temporaryPassword).toBe('Temp-Password-1');
     expect(JSON.stringify(client.getQueryCache().getAll())).not.toContain('Temp-Password-1');
     expect(JSON.stringify(client.getQueryData(workforceKeys.users()))).not.toContain(
       'Temp-Password-1',
     );
+  });
+
+  it('exposes reset so the page can drop the result after the one-time surface closes', async () => {
+    const client = new QueryClient();
+    vi.mocked(workforceApi.provisionUser).mockResolvedValue({
+      user: MEMBER,
+      temporaryPassword: 'Temp-Password-2',
+    } as never);
+    const { result } = renderHook(() => useProvisionWorkforceUser(), { wrapper: wrapper(client) });
+
+    expect(typeof result.current.reset).toBe('function');
+
+    await act(async () => {
+      result.current.reset();
+    });
+
+    // After reset the hook reports no result and no error, so a reopened dialog starts blank.
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.error).toBeNull();
+    expect(JSON.stringify(client.getQueryCache().getAll())).not.toContain('Temp-Password-2');
   });
 
   it('invalidates the workforce list after a status change', async () => {

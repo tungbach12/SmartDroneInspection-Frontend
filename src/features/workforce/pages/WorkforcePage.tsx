@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { PersonAddAlt } from '@mui/icons-material';
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -13,7 +12,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { getErrorMessage } from '@/shared/api/errorMessage';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -127,9 +125,19 @@ export default function WorkforcePage() {
       />
 
       <MutationProblemAlert
+        isError={provision.isError}
+        error={provision.error}
+        fallbackMessage="Could not provision this workforce user."
+      />
+      <MutationProblemAlert
         isError={updateStatus.isError}
         error={updateStatus.error}
         fallbackMessage="Could not update this workforce user."
+      />
+      <MutationProblemAlert
+        isError={updateRoles.isError}
+        error={updateRoles.error}
+        fallbackMessage="Could not update these roles."
       />
 
       <QueryState
@@ -161,12 +169,14 @@ export default function WorkforcePage() {
       {provisionOpen && (
         <ProvisionWorkforceUserDialog
           pending={provision.isPending}
-          errorMessage={
-            provision.isError
-              ? getErrorMessage(provision.error, 'Could not provision this workforce user.')
-              : null
-          }
-          onClose={() => setProvisionOpen(false)}
+          onClose={() => {
+            // Closing a failed provision must not leave its error on the next blank form, and a
+            // successful provision must not leave the mutation record holding the one-time
+            // password: TanStack keeps every resolved mutation value in its MutationCache until
+            // reset, so "shown once" is only true once this clears it.
+            provision.reset();
+            setProvisionOpen(false);
+          }}
           onSubmit={(input: ProvisionWorkforceUserInput) =>
             provision.mutate(input, {
               onSuccess: (created) => {
@@ -187,7 +197,10 @@ export default function WorkforcePage() {
           open
           email={issued.email}
           temporaryPassword={issued.temporaryPassword}
-          onClose={() => setIssued(null)}
+          onClose={() => {
+            provision.reset();
+            setIssued(null);
+          }}
         />
       )}
 
@@ -195,16 +208,17 @@ export default function WorkforcePage() {
         <EditRolesDialog
           member={editingRoles}
           pending={updateRoles.isPending}
-          errorMessage={
-            updateRoles.isError
-              ? getErrorMessage(updateRoles.error, 'Could not update these roles.')
-              : null
-          }
-          onClose={() => setEditingRoles(null)}
+          onClose={() => {
+            updateRoles.reset();
+            setEditingRoles(null);
+          }}
           onSubmit={(roles) =>
             updateRoles.mutate(
               { userId: editingRoles.userId, roles },
-              { onSuccess: () => setEditingRoles(null) },
+              { onSuccess: () => {
+                updateRoles.reset();
+                setEditingRoles(null);
+              } },
             )
           }
         />
@@ -216,7 +230,6 @@ export default function WorkforcePage() {
 interface EditRolesDialogProps {
   member: WorkforceUser;
   pending: boolean;
-  errorMessage: string | null;
   onClose: () => void;
   onSubmit: (roles: GrantableWorkforceRole[]) => void;
 }
@@ -231,7 +244,6 @@ interface EditRolesDialogProps {
 function EditRolesDialog({
   member,
   pending,
-  errorMessage,
   onClose,
   onSubmit,
 }: EditRolesDialogProps) {
@@ -254,7 +266,6 @@ function EditRolesDialog({
           <Typography variant="body2" color="text.secondary">
             {member.fullName} · {member.email}
           </Typography>
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           {GRANTABLE_WORKFORCE_ROLES.map((role) => (
             <FormControlLabel
               key={role}
