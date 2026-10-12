@@ -31,10 +31,31 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p 2222 -o StrictHostKeyChecking=no ubuntu@100.120.66.114 '
             set -e
+            # The Backend workflow runs `compose down` and `docker rm -f` against this same
+            # compose project from this same host on every push to main, while `web` here waits
+            # on `condition: service_healthy` for `backend`. Racing it SIGTERMs the backend this
+            # deploy is still waiting on and surfaces as "container smartdroneinspection-backend
+            # exited (143)". Take the lock before touching anything.
+            command -v flock >/dev/null 2>&1 || { echo "flock(1) is required to serialise deploys"; exit 1; }
+            exec 9>/tmp/sdi-deploy.lock
+            flock -w 900 9 || { echo "Timed out waiting for the deploy lock"; exit 1; }
+            echo "Acquired deploy lock"
             cd ~/repos/frontend
             git fetch --depth 1 origin main || true
             git reset --hard origin/main || true
+            # The compose file lives in the backend checkout and builds `web` from
+            # ../SmartDroneInspection-frontend, so keep that checkout on main too - otherwise
+            # this deploy renders from a compose file the Backend workflow may not have written.
             cd ~/repos/backend
-            docker compose up -d --build web
+            git fetch --depth 1 origin main || true
+            git reset --hard origin/main || true
+            if ! docker compose up -d --build web; then
+              # `compose up` fails silently when the backend exits during its start window, so
+              # capture the container list and the backend log before the runner tears down.
+              echo "compose up failed - container state and backend log follow"
+              docker compose ps -a
+              docker compose logs --no-color --tail=200 backend || true
+              exit 1
+            fi
             echo "Web rebuilt at $(date -u +%FT%TZ)"
           '
