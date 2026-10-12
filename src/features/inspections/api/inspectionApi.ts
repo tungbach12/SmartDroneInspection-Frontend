@@ -139,7 +139,7 @@ export interface PublishedReport {
 }
 
 export interface ReviewCandidateInput {
-  decision: 'CONFIRM' | 'MODIFY' | 'REJECT';
+  decision: 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
   defectLabel?: string;
   severity?: FindingSeverity;
   locationDescription?: string;

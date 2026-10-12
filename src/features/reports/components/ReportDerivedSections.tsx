@@ -135,37 +135,117 @@ export function ReportDerivedSections({
       <ReadOnlySection
         title="Confirmed findings"
         accountable="Organization Admin final decision"
-        description="Rendered from the reviewed finding records. Severity and decision are changed through the finding workflow, not by editing the report."
+        description="Rendered from the reviewed finding records with attached defect evidence. Severity and decision are changed through the finding workflow, not by editing the report."
       >
         {official.length === 0 ? (
           <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>
             No confirmed findings were recorded for this version.
           </Typography>
         ) : (
-          <Stack spacing={1.5}>
-            {official.map((finding) => (
-              <Box
-                key={finding.id}
-                sx={{ border: '1px solid #e4e7ec', borderRadius: '10px', p: 1.5 }}
-              >
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                  <Typography sx={{ fontSize: '0.8125rem', fontWeight: 700, color: '#101828' }}>
-                    {finding.defectLabel}
-                  </Typography>
-                  <Chip size="small" label={finding.severity} sx={{ height: 20, fontSize: '10px', fontWeight: 700 }} />
-                  <StatusChip status={finding.decision ?? 'UNREVIEWED'} />
-                  {finding.repairRequired && (
-                    <Chip size="small" color="error" label="Repair required" sx={{ height: 20, fontSize: '10px', fontWeight: 700 }} />
+          <Stack spacing={2}>
+            {official.map((finding) => {
+              const linkedEvidence = finding.evidenceId
+                ? evidenceList.find((e) => e.id === finding.evidenceId)
+                : null;
+              return (
+                <Box
+                  key={finding.id}
+                  sx={{
+                    border: '1px solid #e4e7ec',
+                    borderRadius: '10px',
+                    p: 2,
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      md: linkedEvidence ? '1.3fr 0.7fr' : '1fr',
+                    },
+                    gap: 2.5,
+                    alignItems: 'start',
+                  }}
+                >
+                  <Box>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 0.5 }}
+                    >
+                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#101828' }}>
+                        {finding.defectLabel}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={finding.severity}
+                        sx={{ height: 20, fontSize: '10px', fontWeight: 700 }}
+                      />
+                      <StatusChip status={finding.decision ?? 'UNREVIEWED'} />
+                      {finding.repairRequired && (
+                        <Chip
+                          size="small"
+                          color="error"
+                          label="Repair required"
+                          sx={{ height: 20, fontSize: '10px', fontWeight: 700 }}
+                        />
+                      )}
+                    </Stack>
+                    <Field label="Component" value={finding.component} />
+                    <Field label="Location" value={finding.locationDescription} />
+                    <Field label="Observed condition" value={finding.observedCondition} />
+                    <Field label="Measurement" value={finding.measurement} />
+                    <Field label="Technical notes" value={finding.technicalNotes} />
+                    <Field label="Recommended action" value={finding.recommendedAction} />
+                    {linkedEvidence && (
+                      <Field
+                        label="Attached evidence"
+                        value={`${linkedEvidence.fileName} (${linkedEvidence.id.slice(0, 8)})`}
+                      />
+                    )}
+                  </Box>
+
+                  {linkedEvidence && (
+                    <Box
+                      sx={{
+                        borderRadius: '8px',
+                        border: '1px solid #eaecf0',
+                        overflow: 'hidden',
+                        p: 1.25,
+                        bgcolor: '#f8fafc',
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{ fontWeight: 600, color: '#475467', display: 'block', mb: 0.75 }}
+                      >
+                        Defect evidence photograph
+                      </Typography>
+                      {linkedEvidence.contentType.startsWith('image/') ? (
+                        <AuthenticatedImage
+                          src={inspectionApi.evidenceContentUrl(inspectionId, linkedEvidence.id)}
+                          alt={finding.defectLabel}
+                          maxHeight={220}
+                          sx={{ borderRadius: '6px' }}
+                        />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#475467' }}>
+                          {linkedEvidence.fileName} ({linkedEvidence.contentType})
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          mt: 0.75,
+                          color: '#667085',
+                          fontSize: '0.6875rem',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        SHA-256: {linkedEvidence.checksumSha256.slice(0, 16)}…
+                      </Typography>
+                    </Box>
                   )}
-                </Stack>
-                <Field label="Component" value={finding.component} />
-                <Field label="Location" value={finding.locationDescription} />
-                <Field label="Observed condition" value={finding.observedCondition} />
-                <Field label="Measurement" value={finding.measurement} />
-                <Field label="Technical notes" value={finding.technicalNotes} />
-                <Field label="Recommended action" value={finding.recommendedAction} />
-              </Box>
-            ))}
+                </Box>
+              );
+            })}
           </Stack>
         )}
       </ReadOnlySection>
@@ -181,35 +261,44 @@ export function ReportDerivedSections({
           </Typography>
         ) : (
           <Stack spacing={1.5}>
-            {evidenceList.map((item) => (
-              <Box
-                key={item.id}
-                sx={{ border: '1px solid #e4e7ec', borderRadius: '10px', p: 1.5 }}
-              >
-                {item.contentType.startsWith('image/') && (
-                  <AuthenticatedImage
-                    src={inspectionApi.evidenceContentUrl(inspectionId, item.id)}
-                    alt={item.fileName}
-                    maxHeight={320}
-                    sx={{ borderRadius: '8px', border: '1px solid #eaecf0' }}
-                  />
-                )}
-                <Box sx={{ mt: 1 }}>
-                  <Field label="Evidence ID" value={item.id} />
-                  <Field label="File" value={item.fileName} />
-                  <Field label="Capture time" value={formatDateTime(item.captureTime)} />
-                  <Field
-                    label="Location"
-                    value={
-                      item.latitude != null && item.longitude != null
-                        ? `${item.latitude}, ${item.longitude}`
-                        : null
-                    }
-                  />
-                  <Field label="SHA-256" value={item.checksumSha256} />
+            {evidenceList.map((item) => {
+              const attachedFinding = official.find((f) => f.evidenceId === item.id);
+              return (
+                <Box
+                  key={item.id}
+                  sx={{ border: '1px solid #e4e7ec', borderRadius: '10px', p: 1.5 }}
+                >
+                  {item.contentType.startsWith('image/') && (
+                    <AuthenticatedImage
+                      src={inspectionApi.evidenceContentUrl(inspectionId, item.id)}
+                      alt={item.fileName}
+                      maxHeight={240}
+                      sx={{ borderRadius: '8px', border: '1px solid #eaecf0' }}
+                    />
+                  )}
+                  <Box sx={{ mt: 1 }}>
+                    <Field label="Evidence ID" value={item.id} />
+                    <Field label="File" value={item.fileName} />
+                    {attachedFinding && (
+                      <Field
+                        label="Defect association"
+                        value={`${attachedFinding.defectLabel} (${attachedFinding.severity})`}
+                      />
+                    )}
+                    <Field label="Capture time" value={formatDateTime(item.captureTime)} />
+                    <Field
+                      label="Location"
+                      value={
+                        item.latitude != null && item.longitude != null
+                          ? `${item.latitude}, ${item.longitude}`
+                          : null
+                      }
+                    />
+                    <Field label="SHA-256" value={item.checksumSha256} />
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
           </Stack>
         )}
       </ReadOnlySection>
