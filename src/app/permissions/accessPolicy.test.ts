@@ -116,6 +116,11 @@ describe('role-aware portal access policy', () => {
     expect(
       getLegacySectionRedirectPath(['INSPECTOR', 'MAINTENANCE_ENGINEER'], 'workforce'),
     ).toBe('/forbidden');
+    // Holding ORG_ADMIN alongside a second role must still resolve to the client path rather than
+    // the portal chooser, because the operations workspace grants no role here.
+    expect(
+      getLegacySectionRedirectPath(['ORG_ADMIN', 'INSPECTOR'], 'workforce'),
+    ).toBe('/client/workforce');
   });
 
   it('denies a user with no recognized portal role', () => {
