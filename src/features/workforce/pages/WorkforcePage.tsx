@@ -198,28 +198,33 @@ export default function WorkforcePage() {
             Credential status is recorded internally. Expiry is a reminder and does not indicate
             government or external verification.
           </Alert>
+          {isLoading ? (
+            <Typography role="status" color="text.secondary">Loading workforce users…</Typography>
+          ) : error ? (
+            <Alert severity="warning" action={<Button onClick={() => void refetch()}>Retry workforce users</Button>}>
+              Workforce users are unavailable. Credential records can still be viewed, but a subject
+              must load before you can add one.
+            </Alert>
+          ) : members?.length === 0 ? (
+            <EmptyState
+              title="No workforce users available"
+              description="Provision an inspector or maintenance engineer before recording credentials."
+              action={provisionButton}
+            />
+          ) : null}
           <QueryState
-            isLoading={isLoading || credentialQuery.isLoading}
-            error={error ?? credentialQuery.error}
-            onRetry={() => {
-              if (error) void refetch();
-              if (credentialQuery.error) void credentialQuery.refetch();
-            }}
-            isEmpty={Boolean(members && members.length === 0) || Boolean(credentialQuery.data && credentialQuery.data.length === 0)}
+            isLoading={credentialQuery.isLoading}
+            error={credentialQuery.error}
+            onRetry={() => void credentialQuery.refetch()}
+            isEmpty={Boolean(credentialQuery.data && credentialQuery.data.length === 0)}
             empty={
-              members?.length === 0 ? (
-                <EmptyState
-                  title="No workforce users available"
-                  description="Provision an inspector or maintenance engineer before recording credentials."
-                  action={provisionButton}
-                />
-              ) : (
-                <EmptyState
-                  title="No credentials recorded"
-                  description="Add a credential record for a workforce user."
-                  action={<Button disabled={!members?.length} onClick={() => setCredentialOpen(true)}>Add credential</Button>}
-                />
-              )
+              <EmptyState
+                title="No credentials recorded"
+                description={error
+                  ? "No credentials are recorded. Workforce subjects are unavailable; retry the users list before adding a credential."
+                  : "Add a credential record for a workforce user."}
+                action={<Button disabled={isLoading || Boolean(error) || !members?.length} onClick={() => setCredentialOpen(true)}>Add credential</Button>}
+              />
             }
           >
             <DataTable
