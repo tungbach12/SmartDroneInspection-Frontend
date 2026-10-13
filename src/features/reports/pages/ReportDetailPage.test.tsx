@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
@@ -7,6 +8,22 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import type { Role } from '@/features/auth/store/authStore';
 import ReportDetailPage from './ReportDetailPage';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+
+function problemError(status: number, detail: string, code: string): AxiosError {
+  return new AxiosError(
+    `Request failed with status code ${status}`,
+    'ERR_BAD_RESPONSE',
+    undefined,
+    undefined,
+    {
+      data: { type: 'about:blank', title: 'Conflict', status, detail, code },
+      status,
+      statusText: 'Conflict',
+      headers: {},
+      config: { headers: {} } as never,
+    },
+  );
+}
 
 vi.mock('@/features/inspections/api/inspectionApi', () => ({
   inspectionApi: {
@@ -183,6 +200,34 @@ describe('ReportDetailPage MF3 gates', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
     await waitFor(() =>
       expect(mockedApi.submitVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
+    );
+  });
+  it.each([
+    {
+      action: 'verify' as const,
+      button: 'Verify as author',
+      status: 'DRAFT' as const,
+      request: () => mockedApi.verifyVersion,
+    },
+    {
+      action: 'submit' as const,
+      button: 'Submit for review',
+      status: 'AUTHOR_VERIFIED' as const,
+      request: () => mockedApi.submitVersion,
+    },
+  ])('shows the server stale-snapshot refusal when $action fails', async ({ action, button, status, request }) => {
+    setRole(['INSPECTOR']);
+    mockedApi.listVersions.mockResolvedValue([version({ status, authorUserId: 'user-1' })]);
+    request().mockRejectedValue(
+      problemError(409, 'Evidence changed since this report draft was created.', 'REPORT_SNAPSHOT_STALE'),
+    );
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: button }));
+
+    expect((await screen.findByTestId(`report-${action}-refusal`)).textContent).toContain(
+      'Evidence changed since this report draft was created.',
     );
   });
 

@@ -31,6 +31,9 @@ import {
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
+import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 
 const NEXT_STEP: Record<string, string> = {
@@ -240,6 +243,30 @@ export default function ReportDetailPage() {
                       </Stack>
                     )}
 
+                    {verify.isError && isConflict(verify.error) ? (
+                      <RefusalNotice
+                        testId="report-verify-refusal"
+                        reason={getErrorMessage(verify.error, '')}
+                        fallbackMessage="The server refused this verification. Refresh the report and create a new draft if its evidence has changed."
+                      />
+                    ) : null}
+                    <MutationProblemAlert
+                      error={verify.error}
+                      isError={verify.isError && !isConflict(verify.error)}
+                      fallbackMessage="Could not verify this report draft."
+                    />
+                    {submit.isError && isConflict(submit.error) ? (
+                      <RefusalNotice
+                        testId="report-submit-refusal"
+                        reason={getErrorMessage(submit.error, '')}
+                        fallbackMessage="The server refused this submission. Refresh the report and create a new draft if its evidence has changed."
+                      />
+                    ) : null}
+                    <MutationProblemAlert
+                      error={submit.error}
+                      isError={submit.isError && !isConflict(submit.error)}
+                      fallbackMessage="Could not submit this report draft."
+                    />
                     {/* Reviewer approval or return step */}
                     {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
