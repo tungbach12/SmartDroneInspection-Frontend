@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
@@ -24,15 +25,33 @@ export function useProvisionWorkforceUser(
   onProvisioned: (credential: Awaited<ReturnType<typeof workforceApi.provisionUser>>) => void,
 ) {
   const queryClient = useQueryClient();
+  // The ref is not part of mutation variables/data/cache. The page permits one in-flight provision
+  // at a time, so only one transient credential can be held here.
+  const oneTimeCredential = useRef<
+    Awaited<ReturnType<typeof workforceApi.provisionUser>> | null
+  >(null);
 
   return useMutation({
     mutationFn: async (input: ProvisionWorkforceUserInput) => {
       const provisioned = await workforceApi.provisionUser(input);
-      onProvisioned(provisioned);
+      oneTimeCredential.current = provisioned;
       return provisioned.user;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: workforceKeys.all });
+      if (!oneTimeCredential.current) return;
+      try {
+        onProvisioned(oneTimeCredential.current);
+      } catch {
+        // A local view callback must not turn a successful server create into a failed mutation
+        // that invites an unsafe duplicate retry. The password reference is still cleared below.
+      } finally {
+        oneTimeCredential.current = null;
+      }
+    },
+    onError: () => {
+      // Do not retain a response if the request failed before the success callback.
+      oneTimeCredential.current = null;
     },
   });
 }
