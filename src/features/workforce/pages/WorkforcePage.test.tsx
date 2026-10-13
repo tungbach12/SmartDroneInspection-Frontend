@@ -27,7 +27,20 @@ vi.mock('../hooks/useWorkforce', () => ({
     error: users.error,
     refetch,
   }),
-  useProvisionWorkforceUser: () => ({ mutate: provisionUser, reset: provisionReset, isPending: provisionState.isPending, isError: provisionState.isError, error: provisionState.error }),
+  useProvisionWorkforceUser: (onProvisioned: (credential: { user: WorkforceUser; temporaryPassword: string }) => void) => ({
+    mutate: (input: unknown, options?: { onSuccess?: (user: WorkforceUser) => void; onError?: (error: unknown) => void }) =>
+      provisionUser(input, {
+        onSuccess: (credential: { user: WorkforceUser; temporaryPassword: string }) => {
+          onProvisioned(credential);
+          options?.onSuccess?.(credential.user);
+        },
+        onError: options?.onError,
+      }),
+    reset: provisionReset,
+    isPending: provisionState.isPending,
+    isError: provisionState.isError,
+    error: provisionState.error,
+  }),
   useUpdateWorkforceUserStatus: () => ({ mutate: updateStatus, isPending: false, isError: false, error: null }),
   useUpdateWorkforceUserRoles: () => ({ mutate: updateRoles, reset: rolesReset, ...rolesState }),
 }));
@@ -264,7 +277,7 @@ describe('WorkforcePage users tab', () => {
       ),
     };
 
-    renderPage();
+    const { refresh } = renderPage();
     await openProvisionDialog();
 
     // Conflict copy must be inside the open dialog and announced as a warning, not hidden behind
@@ -284,8 +297,8 @@ describe('WorkforcePage users tab', () => {
     // Reset clears the mutation state on close; after reopening with that state the old conflict
     // must not return.
     expect(provisionReset).toHaveBeenCalled();
-    provisionState = { isPending: false, isError: false, error: null };
     const reopenedDialog = await openProvisionDialog();
+    refresh();
     expect(within(reopenedDialog).queryByTestId('provision-conflict')).toBeNull();
   });
 
@@ -393,7 +406,6 @@ describe('WorkforcePage users tab', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit roles' })).toBeNull());
     expect(rolesReset).toHaveBeenCalled();
 
-    rolesState = { isPending: false, isError: false, error: null };
     refresh();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
     dialog = await screen.findByRole('dialog', { name: 'Edit roles' });

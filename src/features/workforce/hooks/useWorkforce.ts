@@ -16,21 +16,21 @@ export function useWorkforceUsers() {
 }
 
 /**
- * Provisions a workforce member.
- *
- * The response carries a one-time temporary password. TanStack Query records every resolved
- * mutation value in its MutationCache and keeps it there for `gcTime` after the last observer
- * detaches, so a provisioning result would otherwise outlive the dialog by minutes in memory.
- * `gcTime: 0` makes that retention zero, and the page also calls `reset()` when the one-time
- * surface closes. Neither path writes the response into the query cache, a store, or browser
- * storage.
+ * Provisions a workforce member without returning the one-time password through TanStack's
+ * mutation result. The password bypasses the result entirely and travels only through the caller's
+ * page-local success callback; MutationCache retains only the safe user projection.
  */
-export function useProvisionWorkforceUser() {
+export function useProvisionWorkforceUser(
+  onProvisioned: (credential: Awaited<ReturnType<typeof workforceApi.provisionUser>>) => void,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: ProvisionWorkforceUserInput) => workforceApi.provisionUser(input),
-    gcTime: 0,
+    mutationFn: async (input: ProvisionWorkforceUserInput) => {
+      const provisioned = await workforceApi.provisionUser(input);
+      onProvisioned(provisioned);
+      return provisioned.user;
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: workforceKeys.all });
     },
