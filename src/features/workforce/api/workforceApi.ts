@@ -58,9 +58,55 @@ export interface UpdateWorkforceUserRolesInput {
   roles: GrantableWorkforceRole[];
 }
 
+export const WORKFORCE_CREDENTIAL_STATUSES = [
+  'DRAFT',
+  'PENDING_REVIEW',
+  'ACTIVE',
+  'EXPIRING_SOON',
+  'EXPIRED',
+  'REJECTED',
+  'SUSPENDED',
+] as const;
+
+export type WorkforceCredentialStatus = (typeof WORKFORCE_CREDENTIAL_STATUSES)[number];
+
+export interface WorkforceCredential {
+  id: string;
+  userId: string;
+  organizationId: string;
+  credentialType: string;
+  issuer: string | null;
+  credentialReference: string | null;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  status: WorkforceCredentialStatus;
+  evidenceId: string | null;
+  verifiedByUserId: string | null;
+  verifiedAt: string | null;
+  verificationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWorkforceCredentialInput {
+  userId: string;
+  credentialType: string;
+  issuer?: string;
+  credentialReference?: string;
+  issuedAt?: Date;
+  expiresAt?: Date;
+  evidenceId?: string;
+}
+
+export interface ReviewWorkforceCredentialInput {
+  decision: 'APPROVE' | 'REJECT';
+  reason: string;
+}
+
 export const workforceKeys = {
   all: ['workforce'] as const,
   users: () => [...workforceKeys.all, 'users'] as const,
+  credentials: () => [...workforceKeys.all, 'credentials'] as const,
 };
 
 export const workforceApi = {
@@ -74,4 +120,22 @@ export const workforceApi = {
 
   updateUserRoles: (userId: string, input: UpdateWorkforceUserRolesInput) =>
     api.put<WorkforceUser>(`/workforce/users/${userId}/roles`, input).then((r) => r.data),
+
+  listCredentials: () =>
+    api.get<WorkforceCredential[]>('/workforce/credentials').then((r) => r.data),
+
+  createCredential: (input: CreateWorkforceCredentialInput) => {
+    const body = {
+      ...input,
+      ...(input.issuedAt ? { issuedAt: input.issuedAt.toISOString() } : {}),
+      ...(input.expiresAt ? { expiresAt: input.expiresAt.toISOString() } : {}),
+    };
+    return api.post<WorkforceCredential>('/workforce/credentials', body).then((r) => r.data);
+  },
+
+  reviewCredential: (credentialId: string, input: ReviewWorkforceCredentialInput) =>
+    api.put<WorkforceCredential>(
+      `/workforce/credentials/${credentialId}/review`,
+      input,
+    ).then((r) => r.data),
 };
