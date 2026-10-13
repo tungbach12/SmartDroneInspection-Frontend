@@ -387,12 +387,9 @@ function CreateAssetDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-<<<<<<< HEAD
-=======
             <Typography variant="caption" color="text.secondary">
               The asset must be active before inspection scheduling.
             </Typography>
->>>>>>> 17a8952 (feat(assets): add org admin drone management UI)
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
