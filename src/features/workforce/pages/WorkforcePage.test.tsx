@@ -21,6 +21,7 @@ const reviewCredential = vi.fn();
 let credentialCreateState: { isPending: boolean; isError: boolean; error: unknown };
 let credentialReviewState: { isPending: boolean; isError: boolean; error: unknown };
 const refetch = vi.fn();
+const credentialRefetch = vi.fn();
 const updateStatus = vi.fn();
 const updateRoles = vi.fn();
 const provisionReset = vi.fn();
@@ -36,7 +37,7 @@ vi.mock('../hooks/useWorkforce', () => ({
     error: users.error,
     refetch,
   }),
-  useWorkforceCredentials: () => ({ data: credentials.data, isLoading: credentials.isLoading, error: credentials.error, refetch }),
+  useWorkforceCredentials: () => ({ data: credentials.data, isLoading: credentials.isLoading, error: credentials.error, refetch: credentialRefetch }),
   useCreateWorkforceCredential: () => ({ mutate: createCredential, ...credentialCreateState, reset: vi.fn() }),
   useReviewWorkforceCredential: () => ({ mutate: reviewCredential, ...credentialReviewState, reset: vi.fn() }),
   useProvisionWorkforceUser: (onProvisioned: (credential: { user: WorkforceUser; temporaryPassword: string }) => void) => ({
@@ -126,6 +127,7 @@ describe('WorkforcePage users tab', () => {
     credentials.data = [];
     credentials.isLoading = false;
     credentials.error = null;
+    credentialRefetch.mockReset();
     credentialCreateState = { isPending: false, isError: false, error: null };
     credentialReviewState = { isPending: false, isError: false, error: null };
     provisionState = { isPending: false, isError: false, error: null };
@@ -606,6 +608,22 @@ describe('WorkforcePage users tab', () => {
     expect(screen.queryByRole('dialog', { name: 'Temporary password' })).toBeNull();
   });
 
+  it('keeps the credential empty state visible if the subject list fails', () => {
+    users.data = undefined;
+    users.error = new Error('Workforce users unavailable.');
+    credentials.data = [];
+    credentials.isLoading = false;
+    credentials.error = null;
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(screen.getByText('No credentials recorded')).toBeTruthy();
+    expect(screen.getByText(/Workforce users are unavailable/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry workforce users' }));
+    expect(refetch).toHaveBeenCalled();
+    expect(credentialRefetch).not.toHaveBeenCalled();
+  });
+
   it('does not offer credential creation while workforce subjects are loading', () => {
     users.data = undefined;
     users.isLoading = true;
@@ -613,7 +631,9 @@ describe('WorkforcePage users tab', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
 
     expect(
-      (screen.getByRole('button', { name: 'Add credential' }) as HTMLButtonElement).disabled,
+      screen.getAllByRole('button', { name: 'Add credential' }).every(
+        (button) => (button as HTMLButtonElement).disabled,
+      ),
     ).toBe(true);
     expect(screen.getByRole('status')).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Add credential' })).toBeNull();
@@ -625,10 +645,12 @@ describe('WorkforcePage users tab', () => {
     renderPage();
     fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
 
-    expect(screen.getByText(/Could not load this information/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.getByText(/Workforce users are unavailable/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry workforce users' })).toBeTruthy();
     expect(
-      (screen.getByRole('button', { name: 'Add credential' }) as HTMLButtonElement).disabled,
+      screen.getAllByRole('button', { name: 'Add credential' }).every(
+        (button) => (button as HTMLButtonElement).disabled,
+      ),
     ).toBe(true);
   });
 
