@@ -11,6 +11,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
 import {
   GRANTABLE_WORKFORCE_ROLES,
   type GrantableWorkforceRole,
@@ -26,6 +29,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface ProvisionWorkforceUserDialogProps {
   pending: boolean;
+  error?: unknown;
+  isError?: boolean;
   onClose: () => void;
   onSubmit: (input: ProvisionWorkforceUserInput) => void;
 }
@@ -51,6 +56,8 @@ export function ProvisionWorkforceUserDialog(props: ProvisionWorkforceUserDialog
 
 function ProvisionForm({
   pending,
+  error,
+  isError = false,
   onClose,
   onSubmit,
 }: ProvisionWorkforceUserDialogProps) {
@@ -106,6 +113,19 @@ function ProvisionForm({
       <DialogTitle>Provision a workforce user</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
+          {isError && isConflict(error) ? (
+            <RefusalNotice
+              reason={getErrorMessage(error, '')}
+              fallbackMessage="This request conflicts with an existing workforce record."
+              testId="provision-conflict"
+            />
+          ) : (
+            <MutationProblemAlert
+              isError={isError}
+              error={error}
+              fallbackMessage="Could not provision this workforce user."
+            />
+          )}
           <TextField
             required
             label="Email"

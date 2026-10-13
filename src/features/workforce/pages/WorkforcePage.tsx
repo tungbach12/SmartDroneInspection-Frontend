@@ -15,7 +15,9 @@ import {
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
+import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -125,19 +127,9 @@ export default function WorkforcePage() {
       />
 
       <MutationProblemAlert
-        isError={provision.isError}
-        error={provision.error}
-        fallbackMessage="Could not provision this workforce user."
-      />
-      <MutationProblemAlert
         isError={updateStatus.isError}
         error={updateStatus.error}
         fallbackMessage="Could not update this workforce user."
-      />
-      <MutationProblemAlert
-        isError={updateRoles.isError}
-        error={updateRoles.error}
-        fallbackMessage="Could not update these roles."
       />
 
       <QueryState
@@ -169,6 +161,8 @@ export default function WorkforcePage() {
       {provisionOpen && (
         <ProvisionWorkforceUserDialog
           pending={provision.isPending}
+          isError={provision.isError}
+          error={provision.error}
           onClose={() => {
             // Closing a failed provision must not leave its error on the next blank form, and a
             // successful provision must not leave the mutation record holding the one-time
@@ -208,6 +202,8 @@ export default function WorkforcePage() {
         <EditRolesDialog
           member={editingRoles}
           pending={updateRoles.isPending}
+          isError={updateRoles.isError}
+          error={updateRoles.error}
           onClose={() => {
             updateRoles.reset();
             setEditingRoles(null);
@@ -230,6 +226,8 @@ export default function WorkforcePage() {
 interface EditRolesDialogProps {
   member: WorkforceUser;
   pending: boolean;
+  isError: boolean;
+  error: unknown;
   onClose: () => void;
   onSubmit: (roles: GrantableWorkforceRole[]) => void;
 }
@@ -244,6 +242,8 @@ interface EditRolesDialogProps {
 function EditRolesDialog({
   member,
   pending,
+  isError,
+  error,
   onClose,
   onSubmit,
 }: EditRolesDialogProps) {
@@ -266,6 +266,19 @@ function EditRolesDialog({
           <Typography variant="body2" color="text.secondary">
             {member.fullName} · {member.email}
           </Typography>
+          {isError && isConflict(error) ? (
+            <RefusalNotice
+              reason={getErrorMessage(error, '')}
+              fallbackMessage="These roles conflict with the user's current organization role."
+              testId="roles-conflict"
+            />
+          ) : (
+            <MutationProblemAlert
+              isError={isError}
+              error={error}
+              fallbackMessage="Could not update these roles."
+            />
+          )}
           {GRANTABLE_WORKFORCE_ROLES.map((role) => (
             <FormControlLabel
               key={role}

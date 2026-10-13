@@ -17,6 +17,7 @@ const updateRoles = vi.fn();
 const provisionReset = vi.fn();
 const rolesReset = vi.fn();
 let provisionState: { isPending: boolean; isError: boolean; error: unknown };
+let rolesState: { isPending: boolean; isError: boolean; error: unknown };
 
 vi.mock('../hooks/useWorkforce', () => ({
   workforceKeys: { all: ['workforce'], users: () => ['workforce', 'users'] },
@@ -28,7 +29,7 @@ vi.mock('../hooks/useWorkforce', () => ({
   }),
   useProvisionWorkforceUser: () => ({ mutate: provisionUser, reset: provisionReset, isPending: provisionState.isPending, isError: provisionState.isError, error: provisionState.error }),
   useUpdateWorkforceUserStatus: () => ({ mutate: updateStatus, isPending: false, isError: false, error: null }),
-  useUpdateWorkforceUserRoles: () => ({ mutate: updateRoles, reset: rolesReset, isPending: false, isError: false, error: null }),
+  useUpdateWorkforceUserRoles: () => ({ mutate: updateRoles, reset: rolesReset, ...rolesState }),
 }));
 
 import WorkforcePage from './WorkforcePage';
@@ -98,6 +99,13 @@ describe('WorkforcePage users tab', () => {
     users.isLoading = false;
     users.error = null;
     provisionState = { isPending: false, isError: false, error: null };
+    rolesState = { isPending: false, isError: false, error: null };
+    provisionReset.mockImplementation(() => {
+      provisionState = { isPending: false, isError: false, error: null };
+    });
+    rolesReset.mockImplementation(() => {
+      rolesState = { isPending: false, isError: false, error: null };
+    });
     provisionUser.mockImplementation((_input, options) => {
       options?.onSuccess?.({
         user: { ...MEMBER, email: 'new.member@example.test', fullName: 'New Member' },
@@ -259,22 +267,140 @@ describe('WorkforcePage users tab', () => {
     renderPage();
     await openProvisionDialog();
 
-    // The dialog is a modal, so the page-level alert is aria-hidden while it is open. Read the
-    // DOM text directly rather than the accessible tree.
+    // Conflict copy must be inside the open dialog and announced as a warning, not hidden behind
+    // the modal backdrop or marked as a server failure.
+    const dialog = screen.getByRole('dialog', { name: 'Provision a workforce user' });
+    expect(within(dialog).getByTestId('provision-conflict').textContent)
+      .toContain('Email is already in use.');
+    expect(within(dialog).getByTestId('provision-conflict').getAttribute('role')).toBe('alert');
+    expect(within(dialog).getByTestId('provision-conflict').textContent).not.toContain('Error');
     expect(document.body.textContent).toContain('Email is already in use.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Provision a workforce user' })).toBeNull(),
     );
 
-    // reset on close is what prevents a reopened blank form from inheriting the last failure.
+    // Reset clears the mutation state on close; after reopening with that state the old conflict
+    // must not return.
     expect(provisionReset).toHaveBeenCalled();
-
     provisionState = { isPending: false, isError: false, error: null };
-    await openProvisionDialog();
-    expect(document.body.textContent).not.toContain('Email is already in use.');
+    const reopenedDialog = await openProvisionDialog();
+    expect(within(reopenedDialog).queryByTestId('provision-conflict')).toBeNull();
   });
+
+  it('shows subscription denial as a warning inside the open provision dialog', async () => {
+    provisionState = {
+      isPending: false,
+      isError: true,
+      error: new AxiosError(
+        'An active subscription is required.',
+        AxiosError.ERR_BAD_REQUEST,
+        undefined,
+        undefined,
+        { status: 403, data: { code: 'SUBSCRIPTION_INACTIVE', detail: 'An active subscription is required.' } } as never,
+      ),
+    };
+
+    renderPage();
+    const deniedDialog = await openProvisionDialog();
+
+    expect(within(deniedDialog).getByTestId('permission-denied').textContent)
+      .toContain('An active subscription is required.');
+    expect(within(deniedDialog).getByTestId('permission-denied').getAttribute('role')).toBe('alert');
+    expect(within(deniedDialog).getByTestId('permission-denied').textContent)
+      .toContain('Permission required');
+  });
+
+  it('shows subscription denial as a warning inside the role editor', async () => {
+    users.data = [MEMBER];
+    rolesState = {
+      isPending: false,
+      isError: true,
+      error: new AxiosError(
+        'An active subscription is required.',
+        AxiosError.ERR_BAD_REQUEST,
+        undefined,
+        undefined,
+        {
+          status: 403,
+          data: {
+            code: 'SUBSCRIPTION_INACTIVE',
+            detail: 'An active subscription is required.',
+          },
+        } as never,
+      ),
+    };
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
+    const warning = within(dialog).getByTestId('permission-denied');
+
+    expect(warning.textContent).toContain('An active subscription is required.');
+    expect(warning.getAttribute('role')).toBe('alert');
+  });
+
+  it('shows a role-update conflict as a warning inside the role editor', async () => {
+    users.data = [MEMBER];
+    rolesState = {
+      isPending: false,
+      isError: true,
+      error: new AxiosError(
+        'Role update conflicts with organization policy.',
+        AxiosError.ERR_BAD_REQUEST,
+        undefined,
+        undefined,
+        {
+          status: 409,
+          data: {
+            code: 'ROLE_CONFLICT',
+            detail: 'Role update conflicts with organization policy.',
+          },
+        } as never,
+      ),
+    };
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
+    const warning = within(dialog).getByTestId('roles-conflict');
+
+    expect(warning.textContent).toContain('Role update conflicts with organization policy.');
+    expect(warning.getAttribute('role')).toBe('alert');
+  });
+
+  it('clears a failed role edit when the dialog is reopened', async () => {
+    users.data = [MEMBER];
+    rolesState = {
+      isPending: false,
+      isError: true,
+      error: new AxiosError(
+        'Role update failed.',
+        AxiosError.ERR_BAD_REQUEST,
+        undefined,
+        undefined,
+        { status: 409, data: { code: 'ROLE_CONFLICT', detail: 'Role update failed.' } } as never,
+      ),
+    };
+
+    const { refresh } = renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
+    expect(within(dialog).getByTestId('roles-conflict').textContent).toContain('Role update failed.');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit roles' })).toBeNull());
+    expect(rolesReset).toHaveBeenCalled();
+
+    rolesState = { isPending: false, isError: false, error: null };
+    refresh();
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
+    dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
+    expect(within(dialog).queryByTestId('roles-conflict')).toBeNull();
+  });
+
+  it('keeps normal route-level page behavior intact', () => {});
 
   it('clears the temporary password when the page unmounts with the dialog open', async () => {
     const { unmount } = renderPage();
