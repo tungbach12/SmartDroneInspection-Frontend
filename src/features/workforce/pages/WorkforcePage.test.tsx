@@ -412,8 +412,6 @@ describe('WorkforcePage users tab', () => {
     expect(within(dialog).queryByTestId('roles-conflict')).toBeNull();
   });
 
-  it('keeps normal route-level page behavior intact', () => {});
-
   it('clears the temporary password when the page unmounts with the dialog open', async () => {
     const { unmount } = renderPage();
 

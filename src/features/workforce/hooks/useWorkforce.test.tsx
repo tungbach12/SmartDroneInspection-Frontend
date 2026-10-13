@@ -115,6 +115,27 @@ describe('useWorkforce hooks', () => {
     expect(JSON.stringify(client.getMutationCache().getAll())).not.toContain('Temp-Password-1');
   });
 
+  it('does not turn a successful provision into a failed mutation if the local password callback throws', async () => {
+    client.setQueryData(workforceKeys.users(), [MEMBER]);
+    vi.mocked(workforceApi.provisionUser).mockResolvedValue({
+      user: MEMBER,
+      temporaryPassword: 'Temp-Password-Callback',
+    });
+    const { result } = renderHook(
+      () => useProvisionWorkforceUser(() => { throw new Error('dialog callback failed'); }),
+      { wrapper: wrapper(client) },
+    );
+
+    await expect(
+      act(async () => result.current.mutateAsync({
+        email: MEMBER.email,
+        fullName: MEMBER.fullName,
+        roles: ['INSPECTOR'],
+      })),
+    ).resolves.toEqual(MEMBER);
+    expect(client.getQueryState(workforceKeys.users())?.isInvalidated).toBe(true);
+  });
+
   it('resets a provisioning error when reset is called', async () => {
     const { result } = renderHook(
       () => useProvisionWorkforceUser(() => undefined),
