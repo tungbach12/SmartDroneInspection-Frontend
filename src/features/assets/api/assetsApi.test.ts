@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/shared/api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 import { api } from '@/shared/api/client';
@@ -9,6 +9,7 @@ import { assetApi } from './assetApi';
 import { catalogApi } from './catalogApi';
 import { proposalApi } from './proposalApi';
 import { documentApi } from './documentApi';
+import { droneApi } from './droneApi';
 
 describe('assetApi', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -163,6 +164,96 @@ describe('documentApi', () => {
     await expect(documentApi.content('a1', 'd1')).resolves.toBe(blob);
     expect(api.get).toHaveBeenCalledWith('/assets/a1/documents/d1/content', {
       responseType: 'blob',
+    });
+  });
+});
+
+describe('droneApi', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('lists drones without sending organization scope', async () => {
+    const drones = [{ id: 'drone-1', serialNumber: 'SDI-01', serviceability: 'ACTIVE' }];
+    vi.mocked(api.get).mockResolvedValue({ data: drones });
+
+    await expect(droneApi.list()).resolves.toEqual(drones);
+    expect(api.get).toHaveBeenCalledWith('/drones');
+  });
+
+  it('creates a drone with JSON-string metadata and no organization id', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'drone-1' } });
+    const input = {
+      serialNumber: 'SDI-01',
+      model: 'Surveyor',
+      manufacturer: 'AeroCo',
+      payloadMetadata: JSON.stringify({ camera: 'thermal' }),
+      notes: 'Bridge inspections',
+    };
+
+    await droneApi.create(input);
+
+    expect(api.post).toHaveBeenCalledWith('/drones', input);
+    expect(vi.mocked(api.post).mock.calls[0]![1]).not.toHaveProperty('organizationId');
+  });
+
+  it('loads a drone by id and selection options', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { id: 'drone-1' } });
+
+    await droneApi.getById('drone-1');
+    expect(api.get).toHaveBeenCalledWith('/drones/drone-1');
+
+    await droneApi.selection();
+    expect(api.get).toHaveBeenCalledWith('/drones/selection');
+  });
+
+  it('updates serviceability with the typed maintenance state', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: 'drone-1', serviceability: 'MAINTENANCE' } });
+
+    await droneApi.updateServiceability('drone-1', { serviceability: 'MAINTENANCE' });
+
+    expect(api.patch).toHaveBeenCalledWith('/drones/drone-1/serviceability', {
+      serviceability: 'MAINTENANCE',
+    });
+  });
+
+  it('lists documents belonging to a drone', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+
+    await droneApi.listDocuments('drone-1');
+
+    expect(api.get).toHaveBeenCalledWith('/drones/drone-1/documents');
+  });
+
+  it('uploads document file and metadata as multipart without a client checksum', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'doc-1', status: 'PENDING_REVIEW' } });
+    const file = new File(['pdf'], 'airworthiness.pdf', { type: 'application/pdf' });
+    const input = {
+      file,
+      documentType: 'AIRWORTHINESS',
+      issuer: 'Aviation Office',
+      documentReference: 'CERT-101',
+      validFrom: '2026-01-01T00:00:00Z',
+      validUntil: '2027-01-01T00:00:00Z',
+    };
+
+    await droneApi.uploadDocument('drone-1', input);
+
+    const [url, body, config] = vi.mocked(api.post).mock.calls[0]!;
+    expect(url).toBe('/drones/drone-1/documents');
+    expect(body).toBeInstanceOf(FormData);
+    for (const [name, value] of Object.entries(input)) {
+      expect((body as FormData).get(name)).toBe(value);
+    }
+    expect((body as FormData).has('checksumSha256')).toBe(false);
+    expect(config).toBeUndefined();
+  });
+
+  it('updates a drone document status', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: 'doc-1', status: 'ACTIVE' } });
+
+    await droneApi.updateDocumentStatus('drone-1', 'doc-1', { status: 'ACTIVE' });
+
+    expect(api.patch).toHaveBeenCalledWith('/drones/drone-1/documents/doc-1/status', {
+      status: 'ACTIVE',
     });
   });
 });
