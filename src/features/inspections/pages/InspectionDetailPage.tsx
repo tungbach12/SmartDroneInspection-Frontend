@@ -31,13 +31,13 @@ export default function InspectionDetailPage() {
           startIcon={<ArrowBackRounded />}
           onClick={() => navigate(-1)}
           sx={{
-            color: '#475467',
-            fontWeight: 600,
-            fontSize: '14px',
+            color: 'text.secondary',
+            fontWeight: 500,
+            fontSize: '0.875rem',
             textTransform: 'none',
             borderRadius: '8px',
             mb: 2,
-            '&:hover': { bgcolor: '#f2f4f7' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           Back to list
@@ -48,7 +48,7 @@ export default function InspectionDetailPage() {
           subtitle={`Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`}
         />
 
-        <Tabs value={tabValue} sx={{ mt: 2, borderBottom: '1px solid #eaecf0' }}>
+        <Tabs value={tabValue} sx={{ mt: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           {STAGE_TABS.map((tab) => (
             <Tab
               key={tab.value}

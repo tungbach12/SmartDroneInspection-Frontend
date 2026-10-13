@@ -12,7 +12,7 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded';
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 
-export interface LyticMetricCardProps {
+export interface MetricCardProps {
   label: string;
   value: string;
   change?: string;
@@ -21,7 +21,7 @@ export interface LyticMetricCardProps {
   iconType?: string;
 }
 
-export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
+export const MetricCard: React.FC<MetricCardProps> = ({
   label,
   value,
   change,
@@ -58,20 +58,32 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
     }
   };
 
-  // Color theme for the icon box based on icon type
+  // Soft icon treatments derived from theme palette (light/dark aware).
   const getIconTheme = () => {
     switch (iconType) {
       case 'check-circle':
-        return { bg: '#ECFDF3', color: '#12B76A' };
+        return {
+          bg: 'color-mix(in srgb, var(--mui-palette-success-main) 14%, transparent)',
+          color: 'success.main',
+        };
       case 'alert':
-        return { bg: '#FEF3F2', color: '#F04438' };
+        return {
+          bg: 'color-mix(in srgb, var(--mui-palette-error-main) 12%, transparent)',
+          color: 'error.main',
+        };
       case 'wrench':
-        return { bg: '#FFFAEB', color: '#F79009' };
+        return {
+          bg: 'color-mix(in srgb, var(--mui-palette-warning-main) 16%, transparent)',
+          color: 'warning.main',
+        };
       case 'plane':
       case 'report':
       case 'building':
       default:
-        return { bg: '#EFF8FF', color: '#2E90FA' };
+        return {
+          bg: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+          color: 'primary.main',
+        };
     }
   };
 
@@ -83,8 +95,9 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
       role="group"
       aria-label={`${label}: ${value}`}
       sx={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #eaecf0',
+        backgroundColor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: '16px',
         p: { xs: 2, sm: 2.5 },
         display: 'flex',
@@ -116,7 +129,7 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
         <Typography
           variant="body2"
           sx={{
-            color: '#475467',
+            color: 'text.secondary',
             fontSize: '0.875rem',
             fontWeight: 500,
             lineHeight: 1.3,
@@ -130,7 +143,7 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
       <Typography
         component="p"
         sx={{
-          color: '#101828',
+          color: 'text.primary',
           fontSize: { xs: '1.625rem', sm: '1.875rem' },
           fontWeight: 700,
           letterSpacing: '-0.025em',
@@ -154,8 +167,10 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
               py: '2px',
               px: '8px',
               fontSize: '12px',
-              bgcolor: positive ? '#ECFDF3' : '#FEF3F2',
-              color: positive ? '#027A48' : '#B42318',
+              bgcolor: positive
+                ? 'color-mix(in srgb, var(--mui-palette-success-main) 12%, transparent)'
+                : 'color-mix(in srgb, var(--mui-palette-error-main) 12%, transparent)',
+              color: positive ? 'success.main' : 'error.main',
               lineHeight: 1.4,
               flexShrink: 0,
             }}
@@ -168,7 +183,7 @@ export const LyticMetricCard: React.FC<LyticMetricCardProps> = ({
           <Typography
             variant="caption"
             sx={{
-              color: '#667085',
+              color: 'text.secondary',
               fontSize: '12px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',

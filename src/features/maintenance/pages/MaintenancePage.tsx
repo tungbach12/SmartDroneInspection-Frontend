@@ -2,7 +2,7 @@ import { AssignmentTurnedInOutlined, BuildOutlined, TimelineOutlined } from '@mu
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { LyticMetricCard } from '@/features/dashboard/components/LyticMetricCard';
+import { MetricCard } from '@/shared/ui/MetricCard';
 
 const maintenanceSteps = [
   { label: 'Accepted finding', icon: AssignmentTurnedInOutlined },
@@ -27,7 +27,7 @@ export default function MaintenancePage() {
           mb: 3,
         }}
       >
-        <LyticMetricCard
+        <MetricCard
           label="Total Work Orders"
           value="0"
           change="Baseline"
@@ -35,7 +35,7 @@ export default function MaintenancePage() {
           subtext="tracked tickets"
           iconType="wrench"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Pending Repair"
           value="0"
           change="Clear"
@@ -43,7 +43,7 @@ export default function MaintenancePage() {
           subtext="action required"
           iconType="alert"
         />
-        <LyticMetricCard
+        <MetricCard
           label="In Progress"
           value="0"
           change="Operational"
@@ -51,7 +51,7 @@ export default function MaintenancePage() {
           subtext="active engineer tasks"
           iconType="clock"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Resolved"
           value="0"
           change="Closed"

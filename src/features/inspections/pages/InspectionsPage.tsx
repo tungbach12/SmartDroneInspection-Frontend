@@ -10,7 +10,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
-import { LyticMetricCard } from '@/features/dashboard/components/LyticMetricCard';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import { InspectionListTable } from '../components/InspectionListTable';
 import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
@@ -87,7 +87,7 @@ export default function InspectionsPage() {
           mb: 3,
         }}
       >
-        <LyticMetricCard
+        <MetricCard
           label="Total Inspections"
           value={inspections.isLoading ? '…' : totalCount.toLocaleString()}
           change="+8.4%"
@@ -95,7 +95,7 @@ export default function InspectionsPage() {
           subtext="across organization"
           iconType="plane"
         />
-        <LyticMetricCard
+        <MetricCard
           label="In Progress"
           value={inspections.isLoading ? '…' : inProgressCount.toLocaleString()}
           change="Operational"
@@ -103,7 +103,7 @@ export default function InspectionsPage() {
           subtext="active missions"
           iconType="clock"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Repair Pending"
           value={inspections.isLoading ? '…' : repairPendingCount.toLocaleString()}
           change={repairPendingCount > 0 ? 'Follow-up' : 'Clear'}
@@ -111,7 +111,7 @@ export default function InspectionsPage() {
           subtext="requires maintenance"
           iconType="alert"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Completed"
           value={inspections.isLoading ? '…' : completedCount.toLocaleString()}
           change="Published"

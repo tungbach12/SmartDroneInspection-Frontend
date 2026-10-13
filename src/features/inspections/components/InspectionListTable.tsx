@@ -66,10 +66,11 @@ export function InspectionListTable({
       variant="outlined"
       sx={{
         overflow: 'hidden',
-        bgcolor: '#ffffff',
-        border: '1px solid #eaecf0',
-        borderRadius: '16px',
-        boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03)',
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: '12px',
+        boxShadow: 'none',
       }}
     >
       {/* Card Header */}
@@ -80,13 +81,14 @@ export function InspectionListTable({
           justifyContent: 'space-between',
           px: { xs: 2, sm: 3 },
           py: 2.25,
-          borderBottom: '1px solid #eaecf0',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
-        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#101828' }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
           {title}
         </Typography>
-        <Typography variant="caption" sx={{ color: '#667085', fontWeight: 500 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
           {totalCount} total {totalCount === 1 ? 'record' : 'records'}
         </Typography>
       </Box>
@@ -97,30 +99,28 @@ export function InspectionListTable({
             <TableRow>
               <TableCell
                 sx={{
-                  bgcolor: '#fafbfc',
-                  color: '#475467',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
                   py: 1.5,
                   px: 2.5,
-                  borderBottom: '1px solid #eaecf0',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
                 }}
               >
                 Objective
               </TableCell>
               <TableCell
                 sx={{
-                  bgcolor: '#fafbfc',
-                  color: '#475467',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
                   py: 1.5,
                   px: 2,
-                  borderBottom: '1px solid #eaecf0',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
                   width: 170,
                 }}
               >
@@ -128,15 +128,14 @@ export function InspectionListTable({
               </TableCell>
               <TableCell
                 sx={{
-                  bgcolor: '#fafbfc',
-                  color: '#475467',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
                   py: 1.5,
                   px: 2,
-                  borderBottom: '1px solid #eaecf0',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
                   width: 180,
                 }}
               >
@@ -145,15 +144,14 @@ export function InspectionListTable({
               {showReportColumn && (
                 <TableCell
                   sx={{
-                    bgcolor: '#fafbfc',
-                    color: '#475467',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
+                    bgcolor: 'background.default',
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
                     py: 1.5,
                     px: 2,
-                    borderBottom: '1px solid #eaecf0',
+                    borderBottom: '1px solid',
+                  borderColor: 'divider',
                     width: 170,
                   }}
                 >
@@ -163,15 +161,14 @@ export function InspectionListTable({
               <TableCell
                 align="right"
                 sx={{
-                  bgcolor: '#fafbfc',
-                  color: '#475467',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
                   py: 1.5,
                   px: 2.5,
-                  borderBottom: '1px solid #eaecf0',
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
                   width: 130,
                 }}
               >
@@ -210,7 +207,7 @@ export function InspectionListTable({
                       bgcolor: 'transparent',
                       transition: 'background-color 0.15s ease',
                       '&:hover': {
-                        bgcolor: '#f9fafb !important',
+                        bgcolor: 'action.hover',
                       },
                     }}
                   >
@@ -220,15 +217,16 @@ export function InspectionListTable({
                         px: 2.5,
                         fontSize: '0.875rem',
                         fontWeight: 600,
-                        color: '#101828',
-                        borderBottom: '1px solid #f2f4f7',
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                       }}
                     >
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: 600,
-                          color: '#101828',
+                          color: 'text.primary',
                           lineHeight: 1.4,
                           maxWidth: 500,
                         }}
@@ -238,7 +236,7 @@ export function InspectionListTable({
                       <Typography
                         variant="caption"
                         sx={{
-                          color: '#667085',
+                          color: 'text.secondary',
                           fontFamily: 'monospace',
                           fontSize: '11px',
                           display: 'block',
@@ -253,7 +251,8 @@ export function InspectionListTable({
                       sx={{
                         py: 2,
                         px: 2,
-                        borderBottom: '1px solid #f2f4f7',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                       }}
                     >
                       <StatusChip status={row.status} />
@@ -263,9 +262,10 @@ export function InspectionListTable({
                       sx={{
                         py: 2,
                         px: 2,
-                        color: '#667085',
+                        color: 'text.secondary',
                         fontSize: '0.875rem',
-                        borderBottom: '1px solid #f2f4f7',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -277,14 +277,15 @@ export function InspectionListTable({
                         sx={{
                           py: 2,
                           px: 2,
-                          borderBottom: '1px solid #f2f4f7',
+                          borderBottom: '1px solid',
+                        borderColor: 'divider',
                         }}
                       >
                         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                           {row.reportStatus ? (
                             <StatusChip status={row.reportStatus} />
                           ) : (
-                            <Typography variant="caption" sx={{ color: '#98a2b3' }}>
+                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                               No report
                             </Typography>
                           )}
@@ -295,8 +296,8 @@ export function InspectionListTable({
                                 px: 0.75,
                                 py: '1px',
                                 borderRadius: '4px',
-                                bgcolor: '#f2f4f7',
-                                color: '#344054',
+                                bgcolor: 'action.hover',
+                                color: 'text.primary',
                                 fontSize: '11px',
                                 fontWeight: 600,
                               }}
@@ -313,7 +314,8 @@ export function InspectionListTable({
                       sx={{
                         py: 2,
                         px: 2.5,
-                        borderBottom: '1px solid #f2f4f7',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                       }}
                     >
                       <Button
@@ -326,16 +328,16 @@ export function InspectionListTable({
                         endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
                         sx={{
                           borderRadius: '8px',
-                          borderColor: '#d0d5dd',
-                          color: '#344054',
+                          borderColor: 'divider',
+                          color: 'text.primary',
                           fontWeight: 600,
                           fontSize: '12px',
                           px: 1.5,
                           py: 0.5,
                           '&:hover': {
-                            borderColor: '#3758f9',
-                            color: '#3758f9',
-                            bgcolor: '#eff3ff',
+                            borderColor: 'primary.main',
+                            color: 'primary.main',
+                            bgcolor: 'primary.light',
                           },
                         }}
                       >
@@ -359,12 +361,13 @@ export function InspectionListTable({
         onRowsPerPageChange={(event) => onPageSizeChange(parseInt(event.target.value, 10))}
         rowsPerPageOptions={[10, 20, 50]}
         sx={{
-          borderTop: '1px solid #eaecf0',
-          color: '#667085',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          color: 'text.secondary',
           px: 2,
           '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
             fontSize: '0.875rem',
-            color: '#667085',
+            color: 'text.secondary',
           },
         }}
       />

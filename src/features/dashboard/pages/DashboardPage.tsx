@@ -13,12 +13,12 @@ import {
   REPORT3_ROLE_DASHBOARDS,
   type RoleId,
 } from '../data/report3DashboardData';
-import { LyticMetricCard } from '../components/LyticMetricCard';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import { LyticPerformanceChart } from '../components/LyticPerformanceChart';
 import { LyticRadialGaugeCard } from '../components/LyticRadialGaugeCard';
 import { LyticStackedBarChart } from '../components/LyticStackedBarChart';
 import { LyticQueueTable } from '../components/LyticQueueTable';
-import { LyticHeaderActions } from '../components/LyticHeaderActions';
+import { DashboardHeaderActions } from '../components/LyticHeaderActions';
 
 interface FocusArea {
   label: string;
@@ -295,7 +295,6 @@ export default function DashboardPage() {
         width: '100%',
         maxWidth: 1400,
         mx: 'auto',
-        fontFamily: 'var(--lytic-font)',
       }}
     >
       {/* Top Header Controls */}
@@ -313,9 +312,9 @@ export default function DashboardPage() {
           <Typography
             component="h1"
             sx={{
-              color: 'var(--lytic-title, #1f2937)',
+              color: 'text.primary',
               fontSize: { xs: '20px', sm: '24px' },
-              fontWeight: 700,
+              fontWeight: 500,
               letterSpacing: '-0.02em',
               lineHeight: 1.2,
             }}
@@ -324,7 +323,7 @@ export default function DashboardPage() {
           </Typography>
         </Box>
 
-        <LyticHeaderActions
+        <DashboardHeaderActions
           currentRole={activeRole}
           availableRoles={availableDashboardRoles}
           onRoleChange={handleRoleChange}
@@ -352,7 +351,7 @@ export default function DashboardPage() {
         }}
       >
         {metrics.map((st) => (
-          <LyticMetricCard
+          <MetricCard
             key={st.id}
             label={st.label}
             value={st.value}
@@ -439,16 +438,17 @@ export default function DashboardPage() {
           {focusAreas.length > 0 && (
             <Box
               sx={{
-                bgcolor: 'var(--lytic-bg-card, #ffffff)',
-                border: '1px solid var(--lytic-border, #e5e7eb)',
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
                 borderRadius: '12px',
                 p: 2.5,
-                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+                boxShadow: 'none',
               }}
             >
               <Typography
                 sx={{
-                  color: 'var(--lytic-title, #1f2937)',
+                  color: 'text.primary',
                   fontSize: '15px',
                   fontWeight: 600,
                   mb: 1.5,
@@ -474,13 +474,14 @@ export default function DashboardPage() {
                       px: 1.75,
                       py: 1.5,
                       borderRadius: '8px',
-                      border: '1px solid var(--lytic-border-light, #f3f4f6)',
-                      bgcolor: 'var(--lytic-bg-page, #f9fafb)',
-                      color: 'var(--lytic-title, #1f2937)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.default',
+                      color: 'text.primary',
                       textTransform: 'none',
                       '&:hover': {
-                        bgcolor: 'var(--lytic-border-light, #f3f4f6)',
-                        borderColor: 'var(--lytic-border, #e5e7eb)',
+                        bgcolor: 'action.hover',
+                        borderColor: 'divider',
                       },
                     }}
                     startIcon={
@@ -489,8 +490,8 @@ export default function DashboardPage() {
                           width: 32,
                           height: 32,
                           borderRadius: '6px',
-                          bgcolor: 'var(--lytic-primary-light, #eff3ff)',
-                          color: 'var(--lytic-primary, #3758F9)',
+                          bgcolor: 'primary.light',
+                          color: 'primary.main',
                           display: 'grid',
                           placeItems: 'center',
                         }}
@@ -498,13 +499,13 @@ export default function DashboardPage() {
                         <Icon sx={{ fontSize: 18 }} />
                       </Box>
                     }
-                    endIcon={<ArrowForwardRounded sx={{ color: 'var(--lytic-text, #6b7280)', fontSize: 16, ml: 'auto' }} />}
+                    endIcon={<ArrowForwardRounded sx={{ color: 'text.secondary', fontSize: 16, ml: 'auto' }} />}
                   >
                     <Box sx={{ minWidth: 0, flex: 1, ml: 0.5 }}>
-                      <Typography sx={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2, color: 'var(--lytic-title, #1f2937)' }}>
+                      <Typography sx={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
                         {label}
                       </Typography>
-                      <Typography sx={{ fontSize: '11px', color: 'var(--lytic-text, #6b7280)', lineHeight: 1.2, mt: 0.25 }}>
+                      <Typography sx={{ fontSize: '11px', color: 'text.secondary', lineHeight: 1.2, mt: 0.25 }}>
                         {description}
                       </Typography>
                     </Box>

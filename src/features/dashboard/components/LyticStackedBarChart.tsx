@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import { useTheme } from '@mui/material/styles';
 
 export interface LyticStackedBarChartProps {
   title: string;
@@ -20,6 +21,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   maxStack = 120,
 }) => {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const theme = useTheme();
 
   const svgWidth = 520;
   const svgHeight = 260;
@@ -37,8 +39,9 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   return (
     <Box
       sx={{
-        backgroundColor: 'var(--lytic-bg-card, #ffffff)',
-        border: '1px solid var(--lytic-border, #e5e7eb)',
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
         borderRadius: '16px',
         p: { xs: 2, sm: 2.5 },
         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
@@ -51,7 +54,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
         <Typography
           sx={{
-            color: 'var(--lytic-title, #1f2937)',
+            color: 'text.primary',
             fontSize: '18px',
             fontWeight: 600,
           }}
@@ -63,9 +66,9 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
           size="small"
           aria-label="Acquisition channels options"
           sx={{
-            color: 'var(--lytic-text, #6b7280)',
+            color: 'text.secondary',
             p: 0.75,
-            '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <MoreHorizRounded fontSize="small" />
@@ -85,7 +88,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
         {channels.map((ch) => (
           <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ch.color }} />
-            <Typography sx={{ color: 'var(--lytic-text, #6b7280)', fontSize: '12px' }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
               {ch.name}
             </Typography>
           </Box>
@@ -109,7 +112,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke="var(--lytic-border, #e5e7eb)"
+                  stroke={theme.palette.divider}
                   strokeDasharray="4 4"
                   strokeWidth="1"
                 />
@@ -117,9 +120,9 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   x={paddingLeft - 8}
                   y={y + 4}
                   textAnchor="end"
-                  fill="var(--lytic-text, #6b7280)"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
-                  fontFamily="var(--lytic-font)"
+                  fontFamily={theme.typography.fontFamily}
                   fontWeight="400"
                 >
                   {tick}
@@ -162,9 +165,9 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   x={groupX}
                   y={svgHeight - 10}
                   textAnchor="middle"
-                  fill="var(--lytic-text, #6b7280)"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
-                  fontFamily="var(--lytic-font)"
+                  fontFamily={theme.typography.fontFamily}
                   fontWeight="400"
                 >
                   {cat}
@@ -193,8 +196,8 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
               position: 'absolute',
               top: 5,
               right: 15,
-              bgcolor: 'var(--lytic-title, #1f2937)',
-              color: '#ffffff',
+              bgcolor: 'text.primary',
+              color: 'background.paper',
               borderRadius: '8px',
               p: 1.25,
               fontSize: '11px',
