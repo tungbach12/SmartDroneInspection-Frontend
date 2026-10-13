@@ -31,7 +31,6 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
@@ -66,7 +65,6 @@ const NAV_ITEMS = [
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'asset-review', icon: <FactCheckIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
-  { section: 'reports', icon: <AssignmentIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
 ] as const;
 
