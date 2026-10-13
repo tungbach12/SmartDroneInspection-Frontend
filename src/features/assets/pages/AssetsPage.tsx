@@ -17,6 +17,8 @@ import {
   Stack,
   TextField,
   Typography,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
 import Close from '@mui/icons-material/Close';
@@ -37,6 +39,8 @@ import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
 import { useAssets, useCreateAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
+import { DroneInventoryPanel } from './DroneInventoryPanel';
+import { FlightPermitPanel } from './FlightPermitPanel';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -66,6 +70,7 @@ export function AssetsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
+  const [resourceTab, setResourceTab] = useState(0);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -187,18 +192,24 @@ export function AssetsPage() {
       <PageHeader
         title="Assets"
         subtitle="Infrastructure assets registered for inspection"
-        actions={newAssetButton}
+        actions={resourceTab === 0 ? newAssetButton : undefined}
       />
-
-      {/* 4 Lytic KPI Metric Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 3,
-        }}
-      >
+      {isClient && (
+        <Tabs value={resourceTab} onChange={(_event, value: number) => setResourceTab(value)} aria-label="Asset resources">
+          <Tab label="Assets" />
+          <Tab label="Drones" />
+          <Tab label="Permits" />
+        </Tabs>
+      )}
+      {(!isClient || resourceTab === 0) && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 2.5,
+            mb: 3,
+          }}
+        >
         <MetricCard
           label="Total Assets"
           value={isLoading ? '…' : totalCount.toLocaleString()}
@@ -232,7 +243,8 @@ export function AssetsPage() {
           iconType="shield"
         />
       </Box>
-
+      )}
+      {(!isClient || resourceTab === 0) && <>
       <QueryState
         isLoading={isLoading}
         error={error}
@@ -274,6 +286,9 @@ export function AssetsPage() {
       />
 
       <AssetDetailDrawer asset={selected} onClose={() => setSelected(null)} />
+      </>}
+      {isClient && resourceTab === 1 && <DroneInventoryPanel />}
+      {isClient && resourceTab === 2 && <FlightPermitPanel />}
     </Box>
   );
 }
