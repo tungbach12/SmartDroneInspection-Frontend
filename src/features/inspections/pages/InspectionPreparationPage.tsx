@@ -25,7 +25,7 @@ export default function InspectionPreparationPage() {
         component={RouterLink}
         to=".."
         startIcon={<ArrowBackRounded />}
-        sx={{ alignSelf: 'flex-start', color: '#475467', fontWeight: 600, textTransform: 'none' }}
+        sx={{ alignSelf: 'flex-start', color: 'text.secondary', fontWeight: 500, textTransform: 'none' }}
       >
         Back to inspection
       </Button>

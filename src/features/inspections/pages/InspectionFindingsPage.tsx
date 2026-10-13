@@ -34,6 +34,29 @@ import {
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
+interface BoundingBoxCoords {
+  xMin: number;
+  yMin: number;
+  xMax: number;
+  yMax: number;
+}
+
+function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed.xMin === 'number' &&
+      typeof parsed.yMin === 'number' &&
+      typeof parsed.xMax === 'number' &&
+      typeof parsed.yMax === 'number'
+    ) {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
 /**
  * MF3-05 advisory detection plus MF3-06 candidate review, one stage of the inspection workspace.
  *
@@ -84,8 +107,25 @@ export default function InspectionFindingsPage() {
   const severityFor = (candidateId: string): FindingSeverity =>
     severities[candidateId] ?? 'MEDIUM';
   const locationFor = (candidateId: string): string => locations[candidateId] ?? '';
-  const evidenceFor = (evidenceId: string): EvidenceItem | undefined =>
-    (evidence.data ?? []).find((item) => item.id === evidenceId);
+  const groupedCandidates = useMemo(() => {
+    const list = candidates.data ?? [];
+    const groups: {
+      evidenceId: string;
+      evidence?: EvidenceItem | undefined;
+      candidates: typeof list;
+    }[] = [];
+    const map = new Map<string, typeof list>();
+    for (const c of list) {
+      const existing = map.get(c.evidenceId) ?? [];
+      existing.push(c);
+      map.set(c.evidenceId, existing);
+    }
+    for (const [evidenceId, items] of map.entries()) {
+      const ev = (evidence.data ?? []).find((e) => e.id === evidenceId);
+      groups.push({ evidenceId, evidence: ev, candidates: items });
+    }
+    return groups;
+  }, [candidates.data, evidence.data]);
 
   const submitManualFinding = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -189,133 +229,191 @@ export default function InspectionFindingsPage() {
             Could not load findings.
           </Alert>
         ) : (
-          <Stack spacing={1.5}>
-            {candidates.data?.length ? (
-              candidates.data.map((candidate) => (
-                <Card key={candidate.id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={1}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        <Typography sx={{ fontWeight: 700 }}>{candidate.predictedLabel}</Typography>
-                        <Chip
-                          size="small"
-                          label={`${Math.round(candidate.confidence * 100)}% confidence`}
-                        />
-                        <Chip
-                          size="small"
-                          color={candidate.status === 'PENDING' ? 'warning' : 'default'}
-                          label={candidate.status}
-                        />
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary">
-                        {candidate.modelName} · {candidate.modelVersion}
-                      </Typography>
+          <Stack spacing={2.5}>
+            {groupedCandidates.length ? (
+              groupedCandidates.map((group) => (
+                <Paper
+                  key={group.evidenceId}
+                  variant="outlined"
+                  sx={{
+                    p: { xs: 1.75, sm: 2.25 },
+                    borderRadius: '12px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    sx={{
+                      alignItems: 'center',
+                       mb: 2,
+                      pb: 1.25,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                      {group.evidence?.fileName ?? `Evidence ${group.evidenceId.slice(0, 8)}…`}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      label={`${group.candidates.length} ${group.candidates.length === 1 ? 'detected defect' : 'detected defects'}`}
+                    />
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', md: '360px 1fr' },
+                      gap: 2.5,
+                      alignItems: 'start',
+                    }}
+                  >
+                    <Box sx={{ position: { md: 'sticky' }, top: 16 }}>
                       <CandidatePhoto
                         inspectionId={inspectionId}
-                        evidence={evidenceFor(candidate.evidenceId)}
-                        defectLabel={candidate.predictedLabel}
+                        evidence={group.evidence}
+                        defectLabel={group.candidates[0]?.predictedLabel ?? 'Defect photo'}
                       />
-                      {candidate.status === 'PENDING' && isInspector && (
-                        <Stack spacing={1}>
-                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                            <TextField
-                              select
-                              size="small"
-                              label={`Severity for ${candidate.predictedLabel}`}
-                              value={severityFor(candidate.id)}
-                              onChange={(event) =>
-                                setSeverities((prev) => ({
-                                  ...prev,
-                                  [candidate.id]: event.target.value as FindingSeverity,
-                                }))
-                              }
-                              sx={{ minWidth: 140 }}
-                            >
-                              {SEVERITIES.map((level) => (
-                                <MenuItem key={level} value={level}>
-                                  {level}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                            <TextField
-                              size="small"
-                              label={`Location for ${candidate.predictedLabel}`}
-                              value={locationFor(candidate.id)}
-                              onChange={(event) =>
-                                setLocations((prev) => ({
-                                  ...prev,
-                                  [candidate.id]: event.target.value,
-                                }))
-                              }
-                              slotProps={{ htmlInput: { maxLength: 1000 } }}
-                              sx={{ flexGrow: 1 }}
-                            />
-                          </Stack>
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              size="small"
-                              disabled={!locationFor(candidate.id).trim()}
-                              onClick={() =>
-                                reviewCandidate.mutate({
-                                  candidateId: candidate.id,
-                                  input: {
-                                    // AiFindingCandidateStatus is CONFIRMED/MODIFIED/REJECTED; the
-                                    // server rejects a near-miss like "CONFIRM" with a 400.
-                                    decision: 'CONFIRMED',
-                                    severity: severityFor(candidate.id),
-                                    locationDescription: locationFor(candidate.id).trim(),
-                                    technicalNotes: 'Confirmed by assigned Inspector',
-                                  },
-                                })
-                              }
-                            >
-                              Confirm
-                            </Button>
-                            <Button
-                              size="small"
-                              disabled={!locationFor(candidate.id).trim()}
-                              onClick={() =>
-                                reviewCandidate.mutate({
-                                  candidateId: candidate.id,
-                                  input: {
-                                    decision: 'MODIFIED',
-                                    defectLabel: candidate.predictedLabel,
-                                    severity: severityFor(candidate.id),
-                                    locationDescription: locationFor(candidate.id).trim(),
-                                    technicalNotes: 'Modified by assigned Inspector',
-                                  },
-                                })
-                              }
-                            >
-                              Modify
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              onClick={() =>
-                                reviewCandidate.mutate({
-                                  candidateId: candidate.id,
-                                  input: {
-                                    decision: 'REJECTED',
-                                    reason: 'Inspector marked as false positive',
-                                  },
-                                })
-                              }
-                            >
-                              Reject
-                            </Button>
-                          </Stack>
-                        </Stack>
-                      )}
-                      {isReviewer && candidate.status !== 'PENDING' ? (
-                        <Typography variant="caption" color="text.secondary">
-                          Reviewed: {candidate.status}. The reviewer verdict on the finding is shown
-                          on the findings register below.
-                        </Typography>
-                      ) : null}
+                    </Box>
+
+                    <Stack spacing={1.5}>
+                      {group.candidates.map((candidate) => {
+                        const box = parseBoundingBox(candidate.boundingBox);
+                        return (
+                          <Card key={candidate.id} variant="outlined" sx={{ borderRadius: '8px' }}>
+                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                              <Stack spacing={1}>
+                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                                  <Typography sx={{ fontWeight: 700 }}>{candidate.predictedLabel}</Typography>
+                                  <Chip
+                                    size="small"
+                                    label={`${Math.round(candidate.confidence * 100)}% confidence`}
+                                  />
+                                  <Chip
+                                    size="small"
+                                    color={candidate.status === 'PENDING' ? 'warning' : 'default'}
+                                    label={candidate.status}
+                                  />
+                                  {box && (
+                                    <Chip
+                                      size="small"
+                                      variant="outlined"
+                                      label={`Region: [${Math.round(box.xMin * 100)}%, ${Math.round(box.yMin * 100)}%] → [${Math.round(box.xMax * 100)}%, ${Math.round(box.yMax * 100)}%]`}
+                                      sx={{ fontFamily: 'monospace', fontSize: '11px' }}
+                                    />
+                                  )}
+                                </Stack>
+                                <Typography variant="caption" color="text.secondary">
+                                  {candidate.modelName} · {candidate.modelVersion}
+                                </Typography>
+                                {candidate.status === 'PENDING' && isInspector && (
+                                  <Stack spacing={1}>
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                                      <TextField
+                                        select
+                                        size="small"
+                                        label={`Severity for ${candidate.predictedLabel}`}
+                                        value={severityFor(candidate.id)}
+                                        onChange={(event) =>
+                                          setSeverities((prev) => ({
+                                            ...prev,
+                                            [candidate.id]: event.target.value as FindingSeverity,
+                                          }))
+                                        }
+                                        sx={{ minWidth: 140 }}
+                                      >
+                                        {SEVERITIES.map((level) => (
+                                          <MenuItem key={level} value={level}>
+                                            {level}
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
+                                      <TextField
+                                        size="small"
+                                        label={`Location for ${candidate.predictedLabel}`}
+                                        value={locationFor(candidate.id)}
+                                        onChange={(event) =>
+                                          setLocations((prev) => ({
+                                            ...prev,
+                                            [candidate.id]: event.target.value,
+                                          }))
+                                        }
+                                        slotProps={{ htmlInput: { maxLength: 1000 } }}
+                                        sx={{ flexGrow: 1 }}
+                                      />
+                                    </Stack>
+                                    <Stack direction="row" spacing={1}>
+                                      <Button
+                                        size="small"
+                                        disabled={!locationFor(candidate.id).trim()}
+                                        onClick={() =>
+                                          reviewCandidate.mutate({
+                                            candidateId: candidate.id,
+                                            input: {
+                                              decision: 'CONFIRMED',
+                                              severity: severityFor(candidate.id),
+                                              locationDescription: locationFor(candidate.id).trim(),
+                                              technicalNotes: 'Confirmed by assigned Inspector',
+                                            },
+                                          })
+                                        }
+                                      >
+                                        Confirm
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        disabled={!locationFor(candidate.id).trim()}
+                                        onClick={() =>
+                                          reviewCandidate.mutate({
+                                            candidateId: candidate.id,
+                                            input: {
+                                              decision: 'MODIFIED',
+                                              defectLabel: candidate.predictedLabel,
+                                              severity: severityFor(candidate.id),
+                                              locationDescription: locationFor(candidate.id).trim(),
+                                              technicalNotes: 'Modified by assigned Inspector',
+                                            },
+                                          })
+                                        }
+                                      >
+                                        Modify
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        onClick={() =>
+                                          reviewCandidate.mutate({
+                                            candidateId: candidate.id,
+                                            input: {
+                                              decision: 'REJECTED',
+                                              reason: 'Inspector marked as false positive',
+                                            },
+                                          })
+                                        }
+                                      >
+                                        Reject
+                                      </Button>
+                                    </Stack>
+                                  </Stack>
+                                )}
+                                {isReviewer && candidate.status !== 'PENDING' ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Reviewed: {candidate.status}. The reviewer verdict on the finding is shown
+                                    on the findings register below.
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </Stack>
-                  </CardContent>
-                </Card>
+                  </Box>
+                </Paper>
               ))
             ) : (
               <Typography color="text.secondary">
@@ -436,10 +534,10 @@ function ReviewerVerdicts({
         <Paper key={finding.id} variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
           <Stack spacing={1.5}>
             <Box>
-              <Typography variant="body1" sx={{ fontWeight: 700, color: '#101828' }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 {finding.defectLabel}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#475467' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {finding.locationDescription}
               </Typography>
             </Box>
@@ -447,13 +545,14 @@ function ReviewerVerdicts({
               <Box
                 sx={{
                   borderRadius: '10px',
-                  border: '1px solid #eaecf0',
+                  border: '1px solid',
+                      borderColor: 'divider',
                   overflow: 'hidden',
                   p: 1.25,
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'background.default',
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b', display: 'block', mb: 0.75 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
                   Defect photo capture
                 </Typography>
                 <AuthenticatedImage
@@ -503,13 +602,14 @@ function CandidatePhoto({
     <Box
       sx={{
         borderRadius: '10px',
-        border: '1px solid #eaecf0',
+        border: '1px solid',
+                      borderColor: 'divider',
         overflow: 'hidden',
         p: 1.25,
-        bgcolor: '#f8fafc',
+        bgcolor: 'background.default',
       }}
     >
-      <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b', display: 'block', mb: 0.75 }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
         Defect photo capture · {evidence.fileName}
       </Typography>
       <AuthenticatedImage

@@ -31,7 +31,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
-import { LyticMetricCard } from '@/features/dashboard/components/LyticMetricCard';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
@@ -199,7 +199,7 @@ export function AssetsPage() {
           mb: 3,
         }}
       >
-        <LyticMetricCard
+        <MetricCard
           label="Total Assets"
           value={isLoading ? '…' : totalCount.toLocaleString()}
           change="+100% paired"
@@ -207,7 +207,7 @@ export function AssetsPage() {
           subtext="registered structures"
           iconType="building"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Active Assets"
           value={isLoading ? '…' : activeCount.toLocaleString()}
           change="Operational"
@@ -215,7 +215,7 @@ export function AssetsPage() {
           subtext="ready for inspection"
           iconType="check-circle"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Pending Review"
           value={isLoading ? '…' : pendingCount.toLocaleString()}
           change={pendingCount > 0 ? 'Action due' : 'Clear'}
@@ -223,7 +223,7 @@ export function AssetsPage() {
           subtext="awaiting verification"
           iconType="alert"
         />
-        <LyticMetricCard
+        <MetricCard
           label="Inspection Schedules"
           value={isLoading ? '…' : activeCount.toLocaleString()}
           change="Scheduled"

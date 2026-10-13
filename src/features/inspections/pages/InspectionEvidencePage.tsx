@@ -296,15 +296,15 @@ export default function InspectionEvidencePage() {
                       cursor: 'pointer',
                       borderRadius: '10px',
                       border: '1px solid',
-                      borderColor: isSelected ? '#3758f9' : '#eaecf0',
-                      bgcolor: isSelected ? '#eff3ff' : '#ffffff',
+                      borderColor: isSelected ? 'primary.main' : 'divider',
+                      bgcolor: isSelected ? 'primary.light' : 'background.paper',
                     }}
                     onClick={() => setSelectedEvidenceId(item.id)}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828', wordBreak: 'break-word' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
                       {item.fileName}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#667085', display: 'block', mt: 0.25 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                       {item.contentType} · {formatBytes(item.sizeBytes)}
                     </Typography>
                   </Paper>
@@ -315,7 +315,8 @@ export default function InspectionEvidencePage() {
             {selectedEvidence && (
               <Paper
                 variant="outlined"
-                sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #eaecf0', bgcolor: '#fafbfc' }}
+                sx={{ p: 2.5, borderRadius: '12px', border: '1px solid',
+                      borderColor: 'divider', bgcolor: 'background.default' }}
               >
                 <Stack spacing={2}>
                   {selectedEvidence.contentType.startsWith('image/') ? (
@@ -323,7 +324,8 @@ export default function InspectionEvidencePage() {
                       src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
                       alt={selectedEvidence.fileName}
                       maxHeight={460}
-                      sx={{ border: '1px solid #eaecf0', borderRadius: '8px', bgcolor: '#ffffff' }}
+                      sx={{ border: '1px solid',
+                      borderColor: 'divider', borderRadius: '8px', bgcolor: 'background.paper' }}
                     />
                   ) : (
                     <Alert severity="info">
@@ -331,10 +333,10 @@ export default function InspectionEvidencePage() {
                     </Alert>
                   )}
                   <Box>
-                    <Typography variant="caption" sx={{ color: '#475467', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
                       SHA-256 {selectedEvidence.checksumSha256}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#667085', display: 'block', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
                       Captured {selectedEvidence.captureTime ?? 'time not recorded'} · Source{' '}
                       {selectedEvidence.source}
                     </Typography>

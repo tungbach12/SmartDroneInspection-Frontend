@@ -38,7 +38,8 @@ export function FindingDecisionControls({
   const [rationale, setRationale] = useState('');
 
   return (
-    <Stack spacing={1.5} sx={{ mt: 2, pt: 2, borderTop: '1px solid #f2f4f7' }}>
+    <Stack spacing={1.5} sx={{ mt: 2, pt: 2, borderTop: '1px solid',
+      borderColor: 'divider' }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
         Reviewer decision — {defectLabel}
       </Typography>

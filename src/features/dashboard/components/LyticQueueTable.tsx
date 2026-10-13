@@ -13,6 +13,7 @@ import {
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { Link as RouterLink } from 'react-router-dom';
+import { alpha, useTheme } from '@mui/material/styles';
 
 export interface LyticQueueTableProps {
   title: string;
@@ -39,28 +40,29 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
   viewAllLink,
   viewAllText,
 }) => {
+  const theme = useTheme();
   const getBadgeStyle = (status: 'positive' | 'warning' | 'negative' | 'neutral') => {
     switch (status) {
       case 'positive':
         return {
-          bg: 'var(--lytic-success-bg, #dcfce7)',
-          text: 'var(--lytic-success-text, #16a34a)',
+          bg: alpha(theme.palette.success.main, 0.12),
+          text: 'success.main',
         };
       case 'warning':
         return {
-          bg: 'var(--lytic-warning-bg, #ffedd5)',
-          text: 'var(--lytic-warning-text, #ea580c)',
+          bg: alpha(theme.palette.warning.main, 0.14),
+          text: 'warning.main',
         };
       case 'negative':
         return {
-          bg: 'var(--lytic-error-bg, #fee2e2)',
-          text: 'var(--lytic-error-text, #dc2626)',
+          bg: alpha(theme.palette.error.main, 0.12),
+          text: 'error.main',
         };
       case 'neutral':
       default:
         return {
-          bg: 'var(--lytic-border-light, #f3f4f6)',
-          text: 'var(--lytic-text, #6b7280)',
+          bg: 'action.hover',
+          text: 'text.secondary',
         };
     }
   };
@@ -68,8 +70,9 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
   return (
     <Box
       sx={{
-        backgroundColor: 'var(--lytic-bg-card, #ffffff)',
-        border: '1px solid var(--lytic-border, #e5e7eb)',
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
         borderRadius: '12px',
         overflow: 'hidden',
         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
@@ -92,7 +95,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           <Typography
             component="h2"
             sx={{
-              color: 'var(--lytic-title, #1f2937)',
+              color: 'text.primary',
               fontSize: '16px',
               fontWeight: 600,
               mb: 0.5,
@@ -102,7 +105,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           </Typography>
           <Typography
             sx={{
-              color: 'var(--lytic-text, #6b7280)',
+              color: 'text.secondary',
               fontSize: '14px',
             }}
           >
@@ -114,9 +117,9 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           size="small"
           aria-label="Table options"
           sx={{
-            color: 'var(--lytic-text, #6b7280)',
+            color: 'text.secondary',
             p: 0.75,
-            '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <MoreHorizRounded fontSize="small" />
@@ -125,9 +128,9 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
 
       {/* Table Container */}
       <Box sx={{ overflowX: 'auto', flexGrow: 1 }}>
-        <Table sx={{ minWidth: 500, borderTop: '1px solid var(--lytic-border, #e5e7eb)' }}>
+        <Table sx={{ minWidth: 500, borderTop: 1, borderColor: 'divider' }}>
           <TableHead>
-            <TableRow sx={{ borderBottom: '1px solid var(--lytic-border, #e5e7eb)' }}>
+            <TableRow sx={{ borderBottom: 1, borderColor: 'divider' }}>
               {headers.map((h, i) => (
                 <TableCell
                   key={h}
@@ -137,10 +140,11 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                     py: 1.5,
                     fontSize: '11px',
                     fontWeight: 600,
-                    color: 'var(--lytic-title, #1f2937)',
+                    color: 'text.primary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    borderBottom: '1px solid var(--lytic-border, #e5e7eb)',
+                    borderBottom: 1,
+                    borderColor: 'divider',
                     bgcolor: 'transparent',
                   }}
                 >
@@ -158,24 +162,25 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                   hover
                   sx={{
                     height: 56,
-                    borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)',
+                    borderBottom: 1,
+                    borderColor: 'divider',
                     '&:last-child td': { borderBottom: 0 },
-                    '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+                    '&:hover': { bgcolor: 'action.hover' },
                   }}
                 >
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', fontWeight: 500, color: 'var(--lytic-title, #1f2937)', borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
                     {row.col1}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'var(--lytic-text, #6b7280)', borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {row.col2}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'var(--lytic-text, #6b7280)', borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {row.col3}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'var(--lytic-text, #6b7280)', borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {row.col4}
                   </TableCell>
-                  <TableCell align="right" sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)' }}>
+                  <TableCell align="right" sx={{ px: 2.5, py: 1.75, borderBottom: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
                       <Box
                         component="span"
@@ -202,9 +207,9 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                           size="small"
                           aria-label={`Open ${row.col1}`}
                           sx={{
-                            color: 'var(--lytic-text, #6b7280)',
+                            color: 'text.secondary',
                             p: 0.5,
-                            '&:hover': { color: 'var(--lytic-primary, #3758F9)' },
+                            '&:hover': { color: 'primary.main' },
                           }}
                         >
                           <ArrowForwardRounded sx={{ fontSize: 16 }} />
@@ -221,14 +226,14 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
 
       {/* Optional Footer Link */}
       {viewAllLink && (
-        <Box sx={{ p: 1.5, px: 2.5, borderTop: '1px solid var(--lytic-border-light, #f3f4f6)', bgcolor: 'transparent' }}>
+        <Box sx={{ p: 1.5, px: 2.5, borderTop: 1, borderColor: 'divider', bgcolor: 'transparent' }}>
           <Button
             component={RouterLink}
             to={viewAllLink}
             size="small"
             endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
             sx={{
-              color: 'var(--lytic-primary, #3758F9)',
+              color: 'primary.main',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '13px',
