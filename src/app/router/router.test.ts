@@ -37,4 +37,18 @@ describe('MF1 client-only routes', () => {
       expect(matches?.at(-1)?.route.path).not.toBe('*');
     },
   );
+
+  it.each([
+    ['/client/workforce', 'ORG_ADMIN'],
+    ['/client/assets', 'ORG_ADMIN'],
+    ['/client/workforce', 'ADMIN'],
+    ['/client/assets', 'ADMIN'],
+    ['/client/workforce', 'INSPECTOR'],
+    ['/client/assets', 'INSPECTOR'],
+    ['/client/workforce', 'MAINTENANCE_ENGINEER'],
+    ['/client/assets', 'MAINTENANCE_ENGINEER'],
+  ])('maps direct resource URL %s for %s into the guarded client tree', (path) => {
+    const matches = matchRoutes(router.routes, path);
+    expect(matches?.at(-1)?.route.path).toBe(path.split('/').at(-1));
+  });
 });
