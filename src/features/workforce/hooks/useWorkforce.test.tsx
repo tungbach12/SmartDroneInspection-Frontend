@@ -69,7 +69,7 @@ describe('useWorkforce hooks', () => {
       user: MEMBER,
       temporaryPassword: 'Temp-Password-1',
     });
-    const { result } = renderHook(() => useProvisionWorkforceUser(), { wrapper: wrapper(client) });
+    const { result } = renderHook(() => useProvisionWorkforceUser(() => undefined), { wrapper: wrapper(client) });
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -85,52 +85,58 @@ describe('useWorkforce hooks', () => {
     );
   });
 
-  it('never places the one-time temporary password in the query cache', async () => {
+  it('keeps the temporary password out of the mutation and query caches', async () => {
     client.setQueryData(workforceKeys.users(), [MEMBER]);
     vi.mocked(workforceApi.provisionUser).mockResolvedValue({
       user: MEMBER,
       temporaryPassword: 'Temp-Password-1',
     });
-    const { result } = renderHook(() => useProvisionWorkforceUser(), { wrapper: wrapper(client) });
+    const issued: unknown[] = [];
+    const { result } = renderHook(
+      () => useProvisionWorkforceUser((credential) => issued.push(credential)),
+      { wrapper: wrapper(client) },
+    );
 
-    let provisioned: Awaited<ReturnType<typeof workforceApi.provisionUser>> | undefined;
+    let mutationData: unknown;
     await act(async () => {
-      provisioned = await result.current.mutateAsync({
+      mutationData = await result.current.mutateAsync({
         email: MEMBER.email,
         fullName: MEMBER.fullName,
         roles: ['INSPECTOR'],
       });
     });
 
-    // The password reaches the caller through the mutation result. It must never appear in the
-    // query cache, which is what a query-based read path would consult. TanStack's MutationCache
-    // holds the result while the hook is mounted; the page clears that by calling reset() when the
-    // one-time surface closes, which is asserted in WorkforcePage.test.tsx.
-    expect(provisioned?.temporaryPassword).toBe('Temp-Password-1');
+    expect(mutationData).toEqual(MEMBER);
+    expect(issued).toEqual([{ user: MEMBER, temporaryPassword: 'Temp-Password-1' }]);
     expect(JSON.stringify(client.getQueryCache().getAll())).not.toContain('Temp-Password-1');
     expect(JSON.stringify(client.getQueryData(workforceKeys.users()))).not.toContain(
       'Temp-Password-1',
     );
+    expect(JSON.stringify(client.getMutationCache().getAll())).not.toContain('Temp-Password-1');
   });
 
-  it('exposes reset so the page can drop the result after the one-time surface closes', async () => {
-    const client = new QueryClient();
-    vi.mocked(workforceApi.provisionUser).mockResolvedValue({
-      user: MEMBER,
-      temporaryPassword: 'Temp-Password-2',
-    } as never);
-    const { result } = renderHook(() => useProvisionWorkforceUser(), { wrapper: wrapper(client) });
+  it('resets a provisioning error when reset is called', async () => {
+    const { result } = renderHook(
+      () => useProvisionWorkforceUser(() => undefined),
+      { wrapper: wrapper(client) },
+    );
 
     expect(typeof result.current.reset).toBe('function');
+    await act(async () => result.current.reset());
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.error).toBeNull();
+  });
 
+  it('exposes reset so the page can drop an error after the provision dialog closes', async () => {
+    const client = new QueryClient();
+    const { result } = renderHook(() => useProvisionWorkforceUser(() => undefined), { wrapper: wrapper(client) });
+
+    expect(typeof result.current.reset).toBe('function');
     await act(async () => {
       result.current.reset();
     });
-
-    // After reset the hook reports no result and no error, so a reopened dialog starts blank.
     expect(result.current.data).toBeUndefined();
     expect(result.current.error).toBeNull();
-    expect(JSON.stringify(client.getQueryCache().getAll())).not.toContain('Temp-Password-2');
   });
 
   it('invalidates the workforce list after a status change', async () => {

@@ -62,7 +62,11 @@ interface IssuedCredential {
 
 export default function WorkforcePage() {
   const { data: members, isLoading, error, refetch } = useWorkforceUsers();
-  const provision = useProvisionWorkforceUser();
+  const provision = useProvisionWorkforceUser((created) => {
+    // Keep the one-time password only in local component state; the mutation result itself is
+    // sanitized to the user projection before TanStack stores it in MutationCache.
+    setIssued({ email: created.user.email, temporaryPassword: created.temporaryPassword });
+  });
   const updateStatus = useUpdateWorkforceUserStatus();
   const updateRoles = useUpdateWorkforceUserRoles();
 
@@ -173,14 +177,7 @@ export default function WorkforcePage() {
           }}
           onSubmit={(input: ProvisionWorkforceUserInput) =>
             provision.mutate(input, {
-              onSuccess: (created) => {
-                setProvisionOpen(false);
-                // The password goes straight to the one-time surface and nowhere else.
-                setIssued({
-                  email: created.user.email,
-                  temporaryPassword: created.temporaryPassword,
-                });
-              },
+              onSuccess: () => setProvisionOpen(false),
             })
           }
         />
