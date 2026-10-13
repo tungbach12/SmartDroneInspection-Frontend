@@ -606,6 +606,32 @@ describe('WorkforcePage users tab', () => {
     expect(screen.queryByRole('dialog', { name: 'Temporary password' })).toBeNull();
   });
 
+  it('does not offer credential creation while workforce subjects are loading', () => {
+    users.data = undefined;
+    users.isLoading = true;
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(
+      (screen.getByRole('button', { name: 'Add credential' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Add credential' })).toBeNull();
+  });
+
+  it('shows subject-list errors and retry, and does not allow credential creation', () => {
+    users.data = undefined;
+    users.error = new Error('Could not load workforce users.');
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(screen.getByText(/Could not load this information/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Add credential' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
   it('creates a credential for a workforce user with optional evidence reference and ordered dates', async () => {
     users.data = [MEMBER];
     renderPage();
