@@ -15,10 +15,9 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // `.claude/` holds agent scratch and nested worktree checkouts, not product source; without
-    // this a focused run also executes stale copies of tests from those directories. Spread
-    // configDefaults.exclude rather than replacing it — Vitest merges arrays by replacement, so a
-    // literal list here would silently drop the default `**/.git/**` glob.
-    exclude: [...configDefaults.exclude, '**/.claude/**', '**/dist/**'],
+    // The heavier component tests needed more than the 5s default when the whole suite ran at once.
+    // vmThreads was tried and reverted: each thread builds its own jsdom, and across this many test
+    // files the workers ran the process out of memory.
+    testTimeout: 15000,
   },
 });

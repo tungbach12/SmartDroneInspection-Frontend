@@ -1,221 +1,64 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { renderWithRouter as render } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import type { Role } from '@/features/auth/store/authStore';
 import ReportsPage from './ReportsPage';
-import { inspectionApi } from '@/features/inspections/api/inspectionApi';
-
-vi.mock('@/features/inspections/api/inspectionApi', () => ({
-  inspectionApi: {
-    listWithReports: vi.fn(),
-    listVersions: vi.fn(),
-    verifyVersion: vi.fn(),
-    submitVersion: vi.fn(),
-    reviewVersion: vi.fn(),
-    publishVersion: vi.fn(),
-  },
-}));
-
-const mockedApi = vi.mocked(inspectionApi);
 
 function setRole(roles: Role[]) {
   useAuthStore.setState({
-    userId: 'user-1',
     user: {
-      id: 'user-1',
-      email: 'user@example.test',
-      fullName: 'Test User',
+      id: 'admin-1',
+      email: 'admin@example.test',
+      fullName: 'Reviewer',
       roles,
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
     },
+    userId: 'admin-1',
+    userName: 'Reviewer',
+    email: 'admin@example.test',
     roles,
+    accessToken: 'test-token',
   });
 }
 
-function renderPage() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <ReportsPage />
-    </QueryClientProvider>,
+/** Proves where the redirect actually went, since the page navigates rather than renders. */
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div data-testid="location">
+      {location.pathname}
+      {location.search}
+    </div>
   );
 }
 
-function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.listVersions>>[number]>) {
-  return {
-    id: 'version-1',
-    inspectionReportId: 'report-1',
-    versionNo: 1,
-    status: 'SUBMITTED' as const,
-    authorUserId: 'someone-else',
-    authorVerifiedAt: '2026-10-01T10:00:00Z',
-    reviewerUserId: null,
-    reviewedAt: null,
-    reviewReason: null,
-    llmModel: 'test-model',
-    promptVersion: 'mf3-report-v1',
-    generatedAt: '2026-10-01T09:00:00Z',
-    evidenceSnapshotHash: 'abcdef1234567890',
-    publishedAt: null,
-    createdAt: '2026-10-01T09:00:00Z',
-    ...overrides,
-  };
-}
-
-function listedInspection(id = 'inspection-1') {
-  return {
-    id,
-    organizationId: 'org-1',
-    assetId: 'asset-1',
-    inspectorId: 'inspector-1',
-    objective: 'Inspect the main span',
-    status: 'REPORT_DRAFT' as const,
-    plannedStartAt: null,
-    plannedEndAt: null,
-    createdAt: '2026-10-01T09:00:00Z',
-    updatedAt: '2026-10-01T09:00:00Z',
-    reportId: 'report-1',
-    reportStatus: 'SUBMITTED' as const,
-    reportVersionNo: 1,
-  };
-}
-
-async function loadVersions(inspectionId = 'inspection-1') {
-  fireEvent.click(await screen.findByRole('row', { name: new RegExp(inspectionId.slice(0, 8)) }));
-}
-
-describe('ReportsPage MF3 gates', () => {
+describe('ReportsPage', () => {
   beforeEach(() => {
     cleanup();
-    vi.clearAllMocks();
-    mockedApi.listWithReports.mockResolvedValue({
-      items: [listedInspection()],
-      page: 1,
-      pageSize: 10,
-      totalCount: 1,
-      totalPages: 1,
-    });
     setRole(['ORG_ADMIN']);
   });
 
-  it('prompts for an inspection before showing any version', () => {
-    renderPage();
-
-    expect(screen.getByText('No inspection selected')).toBeTruthy();
-    expect(mockedApi.listVersions).not.toHaveBeenCalled();
+  afterEach(() => {
+    cleanup();
+    useAuthStore.getState().clearSession();
   });
 
-  it('offers approve and return-with-reason to the reviewer on a submitted version', async () => {
-    mockedApi.listVersions.mockResolvedValue([version({})]);
-
-    renderPage();
-    loadVersions();
-
-    expect(await screen.findByText(/Version 1/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
-
-    // Returning requires a reason, so the button stays disabled until one is typed.
-    const returnButton = screen.getByRole('button', {
-      name: 'Return with reason',
-    }) as HTMLButtonElement;
-    expect(returnButton.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText('Reason for return'), {
-      target: { value: 'The east face coverage is not disclosed' },
-    });
-    expect(returnButton.disabled).toBe(false);
-
-    fireEvent.click(returnButton);
-    await waitFor(() =>
-      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
+  it('redirects to the inspections list with the report filter', () => {
+    render(
+      <>
+        <ReportsPage />
+        <LocationProbe />
+      </>,
+      { route: '/operations/reports' },
     );
-  });
 
-  it('marks a published version immutable and offers no further action', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({
-        status: 'PUBLISHED',
-        versionNo: 2,
-        authorUserId: 'user-1',
-        reviewerUserId: 'user-2',
-        reviewedAt: '2026-10-01T11:00:00Z',
-        publishedAt: '2026-10-01T12:00:00Z',
-      }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    expect(await screen.findByText('Immutable')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Publish immutable version' })).toBeNull();
-  });
-
-  it('lets the Inspector author verify a draft', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'DRAFT', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the verified Inspector submit the version for review', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'AUTHOR_VERIFIED', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-    loadVersions();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
-    await waitFor(() =>
-      expect(mockedApi.submitVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('hides review actions from an Inspector', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([version({})]);
-
-    renderPage();
-    loadVersions();
-
-    await screen.findByText(/Version 1/);
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
-    expect(screen.queryByLabelText('Reason for return')).toBeNull();
-  });
-
-  it('reports a no-repair publication without inventing corrective work', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'APPROVED', authorUserId: 'someone-else' }),
-    ]);
-    mockedApi.publishVersion.mockResolvedValue({
-      reportVersionId: 'version-1',
-      versionNo: 1,
-      publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: [],
-      inspectionStatus: 'COMPLETED',
-    });
-
-    renderPage();
-    loadVersions();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/No corrective work was required/)).toBeTruthy(),
+    // The report queue is the owning portal's inspections list with ?view=reports, so saved
+    // /reports links survive as that filtered view.
+    expect(document.querySelector('[data-testid="location"]')?.textContent).toBe(
+      '/operations/inspections?view=reports',
     );
   });
 });

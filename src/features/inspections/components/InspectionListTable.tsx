@@ -1,4 +1,6 @@
 import {
+  Box,
+  Button,
   Paper,
   Stack,
   Table,
@@ -10,33 +12,45 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import type { InspectionListItem } from '../api/inspectionApi';
 import { StatusChip } from '@/shared/ui/StatusChip';
 
 interface InspectionListTableProps {
+  title?: string;
   rows: InspectionListItem[];
   page: number;
   pageSize: number;
   totalCount: number;
-  /** Reported by the backend, and a floor: no row is dropped if a count ever disagrees. */
   totalPages: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-  onSelect: (inspectionId: string) => void;
-  selectedInspectionId?: string | null;
-  /** The reports view needs the report columns; the inspections view does not. */
+  /** Opens the inspection's own route, which is where the MF3 workflow lives. */
+  onOpen: (inspectionId: string) => void;
   showReportColumn?: boolean;
 }
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : '—';
+  if (!value) return '—';
+  try {
+    const d = new Date(value);
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return value;
+  }
 }
 
 /**
- * Server-paged inspection rows. Paging is deliberately not client-side: the list endpoint already
- * scopes and pages the data, so filtering here would hide rows the caller may legitimately see.
+ * Modern Lytic-styled server-paged inspection table.
  */
 export function InspectionListTable({
+  title = 'Inspection records',
   rows,
   page,
   pageSize,
@@ -44,95 +58,300 @@ export function InspectionListTable({
   totalPages,
   onPageChange,
   onPageSizeChange,
-  onSelect,
-  selectedInspectionId,
+  onOpen,
   showReportColumn = false,
 }: InspectionListTableProps) {
   return (
-    <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: '12px',
+        boxShadow: 'none',
+      }}
+    >
+      {/* Card Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: { xs: 2, sm: 3 },
+          py: 2.25,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
+          {title}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+          {totalCount} total {totalCount === 1 ? 'record' : 'records'}
+        </Typography>
+      </Box>
+
       <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table size="small" aria-label="Inspections">
+        <Table aria-label="Inspections table">
           <TableHead>
             <TableRow>
-              <TableCell>Objective</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Updated</TableCell>
-              {showReportColumn && <TableCell>Report</TableCell>}
-              <TableCell>Inspection</TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  py: 1.5,
+                  px: 2.5,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                Objective
+              </TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 170,
+                }}
+              >
+                Status
+              </TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 180,
+                }}
+              >
+                Updated
+              </TableCell>
+              {showReportColumn && (
+                <TableCell
+                  sx={{
+                    bgcolor: 'background.default',
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    py: 1.5,
+                    px: 2,
+                    borderBottom: '1px solid',
+                  borderColor: 'divider',
+                    width: 170,
+                  }}
+                >
+                  Report
+                </TableCell>
+              )}
+              <TableCell
+                align="right"
+                sx={{
+                  bgcolor: 'background.default',
+                  color: 'text.secondary',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  py: 1.5,
+                  px: 2.5,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 130,
+                }}
+              >
+                Action
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={showReportColumn ? 5 : 4}>
-                  <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.9rem' }}>
                     No inspections match this view yet.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  onClick={() => onSelect(row.id)}
-                  onKeyDown={(event) => {
-                    if (
-                      event.target === event.currentTarget &&
-                      (event.key === 'Enter' || event.key === ' ')
-                    ) {
-                      event.preventDefault();
-                      onSelect(row.id);
-                    }
-                  }}
-                  tabIndex={0}
-                  aria-current={row.id === selectedInspectionId}
-                  sx={{
-                    cursor: 'pointer',
-                    bgcolor:
-                      row.id === selectedInspectionId
-                        ? 'action.selected'
-                        : 'transparent',
-                  }}
-                >
-                  <TableCell>{row.objective}</TableCell>
-                  <TableCell>
-                    <StatusChip status={row.status} />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDate(row.updatedAt)}
-                    </Typography>
-                  </TableCell>
-                  {showReportColumn && (
-                    <TableCell>
-                      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                        {row.reportStatus ? (
-                          <StatusChip status={row.reportStatus} />
-                        ) : (
-                          <Typography variant="caption" color="text.secondary">
-                            No report
-                          </Typography>
-                        )}
-                        {row.reportVersionNo !== null && (
-                          <Typography variant="caption" color="text.secondary">
-                            v{row.reportVersionNo}
-                          </Typography>
-                        )}
-                      </Stack>
+              rows.map((row) => {
+                return (
+                  <TableRow
+                    key={row.id}
+                    hover
+                    onClick={() => onOpen(row.id)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.target === event.currentTarget &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
+                        event.preventDefault();
+                        onOpen(row.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    sx={{
+                      cursor: 'pointer',
+                      bgcolor: 'transparent',
+                      transition: 'background-color 0.15s ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    <TableCell
+                      sx={{
+                        py: 2,
+                        px: 2.5,
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: 'text.primary',
+                          lineHeight: 1.4,
+                          maxWidth: 500,
+                        }}
+                      >
+                        {row.objective}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontFamily: 'monospace',
+                          fontSize: '11px',
+                          display: 'block',
+                          mt: 0.25,
+                        }}
+                      >
+                        {row.id.slice(0, 8)}…
+                      </Typography>
                     </TableCell>
-                  )}
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.id.slice(0, 8)}…
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))
+
+                    <TableCell
+                      sx={{
+                        py: 2,
+                        px: 2,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <StatusChip status={row.status} />
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        py: 2,
+                        px: 2,
+                        color: 'text.secondary',
+                        fontSize: '0.875rem',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {formatDate(row.updatedAt)}
+                    </TableCell>
+
+                    {showReportColumn && (
+                      <TableCell
+                        sx={{
+                          py: 2,
+                          px: 2,
+                          borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        }}
+                      >
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                          {row.reportStatus ? (
+                            <StatusChip status={row.reportStatus} />
+                          ) : (
+                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                              No report
+                            </Typography>
+                          )}
+                          {row.reportVersionNo !== null && (
+                            <Box
+                              component="span"
+                              sx={{
+                                px: 0.75,
+                                py: '1px',
+                                borderRadius: '4px',
+                                bgcolor: 'action.hover',
+                                color: 'text.primary',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              v{row.reportVersionNo}
+                            </Box>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    )}
+
+                    <TableCell
+                      align="right"
+                      sx={{
+                        py: 2,
+                        px: 2.5,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpen(row.id);
+                        }}
+                        endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
+                        sx={{
+                          borderRadius: '8px',
+                          borderColor: 'divider',
+                          color: 'text.primary',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          px: 1.5,
+                          py: 0.5,
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            color: 'primary.main',
+                            bgcolor: 'primary.light',
+                          },
+                        }}
+                      >
+                        Open
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
       </TableContainer>
+
       <TablePagination
         component="div"
         count={totalCount}
@@ -141,6 +360,16 @@ export function InspectionListTable({
         rowsPerPage={pageSize}
         onRowsPerPageChange={(event) => onPageSizeChange(parseInt(event.target.value, 10))}
         rowsPerPageOptions={[10, 20, 50]}
+        sx={{
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          color: 'text.secondary',
+          px: 2,
+          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+            fontSize: '0.875rem',
+            color: 'text.secondary',
+          },
+        }}
       />
     </Paper>
   );

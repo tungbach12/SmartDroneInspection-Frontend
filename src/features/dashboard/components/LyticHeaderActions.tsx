@@ -5,7 +5,7 @@ import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import type { RoleId } from '../data/report3DashboardData';
 
-export interface LyticHeaderActionsProps {
+export interface DashboardHeaderActionsProps {
   currentRole: RoleId;
   availableRoles: readonly RoleId[];
   onRoleChange: (role: RoleId) => void;
@@ -13,7 +13,7 @@ export interface LyticHeaderActionsProps {
   onExport?: () => void;
 }
 
-export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
+export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
   currentRole,
   availableRoles,
   onRoleChange,
@@ -42,10 +42,11 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
         sx={{
           display: { xs: 'none', md: availableRoles.length > 1 ? 'flex' : 'none' },
           alignItems: 'center',
-          bgcolor: 'var(--lytic-border-light, #f3f4f6)',
+          bgcolor: 'action.hover',
           p: 0.5,
           borderRadius: '10px',
-          border: '1px solid var(--lytic-border, #e5e7eb)',
+          border: '1px solid',
+          borderColor: 'divider',
           gap: 0.5,
         }}
       >
@@ -59,16 +60,16 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
               sx={{
                 fontSize: '12px',
                 fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#ffffff' : 'var(--lytic-text, #6b7280)',
-                bgcolor: isActive ? 'var(--lytic-primary, #3758F9)' : 'transparent',
+                color: isActive ? 'primary.contrastText' : 'text.secondary',
+                bgcolor: isActive ? 'primary.main' : 'transparent',
                 borderRadius: '8px',
                 px: 1.25,
                 py: 0.5,
                 minHeight: 28,
                 textTransform: 'none',
-                boxShadow: isActive ? '0 1px 2px 0 rgba(55, 88, 249, 0.3)' : 'none',
+                boxShadow: isActive ? '0 1px 2px 0 rgb(87 80 241 / 0.3)' : 'none',
                 '&:hover': {
-                  bgcolor: isActive ? 'var(--lytic-primary-hover, #2237ee)' : 'rgba(0,0,0,0.04)',
+                  bgcolor: isActive ? 'primary.dark' : 'action.hover',
                 },
               }}
             >
@@ -87,10 +88,11 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
             width: 40,
             height: 40,
             borderRadius: '8px',
-            border: '1px solid var(--lytic-border, #e5e7eb)',
-            bgcolor: 'var(--lytic-bg-card, #ffffff)',
-            color: 'var(--lytic-title, #1f2937)',
-            '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <AutorenewRounded
@@ -110,14 +112,15 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
           height: 40,
           px: 1.75,
           borderRadius: '8px',
-          border: '1px solid var(--lytic-border, #e5e7eb)',
-          bgcolor: 'var(--lytic-bg-card, #ffffff)',
-          color: 'var(--lytic-title, #1f2937)',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          color: 'text.primary',
           fontSize: '13px',
           fontWeight: 500,
           textTransform: 'none',
           boxShadow: 'none',
-          '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+          '&:hover': { bgcolor: 'action.hover' },
         }}
       >
         Sep 09 - Oct 09
@@ -131,13 +134,13 @@ export const LyticHeaderActions: React.FC<LyticHeaderActionsProps> = ({
           height: 40,
           px: 2,
           borderRadius: '8px',
-          bgcolor: 'var(--lytic-primary, #3758F9)',
-          color: '#ffffff',
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
           fontSize: '13px',
           fontWeight: 500,
           textTransform: 'none',
           boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-          '&:hover': { bgcolor: 'var(--lytic-primary-hover, #2237ee)' },
+          '&:hover': { bgcolor: 'primary.dark' },
         }}
       >
         Export

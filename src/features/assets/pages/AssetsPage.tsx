@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Add, CloudUploadOutlined, DownloadOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -11,6 +9,7 @@ import {
   DialogTitle,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItem,
   ListItemText,
@@ -19,6 +18,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import Add from '@mui/icons-material/Add';
+import Close from '@mui/icons-material/Close';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
@@ -27,6 +31,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
@@ -34,6 +39,22 @@ import { useAssets, useCreateAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
+
+function formatLocation(text: string | null): string {
+  if (!text) return '—';
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.label) return String(parsed.label);
+      if (parsed.latitude != null && parsed.longitude != null) {
+        return `${Number(parsed.latitude).toFixed(4)}, ${Number(parsed.longitude).toFixed(4)}`;
+      }
+    }
+  } catch {
+    // not JSON
+  }
+  return text;
+}
 
 export function AssetsPage() {
   const roles = useAuthStore((state) => state.roles);
@@ -46,10 +67,40 @@ export function AssetsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
 
+  const items = data?.items ?? [];
+  const totalCount = data?.totalCount ?? items.length;
+  const activeCount = items.filter((a) => a.status === 'ACTIVE').length;
+  const pendingCount = items.filter((a) => a.status === 'PENDING_REVIEW').length;
+
   const columns: DataTableColumn<Asset>[] = [
-    { id: 'code', label: 'Code', width: 160, render: (asset) => asset.code },
-    { id: 'name', label: 'Name', render: (asset) => asset.name },
-    { id: 'location', label: 'Location', render: (asset) => asset.locationText || '—' },
+    {
+      id: 'code',
+      label: 'Code',
+      width: 160,
+      render: (asset) => (
+        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8125rem', color: '#101828' }}>
+          {asset.code}
+        </Typography>
+      ),
+    },
+    {
+      id: 'name',
+      label: 'Asset Name',
+      render: (asset) => (
+        <Typography sx={{ fontWeight: 600, color: '#101828', fontSize: '0.875rem' }}>
+          {asset.name}
+        </Typography>
+      ),
+    },
+    {
+      id: 'location',
+      label: 'Location',
+      render: (asset) => (
+        <Typography sx={{ color: '#475467', fontSize: '0.875rem' }}>
+          {formatLocation(asset.locationText)}
+        </Typography>
+      ),
+    },
     {
       id: 'status',
       label: 'Status',
@@ -59,15 +110,26 @@ export function AssetsPage() {
     {
       id: 'actions',
       label: '',
-      width: 260,
+      width: 240,
+      align: 'right',
       render: (asset) => (
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
           {isClient && asset.status === 'PENDING_REVIEW' && (
             <Button
               size="small"
+              variant="outlined"
               onClick={(event) => {
                 event.stopPropagation();
                 void navigate(`/client/schedule-proposals/${asset.id}`);
+              }}
+              sx={{
+                borderRadius: '8px',
+                borderColor: '#d0d5dd',
+                color: '#344054',
+                fontSize: '12px',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
               }}
             >
               Proposed schedules
@@ -76,9 +138,19 @@ export function AssetsPage() {
           {isClient && asset.status === 'ACTIVE' && (
             <Button
               size="small"
+              variant="outlined"
               onClick={(event) => {
                 event.stopPropagation();
                 void navigate(`/client/inspection-schedules/${asset.id}`);
+              }}
+              sx={{
+                borderRadius: '8px',
+                borderColor: '#d0d5dd',
+                color: '#344054',
+                fontSize: '12px',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
               }}
             >
               Schedules
@@ -90,7 +162,22 @@ export function AssetsPage() {
   ];
 
   const newAssetButton = isClient ? (
-    <Button variant="contained" startIcon={<Add />} onClick={() => setCreateOpen(true)}>
+    <Button
+      variant="contained"
+      startIcon={<Add />}
+      onClick={() => setCreateOpen(true)}
+      sx={{
+        borderRadius: '10px',
+        px: 2.5,
+        py: 1,
+        bgcolor: '#3758F9',
+        fontSize: '14px',
+        fontWeight: 600,
+        textTransform: 'none',
+        boxShadow: 'none',
+        '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
+      }}
+    >
       New asset
     </Button>
   ) : undefined;
@@ -102,6 +189,50 @@ export function AssetsPage() {
         subtitle="Infrastructure assets registered for inspection"
         actions={newAssetButton}
       />
+
+      {/* 4 Lytic KPI Metric Cards */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+          gap: 2.5,
+          mb: 3,
+        }}
+      >
+        <MetricCard
+          label="Total Assets"
+          value={isLoading ? '…' : totalCount.toLocaleString()}
+          change="+100% paired"
+          positive
+          subtext="registered structures"
+          iconType="building"
+        />
+        <MetricCard
+          label="Active Assets"
+          value={isLoading ? '…' : activeCount.toLocaleString()}
+          change="Operational"
+          positive
+          subtext="ready for inspection"
+          iconType="check-circle"
+        />
+        <MetricCard
+          label="Pending Review"
+          value={isLoading ? '…' : pendingCount.toLocaleString()}
+          change={pendingCount > 0 ? 'Action due' : 'Clear'}
+          positive={pendingCount === 0}
+          subtext="awaiting verification"
+          iconType="alert"
+        />
+        <MetricCard
+          label="Inspection Schedules"
+          value={isLoading ? '…' : activeCount.toLocaleString()}
+          change="Scheduled"
+          positive
+          subtext="active maintenance plans"
+          iconType="shield"
+        />
+      </Box>
+
       <QueryState
         isLoading={isLoading}
         error={error}
@@ -116,8 +247,9 @@ export function AssetsPage() {
         }
       >
         <DataTable
+          title="Asset records"
           columns={columns}
-          rows={data?.items ?? []}
+          rows={items}
           rowKey={(asset) => asset.id}
           searchable
           searchPlaceholder="Search by name or code…"
@@ -191,57 +323,61 @@ function CreateAssetDialog({
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>Register an asset</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>New Asset</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+            {errorMessage && <Typography color="error">{errorMessage}</Typography>}
             <TextField
+              label="Asset code"
               required
-              label="Code"
               value={code}
-              onChange={(event) => setCode(event.target.value)}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. BR-NORTH-01"
+              helperText="Unique identifier for the structure"
             />
             <TextField
+              label="Asset name"
               required
-              label="Name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. North Crossing Main Span"
             />
             <TextField
-              required
               select
               label="Category"
+              required
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
+              onChange={(e) => setCategoryId(e.target.value)}
             >
-              {activeCategories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
+              {activeCategories.map((cat) => (
+                <MenuItem key={cat.id} value={cat.id}>
+                  {cat.name}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
-              required
               label="Location"
+              required
               value={locationText}
-              onChange={(event) => setLocationText(event.target.value)}
+              onChange={(e) => setLocationText(e.target.value)}
+              placeholder="e.g. Km 12+300, Highway 1A"
+              helperText="Physical description or GPS coordinates"
             />
             <TextField
               label="Description"
               multiline
-              minRows={2}
+              rows={3}
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
             />
-            <Typography variant="caption" color="text.secondary">
-              The asset is submitted for Service Manager review before inspection scheduling.
-            </Typography>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
           <Button type="submit" variant="contained" disabled={pending}>
-            Submit for review
+            {pending ? 'Creating…' : 'Create Asset'}
           </Button>
         </DialogActions>
       </form>
@@ -319,9 +455,16 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
   return (
     <Drawer anchor="right" open={Boolean(asset)} onClose={onClose}>
       <Box sx={{ width: { xs: '100vw', sm: 420 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6">{asset?.name}</Typography>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {asset?.name}
+          </Typography>
+          <IconButton onClick={onClose} aria-label="Close drawer">
+            <Close />
+          </IconButton>
+        </Stack>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          {asset?.code} · {asset?.locationText}
+          {asset?.code} · {formatLocation(asset?.locationText ?? null)}
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
         <Divider sx={{ my: 2 }} />

@@ -1,6 +1,9 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
+import { renderWithRouter } from '@/test/renderWithRouter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type Role, useAuthStore } from '@/features/auth/store/authStore';
+import type { Role } from '@/features/auth/store/authStore';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 const mocks = vi.hoisted(() => ({
   listQuery: {
@@ -11,55 +14,69 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
-  evidenceQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
-  candidateQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, refetch: vi.fn() },
-  qualityQuery: { data: [] as unknown[] | undefined, isLoading: false, error: null as Error | null, refetch: vi.fn() },
-  upload: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  decideQuality: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  analyze: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  review: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  createDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  authorManualDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  preparationQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
-  complianceQuery: { data: undefined as unknown, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
-  prepareDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  submitPreparation: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  linkPermits: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  ownCredentialsQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
-  readinessSourcesQuery: { data: undefined as unknown, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
-  approveReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  returnReadiness: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
-  assignmentInboxQuery: { data: [] as unknown[] | undefined, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
-  respondToAssignment: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  reportsQuery: {
+    data: undefined as
+      | { items: unknown[]; page: number; pageSize: number; totalCount: number; totalPages: number }
+      | undefined,
+    isLoading: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  assignmentInboxQuery: {
+    data: [] as unknown[] | undefined,
+    isLoading: false,
+    isError: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  respondToAssignment: {
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null as Error | null,
+  },
+  useInspectionsArgs: undefined as unknown[] | undefined,
+  useReportsArgs: undefined as unknown[] | undefined,
 }));
 
-vi.mock('../hooks/useInspections', () => ({
-  useInspections: () => mocks.listQuery,
-  useInspectionEvidence: () => mocks.evidenceQuery,
-  useFindingCandidates: () => mocks.candidateQuery,
-  useEvidenceQualityHistory: () => mocks.qualityQuery,
-  useDecideEvidenceQuality: () => mocks.decideQuality,
-  useUploadInspectionEvidence: () => mocks.upload,
-  useAnalyzeEvidence: () => mocks.analyze,
-  useReviewFindingCandidate: () => mocks.review,
-  useCreateManualFinding: () => mocks.manual,
-  useGenerateReportDraft: () => mocks.createDraft,
-  useAuthorManualDraft: () => mocks.authorManualDraft,
-  useInspectionPreparations: () => mocks.preparationQuery,
-  useComplianceGate: () => mocks.complianceQuery,
-  usePrepareShotList: () => mocks.prepareDraft,
-  useSubmitPreparation: () => mocks.submitPreparation,
-  useLinkPermitReferences: () => mocks.linkPermits,
-  useMyCredentials: () => mocks.ownCredentialsQuery,
-  useReadinessSources: () => mocks.readinessSourcesQuery,
-  useApproveReadiness: () => mocks.approveReadiness,
-  useReturnReadiness: () => mocks.returnReadiness,
-  useAssignmentInbox: () => mocks.assignmentInboxQuery,
-  useRespondToAssignment: () => mocks.respondToAssignment,
-}));
+vi.mock('../hooks/useInspections', async () => {
+  const actual = await vi.importActual<typeof import('../hooks/useInspections')>(
+    '../hooks/useInspections',
+  );
+  return {
+    ...actual,
+    useInspections: (...args: Parameters<typeof actual.useInspections>) => {
+      mocks.useInspectionsArgs = args;
+      return mocks.listQuery;
+    },
+    useInspectionsWithReports: (
+      ...args: Parameters<typeof actual.useInspectionsWithReports>
+    ) => {
+      mocks.useReportsArgs = args;
+      return mocks.reportsQuery;
+    },
+    useAssignmentInbox: () => mocks.assignmentInboxQuery,
+    useRespondToAssignment: () => mocks.respondToAssignment,
+  };
+});
 
 import InspectionsPage from './InspectionsPage';
+
+/** Proves where a row click actually went, since the page navigates rather than expands. */
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
+
+function renderPage(route = '/operations/inspections') {
+  return renderWithRouter(
+    <>
+      <InspectionsPage />
+      <LocationProbe />
+    </>,
+    { route },
+  );
+}
 
 function listedInspection() {
   return {
@@ -93,25 +110,10 @@ function signInAs(roles: Role[]) {
   });
 }
 
-function signInAsInspector() {
-  signInAs(['INSPECTOR']);
-}
-
-/** Opens the MF3 workspace by choosing a row, replacing the retired identifier input. */
-function openInspection() {
-  fireEvent.click(screen.getByRole('row', { name: /Inspect the main span/ }));
-}
-
 describe('InspectionsPage', () => {
   beforeEach(() => {
     cleanup();
-    signInAsInspector();
-    Object.values(mocks).forEach((value) => {
-      if ('mutate' in value && typeof value.mutate === 'function') value.mutate.mockReset();
-    });
-    mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.candidateQuery = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
-    mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    signInAs(['INSPECTOR']);
     mocks.listQuery = {
       data: {
         items: [listedInspection()],
@@ -124,125 +126,47 @@ describe('InspectionsPage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.upload.isError = false;
-    mocks.upload.error = null;
+    mocks.reportsQuery = {
+      data: { items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.useInspectionsArgs = undefined;
+    mocks.useReportsArgs = undefined;
   });
 
   afterEach(() => useAuthStore.getState().clearSession());
 
-  it('opens an inspection from the list and retries an evidence upload with the retained file', async () => {
-    const { container, rerender } = render(<InspectionsPage />);
-    openInspection();
-
-    await screen.findByRole('heading', { name: 'Evidence' });
-    expect(screen.queryByText('Checklist')).toBeNull();
-    expect(screen.getByRole('heading', { name: /mission preparation/i })).toBeTruthy();
-    const file = new File(['evidence'], 'span.png', { type: 'image/png' });
-    const fileInput = container.querySelector('input[type="file"]');
-    expect(fileInput).not.toBeNull();
-    fireEvent.change(fileInput!, {
-      target: { files: [file] },
-    });
-
-    mocks.upload.isError = true;
-    mocks.upload.error = new Error('network down');
-    rerender(<InspectionsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Retry upload' }));
-
-    expect(mocks.upload.mutate).toHaveBeenCalledWith(file);
-  });
-
-  it('shows a recoverable load error and offers retry', async () => {
-    const refetch = vi.fn();
-    mocks.candidateQuery = {
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      refetch,
-    };
-
-    render(<InspectionsPage />);
-    openInspection();
-    await screen.findByText('Could not load findings.');
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(refetch).toHaveBeenCalledOnce();
-  });
-
-  it('keeps analysis and drafting blocked until the Inspector accepts the evidence set', async () => {
-    mocks.evidenceQuery = {
-      data: [{ id: 'evidence-1', fileName: 'span.png', contentType: 'image/png', sizeBytes: 8, checksumSha256: 'abcdef1234567890' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-
-    const { rerender } = render(<InspectionsPage />);
-    openInspection();
-    await screen.findByText('Evidence quality decision');
-
-    const analyze = screen.getByRole('button', { name: 'Analyze' }) as HTMLButtonElement;
-    const draft = screen.getByRole('button', {
-      name: 'Generate report draft',
-    }) as HTMLButtonElement;
-    expect(analyze.disabled).toBe(true);
-    expect(draft.disabled).toBe(true);
-    expect(
-      screen.getByText(/Accept the evidence set before running advisory detection/),
-    ).toBeTruthy();
-
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    rerender(<InspectionsPage />);
-
-    expect(
-      (screen.getByRole('button', { name: 'Analyze' }) as HTMLButtonElement).disabled,
-    ).toBe(false);
-    expect(
-      (screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(false);
-  });
-
-  it('requires a stated limitation before a limited decision can be sent', async () => {
-    mocks.evidenceQuery = {
-      data: [{ id: 'evidence-1', fileName: 'span.png', contentType: 'image/png', sizeBytes: 8, checksumSha256: 'abcdef1234567890' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-
-    render(<InspectionsPage />);
-    openInspection();
-    await screen.findByText('Evidence quality decision');
-
-    const limited = screen.getByRole('button', {
-      name: 'Accept with limitation',
-    }) as HTMLButtonElement;
-    expect(limited.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText(/Limitation or reason/), {
-      target: { value: 'The east face was not observed' },
-    });
-    fireEvent.click(limited);
-
-    expect(mocks.decideQuality.mutate).toHaveBeenCalledWith({
-      decision: 'LIMITED',
-      limitationReason: 'The east face was not observed',
-    });
-  });
-
   it('lists the inspections the backend returns and requires no typed identifier', async () => {
-    render(<InspectionsPage />);
+    renderPage();
 
     expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
     expect(screen.getByText('FIELD_COMPLETED')).toBeTruthy();
     // The retired identifier field is gone; rows replace it.
     expect(screen.queryByLabelText('Inspection ID')).toBeNull();
-    expect(screen.getByText('No inspection selected')).toBeTruthy();
+  });
+
+  it('opens the inspection route when a row is chosen, where the MF3 workflow lives', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('row', { name: /Inspect the main span/ }));
+
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/operations/inspections/inspection-1',
+    );
+  });
+
+  it('opens the same route from the row action as from the row body', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/operations/inspections/inspection-1',
+    );
   });
 
   it('says so plainly when the caller has no inspections in scope', () => {
@@ -253,7 +177,7 @@ describe('InspectionsPage', () => {
       refetch: vi.fn(),
     };
 
-    render(<InspectionsPage />);
+    renderPage();
 
     expect(screen.getByText('No inspections available')).toBeTruthy();
   });
@@ -262,66 +186,87 @@ describe('InspectionsPage', () => {
     const refetch = vi.fn();
     mocks.listQuery = { data: undefined, isLoading: false, error: new Error('boom'), refetch };
 
-    render(<InspectionsPage />);
+    renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
     expect(refetch).toHaveBeenCalledOnce();
   });
 
-  it('lets an organization admin browse the list without the Inspector workspace', async () => {
-    signInAs(['ORG_ADMIN']);
-
-    render(<InspectionsPage />);
-
-    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
-
-    // Choosing a row must not open the Inspector-only evidence workspace.
-    openInspection();
-    expect(screen.queryByRole('heading', { name: 'Evidence' })).toBeNull();
-    expect(screen.getByText(/You are viewing this inspection as a reader/)).toBeTruthy();
-  });
-
   it('tells a maintenance engineer where to look instead', async () => {
     signInAs(['MAINTENANCE_ENGINEER']);
 
-    render(<InspectionsPage />);
+    renderPage();
 
-    expect(await screen.findByText(/available to Inspectors, organization administrators/)).toBeTruthy();
+    expect(
+      await screen.findByText(/available to Inspectors, organization administrators/),
+    ).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 
-  it('lets the author save a structured manual draft once the evidence is accepted', async () => {
-    mocks.evidenceQuery = {
-      data: [{ id: 'evidence-1', fileName: 'span.png', contentType: 'image/png', sizeBytes: 8, checksumSha256: 'abcdef1234567890' }],
+  it('defaults to the report filter on the ?view=reports queue', async () => {
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'inspection-2',
+            objective: 'Inspect the north pier',
+            reportId: 'report-2',
+            reportStatus: 'SUBMITTED',
+            reportVersionNo: 1,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
+
+    renderPage('/operations/inspections?view=reports');
+
+    // The queue view reads the server report collection, so only its rows appear.
+    expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
+  });
+
+  it('filters to inspections with a report when the report view is chosen', async () => {
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'inspection-2',
+            objective: 'Inspect the north pier',
+            reportId: 'report-2',
+            reportStatus: 'SUBMITTED',
+            reportVersionNo: 1,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
 
-    render(<InspectionsPage />);
-    openInspection();
-    await screen.findByText('Author the draft yourself');
+    renderPage();
+    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
+    // The all-view collection is active before the toggle.
+    expect(mocks.useInspectionsArgs?.[1]).toBe(true);
+    expect(mocks.useReportsArgs?.[1]).toBe(false);
 
-    const save = screen.getByRole('button', { name: 'Save structured draft' }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'With report' }));
 
-    fireEvent.change(screen.getByLabelText('Narrative'), {
-      target: { value: 'The north span was surveyed from both walkways.' },
-    });
-    fireEvent.change(screen.getByLabelText('Omitted analysis disclosure'), {
-      target: { value: 'Automated detection was not run.' },
-    });
-    fireEvent.click(save);
-
-    expect(mocks.authorManualDraft.mutate).toHaveBeenCalledWith({
-      narrative: 'The north span was surveyed from both walkways.',
-      omissionDisclosure: 'Automated detection was not run.',
-    });
+    // The toggle switches the active query to the server report collection.
+    expect(mocks.useReportsArgs?.[1]).toBe(true);
+    expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 });

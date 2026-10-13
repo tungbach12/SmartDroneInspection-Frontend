@@ -271,7 +271,9 @@ function PreparationEditor({
         />
       </Box>
 
-      <ComplianceGateSection inspectionId={inspectionId} />
+      {/* The gate is a compliance officer's view: the backend scopes it to ORG_ADMIN, so an
+          Inspector asking for it would only collect a 403. */}
+      {!isInspector ? <ComplianceGateSection inspectionId={inspectionId} /> : null}
     </Paper>
   );
 }

@@ -1,6 +1,5 @@
 import { Box, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
-import { layoutTokens } from '@/app/theme/tokens';
 
 interface PageHeaderProps {
   title: string;
@@ -15,27 +14,35 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
       sx={{
         display: 'flex',
         flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'stretch', sm: 'flex-end' },
-        gap: { xs: 1.5, sm: 3 },
-        mb: layoutTokens.sectionGap,
-        pb: { xs: 2, sm: 2.5 },
-        borderBottom: '1px solid',
-        borderColor: 'divider',
+        alignItems: { xs: 'stretch', sm: 'center' },
+        justifyContent: 'space-between',
+        gap: { xs: 1.5, sm: 2 },
+        mb: 3,
       }}
     >
-      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+      <Box sx={{ minWidth: 0 }}>
         <Typography
           component="h1"
-          variant="h3"
-          sx={{ color: 'text.primary', mb: subtitle ? 0.5 : 0 }}
+          sx={{
+            fontSize: { xs: '1.5rem', sm: '1.875rem' },
+            fontWeight: 700,
+            color: '#101828',
+            letterSpacing: '-0.025em',
+            lineHeight: 1.25,
+            mb: subtitle ? 0.5 : 0,
+          }}
         >
           {title}
         </Typography>
         {subtitle && (
           <Typography
             variant="body2"
-            color="text.secondary"
-            sx={{ maxWidth: 680 }}
+            sx={{
+              color: '#667085',
+              fontSize: '0.875rem',
+              maxWidth: 680,
+              lineHeight: 1.5,
+            }}
           >
             {subtitle}
           </Typography>
@@ -45,9 +52,11 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         <Box
           sx={{
             display: 'flex',
-            gap: 1,
+            gap: 1.5,
+            alignItems: 'center',
             justifyContent: { xs: 'stretch', sm: 'flex-end' },
             '& > *': { flex: { xs: 1, sm: 'initial' } },
+            flexShrink: 0,
           }}
         >
           {actions}

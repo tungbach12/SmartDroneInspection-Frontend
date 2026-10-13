@@ -31,10 +31,9 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
-import GroupsIcon from '@mui/icons-material/Groups';
+import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
@@ -66,7 +65,6 @@ const NAV_ITEMS = [
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'asset-review', icon: <FactCheckIcon /> },
   { section: 'inspections', icon: <FlightTakeoffIcon /> },
-  { section: 'reports', icon: <AssignmentIcon /> },
   { section: 'maintenance', icon: <BuildIcon /> },
   { section: 'workforce', icon: <GroupsIcon /> },
 ] as const;
@@ -76,7 +74,10 @@ interface AppShellProps {
 }
 
 function getPageTitle(pathname: string, portal: PortalId) {
-  const section = pathname.split('/').filter(Boolean).at(-1);
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.includes('inspections') && segments.length > 2) return 'Inspection detail';
+  if (segments.includes('reports') && segments.length > 2) return 'Report detail';
+  const section = segments.at(-1);
   if (section === 'security') return 'Account security';
   if (section && section in SECTION_LABELS) {
     return section === 'dashboard' ? 'Overview' : SECTION_LABELS[section as SectionId];
@@ -89,6 +90,7 @@ export function AppShell({ portal }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const [navVisible, setNavVisible] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
@@ -242,8 +244,9 @@ export function AppShell({ portal }: AppShellProps) {
         color="inherit"
         sx={{
           zIndex: (t) => t.zIndex.drawer + 1,
-          left: { xs: 0, md: `${DRAWER_WIDTH}px` },
-          width: { xs: '100%', md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          left: { xs: 0, md: navVisible ? `${DRAWER_WIDTH}px` : 0 },
+          width: { xs: '100%', md: navVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
+          transition: 'left 200ms ease, width 200ms ease',
           height: layoutTokens.shellHeaderHeight,
           bgcolor: 'background.paper',
           borderBottom: 1,
@@ -253,11 +256,14 @@ export function AppShell({ portal }: AppShellProps) {
         }}
       >
         <Toolbar sx={{ minHeight: `${layoutTokens.shellHeaderHeight}px !important`, px: { xs: 1.5, md: 3 } }}>
-          {!isDesktop && (
-            <IconButton edge="start" aria-label="Open navigation menu" onClick={() => setMobileOpen(true)} sx={{ mr: 1, color: 'text.primary' }}>
-              <MenuIcon />
-            </IconButton>
-          )}
+          <IconButton
+            edge="start"
+            aria-label={navVisible ? 'Hide sidebar' : 'Show sidebar'}
+            onClick={() => (isDesktop ? setNavVisible((prev) => !prev) : setMobileOpen(true))}
+            sx={{ mr: 1, color: 'text.primary' }}
+          >
+            {isDesktop ? (navVisible ? <MenuOpenRounded /> : <MenuIcon />) : <MenuIcon />}
+          </IconButton>
           <Typography component="h1" variant="h6" noWrap sx={{ flexGrow: 1, ml: { xs: 0.5, md: 0 }, fontSize: 16, fontWeight: 600 }}>
             {getPageTitle(location.pathname, portal)}
           </Typography>
@@ -266,19 +272,22 @@ export function AppShell({ portal }: AppShellProps) {
       </AppBar>
 
       <Drawer
-        variant={isDesktop ? 'permanent' : 'temporary'}
-        open={isDesktop || mobileOpen}
+        variant={isDesktop ? 'persistent' : 'temporary'}
+        open={isDesktop ? navVisible : mobileOpen}
         onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
-          width: isDesktop ? DRAWER_WIDTH : undefined,
+          width: isDesktop ? (navVisible ? DRAWER_WIDTH : 0) : undefined,
           flexShrink: 0,
+          transition: 'width 200ms ease',
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             bgcolor: 'background.paper',
             borderRightColor: 'divider',
             boxShadow: '8px 0 30px rgba(17, 53, 51, .025)',
+            transform: isDesktop && !navVisible ? `translateX(-${DRAWER_WIDTH}px)` : 'none',
+            transition: 'transform 200ms ease',
           },
         }}
       >

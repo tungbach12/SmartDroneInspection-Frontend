@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 
 export interface LyticPerformanceChartProps {
@@ -32,6 +33,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   maxVal = 100000,
 }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const theme = useTheme();
 
   // SVG Chart Dimensions
   const svgWidth = 720;
@@ -70,8 +72,9 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   return (
     <Box
       sx={{
-        backgroundColor: 'var(--lytic-bg-card, #ffffff)',
-        border: '1px solid var(--lytic-border, #e5e7eb)',
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
         borderRadius: '12px',
         p: { xs: 2, sm: 2.5 },
         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
@@ -86,7 +89,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          borderBottom: '1px solid var(--lytic-border-light, #f3f4f6)',
+          borderBottom: 1,
+          borderColor: 'divider',
           pb: 2,
           mb: 2,
         }}
@@ -94,7 +98,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
         <Box>
           <Typography
             sx={{
-              color: 'var(--lytic-text, #6b7280)',
+              color: 'text.secondary',
               fontSize: '11px',
               fontWeight: 600,
               textTransform: 'uppercase',
@@ -108,7 +112,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
             <Typography
               component="span"
               sx={{
-                color: 'var(--lytic-title, #1f2937)',
+                color: 'text.primary',
                 fontSize: { xs: '22px', sm: '24px' },
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
@@ -127,8 +131,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 py: '2px',
                 px: '8px',
                 fontSize: '12px',
-                bgcolor: 'var(--lytic-success-bg, #dcfce7)',
-                color: 'var(--lytic-success-text, #16a34a)',
+                bgcolor: alpha(theme.palette.success.main, 0.12),
+                color: 'success.main',
               }}
             >
               {trendBadge}
@@ -140,9 +144,9 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           size="small"
           aria-label="Revenue performance options"
           sx={{
-            color: 'var(--lytic-text, #6b7280)',
+            color: 'text.secondary',
             p: 0.75,
-            '&:hover': { bgcolor: 'var(--lytic-border-light, #f3f4f6)' },
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <MoreHorizRounded fontSize="small" />
@@ -177,7 +181,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke="var(--lytic-border, #e5e7eb)"
+                  stroke={theme.palette.divider}
                   strokeDasharray="4 4"
                   strokeWidth="1"
                 />
@@ -185,9 +189,9 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   x={paddingLeft - 10}
                   y={y + 4}
                   textAnchor="end"
-                  fill="var(--lytic-text, #6b7280)"
+                  fill={theme.palette.text.secondary}
                   fontSize="12"
-                  fontFamily="var(--lytic-font)"
+                  fontFamily={theme.typography.fontFamily}
                   fontWeight="400"
                 >
                   {tick}
@@ -226,7 +230,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 y1={paddingTop}
                 x2={getX(hoverIndex)}
                 y2={paddingTop + chartHeight}
-                stroke="#9ca3af"
+                stroke={theme.palette.text.secondary}
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
@@ -235,7 +239,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 cy={getY(series1Data[hoverIndex] ?? 0)}
                 r="4.5"
                 fill={series1Color}
-                stroke="#ffffff"
+                stroke={theme.palette.background.paper}
                 strokeWidth="2"
               />
               <circle
@@ -243,7 +247,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 cy={getY(series2Data[hoverIndex] ?? 0)}
                 r="4.5"
                 fill={series2Color}
-                stroke="#ffffff"
+                stroke={theme.palette.background.paper}
                 strokeWidth="2"
               />
             </g>
@@ -258,9 +262,9 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 x={x}
                 y={svgHeight - 12}
                 textAnchor="middle"
-                fill="var(--lytic-text, #6b7280)"
+                fill={theme.palette.text.secondary}
                 fontSize="12"
-                fontFamily="var(--lytic-font)"
+                fontFamily={theme.typography.fontFamily}
                 fontWeight="400"
               >
                 {m}
@@ -295,8 +299,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               position: 'absolute',
               top: 10,
               right: 15,
-              bgcolor: 'var(--lytic-title, #1f2937)',
-              color: '#ffffff',
+              bgcolor: 'text.primary',
+              color: 'background.paper',
               borderRadius: '8px',
               p: 1.25,
               fontSize: '11px',

@@ -1,52 +1,124 @@
-import { Chip } from '@mui/material';
-import type { ChipProps } from '@mui/material';
-import { layoutTokens } from '@/app/theme/tokens';
+import { Box, Chip, type ChipProps } from '@mui/material';
 
 type StatusVariant = 'success' | 'warning' | 'error' | 'info' | 'default';
 
-const STATUS_COLORS: Record<string, StatusVariant> = {
+interface ThemeInfo {
+  variant: StatusVariant;
+  bg: string;
+  text: string;
+  dot: string;
+}
+
+const THEMES: Record<StatusVariant, ThemeInfo> = {
+  success: {
+    variant: 'success',
+    bg: '#ECFDF3',
+    text: '#027A48',
+    dot: '#12B76A',
+  },
+  warning: {
+    variant: 'warning',
+    bg: '#FFFAEB',
+    text: '#B54708',
+    dot: '#F79009',
+  },
+  error: {
+    variant: 'error',
+    bg: '#FEF3F2',
+    text: '#B42318',
+    dot: '#F04438',
+  },
+  info: {
+    variant: 'info',
+    bg: '#EFF8FF',
+    text: '#175CD3',
+    dot: '#2E90FA',
+  },
+  default: {
+    variant: 'default',
+    bg: '#F2F4F7',
+    text: '#344054',
+    dot: '#667085',
+  },
+};
+
+const STATUS_MAP: Record<string, StatusVariant> = {
   active: 'success',
   approved: 'success',
   completed: 'success',
   closed: 'success',
+  ready: 'success',
+  published: 'success',
+
   pending: 'warning',
   pending_review: 'warning',
-  // MF2 preparation. Submitted work is waiting on a reviewer, returned work needs rework, and a
-  // reviewed preparation is the only one of the three that has a decision behind it.
+  repair_pending: 'warning',
   submitted: 'warning',
-  returned: 'error',
-  ready: 'success',
+  author_verified: 'warning',
   inprogress: 'warning',
   in_progress: 'warning',
-  scheduled: 'info',
-  assigned: 'info',
-  draft: 'default',
+  preparing: 'warning',
+  field_completed: 'warning',
+  report_draft: 'warning',
+
+  returned: 'error',
   cancelled: 'error',
   rejected: 'error',
-  // A suspended pairing cannot be flown, which is the same severity as a rejected one.
   suspended: 'error',
   failed: 'error',
+
+  scheduled: 'info',
+  assigned: 'info',
+
+  draft: 'default',
+  inactive: 'default',
+  superseded: 'default',
 };
 
-interface StatusChipProps {
+export interface StatusChipProps {
   status: string;
   size?: ChipProps['size'];
 }
 
-export function StatusChip({ status, size }: StatusChipProps) {
+/**
+ * Modern status pill with a colored dot indicator, matching the Lytic dashboard design reference.
+ * Wraps MUI Chip to preserve class names and accessibility in tests.
+ */
+export function StatusChip({ status, size = 'small' }: StatusChipProps) {
   const normalized = status.toLowerCase().replace(/[\s-]/g, '_');
-  const color = STATUS_COLORS[normalized] ?? 'default';
+  const variant = STATUS_MAP[normalized] ?? 'default';
+  const theme = THEMES[variant];
 
   return (
     <Chip
+      size={size}
+      color={theme.variant}
       label={status}
-      color={color}
-      size={size ?? 'small'}
-      variant={color === 'default' ? 'outlined' : 'filled'}
+      icon={
+        <Box
+          component="span"
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: `${theme.dot} !important`,
+            ml: '9px !important',
+            mr: '-4px !important',
+          }}
+        />
+      }
       sx={{
-        borderRadius: layoutTokens.controlRadius,
+        borderRadius: '9999px',
+        bgcolor: `${theme.bg} !important`,
+        color: `${theme.text} !important`,
         fontWeight: 600,
-        textTransform: 'capitalize',
+        fontSize: size === 'medium' ? '13px' : '12px',
+        border: 'none',
+        height: size === 'medium' ? '28px' : '24px',
+        letterSpacing: '0.01em',
+        '& .MuiChip-label': {
+          px: 1,
+        },
       }}
     />
   );
