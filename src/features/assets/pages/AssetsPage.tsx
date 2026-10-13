@@ -40,6 +40,7 @@ import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments
 import { useAssets, useCreateAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
+import { FlightPermitPanel } from './FlightPermitPanel';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -289,6 +290,7 @@ export function AssetsPage() {
       <AssetDetailDrawer asset={selected} onClose={() => setSelected(null)} />
       </>}
       {isClient && resourceTab === 1 && <DroneInventoryPanel />}
+      {isClient && resourceTab === 2 && <FlightPermitPanel />}
     </Box>
   );
 }
