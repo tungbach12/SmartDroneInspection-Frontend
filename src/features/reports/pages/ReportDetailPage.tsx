@@ -92,7 +92,7 @@ export default function ReportDetailPage() {
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Button
           startIcon={<ArrowBackRounded />}
-          onClick={() => navigate(getSectionPath(portal, 'reports'))}
+          onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
           sx={{
             color: '#475467',
             fontWeight: 600,
@@ -102,7 +102,7 @@ export default function ReportDetailPage() {
             '&:hover': { bgcolor: '#f2f4f7' },
           }}
         >
-          Back to all reports
+          Back to reports list
         </Button>
       </Box>
 

@@ -14,6 +14,14 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
+  reportsQuery: {
+    data: undefined as
+      | { items: unknown[]; page: number; pageSize: number; totalCount: number; totalPages: number }
+      | undefined,
+    isLoading: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
   assignmentInboxQuery: {
     data: [] as unknown[] | undefined,
     isLoading: false,
@@ -27,13 +35,30 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     error: null as Error | null,
   },
+  useInspectionsArgs: undefined as unknown[] | undefined,
+  useReportsArgs: undefined as unknown[] | undefined,
 }));
 
-vi.mock('../hooks/useInspections', () => ({
-  useInspections: () => mocks.listQuery,
-  useAssignmentInbox: () => mocks.assignmentInboxQuery,
-  useRespondToAssignment: () => mocks.respondToAssignment,
-}));
+vi.mock('../hooks/useInspections', async () => {
+  const actual = await vi.importActual<typeof import('../hooks/useInspections')>(
+    '../hooks/useInspections',
+  );
+  return {
+    ...actual,
+    useInspections: (...args: Parameters<typeof actual.useInspections>) => {
+      mocks.useInspectionsArgs = args;
+      return mocks.listQuery;
+    },
+    useInspectionsWithReports: (
+      ...args: Parameters<typeof actual.useInspectionsWithReports>
+    ) => {
+      mocks.useReportsArgs = args;
+      return mocks.reportsQuery;
+    },
+    useAssignmentInbox: () => mocks.assignmentInboxQuery,
+    useRespondToAssignment: () => mocks.respondToAssignment,
+  };
+});
 
 import InspectionsPage from './InspectionsPage';
 
@@ -43,12 +68,13 @@ function LocationProbe() {
   return <div data-testid="location">{location.pathname}</div>;
 }
 
-function renderPage() {
+function renderPage(route = '/operations/inspections') {
   return renderWithRouter(
     <>
       <InspectionsPage />
       <LocationProbe />
     </>,
+    { route },
   );
 }
 
@@ -100,6 +126,14 @@ describe('InspectionsPage', () => {
       error: null,
       refetch: vi.fn(),
     };
+    mocks.reportsQuery = {
+      data: { items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.useInspectionsArgs = undefined;
+    mocks.useReportsArgs = undefined;
   });
 
   afterEach(() => useAuthStore.getState().clearSession());
@@ -166,6 +200,73 @@ describe('InspectionsPage', () => {
     expect(
       await screen.findByText(/available to Inspectors, organization administrators/),
     ).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
+  });
+
+  it('defaults to the report filter on the ?view=reports queue', async () => {
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'inspection-2',
+            objective: 'Inspect the north pier',
+            reportId: 'report-2',
+            reportStatus: 'SUBMITTED',
+            reportVersionNo: 1,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/operations/inspections?view=reports');
+
+    // The queue view reads the server report collection, so only its rows appear.
+    expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
+    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
+  });
+
+  it('filters to inspections with a report when the report view is chosen', async () => {
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'inspection-2',
+            objective: 'Inspect the north pier',
+            reportId: 'report-2',
+            reportStatus: 'SUBMITTED',
+            reportVersionNo: 1,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage();
+    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
+    // The all-view collection is active before the toggle.
+    expect(mocks.useInspectionsArgs?.[1]).toBe(true);
+    expect(mocks.useReportsArgs?.[1]).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'With report' }));
+
+    // The toggle switches the active query to the server report collection.
+    expect(mocks.useReportsArgs?.[1]).toBe(true);
+    expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 });

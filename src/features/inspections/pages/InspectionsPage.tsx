@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Alert, Box, Stack } from '@mui/material';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Alert, Box, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import {
   getSectionPath,
   PORTAL_IDS,
@@ -13,16 +13,22 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { LyticMetricCard } from '@/features/dashboard/components/LyticMetricCard';
 import { InspectionListTable } from '../components/InspectionListTable';
 import AssignmentInboxPanel from './AssignmentInboxPanel';
-import { useInspections } from '../hooks/useInspections';
+import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
+
+type InspectionsView = 'all' | 'reports';
 
 /**
  * The scoped inspection collection — the discovery path Report 3 §3.5.1 requires. Selecting a row
  * opens that inspection's own route, where the MF3 workflow lives; the list holds no decisions of
  * its own, so a deep link and a row click reach the same workflow.
+ *
+ * The report queue is the `?view=reports` filtered view of this list: it shows only rows whose
+ * report summary already carries a status or version number.
  */
 export default function InspectionsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
@@ -33,20 +39,37 @@ export default function InspectionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const view: InspectionsView = searchParams.get('view') === 'reports' ? 'reports' : 'all';
+
   const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
-  const inspections = useInspections(listFilters);
+  // The report queue is server-paged from /with-reports so its rows, total and pages stay
+  // consistent; the all-view reads the scoped collection instead.
+  const allInspections = useInspections(listFilters, view === 'all');
+  const reportInspections = useInspectionsWithReports(listFilters, view === 'reports');
+  const inspections = view === 'reports' ? reportInspections : allInspections;
 
   const openInspection = (inspectionId: string) =>
     navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}`);
 
   // Metrics calculation
-  const items = inspections.data?.items ?? [];
-  const totalCount = inspections.data?.totalCount ?? items.length;
+  const visibleItems = inspections.data?.items ?? [];
+  const items = visibleItems;
+  const totalCount = inspections.data?.totalCount ?? visibleItems.length;
   const inProgressCount = items.filter((i) =>
     ['PREPARING', 'READY_FOR_FLIGHT', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(i.status),
   ).length;
   const repairPendingCount = items.filter((i) => i.status === 'REPAIR_PENDING').length;
   const completedCount = items.filter((i) => i.status === 'COMPLETED').length;
+
+  const setView = (next: InspectionsView) => {
+    setPage(1);
+    if (next === 'reports') {
+      setSearchParams({ view: 'reports' }, { replace: true });
+    } else {
+      searchParams.delete('view');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   return (
     <Box className="workspace-page workspace-page--inspections">
@@ -110,10 +133,23 @@ export default function InspectionsPage() {
         </Alert>
       ) : (
         <Stack spacing={2.5}>
+          <ToggleButtonGroup
+            value={view}
+            exclusive
+            onChange={(_, next: InspectionsView | null) => {
+              if (next) setView(next);
+            }}
+            aria-label="Inspection list view"
+            size="small"
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="reports">With report</ToggleButton>
+          </ToggleButtonGroup>
           <QueryState
             isLoading={inspections.isLoading}
             error={inspections.error}
-            isEmpty={!inspections.data?.items.length}
+            isEmpty={visibleItems.length === 0}
             onRetry={() => void inspections.refetch()}
             loadingLabel="Loading inspections…"
             empty={
@@ -125,7 +161,7 @@ export default function InspectionsPage() {
           >
             <InspectionListTable
               title="Inspection records"
-              rows={inspections.data?.items ?? []}
+              rows={visibleItems}
               page={page}
               pageSize={pageSize}
               totalCount={inspections.data?.totalCount ?? 0}
@@ -136,6 +172,7 @@ export default function InspectionsPage() {
                 setPage(1);
               }}
               onOpen={openInspection}
+              showReportColumn={view === 'reports'}
             />
           </QueryState>
         </Stack>

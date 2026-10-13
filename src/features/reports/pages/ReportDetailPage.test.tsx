@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { renderWithRouter as render } from '@/test/renderWithRouter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -44,15 +45,27 @@ function setRole(roles: Role[]) {
     roles,
   });
 }
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div data-testid="location">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+}
 
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>
-      <ReportDetailPage />
-    </QueryClientProvider>,
+    <>
+      <QueryClientProvider client={client}>
+        <ReportDetailPage />
+      </QueryClientProvider>
+      <LocationProbe />
+    </>,
     { route: '/operations/reports/inspection-1' },
   );
 }
@@ -202,6 +215,18 @@ describe('ReportDetailPage MF3 gates', () => {
 
     await waitFor(() =>
       expect(screen.getByText(/No corrective work was required/)).toBeTruthy(),
+    );
+  });
+
+  it('returns to the reports queue on the inspections list', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({})]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to reports list' }));
+
+    expect(screen.getByTestId('location').textContent).toBe(
+      '/operations/inspections?view=reports',
     );
   });
 });
