@@ -10,6 +10,7 @@ import { catalogApi } from './catalogApi';
 import { proposalApi } from './proposalApi';
 import { documentApi } from './documentApi';
 import { droneApi } from './droneApi';
+import { permitApi } from './permitApi';
 
 describe('assetApi', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -254,6 +255,47 @@ describe('droneApi', () => {
 
     expect(api.patch).toHaveBeenCalledWith('/drones/drone-1/documents/doc-1/status', {
       status: 'ACTIVE',
+    });
+  });
+});
+
+describe('permitApi', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('lists organization permits without sending organization scope', async () => {
+    const permits = [{ id: 'permit-1', permitType: 'FLIGHT', status: 'APPLICATION' }];
+    vi.mocked(api.get).mockResolvedValue({ data: permits });
+
+    await expect(permitApi.list()).resolves.toEqual(permits);
+    expect(api.get).toHaveBeenCalledWith('/flight-permits');
+  });
+
+  it('creates a permit with JSON-string fields and optional references', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'permit-1' } });
+    const input = {
+      permitType: 'FLIGHT',
+      geographicScope: JSON.stringify({ zone: 'north' }),
+      conditions: JSON.stringify(['daylight only']),
+      validFrom: '2026-10-13T00:00:00Z',
+      validUntil: '2026-12-13T00:00:00Z',
+    };
+
+    await permitApi.create(input);
+
+    expect(api.post).toHaveBeenCalledWith('/flight-permits', input);
+    expect(vi.mocked(api.post).mock.calls[0]![1]).not.toHaveProperty('organizationId');
+    expect(vi.mocked(api.post).mock.calls[0]![1]).not.toHaveProperty('assetId');
+    expect(vi.mocked(api.post).mock.calls[0]![1]).not.toHaveProperty('sourceEvidenceId');
+  });
+
+  it('records an internal review decision and reason', async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: { id: 'permit-1', status: 'ACTIVE' } });
+
+    await permitApi.review('permit-1', { status: 'ACTIVE', reason: 'Recorded from organization-held document' });
+
+    expect(api.put).toHaveBeenCalledWith('/flight-permits/permit-1/review', {
+      status: 'ACTIVE',
+      reason: 'Recorded from organization-held document',
     });
   });
 });
