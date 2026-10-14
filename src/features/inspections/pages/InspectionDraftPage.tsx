@@ -6,6 +6,7 @@ import {
   PORTAL_IDS,
   type PortalId,
 } from '@/app/permissions/accessPolicy';
+import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
@@ -74,6 +75,7 @@ export default function InspectionDraftPage() {
               Accept the evidence set before generating a report draft.
             </Alert>
           )}
+          {createDraft.isPending && <DraftProgressTracker />}
           {createDraft.isError && (
             <Alert severity="warning">
               {getErrorMessage(

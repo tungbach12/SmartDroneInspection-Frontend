@@ -63,6 +63,7 @@ describe('InspectionDraftPage', () => {
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.createDraft.mutate.mockReset();
+    mocks.createDraft.isPending = false;
     mocks.authorManualDraft.mutate.mockReset();
   });
 
@@ -91,6 +92,16 @@ describe('InspectionDraftPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate report draft' }));
     expect(mocks.createDraft.mutate).toHaveBeenCalledOnce();
+  });
+
+  it('shows truthful pending copy without simulated drafting stages or percentages', () => {
+    mocks.createDraft.isPending = true;
+    renderWithRouter(<InspectionDraftPage />);
+
+    expect(screen.getByText('Generating report draft')).toBeTruthy();
+    expect(screen.getByText(/Progress stages are not available/)).toBeTruthy();
+    expect(screen.getByText(/review and verify every section/)).toBeTruthy();
+    expect(screen.queryByText(/Data Collection|% estimated|Typical time/)).toBeNull();
   });
 
   it('keeps the report link disabled until a version exists', () => {
