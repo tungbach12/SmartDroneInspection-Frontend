@@ -269,6 +269,27 @@ export function useReviewFindingCandidate(inspectionId: string | null) {
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      }
+    },
+  });
+}
+
+export function useReviseReviewedCandidate(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      candidateId,
+      input,
+    }: {
+      candidateId: string;
+      input: ReviewCandidateInput;
+    }) => inspectionApi.reviseReviewedCandidate(inspectionId!, candidateId, input),
+    onSuccess: () => {
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
     },
   });

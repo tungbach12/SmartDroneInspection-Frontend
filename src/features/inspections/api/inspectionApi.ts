@@ -540,6 +540,17 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  reviseReviewedCandidate: (
+    inspectionId: string,
+    candidateId: string,
+    input: ReviewCandidateInput,
+  ) =>
+    api
+      .put<VerifiedFinding | null>(
+        `/inspections/${inspectionId}/finding-candidates/${candidateId}/reviewed-revision`,
+        input,
+      )
+      .then((response) => response.data),
   createManualFinding: (inspectionId: string, input: ManualFindingInput) =>
     api
       .post<VerifiedFinding>(`/inspections/${inspectionId}/findings`, input)
@@ -569,6 +580,8 @@ export const inspectionApi = {
     api
       .post<InspectionReportVersion>(
         `/inspections/${inspectionId}/report/draft`,
+        undefined,
+        { timeout: 110_000 },
       )
       .then((response) => response.data),
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import BrokenImageOutlined from '@mui/icons-material/BrokenImageOutlined';
-import { useAuthStore } from '@/features/auth/store/authStore';
+import { api } from '@/shared/api/client';
 
 interface AuthenticatedImageProps {
   src: string;
@@ -10,37 +10,23 @@ interface AuthenticatedImageProps {
   maxHeight?: number | string;
 }
 
-/**
- * Fetches an image through the authenticated API client and renders it as an object URL.
- * Automatically attaches Bearer token from the in-memory session.
- */
+/** Fetches image bytes with the shared authenticated API client. */
 export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: AuthenticatedImageProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const token = useAuthStore((state) => state.accessToken);
-
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
+    const apiBaseUrl = api.defaults.baseURL?.replace(/\/+$/, '') ?? '/api/v1';
+    const requestPath = src.startsWith(apiBaseUrl) ? src.slice(apiBaseUrl.length) : src;
+    const requestUrl = requestPath.startsWith('/') ? requestPath : `/${requestPath}`;
 
-    // Normalize URL
-    const normalizedUrl = src.startsWith('http')
-      ? src
-      : src.startsWith('/api/v1')
-        ? src
-        : `/api/v1${src.startsWith('/') ? src : `/${src}`}`;
-
-    fetch(normalizedUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.blob();
-      })
-      .then((blob) => {
+    api
+      .get<Blob>(requestUrl, { responseType: 'blob' })
+      .then(({ data }) => {
         if (!active) return;
-        createdUrl = URL.createObjectURL(blob);
+        createdUrl = URL.createObjectURL(data);
         setBlobUrl(createdUrl);
         setLoading(false);
       })
@@ -56,7 +42,8 @@ export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: Authentica
         URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [src, token]);
+  }, [src]);
+
 
   if (error && !blobUrl) {
     return (

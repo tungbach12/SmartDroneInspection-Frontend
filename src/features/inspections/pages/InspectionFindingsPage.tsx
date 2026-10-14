@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   MenuItem,
   Paper,
   Stack,
@@ -30,6 +29,7 @@ import {
   useInspectionEvidence,
   useInspectionFindings,
   useReviewFindingCandidate,
+  useReviseReviewedCandidate,
 } from '../hooks/useInspections';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -76,10 +76,15 @@ export default function InspectionFindingsPage() {
   const reviewCandidate = useReviewFindingCandidate(inspectionId);
   const createManualFinding = useCreateManualFinding(inspectionId);
   const decideFinding = useDecideFinding(inspectionId);
+  const findings = useInspectionFindings(inspectionId);
+  const reviseCandidate = useReviseReviewedCandidate(inspectionId);
 
   // Per-candidate review inputs, so Confirm/Modify send the values entered on that card.
   const [severities, setSeverities] = useState<Record<string, FindingSeverity>>({});
   const [locations, setLocations] = useState<Record<string, string>>({});
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
+  const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
+  const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
 
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
 
@@ -92,7 +97,7 @@ export default function InspectionFindingsPage() {
   );
   const autoAnalysed = useRef(new Set<string>());
   useEffect(() => {
-    if (!evidenceAccepted || analyze.isPending) return;
+    if (!isInspector || !evidenceAccepted || analyze.isPending) return;
     const next = (evidence.data ?? []).find(
       (item) =>
         item.contentType.startsWith('image/') &&
@@ -102,29 +107,34 @@ export default function InspectionFindingsPage() {
     if (!next) return;
     autoAnalysed.current.add(next.id);
     analyze.mutate(next.id);
-  }, [evidenceAccepted, evidence.data, analysedEvidenceIds, analyze]);
+  }, [isInspector, evidenceAccepted, evidence.data, analysedEvidenceIds, analyze]);
 
   const severityFor = (candidateId: string): FindingSeverity =>
     severities[candidateId] ?? 'MEDIUM';
   const locationFor = (candidateId: string): string => locations[candidateId] ?? '';
   const groupedCandidates = useMemo(() => {
-    const list = candidates.data ?? [];
-    const groups: {
-      evidenceId: string;
-      evidence?: EvidenceItem | undefined;
-      candidates: typeof list;
-    }[] = [];
-    const map = new Map<string, typeof list>();
-    for (const c of list) {
-      const existing = map.get(c.evidenceId) ?? [];
-      existing.push(c);
-      map.set(c.evidenceId, existing);
+    type CandidateItem = NonNullable<typeof candidates.data>[number];
+    const groups = new Map<
+      string,
+      {
+        evidenceId: string;
+        evidence?: EvidenceItem | undefined;
+        candidates: CandidateItem[];
+      }
+    >();
+    for (const item of evidence.data ?? []) {
+      groups.set(item.id, { evidenceId: item.id, evidence: item, candidates: [] });
     }
-    for (const [evidenceId, items] of map.entries()) {
-      const ev = (evidence.data ?? []).find((e) => e.id === evidenceId);
-      groups.push({ evidenceId, evidence: ev, candidates: items });
+    for (const candidate of candidates.data ?? []) {
+      const group = groups.get(candidate.evidenceId) ?? {
+        evidenceId: candidate.evidenceId,
+        evidence: undefined,
+        candidates: [],
+      };
+      group.candidates.push(candidate);
+      groups.set(candidate.evidenceId, group);
     }
-    return groups;
+    return [...groups.values()];
   }, [candidates.data, evidence.data]);
 
   const submitManualFinding = (event: FormEvent<HTMLFormElement>) => {
@@ -168,8 +178,11 @@ export default function InspectionFindingsPage() {
           <Alert severity="info">Detection starts after an accepted evidence quality decision.</Alert>
         ) : (
           <Stack spacing={1}>
+            {!isInspector && (
+              <Alert severity="info">Only the assigned Inspector can run advisory detection.</Alert>
+            )}
             {analyze.isPending ? <Alert severity="info">Running advisory detection…</Alert> : null}
-            {analyze.isError && (
+            {isInspector && analyze.isError && (
               <Alert severity="warning">
                 {getErrorMessage(
                   analyze.error,
@@ -193,14 +206,16 @@ export default function InspectionFindingsPage() {
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {item.fileName}
                     </Typography>
-                    <Button
-                      size="small"
-                      startIcon={<AutoAwesomeOutlined />}
-                      disabled={analyze.isPending}
-                      onClick={() => analyze.mutate(item.id)}
-                    >
-                      {done ? 'Re-run detection' : 'Analyze'}
-                    </Button>
+                    {isInspector && (
+                      <Button
+                        size="small"
+                        startIcon={<AutoAwesomeOutlined />}
+                        disabled={analyze.isPending}
+                        onClick={() => analyze.mutate(item.id)}
+                      >
+                        {done ? 'Re-run detection' : 'Analyze'}
+                      </Button>
+                    )}
                   </Stack>
                 );
               })}
@@ -230,8 +245,7 @@ export default function InspectionFindingsPage() {
           </Alert>
         ) : (
           <Stack spacing={2.5}>
-            {groupedCandidates.length ? (
-              groupedCandidates.map((group) => (
+            {groupedCandidates.map((group) => (
                 <Paper
                   key={group.evidenceId}
                   variant="outlined"
@@ -400,12 +414,182 @@ export default function InspectionFindingsPage() {
                                     </Stack>
                                   </Stack>
                                 )}
-                                {isReviewer && candidate.status !== 'PENDING' ? (
-                                  <Typography variant="caption" color="text.secondary">
-                                    Reviewed: {candidate.status}. The reviewer verdict on the finding is shown
-                                    on the findings register below.
-                                  </Typography>
-                                ) : null}
+                                {candidate.status !== 'PENDING' && (() => {
+                                  const linkedFinding = (findings.data ?? []).find(
+                                    (f) => f.aiCandidateId === candidate.id,
+                                  );
+                                  const isLocked = Boolean(linkedFinding?.decision);
+                                  const isEditing = editingCandidateId === candidate.id;
+                                  return (
+                                    <Stack spacing={1}>
+                                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                                        <Chip
+                                          size="small"
+                                          color={candidate.status === 'REJECTED' ? 'error' : 'default'}
+                                          label={`Inspector: ${candidate.status}`}
+                                        />
+                                        {isLocked ? (
+                                          <Chip
+                                            size="small"
+                                            color={linkedFinding?.decision === 'REJECTED' ? 'error' : 'success'}
+                                            label={`Reviewer: ${linkedFinding?.decision}`}
+                                          />
+                                        ) : (
+                                          <Chip
+                                            size="small"
+                                            color="warning"
+                                            variant="outlined"
+                                            label="Awaiting ORG_ADMIN verdict"
+                                          />
+                                        )}
+                                        {isInspector && !isLocked && (
+                                          <Button
+                                            size="small"
+                                            variant="text"
+                                            onClick={() => {
+                                              if (isEditing) {
+                                                setEditingCandidateId(null);
+                                              } else {
+                                                setEditingCandidateId(candidate.id);
+                                                setRevisedDefectLabels((prev) => ({
+                                                  ...prev,
+                                                  [candidate.id]: linkedFinding?.defectLabel ?? candidate.predictedLabel,
+                                                }));
+                                                setSeverities((prev) => ({
+                                                  ...prev,
+                                                  [candidate.id]: linkedFinding?.severity ?? 'MEDIUM',
+                                                }));
+                                                setLocations((prev) => ({
+                                                  ...prev,
+                                                  [candidate.id]: linkedFinding?.locationDescription ?? '',
+                                                }));
+                                              }
+                                            }}
+                                          >
+                                            {isEditing ? 'Cancel edit' : 'Edit / Change defect'}
+                                          </Button>
+                                        )}
+                                      </Stack>
+
+                                      {isEditing && isInspector && !isLocked && (
+                                        <Paper variant="outlined" sx={{ p: 1.5, mt: 1, bgcolor: 'action.hover' }}>
+                                          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                                            Correct candidate recommendation (before Organization Admin decision):
+                                          </Typography>
+                                          <Stack spacing={1}>
+                                            <TextField
+                                              size="small"
+                                              label="Defect label"
+                                              value={revisedDefectLabels[candidate.id] ?? candidate.predictedLabel}
+                                              onChange={(event) =>
+                                                setRevisedDefectLabels((prev) => ({
+                                                  ...prev,
+                                                  [candidate.id]: event.target.value,
+                                                }))
+                                              }
+                                              slotProps={{ htmlInput: { maxLength: 160 } }}
+                                            />
+                                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                                              <TextField
+                                                select
+                                                size="small"
+                                                label="Severity"
+                                                value={severityFor(candidate.id)}
+                                                onChange={(event) =>
+                                                  setSeverities((prev) => ({
+                                                    ...prev,
+                                                    [candidate.id]: event.target.value as FindingSeverity,
+                                                  }))
+                                                }
+                                                sx={{ minWidth: 140 }}
+                                              >
+                                                {SEVERITIES.map((level) => (
+                                                  <MenuItem key={level} value={level}>
+                                                    {level}
+                                                  </MenuItem>
+                                                ))}
+                                              </TextField>
+                                              <TextField
+                                                size="small"
+                                                label="Location"
+                                                value={locationFor(candidate.id)}
+                                                onChange={(event) =>
+                                                  setLocations((prev) => ({
+                                                    ...prev,
+                                                    [candidate.id]: event.target.value,
+                                                  }))
+                                                }
+                                                slotProps={{ htmlInput: { maxLength: 1000 } }}
+                                                sx={{ flexGrow: 1 }}
+                                              />
+                                            </Stack>
+                                            <Stack direction="row" spacing={1}>
+                                              <Button
+                                                size="small"
+                                                variant="contained"
+                                                disabled={reviseCandidate.isPending || !locationFor(candidate.id).trim()}
+                                                onClick={() => {
+                                                  const label = (revisedDefectLabels[candidate.id] ?? candidate.predictedLabel).trim();
+                                                  const isModified = label !== candidate.predictedLabel;
+                                                  reviseCandidate.mutate({
+                                                    candidateId: candidate.id,
+                                                    input: {
+                                                      decision: isModified ? 'MODIFIED' : 'CONFIRMED',
+                                                      defectLabel: label,
+                                                      severity: severityFor(candidate.id),
+                                                      locationDescription: locationFor(candidate.id).trim(),
+                                                      technicalNotes: isModified
+                                                        ? 'Modified by assigned Inspector'
+                                                        : 'Confirmed by assigned Inspector',
+                                                    },
+                                                  });
+                                                  setEditingCandidateId(null);
+                                                }}
+                                              >
+                                                Save correction
+                                              </Button>
+                                              <Button
+                                                size="small"
+                                                color="error"
+                                                disabled={reviseCandidate.isPending}
+                                                onClick={() => {
+                                                  reviseCandidate.mutate({
+                                                    candidateId: candidate.id,
+                                                    input: {
+                                                      decision: 'REJECTED',
+                                                      reason: 'Inspector marked as false positive upon revision',
+                                                    },
+                                                  });
+                                                  setEditingCandidateId(null);
+                                                }}
+                                              >
+                                                Reject defect
+                                              </Button>
+                                              <Button
+                                                size="small"
+                                                onClick={() => setEditingCandidateId(null)}
+                                              >
+                                                Cancel
+                                              </Button>
+                                            </Stack>
+                                            {reviseCandidate.isError && (
+                                              <Alert severity="error">
+                                                {getErrorMessage(reviseCandidate.error, 'Candidate revision was not saved.')}
+                                              </Alert>
+                                            )}
+                                          </Stack>
+                                        </Paper>
+                                      )}
+
+                                      {isReviewer && !isLocked && (
+                                        <Typography variant="caption" color="text.secondary">
+                                          Reviewed: {candidate.status}. The reviewer verdict on the finding is shown
+                                          on the Reviewer Verdicts register below.
+                                        </Typography>
+                                      )}
+                                    </Stack>
+                                  );
+                                })()}
                               </Stack>
                             </CardContent>
                           </Card>
@@ -413,13 +597,90 @@ export default function InspectionFindingsPage() {
                       })}
                     </Stack>
                   </Box>
+                  {isInspector && group.evidence ? (
+                    <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                      {manualFindingEvidenceId === group.evidenceId ? (
+                        <Box
+                          component="form"
+                          onSubmit={(event) => {
+                            submitManualFinding(event);
+                            setManualFindingEvidenceId(null);
+                          }}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                            gap: 1.5,
+                            p: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: '8px',
+                            bgcolor: 'action.hover',
+                          }}
+                        >
+                          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gridColumn: '1 / -1' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              Add manual finding for {group.evidence.fileName}
+                            </Typography>
+                            <Button size="small" onClick={() => setManualFindingEvidenceId(null)}>
+                              Cancel
+                            </Button>
+                          </Stack>
+                          <input type="hidden" name="evidenceId" value={group.evidenceId} />
+                          <TextField name="defectLabel" label="Defect label" required size="small" slotProps={{ htmlInput: { maxLength: 160 } }} />
+                          <TextField select name="severity" label="Severity" defaultValue="MEDIUM" size="small">
+                            {SEVERITIES.map((level) => (
+                              <MenuItem key={level} value={level}>{level}</MenuItem>
+                            ))}
+                          </TextField>
+                          <TextField name="locationDescription" label="Location" required size="small" slotProps={{ htmlInput: { maxLength: 1000 } }} />
+                          <TextField
+                            name="technicalNotes"
+                            label="Technical notes"
+                            required
+                            multiline
+                            minRows={2}
+                            size="small"
+                            sx={{ gridColumn: '1 / -1' }}
+                            slotProps={{ htmlInput: { maxLength: 4000 } }}
+                          />
+                          <TextField
+                            name="recommendedAction"
+                            label="Recommended action"
+                            multiline
+                            minRows={2}
+                            size="small"
+                            sx={{ gridColumn: '1 / -1' }}
+                            slotProps={{ htmlInput: { maxLength: 4000 } }}
+                          />
+                          <Button
+                            type="submit"
+                            variant="contained"
+                            size="small"
+                            disabled={createManualFinding.isPending}
+                            sx={{ justifySelf: 'start' }}
+                          >
+                            {createManualFinding.isPending ? 'Saving finding…' : 'Save manual finding'}
+                          </Button>
+                          {createManualFinding.isError && (
+                            <Alert severity="error" sx={{ mt: 1, gridColumn: '1 / -1' }}>
+                              {getErrorMessage(createManualFinding.error, 'Manual finding was not saved.')}
+                            </Alert>
+                          )}
+                        </Box>
+                      ) : (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setManualFindingEvidenceId(group.evidenceId)}
+                          sx={{ alignSelf: 'flex-start' }}
+                        >
+                          + Add manual finding for {group.evidence.fileName}
+                        </Button>
+                      )}
+                    </Box>
+                  ) : null}
                 </Paper>
-              ))
-            ) : (
-              <Typography color="text.secondary">
-                No AI candidates yet. Analyze an eligible image or add a manual finding.
-              </Typography>
-            )}
+              ))}
             {reviewCandidate.isError && (
               <Alert severity="error">
                 {getErrorMessage(reviewCandidate.error, 'Candidate review was not saved.')}
@@ -428,75 +689,6 @@ export default function InspectionFindingsPage() {
           </Stack>
         )}
 
-        {isInspector && (
-          <>
-            <Divider sx={{ my: 2 }} />
-            <Box
-              component="form"
-              onSubmit={submitManualFinding}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                gap: 1.5,
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, gridColumn: '1 / -1' }}>
-                Add manual finding
-              </Typography>
-              <TextField select name="evidenceId" label="Evidence" required defaultValue="">
-                {(evidence.data ?? []).map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.fileName}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField name="defectLabel" label="Defect label" required slotProps={{ htmlInput: { maxLength: 160 } }} />
-              <TextField select name="severity" label="Severity" defaultValue="MEDIUM">
-                {SEVERITIES.map((level) => (
-                  <MenuItem key={level} value={level}>
-                    {level}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                name="locationDescription"
-                label="Location"
-                required
-                slotProps={{ htmlInput: { maxLength: 1000 } }}
-              />
-              <TextField
-                name="technicalNotes"
-                label="Technical notes"
-                required
-                multiline
-                minRows={2}
-                sx={{ gridColumn: '1 / -1' }}
-                slotProps={{ htmlInput: { maxLength: 4000 } }}
-              />
-              <TextField
-                name="recommendedAction"
-                label="Recommended action"
-                multiline
-                minRows={2}
-                sx={{ gridColumn: '1 / -1' }}
-                slotProps={{ htmlInput: { maxLength: 4000 } }}
-              />
-              <Button
-                type="submit"
-                variant="outlined"
-                disabled={!evidence.data?.length || createManualFinding.isPending}
-                sx={{ justifySelf: 'start' }}
-              >
-                {createManualFinding.isPending ? 'Saving finding…' : 'Save manual finding'}
-              </Button>
-            </Box>
-            {createManualFinding.isError && (
-              <Alert severity="error" sx={{ mt: 1 }}>
-                {getErrorMessage(createManualFinding.error, 'Manual finding was not saved.')}
-              </Alert>
-            )}
-          </>
-        )}
       </Paper>
 
       <ReviewerVerdicts
@@ -529,57 +721,70 @@ function ReviewerVerdicts({
   const undecided = (findings.data ?? []).filter((finding) => !finding.decision);
   if (undecided.length === 0) return null;
   return (
-    <Stack spacing={1.5}>
-      {undecided.map((finding) => (
-        <Paper key={finding.id} variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-          <Stack spacing={1.5}>
-            <Box>
-              <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                {finding.defectLabel}
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {finding.locationDescription}
-              </Typography>
-            </Box>
-            {finding.evidenceId && (
-              <Box
-                sx={{
-                  borderRadius: '10px',
-                  border: '1px solid',
-                      borderColor: 'divider',
-                  overflow: 'hidden',
-                  p: 1.25,
-                  bgcolor: 'background.default',
-                }}
-              >
-                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
-                  Defect photo capture
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          Reviewer Verdicts (Organization Admin)
+        </Typography>
+        <Chip size="small" color="warning" label={`${undecided.length} awaiting decision`} />
+      </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {isReviewer
+          ? 'As Organization Admin, review and confirm or reject these candidate findings. Only confirmed or modified findings enter official report statistics and corrective maintenance.'
+          : 'These findings were recommended by the assigned Inspector and are awaiting final review decision by an Organization Admin before entering the official report.'}
+      </Typography>
+      <Stack spacing={1.5}>
+        {undecided.map((finding) => (
+          <Paper key={finding.id} variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                  {finding.defectLabel}
                 </Typography>
-                <AuthenticatedImage
-                  src={inspectionApi.evidenceContentUrl(inspectionId, finding.evidenceId)}
-                  alt={finding.defectLabel}
-                  maxHeight={160}
-                  sx={{ borderRadius: '6px', width: '100%' }}
-                />
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {finding.locationDescription}
+                </Typography>
               </Box>
-            )}
-            {isReviewer ? (
-              <FindingDecisionControls
-                findingId={finding.id}
-                defectLabel={finding.defectLabel}
-                isPending={decidePending}
-                error={decideError}
-                onDecide={onDecide}
-              />
-            ) : (
-              <Alert severity="info">
-                Finding “{finding.defectLabel}” awaits the reviewer verdict.
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
-      ))}
-    </Stack>
+              {finding.evidenceId && (
+                <Box
+                  sx={{
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    overflow: 'hidden',
+                    p: 1.25,
+                    bgcolor: 'background.default',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
+                    Defect photo capture
+                  </Typography>
+                  <AuthenticatedImage
+                    src={inspectionApi.evidenceContentUrl(inspectionId, finding.evidenceId)}
+                    alt={finding.defectLabel}
+                    maxHeight={160}
+                    sx={{ borderRadius: '6px', width: '100%' }}
+                  />
+                </Box>
+              )}
+              {isReviewer ? (
+                <FindingDecisionControls
+                  findingId={finding.id}
+                  defectLabel={finding.defectLabel}
+                  isPending={decidePending}
+                  error={decideError}
+                  onDecide={onDecide}
+                />
+              ) : (
+                <Alert severity="info">
+                  Finding “{finding.defectLabel}” awaits the reviewer verdict.
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+    </Paper>
   );
 }
 

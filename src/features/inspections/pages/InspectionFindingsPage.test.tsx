@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   },
   analyze: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   review: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  reviseReview: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   decideFinding: {
     mutate: vi.fn(),
@@ -48,6 +49,7 @@ vi.mock('../hooks/useInspections', () => ({
   useAnalyzeEvidence: () => mocks.analyze,
   useReviewFindingCandidate: () => mocks.review,
   useCreateManualFinding: () => mocks.manual,
+  useReviseReviewedCandidate: () => mocks.reviseReview,
   useDecideFinding: () => mocks.decideFinding,
 }));
 
@@ -186,6 +188,7 @@ describe('InspectionFindingsPage', () => {
     expect(mocks.analyze.mutate).toHaveBeenCalledTimes(1);
   });
 
+
   it('sends CONFIRMED with the per-candidate severity and location', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
@@ -259,6 +262,63 @@ describe('InspectionFindingsPage', () => {
       findingId: 'finding-1',
       decision: 'CONFIRMED',
       rationale: '',
+    });
+  });
+
+  it('keeps detection controls Inspector-only while retaining Org Admin review controls', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Re-run detection' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Confirm finding' })).toBeTruthy();
+  });
+  it('allows Inspector to edit / correct a reviewed candidate before reviewer decision', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.candidateQuery = {
+      data: [{ ...pendingCandidate(), status: 'CONFIRMED' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    mocks.findingsQuery = {
+      data: [
+        {
+          ...undecidedFinding(),
+          aiCandidateId: 'candidate-1',
+          defectLabel: 'Coating crack',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText(/Inspector: CONFIRMED/)).toBeTruthy();
+    const editBtn = screen.getByRole('button', { name: 'Edit / Change defect' });
+    fireEvent.click(editBtn);
+
+    fireEvent.change(screen.getByLabelText('Defect label'), { target: { value: 'Coating blistering' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+
+    expect(mocks.reviseReview.mutate).toHaveBeenCalledWith({
+      candidateId: 'candidate-1',
+      input: expect.objectContaining({
+        decision: 'MODIFIED',
+        defectLabel: 'Coating blistering',
+      }),
     });
   });
 });

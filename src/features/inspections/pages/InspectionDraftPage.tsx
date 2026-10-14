@@ -6,7 +6,6 @@ import {
   PORTAL_IDS,
   type PortalId,
 } from '@/app/permissions/accessPolicy';
-import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
@@ -15,6 +14,7 @@ import {
   useGenerateReportDraft,
   useReportVersions,
 } from '../hooks/useInspections';
+import { DraftProgressTracker } from '../components/DraftProgressTracker';
 
 /**
  * MF3-07 report draft, one stage of the inspection workspace.
@@ -70,12 +70,17 @@ export default function InspectionDraftPage() {
           >
             {createDraft.isPending ? 'Compiling report…' : 'Generate report draft'}
           </Button>
+          {createDraft.isPending && <DraftProgressTracker />}
+          {createDraft.isSuccess && (
+            <Alert severity="success">
+              Report draft created successfully! You can now view and edit the document below.
+            </Alert>
+          )}
           {!evidenceAccepted && (
             <Alert severity="warning">
               Accept the evidence set before generating a report draft.
             </Alert>
           )}
-          {createDraft.isPending && <DraftProgressTracker />}
           {createDraft.isError && (
             <Alert severity="warning">
               {getErrorMessage(
