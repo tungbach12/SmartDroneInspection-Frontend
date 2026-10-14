@@ -72,6 +72,9 @@ const InspectionPreparationPage = lazy(
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
+const WorkforcePage = lazy(
+  () => import('@/features/workforce/pages/WorkforcePage'),
+);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -81,6 +84,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
+  workforce: <WorkforcePage />,
 };
 
 function PortalEntryRedirect() {
@@ -110,7 +114,12 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           <Navigate to={getSectionPath(portal, 'dashboard')} replace />
         ),
       },
-      ...SECTION_IDS.map((section) => ({
+      // Only the sections a portal actually grants get a route. A section with an empty role list
+      // (Workforce outside the client workspace) must not be reachable at /<portal>/<section> at
+      // all — otherwise it would exist as a URL that always denies instead of not existing.
+      ...SECTION_IDS.filter(
+        (section) => getSectionRoles(portal, section).length > 0,
+      ).map((section) => ({
         path: section,
         element: (
           <RequireAuth roles={getSectionRoles(portal, section)}>
