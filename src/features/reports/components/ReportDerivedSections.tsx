@@ -1,4 +1,4 @@
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, Stack, Typography } from '@mui/material';
 import type {
   EvidenceItem,
   InspectionReportVersion,
@@ -30,6 +30,23 @@ function formatDateTime(value: string | null | undefined): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+function findingComponentLocation(findings: VerifiedFinding[], evidenceId: string): string | null {
+  const values = new Set<string>();
+  for (const finding of findings) {
+    if (finding.evidenceId !== evidenceId) continue;
+    const component = finding.component?.trim();
+    const location = finding.locationDescription?.trim();
+    const value =
+      component && location
+        ? component === location
+          ? component
+          : `${component} — ${location}`
+        : component || location;
+    if (value) values.add(value);
+  }
+  return values.size ? [...values].join('; ') : null;
 }
 
 function ReadOnlySection({
@@ -109,6 +126,7 @@ export function ReportDerivedSections({
   const official = findings.filter(
     (finding) => finding.decision === 'CONFIRMED' || finding.decision === 'MODIFIED',
   );
+  const pendingReview = findings.filter((finding) => !finding.decision);
 
   return (
     <Box>
@@ -138,11 +156,23 @@ export function ReportDerivedSections({
         description="Rendered from the reviewed finding records with attached defect evidence. Severity and decision are changed through the finding workflow, not by editing the report."
       >
         {official.length === 0 ? (
-          <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>
-            No confirmed findings were recorded for this version.
-          </Typography>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+              No confirmed findings were recorded for this version.
+            </Typography>
+            {pendingReview.length > 0 && (
+              <Alert severity="warning" sx={{ fontSize: '0.8125rem' }}>
+                {pendingReview.length} finding(s) recommended by the Inspector are awaiting final review decision by an Organization Admin in Findings before entering the official report.
+              </Alert>
+            )}
+          </Stack>
         ) : (
           <Stack spacing={2}>
+            {pendingReview.length > 0 && (
+              <Alert severity="info" sx={{ fontSize: '0.8125rem', mb: 0.5 }}>
+                {pendingReview.length} additional finding(s) recommended by Inspector await Organization Admin decision in Findings.
+              </Alert>
+            )}
             {official.map((finding) => {
               const linkedEvidence = finding.evidenceId
                 ? evidenceList.find((e) => e.id === finding.evidenceId)
@@ -262,7 +292,8 @@ export function ReportDerivedSections({
         ) : (
           <Stack spacing={1.5}>
             {evidenceList.map((item) => {
-              const attachedFinding = official.find((f) => f.evidenceId === item.id);
+              const attachedFindings = official.filter((f) => f.evidenceId === item.id);
+              const attachedFinding = attachedFindings[0];
               return (
                 <Box
                   key={item.id}
@@ -291,7 +322,7 @@ export function ReportDerivedSections({
                       value={
                         item.latitude != null && item.longitude != null
                           ? `${item.latitude}, ${item.longitude}`
-                          : null
+                          : findingComponentLocation(attachedFindings, item.id)
                       }
                     />
                     <Field label="SHA-256" value={item.checksumSha256} />
