@@ -102,6 +102,7 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     promptVersion: 'mf3-report-v1',
     generatedAt: '2026-10-01T09:00:00Z',
     evidenceSnapshotHash: 'abcdef1234567890',
+    findingsSnapshotHash: 'fedcba0987654321',
     publishedAt: null,
     createdAt: '2026-10-01T09:00:00Z',
     narrative: 'The north span was surveyed from both maintenance walkways.',
@@ -127,8 +128,44 @@ describe('ReportDetailPage MF3 gates', () => {
     setRole(['ORG_ADMIN']);
   });
 
+  it('keeps approval disabled until every finding has an independent decision', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({})]);
+    mockedApi.listFindings.mockResolvedValue([
+      {
+        id: 'finding-1',
+        inspectionId: 'inspection-1',
+        evidenceId: 'evidence-1',
+        aiCandidateId: null,
+        source: 'MANUAL',
+        findingCode: 'F-1',
+        defectLabel: 'Surface crack',
+        severity: 'HIGH',
+        locationDescription: null,
+        technicalNotes: 'Visible crack',
+        recommendedAction: null,
+        component: 'Pier 2',
+        description: null,
+        observedCondition: null,
+        priority: null,
+        measurement: null,
+        decision: null,
+        decidedByUserId: null,
+        decidedAt: null,
+        repairRequired: false,
+        status: 'OPEN',
+      },
+    ]);
+
+    renderPage();
+
+    const approve = (await screen.findByRole('button', { name: 'Approve' })) as HTMLButtonElement;
+    expect(approve.disabled).toBe(true);
+    expect(screen.getByText(/Decide every proposed finding/)).toBeTruthy();
+  });
+
   it('offers approve and return-with-reason to the reviewer on a submitted version', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
+    mockedApi.listFindings.mockResolvedValue([]);
 
     renderPage();
 

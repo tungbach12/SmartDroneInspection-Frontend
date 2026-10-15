@@ -11,10 +11,12 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
   useAuthorManualDraft,
   useEvidenceQualityHistory,
+  useInspectionWorkflowState,
   useGenerateReportDraft,
   useReportVersions,
 } from '../hooks/useInspections';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
+import { AiMotionFigure } from '../components/AiMotionFigure';
 
 /**
  * MF3-07 report draft, one stage of the inspection workspace.
@@ -31,6 +33,7 @@ export default function InspectionDraftPage() {
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
   const quality = useEvidenceQualityHistory(inspectionId);
+  const workflow = useInspectionWorkflowState(inspectionId);
   const versions = useReportVersions(inspectionId);
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
@@ -38,8 +41,8 @@ export default function InspectionDraftPage() {
   const [narrative, setNarrative] = useState('');
   const [omissionDisclosure, setOmissionDisclosure] = useState('');
 
-  // The backend draft gate requires an ACCEPTED decision and returns 409 otherwise.
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
+  const findingsConfirmed = workflow.data?.status === 'REPORT_DRAFT' && Boolean(workflow.data.findingsSnapshotHash);
   const hasVersion = (versions.data ?? []).length > 0;
   const reportDocumentPath = `${getSectionPath(portal, 'reports')}/${inspectionId}`;
 
@@ -62,9 +65,24 @@ export default function InspectionDraftPage() {
           document.
         </Typography>
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+          {!findingsConfirmed && (
+            <Alert
+              severity="info"
+              action={
+                <Button component={RouterLink} to="../findings" color="inherit" size="small">
+                  Go to Findings
+                </Button>
+              }
+            >
+              Confirm the reviewed findings before choosing how to create the report. This step does not create a report automatically.
+            </Alert>
+          )}
           <Button
             variant="contained"
-            disabled={!isInspector || createDraft.isPending || !evidenceAccepted}
+            disabled={!isInspector || createDraft.isPending || !evidenceAccepted || !findingsConfirmed}
+            startIcon={
+              createDraft.isPending ? <AiMotionFigure name="draftBurst" size={22} /> : undefined
+            }
             onClick={() => createDraft.mutate()}
             sx={{ alignSelf: 'flex-start' }}
           >
@@ -116,7 +134,8 @@ export default function InspectionDraftPage() {
           />
           <Button
             variant="outlined"
-            disabled={!isInspector || !narrative.trim() || authorManualDraft.isPending}
+            disabled={!isInspector || !findingsConfirmed || !narrative.trim() || authorManualDraft.isPending}
+            startIcon={authorManualDraft.isPending ? <AiMotionFigure name="draftRibbon" size={20} /> : undefined}
             onClick={() => {
               const trimmedDisclosure = omissionDisclosure.trim();
               authorManualDraft.mutate(

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .pulse-wave { animation: pulse-wave 2.6s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; transform-origin: 24px 24px; }
+    .pulse-wave-2 { animation-delay: 0.45s; }
+    .pulse-wave-3 { animation-delay: 0.9s; }
+    .pulse-core { animation: pulse-core 2.6s ease-in-out infinite; transform-origin: 24px 24px; }
+    @keyframes pulse-wave {
+      0% { transform: scale(0.35); opacity: 0.85; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+    @keyframes pulse-core {
+      0%, 100% { transform: scale(0.88); }
+      50% { transform: scale(1.12); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pulse-wave { animation: none; opacity: 0.3; }
+      .pulse-wave-2, .pulse-wave-3 { animation: none; opacity: 0.2; }
+      .pulse-core { animation: none; }
+    }
+  </style>
+  <circle class="pulse-core" cx="24" cy="24" r="3.6" fill="#7B75F5" />
+  <circle class="pulse-wave" cx="24" cy="24" r="14" fill="none" stroke="#7B75F5" stroke-width="1.8" opacity="0.5" />
+  <circle class="pulse-wave pulse-wave-2" cx="24" cy="24" r="14" fill="none" stroke="#7B75F5" stroke-width="1.8" opacity="0.4" />
+  <circle class="pulse-wave pulse-wave-3" cx="24" cy="24" r="14" fill="none" stroke="#7B75F5" stroke-width="1.8" opacity="0.3" />
+</svg>

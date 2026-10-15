@@ -16,6 +16,11 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
+  workflowQuery: {
+    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedByUserId: null as string | null, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    isLoading: false,
+    error: null as Error | null,
+  },
   createDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   authorManualDraft: {
     mutate: vi.fn(),
@@ -27,6 +32,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../hooks/useInspections', () => ({
   useEvidenceQualityHistory: () => mocks.qualityQuery,
+  useInspectionWorkflowState: () => mocks.workflowQuery,
   useReportVersions: () => mocks.versionsQuery,
   useGenerateReportDraft: () => mocks.createDraft,
   useAuthorManualDraft: () => mocks.authorManualDraft,
@@ -62,6 +68,7 @@ describe('InspectionDraftPage', () => {
     signInAsInspector();
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
     mocks.createDraft.mutate.mockReset();
     mocks.createDraft.isPending = false;
     mocks.authorManualDraft.mutate.mockReset();
@@ -81,7 +88,26 @@ describe('InspectionDraftPage', () => {
     expect(screen.getByText(/Accept the evidence set before generating/)).toBeTruthy();
   });
 
-  it('generates a draft once accepted', () => {
+  it('keeps draft creation disabled until findings have been confirmed', () => {
+    mocks.qualityQuery = {
+      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionDraftPage />);
+
+    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Save structured draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
+  });
+
+  it('generates a draft once accepted and findings are confirmed', () => {
+    mocks.workflowQuery = {
+      data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      isLoading: false,
+      error: null,
+    };
     mocks.qualityQuery = {
       data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
       isLoading: false,
@@ -102,6 +128,28 @@ describe('InspectionDraftPage', () => {
     expect(screen.getByText(/Progress stages are not available/)).toBeTruthy();
     expect(screen.getByText(/review and verify every section/)).toBeTruthy();
     expect(screen.queryByText(/Data Collection|% estimated|Typical time/)).toBeNull();
+  });
+
+  it('animates the draft wait state without implying a stage or an estimate', () => {
+    mocks.createDraft.isPending = true;
+    renderWithRouter(<InspectionDraftPage />);
+
+    // Playful, but still indeterminate: the endpoint reports no intermediate stages.
+    const figures = screen.getAllByRole('img', { name: 'Report drafting in progress' });
+    expect(figures.length).toBeGreaterThan(0);
+    for (const figure of figures) {
+      expect(figure.getAttribute('src')).toContain('/images/ai-motion/');
+    }
+
+    // Scope the no-estimate check to the wait state, so unrelated page copy cannot make it noisy.
+    const waitState = screen.getByText('Generating report draft').closest('.MuiCard-root');
+    expect(waitState?.textContent ?? '').not.toMatch(/\d+\s*%|%|\b\d+\s*(s|sec|seconds|min|minutes)\b/i);
+  });
+
+  it('keeps the draft motion still until generation is requested', () => {
+    renderWithRouter(<InspectionDraftPage />);
+
+    expect(screen.queryByRole('img', { name: 'Report drafting in progress' })).toBeNull();
   });
 
   it('keeps the report link disabled until a version exists', () => {
@@ -126,7 +174,12 @@ describe('InspectionDraftPage', () => {
     expect(link.getAttribute('href')).toContain('inspection-1');
   });
 
-  it('seeds a manual draft with the narrative and disclosure', () => {
+  it('seeds a manual draft with the narrative and disclosure after findings confirmation', () => {
+    mocks.workflowQuery = {
+      data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      isLoading: false,
+      error: null,
+    };
     renderWithRouter(<InspectionDraftPage />);
 
     fireEvent.change(screen.getByLabelText('Narrative'), {

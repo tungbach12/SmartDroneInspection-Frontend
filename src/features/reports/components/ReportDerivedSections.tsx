@@ -123,9 +123,9 @@ export function ReportDerivedSections({
   evidenceList,
   inspectionId,
 }: ReportDerivedSectionsProps) {
-  const official = findings.filter(
-    (finding) => finding.decision === 'CONFIRMED' || finding.decision === 'MODIFIED',
-  );
+    // An Inspector proposal belongs in the draft. Only a reviewer-rejected finding is excluded;
+  // publication still refuses while any proposal is undecided.
+  const official = findings.filter((finding) => finding.decision !== 'REJECTED');
   const pendingReview = findings.filter((finding) => !finding.decision);
 
   return (
@@ -152,8 +152,8 @@ export function ReportDerivedSections({
 
       <ReadOnlySection
         title="Confirmed findings"
-        accountable="Organization Admin final decision"
-        description="Rendered from the reviewed finding records with attached defect evidence. Severity and decision are changed through the finding workflow, not by editing the report."
+        accountable="Inspector proposal · Organization Admin decision"
+        description="Every finding the assigned Inspector confirmed appears here with its source evidence and the reviewer decision once one is recorded. A finding the reviewer rejected is excluded."
       >
         {official.length === 0 ? (
           <Stack spacing={1.5}>

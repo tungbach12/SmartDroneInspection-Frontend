@@ -13,21 +13,27 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { inspectionApi } from '../api/inspectionApi';
 import type { EvidenceItem, FindingDecision, FindingSeverity } from '../api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { AiMotionFigure } from '../components/AiMotionFigure';
+import { hasAutoDetectionRun, markAutoDetectionRun } from '../autoDetectionRun';
 import { FindingDecisionControls } from '../components/FindingDecisionControls';
 import {
   useAnalyzeEvidence,
   useCreateManualFinding,
+  useConfirmFindings,
   useDecideFinding,
   useEvidenceQualityHistory,
   useFindingCandidates,
   useInspectionEvidence,
   useInspectionFindings,
+  useInspectionWorkflowState,
+  useReopenFindings,
+  useReportVersions,
   useReviewFindingCandidate,
   useReviseReviewedCandidate,
 } from '../hooks/useInspections';
@@ -65,7 +71,9 @@ function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
  */
 export default function InspectionFindingsPage() {
   const { inspectionId = '' } = useParams();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
+  const userId = useAuthStore((state) => state.userId);
   const isInspector = roles.includes('INSPECTOR');
   const isReviewer = roles.includes('ORG_ADMIN');
 
@@ -77,7 +85,14 @@ export default function InspectionFindingsPage() {
   const createManualFinding = useCreateManualFinding(inspectionId);
   const decideFinding = useDecideFinding(inspectionId);
   const findings = useInspectionFindings(inspectionId);
+  const workflow = useInspectionWorkflowState(inspectionId);
+  const confirmFindings = useConfirmFindings(inspectionId);
+  const reopenFindings = useReopenFindings(inspectionId);
+  const reportVersions = useReportVersions(inspectionId);
   const reviseCandidate = useReviseReviewedCandidate(inspectionId);
+  const isReportLocked = (reportVersions.data ?? []).some((version) =>
+    ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
+  );
 
   // Per-candidate review inputs, so Confirm/Modify send the values entered on that card.
   const [severities, setSeverities] = useState<Record<string, FindingSeverity>>({});
@@ -85,19 +100,52 @@ export default function InspectionFindingsPage() {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
+  const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
 
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
+  const pendingCandidates = (candidates.data ?? []).filter((candidate) => candidate.status === 'PENDING').length;
+  const reviewedItemCount = (findings.data ?? []).length + (candidates.data ?? []).filter((candidate) => candidate.status === 'REJECTED').length;
+  const noFindings = (candidates.data ?? []).length === 0 && (findings.data ?? []).length === 0;
+  const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
+  const canConfirm =
+    isInspector &&
+    evidenceAccepted &&
+    !candidates.isLoading &&
+    !findings.isLoading &&
+    !workflow.isLoading &&
+    !candidates.isError &&
+    pendingCandidates === 0 &&
+    (!noFindings || noFindingsAcknowledged) &&
+    !analyze.isPending &&
+    !reviewCandidate.isPending &&
+    !reviseCandidate.isPending &&
+    !createManualFinding.isPending &&
+    !confirmFindings.isPending &&
+    !isReportLocked &&
+    !['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+  const autoAnalysed = useRef(new Set<string>());
+  const autoPassOffered = useRef(false);
 
-  // MF3-05: advisory detection runs as soon as the evidence set is accepted. An image already
-  // covered by a candidate is skipped, and one that failed is not retried automatically — the
-  // manual Analyze action stays the retry path, so an inference outage cannot spin this effect.
+  // MF3-05 runs one automatic pass for the accepted set. Reopening Findings returns the workflow
+  // to FIELD_COMPLETED but must not silently restart detection; the Inspector can still explicitly
+  // analyse an image that has no candidates.
   const analysedEvidenceIds = useMemo(
     () => new Set(candidates.data?.map((candidate) => candidate.evidenceId) ?? []),
     [candidates.data],
   );
-  const autoAnalysed = useRef(new Set<string>());
+  const analysingEvidenceId = analyze.isPending ? analyze.variables : undefined;
+  const analysingFileName = (evidence.data ?? []).find(
+    (item) => item.id === analysingEvidenceId,
+  )?.fileName;
   useEffect(() => {
-    if (!isInspector || !evidenceAccepted || analyze.isPending) return;
+    if (!isInspector || !userId || !evidenceAccepted || !analysisUnlocked || analyze.isPending) {
+      return;
+    }
+    if (!autoPassOffered.current) {
+      autoPassOffered.current = true;
+      if (hasAutoDetectionRun(userId, inspectionId)) return;
+      markAutoDetectionRun(userId, inspectionId);
+    }
     const next = (evidence.data ?? []).find(
       (item) =>
         item.contentType.startsWith('image/') &&
@@ -107,7 +155,16 @@ export default function InspectionFindingsPage() {
     if (!next) return;
     autoAnalysed.current.add(next.id);
     analyze.mutate(next.id);
-  }, [isInspector, evidenceAccepted, evidence.data, analysedEvidenceIds, analyze]);
+  }, [
+    isInspector,
+    userId,
+    inspectionId,
+    evidenceAccepted,
+    analysisUnlocked,
+    evidence.data,
+    analysedEvidenceIds,
+    analyze,
+  ]);
 
   const severityFor = (candidateId: string): FindingSeverity =>
     severities[candidateId] ?? 'MEDIUM';
@@ -170,9 +227,9 @@ export default function InspectionFindingsPage() {
           <Typography variant="h6">Advisory detection</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Runs automatically once the evidence set is accepted. Every suggestion is a candidate
-          only — nothing becomes a finding until you confirm or modify it, and the manual path
-          below always stays open.
+          Runs automatically once, the first time the evidence set is accepted. Reopening Findings
+          does not start it again — analyse any image yourself from here. Every suggestion remains a
+          candidate until the Inspector confirms, modifies or rejects it; the manual path stays open.
         </Typography>
         {!evidenceAccepted ? (
           <Alert severity="info">Detection starts after an accepted evidence quality decision.</Alert>
@@ -181,7 +238,15 @@ export default function InspectionFindingsPage() {
             {!isInspector && (
               <Alert severity="info">Only the assigned Inspector can run advisory detection.</Alert>
             )}
-            {analyze.isPending ? <Alert severity="info">Running advisory detection…</Alert> : null}
+            {analyze.isPending ? (
+              <Alert
+                severity="info"
+                icon={<AiMotionFigure name="advisoryScan" size={28} alt="Advisory detection in progress" />}
+                sx={{ alignItems: 'center' }}
+              >
+                {analysingFileName ? `Analysing ${analysingFileName}…` : 'Running advisory detection…'}
+              </Alert>
+            ) : null}
             {isInspector && analyze.isError && (
               <Alert severity="warning">
                 {getErrorMessage(
@@ -193,9 +258,8 @@ export default function InspectionFindingsPage() {
             {evidence.data
               ?.filter((item) => item.contentType.startsWith('image/'))
               .map((item) => {
-                const done = candidates.data?.some(
-                  (candidate) => candidate.evidenceId === item.id,
-                );
+                const done = analysedEvidenceIds.has(item.id);
+                const isAnalysing = analysingEvidenceId === item.id;
                 return (
                   <Stack
                     key={item.id}
@@ -203,17 +267,31 @@ export default function InspectionFindingsPage() {
                     spacing={1}
                     sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {item.fileName}
-                    </Typography>
-                    {isInspector && (
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                      {isAnalysing && (
+                        <AiMotionFigure name="advisoryLens" size={22} alt={`Analysing ${item.fileName}`} />
+                      )}
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {item.fileName}
+                      </Typography>
+                      {done && !isAnalysing && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="success"
+                          icon={<AiMotionFigure name="advisoryPulse" size={14} />}
+                          label="Detection complete"
+                        />
+                      )}
+                    </Stack>
+                    {isInspector && !done && (
                       <Button
                         size="small"
-                        startIcon={<AutoAwesomeOutlined />}
-                        disabled={analyze.isPending}
+                        startIcon={isAnalysing ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
+                        disabled={analyze.isPending || !analysisUnlocked}
                         onClick={() => analyze.mutate(item.id)}
                       >
-                        {done ? 'Re-run detection' : 'Analyze'}
+                        {isAnalysing ? 'Analysing…' : 'Analyze'}
                       </Button>
                     )}
                   </Stack>
@@ -272,9 +350,13 @@ export default function InspectionFindingsPage() {
                     </Typography>
                     <Chip
                       size="small"
-                      color="primary"
+                      color={group.candidates.length === 0 ? 'default' : 'primary'}
                       variant="outlined"
-                      label={`${group.candidates.length} ${group.candidates.length === 1 ? 'detected defect' : 'detected defects'}`}
+                      label={
+                        group.candidates.length === 0
+                          ? 'No findings found'
+                          : `${group.candidates.length} ${group.candidates.length === 1 ? 'detected defect' : 'detected defects'}`
+                      }
                     />
                   </Stack>
 
@@ -418,7 +500,7 @@ export default function InspectionFindingsPage() {
                                   const linkedFinding = (findings.data ?? []).find(
                                     (f) => f.aiCandidateId === candidate.id,
                                   );
-                                  const isLocked = Boolean(linkedFinding?.decision);
+                                  const isLocked = Boolean(linkedFinding?.decision) || isReportLocked;
                                   const isEditing = editingCandidateId === candidate.id;
                                   return (
                                     <Stack spacing={1}>
@@ -434,6 +516,8 @@ export default function InspectionFindingsPage() {
                                             color={linkedFinding?.decision === 'REJECTED' ? 'error' : 'success'}
                                             label={`Reviewer: ${linkedFinding?.decision}`}
                                           />
+                                        ) : isReportLocked ? (
+                                          <Chip size="small" color="default" label="Locked by submitted report" />
                                         ) : (
                                           <Chip
                                             size="small"
@@ -689,6 +773,67 @@ export default function InspectionFindingsPage() {
           </Stack>
         )}
 
+        {isInspector && (
+          <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+            <Stack spacing={1.25}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Findings review
+              </Typography>
+              {workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
+                <Alert severity="info">
+                  Findings are confirmed. Reopen this stage only if you need to change the reviewed set.
+                  <Button
+                    size="small"
+                    sx={{ ml: 1, textTransform: 'none' }}
+                    disabled={reopenFindings.isPending}
+                    onClick={() => reopenFindings.mutate()}
+                  >
+                    Reopen Findings
+                  </Button>
+                </Alert>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                {pendingCandidates > 0
+                  ? `${pendingCandidates} AI candidate${pendingCandidates === 1 ? '' : 's'} still need a decision.`
+                  : reviewedItemCount > 0
+                    ? `${reviewedItemCount} reviewed finding item${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
+                    : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
+              </Typography>
+              {noFindings && (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={noFindingsAcknowledged}
+                    onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
+                  />
+                  <Typography variant="body2">
+                    No finding was observed within the scope covered by these images.
+                  </Typography>
+                </label>
+              )}
+              <Button
+                variant="contained"
+                disabled={!canConfirm}
+                onClick={() =>
+                  confirmFindings.mutate(noFindings, {
+                    onSuccess: () => navigate('../report'),
+                  })
+                }
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
+              </Button>
+              {confirmFindings.isError && (
+                <Alert severity="error">
+                  {getErrorMessage(
+                    confirmFindings.error,
+                    'Findings were not confirmed. Resolve any pending candidates and try again.',
+                  )}
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
+        )}
       </Paper>
 
       <ReviewerVerdicts

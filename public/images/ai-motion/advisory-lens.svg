@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .lens-pulse { animation: lens-pulse 2.2s ease-in-out infinite; transform-origin: 24px 24px; }
+    .lens-sweep { animation: lens-sweep 2.2s cubic-bezier(0.5, 0, 0.5, 1) infinite; transform-origin: 12px 24px; }
+    .lens-glint { animation: lens-glint 2.2s ease-in-out infinite; }
+    @keyframes lens-pulse {
+      0%, 100% { transform: scale(0.94); opacity: 0.55; }
+      50% { transform: scale(1.06); opacity: 0.9; }
+    }
+    @keyframes lens-sweep { to { transform: rotate(360deg); } }
+    @keyframes lens-glint {
+      0%, 55%, 100% { opacity: 0; }
+      70% { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lens-pulse { animation: none; opacity: 0.7; }
+      .lens-sweep { animation: none; }
+      .lens-glint { animation: none; opacity: 0.6; }
+    }
+  </style>
+  <circle class="lens-pulse" cx="24" cy="24" r="15" fill="none" stroke="#7B75F5" stroke-width="1.4" opacity="0.6" />
+  <g class="lens-sweep">
+    <path d="M24 24 L24 9" fill="none" stroke="#7B75F5" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+    <circle cx="24" cy="9" r="2.4" fill="#7B75F5" />
+  </g>
+  <circle cx="24" cy="24" r="10" fill="none" stroke="#9CA3AF" stroke-width="1.6" opacity="0.6" />
+  <circle cx="24" cy="24" r="3.4" fill="#7B75F5" />
+  <circle class="lens-glint" cx="19.5" cy="19.5" r="1.8" fill="#FFFFFF" />
+</svg>
