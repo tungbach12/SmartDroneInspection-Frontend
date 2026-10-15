@@ -125,7 +125,7 @@ export function ReportDerivedSections({
 }: ReportDerivedSectionsProps) {
     // An Inspector proposal belongs in the draft. Only a reviewer-rejected finding is excluded;
   // publication still refuses while any proposal is undecided.
-  const official = findings.filter((finding) => finding.decision !== 'REJECTED');
+  const reportableFindings = findings.filter((finding) => finding.decision !== 'REJECTED');
   const pendingReview = findings.filter((finding) => !finding.decision);
 
   return (
@@ -155,7 +155,7 @@ export function ReportDerivedSections({
         accountable="Inspector proposal · Organization Admin decision"
         description="Every finding the assigned Inspector confirmed appears here with its source evidence and the reviewer decision once one is recorded. A finding the reviewer rejected is excluded."
       >
-        {official.length === 0 ? (
+        {reportableFindings.length === 0 ? (
           <Stack spacing={1.5}>
             <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>
               No confirmed findings were recorded for this version.
@@ -170,10 +170,10 @@ export function ReportDerivedSections({
           <Stack spacing={2}>
             {pendingReview.length > 0 && (
               <Alert severity="info" sx={{ fontSize: '0.8125rem', mb: 0.5 }}>
-                {pendingReview.length} additional finding(s) recommended by Inspector await Organization Admin decision in Findings.
+                {pendingReview.length} Inspector-proposed finding(s) in this list await Organization Admin decision in Findings.
               </Alert>
             )}
-            {official.map((finding) => {
+            {reportableFindings.map((finding) => {
               const linkedEvidence = finding.evidenceId
                 ? evidenceList.find((e) => e.id === finding.evidenceId)
                 : null;
@@ -292,7 +292,7 @@ export function ReportDerivedSections({
         ) : (
           <Stack spacing={1.5}>
             {evidenceList.map((item) => {
-              const attachedFindings = official.filter((f) => f.evidenceId === item.id);
+              const attachedFindings = reportableFindings.filter((f) => f.evidenceId === item.id);
               const attachedFinding = attachedFindings[0];
               return (
                 <Box

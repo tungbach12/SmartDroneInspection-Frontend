@@ -217,7 +217,7 @@ export default function ReportDetailPage() {
 
                   <Stack spacing={2}>
                     {/* Author verification step */}
-                    {canAuthor && isAuthor && openVersion.status === 'DRAFT' && (
+                    {canAuthor && isAuthor && (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED') && (
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Button
                           variant="contained"

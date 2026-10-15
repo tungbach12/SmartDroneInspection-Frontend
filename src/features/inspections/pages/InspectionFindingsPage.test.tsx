@@ -370,6 +370,62 @@ describe('InspectionFindingsPage', () => {
     expect(screen.getByText(/1 AI candidate still need a decision/)).toBeTruthy();
   });
 
+  it('requires no-findings acknowledgment after every AI candidate is rejected', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.candidateQuery = {
+      data: [{ ...pendingCandidate(), status: 'REJECTED' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
+    expect(screen.getByLabelText(/No finding was observed within the scope/)).toBeTruthy();
+    expect(confirmButton.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText(/No finding was observed within the scope/));
+    fireEvent.click(confirmButton);
+
+    expect(mocks.confirm.mutate).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it('waits for existing candidate records before starting the automatic detection pass', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.candidateQuery = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+  });
+
+  it('allows confirming a candidate without location prose', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.candidateQuery = {
+      data: [pendingCandidate()],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(mocks.review.mutate).toHaveBeenCalledWith({
+      candidateId: 'candidate-1',
+      input: expect.objectContaining({ decision: 'CONFIRMED', locationDescription: undefined }),
+    });
+  });
+
   it('sends CONFIRMED with optional location and image-backed candidate context', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };

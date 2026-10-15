@@ -105,7 +105,7 @@ export default function InspectionFindingsPage() {
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
   const pendingCandidates = (candidates.data ?? []).filter((candidate) => candidate.status === 'PENDING').length;
   const reviewedItemCount = (findings.data ?? []).length + (candidates.data ?? []).filter((candidate) => candidate.status === 'REJECTED').length;
-  const noFindings = (candidates.data ?? []).length === 0 && (findings.data ?? []).length === 0;
+  const noFindings = (findings.data ?? []).length === 0;
   const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
   const canConfirm =
     isInspector &&
@@ -138,7 +138,17 @@ export default function InspectionFindingsPage() {
     (item) => item.id === analysingEvidenceId,
   )?.fileName;
   useEffect(() => {
-    if (!isInspector || !userId || !evidenceAccepted || !analysisUnlocked || analyze.isPending) {
+    if (
+      !isInspector ||
+      !userId ||
+      !evidenceAccepted ||
+      !analysisUnlocked ||
+      analyze.isPending ||
+      candidates.isLoading ||
+      !candidates.data ||
+      evidence.isLoading ||
+      !evidence.data
+    ) {
       return;
     }
     if (!autoPassOffered.current) {
@@ -161,6 +171,9 @@ export default function InspectionFindingsPage() {
     inspectionId,
     evidenceAccepted,
     analysisUnlocked,
+    candidates.isLoading,
+    candidates.data,
+    evidence.isLoading,
     evidence.data,
     analysedEvidenceIds,
     analyze,
@@ -203,7 +216,7 @@ export default function InspectionFindingsPage() {
       evidenceId,
       defectLabel: String(formData.get('defectLabel') ?? '').trim(),
       severity: String(formData.get('severity') ?? 'MEDIUM') as FindingSeverity,
-      locationDescription: String(formData.get('locationDescription') ?? '').trim(),
+      locationDescription: String(formData.get('locationDescription') ?? '').trim() || undefined,
       technicalNotes: String(formData.get('technicalNotes') ?? '').trim(),
       recommendedAction: String(formData.get('recommendedAction') ?? '').trim(),
     });
@@ -445,14 +458,14 @@ export default function InspectionFindingsPage() {
                                     <Stack direction="row" spacing={1}>
                                       <Button
                                         size="small"
-                                        disabled={!locationFor(candidate.id).trim()}
+                                        disabled={reviewCandidate.isPending}
                                         onClick={() =>
                                           reviewCandidate.mutate({
                                             candidateId: candidate.id,
                                             input: {
                                               decision: 'CONFIRMED',
                                               severity: severityFor(candidate.id),
-                                              locationDescription: locationFor(candidate.id).trim(),
+                                              locationDescription: locationFor(candidate.id).trim() || undefined,
                                               technicalNotes: 'Confirmed by assigned Inspector',
                                             },
                                           })
@@ -462,7 +475,7 @@ export default function InspectionFindingsPage() {
                                       </Button>
                                       <Button
                                         size="small"
-                                        disabled={!locationFor(candidate.id).trim()}
+                                        disabled={reviewCandidate.isPending}
                                         onClick={() =>
                                           reviewCandidate.mutate({
                                             candidateId: candidate.id,
@@ -470,7 +483,7 @@ export default function InspectionFindingsPage() {
                                               decision: 'MODIFIED',
                                               defectLabel: candidate.predictedLabel,
                                               severity: severityFor(candidate.id),
-                                              locationDescription: locationFor(candidate.id).trim(),
+                                              locationDescription: locationFor(candidate.id).trim() || undefined,
                                               technicalNotes: 'Modified by assigned Inspector',
                                             },
                                           })
@@ -621,7 +634,7 @@ export default function InspectionFindingsPage() {
                                                       decision: isModified ? 'MODIFIED' : 'CONFIRMED',
                                                       defectLabel: label,
                                                       severity: severityFor(candidate.id),
-                                                      locationDescription: locationFor(candidate.id).trim(),
+                                                      locationDescription: locationFor(candidate.id).trim() || undefined,
                                                       technicalNotes: isModified
                                                         ? 'Modified by assigned Inspector'
                                                         : 'Confirmed by assigned Inspector',
@@ -716,7 +729,7 @@ export default function InspectionFindingsPage() {
                               <MenuItem key={level} value={level}>{level}</MenuItem>
                             ))}
                           </TextField>
-                          <TextField name="locationDescription" label="Location" required size="small" slotProps={{ htmlInput: { maxLength: 1000 } }} />
+                          <TextField name="locationDescription" label="Location (optional)" size="small" slotProps={{ htmlInput: { maxLength: 1000 } }} />
                           <TextField
                             name="technicalNotes"
                             label="Technical notes"

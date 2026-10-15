@@ -174,6 +174,32 @@ describe('InspectionDraftPage', () => {
     expect(link.getAttribute('href')).toContain('inspection-1');
   });
 
+  it('does not ask an already published inspection to confirm findings again', () => {
+    mocks.workflowQuery = {
+      data: {
+        status: 'REPORT_PUBLISHED',
+        findingsConfirmedByUserId: 'inspector-1',
+        findingsConfirmedAt: '2026-10-15T09:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
+      isLoading: false,
+      error: null,
+    };
+    mocks.versionsQuery = {
+      data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'PUBLISHED' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionDraftPage />);
+
+    expect(screen.queryByRole('link', { name: 'Go to Findings' })).toBeNull();
+    expect(screen.getByText(/report has been published/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Save structured draft' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('seeds a manual draft with the narrative and disclosure after findings confirmation', () => {
     mocks.workflowQuery = {
       data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },

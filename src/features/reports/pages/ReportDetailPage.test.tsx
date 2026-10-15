@@ -226,6 +226,20 @@ describe('ReportDetailPage MF3 gates', () => {
     );
   });
 
+  it('lets the Inspector re-verify a returned report version', async () => {
+    setRole(['INSPECTOR']);
+    mockedApi.listVersions.mockResolvedValue([
+      version({ status: 'RETURNED', authorUserId: 'user-1', reviewReason: 'Clarify east-face coverage' }),
+    ]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
+    await waitFor(() =>
+      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
+    );
+  });
+
   it('lets the verified Inspector submit the version for review', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([

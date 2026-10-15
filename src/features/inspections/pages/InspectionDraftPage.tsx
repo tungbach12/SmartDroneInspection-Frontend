@@ -42,7 +42,15 @@ export default function InspectionDraftPage() {
   const [omissionDisclosure, setOmissionDisclosure] = useState('');
 
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
-  const findingsConfirmed = workflow.data?.status === 'REPORT_DRAFT' && Boolean(workflow.data.findingsSnapshotHash);
+  const findingsConfirmed = Boolean(workflow.data?.findingsSnapshotHash) && [
+    'REPORT_DRAFT',
+    'REPORT_PUBLISHED',
+    'REPAIR_PENDING',
+    'COMPLETED',
+  ].includes(workflow.data?.status ?? '');
+  const isPublished = ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
+    workflow.data?.status ?? '',
+  );
   const hasVersion = (versions.data ?? []).length > 0;
   const reportDocumentPath = `${getSectionPath(portal, 'reports')}/${inspectionId}`;
 
@@ -65,7 +73,9 @@ export default function InspectionDraftPage() {
           document.
         </Typography>
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
-          {!findingsConfirmed && (
+          {isPublished ? (
+            <Alert severity="success">The report has been published. This version is immutable.</Alert>
+          ) : !findingsConfirmed ? (
             <Alert
               severity="info"
               action={
@@ -76,10 +86,10 @@ export default function InspectionDraftPage() {
             >
               Confirm the reviewed findings before choosing how to create the report. This step does not create a report automatically.
             </Alert>
-          )}
+          ) : null}
           <Button
             variant="contained"
-            disabled={!isInspector || createDraft.isPending || !evidenceAccepted || !findingsConfirmed}
+            disabled={!isInspector || isPublished || createDraft.isPending || !evidenceAccepted || !findingsConfirmed}
             startIcon={
               createDraft.isPending ? <AiMotionFigure name="draftBurst" size={22} /> : undefined
             }
@@ -134,7 +144,7 @@ export default function InspectionDraftPage() {
           />
           <Button
             variant="outlined"
-            disabled={!isInspector || !findingsConfirmed || !narrative.trim() || authorManualDraft.isPending}
+            disabled={!isInspector || isPublished || !findingsConfirmed || !narrative.trim() || authorManualDraft.isPending}
             startIcon={authorManualDraft.isPending ? <AiMotionFigure name="draftRibbon" size={20} /> : undefined}
             onClick={() => {
               const trimmedDisclosure = omissionDisclosure.trim();

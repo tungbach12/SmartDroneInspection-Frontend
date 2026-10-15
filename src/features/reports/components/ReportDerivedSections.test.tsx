@@ -136,6 +136,8 @@ describe('ReportDerivedSections confirmed findings', () => {
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
     expect(section?.textContent).toContain('UNREVIEWED');
+    expect(section?.textContent).toContain('Inspector-proposed finding(s) in this list await Organization Admin decision in Findings.');
+    expect(section?.textContent).not.toContain('additional finding(s)');
     expect(section?.textContent).not.toContain('No confirmed findings were recorded');
   });
 
