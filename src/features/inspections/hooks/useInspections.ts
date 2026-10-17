@@ -266,6 +266,22 @@ export function useRetireEvidence(inspectionId: string | null) {
   });
 }
 
+export function useBulkRetireEvidence(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ evidenceIds, reason }: { evidenceIds: string[]; reason: string }) =>
+      inspectionApi.bulkRetireEvidence(inspectionId!, evidenceIds, reason),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+    },
+  });
+}
+
 /**
  * MF3-05 advisory detection. Every image of the accepted set is analysed in parallel and each
  * result is written into the candidate cache as it arrives, so the Findings list fills in image by
