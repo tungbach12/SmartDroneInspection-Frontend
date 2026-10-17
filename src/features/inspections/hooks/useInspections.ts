@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
 import {
   inspectionApi,
+  type CandidateStatus,
   type EvidenceQualityDecisionType,
   type FindingDecision,
   type ApproveReadinessInput,
@@ -245,17 +247,59 @@ export function useUploadInspectionEvidence(inspectionId: string | null) {
   });
 }
 
+/**
+ * MF3-05 advisory detection. Every image of the accepted set is analysed in parallel and each
+ * result is written into the candidate cache as it arrives, so the Findings list fills in image by
+ * image instead of waiting for the slowest one. A failure on one image leaves the others running
+ * and the manual path open.
+ */
 export function useAnalyzeEvidence(inspectionId: string | null) {
   const client = useQueryClient();
-  return useMutation({
-    mutationFn: (evidenceId: string) =>
-      inspectionApi.analyzeEvidence(inspectionId!, evidenceId),
-    onSuccess: () => {
-      if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+  const [analysingIds, setAnalysingIds] = useState<string[]>([]);
+  const [error, setError] = useState<unknown>(null);
+
+  const analyzeMany = useCallback(
+    async (evidenceIds: string[]) => {
+      if (!inspectionId || evidenceIds.length === 0) {
+        return;
       }
+      setError(null);
+      setAnalysingIds((current) => [
+        ...current,
+        ...evidenceIds.filter((evidenceId) => !current.includes(evidenceId)),
+      ]);
+      await Promise.allSettled(
+        evidenceIds.map(async (evidenceId) => {
+          try {
+            const created = await inspectionApi.analyzeEvidence(inspectionId, evidenceId);
+            client.setQueryData<CandidateStatus[]>(
+              inspectionKeys.candidates(inspectionId),
+              (existing) => [
+                ...created,
+                ...(existing ?? []).filter(
+                  (candidate) => candidate.evidenceId !== evidenceId,
+                ),
+              ],
+            );
+          } catch (failure) {
+            setError(failure);
+          } finally {
+            setAnalysingIds((current) => current.filter((id) => id !== evidenceId));
+          }
+        }),
+      );
+      client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
     },
-  });
+    [client, inspectionId],
+  );
+
+  return {
+    analyzeMany,
+    analysingIds,
+    isPending: analysingIds.length > 0,
+    error,
+    isError: error !== null,
+  };
 }
 
 export function useReviewFindingCandidate(inspectionId: string | null) {

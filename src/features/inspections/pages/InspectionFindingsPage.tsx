@@ -145,10 +145,10 @@ export default function InspectionFindingsPage() {
     () => new Set(candidates.data?.map((candidate) => candidate.evidenceId) ?? []),
     [candidates.data],
   );
-  const analysingEvidenceId = analyze.isPending ? analyze.variables : undefined;
-  const analysingFileName = (evidence.data ?? []).find(
-    (item) => item.id === analysingEvidenceId,
-  )?.fileName;
+  const analysingIds = useMemo(() => new Set(analyze.analysingIds), [analyze.analysingIds]);
+  const analysingFileNames = (evidence.data ?? [])
+    .filter((item) => analysingIds.has(item.id))
+    .map((item) => item.fileName);
   useEffect(() => {
     if (
       !isInspector ||
@@ -168,15 +168,15 @@ export default function InspectionFindingsPage() {
       if (hasAutoDetectionRun(userId, inspectionId)) return;
       markAutoDetectionRun(userId, inspectionId);
     }
-    const next = (evidence.data ?? []).find(
+    const pending = (evidence.data ?? []).filter(
       (item) =>
         item.contentType.startsWith('image/') &&
         !autoAnalysed.current.has(item.id) &&
         !analysedEvidenceIds.has(item.id),
     );
-    if (!next) return;
-    autoAnalysed.current.add(next.id);
-    analyze.mutate(next.id);
+    if (pending.length === 0) return;
+    pending.forEach((item) => autoAnalysed.current.add(item.id));
+    void analyze.analyzeMany(pending.map((item) => item.id));
   }, [
     isInspector,
     userId,
@@ -188,7 +188,8 @@ export default function InspectionFindingsPage() {
     evidence.isLoading,
     evidence.data,
     analysedEvidenceIds,
-    analyze,
+    analyze.analyzeMany,
+    analyze.isPending,
   ]);
 
   const severityFor = (candidateId: string): FindingSeverity =>
@@ -269,7 +270,9 @@ export default function InspectionFindingsPage() {
                 icon={<AiMotionFigure name="advisoryScan" size={28} alt="Advisory detection in progress" />}
                 sx={{ alignItems: 'center' }}
               >
-                {analysingFileName ? `Analysing ${analysingFileName}…` : 'Running advisory detection…'}
+                {analysingFileNames.length > 1
+                  ? `Analysing ${analysingFileNames.length} images in parallel…`
+                  : `Analysing ${analysingFileNames[0] ?? 'the evidence set'}…`}
               </Alert>
             ) : null}
             {isInspector && analyze.isError && (
@@ -284,7 +287,7 @@ export default function InspectionFindingsPage() {
               ?.filter((item) => item.contentType.startsWith('image/'))
               .map((item) => {
                 const done = analysedEvidenceIds.has(item.id);
-                const isAnalysing = analysingEvidenceId === item.id;
+                const isAnalysing = analysingIds.has(item.id);
                 return (
                   <Stack
                     key={item.id}
@@ -313,8 +316,8 @@ export default function InspectionFindingsPage() {
                       <Button
                         size="small"
                         startIcon={isAnalysing ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-                        disabled={analyze.isPending || !analysisUnlocked}
-                        onClick={() => analyze.mutate(item.id)}
+                        disabled={isAnalysing || !analysisUnlocked}
+                        onClick={() => void analyze.analyzeMany([item.id])}
                       >
                         {isAnalysing ? 'Analysing…' : 'Analyze'}
                       </Button>

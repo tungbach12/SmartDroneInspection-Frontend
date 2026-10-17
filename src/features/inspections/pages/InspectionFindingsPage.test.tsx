@@ -43,11 +43,11 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   analyze: {
-    mutate: vi.fn(),
+    analyzeMany: vi.fn(),
+    analysingIds: [] as string[],
     isPending: false,
     isError: false,
     error: null as Error | null,
-    variables: undefined as string | undefined,
   },
   review: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   reviseReview: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
@@ -187,7 +187,8 @@ describe('InspectionFindingsPage', () => {
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
     mocks.reportVersionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.analyze.isPending = false;
-    mocks.analyze.variables = undefined;
+    mocks.analyze.analysingIds = [];
+    mocks.analyze.analyzeMany.mockReset();
     // The one-time auto-detection offer is remembered per user and inspection for the tab session.
     window.sessionStorage.clear();
     mocks.confirm.mutate.mockReset();
@@ -232,9 +233,34 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await waitFor(() => expect(mocks.analyze.mutate).toHaveBeenCalledWith('evidence-1'));
-    expect(mocks.analyze.mutate).not.toHaveBeenCalledWith('evidence-2');
-    expect(mocks.analyze.mutate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1));
+    // One parallel pass over the images that have no candidates yet; the PDF is not analysed.
+    expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']);
+  });
+
+  it('analyses every unanalysed image in one parallel pass', async () => {
+    mocks.evidenceQuery = {
+      data: [
+        imageEvidence(),
+        { ...imageEvidence(), id: 'evidence-2', fileName: 'shot-02.png' },
+        { ...imageEvidence(), id: 'evidence-3', fileName: 'shot-03.png' },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    // MF3-05: the accepted set is analysed together, not one image after another, so each result can
+    // reach the Findings list as it arrives instead of waiting for the slowest image.
+    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1));
+    expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith([
+      'evidence-1',
+      'evidence-2',
+      'evidence-3',
+    ]);
   });
 
   it('animates advisory detection only while the analysis request is in flight', async () => {
@@ -254,9 +280,9 @@ describe('InspectionFindingsPage', () => {
 
     // First arrival with an accepted evidence set: detection offers itself once and runs.
     const { unmount } = renderWithRouter(<InspectionFindingsPage />);
-    await waitFor(() => expect(mocks.analyze.mutate).toHaveBeenCalledWith('evidence-1'));
+    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
     unmount();
-    mocks.analyze.mutate.mockClear();
+    mocks.analyze.analyzeMany.mockClear();
 
     // The Inspector confirms findings, leaves the stage, and comes back to reopen it. Unmounting is
     // what tab navigation does, so the automatic offer has to be remembered outside the component.
@@ -289,7 +315,7 @@ describe('InspectionFindingsPage', () => {
     reopened.rerender(<InspectionFindingsPage />);
 
     await screen.findByRole('heading', { name: 'Advisory detection' });
-    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
   it('offers no re-run control on an image whose detection already ran', async () => {
@@ -314,7 +340,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.analyze.isPending = true;
-    mocks.analyze.variables = 'evidence-1';
+    mocks.analyze.analysingIds = ['evidence-1'];
 
     renderWithRouter(<InspectionFindingsPage />);
 
@@ -357,7 +383,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     await screen.findByRole('heading', { name: 'Findings' });
-    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
 
@@ -421,7 +447,7 @@ describe('InspectionFindingsPage', () => {
     };
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
   it('allows confirming a candidate without location prose', () => {
@@ -520,7 +546,7 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(mocks.analyze.mutate).not.toHaveBeenCalled();
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Re-run detection' })).toBeNull();
     expect(screen.queryByText(/Add manual finding/)).toBeNull();
