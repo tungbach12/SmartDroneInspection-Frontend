@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .burst-ray { animation: burst-ray 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; transform-origin: 24px 24px; }
+    .burst-ray-2 { animation-delay: 0.2s; }
+    .burst-ray-3 { animation-delay: 0.4s; }
+    .burst-ray-4 { animation-delay: 0.6s; }
+    .burst-halo { animation: burst-halo 2.8s ease-out infinite; transform-origin: 24px 24px; }
+    .burst-check {
+      stroke-dasharray: 22;
+      stroke-dashoffset: 22;
+      animation: burst-check 2.8s cubic-bezier(0.3, 0.9, 0.4, 1) infinite;
+    }
+    @keyframes burst-ray {
+      0%, 45%, 100% { transform: scale(0.72); opacity: 0.3; }
+      18% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes burst-halo {
+      0% { transform: scale(0.7); opacity: 0.55; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+    @keyframes burst-check {
+      0%, 30% { stroke-dashoffset: 22; }
+      55%, 92% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -22; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .burst-ray { animation: none; opacity: 0.6; }
+      .burst-halo { animation: none; opacity: 0.35; }
+      .burst-check { animation: none; stroke-dashoffset: 0; }
+    }
+  </style>
+  <circle class="burst-halo" cx="24" cy="24" r="13" fill="none" stroke="#7B75F5" stroke-width="2" />
+  <g stroke="#7B75F5" stroke-width="2" stroke-linecap="round">
+    <path class="burst-ray" d="M24 4v5" />
+    <path class="burst-ray burst-ray-2" d="M44 24h-5" />
+    <path class="burst-ray burst-ray-3" d="M24 44v-5" />
+    <path class="burst-ray burst-ray-4" d="M4 24h5" />
+  </g>
+  <circle cx="24" cy="24" r="10" fill="#EEF2FF" stroke="#7B75F5" stroke-width="1.8" />
+  <path class="burst-check" d="M19 24.5l3.6 3.6L29.5 20.5" fill="none" stroke="#5750F1" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

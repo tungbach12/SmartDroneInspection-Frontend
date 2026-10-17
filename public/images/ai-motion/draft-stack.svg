@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .stack-page { animation: stack-page 2.8s cubic-bezier(0.45, 0, 0.25, 1) infinite; transform-origin: 24px 30px; }
+    .stack-page-2 { animation-delay: 0.18s; }
+    .stack-page-3 { animation-delay: 0.36s; }
+    .stack-line { animation: stack-line 2.8s ease-in-out infinite; }
+    .stack-line-2 { animation-delay: 0.3s; }
+    .stack-line-3 { animation-delay: 0.6s; }
+    @keyframes stack-page {
+      0%, 55%, 100% { transform: translateY(0); opacity: 0.35; }
+      18% { transform: translateY(-3px); opacity: 1; }
+    }
+    @keyframes stack-line {
+      0%, 100% { opacity: 0.15; }
+      50% { opacity: 0.85; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stack-page { animation: none; opacity: 1; }
+      .stack-line { animation: none; opacity: 0.5; }
+    }
+  </style>
+  <g class="stack-page stack-page-3">
+    <rect x="14" y="8" width="20" height="27" rx="2.5" fill="none" stroke="#9CA3AF" stroke-width="1.5" />
+  </g>
+  <g class="stack-page stack-page-2">
+    <rect x="12" y="11" width="24" height="29" rx="2.5" fill="none" stroke="#9CA3AF" stroke-width="1.5" />
+  </g>
+  <g class="stack-page">
+    <rect x="10" y="14" width="28" height="28" rx="2.5" fill="#EEF2FF" stroke="#7B75F5" stroke-width="1.8" />
+    <path class="stack-line" d="M15 21h18" fill="none" stroke="#7B75F5" stroke-width="2" stroke-linecap="round" />
+    <path class="stack-line stack-line-2" d="M15 26h18" fill="none" stroke="#7B75F5" stroke-width="2" stroke-linecap="round" />
+    <path class="stack-line stack-line-3" d="M15 31h11" fill="none" stroke="#7B75F5" stroke-width="2" stroke-linecap="round" />
+  </g>
+</svg>

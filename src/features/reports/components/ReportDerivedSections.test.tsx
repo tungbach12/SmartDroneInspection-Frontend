@@ -25,6 +25,7 @@ const version: InspectionReportVersion = {
   promptVersion: null,
   generatedAt: null,
   evidenceSnapshotHash: null,
+  findingsSnapshotHash: null,
   publishedAt: null,
   createdAt: '2026-01-01T00:00:00Z',
   narrative: null,
@@ -67,8 +68,16 @@ function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
     priority: null,
     measurement: null,
     decision: 'CONFIRMED',
+    decidedByUserId: 'reviewer-1',
+    decidedAt: '2026-01-02T00:00:00Z',
     repairRequired: false,
     status: 'OPEN',
+    correctiveActionRequired: false,
+    correctiveActionPriority: null,
+    correctiveActionDueAt: null,
+    correctiveActionReviewedByUserId: null,
+    correctiveActionReviewedAt: null,
+    correctiveActionRationale: null,
     ...overrides,
   };
 }
@@ -86,6 +95,20 @@ function renderSections(item: EvidenceItem, findings: VerifiedFinding[]) {
   const locationLabel = Array.from(labels).find((label) => label.textContent === 'Location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
   return locationLabel?.parentElement?.lastElementChild;
 }
+function renderConfirmedFindings(findings: VerifiedFinding[]) {
+  const { container } = render(
+    <ReportDerivedSections
+      version={version}
+      findings={findings}
+      evidenceList={[evidence]}
+      inspectionId="inspection-1"
+    />,
+  );
+  return Array.from(container.querySelectorAll('section')).find(
+    (section) => section.querySelector('h2')?.textContent === 'Confirmed findings',
+  );
+}
+
 describe('ReportDerivedSections evidence location', () => {
   it('prefers supplied capture GPS over the linked official finding location', () => {
     const item = { ...evidence, latitude: 48.123, longitude: -123.456 };
@@ -101,10 +124,34 @@ describe('ReportDerivedSections evidence location', () => {
     expect(location?.textContent).toContain('Pier 2 — Pier 2 north face');
   });
 
-  it('does not use a pending finding location', () => {
-    const location = renderSections(evidence, [finding({ decision: null })]);
+  it('uses the location of an Inspector-confirmed finding before reviewer decision', () => {
+    const location = renderSections(
+      evidence,
+      [finding({ decision: null, decidedByUserId: null, decidedAt: null })],
+    );
 
-    expect(location?.textContent).toContain('Not supplied');
-    expect(location?.textContent).not.toContain('Pier 2 north face');
+    expect(location?.textContent).toContain('Pier 2 — Pier 2 north face');
+  });
+});
+
+describe('ReportDerivedSections confirmed findings', () => {
+  it('lists an Inspector-confirmed finding before reviewer decision', () => {
+    const section = renderConfirmedFindings([
+      finding({ defectLabel: 'GussetPlateSectionLoss', decision: null, decidedByUserId: null, decidedAt: null }),
+    ]);
+
+    expect(section?.textContent).toContain('GussetPlateSectionLoss');
+    expect(section?.textContent).toContain('UNREVIEWED');
+    expect(section?.textContent).toContain('Inspector-proposed finding(s) in this list await Organization Admin decision in Findings.');
+    expect(section?.textContent).not.toContain('additional finding(s)');
+    expect(section?.textContent).not.toContain('No confirmed findings were recorded');
+  });
+
+  it('excludes reviewer-rejected findings from the section', () => {
+    const section = renderConfirmedFindings([
+      finding({ defectLabel: 'spurious-seam', decision: 'REJECTED' }),
+    ]);
+
+    expect(section?.textContent).not.toContain('spurious-seam');
   });
 });

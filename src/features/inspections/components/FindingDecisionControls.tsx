@@ -25,8 +25,8 @@ const DECISIONS: { value: FindingDecision; label: string; primary: boolean }[] =
  * Organization Admin who is not the author, and a finding reaches the report and the corrective-work
  * scope only once it is CONFIRMED or MODIFIED here.
  *
- * <p>The rationale is optional because the backend accepts a decision without one. It is offered
- * because it is the reasoning the report can cite, not because the route demands it.
+ * <p>The backend requires a non-blank rationale for every decision, so controls stay disabled until
+ * the reviewer provides one.
  */
 export function FindingDecisionControls({
   findingId,
@@ -50,6 +50,13 @@ export function FindingDecisionControls({
       </Typography>
       <TextField
         label="Reviewer rationale"
+        required
+        error={!rationale.trim()}
+        helperText={
+          rationale.trim()
+            ? 'This rationale will be recorded with your decision.'
+            : 'Required. Enter a rationale before recording a reviewer decision.'
+        }
         multiline
         minRows={2}
         value={rationale}
@@ -61,7 +68,7 @@ export function FindingDecisionControls({
           <Button
             key={option.value}
             variant={option.primary ? 'contained' : 'outlined'}
-            disabled={isPending}
+            disabled={isPending || !rationale.trim()}
             onClick={() => onDecide(findingId, option.value, rationale.trim())}
           >
             {option.label}

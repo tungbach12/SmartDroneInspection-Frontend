@@ -1,5 +1,6 @@
 import { api } from '@/shared/api/client';
 
+
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
  * and a qualified ORG_ADMIN reviewer who is not the author decides.
@@ -37,6 +38,7 @@ export interface InspectionReportVersion {
   promptVersion: string | null;
   generatedAt: string | null;
   evidenceSnapshotHash: string | null;
+  findingsSnapshotHash: string | null;
   publishedAt: string | null;
   createdAt: string;
   /** The document body as the author wrote it. Null for versions stored before it was exposed. */
@@ -108,6 +110,13 @@ export interface CandidateStatus {
   createdAt: string;
 }
 
+export interface InspectionWorkflowState {
+  status: InspectionStatus;
+  findingsConfirmedByUserId: string | null;
+  findingsConfirmedAt: string | null;
+  findingsSnapshotHash: string | null;
+}
+
 export interface VerifiedFinding {
   id: string;
   inspectionId: string;
@@ -117,7 +126,7 @@ export interface VerifiedFinding {
   findingCode: string;
   defectLabel: string;
   severity: FindingSeverity;
-  locationDescription: string;
+  locationDescription: string | null;
   technicalNotes: string;
   recommendedAction: string | null;
   component: string | null;
@@ -126,8 +135,24 @@ export interface VerifiedFinding {
   priority: string | null;
   measurement: string | null;
   decision: FindingDecision | null;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
   repairRequired: boolean;
   status: string;
+  correctiveActionRequired: boolean;
+  correctiveActionPriority: string | null;
+  correctiveActionDueAt: string | null;
+  correctiveActionReviewedByUserId: string | null;
+  correctiveActionReviewedAt: string | null;
+  correctiveActionRationale: string | null;
+}
+
+export interface CorrectiveHandoffResult {
+  reportVersionId: string;
+  versionNo: number;
+  publishedAt: string;
+  repairRequiredFindingIds: string[];
+  inspectionStatus: string;
 }
 
 export interface PublishedReport {
@@ -142,7 +167,7 @@ export interface ReviewCandidateInput {
   decision: 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
   defectLabel?: string;
   severity?: FindingSeverity;
-  locationDescription?: string;
+  locationDescription?: string | undefined;
   technicalNotes?: string;
   recommendedAction?: string;
   component?: string;
@@ -154,10 +179,10 @@ export interface ReviewCandidateInput {
 }
 
 export interface ManualFindingInput {
-  evidenceId?: string;
+  evidenceId: string;
   defectLabel: string;
   severity: FindingSeverity;
-  locationDescription: string;
+  locationDescription?: string | undefined;
   technicalNotes: string;
   recommendedAction?: string;
   component?: string;
@@ -514,6 +539,21 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  workflowState: (inspectionId: string) =>
+    api
+      .get<InspectionWorkflowState>(`/inspections/${inspectionId}/workflow-state`)
+      .then((response) => response.data),
+
+  confirmFindings: (inspectionId: string, noFindingsAcknowledged: boolean) =>
+    api
+      .post<void>(`/inspections/${inspectionId}/findings/confirm`, {
+        noFindingsAcknowledged,
+      })
+      .then((response) => response.data),
+
+  reopenFindings: (inspectionId: string) =>
+    api.post<void>(`/inspections/${inspectionId}/findings/reopen`).then((response) => response.data),
+
   // MF3-05/06 advisory detection and human findings.
   listCandidates: (inspectionId: string) =>
     api
@@ -632,6 +672,38 @@ export const inspectionApi = {
     api
       .post<PublishedReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+      )
+      .then((response) => response.data),
+
+  recordCorrectiveAction: (
+    inspectionId: string,
+    findingId: string,
+    input: {
+      correctiveActionRequired: boolean;
+      priority?: string;
+      dueAt?: string;
+      rationale: string;
+    },
+  ) =>
+    api
+      .put<VerifiedFinding>(
+        `/inspections/${inspectionId}/findings/${findingId}/corrective-action`,
+        input,
+      )
+      .then((response) => response.data),
+
+  completeCorrectiveHandoff: (inspectionId: string) =>
+    api
+      .post<CorrectiveHandoffResult>(
+        `/inspections/${inspectionId}/report/corrective-handoff`,
+      )
+      .then((response) => response.data),
+
+  declareNoCorrectiveWork: (inspectionId: string, rationale: string) =>
+    api
+      .post<CorrectiveHandoffResult>(
+        `/inspections/${inspectionId}/report/no-corrective-work`,
+        { rationale },
       )
       .then((response) => response.data),
 

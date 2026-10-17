@@ -36,6 +36,8 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'candidates'] as const,
   findings: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'findings'] as const,
+  workflowState: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'workflow-state'] as const,
   reportVersions: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
   reportVersion: (inspectionId: string, versionId: string) =>
@@ -334,6 +336,14 @@ export function useDecideEvidenceQuality(inspectionId: string | null) {
   });
 }
 
+export function useInspectionWorkflowState(inspectionId: string | null) {
+  return useQuery({
+    queryKey: inspectionKeys.workflowState(inspectionId ?? ''),
+    queryFn: () => inspectionApi.workflowState(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
 export function useInspectionFindings(inspectionId: string | null) {
   return useQuery({
     queryKey: inspectionKeys.findings(inspectionId ?? ''),
@@ -358,7 +368,35 @@ export function useDecideFinding(inspectionId: string | null) {
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
+    },
+  });
+}
+
+export function useReopenFindings(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => inspectionApi.reopenFindings(inspectionId!),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+    },
+  });
+}
+
+export function useConfirmFindings(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (noFindingsAcknowledged: boolean) =>
+      inspectionApi.confirmFindings(inspectionId!, noFindingsAcknowledged),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+      client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
     },
   });
 }
@@ -459,6 +497,71 @@ export function useReviewReportVersion(inspectionId: string | null) {
     }) => inspectionApi.reviewVersion(inspectionId!, versionId, approve, reason),
     onSuccess: () => {
       if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+      }
+    },
+  });
+}
+
+export function useRecordCorrectiveAction(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      findingId,
+      correctiveActionRequired,
+      priority,
+      dueAt,
+      rationale,
+    }: {
+      findingId: string;
+      correctiveActionRequired: boolean;
+      priority?: string;
+      dueAt?: string;
+      rationale: string;
+    }) => {
+      const input: {
+        correctiveActionRequired: boolean;
+        priority?: string;
+        dueAt?: string;
+        rationale: string;
+      } = { correctiveActionRequired, rationale };
+      if (priority !== undefined) {
+        input.priority = priority;
+      }
+      if (dueAt !== undefined) {
+        input.dueAt = dueAt;
+      }
+      return inspectionApi.recordCorrectiveAction(inspectionId!, findingId, input);
+    },
+    onSuccess: () => {
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      }
+    },
+  });
+}
+
+export function useDeclareNoCorrectiveWork(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (rationale: string) =>
+      inspectionApi.declareNoCorrectiveWork(inspectionId!, rationale),
+    onSuccess: () => {
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+      }
+    },
+  });
+}
+
+export function useCompleteCorrectiveHandoff(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => inspectionApi.completeCorrectiveHandoff(inspectionId!),
+    onSuccess: () => {
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },

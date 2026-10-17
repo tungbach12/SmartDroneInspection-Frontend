@@ -63,7 +63,7 @@ export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: Authentica
           ...sx,
         }}
       >
-        <img src={src} alt={alt} style={{ display: 'none' }} />
+        <img src="" alt={alt} style={{ display: 'none' }} />
         <BrokenImageOutlined sx={{ fontSize: 32, color: '#98a2b3' }} />
         <Typography variant="caption">Could not load preview</Typography>
       </Box>
@@ -81,7 +81,9 @@ export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: Authentica
       )}
       <Box
         component="img"
-        src={blobUrl ?? src}
+        // Only the authenticated blob URL may reach src. Putting the protected path here would
+        // make the browser fetch it directly, without the bearer token, and answer 401.
+        src={blobUrl ?? undefined}
         data-src={src}
         alt={alt}
         sx={{

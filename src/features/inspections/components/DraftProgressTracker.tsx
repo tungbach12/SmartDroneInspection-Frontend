@@ -1,17 +1,38 @@
-import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { Alert, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material';
+import { AiMotionFigure } from './AiMotionFigure';
 
-/** The API returns a completed draft or an error; it does not report intermediate stages. */
+const draftingFigures = ['draftStack', 'draftRibbon'] as const;
+
+/**
+ * The API returns a completed draft or an error; it does not report intermediate stages.
+ *
+ * The motion is playful but deliberately indeterminate — it never claims a stage, a percentage,
+ * or a remaining time, because none of those exist in the contract.
+ */
 export function DraftProgressTracker() {
   return (
     <Card
       variant="outlined"
-      sx={{ mt: 2, borderRadius: '12px', borderColor: 'primary.main', bgcolor: 'background.paper' }}
+      sx={{
+        mt: 2,
+        borderRadius: '12px',
+        borderColor: 'primary.main',
+        bgcolor: 'background.paper',
+        backgroundImage:
+          'linear-gradient(115deg, color-mix(in srgb, var(--mui-palette-primary-main) 7%, transparent) 0%, transparent 45%)',
+      }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <AutoAwesomeOutlined color="primary" sx={{ fontSize: 24 }} />
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            {draftingFigures.map((figure) => (
+              <AiMotionFigure
+                key={figure}
+                name={figure}
+                size={figure === 'draftStack' ? 40 : 32}
+                alt="Report drafting in progress"
+              />
+            ))}
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
               Generating report draft
             </Typography>
@@ -22,6 +43,12 @@ export function DraftProgressTracker() {
             will appear when the request completes; you must review and verify every section before
             submitting it.
           </Alert>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <AiMotionFigure name="draftBurst" size={22} alt="Report drafting in progress" />
+            <Typography variant="caption" color="text.secondary">
+              You can keep working in another tab; this request continues on its own.
+            </Typography>
+          </Stack>
         </Stack>
       </CardContent>
     </Card>

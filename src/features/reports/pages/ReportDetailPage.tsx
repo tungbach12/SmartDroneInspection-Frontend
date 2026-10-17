@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Chip,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -27,8 +28,14 @@ import {
   useInspectionFindings,
   useInspectionEvidence,
   useSaveReportSections,
+  useDecideFinding,
+  useRecordCorrectiveAction,
+  useCompleteCorrectiveHandoff,
+  useDeclareNoCorrectiveWork,
+  useInspectionWorkflowState,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
+import { FindingDecisionControls } from '@/features/inspections/components/FindingDecisionControls';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -57,14 +64,24 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
+  const [correctiveReasons, setCorrectiveReasons] = useState<Record<string, string>>({});
+  const [correctiveChoices, setCorrectiveChoices] = useState<Record<string, boolean>>({});
+  const [correctivePriorities, setCorrectivePriorities] = useState<Record<string, string>>({});
+  const [correctiveDueDates, setCorrectiveDueDates] = useState<Record<string, string>>({});
+  const [noRepairRationale, setNoRepairRationale] = useState('');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
+  const workflowState = useInspectionWorkflowState(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
+  const decideFinding = useDecideFinding(inspectionId);
+  const recordCorrectiveAction = useRecordCorrectiveAction(inspectionId);
+  const completeCorrectiveHandoff = useCompleteCorrectiveHandoff(inspectionId);
+  const declareNoCorrectiveWork = useDeclareNoCorrectiveWork(inspectionId);
 
   const canAuthor = canPerform('inspections.authorReport', user);
   const canReview = canPerform('reports.review', user);
@@ -75,6 +92,20 @@ export default function ReportDetailPage() {
     null;
 
   const isAuthor = Boolean(openVersion && userId === openVersion.authorUserId);
+  const unresolvedFindings = (findings.data ?? []).filter(
+    (finding) => finding.decision == null || finding.decidedByUserId == null,
+  );
+  const officialFindings = (findings.data ?? []).filter(
+    (finding) => finding.decision === 'CONFIRMED' || finding.decision === 'MODIFIED',
+  );
+  const correctiveActionPending = officialFindings.filter(
+    (finding) => finding.correctiveActionReviewedByUserId == null,
+  );
+  const inspectionStatus = workflowState.data?.status;
+  const publishedUnhanded =
+    openVersion?.status === 'PUBLISHED' &&
+    (inspectionStatus === 'REPORT_PUBLISHED' || inspectionStatus == null);
+  const reviewFindingsLoading = findings.isLoading || Boolean(findings.error);
 
   const saveSections = useSaveReportSections(inspectionId);
 
@@ -210,7 +241,7 @@ export default function ReportDetailPage() {
 
                   <Stack spacing={2}>
                     {/* Author verification step */}
-                    {canAuthor && isAuthor && openVersion.status === 'DRAFT' && (
+                    {canAuthor && isAuthor && (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED') && (
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Button
                           variant="contained"
@@ -270,6 +301,38 @@ export default function ReportDetailPage() {
                     {/* Reviewer approval or return step */}
                     {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          Review findings against source evidence
+                        </Typography>
+                        {reviewFindingsLoading ? (
+                          <Alert severity={findings.error ? 'error' : 'info'}>
+                            {findings.error
+                              ? 'Could not load findings. Retry before deciding or approving the report.'
+                              : 'Loading proposed findings…'}
+                          </Alert>
+                        ) : null}
+                        {unresolvedFindings.map((finding) => (
+                          <FindingDecisionControls
+                            key={finding.id}
+                            findingId={finding.id}
+                            defectLabel={finding.defectLabel}
+                            isPending={decideFinding.isPending}
+                            error={decideFinding.isError ? decideFinding.error : null}
+                            onDecide={(findingId, decision, rationale) =>
+                              decideFinding.mutate({ findingId, decision, rationale })
+                            }
+                          />
+                        ))}
+                        {!reviewFindingsLoading && unresolvedFindings.length > 0 && (
+                          <Alert severity="info">
+                            Decide every proposed finding before approving the report.
+                          </Alert>
+                        )}
+                        {!reviewFindingsLoading && unresolvedFindings.length === 0 && (
+                          <Alert severity="success">
+                            Every proposed finding has an independent reviewer decision.
+                          </Alert>
+                        )}
                         <TextField
                           label="Reason for return"
                           placeholder="Required when returning for author revisions"
@@ -283,7 +346,11 @@ export default function ReportDetailPage() {
                           <Button
                             variant="contained"
                             color="success"
-                            disabled={review.isPending}
+                            disabled={
+                              review.isPending ||
+                              reviewFindingsLoading ||
+                              unresolvedFindings.length > 0
+                            }
                             onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
                             sx={{ borderRadius: '8px', px: 2.5 }}
                           >
@@ -292,7 +359,7 @@ export default function ReportDetailPage() {
                           <Button
                             variant="outlined"
                             color="error"
-                            disabled={review.isPending || !reviewReason.trim()}
+                            disabled={review.isPending || reviewFindingsLoading || !reviewReason.trim()}
                             onClick={() =>
                               review.mutate({
                                 versionId: openVersion.id,
@@ -305,6 +372,18 @@ export default function ReportDetailPage() {
                             Return with reason
                           </Button>
                         </Stack>
+                        {review.isError && isConflict(review.error) ? (
+                          <RefusalNotice
+                            testId="report-review-refusal"
+                            reason={getErrorMessage(review.error, '')}
+                            fallbackMessage="The server refused this report review. Refresh the report before trying again."
+                          />
+                        ) : null}
+                        <MutationProblemAlert
+                          error={review.error}
+                          isError={review.isError && !isConflict(review.error)}
+                          fallbackMessage="Could not record this report review."
+                        />
                       </Stack>
                     )}
 
@@ -325,16 +404,190 @@ export default function ReportDetailPage() {
                       </Stack>
                     )}
 
-                    {publish.isSuccess && (
-                      <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                        Published version {publish.data.versionNo}.{' '}
-                        {publish.data.repairRequiredFindingIds.length
-                          ? `${publish.data.repairRequiredFindingIds.length} confirmed finding(s) handed to maintenance.`
-                          : 'No corrective work was required within the observed scope.'}
-                      </Alert>
-                    )}
+                    {publish.isError && isConflict(publish.error) ? (
+                      <RefusalNotice
+                        testId="report-publish-refusal"
+                        reason={getErrorMessage(publish.error, '')}
+                        fallbackMessage="The server refused this publication. Refresh the report before trying again."
+                      />
+                    ) : null}
+                    <MutationProblemAlert
+                      error={publish.error}
+                      isError={publish.isError && !isConflict(publish.error)}
+                      fallbackMessage="Could not publish this report version."
+                    />
                   </Stack>
                 </Paper>
+              )}
+
+              {publish.isSuccess && (
+                <Alert severity="success" sx={{ borderRadius: '10px' }}>
+                  Published version {publish.data.versionNo}. The PDF is immutable; record
+                  corrective outcomes before handing findings to MF4.
+                </Alert>
+              )}
+
+              {canReview && publishedUnhanded && (
+                <Stack spacing={2}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Corrective action decision (MF3-12)
+                        </Typography>
+                        {officialFindings.map((finding) => {
+                          const rationale = correctiveReasons[finding.id] ?? '';
+                          const reviewed = finding.correctiveActionReviewedByUserId != null;
+                          return (
+                            <Paper key={finding.id} variant="outlined" sx={{ p: 2 }}>
+                              <Stack spacing={1.5}>
+                                <Typography variant="subtitle2">{finding.defectLabel}</Typography>
+                                {reviewed ? (
+                                  <Alert severity="success">
+                                    {finding.correctiveActionRequired
+                                      ? `Corrective action required${finding.correctiveActionPriority ? ` · ${finding.correctiveActionPriority}` : ''}${finding.correctiveActionDueAt ? ` · due ${new Date(finding.correctiveActionDueAt).toLocaleDateString()}` : ''}. `
+                                      : 'No corrective action required within scope. '}
+                                    {finding.correctiveActionRationale}
+                                  </Alert>
+                                ) : (
+                                  <>
+                                    <TextField
+                                      select
+                                      label="Corrective action"
+                                      value={
+                                        (correctiveChoices[finding.id] ?? finding.correctiveActionRequired)
+                                          ? 'YES'
+                                          : 'NO'
+                                      }
+                                      onChange={(event) =>
+                                        setCorrectiveChoices((current) => ({
+                                          ...current,
+                                          [finding.id]: event.target.value === 'YES',
+                                        }))
+                                      }
+                                    >
+                                      <MenuItem value="YES">Required — proceed to MF4 triage</MenuItem>
+                                      <MenuItem value="NO">Not required within observed scope</MenuItem>
+                                    </TextField>
+                                    {(correctiveChoices[finding.id] ?? finding.correctiveActionRequired) ? (
+                                      <>
+                                        <TextField
+                                          select
+                                          required
+                                          label="Corrective-action priority"
+                                          value={correctivePriorities[finding.id] ?? ''}
+                                          onChange={(event) =>
+                                            setCorrectivePriorities((current) => ({
+                                              ...current,
+                                              [finding.id]: event.target.value,
+                                            }))
+                                          }
+                                        >
+                                          {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
+                                            <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+                                          ))}
+                                        </TextField>
+                                        <TextField
+                                          label="Due date (optional)"
+                                          type="date"
+                                          value={correctiveDueDates[finding.id] ?? ''}
+                                          onChange={(event) =>
+                                            setCorrectiveDueDates((current) => ({
+                                              ...current,
+                                              [finding.id]: event.target.value,
+                                            }))
+                                          }
+                                          slotProps={{ inputLabel: { shrink: true } }}
+                                        />
+                                      </>
+                                    ) : null}
+                                    <TextField
+                                      required
+                                      label="Corrective action rationale"
+                                      multiline
+                                      minRows={2}
+                                      value={rationale}
+                                      onChange={(event) =>
+                                        setCorrectiveReasons((current) => ({
+                                          ...current,
+                                          [finding.id]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                    <Button
+                                      disabled={
+                                        recordCorrectiveAction.isPending ||
+                                        !rationale.trim() ||
+                                        ((correctiveChoices[finding.id] ?? finding.correctiveActionRequired) &&
+                                          !correctivePriorities[finding.id])
+                                      }
+                                      onClick={() => {
+                                        const required =
+                                          correctiveChoices[finding.id] ??
+                                          finding.correctiveActionRequired;
+                                        const priority = correctivePriorities[finding.id];
+                                        const dueDate = correctiveDueDates[finding.id];
+                                        recordCorrectiveAction.mutate({
+                                          findingId: finding.id,
+                                          correctiveActionRequired: required,
+                                          ...(required && priority ? { priority } : {}),
+                                          ...(required && dueDate
+                                            ? {
+                                                dueAt: new Date(
+                                                  `${dueDate}T23:59:59`,
+                                                ).toISOString(),
+                                              }
+                                            : {}),
+                                          rationale: rationale.trim(),
+                                        });
+                                      }}
+                                    >
+                                      Record corrective action
+                                    </Button>
+                                  </>
+                                )}
+                              </Stack>
+                            </Paper>
+                          );
+                        })}
+                        {officialFindings.length === 0 ? (
+                          <TextField
+                            required
+                            label="No-repair rationale for the observed scope"
+                            value={noRepairRationale}
+                            onChange={(event) => setNoRepairRationale(event.target.value)}
+                          />
+                        ) : null}
+                        <MutationProblemAlert
+                          error={recordCorrectiveAction.error ?? completeCorrectiveHandoff.error ?? declareNoCorrectiveWork.error}
+                          isError={recordCorrectiveAction.isError || completeCorrectiveHandoff.isError || declareNoCorrectiveWork.isError}
+                          fallbackMessage="Could not record the corrective outcome."
+                        />
+                        {officialFindings.length === 0 ? (
+                          <Button
+                            variant="contained"
+                            disabled={declareNoCorrectiveWork.isPending || !noRepairRationale.trim()}
+                            onClick={() => declareNoCorrectiveWork.mutate(noRepairRationale.trim())}
+                          >
+                            {declareNoCorrectiveWork.isPending
+                              ? 'Recording…'
+                              : 'Record no corrective work and close inspection'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="contained"
+                            disabled={completeCorrectiveHandoff.isPending || correctiveActionPending.length > 0}
+                            onClick={() => completeCorrectiveHandoff.mutate()}
+                          >
+                            {completeCorrectiveHandoff.isPending
+                              ? 'Handing off…'
+                              : 'Complete corrective handoff to MF4'}
+                          </Button>
+                        )}
+                      </Stack>
+                    )}
+              {(completeCorrectiveHandoff.isSuccess || declareNoCorrectiveWork.isSuccess) && (
+                <Alert severity="success">
+                  Corrective outcome recorded. Inspection status:{' '}
+                  {(completeCorrectiveHandoff.data ?? declareNoCorrectiveWork.data)?.inspectionStatus}.
+                </Alert>
               )}
 
               {/* MF3-08/MF3-11: authored sections, derived sections, and the delivered PDF */}

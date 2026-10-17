@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .scan-ring { animation: scan-spin 7s linear infinite; transform-origin: 24px 24px; }
+    .scan-beam { animation: scan-sweep 1.9s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+    .scan-pip { animation: scan-pip 1.9s ease-in-out infinite; transform-origin: 24px 24px; }
+    @keyframes scan-spin { to { transform: rotate(360deg); } }
+    @keyframes scan-sweep {
+      0% { transform: translateY(-11px); opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { transform: translateY(11px); opacity: 0; }
+    }
+    @keyframes scan-pip {
+      0%, 100% { transform: scale(0.6); opacity: 0.45; }
+      50% { transform: scale(1); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .scan-ring { animation: none; }
+      .scan-beam { animation: none; transform: translateY(0); opacity: 0.9; }
+      .scan-pip { animation: none; }
+    }
+  </style>
+  <circle class="scan-ring" cx="24" cy="24" r="20" fill="none" stroke="#7B75F5" stroke-width="1.5" stroke-dasharray="2.5 5" stroke-linecap="round" opacity="0.55" />
+  <rect x="9" y="12" width="30" height="24" rx="4" fill="none" stroke="#9CA3AF" stroke-width="1.5" opacity="0.5" />
+  <path d="M9 17.5v-1a4 4 0 0 1 4-4h1" fill="none" stroke="#7B75F5" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M39 17.5v-1a4 4 0 0 0-4-4h-1" fill="none" stroke="#7B75F5" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M9 30.5v1a4 4 0 0 0 4 4h1" fill="none" stroke="#7B75F5" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M39 30.5v1a4 4 0 0 1-4 4h-1" fill="none" stroke="#7B75F5" stroke-width="2.2" stroke-linecap="round" />
+  <g class="scan-beam">
+    <rect x="11" y="19.5" width="26" height="9" rx="4" fill="#7B75F5" opacity="0.12" />
+    <rect x="11" y="22.5" width="26" height="3" rx="1.5" fill="#7B75F5" opacity="0.9" />
+  </g>
+  <circle class="scan-pip" cx="24" cy="24" r="2.4" fill="#7B75F5" />
+</svg>
