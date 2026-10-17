@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   decideQuality: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   versions: { data: [] as unknown[], isLoading: false, error: null as Error | null, refetch: vi.fn() },
   retire: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  bulkRetire: { mutateAsync: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -32,6 +33,7 @@ vi.mock('../hooks/useInspections', () => ({
   useEvidenceQualityHistory: () => mocks.qualityQuery,
   useReportVersions: () => mocks.versions,
   useRetireEvidence: () => mocks.retire,
+  useBulkRetireEvidence: () => mocks.bulkRetire,
   useUploadInspectionEvidence: () => mocks.upload,
   useDecideEvidenceQuality: () => mocks.decideQuality,
 }));
@@ -90,6 +92,7 @@ describe('InspectionEvidencePage', () => {
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.versions = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.retire.mutate.mockReset();
+    mocks.bulkRetire.mutateAsync.mockReset();
     mocks.upload.mutateAsync.mockReset();
     mocks.upload.mutateAsync.mockResolvedValue({ id: 'evidence-1' });
     mocks.decideQuality.mutate.mockReset();
@@ -259,6 +262,30 @@ describe('InspectionEvidencePage', () => {
       { evidenceId: 'evidence-1', reason: 'Image is blurred' },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('allows bulk retiring active captures with a shared audit reason', async () => {
+    mocks.evidenceQuery = {
+      data: [
+        imageEvidence(),
+        { ...imageEvidence(), id: 'evidence-2', fileName: 'span2.png' },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionEvidencePage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Bulk retire all active/ }));
+    fireEvent.change(screen.getByLabelText(/Shared reason for retiring batch/), {
+      target: { value: 'Imported wrong SD card from another flight session' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm bulk retire' }));
+
+    expect(mocks.bulkRetire.mutateAsync).toHaveBeenCalledWith({
+      evidenceIds: ['evidence-1', 'evidence-2'],
+      reason: 'Imported wrong SD card from another flight session',
+    });
   });
 
   it('keeps non-accept decisions disabled without stored evidence', () => {

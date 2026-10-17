@@ -577,6 +577,18 @@ export const inspectionApi = {
       .post<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/retire`, { reason })
       .then((response) => response.data),
 
+  bulkRetireEvidence: (
+    inspectionId: string,
+    evidenceIds: string[],
+    reason: string,
+  ) =>
+    api
+      .post<EvidenceItem[]>(
+        `/inspections/${inspectionId}/evidence/bulk-retire`,
+        { evidenceIds, reason },
+      )
+      .then((response) => response.data),
+
   analyzeEvidence: (inspectionId: string, evidenceId: string, replace = false) =>
     api
       .post<CandidateStatus[]>(
