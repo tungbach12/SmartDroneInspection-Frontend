@@ -575,6 +575,9 @@ export function usePublishReportVersion(inspectionId: string | null) {
       inspectionApi.publishVersion(inspectionId!, versionId),
     onSuccess: () => {
       if (inspectionId) {
+        // Publishing moves the inspection to REPORT_PUBLISHED, which is what reveals the MF3-12
+        // corrective-outcome panel on the report page.
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },

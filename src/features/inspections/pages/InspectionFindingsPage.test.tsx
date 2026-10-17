@@ -326,14 +326,15 @@ describe('InspectionFindingsPage', () => {
     ).toContain('/images/ai-motion/');
   });
 
-  it('says no findings found for an image that produced no candidates', () => {
+  it('says no detected defects for an image that produced no candidates', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    // Detection ran and returned nothing. Say so plainly instead of counting to zero defects.
-    expect(screen.getAllByText('No findings found').length).toBeGreaterThan(0);
+    // Detection ran and returned nothing. Say so about detection rather than about findings, because
+    // an image can carry a finding the Inspector recorded while detection itself returned nothing.
+    expect(screen.getAllByText('No detected defects').length).toBeGreaterThan(0);
     expect(screen.queryByText('0 detected defects')).toBeNull();
   });
 

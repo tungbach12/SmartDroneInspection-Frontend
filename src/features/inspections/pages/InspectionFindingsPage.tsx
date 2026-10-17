@@ -379,7 +379,7 @@ export default function InspectionFindingsPage() {
                       variant="outlined"
                       label={
                         group.candidates.length === 0
-                          ? 'No findings found'
+                          ? 'No detected defects'
                           : `${group.candidates.length} ${group.candidates.length === 1 ? 'detected defect' : 'detected defects'}`
                       }
                     />

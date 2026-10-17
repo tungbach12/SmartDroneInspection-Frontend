@@ -368,6 +368,50 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByText(/No corrective work was required/)).toBeNull();
   });
 
+  it('reveals the MF3-12 outcomes as soon as the reviewer publishes the version', async () => {
+    // The inspection only reaches REPORT_PUBLISHED through the publish call, so the page has to
+    // refetch the workflow state; without that the corrective-outcome panel stays hidden until a
+    // manual reload even though the page tells the reviewer to record outcomes.
+    mockedApi.listVersions
+      .mockResolvedValueOnce([version({ status: 'APPROVED', authorUserId: 'someone-else' })])
+      .mockResolvedValue([
+        version({
+          status: 'PUBLISHED',
+          authorUserId: 'someone-else',
+          publishedAt: '2026-10-01T12:00:00Z',
+        }),
+      ]);
+    mockedApi.workflowState
+      .mockResolvedValueOnce({
+        status: 'REPORT_DRAFT',
+        findingsConfirmedByUserId: 'inspector-1',
+        findingsConfirmedAt: '2026-10-01T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      })
+      .mockResolvedValue({
+        status: 'REPORT_PUBLISHED',
+        findingsConfirmedByUserId: 'inspector-1',
+        findingsConfirmedAt: '2026-10-01T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      });
+    mockedApi.listFindings.mockResolvedValue([finding({})]);
+    mockedApi.publishVersion.mockResolvedValue({
+      reportVersionId: 'version-1',
+      versionNo: 1,
+      publishedAt: '2026-10-01T12:00:00Z',
+      repairRequiredFindingIds: [],
+      inspectionStatus: 'REPORT_PUBLISHED',
+    });
+
+    renderPage();
+
+    expect(screen.queryByText(/Corrective action decision \(MF3-12\)/)).toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+
+    expect(await screen.findByText(/Corrective action decision \(MF3-12\)/)).toBeTruthy();
+  });
+
   it('records the reviewer corrective-action outcome on a published finding', async () => {
     mockedApi.listVersions.mockResolvedValue([
       version({
