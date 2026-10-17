@@ -52,6 +52,8 @@ const mocks = vi.hoisted(() => ({
   review: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   reviseReview: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  updateFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
+  deleteFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
   decideFinding: {
     mutate: vi.fn(),
     isPending: false,
@@ -72,6 +74,8 @@ vi.mock('../hooks/useInspections', () => ({
   useAnalyzeEvidence: () => mocks.analyze,
   useReviewFindingCandidate: () => mocks.review,
   useCreateManualFinding: () => mocks.manual,
+  useUpdateFinding: () => mocks.updateFinding,
+  useDeleteFinding: () => mocks.deleteFinding,
   useReviseReviewedCandidate: () => mocks.reviseReview,
   useDecideFinding: () => mocks.decideFinding,
 }));
@@ -201,6 +205,34 @@ describe('InspectionFindingsPage', () => {
   afterEach(() => {
     cleanup();
     useAuthStore.getState().clearSession();
+  });
+
+  it('lets the Inspector edit a manual finding while the report is not submitted', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = { data: [undecidedFinding()], isLoading: false, error: null, refetch: vi.fn() };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText('Inspector findings')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(await screen.findByLabelText(/Defect label/), { target: { value: 'Corrected coating blister' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save finding' }));
+
+    await waitFor(() => expect(mocks.updateFinding.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ findingId: 'finding-1', input: expect.objectContaining({ defectLabel: 'Corrected coating blister', evidenceId: 'evidence-1' }) }),
+    ));
+  });
+
+  it('lets the Inspector soft-delete a finding with a reason while the report is not submitted', async () => {
+    mocks.findingsQuery = { data: [undecidedFinding()], isLoading: false, error: null, refetch: vi.fn() };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    fireEvent.change(await screen.findByLabelText(/Removal reason/), { target: { value: 'False alarm after source review' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm remove' }));
+
+    await waitFor(() => expect(mocks.deleteFinding.mutate).toHaveBeenCalledWith({ findingId: 'finding-1', reason: 'False alarm after source review' }));
   });
 
   it('offers no detection before the evidence set is accepted', () => {

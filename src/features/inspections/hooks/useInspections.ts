@@ -242,7 +242,26 @@ export function useUploadInspectionEvidence(inspectionId: string | null) {
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
+    },
+  });
+}
+
+export function useRetireEvidence(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ evidenceId, reason }: { evidenceId: string; reason: string }) =>
+      inspectionApi.retireEvidence(inspectionId!, evidenceId, reason),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
   });
 }
@@ -352,8 +371,40 @@ export function useCreateManualFinding(inspectionId: string | null) {
       inspectionApi.createManualFinding(inspectionId!, input),
     onSuccess: () => {
       if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.all });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
+    },
+  });
+}
+
+export function useUpdateFinding(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ findingId, input }: { findingId: string; input: ManualFindingInput }) =>
+      inspectionApi.updateFinding(inspectionId!, findingId, input),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+    },
+  });
+}
+
+export function useDeleteFinding(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ findingId, reason }: { findingId: string; reason: string }) =>
+      inspectionApi.deleteFinding(inspectionId!, findingId, reason),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
   });
 }
@@ -538,15 +589,35 @@ export function useReviewReportVersion(inspectionId: string | null) {
       versionId,
       approve,
       reason,
+      reasonType,
     }: {
       versionId: string;
       approve: boolean;
       reason?: string;
-    }) => inspectionApi.reviewVersion(inspectionId!, versionId, approve, reason),
+      reasonType?: 'TEXT_REVISION' | 'FINDINGS_REVISION';
+    }) => inspectionApi.reviewVersion(inspectionId!, versionId, approve, reason, reasonType),
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       }
+    },
+  });
+}
+
+export function useWithdrawReportVersion(inspectionId: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
+      inspectionApi.withdrawVersion(inspectionId!, versionId, reason),
+    onSuccess: () => {
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
     },
   });
 }

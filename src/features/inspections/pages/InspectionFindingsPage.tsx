@@ -17,7 +17,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { inspectionApi } from '../api/inspectionApi';
-import type { EvidenceItem, FindingDecision, FindingSeverity } from '../api/inspectionApi';
+import type {
+  EvidenceItem,
+  FindingDecision,
+  FindingSeverity,
+  ManualFindingInput,
+  VerifiedFinding,
+} from '../api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { hasAutoDetectionRun, markAutoDetectionRun } from '../autoDetectionRun';
@@ -25,6 +31,8 @@ import { FindingDecisionControls } from '../components/FindingDecisionControls';
 import {
   useAnalyzeEvidence,
   useCreateManualFinding,
+  useUpdateFinding,
+  useDeleteFinding,
   useConfirmFindings,
   useDecideFinding,
   useEvidenceQualityHistory,
@@ -84,6 +92,8 @@ export default function InspectionFindingsPage() {
   const analyze = useAnalyzeEvidence(inspectionId);
   const reviewCandidate = useReviewFindingCandidate(inspectionId);
   const createManualFinding = useCreateManualFinding(inspectionId);
+  const updateFinding = useUpdateFinding(inspectionId);
+  const deleteFinding = useDeleteFinding(inspectionId);
   const decideFinding = useDecideFinding(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const workflow = useInspectionWorkflowState(inspectionId);
@@ -530,7 +540,9 @@ export default function InspectionFindingsPage() {
                                   const linkedFinding = (findings.data ?? []).find(
                                     (f) => f.aiCandidateId === candidate.id,
                                   );
-                                  const isLocked = Boolean(linkedFinding?.decision) || isReportLocked;
+                                  const isLocked =
+                                    isReportLocked ||
+                                    (Boolean(linkedFinding?.decision) && selectedReport?.status !== 'RETURNED');
                                   const isEditing = editingCandidateId === candidate.id;
                                   return (
                                     <Stack spacing={1}>
@@ -866,6 +878,16 @@ export default function InspectionFindingsPage() {
         )}
       </Paper>
 
+      <InspectorFindingRegister
+        findings={(findings.data ?? []).filter((finding) => finding.source === 'MANUAL')}
+        evidence={evidence.data ?? []}
+        isEditable={isInspector && !isReportLocked}
+        isPending={updateFinding.isPending || deleteFinding.isPending}
+        error={updateFinding.error ?? deleteFinding.error}
+        onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
+        onDelete={(findingId, reason) => deleteFinding.mutate({ findingId, reason })}
+      />
+
       <ReviewerVerdicts
         inspectionId={inspectionId}
         isReviewer={isReviewer}
@@ -877,6 +899,106 @@ export default function InspectionFindingsPage() {
         }
       />
     </Stack>
+  );
+}
+
+function InspectorFindingRegister({
+  findings,
+  evidence,
+  isEditable,
+  isPending,
+  error,
+  onUpdate,
+  onDelete,
+}: {
+  findings: VerifiedFinding[];
+  evidence: EvidenceItem[];
+  isEditable: boolean;
+  isPending: boolean;
+  error: unknown;
+  onUpdate: (findingId: string, input: ManualFindingInput) => void;
+  onDelete: (findingId: string, reason: string) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletionReason, setDeletionReason] = useState('');
+
+  if (!isEditable || findings.length === 0) return null;
+  const activeEvidence = evidence.filter((item) => item.retiredAt == null);
+
+  const submitEdit = (event: FormEvent<HTMLFormElement>, finding: VerifiedFinding) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    onUpdate(finding.id, {
+      evidenceId: String(data.get('evidenceId') ?? finding.evidenceId ?? ''),
+      defectLabel: String(data.get('defectLabel') ?? '').trim(),
+      severity: String(data.get('severity') ?? finding.severity) as FindingSeverity,
+      locationDescription: String(data.get('locationDescription') ?? '').trim() || undefined,
+      technicalNotes: String(data.get('technicalNotes') ?? '').trim(),
+      recommendedAction: String(data.get('recommendedAction') ?? '').trim() || undefined,
+      component: String(data.get('component') ?? '').trim() || undefined,
+      observedCondition: String(data.get('observedCondition') ?? '').trim() || undefined,
+      priority: String(data.get('priority') ?? '').trim() || undefined,
+      measurement: String(data.get('measurement') ?? '').trim() || undefined,
+      repairRequired: finding.repairRequired,
+    });
+    setEditingId(null);
+  };
+
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Stack spacing={1.5}>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>Inspector findings</Typography>
+        <Typography variant="body2" color="text.secondary">
+          While the report is not submitted, correct or remove a finding. Removing it keeps an audit record; retired evidence remains preserved.
+        </Typography>
+        {findings.map((finding) => (
+          <Paper key={finding.id} variant="outlined" sx={{ p: 1.75 }}>
+            {editingId === finding.id ? (
+              <Box component="form" onSubmit={(event) => submitEdit(event, finding)} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
+                <TextField select name="evidenceId" label="Evidence" size="small" defaultValue={finding.evidenceId ?? ''} required>
+                  {activeEvidence.map((item) => <MenuItem key={item.id} value={item.id}>{item.fileName}</MenuItem>)}
+                </TextField>
+                <TextField name="defectLabel" label="Defect label" size="small" defaultValue={finding.defectLabel} required />
+                <TextField select name="severity" label="Severity" size="small" defaultValue={finding.severity}>
+                  {SEVERITIES.map((level) => <MenuItem key={level} value={level}>{level}</MenuItem>)}
+                </TextField>
+                <TextField name="locationDescription" label="Location" size="small" defaultValue={finding.locationDescription ?? ''} />
+                <TextField name="technicalNotes" label="Technical notes" size="small" multiline minRows={2} defaultValue={finding.technicalNotes} required sx={{ gridColumn: '1 / -1' }} />
+                <TextField name="recommendedAction" label="Recommended action" size="small" multiline minRows={2} defaultValue={finding.recommendedAction ?? ''} sx={{ gridColumn: '1 / -1' }} />
+                <TextField name="component" label="Component" size="small" defaultValue={finding.component ?? ''} />
+                <TextField name="observedCondition" label="Observed condition" size="small" defaultValue={finding.observedCondition ?? ''} />
+                <Stack direction="row" spacing={1} sx={{ gridColumn: '1 / -1' }}>
+                  <Button type="submit" variant="contained" size="small" disabled={isPending || activeEvidence.length === 0}>Save finding</Button>
+                  <Button size="small" onClick={() => setEditingId(null)}>Cancel</Button>
+                </Stack>
+              </Box>
+            ) : (
+              <Stack spacing={1}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
+                  <Chip size="small" label={finding.severity} />
+                  <Chip size="small" variant="outlined" label={finding.source.replaceAll('_', ' ')} />
+                  {finding.decision && <Chip size="small" color="warning" label={`Reviewer: ${finding.decision}`} />}
+                </Stack>
+                <Typography variant="body2" color="text.secondary">{finding.locationDescription || finding.component || 'Location not supplied'}</Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" onClick={() => setEditingId(finding.id)}>Edit</Button>
+                  {deletingId === finding.id ? (
+                    <>
+                      <TextField size="small" label="Removal reason" value={deletionReason} onChange={(event) => setDeletionReason(event.target.value)} required />
+                      <Button size="small" color="error" disabled={!deletionReason.trim() || isPending} onClick={() => { onDelete(finding.id, deletionReason.trim()); setDeletingId(null); setDeletionReason(''); }}>Confirm remove</Button>
+                      <Button size="small" onClick={() => setDeletingId(null)}>Cancel</Button>
+                    </>
+                  ) : <Button size="small" color="error" onClick={() => { setDeletingId(finding.id); setDeletionReason(''); }}>Remove</Button>}
+                </Stack>
+              </Stack>
+            )}
+          </Paper>
+        ))}
+        {error != null && <Alert severity="error">{getErrorMessage(error, 'The finding change was not saved.')}</Alert>}
+      </Stack>
+    </Paper>
   );
 }
 
