@@ -143,6 +143,22 @@ function undecidedFinding() {
     decidedAt: null,
     repairRequired: true,
     status: 'ACTIVE',
+    correctiveActionRequired: true,
+    correctiveActionPriority: null,
+    correctiveActionDueAt: null,
+    correctiveActionReviewedByUserId: null,
+    correctiveActionReviewedAt: null,
+    correctiveActionRationale: null,
+  };
+}
+
+function reportVersion(status: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'version-1',
+    versionNo: 1,
+    status,
+    authorUserId: 'inspector-1',
+    ...overrides,
   };
 }
 
@@ -484,12 +500,18 @@ describe('InspectionFindingsPage', () => {
     expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
   });
 
-  it('keeps detection Inspector-only while showing ORG_ADMIN reviewer controls', () => {
+  it('keeps detection Inspector-only and exposes ORG_ADMIN decisions only for a submitted report', () => {
     signInAs(['ORG_ADMIN']);
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('SUBMITTED')],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -502,6 +524,68 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByRole('button', { name: 'Re-run detection' })).toBeNull();
     expect(screen.queryByText(/Add manual finding/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Confirm finding' })).toBeTruthy();
+  });
+
+  it('does not expose ORG_ADMIN finding decisions while the selected report is a draft', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('DRAFT')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
+    expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
+  });
+
+  it('uses the latest report version status when deciding whether reviewer verdicts are available', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('SUBMITTED'), reportVersion('DRAFT', { id: 'version-2', versionNo: 2 })],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
+  });
+
+  it('withholds ORG_ADMIN finding decisions from the report author', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('SUBMITTED', { authorUserId: 'admin-1' })],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
+    expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
   });
   it('allows Inspector to edit / correct a reviewed candidate before reviewer decision', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };

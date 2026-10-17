@@ -7,7 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import type { Role } from '@/features/auth/store/authStore';
 import ReportDetailPage from './ReportDetailPage';
-import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+import {
+  inspectionApi,
+  type VerifiedFinding,
+} from '@/features/inspections/api/inspectionApi';
 
 function problemError(status: number, detail: string, code: string): AxiosError {
   return new AxiosError(
@@ -35,6 +38,10 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     submitVersion: vi.fn(),
     reviewVersion: vi.fn(),
     publishVersion: vi.fn(),
+    workflowState: vi.fn(),
+    recordCorrectiveAction: vi.fn(),
+    completeCorrectiveHandoff: vi.fn(),
+    declareNoCorrectiveWork: vi.fn(),
   },
 }));
 
@@ -119,6 +126,39 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
   };
 }
 
+function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
+  return {
+    id: 'finding-1',
+    inspectionId: 'inspection-1',
+    evidenceId: 'evidence-1',
+    aiCandidateId: null,
+    source: 'MANUAL',
+    findingCode: 'F-1',
+    defectLabel: 'Surface crack',
+    severity: 'HIGH',
+    locationDescription: null,
+    technicalNotes: 'Visible crack',
+    recommendedAction: null,
+    component: 'Pier 2',
+    description: null,
+    observedCondition: null,
+    priority: null,
+    measurement: null,
+    decision: 'CONFIRMED',
+    decidedByUserId: 'reviewer-1',
+    decidedAt: '2026-10-01T11:00:00Z',
+    repairRequired: false,
+    status: 'OPEN',
+    correctiveActionRequired: false,
+    correctiveActionPriority: null,
+    correctiveActionDueAt: null,
+    correctiveActionReviewedByUserId: null,
+    correctiveActionReviewedAt: null,
+    correctiveActionRationale: null,
+    ...overrides,
+  };
+}
+
 describe('ReportDetailPage MF3 gates', () => {
   beforeEach(() => {
     cleanup();
@@ -131,29 +171,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('keeps approval disabled until every finding has an independent decision', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
-      {
-        id: 'finding-1',
-        inspectionId: 'inspection-1',
-        evidenceId: 'evidence-1',
-        aiCandidateId: null,
-        source: 'MANUAL',
-        findingCode: 'F-1',
-        defectLabel: 'Surface crack',
-        severity: 'HIGH',
-        locationDescription: null,
-        technicalNotes: 'Visible crack',
-        recommendedAction: null,
-        component: 'Pier 2',
-        description: null,
-        observedCondition: null,
-        priority: null,
-        measurement: null,
-        decision: null,
-        decidedByUserId: null,
-        decidedAt: null,
-        repairRequired: false,
-        status: 'OPEN',
-      },
+      finding({ decision: null, decidedByUserId: null, decidedAt: null }),
     ]);
 
     renderPage();
@@ -186,6 +204,39 @@ describe('ReportDetailPage MF3 gates', () => {
     await waitFor(() =>
       expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
     );
+  });
+
+  it.each([
+    { action: 'approve', button: 'Approve' },
+    { action: 'return', button: 'Return with reason' },
+  ])('shows a user-visible error when report review $action fails', async ({ action, button }) => {
+    mockedApi.listVersions.mockResolvedValue([version({})]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.reviewVersion.mockRejectedValue(new Error(`Review ${action} failed.`));
+
+    renderPage();
+
+    if (action === 'return') {
+      fireEvent.change(await screen.findByLabelText('Reason for return'), {
+        target: { value: 'Please clarify the inspection scope.' },
+      });
+    }
+    fireEvent.click(await screen.findByRole('button', { name: button }));
+
+    expect(await screen.findByText(`Review ${action} failed.`)).toBeTruthy();
+  });
+
+  it('shows a user-visible error when report publishing fails', async () => {
+    mockedApi.listVersions.mockResolvedValue([
+      version({ status: 'APPROVED', authorUserId: 'someone-else' }),
+    ]);
+    mockedApi.publishVersion.mockRejectedValue(new Error('Publishing failed.'));
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+
+    expect(await screen.findByText('Publishing failed.')).toBeTruthy();
   });
 
   it('marks a published version immutable and offers no further action', async () => {
@@ -293,7 +344,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByLabelText('Reason for return')).toBeNull();
   });
 
-  it('reports a no-repair publication without inventing corrective work', async () => {
+  it('publishes without inventing corrective work and points to the MF3-12 outcomes', async () => {
     mockedApi.listVersions.mockResolvedValue([
       version({ status: 'APPROVED', authorUserId: 'someone-else' }),
     ]);
@@ -302,7 +353,7 @@ describe('ReportDetailPage MF3 gates', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       repairRequiredFindingIds: [],
-      inspectionStatus: 'COMPLETED',
+      inspectionStatus: 'REPORT_PUBLISHED',
     });
 
     renderPage();
@@ -310,7 +361,160 @@ describe('ReportDetailPage MF3 gates', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
 
     await waitFor(() =>
-      expect(screen.getByText(/No corrective work was required/)).toBeTruthy(),
+      expect(
+        screen.getByText(/record corrective outcomes before handing findings to MF4/i),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByText(/No corrective work was required/)).toBeNull();
+  });
+
+  it('records the reviewer corrective-action outcome on a published finding', async () => {
+    mockedApi.listVersions.mockResolvedValue([
+      version({
+        status: 'PUBLISHED',
+        authorUserId: 'someone-else',
+        publishedAt: '2026-10-01T12:00:00Z',
+      }),
+    ]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'REPORT_PUBLISHED',
+      findingsConfirmedByUserId: 'inspector-1',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    });
+    mockedApi.listFindings.mockResolvedValue([
+      finding({ correctiveActionRequired: true, repairRequired: true }),
+    ]);
+
+    renderPage();
+
+    fireEvent.mouseDown(await screen.findByLabelText('Corrective action'));
+    fireEvent.click(screen.getByRole('option', { name: /Not required within observed scope/ }));
+    fireEvent.change(screen.getByLabelText(/Corrective action rationale/), {
+      target: { value: 'No repair is needed within the observed span.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record corrective action' }));
+
+    await waitFor(() =>
+      expect(mockedApi.recordCorrectiveAction).toHaveBeenCalledWith('inspection-1', 'finding-1', {
+        correctiveActionRequired: false,
+        rationale: 'No repair is needed within the observed span.',
+      }),
+    );
+  });
+
+  it('requires a rationale before declaring that no corrective work is needed', async () => {
+    mockedApi.listVersions.mockResolvedValue([
+      version({
+        status: 'PUBLISHED',
+        authorUserId: 'someone-else',
+        publishedAt: '2026-10-01T12:00:00Z',
+      }),
+    ]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'REPORT_PUBLISHED',
+      findingsConfirmedByUserId: 'inspector-1',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    });
+
+    renderPage();
+
+    const close = (await screen.findByRole('button', {
+      name: 'Record no corrective work and close inspection',
+    })) as HTMLButtonElement;
+    expect(close.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(/No-repair rationale for the observed scope/), {
+      target: { value: 'The observed scope needs no corrective work.' },
+    });
+    expect(close.disabled).toBe(false);
+
+    fireEvent.click(close);
+    await waitFor(() =>
+      expect(mockedApi.declareNoCorrectiveWork).toHaveBeenCalledWith(
+        'inspection-1',
+        'The observed scope needs no corrective work.',
+      ),
+    );
+  });
+
+  it('hands corrective outcomes to MF4 only when every confirmed finding is reviewed', async () => {
+    mockedApi.listVersions.mockResolvedValue([
+      version({
+        status: 'PUBLISHED',
+        authorUserId: 'someone-else',
+        publishedAt: '2026-10-01T12:00:00Z',
+      }),
+    ]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'REPORT_PUBLISHED',
+      findingsConfirmedByUserId: 'inspector-1',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    });
+    mockedApi.listFindings.mockResolvedValue([
+      finding({
+        id: 'finding-1',
+        correctiveActionRequired: false,
+        correctiveActionReviewedByUserId: 'reviewer-1',
+        correctiveActionReviewedAt: '2026-10-01T13:00:00Z',
+        correctiveActionRationale: 'No repair is needed.',
+      }),
+      finding({ id: 'finding-2', correctiveActionRequired: true }),
+    ]);
+
+    renderPage();
+
+    const handoff = (await screen.findByRole('button', {
+      name: 'Complete corrective handoff to MF4',
+    })) as HTMLButtonElement;
+    expect(handoff.disabled).toBe(true);
+  });
+
+  it('hands reviewed corrective outcomes to MF4 and reports the resulting inspection status', async () => {
+    mockedApi.listVersions.mockResolvedValue([
+      version({
+        status: 'PUBLISHED',
+        authorUserId: 'someone-else',
+        publishedAt: '2026-10-01T12:00:00Z',
+      }),
+    ]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'REPORT_PUBLISHED',
+      findingsConfirmedByUserId: 'inspector-1',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    });
+    mockedApi.listFindings.mockResolvedValue([
+      finding({
+        id: 'finding-1',
+        correctiveActionRequired: true,
+        correctiveActionPriority: 'HIGH',
+        correctiveActionReviewedByUserId: 'reviewer-1',
+        correctiveActionReviewedAt: '2026-10-01T13:00:00Z',
+        correctiveActionRationale: 'Repair is required.',
+      }),
+    ]);
+    mockedApi.completeCorrectiveHandoff.mockResolvedValue({
+      reportVersionId: 'version-1',
+      versionNo: 1,
+      publishedAt: '2026-10-01T12:00:00Z',
+      repairRequiredFindingIds: ['finding-1'],
+      inspectionStatus: 'REPAIR_PENDING',
+    });
+
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Complete corrective handoff to MF4' }),
+    );
+
+    await waitFor(() =>
+      expect(mockedApi.completeCorrectiveHandoff).toHaveBeenCalledWith('inspection-1'),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/Inspection status: REPAIR_PENDING/)).toBeTruthy(),
     );
   });
 

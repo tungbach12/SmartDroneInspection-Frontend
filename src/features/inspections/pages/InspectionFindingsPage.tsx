@@ -66,8 +66,9 @@ function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
 /**
  * MF3-05 advisory detection plus MF3-06 candidate review, one stage of the inspection workspace.
  *
- * The MF3-09 reviewer verdict is visible here on undecided findings; the Inspector only
- * recommends by confirming, modifying, or rejecting candidates.
+ * The MF3-09 reviewer verdict is available to a non-author Organization Admin while the latest
+ * report version is submitted; the Inspector only recommends by confirming, modifying, or rejecting
+ * candidates.
  */
 export default function InspectionFindingsPage() {
   const { inspectionId = '' } = useParams();
@@ -90,8 +91,19 @@ export default function InspectionFindingsPage() {
   const reopenFindings = useReopenFindings(inspectionId);
   const reportVersions = useReportVersions(inspectionId);
   const reviseCandidate = useReviseReviewedCandidate(inspectionId);
-  const isReportLocked = (reportVersions.data ?? []).some((version) =>
+  const reportVersionsList = reportVersions.data ?? [];
+  const isReportLocked = reportVersionsList.some((version) =>
     ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
+  );
+  const selectedReport = reportVersionsList.reduce<(typeof reportVersionsList)[number] | null>(
+    (latest, version) => (!latest || version.versionNo > latest.versionNo ? version : latest),
+    null,
+  );
+  const canDecideFindings = Boolean(
+    isReviewer &&
+      selectedReport?.status === 'SUBMITTED' &&
+      userId &&
+      selectedReport.authorUserId !== userId,
   );
 
   // Per-candidate review inputs, so Confirm/Modify send the values entered on that card.
@@ -852,6 +864,7 @@ export default function InspectionFindingsPage() {
       <ReviewerVerdicts
         inspectionId={inspectionId}
         isReviewer={isReviewer}
+        canDecideFindings={canDecideFindings}
         decidePending={decideFinding.isPending}
         decideError={decideFinding.isError ? decideFinding.error : null}
         onDecide={(findingId, decision, rationale) =>
@@ -865,12 +878,14 @@ export default function InspectionFindingsPage() {
 function ReviewerVerdicts({
   inspectionId,
   isReviewer,
+  canDecideFindings,
   decidePending,
   decideError,
   onDecide,
 }: {
   inspectionId: string;
   isReviewer: boolean;
+  canDecideFindings: boolean;
   decidePending: boolean;
   decideError: unknown;
   onDecide: (findingId: string, decision: FindingDecision, rationale: string) => void;
@@ -925,7 +940,7 @@ function ReviewerVerdicts({
                   />
                 </Box>
               )}
-              {isReviewer ? (
+              {canDecideFindings ? (
                 <FindingDecisionControls
                   findingId={finding.id}
                   defectLabel={finding.defectLabel}

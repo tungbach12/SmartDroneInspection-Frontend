@@ -139,6 +139,20 @@ export interface VerifiedFinding {
   decidedAt: string | null;
   repairRequired: boolean;
   status: string;
+  correctiveActionRequired: boolean;
+  correctiveActionPriority: string | null;
+  correctiveActionDueAt: string | null;
+  correctiveActionReviewedByUserId: string | null;
+  correctiveActionReviewedAt: string | null;
+  correctiveActionRationale: string | null;
+}
+
+export interface CorrectiveHandoffResult {
+  reportVersionId: string;
+  versionNo: number;
+  publishedAt: string;
+  repairRequiredFindingIds: string[];
+  inspectionStatus: string;
 }
 
 export interface PublishedReport {
@@ -658,6 +672,38 @@ export const inspectionApi = {
     api
       .post<PublishedReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+      )
+      .then((response) => response.data),
+
+  recordCorrectiveAction: (
+    inspectionId: string,
+    findingId: string,
+    input: {
+      correctiveActionRequired: boolean;
+      priority?: string;
+      dueAt?: string;
+      rationale: string;
+    },
+  ) =>
+    api
+      .put<VerifiedFinding>(
+        `/inspections/${inspectionId}/findings/${findingId}/corrective-action`,
+        input,
+      )
+      .then((response) => response.data),
+
+  completeCorrectiveHandoff: (inspectionId: string) =>
+    api
+      .post<CorrectiveHandoffResult>(
+        `/inspections/${inspectionId}/report/corrective-handoff`,
+      )
+      .then((response) => response.data),
+
+  declareNoCorrectiveWork: (inspectionId: string, rationale: string) =>
+    api
+      .post<CorrectiveHandoffResult>(
+        `/inspections/${inspectionId}/report/no-corrective-work`,
+        { rationale },
       )
       .then((response) => response.data),
 

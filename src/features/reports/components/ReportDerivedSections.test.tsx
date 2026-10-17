@@ -72,6 +72,12 @@ function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
     decidedAt: '2026-01-02T00:00:00Z',
     repairRequired: false,
     status: 'OPEN',
+    correctiveActionRequired: false,
+    correctiveActionPriority: null,
+    correctiveActionDueAt: null,
+    correctiveActionReviewedByUserId: null,
+    correctiveActionReviewedAt: null,
+    correctiveActionRationale: null,
     ...overrides,
   };
 }
