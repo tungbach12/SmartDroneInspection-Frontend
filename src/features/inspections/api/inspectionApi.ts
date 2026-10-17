@@ -560,10 +560,17 @@ export const inspectionApi = {
       .get<CandidateStatus[]>(`/inspections/${inspectionId}/finding-candidates`)
       .then((response) => response.data),
 
-  analyzeEvidence: (inspectionId: string, evidenceId: string) =>
+  /**
+   * MF3-05. Runs detection for one capture. Without `replace` a capture that already has candidates
+   * returns them instead of running the detector again; with it, the image's unreviewed candidates
+   * are replaced by the fresh result while reviewed ones are kept.
+   */
+  analyzeEvidence: (inspectionId: string, evidenceId: string, replace = false) =>
     api
       .post<CandidateStatus[]>(
         `/inspections/${inspectionId}/evidence/${evidenceId}/analyze`,
+        null,
+        { params: { replace } },
       )
       .then((response) => response.data),
 

@@ -259,7 +259,7 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
   const [error, setError] = useState<unknown>(null);
 
   const analyzeMany = useCallback(
-    async (evidenceIds: string[]) => {
+    async (evidenceIds: string[], options?: { replace?: boolean }) => {
       if (!inspectionId || evidenceIds.length === 0) {
         return;
       }
@@ -271,7 +271,11 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
       await Promise.allSettled(
         evidenceIds.map(async (evidenceId) => {
           try {
-            const created = await inspectionApi.analyzeEvidence(inspectionId, evidenceId);
+            const created = await inspectionApi.analyzeEvidence(
+              inspectionId,
+              evidenceId,
+              options?.replace ?? false,
+            );
             client.setQueryData<CandidateStatus[]>(
               inspectionKeys.candidates(inspectionId),
               (existing) => [

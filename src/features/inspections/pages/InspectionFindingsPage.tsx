@@ -254,7 +254,9 @@ export default function InspectionFindingsPage() {
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           Runs automatically once, the first time the evidence set is accepted. Reopening Findings
-          does not start it again — analyse any image yourself from here. Every suggestion remains a
+          does not start it again — analyse any image yourself from here, including again after a
+          detector change. Re-analysing an image replaces its unreviewed suggestions and keeps the
+          ones you already decided. Every suggestion remains a
           candidate until the Inspector confirms, modifies or rejects it; the manual path stays open.
         </Typography>
         {!evidenceAccepted ? (
@@ -312,14 +314,14 @@ export default function InspectionFindingsPage() {
                         />
                       )}
                     </Stack>
-                    {isInspector && !done && (
+                    {isInspector && analysisUnlocked && (
                       <Button
                         size="small"
                         startIcon={isAnalysing ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-                        disabled={isAnalysing || !analysisUnlocked}
-                        onClick={() => void analyze.analyzeMany([item.id])}
+                        disabled={isAnalysing}
+                        onClick={() => void analyze.analyzeMany([item.id], { replace: done })}
                       >
-                        {isAnalysing ? 'Analysing…' : 'Analyze'}
+                        {isAnalysing ? 'Analysing…' : done ? 'Analyze again' : 'Analyze'}
                       </Button>
                     )}
                   </Stack>

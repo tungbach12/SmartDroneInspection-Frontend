@@ -318,7 +318,7 @@ describe('InspectionFindingsPage', () => {
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
-  it('offers no re-run control on an image whose detection already ran', async () => {
+  it('re-runs detection on an analysed image and asks the server to replace its suggestions', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.candidateQuery = {
@@ -329,11 +329,26 @@ describe('InspectionFindingsPage', () => {
     };
     renderWithRouter(<InspectionFindingsPage />);
 
-    // MF3-05: re-running an analysed image returns the existing candidates and replaces nothing,
-    // so a re-run control would promise an action that never happens. The chip carries the state.
-    expect(screen.queryByRole('button', { name: 'Re-run detection' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
+    // MF3-05: the Inspector re-detects after a detector or threshold change. The request carries
+    // replace so the server swaps the unreviewed suggestions instead of returning the old ones.
     expect(screen.getByText('Detection complete')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze again' }));
+
+    await waitFor(() =>
+      expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1'], { replace: true }),
+    );
+  });
+
+  it('analyses an image that has no candidates without replacing anything', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Analyze' }));
+
+    await waitFor(() =>
+      expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1'], { replace: false }),
+    );
   });
 
   it('shows the detection motion and names the image being analysed', async () => {
