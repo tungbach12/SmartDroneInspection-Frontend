@@ -21,6 +21,10 @@ const version: InspectionReportVersion = {
   reviewerUserId: null,
   reviewedAt: null,
   reviewReason: null,
+  returnReasonType: null,
+  withdrawnByUserId: null,
+  withdrawnAt: null,
+  withdrawalReason: null,
   llmModel: null,
   promptVersion: null,
   generatedAt: null,
@@ -47,6 +51,9 @@ const evidence: EvidenceItem = {
   externalReference: null,
   uploadStatus: 'AVAILABLE',
   createdAt: '2026-01-01T00:00:00Z',
+  retiredByUserId: null,
+  retiredAt: null,
+  retirementReason: null,
 };
 
 function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {

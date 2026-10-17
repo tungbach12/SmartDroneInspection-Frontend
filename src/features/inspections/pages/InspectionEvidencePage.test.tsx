@@ -23,11 +23,15 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
   },
   decideQuality: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  versions: { data: [] as unknown[], isLoading: false, error: null as Error | null, refetch: vi.fn() },
+  retire: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useEvidenceQualityHistory: () => mocks.qualityQuery,
+  useReportVersions: () => mocks.versions,
+  useRetireEvidence: () => mocks.retire,
   useUploadInspectionEvidence: () => mocks.upload,
   useDecideEvidenceQuality: () => mocks.decideQuality,
 }));
@@ -51,7 +55,10 @@ function imageEvidence() {
     checksumSha256: 'abcdef1234567890',
     captureTime: '2026-10-08T08:15:00Z',
     source: 'WEB_UPLOAD',
-  };
+    retiredByUserId: null,
+    retiredAt: null,
+    retirementReason: null,
+  }; 
 }
 
 function signInAsInspector() {
@@ -81,6 +88,8 @@ describe('InspectionEvidencePage', () => {
     signInAsInspector();
     mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.versions = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.retire.mutate.mockReset();
     mocks.upload.mutateAsync.mockReset();
     mocks.upload.mutateAsync.mockResolvedValue({ id: 'evidence-1' });
     mocks.decideQuality.mutate.mockReset();
@@ -215,6 +224,41 @@ describe('InspectionEvidencePage', () => {
       shotListComparison: 'Span P4 covered; east face not observed.',
       limitationReason: 'The east face was not observed',
     });
+  });
+
+  it('shows the retired original in the audit register and requires a fresh quality decision', () => {
+    mocks.evidenceQuery = {
+      data: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z', retiredByUserId: 'inspector-1', retirementReason: 'Replaced with a sharper capture' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.qualityQuery = {
+      data: [{ id: 'decision-1', inspectionId: 'inspection-1', fieldSessionId: null, decision: 'ACCEPTED', shotListComparison: 'Old set accepted', limitationReason: null, decidedByUserId: 'inspector-1', decidedAt: '2026-10-16T10:00:00Z' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionEvidencePage />);
+
+    expect(screen.getByText('Retired — audit copy')).toBeTruthy();
+    expect(screen.getByText(/EVIDENCE SET CHANGED — REASSESS/)).toBeTruthy();
+    expect(screen.getByText(/original bytes remain available for audit/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Accept evidence set' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('offers a reasoned retire action while the report is editable', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionEvidencePage />);
+
+    fireEvent.change(screen.getByLabelText('Reason for replacing this capture'), { target: { value: 'Image is blurred' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Retire from current evidence set' }));
+
+    expect(mocks.retire.mutate).toHaveBeenCalledWith(
+      { evidenceId: 'evidence-1', reason: 'Image is blurred' },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 
   it('keeps non-accept decisions disabled without stored evidence', () => {

@@ -23,6 +23,7 @@ import {
   usePublishReportVersion,
   useReviewReportVersion,
   useSubmitReportVersion,
+  useWithdrawReportVersion,
   useVerifyReportVersion,
   useReportVersions,
   useInspectionFindings,
@@ -64,6 +65,8 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
+  const [reviewReasonType, setReviewReasonType] = useState<'TEXT_REVISION' | 'FINDINGS_REVISION'>('TEXT_REVISION');
+  const [withdrawReason, setWithdrawReason] = useState('');
   const [correctiveReasons, setCorrectiveReasons] = useState<Record<string, string>>({});
   const [correctiveChoices, setCorrectiveChoices] = useState<Record<string, boolean>>({});
   const [correctivePriorities, setCorrectivePriorities] = useState<Record<string, string>>({});
@@ -76,6 +79,7 @@ export default function ReportDetailPage() {
   const evidence = useInspectionEvidence(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
+  const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
   const decideFinding = useDecideFinding(inspectionId);
@@ -106,6 +110,15 @@ export default function ReportDetailPage() {
     openVersion?.status === 'PUBLISHED' &&
     (inspectionStatus === 'REPORT_PUBLISHED' || inspectionStatus == null);
   const reviewFindingsLoading = findings.isLoading || Boolean(findings.error);
+  const reviewerHasDecidedFindings = (findings.data ?? []).some((finding) => finding.decidedByUserId != null);
+  const canWithdrawSubmission = Boolean(
+    canAuthor && isAuthor && openVersion?.status === 'SUBMITTED' && !reviewerHasDecidedFindings &&
+      openVersion.reviewerUserId == null && openVersion.reviewedAt == null,
+  );
+  const needsFindingsRevisionDraft =
+    openVersion?.status === 'RETURNED' && openVersion.returnReasonType === 'FINDINGS_REVISION';
+  const canEditReturnedText =
+    canAuthor && isAuthor && openVersion?.status === 'RETURNED' && !needsFindingsRevisionDraft;
 
   const saveSections = useSaveReportSections(inspectionId);
 
@@ -211,6 +224,21 @@ export default function ReportDetailPage() {
 
           {openVersion && (
             <>
+              {needsFindingsRevisionDraft && (
+                <Alert severity="warning" action={
+                  <Button color="inherit" size="small" onClick={() => navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`)}>
+                    Reopen findings
+                  </Button>
+                }>
+                  The reviewer requested a findings/evidence revision. This submitted version is preserved; correct the existing evidence/findings, confirm them again, then create a new report draft from the Report tab.
+                </Alert>
+              )}
+              {openVersion.withdrawnAt != null && (
+                <Alert severity="info">
+                  You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.
+                </Alert>
+              )}
+
               {/* Next step banner */}
               <Alert
                 severity={openVersion.status === 'PUBLISHED' ? 'success' : 'info'}
@@ -241,7 +269,7 @@ export default function ReportDetailPage() {
 
                   <Stack spacing={2}>
                     {/* Author verification step */}
-                    {canAuthor && isAuthor && (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED') && (
+                    {canAuthor && isAuthor && (openVersion.status === 'DRAFT' || canEditReturnedText) && (
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Button
                           variant="contained"
@@ -298,6 +326,31 @@ export default function ReportDetailPage() {
                       isError={submit.isError && !isConflict(submit.error)}
                       fallbackMessage="Could not submit this report draft."
                     />
+                    {canWithdrawSubmission && (
+                      <Stack spacing={1.25}>
+                        <Alert severity="warning">
+                          Withdraw only before the reviewer has made a finding decision. The submitted version remains in the audit trail; evidence and findings are not deleted.
+                        </Alert>
+                        <TextField
+                          label="Reason for withdrawal"
+                          value={withdrawReason}
+                          onChange={(event) => setWithdrawReason(event.target.value)}
+                          multiline
+                          minRows={2}
+                        />
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          disabled={withdraw.isPending || !withdrawReason.trim()}
+                          onClick={() => withdraw.mutate({ versionId: openVersion.id, reason: withdrawReason.trim() })}
+                          sx={{ alignSelf: 'flex-start' }}
+                        >
+                          {withdraw.isPending ? 'Withdrawing…' : 'Withdraw submission and revise'}
+                        </Button>
+                        {withdraw.isError && <MutationProblemAlert error={withdraw.error} isError fallbackMessage="Could not withdraw this submission." />}
+                      </Stack>
+                    )}
+
                     {/* Reviewer approval or return step */}
                     {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
@@ -334,6 +387,15 @@ export default function ReportDetailPage() {
                           </Alert>
                         )}
                         <TextField
+                          select
+                          label="What needs revision?"
+                          value={reviewReasonType}
+                          onChange={(event) => setReviewReasonType(event.target.value as 'TEXT_REVISION' | 'FINDINGS_REVISION')}
+                        >
+                          <MenuItem value="TEXT_REVISION">Report text only — keep reviewer findings decisions</MenuItem>
+                          <MenuItem value="FINDINGS_REVISION">Findings/evidence — reopen the Inspector findings stage</MenuItem>
+                        </TextField>
+                        <TextField
                           label="Reason for return"
                           placeholder="Required when returning for author revisions"
                           multiline
@@ -365,6 +427,7 @@ export default function ReportDetailPage() {
                                 versionId: openVersion.id,
                                 approve: false,
                                 reason: reviewReason.trim(),
+                                reasonType: reviewReasonType,
                               })
                             }
                             sx={{ borderRadius: '8px', px: 2.5 }}
@@ -596,7 +659,7 @@ export default function ReportDetailPage() {
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
                 inspectionId={inspectionId}
-                canEdit={canAuthor && (openVersion.status === 'DRAFT' || openVersion.status === 'RETURNED')}
+                canEdit={canAuthor && (openVersion.status === 'DRAFT' || canEditReturnedText)}
                 onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
               />
             </>

@@ -34,6 +34,10 @@ export interface InspectionReportVersion {
   reviewerUserId: string | null;
   reviewedAt: string | null;
   reviewReason: string | null;
+  returnReasonType: 'TEXT_REVISION' | 'FINDINGS_REVISION' | null;
+  withdrawnByUserId: string | null;
+  withdrawnAt: string | null;
+  withdrawalReason: string | null;
   llmModel: string | null;
   promptVersion: string | null;
   generatedAt: string | null;
@@ -82,6 +86,9 @@ export interface EvidenceItem {
   externalReference: string | null;
   uploadStatus: string;
   createdAt: string;
+  retiredByUserId: string | null;
+  retiredAt: string | null;
+  retirementReason: string | null;
 }
 
 export interface EvidenceQualityDecision {
@@ -184,12 +191,12 @@ export interface ManualFindingInput {
   severity: FindingSeverity;
   locationDescription?: string | undefined;
   technicalNotes: string;
-  recommendedAction?: string;
-  component?: string;
-  observedCondition?: string;
-  priority?: string;
-  measurement?: string;
-  repairRequired?: boolean;
+  recommendedAction?: string | undefined;
+  component?: string | undefined;
+  observedCondition?: string | undefined;
+  priority?: string | undefined;
+  measurement?: string | undefined;
+  repairRequired?: boolean | undefined;
 }
 
 export interface ManualDraftInput {
@@ -560,10 +567,22 @@ export const inspectionApi = {
       .get<CandidateStatus[]>(`/inspections/${inspectionId}/finding-candidates`)
       .then((response) => response.data),
 
-  analyzeEvidence: (inspectionId: string, evidenceId: string) =>
+  /**
+   * MF3-05. Runs detection for one capture. Without `replace` a capture that already has candidates
+   * returns them instead of running the detector again; with it, the image's unreviewed candidates
+   * are replaced by the fresh result while reviewed ones are kept.
+   */
+  retireEvidence: (inspectionId: string, evidenceId: string, reason: string) =>
+    api
+      .post<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/retire`, { reason })
+      .then((response) => response.data),
+
+  analyzeEvidence: (inspectionId: string, evidenceId: string, replace = false) =>
     api
       .post<CandidateStatus[]>(
         `/inspections/${inspectionId}/evidence/${evidenceId}/analyze`,
+        null,
+        { params: { replace } },
       )
       .then((response) => response.data),
 
@@ -594,6 +613,15 @@ export const inspectionApi = {
   createManualFinding: (inspectionId: string, input: ManualFindingInput) =>
     api
       .post<VerifiedFinding>(`/inspections/${inspectionId}/findings`, input)
+      .then((response) => response.data),
+
+  updateFinding: (inspectionId: string, findingId: string, input: ManualFindingInput) =>
+    api
+      .put<VerifiedFinding>(`/inspections/${inspectionId}/findings/${findingId}`, input)
+      .then((response) => response.data),
+
+  deleteFinding: (inspectionId: string, findingId: string, reason: string) =>
+    api.delete<void>(`/inspections/${inspectionId}/findings/${findingId}`, { data: { reason } })
       .then((response) => response.data),
 
   listFindings: (inspectionId: string) =>
@@ -654,17 +682,23 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  withdrawVersion: (inspectionId: string, versionId: string, reason: string) =>
+    api
+      .post<InspectionReportVersion>(`/inspections/${inspectionId}/report/versions/${versionId}/withdraw`, { reason })
+      .then((response) => response.data),
+
   reviewVersion: (
     inspectionId: string,
     versionId: string,
     approve: boolean,
     reason?: string,
+    reasonType?: 'TEXT_REVISION' | 'FINDINGS_REVISION',
   ) =>
     api
       .post<InspectionReportVersion>(
         `/inspections/${inspectionId}/report/versions/${versionId}/review`,
         null,
-        { params: { approve, reason } },
+        { params: { approve, reason, reasonType } },
       )
       .then((response) => response.data),
 

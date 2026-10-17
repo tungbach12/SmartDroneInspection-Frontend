@@ -17,6 +17,8 @@ import {
   useDecideEvidenceQuality,
   useEvidenceQualityHistory,
   useInspectionEvidence,
+  useReportVersions,
+  useRetireEvidence,
   useUploadInspectionEvidence,
 } from '../hooks/useInspections';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
@@ -40,7 +42,9 @@ export default function InspectionEvidencePage() {
 
   const evidence = useInspectionEvidence(inspectionId);
   const quality = useEvidenceQualityHistory(inspectionId);
+  const versions = useReportVersions(inspectionId);
   const upload = useUploadInspectionEvidence(inspectionId);
+  const retire = useRetireEvidence(inspectionId);
   const decideQuality = useDecideEvidenceQuality(inspectionId);
 
   const [queue, setQueue] = useState<File[]>([]);
@@ -49,11 +53,25 @@ export default function InspectionEvidencePage() {
   const [shotListComparison, setShotListComparison] = useState('');
   const [limitationReason, setLimitationReason] = useState('');
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [retireReason, setRetireReason] = useState('');
 
   const evidenceItems = evidence.data ?? [];
+  const currentEvidenceItems = evidenceItems.filter((item) => item.retiredAt == null);
   const comparison = shotListComparison.trim();
   const reason = limitationReason.trim();
-  const latestDecision = quality.data?.[0]?.decision ?? null;
+  const latestQualityDecision = quality.data?.[0] ?? null;
+  const latestDecision = latestQualityDecision?.decision ?? null;
+  const qualityIsCurrent = Boolean(
+    latestQualityDecision &&
+      evidenceItems.every((item) => {
+        const notAddedAfter = item.createdAt <= latestQualityDecision.decidedAt;
+        const notRetiredAfter = !item.retiredAt || item.retiredAt <= latestQualityDecision.decidedAt;
+        return notAddedAfter && notRetiredAfter;
+      }),
+  );
+  const currentVersion = versions.data?.[0] ?? null;
+  const evidenceLocked = Boolean(currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status));
+  const canEditEvidence = isInspector && !evidenceLocked;
   const selectedEvidence =
     evidenceItems.find((item) => item.id === selectedEvidenceId) ?? evidenceItems[0] ?? null;
 
@@ -106,7 +124,7 @@ export default function InspectionEvidencePage() {
           MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Button component="label" variant="outlined" aria-label="Choose evidence files">
+          {canEditEvidence && <Button component="label" variant="outlined" aria-label="Choose evidence files">
             Choose evidence files
             <input
               hidden
@@ -121,19 +139,20 @@ export default function InspectionEvidencePage() {
                 event.target.value = '';
               }}
             />
-          </Button>
+          </Button>}
           <Typography variant="body2" sx={{ flexGrow: 1 }}>
             {queue.length === 0 ? 'No files staged' : `${queue.length} file(s) staged`}
           </Typography>
           <Button
             variant="contained"
-            disabled={!isInspector || queue.length === 0 || uploading}
+            disabled={!canEditEvidence || queue.length === 0 || uploading}
             onClick={() => void uploadQueue()}
           >
             {uploading ? 'Uploading…' : 'Upload staged files'}
           </Button>
         </Stack>
-        {queue.length > 0 && (
+        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.</Alert>}
+        {queue.length > 0 && canEditEvidence && (
           <Stack spacing={1} sx={{ mt: 2 }}>
             {queue.map((file) => (
               <Box key={file.name}>
@@ -165,13 +184,23 @@ export default function InspectionEvidencePage() {
           MF3-03: compare the captured set against the shot-list — component coverage, focus and
           exposure, and the modality the scope asked for. Only the Inspector makes this call.
         </Typography>
+        {evidenceItems.length === 0 && (
+          <Alert severity="info" sx={{ mb: 1.5 }}>
+            Upload current captures before recording the evidence-quality decision.
+          </Alert>
+        )}
         {latestDecision && (
           <Chip
             size="small"
             sx={{ mb: 1 }}
-            color={latestDecision === 'ACCEPTED' ? 'success' : 'warning'}
-            label={latestDecision.replaceAll('_', ' ')}
+            color={qualityIsCurrent ? (latestDecision === 'ACCEPTED' ? 'success' : 'warning') : 'warning'}
+            label={qualityIsCurrent ? latestDecision.replaceAll('_', ' ') : 'EVIDENCE SET CHANGED — REASSESS'}
           />
+        )}
+        {!qualityIsCurrent && latestQualityDecision && canEditEvidence && (
+          <Alert severity="warning" sx={{ mb: 1.5 }}>
+            The evidence set changed after this decision. Compare the current captures with the shot-list and record a new quality decision before analysis or report drafting.
+          </Alert>
         )}
         <Stack spacing={1.5}>
           <TextField
@@ -194,7 +223,7 @@ export default function InspectionEvidencePage() {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
               variant="contained"
-              disabled={!isInspector || decideQuality.isPending || evidenceItems.length === 0 || !comparison}
+              disabled={!canEditEvidence || decideQuality.isPending || currentEvidenceItems.length === 0 || !comparison}
               onClick={() =>
                 decideQuality.mutate({
                   decision: 'ACCEPTED',
@@ -206,7 +235,7 @@ export default function InspectionEvidencePage() {
             </Button>
             <Button
               variant="outlined"
-              disabled={!isInspector || decideQuality.isPending || evidenceItems.length === 0 || !reason || !comparison}
+              disabled={!canEditEvidence || decideQuality.isPending || currentEvidenceItems.length === 0 || !reason || !comparison}
               onClick={() =>
                 decideQuality.mutate({
                   decision: 'REUPLOAD_REQUIRED',
@@ -219,7 +248,7 @@ export default function InspectionEvidencePage() {
             </Button>
             <Button
               variant="outlined"
-              disabled={!isInspector || decideQuality.isPending || evidenceItems.length === 0 || !reason || !comparison}
+              disabled={!canEditEvidence || decideQuality.isPending || currentEvidenceItems.length === 0 || !reason || !comparison}
               onClick={() =>
                 decideQuality.mutate({
                   decision: 'ADDITIONAL_SESSION_REQUIRED',
@@ -232,7 +261,7 @@ export default function InspectionEvidencePage() {
             </Button>
             <Button
               variant="outlined"
-              disabled={!isInspector || decideQuality.isPending || evidenceItems.length === 0 || !reason || !comparison}
+              disabled={!canEditEvidence || decideQuality.isPending || currentEvidenceItems.length === 0 || !reason || !comparison}
               onClick={() =>
                 decideQuality.mutate({
                   decision: 'LIMITED',
@@ -301,9 +330,12 @@ export default function InspectionEvidencePage() {
                     }}
                     onClick={() => setSelectedEvidenceId(item.id)}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
-                      {item.fileName}
-                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
+                        {item.fileName}
+                      </Typography>
+                      {item.retiredAt && <Chip size="small" color="warning" label="Retired — audit copy" />}
+                    </Stack>
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                       {item.contentType} · {formatBytes(item.sizeBytes)}
                     </Typography>
@@ -340,6 +372,32 @@ export default function InspectionEvidencePage() {
                       Captured {selectedEvidence.captureTime ?? 'time not recorded'} · Source{' '}
                       {selectedEvidence.source}
                     </Typography>
+                    {selectedEvidence.retiredAt ? (
+                      <Alert severity="warning" sx={{ mt: 1 }}>
+                        Retired from the current evidence set on {new Date(selectedEvidence.retiredAt).toLocaleString()}. The original bytes remain available for audit.
+                        {selectedEvidence.retirementReason ? ` Reason: ${selectedEvidence.retirementReason}` : ''}
+                      </Alert>
+                    ) : canEditEvidence ? (
+                      <Stack spacing={1} sx={{ mt: 1.5 }}>
+                        <TextField
+                          size="small"
+                          label="Reason for replacing this capture"
+                          value={retireReason}
+                          onChange={(event) => setRetireReason(event.target.value)}
+                          helperText="The original capture and checksum stay in the audit record. Remove or re-link findings that use it first."
+                        />
+                        <Button
+                          color="warning"
+                          variant="outlined"
+                          disabled={!retireReason.trim() || retire.isPending}
+                          onClick={() => retire.mutate({ evidenceId: selectedEvidence.id, reason: retireReason.trim() }, { onSuccess: () => setRetireReason('') })}
+                          sx={{ alignSelf: 'flex-start' }}
+                        >
+                          {retire.isPending ? 'Retiring capture…' : 'Retire from current evidence set'}
+                        </Button>
+                        {retire.isError && <Alert severity="error">{getErrorMessage(retire.error, 'The capture was not retired.')}</Alert>}
+                      </Stack>
+                    ) : null}
                   </Box>
                 </Stack>
               </Paper>

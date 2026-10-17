@@ -15,6 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
     // The heavier component tests need more than the 5s default when the suite runs at once.
     testTimeout: 15000,
     // Keep Vitest defaults; agent worktrees and built bundles are not product tests.

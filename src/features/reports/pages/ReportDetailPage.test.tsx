@@ -36,6 +36,7 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     listEvidence: vi.fn(),
     verifyVersion: vi.fn(),
     submitVersion: vi.fn(),
+    withdrawVersion: vi.fn(),
     reviewVersion: vi.fn(),
     publishVersion: vi.fn(),
     workflowState: vi.fn(),
@@ -105,6 +106,10 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     reviewerUserId: null,
     reviewedAt: null,
     reviewReason: null,
+    returnReasonType: null,
+    withdrawnByUserId: null,
+    withdrawnAt: null,
+    withdrawalReason: null,
     llmModel: 'test-model',
     promptVersion: 'mf3-report-v1',
     generatedAt: '2026-10-01T09:00:00Z',
@@ -202,7 +207,45 @@ describe('ReportDetailPage MF3 gates', () => {
 
     fireEvent.click(returnButton);
     await waitFor(() =>
-      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
+      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed', 'TEXT_REVISION'),
+    );
+  });
+
+  it('lets a reviewer choose findings revision as the return type', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({})]);
+    mockedApi.listFindings.mockResolvedValue([]);
+
+    renderPage();
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'What needs revision?' }));
+    fireEvent.click(screen.getByRole('option', { name: /Findings\/evidence/ }));
+    fireEvent.change(screen.getByLabelText('Reason for return'), { target: { value: 'Revisit the evidence and findings.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Return with reason' }));
+
+    await waitFor(() =>
+      expect(mockedApi.reviewVersion).toHaveBeenCalledWith(
+        'inspection-1',
+        'version-1',
+        false,
+        'Revisit the evidence and findings.',
+        'FINDINGS_REVISION',
+      ),
+    );
+  });
+
+  it('lets the Inspector withdraw a submitted report before reviewer action', async () => {
+    setRole(['INSPECTOR']);
+    mockedApi.listVersions.mockResolvedValue([version({ status: 'SUBMITTED', authorUserId: 'user-1' })]);
+    mockedApi.listFindings.mockResolvedValue([finding({ decidedByUserId: null, decidedAt: null, decision: null })]);
+    mockedApi.withdrawVersion.mockResolvedValue(
+      version({ status: 'RETURNED', authorUserId: 'user-1', withdrawnByUserId: 'user-1', withdrawnAt: '2026-10-01T12:00:00Z', withdrawalReason: 'Correct the report.' }),
+    );
+
+    renderPage();
+    fireEvent.change(await screen.findByLabelText('Reason for withdrawal'), { target: { value: 'Correct the report.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw submission and revise' }));
+
+    await waitFor(() =>
+      expect(mockedApi.withdrawVersion).toHaveBeenCalledWith('inspection-1', 'version-1', 'Correct the report.'),
     );
   });
 
@@ -366,6 +409,50 @@ describe('ReportDetailPage MF3 gates', () => {
       ).toBeTruthy(),
     );
     expect(screen.queryByText(/No corrective work was required/)).toBeNull();
+  });
+
+  it('reveals the MF3-12 outcomes as soon as the reviewer publishes the version', async () => {
+    // The inspection only reaches REPORT_PUBLISHED through the publish call, so the page has to
+    // refetch the workflow state; without that the corrective-outcome panel stays hidden until a
+    // manual reload even though the page tells the reviewer to record outcomes.
+    mockedApi.listVersions
+      .mockResolvedValueOnce([version({ status: 'APPROVED', authorUserId: 'someone-else' })])
+      .mockResolvedValue([
+        version({
+          status: 'PUBLISHED',
+          authorUserId: 'someone-else',
+          publishedAt: '2026-10-01T12:00:00Z',
+        }),
+      ]);
+    mockedApi.workflowState
+      .mockResolvedValueOnce({
+        status: 'REPORT_DRAFT',
+        findingsConfirmedByUserId: 'inspector-1',
+        findingsConfirmedAt: '2026-10-01T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      })
+      .mockResolvedValue({
+        status: 'REPORT_PUBLISHED',
+        findingsConfirmedByUserId: 'inspector-1',
+        findingsConfirmedAt: '2026-10-01T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      });
+    mockedApi.listFindings.mockResolvedValue([finding({})]);
+    mockedApi.publishVersion.mockResolvedValue({
+      reportVersionId: 'version-1',
+      versionNo: 1,
+      publishedAt: '2026-10-01T12:00:00Z',
+      repairRequiredFindingIds: [],
+      inspectionStatus: 'REPORT_PUBLISHED',
+    });
+
+    renderPage();
+
+    expect(screen.queryByText(/Corrective action decision \(MF3-12\)/)).toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+
+    expect(await screen.findByText(/Corrective action decision \(MF3-12\)/)).toBeTruthy();
   });
 
   it('records the reviewer corrective-action outcome on a published finding', async () => {
