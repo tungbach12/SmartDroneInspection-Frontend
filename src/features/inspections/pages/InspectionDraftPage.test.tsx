@@ -48,14 +48,14 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionDraftPage from './InspectionDraftPage';
 
-function signInAsInspector() {
+function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: 'inspector-1',
-      email: 'inspector@example.test',
-      fullName: 'Inspector',
-      roles: ['INSPECTOR'],
+      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      email: 'user@example.test',
+      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
     },
@@ -65,7 +65,7 @@ function signInAsInspector() {
 describe('InspectionDraftPage', () => {
   beforeEach(() => {
     cleanup();
-    signInAsInspector();
+    signInAs('INSPECTOR');
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
@@ -88,7 +88,7 @@ describe('InspectionDraftPage', () => {
     expect(screen.getByText(/Accept the evidence set before generating/)).toBeTruthy();
   });
 
-  it('keeps draft creation disabled until findings have been confirmed', () => {
+  it('keeps manual draft creation disabled until findings have been confirmed', () => {
     mocks.qualityQuery = {
       data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
       isLoading: false,
@@ -98,7 +98,7 @@ describe('InspectionDraftPage', () => {
     renderWithRouter(<InspectionDraftPage />);
 
     expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Save structured draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
   });
 
@@ -197,10 +197,27 @@ describe('InspectionDraftPage', () => {
     expect(screen.queryByRole('link', { name: 'Go to Findings' })).toBeNull();
     expect(screen.getByText(/report has been published/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Save structured draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('seeds a manual draft with the narrative and disclosure after findings confirmation', () => {
+  it('shows the reviewer version list without Inspector draft controls', () => {
+    signInAs('ORG_ADMIN');
+    mocks.versionsQuery = {
+      data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'SUBMITTED' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionDraftPage />, { route: '/client/inspections/inspection-1/report' });
+
+    expect(screen.getByText('Organization Admin review actions are available on the Review report tab. This stage is retained for read-only status and version history.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Report versions' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Generate report draft' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create manual draft' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open the report document' }).getAttribute('href')).toContain('/client/reports/inspection-1');
+  });
+
+  it('creates an empty manual structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
       data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
       isLoading: false,
@@ -208,17 +225,9 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.change(screen.getByLabelText('Narrative'), {
-      target: { value: 'Span inspected from the ground.' },
-    });
-    fireEvent.change(screen.getByLabelText('Omitted analysis disclosure'), {
-      target: { value: 'No model run; east face omitted.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save structured draft' }));
-
-    expect(mocks.authorManualDraft.mutate).toHaveBeenCalledWith({
-      narrative: 'Span inspected from the ground.',
-      omissionDisclosure: 'No model run; east face omitted.',
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create manual draft' }));
+    expect(mocks.authorManualDraft.mutate).toHaveBeenCalledWith({});
+    expect(screen.queryByLabelText('Narrative')).toBeNull();
+    expect(screen.queryByLabelText('Omitted analysis disclosure')).toBeNull();
   });
 });

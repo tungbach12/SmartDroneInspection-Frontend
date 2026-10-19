@@ -80,7 +80,7 @@ function LocationProbe() {
   );
 }
 
-function renderPage() {
+function renderPage(route = '/operations/reports/inspection-1') {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -91,7 +91,7 @@ function renderPage() {
       </QueryClientProvider>
       <LocationProbe />
     </>,
-    { route: '/operations/reports/inspection-1' },
+    { route },
   );
 }
 
@@ -122,6 +122,7 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     sections: {
       executiveSummary: 'The north span was surveyed from both maintenance walkways.',
       purposeScopeCriteria: null,
+      inspectorCoverageAssessment: null,
       methodEquipmentConditions: null,
       conclusionsRecommendations: null,
       overallCondition: null,
@@ -150,6 +151,7 @@ function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
     priority: null,
     measurement: null,
     decision: 'CONFIRMED',
+    inspectorConfirmedAt: null,
     decidedByUserId: 'reviewer-1',
     decidedAt: '2026-10-01T11:00:00Z',
     repairRequired: false,
@@ -173,17 +175,41 @@ describe('ReportDetailPage MF3 gates', () => {
     setRole(['ORG_ADMIN']);
   });
 
-  it('keeps approval disabled until every finding has an independent decision', async () => {
+  it('allows the Organization Admin to approve the report without per-finding decisions', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
-      finding({ decision: null, decidedByUserId: null, decidedAt: null }),
+      finding({ decision: null, decidedByUserId: null, decidedAt: null, inspectorConfirmedAt: '2026-10-18T07:00:00Z' }),
     ]);
 
     renderPage();
 
     const approve = (await screen.findByRole('button', { name: 'Approve' })) as HTMLButtonElement;
-    expect(approve.disabled).toBe(true);
-    expect(screen.getByText(/Decide every proposed finding/)).toBeTruthy();
+    expect(approve.disabled).toBe(false);
+    expect(screen.getByText(/not separately accepted/i)).toBeTruthy();
+    expect(screen.queryByText(/Decide every proposed finding/)).toBeNull();
+  });
+
+  it('orders editable report sections like the generated PDF and keeps them separate', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({})]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+
+    renderPage();
+    await screen.findByRole('heading', { name: 'Identification' });
+
+    const headings = [...document.querySelectorAll('h2')].map((heading) => heading.textContent);
+    expect(headings).toEqual([
+      'Identification',
+      'Executive summary',
+      'Limitations and omissions',
+      'Purpose, scope and criteria',
+      'Method, equipment and conditions',
+      'Evidence register',
+      'Confirmed findings',
+      'Conclusions and recommendations',
+      'Appendices',
+      'Approval and revisions',
+    ]);
   });
 
   it('offers approve and return-with-reason to the reviewer on a submitted version', async () => {
@@ -211,7 +237,7 @@ describe('ReportDetailPage MF3 gates', () => {
     );
   });
 
-  it('lets a reviewer choose findings revision as the return type', async () => {
+  it('lets the Organization Admin return the whole report for a findings/evidence revision', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([]);
 
@@ -232,10 +258,10 @@ describe('ReportDetailPage MF3 gates', () => {
     );
   });
 
-  it('lets the Inspector withdraw a submitted report before reviewer action', async () => {
+  it('lets the Inspector withdraw a submitted report before report-level reviewer action', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([version({ status: 'SUBMITTED', authorUserId: 'user-1' })]);
-    mockedApi.listFindings.mockResolvedValue([finding({ decidedByUserId: null, decidedAt: null, decision: null })]);
+    mockedApi.listFindings.mockResolvedValue([finding({ inspectorConfirmedAt: '2026-10-01T11:00:00Z' })]);
     mockedApi.withdrawVersion.mockResolvedValue(
       version({ status: 'RETURNED', authorUserId: 'user-1', withdrawnByUserId: 'user-1', withdrawnAt: '2026-10-01T12:00:00Z', withdrawalReason: 'Correct the report.' }),
     );
@@ -470,7 +496,7 @@ describe('ReportDetailPage MF3 gates', () => {
       findingsSnapshotHash: 'abc123',
     });
     mockedApi.listFindings.mockResolvedValue([
-      finding({ correctiveActionRequired: true, repairRequired: true }),
+      finding({ inspectorConfirmedAt: '2026-10-01T11:00:00Z', correctiveActionRequired: true, repairRequired: true }),
     ]);
 
     renderPage();
@@ -543,12 +569,13 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.listFindings.mockResolvedValue([
       finding({
         id: 'finding-1',
+        inspectorConfirmedAt: '2026-10-01T11:00:00Z',
         correctiveActionRequired: false,
         correctiveActionReviewedByUserId: 'reviewer-1',
         correctiveActionReviewedAt: '2026-10-01T13:00:00Z',
         correctiveActionRationale: 'No repair is needed.',
       }),
-      finding({ id: 'finding-2', correctiveActionRequired: true }),
+      finding({ id: 'finding-2', inspectorConfirmedAt: '2026-10-01T11:00:00Z', correctiveActionRequired: true }),
     ]);
 
     renderPage();
@@ -576,6 +603,7 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.listFindings.mockResolvedValue([
       finding({
         id: 'finding-1',
+        inspectorConfirmedAt: '2026-10-01T11:00:00Z',
         correctiveActionRequired: true,
         correctiveActionPriority: 'HIGH',
         correctiveActionReviewedByUserId: 'reviewer-1',
@@ -608,12 +636,13 @@ describe('ReportDetailPage MF3 gates', () => {
   it('returns to the reports queue on the inspections list', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
 
-    renderPage();
+    setRole(['ORG_ADMIN']);
+    renderPage('/client/reports/inspection-1');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to reports list' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to review queue' }));
 
     expect(screen.getByTestId('location').textContent).toBe(
-      '/operations/inspections?view=reports',
+      '/client/inspections?view=reports',
     );
   });
 });

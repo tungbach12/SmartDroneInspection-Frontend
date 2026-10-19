@@ -41,11 +41,9 @@ describe('ReportSectionForm', () => {
 
   it('names the accountable human on each section', () => {
     renderForm();
-    // The reviewer approves the summary, scope and conclusions; the method is the author's alone.
-    expect(
-      screen.getAllByText(/approved by Organization Admin/).length,
-    ).toBeGreaterThan(0);
-    // "Inspector" alone is the Method section, which no reviewer signs off.
+    // Summary, conclusions, and the complete report are approved as one report-level decision.
+    expect(screen.getAllByText(/approved with report/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/SYSTEM records · Inspector may annotate/)).toBeTruthy();
     expect(screen.getAllByText('Inspector').length).toBeGreaterThan(0);
   });
 
@@ -98,13 +96,22 @@ describe('ReportSectionForm', () => {
     ).toBe(true);
   });
 
+  it('keeps each authored section separate and shows duplicate-free field labels', () => {
+    renderForm();
+    expect(screen.getByRole('heading', { name: 'Purpose, scope and criteria', level: 2 })).toBeTruthy();
+    expect(screen.getByLabelText(/Purpose scope and criteria from inspection records/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Method, equipment and conditions', level: 2 })).toBeTruthy();
+    expect(screen.getByLabelText(/Method, equipment and conditions text/)).toBeTruthy();
+    expect(screen.queryByText(/^0 \/ 4000$/)).toBeNull();
+  });
+
   it('caps each section so an over-long value cannot be submitted', () => {
     renderForm();
     expect(
       screen.getByLabelText(/Executive summary/).getAttribute('maxlength'),
-    ).toBe('10000');
+    ).toBe('4000');
     expect(
-      screen.getByLabelText(/Limitations and omissions/).getAttribute('maxlength'),
+      screen.getByLabelText(/Limitations and omissions text/).getAttribute('maxlength'),
     ).toBe('2000');
   });
 });

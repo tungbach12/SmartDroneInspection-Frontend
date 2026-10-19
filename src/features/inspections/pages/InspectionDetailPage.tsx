@@ -1,35 +1,55 @@
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Tab, Tabs } from '@mui/material';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 
-const STAGE_TABS = [
+const INSPECTOR_TABS = [
   { value: 'evidence', label: 'Evidence', to: 'evidence' },
   { value: 'findings', label: 'Findings', to: 'findings' },
   { value: 'report', label: 'Report draft', to: 'report' },
   { value: 'preparation', label: 'Preparation', to: 'preparation' },
 ] as const;
 
+const REVIEWER_TABS = [
+  { value: 'review', label: 'Review report', to: 'review' },
+  { value: 'evidence', label: 'Evidence review', to: 'evidence' },
+  { value: 'findings', label: 'Findings overview', to: 'findings' },
+  { value: 'preparation', label: 'Readiness', to: 'preparation' },
+] as const;
+
 /**
- * The inspection workspace layout: one inspection, four stage tabs, one stage at a time.
- *
- * Each stage owns its own sub-page (evidence, findings, report draft, preparation); this layout
- * only renders the inspection header plus the stage tabs and an outlet. Report document editing
- * stays on the separate `reports/:inspectionId` page.
+ * One inspection context presents role-specific stages: field-work stages to the assigned Inspector
+ * and review stages to the organization administrator. The reviewer report document remains on
+ * `reports/:inspectionId` and is entered through the reviewer-first route.
  */
 export default function InspectionDetailPage() {
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const roles = useAuthStore((state) => state.roles);
+  const isOrganizationAdmin = roles.includes('ORG_ADMIN') && location.pathname.startsWith('/client/');
+  const tabs = isOrganizationAdmin ? REVIEWER_TABS : INSPECTOR_TABS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
-  const tabValue = STAGE_TABS.some((tab) => tab.value === current) ? current : 'evidence';
+  const tabValue = tabs.some((tab) => tab.value === current)
+    ? current
+    : isOrganizationAdmin
+      ? 'review'
+      : 'evidence';
 
   return (
     <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 1040, mx: 'auto' }}>
       <Box sx={{ mb: 3 }}>
         <Button
           startIcon={<ArrowBackRounded />}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (isOrganizationAdmin) {
+              navigate(`${getSectionPath('client', 'inspections')}?view=reports`);
+              return;
+            }
+            navigate(-1);
+          }}
           sx={{
             color: 'text.secondary',
             fontWeight: 500,
@@ -40,16 +60,20 @@ export default function InspectionDetailPage() {
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          Back to list
+          {isOrganizationAdmin ? 'Back to review queue' : 'Back to list'}
         </Button>
 
         <PageHeader
-          title="Inspection Detail"
-          subtitle={`Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`}
+          title={isOrganizationAdmin ? 'Inspection review' : 'Inspection Detail'}
+          subtitle={
+            isOrganizationAdmin
+              ? `Inspection ID: ${inspectionId} · Report decision, evidence and Inspector findings`
+              : `Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`
+          }
         />
 
         <Tabs value={tabValue} sx={{ mt: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          {STAGE_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <Tab
               key={tab.value}
               label={tab.label}

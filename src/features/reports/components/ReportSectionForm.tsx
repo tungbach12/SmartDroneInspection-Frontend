@@ -4,18 +4,9 @@ import type {
   ReportOverallCondition,
 } from '@/features/inspections/api/inspectionApi';
 
-/**
- * The report's authored sections, laid out as Report 3 §3.7.2 requires them.
- *
- * <p>Sections are headings and fields on one page rather than nested cards: a report reads as a
- * document, and the density is what an author checking fifty field entries needs.
- */
 export interface ReportSectionFormProps {
   sections: ReportSectionValues;
-  onChange: <K extends keyof ReportSectionValues>(
-    field: K,
-    value: ReportSectionValues[K],
-  ) => void;
+  onChange: <K extends keyof ReportSectionValues>(field: K, value: ReportSectionValues[K]) => void;
   disabled: boolean;
   saving: boolean;
   hasChanges: boolean;
@@ -24,6 +15,7 @@ export interface ReportSectionFormProps {
 export interface ReportSectionValues {
   executiveSummary: string;
   purposeScopeCriteria: string;
+  inspectorCoverageAssessment: string;
   methodEquipmentConditions: string;
   conclusionsRecommendations: string;
   overallCondition: ReportOverallCondition | '';
@@ -33,19 +25,19 @@ export interface ReportSectionValues {
 export const EMPTY_SECTION_VALUES: ReportSectionValues = {
   executiveSummary: '',
   purposeScopeCriteria: '',
+  inspectorCoverageAssessment: '',
   methodEquipmentConditions: '',
   conclusionsRecommendations: '',
   overallCondition: '',
   omissionDisclosure: '',
 };
 
-export function sectionValuesFrom(
-  version: InspectionReportVersion | null,
-): ReportSectionValues {
+export function sectionValuesFrom(version: InspectionReportVersion | null): ReportSectionValues {
   const stored = version?.sections;
   return {
     executiveSummary: stored?.executiveSummary ?? '',
     purposeScopeCriteria: stored?.purposeScopeCriteria ?? '',
+    inspectorCoverageAssessment: stored?.inspectorCoverageAssessment ?? '',
     methodEquipmentConditions: stored?.methodEquipmentConditions ?? '',
     conclusionsRecommendations: stored?.conclusionsRecommendations ?? '',
     overallCondition: stored?.overallCondition ?? '',
@@ -59,48 +51,78 @@ const CONDITIONS: { value: ReportOverallCondition; label: string }[] = [
   { value: 'POOR', label: 'Poor' },
   { value: 'CRITICAL', label: 'Critical' },
 ];
+const MAX_SECTION = 4_000;
+const MAX_DISCLOSURE = 2_000;
 
-const MAX_SECTION = 10000;
-const MAX_DISCLOSURE = 2000;
+export type AuthoredReportSection =
+  | 'executiveSummary'
+  | 'purposeScopeCriteria'
+  | 'methodEquipmentConditions'
+  | 'omissionDisclosure'
+  | 'conclusionsRecommendations';
 
-interface SectionProps {
+interface SectionDetails {
   title: string;
   accountable: string;
   description: string;
-  children: React.ReactNode;
+  maxLength: number;
+  rows: number;
 }
 
-function Section({ title, accountable, description, children }: SectionProps) {
+const SECTION_DETAILS: Record<AuthoredReportSection, SectionDetails> = {
+  executiveSummary: {
+    title: 'Executive summary',
+    accountable: 'Inspector · approved with report',
+    description: 'Observed condition, important confirmed findings, priority actions and overall condition. Do not state whole-asset safety.',
+    maxLength: MAX_SECTION,
+    rows: 5,
+  },
+  purposeScopeCriteria: {
+    title: 'Purpose, scope and criteria',
+    accountable: 'SYSTEM records · Inspector may annotate',
+    description: 'Objective, scope, components, criteria and planned shot-list are composed from inspection records. Planned items are not proof of observed coverage.',
+    maxLength: MAX_SECTION,
+    rows: 4,
+  },
+  methodEquipmentConditions: {
+    title: 'Method, equipment and conditions',
+    accountable: 'Inspector',
+    description: 'Record the method actually used, equipment and site conditions. Planned dates or assigned equipment are not evidence of field activity.',
+    maxLength: MAX_SECTION,
+    rows: 4,
+  },
+  omissionDisclosure: {
+    title: 'Limitations and omissions',
+    accountable: 'Inspector',
+    description: 'Anything not observed, not supplied or not verified. In the delivered report this disclosure appears within Executive summary.',
+    maxLength: MAX_DISCLOSURE,
+    rows: 3,
+  },
+  conclusionsRecommendations: {
+    title: 'Conclusions and recommendations',
+    accountable: 'Inspector · approved with report',
+    description: 'Point-in-time conclusions within observed scope, next actions and specialist checks required.',
+    maxLength: MAX_SECTION,
+    rows: 4,
+  },
+};
+
+function Section({
+  title,
+  accountable,
+  description,
+  children,
+}: SectionDetails & { children: React.ReactNode }) {
   return (
-    <Box component="section" sx={{ mb: 3.5 }}>
+    <Box component="section" sx={{ mb: 3 }}>
       <Box sx={{ mb: 1 }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-          <Typography
-            component="h2"
-            sx={{
-              fontSize: '0.9375rem',
-              fontWeight: 700,
-              color: '#101828',
-              letterSpacing: '-0.01em',
-            }}
-          >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
+          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#101828' }}>
             {title}
           </Typography>
-          <Chip
-            size="small"
-            label={accountable}
-            sx={{
-              height: 18,
-              fontSize: '10px',
-              fontWeight: 700,
-              bgcolor: '#f2f4f7',
-              color: '#475467',
-            }}
-          />
+          <Chip size="small" label={accountable} sx={{ height: 18, fontSize: '10px', fontWeight: 700 }} />
         </Stack>
-        <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>
-          {description}
-        </Typography>
+        <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>{description}</Typography>
       </Box>
       {children}
     </Box>
@@ -122,6 +144,7 @@ function SectionField({
   maxLength: number;
   rows: number;
 }) {
+  const showCount = value.length >= Math.floor(maxLength * 0.8);
   return (
     <TextField
       fullWidth
@@ -133,134 +156,101 @@ function SectionField({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
       slotProps={{ htmlInput: { maxLength } }}
-      helperText={`${value.length} / ${maxLength}`}
+      helperText={showCount ? `${value.length} / ${maxLength}` : undefined}
       sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
     />
   );
 }
 
-export function ReportSectionForm({
+export function ReportSectionField({
+  section,
   sections,
   onChange,
   disabled,
-  saving,
-  hasChanges,
-}: ReportSectionFormProps) {
-  return (
-    <Box>
-      {hasChanges && (
-        <Chip
-          size="small"
-          color="warning"
-          label={saving ? 'Saving sections…' : 'Unsaved section changes'}
-          sx={{ mb: 2, height: 22, fontSize: '11px', fontWeight: 700 }}
-        />
-      )}
+}: Pick<ReportSectionFormProps, 'sections' | 'onChange' | 'disabled'> & {
+  section: AuthoredReportSection;
+}) {
+  const details = SECTION_DETAILS[section];
+  if (section === 'purposeScopeCriteria') {
+    return (
+      <Section {...details}>
+        <Stack spacing={1.5}>
+          <Box
+            aria-label="Purpose scope and criteria from inspection records"
+            sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'action.hover', whiteSpace: 'pre-line' }}
+          >
+            <Typography variant="body2">{sections.purposeScopeCriteria || 'Inspection objective, scope, components, criteria and planned shot-list are not supplied.'}</Typography>
+          </Box>
+          <SectionField
+            label="Inspector coverage assessment (optional)"
+            value={sections.inspectorCoverageAssessment}
+            onChange={(value) => onChange('inspectorCoverageAssessment', value)}
+            disabled={disabled}
+            maxLength={MAX_SECTION}
+            rows={3}
+          />
+        </Stack>
+      </Section>
+    );
+  }
 
-      <Section
-        title="Executive summary"
-        accountable="Inspector · approved by Organization Admin"
-        description="Observed condition, the important confirmed findings, priority actions and limitations. Do not state whole-asset safety."
-      >
+  if (section === 'executiveSummary') {
+    return (
+      <Section {...details}>
         <Stack spacing={1.5}>
           <Box>
-            <Typography variant="caption" sx={{ color: '#475467', fontWeight: 700 }}>
-              Overall condition
-            </Typography>
+            <Typography variant="caption" sx={{ color: '#475467', fontWeight: 700 }}>Overall condition</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
               {CONDITIONS.map((option) => (
                 <Chip
                   key={option.value}
                   label={option.label}
-                  onClick={() =>
-                    !disabled &&
-                    onChange(
-                      'overallCondition',
-                      sections.overallCondition === option.value ? '' : option.value,
-                    )
-                  }
-                  color={
-                    sections.overallCondition === option.value ? 'primary' : 'default'
-                  }
-                  variant={
-                    sections.overallCondition === option.value ? 'filled' : 'outlined'
-                  }
+                  onClick={() => !disabled && onChange('overallCondition', sections.overallCondition === option.value ? '' : option.value)}
+                  color={sections.overallCondition === option.value ? 'primary' : 'default'}
+                  variant={sections.overallCondition === option.value ? 'filled' : 'outlined'}
                   disabled={disabled}
                   sx={{ fontWeight: 600 }}
                 />
               ))}
             </Stack>
           </Box>
-          <SectionField
-            label="Executive summary"
-            value={sections.executiveSummary}
-            onChange={(next) => onChange('executiveSummary', next)}
-            disabled={disabled}
-            maxLength={MAX_SECTION}
-            rows={5}
-          />
+          <SectionField label="Executive summary text" value={sections.executiveSummary} onChange={(value) => onChange('executiveSummary', value)} disabled={disabled} maxLength={details.maxLength} rows={details.rows} />
         </Stack>
       </Section>
+    );
+  }
 
-      <Section
-        title="Purpose, scope and criteria"
-        accountable="Inspector · approved by Organization Admin"
-        description="The inspection objective, which components were included and excluded, the shot-list coverage and the supplied technical criteria with their versions."
-      >
-        <SectionField
-          label="Purpose, scope and criteria"
-          value={sections.purposeScopeCriteria}
-          onChange={(next) => onChange('purposeScopeCriteria', next)}
-          disabled={disabled}
-          maxLength={MAX_SECTION}
-          rows={5}
-        />
-      </Section>
+  const value = sections[section];
+  return (
+    <Section {...details}>
+      <SectionField
+        label={`${details.title} text`}
+        value={value}
+        onChange={(next) => onChange(section, next)}
+        disabled={disabled}
+        maxLength={details.maxLength}
+        rows={details.rows}
+      />
+    </Section>
+  );
+}
 
-      <Section
-        title="Method, equipment and conditions"
-        accountable="Inspector"
-        description="The method actually used, the drone and payload where recorded, the measurement method where applicable, and the site conditions. Record unavailable data rather than omitting it."
-      >
-        <SectionField
-          label="Method, equipment and conditions"
-          value={sections.methodEquipmentConditions}
-          onChange={(next) => onChange('methodEquipmentConditions', next)}
-          disabled={disabled}
-          maxLength={MAX_SECTION}
-          rows={5}
+export function ReportSectionForm(props: ReportSectionFormProps) {
+  return (
+    <Stack spacing={2}>
+      {props.hasChanges && (
+        <Chip
+          size="small"
+          color="warning"
+          label={props.saving ? 'Saving sections…' : 'Unsaved section changes'}
+          sx={{ alignSelf: 'flex-start', height: 22, fontSize: '11px', fontWeight: 700 }}
         />
-      </Section>
-
-      <Section
-        title="Limitations and omissions"
-        accountable="Inspector"
-        description="Anything not observed, not supplied, or not verified. A causal explanation stays a hypothesis unless a method validated it."
-      >
-        <SectionField
-          label="Limitations and omissions"
-          value={sections.omissionDisclosure}
-          onChange={(next) => onChange('omissionDisclosure', next)}
-          disabled={disabled}
-          maxLength={MAX_DISCLOSURE}
-          rows={3}
-        />
-      </Section>
-
-      <Section
-        title="Conclusions and recommendations"
-        accountable="Inspector and qualified reviewer"
-        description="The point-in-time assessment limited to the observed scope, the suggested next actions and any specialist or additional checks required."
-      >
-        <SectionField
-          label="Conclusions and recommendations"
-          value={sections.conclusionsRecommendations}
-          onChange={(next) => onChange('conclusionsRecommendations', next)}
-          disabled={disabled}
-          maxLength={MAX_SECTION}
-          rows={5}
-        />
-      </Section>
-    </Box>
+      )}
+      <ReportSectionField section="executiveSummary" {...props} />
+      <ReportSectionField section="purposeScopeCriteria" {...props} />
+      <ReportSectionField section="methodEquipmentConditions" {...props} />
+      <ReportSectionField section="omissionDisclosure" {...props} />
+      <ReportSectionField section="conclusionsRecommendations" {...props} />
+    </Stack>
   );
 }

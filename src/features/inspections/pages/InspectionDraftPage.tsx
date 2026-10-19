@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
-import { Alert, Button, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Divider, Paper, Stack, Typography } from '@mui/material';
 import {
   getSectionPath,
   PORTAL_IDS,
@@ -38,9 +37,6 @@ export default function InspectionDraftPage() {
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
 
-  const [narrative, setNarrative] = useState('');
-  const [omissionDisclosure, setOmissionDisclosure] = useState('');
-
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
   const findingsConfirmed = Boolean(workflow.data?.findingsSnapshotHash) && [
     'REPORT_DRAFT',
@@ -58,14 +54,14 @@ export default function InspectionDraftPage() {
     <Stack spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          You are viewing this inspection as a reader. Report drafting belongs to the assigned
-          Inspector.
+          Organization Admin review actions are available on the Review report tab. This stage is
+          retained for read-only status and version history.
         </Alert>
       )}
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      {isInspector && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
-          Report draft
+          Create report draft
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           MF3-07 proposes a value for each authored report section from the authorized sources.
@@ -122,41 +118,20 @@ export default function InspectionDraftPage() {
             Start a draft without the model
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            MF3-07 can fail or be unavailable. This seeds the version with your own narrative and
-            the omitted-analysis disclosure so the same author and reviewer gates still apply; you
-            then author each §3.7.2 section on the report document.
+            Creates an empty structured report version without calling the drafting model. Author
+            each report section once on the report document; the choice of manual drafting is kept as
+            provenance and is not repeated as an inspection limitation.
           </Typography>
-          <TextField
-            label="Narrative"
-            multiline
-            minRows={4}
-            value={narrative}
-            onChange={(event) => setNarrative(event.target.value)}
-            slotProps={{ htmlInput: { maxLength: 10000 } }}
-          />
-          <TextField
-            label="Omitted analysis disclosure"
-            multiline
-            minRows={2}
-            value={omissionDisclosure}
-            onChange={(event) => setOmissionDisclosure(event.target.value)}
-            slotProps={{ htmlInput: { maxLength: 2000 } }}
-          />
           <Button
             variant="outlined"
-            disabled={!isInspector || isPublished || !findingsConfirmed || !narrative.trim() || authorManualDraft.isPending}
+            disabled={!isInspector || isPublished || !findingsConfirmed || authorManualDraft.isPending}
             startIcon={authorManualDraft.isPending ? <AiMotionFigure name="draftRibbon" size={20} /> : undefined}
             onClick={() => {
-              const trimmedDisclosure = omissionDisclosure.trim();
-              authorManualDraft.mutate(
-                trimmedDisclosure
-                  ? { narrative: narrative.trim(), omissionDisclosure: trimmedDisclosure }
-                  : { narrative: narrative.trim() },
-              );
+              authorManualDraft.mutate({});
             }}
             sx={{ alignSelf: 'flex-start' }}
           >
-            {authorManualDraft.isPending ? 'Saving draft…' : 'Save structured draft'}
+            {authorManualDraft.isPending ? 'Creating draft…' : 'Create manual draft'}
           </Button>
           {authorManualDraft.isError && (
             <Alert severity="error">
@@ -164,10 +139,10 @@ export default function InspectionDraftPage() {
             </Alert>
           )}
         </Stack>
-      </Paper>
+      </Paper>}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">Report document</Typography>
+        <Typography variant="h6">{isInspector ? 'Report document' : 'Report versions'}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {hasVersion
             ? `${(versions.data ?? []).length} version(s) available.`

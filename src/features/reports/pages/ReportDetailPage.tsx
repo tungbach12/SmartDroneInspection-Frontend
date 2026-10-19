@@ -29,14 +29,12 @@ import {
   useInspectionFindings,
   useInspectionEvidence,
   useSaveReportSections,
-  useDecideFinding,
   useRecordCorrectiveAction,
   useCompleteCorrectiveHandoff,
   useDeclareNoCorrectiveWork,
   useInspectionWorkflowState,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
-import { FindingDecisionControls } from '@/features/inspections/components/FindingDecisionControls';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -82,7 +80,6 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
-  const decideFinding = useDecideFinding(inspectionId);
   const recordCorrectiveAction = useRecordCorrectiveAction(inspectionId);
   const completeCorrectiveHandoff = useCompleteCorrectiveHandoff(inspectionId);
   const declareNoCorrectiveWork = useDeclareNoCorrectiveWork(inspectionId);
@@ -96,11 +93,8 @@ export default function ReportDetailPage() {
     null;
 
   const isAuthor = Boolean(openVersion && userId === openVersion.authorUserId);
-  const unresolvedFindings = (findings.data ?? []).filter(
-    (finding) => finding.decision == null || finding.decidedByUserId == null,
-  );
   const officialFindings = (findings.data ?? []).filter(
-    (finding) => finding.decision === 'CONFIRMED' || finding.decision === 'MODIFIED',
+    (finding) => finding.inspectorConfirmedAt != null || finding.decidedByUserId != null,
   );
   const correctiveActionPending = officialFindings.filter(
     (finding) => finding.correctiveActionReviewedByUserId == null,
@@ -109,10 +103,9 @@ export default function ReportDetailPage() {
   const publishedUnhanded =
     openVersion?.status === 'PUBLISHED' &&
     (inspectionStatus === 'REPORT_PUBLISHED' || inspectionStatus == null);
-  const reviewFindingsLoading = findings.isLoading || Boolean(findings.error);
-  const reviewerHasDecidedFindings = (findings.data ?? []).some((finding) => finding.decidedByUserId != null);
+  const reportReadLoading = findings.isLoading || evidence.isLoading || Boolean(findings.error || evidence.error);
   const canWithdrawSubmission = Boolean(
-    canAuthor && isAuthor && openVersion?.status === 'SUBMITTED' && !reviewerHasDecidedFindings &&
+    canAuthor && isAuthor && openVersion?.status === 'SUBMITTED' &&
       openVersion.reviewerUserId == null && openVersion.reviewedAt == null,
   );
   const needsFindingsRevisionDraft =
@@ -149,7 +142,7 @@ export default function ReportDetailPage() {
             '&:hover': { bgcolor: '#f2f4f7' },
           }}
         >
-          Back to reports list
+          {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
         </Button>
       </Box>
 
@@ -165,10 +158,10 @@ export default function ReportDetailPage() {
             mb: 0.5,
           }}
         >
-          Inspection Report
+          {canReview && !canAuthor ? 'Organization Admin · Report review' : 'Inspection Report'}
         </Typography>
         <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.875rem' }}>
-          Inspection ID: {inspectionId} · Verified and versioned inspection findings
+          Inspection ID: {inspectionId} · {canReview && !canAuthor ? 'Review the submitted report, record a decision, and publish approved versions.' : 'Verified and versioned inspection findings'}
         </Typography>
       </Box>
 
@@ -355,35 +348,17 @@ export default function ReportDetailPage() {
                     {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          Review findings against source evidence
+                          Review the submitted report
                         </Typography>
-                        {reviewFindingsLoading ? (
-                          <Alert severity={findings.error ? 'error' : 'info'}>
-                            {findings.error
-                              ? 'Could not load findings. Retry before deciding or approving the report.'
-                              : 'Loading proposed findings…'}
+                        {reportReadLoading ? (
+                          <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
+                            {findings.error || evidence.error
+                              ? 'Could not load the report sources. Retry before approving or returning.'
+                              : 'Loading report sources…'}
                           </Alert>
-                        ) : null}
-                        {unresolvedFindings.map((finding) => (
-                          <FindingDecisionControls
-                            key={finding.id}
-                            findingId={finding.id}
-                            defectLabel={finding.defectLabel}
-                            isPending={decideFinding.isPending}
-                            error={decideFinding.isError ? decideFinding.error : null}
-                            onDecide={(findingId, decision, rationale) =>
-                              decideFinding.mutate({ findingId, decision, rationale })
-                            }
-                          />
-                        ))}
-                        {!reviewFindingsLoading && unresolvedFindings.length > 0 && (
+                        ) : (
                           <Alert severity="info">
-                            Decide every proposed finding before approving the report.
-                          </Alert>
-                        )}
-                        {!reviewFindingsLoading && unresolvedFindings.length === 0 && (
-                          <Alert severity="success">
-                            Every proposed finding has an independent reviewer decision.
+                            Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Admin does not separately accept each finding.
                           </Alert>
                         )}
                         <TextField
@@ -392,8 +367,8 @@ export default function ReportDetailPage() {
                           value={reviewReasonType}
                           onChange={(event) => setReviewReasonType(event.target.value as 'TEXT_REVISION' | 'FINDINGS_REVISION')}
                         >
-                          <MenuItem value="TEXT_REVISION">Report text only — keep reviewer findings decisions</MenuItem>
-                          <MenuItem value="FINDINGS_REVISION">Findings/evidence — reopen the Inspector findings stage</MenuItem>
+                          <MenuItem value="TEXT_REVISION">Report text only</MenuItem>
+                          <MenuItem value="FINDINGS_REVISION">Findings/evidence — reopen Inspector review</MenuItem>
                         </TextField>
                         <TextField
                           label="Reason for return"
@@ -410,8 +385,7 @@ export default function ReportDetailPage() {
                             color="success"
                             disabled={
                               review.isPending ||
-                              reviewFindingsLoading ||
-                              unresolvedFindings.length > 0
+                              reportReadLoading
                             }
                             onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
                             sx={{ borderRadius: '8px', px: 2.5 }}
@@ -421,7 +395,7 @@ export default function ReportDetailPage() {
                           <Button
                             variant="outlined"
                             color="error"
-                            disabled={review.isPending || reviewFindingsLoading || !reviewReason.trim()}
+                            disabled={review.isPending || reportReadLoading || !reviewReason.trim()}
                             onClick={() =>
                               review.mutate({
                                 versionId: openVersion.id,

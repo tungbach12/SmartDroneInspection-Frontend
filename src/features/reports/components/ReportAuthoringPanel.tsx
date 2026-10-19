@@ -29,7 +29,7 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ReportDerivedSections } from './ReportDerivedSections';
 import {
   EMPTY_SECTION_VALUES,
-  ReportSectionForm,
+  ReportSectionField,
   sectionValuesFrom,
   type ReportSectionValues,
 } from './ReportSectionForm';
@@ -226,22 +226,17 @@ export function ReportAuthoringPanel({
         </Alert>
       )}
 
-      <ReportSectionForm
-        sections={sections}
-        onChange={change}
-        disabled={!canEdit}
-        saving={saving}
-        hasChanges={hasChanges}
+      <ReportDerivedSections
+        version={version}
+        findings={findings}
+        evidenceList={evidenceList}
+        inspectionId={inspectionId}
+        executiveSummary={<ReportSectionField section="executiveSummary" sections={sections} onChange={change} disabled={!canEdit} />}
+        limitations={<ReportSectionField section="omissionDisclosure" sections={sections} onChange={change} disabled={!canEdit} />}
+        purposeScope={<ReportSectionField section="purposeScopeCriteria" sections={sections} onChange={change} disabled={!canEdit} />}
+        method={<ReportSectionField section="methodEquipmentConditions" sections={sections} onChange={change} disabled={!canEdit} />}
+        conclusions={<ReportSectionField section="conclusionsRecommendations" sections={sections} onChange={change} disabled={!canEdit} />}
       />
-
-      <Box sx={{ borderTop: '1px solid #eaecf0', pt: 3, mt: 1 }}>
-        <ReportDerivedSections
-          version={version}
-          findings={findings}
-          evidenceList={evidenceList}
-          inspectionId={inspectionId}
-        />
-      </Box>
 
       {/* PDF Preview Dialog */}
       <Dialog

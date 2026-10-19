@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import InspectionDetailPage from './InspectionDetailPage';
 import { renderWithRouter as render } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useLocation } from 'react-router-dom';
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -14,14 +15,19 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-function signInAsInspector() {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="route-path">{location.pathname}</div>;
+}
+
+function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: 'inspector-1',
-      email: 'inspector@example.test',
-      fullName: 'Inspector',
-      roles: ['INSPECTOR'],
+      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      email: 'user@example.test',
+      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
     },
@@ -30,7 +36,7 @@ function signInAsInspector() {
 
 beforeEach(() => {
   navigateMock.mockClear();
-  signInAsInspector();
+  signInAs('INSPECTOR');
 });
 
 afterEach(() => {
@@ -51,6 +57,22 @@ describe('InspectionDetailPage', () => {
     const back = screen.getByRole('button', { name: /back to list/i });
     back.click();
     expect(navigateMock).toHaveBeenCalledWith(-1);
+  });
+
+  it('renders an Organization Admin review workspace first and returns to the review queue', () => {
+    signInAs('ORG_ADMIN');
+    render(<><InspectionDetailPage /><LocationProbe /></>, { route: '/client/inspections/inspection-1' });
+
+    expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Review report' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Evidence review' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Findings overview' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Readiness' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Report draft' })).toBeNull();
+
+    expect(screen.getByRole('tab', { name: 'Review report' }).getAttribute('href')).toContain('review');
+    screen.getByRole('button', { name: 'Back to review queue' }).click();
+    expect(navigateMock).toHaveBeenCalledWith('/client/inspections?view=reports');
   });
 
   it('renders one tab per workspace stage', () => {

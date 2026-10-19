@@ -34,6 +34,53 @@ const version: InspectionReportVersion = {
   createdAt: '2026-01-01T00:00:00Z',
   narrative: null,
   omissionDisclosure: null,
+  reportContext: {
+    organizationName: 'Northwind Infrastructure',
+    assetCode: 'BR-014',
+    assetName: 'North span bridge',
+    assetLocation: 'District 1',
+    assetCategory: 'Bridge',
+    assignedDrone: { serialNumber: 'DR-17', manufacturer: 'SurveyCo', model: 'S2' },
+    preparation: {
+      version: 2,
+      status: 'READY',
+      shotList: 'North span, east face',
+      evidenceTypes: 'Visual photographs',
+      accessConstraints: 'Pedestrian access only',
+      safetyObservations: 'No standing water',
+      readinessDecision: 'APPROVED',
+      readinessDecisionAt: '2026-01-02T09:00:00Z',
+      readinessReason: null,
+      permitDocumentReferences: null,
+      submittedAt: '2026-01-02T08:00:00Z',
+    },
+    evidenceQuality: {
+      decision: 'ACCEPTED',
+      shotListComparison: 'North span covered',
+      limitationReason: 'East face partly obscured',
+      decidedByUserId: 'inspector-1',
+      decidedAt: '2026-01-02T10:00:00Z',
+    },
+    fieldSessions: [
+      {
+        id: 'session-1',
+        status: 'IN_PROGRESS',
+        startedAt: '2026-01-02T10:30:00Z',
+        endedAt: null,
+        preFlightChecklistNote: 'Drone identified; bridge accessible',
+        postponementReason: null,
+        abortReason: null,
+        limitations: null,
+        droneSerialNumber: 'DR-17',
+        droneManufacturer: 'SurveyCo',
+        droneModel: 'S2',
+      },
+    ],
+    reviewerQualificationDisclosure: 'Professional qualification was not independently validated.',
+    findingsConfirmedBy: 'inspector-1',
+    findingsConfirmedAt: '2026-01-02T11:00:00Z',
+    findingsSnapshotHash: 'findings-hash',
+  },
 };
 
 const evidence: EvidenceItem = {
@@ -54,6 +101,8 @@ const evidence: EvidenceItem = {
   retiredByUserId: null,
   retiredAt: null,
   retirementReason: null,
+  locationDescription: null,
+  deduplicated: false,
 };
 
 function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
@@ -75,6 +124,7 @@ function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
     priority: null,
     measurement: null,
     decision: 'CONFIRMED',
+    inspectorConfirmedAt: '2026-01-02T00:00:00Z',
     decidedByUserId: 'reviewer-1',
     decidedAt: '2026-01-02T00:00:00Z',
     repairRequired: false,
@@ -98,8 +148,8 @@ function renderSections(item: EvidenceItem, findings: VerifiedFinding[]) {
       inspectionId="inspection-1"
     />,
   );
-  const labels = container.querySelectorAll('p');
-  const locationLabel = Array.from(labels).find((label) => label.textContent === 'Location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
+  const labels = Array.from(container.querySelectorAll('p'));
+  const locationLabel = labels.find((label) => label.textContent === 'Asset location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
   return locationLabel?.parentElement?.lastElementChild;
 }
 function renderConfirmedFindings(findings: VerifiedFinding[]) {
@@ -116,47 +166,68 @@ function renderConfirmedFindings(findings: VerifiedFinding[]) {
   );
 }
 
+describe('ReportDerivedSections source context', () => {
+  it('shows source-backed organization, asset, preparation, decision and session details', () => {
+    const { container } = render(
+      <ReportDerivedSections
+        version={version}
+        findings={[]}
+        evidenceList={[]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(container.textContent).toContain('Northwind Infrastructure');
+    expect(container.textContent).toContain('North span bridge');
+    expect(container.textContent).toContain('BR-014');
+    expect(container.textContent).toContain('North span, east face');
+    expect(container.textContent).toContain('North span covered');
+    expect(container.textContent).toContain('Drone identified; bridge accessible');
+    expect(container.textContent).toContain('Professional qualification was not independently validated.');
+  });
+});
+
 describe('ReportDerivedSections evidence location', () => {
-  it('prefers supplied capture GPS over the linked official finding location', () => {
+  it('does not confuse GPS with the evidence asset location', () => {
     const item = { ...evidence, latitude: 48.123, longitude: -123.456 };
     const location = renderSections(item, [finding()]);
 
-    expect(location?.textContent).toContain('48.123, -123.456');
-    expect(location?.textContent).not.toContain('Pier 2 north face');
+    expect(location?.textContent).toContain('Not supplied');
+    expect(location?.textContent).not.toContain('48.123, -123.456');
   });
 
-  it('uses the component and location of a linked official finding when GPS is absent', () => {
+  it('does not infer a shared evidence location from linked findings', () => {
     const location = renderSections(evidence, [finding()]);
 
-    expect(location?.textContent).toContain('Pier 2 — Pier 2 north face');
+    expect(location?.textContent).toContain('Not supplied');
   });
 
-  it('uses the location of an Inspector-confirmed finding before reviewer decision', () => {
+  it('shows the shared evidence location before reviewer decision', () => {
     const location = renderSections(
-      evidence,
+      { ...evidence, locationDescription: 'Girder G4 east face' },
       [finding({ decision: null, decidedByUserId: null, decidedAt: null })],
     );
 
-    expect(location?.textContent).toContain('Pier 2 — Pier 2 north face');
+    expect(location?.textContent).toContain('Girder G4 east face');
   });
 });
 
 describe('ReportDerivedSections confirmed findings', () => {
   it('lists an Inspector-confirmed finding before reviewer decision', () => {
     const section = renderConfirmedFindings([
-      finding({ defectLabel: 'GussetPlateSectionLoss', decision: null, decidedByUserId: null, decidedAt: null }),
+      finding({ defectLabel: 'GussetPlateSectionLoss', inspectorConfirmedAt: '2026-01-02T00:00:00Z' }),
     ]);
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
-    expect(section?.textContent).toContain('UNREVIEWED');
-    expect(section?.textContent).toContain('Inspector-proposed finding(s) in this list await Organization Admin decision in Findings.');
+    expect(section?.textContent).toContain('Inspector-confirmed');
+    expect(section?.textContent).not.toContain('await Organization Admin decision');
     expect(section?.textContent).not.toContain('additional finding(s)');
     expect(section?.textContent).not.toContain('No confirmed findings were recorded');
   });
 
   it('excludes reviewer-rejected findings from the section', () => {
     const section = renderConfirmedFindings([
-      finding({ defectLabel: 'spurious-seam', decision: 'REJECTED' }),
+      finding({ defectLabel: 'spurious-seam', inspectorConfirmedAt: null }),
     ]);
 
     expect(section?.textContent).not.toContain('spurious-seam');

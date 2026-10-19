@@ -28,6 +28,7 @@ const user = {
   roles: ['ORG_ADMIN'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
+  visionFallbackEnabled: true,
 };
 
 const authenticatedFlow = {
@@ -58,6 +59,7 @@ describe('browser auth API', () => {
       password: 'secret password',
     }, 30_000);
     expect(result).toEqual(authenticatedFlow);
+    expect(result.user.visionFallbackEnabled).toBe(true);
     expect(result.user).not.toHaveProperty('providerId');
     expect(result).not.toHaveProperty('refreshToken');
   });
