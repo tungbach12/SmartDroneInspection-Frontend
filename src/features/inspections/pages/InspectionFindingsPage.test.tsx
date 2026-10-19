@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  analysisStatusQuery: { data: [] as unknown[], isLoading: false, isError: false },
   findingsQuery: {
     data: [] as unknown[] | undefined,
     isLoading: false,
@@ -51,20 +52,16 @@ const mocks = vi.hoisted(() => ({
   },
   review: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   reviseReview: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  updateLocation: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   updateFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
   deleteFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
-  decideFinding: {
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null as Error | null,
-  },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useFindingCandidates: () => mocks.candidateQuery,
+  useEvidenceAnalysisStatuses: () => mocks.analysisStatusQuery,
   useInspectionFindings: () => mocks.findingsQuery,
   useInspectionWorkflowState: () => mocks.workflowQuery,
   useConfirmFindings: () => mocks.confirm,
@@ -77,7 +74,7 @@ vi.mock('../hooks/useInspections', () => ({
   useUpdateFinding: () => mocks.updateFinding,
   useDeleteFinding: () => mocks.deleteFinding,
   useReviseReviewedCandidate: () => mocks.reviseReview,
-  useDecideFinding: () => mocks.decideFinding,
+  useUpdateEvidenceLocation: () => mocks.updateLocation,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -99,6 +96,8 @@ function imageEvidence() {
     contentType: 'image/png',
     sizeBytes: 8,
     checksumSha256: 'abcdef1234567890',
+    retiredAt: null,
+    locationDescription: null,
   };
 }
 
@@ -110,6 +109,7 @@ function pendingCandidate() {
   return {
     id: 'candidate-1',
     evidenceId: 'evidence-1',
+    modelProvider: 'yolo',
     modelName: 'advisor',
     modelVersion: 'v3',
     predictedLabel: 'Coating crack',
@@ -143,6 +143,7 @@ function undecidedFinding() {
     priority: null,
     measurement: null,
     decision: null,
+    inspectorConfirmedAt: null,
     decidedByUserId: null,
     decidedAt: null,
     repairRequired: true,
@@ -186,6 +187,7 @@ describe('InspectionFindingsPage', () => {
     signInAs(['INSPECTOR']);
     mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.candidateQuery = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
+    mocks.analysisStatusQuery = { data: [], isLoading: false, isError: false };
     mocks.findingsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
@@ -243,6 +245,38 @@ describe('InspectionFindingsPage', () => {
     expect(
       screen.getByText(/Detection starts after an accepted evidence quality decision/),
     ).toBeTruthy();
+  });
+
+  it('does not analyse retired images or show them in the Findings list', async () => {
+    mocks.evidenceQuery = {
+      data: [
+        imageEvidence(),
+        { ...imageEvidence(), id: 'retired-evidence', fileName: 'retired-span.png', retiredAt: '2026-10-17T10:00:00Z' },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.candidateQuery = {
+      data: [{ ...pendingCandidate(), evidenceId: 'retired-evidence' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
+    expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('retired-span.png')).toBeNull();
+    expect(screen.queryByText('Coating crack')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Coating crack' })).toBeNull();
+    fireEvent.click(screen.getByLabelText(/No finding was observed within the scope/));
+    expect(
+      (screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 
   it('runs detection automatically once accepted, and only for unanalysed images', async () => {
@@ -399,6 +433,20 @@ describe('InspectionFindingsPage', () => {
     ).toContain('/images/ai-motion/');
   });
 
+  it('says no defects detected after a completed empty analysis result', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.analysisStatusQuery = {
+      data: [{ evidenceId: 'evidence-1', completedAt: '2026-10-18T10:00:00Z', detectionCount: 0 }],
+      isLoading: false,
+      isError: false,
+    };
+    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText('No defects detected')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Analyze again' })).toBeTruthy();
+  });
+
   it('says no detected defects for an image that produced no candidates', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
@@ -526,7 +574,9 @@ describe('InspectionFindingsPage', () => {
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionFindingsPage />);
-    fireEvent.change(screen.getByLabelText(/Location for/), { target: { value: 'Girder G4, east face' } });
+    const sharedLocation = screen.getByLabelText(/Location for this evidence/);
+    fireEvent.change(sharedLocation, { target: { value: 'Girder G4, east face' } });
+    fireEvent.blur(sharedLocation);
     fireEvent.mouseDown(screen.getByLabelText(/Severity for/));
     fireEvent.click(screen.getByRole('option', { name: 'HIGH' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
@@ -540,9 +590,40 @@ describe('InspectionFindingsPage', () => {
         technicalNotes: 'Confirmed by assigned Inspector',
       },
     });
+    expect(mocks.updateLocation.mutate).toHaveBeenCalledWith(
+      { evidenceId: 'evidence-1', locationDescription: 'Girder G4, east face' },
+      expect.any(Object),
+    );
   });
 
-  it('shows the defect photo on each candidate card', () => {
+  it('does not show a retired evidence image in reviewer verdicts', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.evidenceQuery = {
+      data: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('SUBMITTED')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.queryByRole('img', { name: 'Coating blistering' })).toBeNull();
+    expect(document.querySelector('img[data-src*="/evidence/evidence-1/content"]')).toBeNull();
+  });
+
+  it('shows labelled bounding boxes and hides them with the evidence toggle', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.candidateQuery = {
@@ -551,17 +632,49 @@ describe('InspectionFindingsPage', () => {
       isError: false,
       refetch: vi.fn(),
     };
+    mocks.candidateQuery.data = [{ ...pendingCandidate(), boundingBox: '{"xMin":0.1,"yMin":0.2,"xMax":0.4,"yMax":0.6}' }];
     renderWithRouter(<InspectionFindingsPage />);
 
     // AuthenticatedImage renders the stored content endpoint on its image element.
     const photo = document.querySelector(
       'img[data-src*="/api/v1/inspections/inspection-1/evidence/evidence-1/content"]',
     );
-    expect(photo?.getAttribute('alt')).toBe('Coating crack');
+    expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
     expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
+    expect(screen.getByText('yolo · advisor · v3')).toBeTruthy();
+    expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
+    fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
+    expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();
   });
 
-  it('withholds reviewer verdict actions from the Inspector who only proposes findings', () => {
+  it('shows a read-only Inspector findings overview for Organization Admin', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.findingsQuery = {
+      data: [{ ...undecidedFinding(), inspectorConfirmedAt: '2026-10-08T09:00:00Z', defectLabel: 'Deck spall', severity: 'HIGH', component: 'North pier' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.candidateQuery = {
+      data: [{ ...pendingCandidate(), evidenceId: 'evidence-1', status: 'PENDING' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText('Inspector findings')).toBeTruthy();
+    expect(screen.getByText('Deck spall')).toBeTruthy();
+    expect(screen.getByText('1 pending AI candidate(s)')).toBeTruthy();
+    expect(screen.getByText('Pending Inspector review')).toBeTruthy();
+    expect(screen.queryByText('Advisory detection')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add manual finding' })).toBeNull();
+  });
+
+  it('does not show a per-finding Organization Admin reviewer panel', () => {
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false,
@@ -571,10 +684,11 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
-    expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
+    expect(screen.queryByText(/Reviewer Verdicts/)).toBeNull();
+    expect(screen.queryByText(/awaiting decision/)).toBeNull();
   });
 
-  it('keeps detection Inspector-only and exposes ORG_ADMIN decisions only for a submitted report', () => {
+  it('keeps detection Inspector-only and never exposes per-finding Org Admin decisions', () => {
     signInAs(['ORG_ADMIN']);
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
@@ -597,10 +711,11 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Re-run detection' })).toBeNull();
     expect(screen.queryByText(/Add manual finding/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Confirm finding' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
+    expect(screen.queryByText(/Reviewer Verdicts/)).toBeNull();
   });
 
-  it('does not expose ORG_ADMIN finding decisions while the selected report is a draft', () => {
+  it('does not show the removed per-finding reviewer surface on a draft', () => {
     signInAs(['ORG_ADMIN']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -618,10 +733,10 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
-    expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
+    expect(screen.queryByText(/Reviewer Verdicts/)).toBeNull();
   });
 
-  it('uses the latest report version status when deciding whether reviewer verdicts are available', () => {
+  it('does not bring back per-finding controls from an older submitted report version', () => {
     signInAs(['ORG_ADMIN']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -639,9 +754,10 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
+    expect(screen.queryByText(/Reviewer Verdicts/)).toBeNull();
   });
 
-  it('withholds ORG_ADMIN finding decisions from the report author', () => {
+  it('withholds the removed per-finding reviewer surface from report authors too', () => {
     signInAs(['ORG_ADMIN']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -659,9 +775,9 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByRole('button', { name: 'Confirm finding' })).toBeNull();
-    expect(screen.getByText(/awaits the reviewer verdict/)).toBeTruthy();
+    expect(screen.queryByText(/Reviewer Verdicts/)).toBeNull();
   });
-  it('allows Inspector to edit / correct a reviewed candidate before reviewer decision', () => {
+  it('allows the Inspector to edit a reviewed candidate before report submission', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.candidateQuery = {

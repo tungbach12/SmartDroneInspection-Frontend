@@ -14,9 +14,10 @@ export type ReportStatus =
   | 'PUBLISHED'
   | 'SUPERSEDED';
 
-export type FindingDecision = 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
-
 export type FindingSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+/** Legacy reviewer decision literals retained to read existing finding history. */
+export type FindingDecision = 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
 
 export type EvidenceQualityDecisionType =
   | 'ACCEPTED'
@@ -56,6 +57,58 @@ export interface InspectionReportVersion {
    * supplied"; it is not an empty value the author chose.
    */
   sections?: ReportSections | null;
+  /** Read-only, source-backed inspection context included with the report version response. */
+  reportContext?: InspectionReportContext | null;
+}
+
+export interface InspectionReportContext {
+  organizationName: string | null;
+  assetCode: string | null;
+  assetName: string | null;
+  assetLocation: string | null;
+  assetCategory: string | null;
+  assignedDrone: {
+    serialNumber: string | null;
+    manufacturer: string | null;
+    model: string | null;
+  } | null;
+  preparation: {
+    version: number;
+    status: string;
+    shotList: string | null;
+    evidenceTypes: string | null;
+    accessConstraints: string | null;
+    safetyObservations: string | null;
+    readinessDecision: string | null;
+    readinessDecisionAt: string | null;
+    readinessReason: string | null;
+    permitDocumentReferences: string | null;
+    submittedAt: string | null;
+  } | null;
+  evidenceQuality: {
+    decision: string;
+    shotListComparison: string | null;
+    limitationReason: string | null;
+    decidedByUserId: string | null;
+    decidedAt: string | null;
+  } | null;
+  fieldSessions: Array<{
+    id: string;
+    status: string;
+    startedAt: string | null;
+    endedAt: string | null;
+    preFlightChecklistNote: string | null;
+    postponementReason: string | null;
+    abortReason: string | null;
+    limitations: string | null;
+    droneSerialNumber: string | null;
+    droneManufacturer: string | null;
+    droneModel: string | null;
+  }>;
+  reviewerQualificationDisclosure: string | null;
+  findingsConfirmedBy: string | null;
+  findingsConfirmedAt: string | null;
+  findingsSnapshotHash: string | null;
 }
 
 export type ReportOverallCondition = 'GOOD' | 'FAIR' | 'POOR' | 'CRITICAL';
@@ -63,6 +116,7 @@ export type ReportOverallCondition = 'GOOD' | 'FAIR' | 'POOR' | 'CRITICAL';
 export interface ReportSections {
   executiveSummary?: string | null;
   purposeScopeCriteria?: string | null;
+  inspectorCoverageAssessment?: string | null;
   methodEquipmentConditions?: string | null;
   conclusionsRecommendations?: string | null;
   overallCondition?: ReportOverallCondition | null;
@@ -70,6 +124,24 @@ export interface ReportSections {
 }
 
 export type ReportSectionsInput = ReportSections;
+
+export interface EvidenceAnalysisStatus {
+  evidenceId: string;
+  completedAt: string;
+  detectionCount: number;
+}
+
+export interface EvidencePage {
+  items: EvidenceItem[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  activeCount: number;
+  retiredCount: number;
+  latestCreatedAt: string | null;
+  latestRetiredAt: string | null;
+}
 
 export interface EvidenceItem {
   id: string;
@@ -89,6 +161,8 @@ export interface EvidenceItem {
   retiredByUserId: string | null;
   retiredAt: string | null;
   retirementReason: string | null;
+  locationDescription?: string | null;
+  deduplicated?: boolean;
 }
 
 export interface EvidenceQualityDecision {
@@ -105,6 +179,7 @@ export interface EvidenceQualityDecision {
 export interface CandidateStatus {
   id: string;
   evidenceId: string;
+  modelProvider: string | null;
   modelName: string;
   modelVersion: string;
   predictedLabel: string;
@@ -141,7 +216,8 @@ export interface VerifiedFinding {
   observedCondition: string | null;
   priority: string | null;
   measurement: string | null;
-  decision: FindingDecision | null;
+  decision: string | null;
+  inspectorConfirmedAt: string | null;
   decidedByUserId: string | null;
   decidedAt: string | null;
   repairRequired: boolean;
@@ -199,10 +275,7 @@ export interface ManualFindingInput {
   repairRequired?: boolean | undefined;
 }
 
-export interface ManualDraftInput {
-  narrative: string;
-  omissionDisclosure?: string;
-}
+export interface ManualDraftInput {}
 
 export type InspectionStatus =
   | 'DRAFT'
@@ -511,6 +584,20 @@ export const inspectionApi = {
       .get<EvidenceItem[]>(`/inspections/${inspectionId}/evidence`)
       .then((response) => response.data),
 
+  queryEvidence: (
+    inspectionId: string,
+    filters: {
+      status: 'ACTIVE' | 'RETIRED' | 'ALL';
+      mediaType: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'ALL';
+      search: string;
+      page: number;
+      pageSize: number;
+    },
+  ) =>
+    api
+      .get<EvidencePage>(`/inspections/${inspectionId}/evidence/query`, { params: filters })
+      .then((response) => response.data),
+
   uploadEvidence: (inspectionId: string, file: File) => {
     const form = new FormData();
     form.append('file', file);
@@ -519,6 +606,13 @@ export const inspectionApi = {
       .post<EvidenceItem>(`/inspections/${inspectionId}/evidence`, form)
       .then((response) => response.data);
   },
+
+  updateEvidenceLocation: (inspectionId: string, evidenceId: string, locationDescription: string) =>
+    api
+      .put<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/location`, {
+        locationDescription,
+      })
+      .then((response) => response.data),
 
   evidenceContentUrl: (inspectionId: string, evidenceId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/evidence/${evidenceId}/content`,
@@ -565,6 +659,11 @@ export const inspectionApi = {
   listCandidates: (inspectionId: string) =>
     api
       .get<CandidateStatus[]>(`/inspections/${inspectionId}/finding-candidates`)
+      .then((response) => response.data),
+
+  listEvidenceAnalysisStatuses: (inspectionId: string) =>
+    api
+      .get<EvidenceAnalysisStatus[]>(`/inspections/${inspectionId}/evidence/analysis-status`)
       .then((response) => response.data),
 
   /**
@@ -639,20 +738,6 @@ export const inspectionApi = {
   listFindings: (inspectionId: string) =>
     api
       .get<VerifiedFinding[]>(`/inspections/${inspectionId}/findings`)
-      .then((response) => response.data),
-
-  // MF3-09: the reviewer's final decision on a finding.
-  decideFinding: (
-    inspectionId: string,
-    findingId: string,
-    decision: FindingDecision,
-    rationale?: string,
-  ) =>
-    api
-      .post<VerifiedFinding>(
-        `/inspections/${inspectionId}/findings/${findingId}/decision`,
-        { decision, rationale },
-      )
       .then((response) => response.data),
 
   // MF3-07 to MF3-11 report workflow.

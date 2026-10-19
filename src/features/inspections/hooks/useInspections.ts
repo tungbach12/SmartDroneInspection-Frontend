@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { useToastStore } from '@/shared/ui/Toast';
+import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
   inspectionApi,
   type CandidateStatus,
   type EvidenceQualityDecisionType,
-  type FindingDecision,
   type ApproveReadinessInput,
   type InspectionListFilters,
   type ManualDraftInput,
@@ -32,6 +33,8 @@ export const inspectionKeys = {
   assignments: () => [...inspectionKeys.all, 'assignments'] as const,
   evidence: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'evidence'] as const,
+  evidenceQuery: (inspectionId: string, filters: EvidenceQueryFilters) =>
+    [...inspectionKeys.all, inspectionId, 'evidence-query', filters] as const,
   evidenceQuality: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'evidence-quality'] as const,
   candidates: (inspectionId: string) =>
@@ -94,10 +97,39 @@ export function useRespondToAssignment() {
   });
 }
 
+export interface EvidenceQueryFilters {
+  status: 'ACTIVE' | 'RETIRED' | 'ALL';
+  mediaType: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'ALL';
+  search: string;
+  page: number;
+  pageSize: number;
+}
+
 export function useInspectionEvidence(inspectionId: string | null) {
   return useQuery({
     queryKey: inspectionKeys.evidence(inspectionId ?? ''),
     queryFn: () => inspectionApi.listEvidence(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+export function useInspectionEvidenceQuery(
+  inspectionId: string | null,
+  filters: EvidenceQueryFilters,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: inspectionKeys.evidenceQuery(inspectionId ?? '', filters),
+    queryFn: () => inspectionApi.queryEvidence(inspectionId!, filters),
+    enabled: Boolean(inspectionId) && enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useEvidenceAnalysisStatuses(inspectionId: string | null) {
+  return useQuery({
+    queryKey: [...inspectionKeys.candidates(inspectionId ?? ''), 'analysis-status'],
+    queryFn: () => inspectionApi.listEvidenceAnalysisStatuses(inspectionId!),
     enabled: Boolean(inspectionId),
   });
 }
@@ -237,48 +269,82 @@ export function useLinkPermitReferences() {
 
 export function useUploadInspectionEvidence(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (file: File) => inspectionApi.uploadEvidence(inspectionId!, file),
-    onSuccess: () => {
+    onSuccess: (item) => {
+      showToast(item.deduplicated ? `Already uploaded: ${item.fileName}` : `Uploaded ${item.fileName}`,
+        item.deduplicated ? 'info' : 'success');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
         client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'Evidence upload failed.'), 'error'),
+  });
+}
+
+export function useUpdateEvidenceLocation(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ evidenceId, locationDescription }: { evidenceId: string; locationDescription: string }) =>
+      inspectionApi.updateEvidenceLocation(inspectionId!, evidenceId, locationDescription),
+    onSuccess: () => {
+      showToast('Shared evidence location saved.');
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The shared evidence location was not saved.'), 'error'),
   });
 }
 
 export function useRetireEvidence(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({ evidenceId, reason }: { evidenceId: string; reason: string }) =>
       inspectionApi.retireEvidence(inspectionId!, evidenceId, reason),
     onSuccess: () => {
+      showToast('Evidence retired and retained for audit.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
       client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The capture was not retired.'), 'error'),
   });
 }
 
 export function useBulkRetireEvidence(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({ evidenceIds, reason }: { evidenceIds: string[]; reason: string }) =>
       inspectionApi.bulkRetireEvidence(inspectionId!, evidenceIds, reason),
-    onSuccess: () => {
+    onSuccess: (items) => {
+      showToast(`Retired ${items.length} capture(s); originals remain available for audit.`);
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
       client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Bulk retirement was not completed.'), 'error'),
   });
 }
 
@@ -299,6 +365,10 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
         return;
       }
       setError(null);
+      const showToast = useToastStore.getState().showToast;
+      const noDetectionEvidenceIds: string[] = [];
+      const failures: unknown[] = [];
+      let totalCandidates = 0;
       setAnalysingIds((current) => [
         ...current,
         ...evidenceIds.filter((evidenceId) => !current.includes(evidenceId)),
@@ -311,6 +381,9 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
               evidenceId,
               options?.replace ?? false,
             );
+            const newCandidates = created.filter((candidate) => candidate.status === 'PENDING');
+            if (newCandidates.length === 0) noDetectionEvidenceIds.push(evidenceId);
+            totalCandidates += newCandidates.length;
             client.setQueryData<CandidateStatus[]>(
               inspectionKeys.candidates(inspectionId),
               (existing) => [
@@ -321,6 +394,7 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
               ],
             );
           } catch (failure) {
+            failures.push(failure);
             setError(failure);
           } finally {
             setAnalysingIds((current) => current.filter((id) => id !== evidenceId));
@@ -328,6 +402,33 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
         }),
       );
       client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.candidates(inspectionId), 'analysis-status'] });
+      if (failures.length > 0) {
+        const firstFailure = getErrorMessage(
+          failures[0],
+          'AI analysis failed; see the inline error for details.',
+        );
+        showToast(
+          failures.length === 1
+            ? firstFailure
+            : `${failures.length} image analyses failed. ${firstFailure}`,
+          'error',
+        );
+      } else if (noDetectionEvidenceIds.length > 0 && totalCandidates > 0) {
+        showToast(
+          `Analysis completed; ${totalCandidates} candidate(s) found and no defects detected in ${noDetectionEvidenceIds.length} image(s).`,
+          'info',
+        );
+      } else if (noDetectionEvidenceIds.length > 0) {
+        showToast(
+          noDetectionEvidenceIds.length === 1
+            ? 'Analysis completed; no defects were detected in this image.'
+            : `Analysis completed; no defects were detected in ${noDetectionEvidenceIds.length} images.`,
+          'info',
+        );
+      } else if (totalCandidates > 0) {
+        showToast(`Analysis completed; ${totalCandidates} candidate(s) found.`, 'success');
+      }
     },
     [client, inspectionId],
   );
@@ -343,6 +444,7 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
 
 export function useReviewFindingCandidate(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({
       candidateId,
@@ -351,17 +453,21 @@ export function useReviewFindingCandidate(inspectionId: string | null) {
       candidateId: string;
       input: ReviewCandidateInput;
     }) => inspectionApi.reviewCandidate(inspectionId!, candidateId, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      showToast(variables.input.decision === 'REJECTED' ? 'AI candidate rejected.' : 'Inspector finding saved.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The candidate decision was not saved.'), 'error'),
   });
 }
 
 export function useReviseReviewedCandidate(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({
       candidateId,
@@ -371,57 +477,70 @@ export function useReviseReviewedCandidate(inspectionId: string | null) {
       input: ReviewCandidateInput;
     }) => inspectionApi.reviseReviewedCandidate(inspectionId!, candidateId, input),
     onSuccess: () => {
+      showToast('Reviewed finding updated.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The reviewed finding was not updated.'), 'error'),
   });
 }
 
 export function useCreateManualFinding(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (input: ManualFindingInput) =>
       inspectionApi.createManualFinding(inspectionId!, input),
     onSuccess: () => {
+      showToast('Manual finding added.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The manual finding was not saved.'), 'error'),
   });
 }
 
 export function useUpdateFinding(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({ findingId, input }: { findingId: string; input: ManualFindingInput }) =>
       inspectionApi.updateFinding(inspectionId!, findingId, input),
     onSuccess: () => {
+      showToast('Finding updated.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The finding was not updated.'), 'error'),
   });
 }
 
 export function useDeleteFinding(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({ findingId, reason }: { findingId: string; reason: string }) =>
       inspectionApi.deleteFinding(inspectionId!, findingId, reason),
     onSuccess: () => {
+      showToast('Finding removed from the confirmed set.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.candidates(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The finding was not removed.'), 'error'),
   });
 }
 
@@ -436,18 +555,26 @@ export function useEvidenceQualityHistory(inspectionId: string | null) {
 /** MF3-03/04: accepting the evidence set is what makes it eligible for advisory detection. */
 export function useDecideEvidenceQuality(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (input: {
       decision: EvidenceQualityDecisionType;
       shotListComparison?: string;
       limitationReason?: string;
     }) => inspectionApi.decideEvidenceQuality(inspectionId!, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      showToast(
+        variables.decision === 'ACCEPTED'
+          ? 'Evidence quality accepted; the set is ready for detection.'
+          : 'Evidence quality decision recorded.',
+      );
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The evidence decision was not recorded.'), 'error'),
   });
 }
 
@@ -467,52 +594,35 @@ export function useInspectionFindings(inspectionId: string | null) {
   });
 }
 
-/** MF3-09: the qualified reviewer's final decision on a finding. */
-export function useDecideFinding(inspectionId: string | null) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      findingId,
-      decision,
-      rationale,
-    }: {
-      findingId: string;
-      decision: FindingDecision;
-      rationale?: string;
-    }) => inspectionApi.decideFinding(inspectionId!, findingId, decision, rationale),
-    onSuccess: () => {
-      if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
-      }
-    },
-  });
-}
-
 export function useReopenFindings(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.reopenFindings(inspectionId!),
     onSuccess: () => {
+      showToast('Findings reopened for revision.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'Findings were not reopened.'), 'error'),
   });
 }
 
 export function useConfirmFindings(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (noFindingsAcknowledged: boolean) =>
       inspectionApi.confirmFindings(inspectionId!, noFindingsAcknowledged),
     onSuccess: () => {
+      showToast('Findings confirmed and locked for the report stage.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
       client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'Findings were not confirmed.'), 'error'),
   });
 }
 
@@ -526,26 +636,34 @@ export function useReportVersions(inspectionId: string | null) {
 
 export function useGenerateReportDraft(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.generateDraft(inspectionId!),
     onSuccess: () => {
+      showToast('AI-assisted report draft created.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The AI-assisted draft was not created.'), 'error'),
   });
 }
 
 /** MF3-08: the author writes a structured draft when automated drafting is unavailable. */
 export function useAuthorManualDraft(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (input: ManualDraftInput) => inspectionApi.authorManualDraft(inspectionId!, input),
     onSuccess: () => {
+      showToast('Empty manual report draft created.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The manual report draft was not created.'), 'error'),
   });
 }
 
@@ -556,10 +674,12 @@ export function useAuthorManualDraft(inspectionId: string | null) {
  */
 export function useSaveReportSections(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (input: { versionId: string; sections: ReportSectionsInput }) =>
       inspectionApi.saveReportSections(inspectionId!, input.versionId, input.sections),
     onSuccess: (_data, input) => {
+      showToast('Report sections saved.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({
@@ -567,39 +687,47 @@ export function useSaveReportSections(inspectionId: string | null) {
         });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The report sections were not saved.'), 'error'),
   });
 }
 
 /** MF3-08: the author verifies the draft against its sources, then submits it for review. */
 export function useVerifyReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (versionId: string) =>
       inspectionApi.verifyVersion(inspectionId!, versionId),
     onSuccess: () => {
+      showToast('Report verified by the author.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The report was not verified.'), 'error'),
   });
 }
 
 export function useSubmitReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (versionId: string) =>
       inspectionApi.submitVersion(inspectionId!, versionId),
     onSuccess: () => {
+      showToast('Report submitted for Organization Admin review.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The report was not submitted.'), 'error'),
   });
 }
 
 /** MF3-09: returning requires a reason; approval is an explicit act that never defaults. */
 export function useReviewReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({
       versionId,
@@ -612,22 +740,26 @@ export function useReviewReportVersion(inspectionId: string | null) {
       reason?: string;
       reasonType?: 'TEXT_REVISION' | 'FINDINGS_REVISION';
     }) => inspectionApi.reviewVersion(inspectionId!, versionId, approve, reason, reasonType),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      showToast(variables.approve ? 'Report approved.' : 'Report returned to the Inspector.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The report review was not recorded.'), 'error'),
   });
 }
 
 export function useWithdrawReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
       inspectionApi.withdrawVersion(inspectionId!, versionId, reason),
     onSuccess: () => {
+      showToast('Submission withdrawn back to draft.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
@@ -635,11 +767,13 @@ export function useWithdrawReportVersion(inspectionId: string | null) {
       client.invalidateQueries({ queryKey: inspectionKeys.evidenceQuality(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The submission was not withdrawn.'), 'error'),
   });
 }
 
 export function useRecordCorrectiveAction(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: ({
       findingId,
@@ -669,46 +803,59 @@ export function useRecordCorrectiveAction(inspectionId: string | null) {
       return inspectionApi.recordCorrectiveAction(inspectionId!, findingId, input);
     },
     onSuccess: () => {
+      showToast('Corrective outcome recorded for this finding.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The corrective outcome was not recorded.'), 'error'),
   });
 }
 
 export function useDeclareNoCorrectiveWork(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (rationale: string) =>
       inspectionApi.declareNoCorrectiveWork(inspectionId!, rationale),
     onSuccess: () => {
+      showToast('No corrective work declared; the inspection is closed.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The no-repair outcome was not recorded.'), 'error'),
   });
 }
 
 export function useCompleteCorrectiveHandoff(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.completeCorrectiveHandoff(inspectionId!),
     onSuccess: () => {
+      showToast('Corrective handoff to MF4 completed.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The corrective handoff was not completed.'), 'error'),
   });
 }
 
 export function usePublishReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (versionId: string) =>
       inspectionApi.publishVersion(inspectionId!, versionId),
     onSuccess: () => {
+      showToast('Approved report published.');
       if (inspectionId) {
         // Publishing moves the inspection to REPORT_PUBLISHED, which is what reveals the MF3-12
         // corrective-outcome panel on the report page.
@@ -716,5 +863,6 @@ export function usePublishReportVersion(inspectionId: string | null) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
+    onError: (error) => showToast(getErrorMessage(error, 'The report was not published.'), 'error'),
   });
 }

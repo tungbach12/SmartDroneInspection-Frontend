@@ -233,6 +233,43 @@ describe('InspectionsPage', () => {
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 
+  it('presents an Organization Admin review queue with status-specific next actions', async () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          { ...listedInspection(), id: 'submitted-1', objective: 'Review bridge report', reportId: 'report-1', reportStatus: 'SUBMITTED', reportVersionNo: 3 },
+          { ...listedInspection(), id: 'approved-1', objective: 'Publish tower report', reportId: 'report-2', reportStatus: 'APPROVED', reportVersionNo: 2 },
+          { ...listedInspection(), id: 'published-1', objective: 'Follow up dam report', reportId: 'report-3', reportStatus: 'PUBLISHED', reportVersionNo: 1 },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 3,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/client/inspections?view=reports');
+
+    expect(await screen.findByRole('heading', { name: 'Report review queue' })).toBeTruthy();
+    expect(screen.getByText(/Review submitted report versions as a whole/)).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Decision due on this page: 1' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Ready to publish on this page: 1' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Published follow-up on this page: 1' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Publish report' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Review outcomes' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review submission' }));
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/client/inspections/submitted-1/review',
+    );
+  });
+
   it('filters to inspections with a report when the report view is chosen', async () => {
     mocks.reportsQuery = {
       data: {

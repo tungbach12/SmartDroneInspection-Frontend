@@ -12,6 +12,25 @@ describe('retired provider routes', () => {
   );
 });
 
+describe('Organization Admin MF3 reviewer routes', () => {
+  it.each([
+    ['/client/inspections/inspection-1', 'index'],
+    ['/client/inspections/inspection-1/review', 'review'],
+    ['/client/inspections/inspection-1/report', 'report'],
+    ['/client/inspections/inspection-1/evidence', 'evidence'],
+    ['/client/inspections/inspection-1/findings', 'findings'],
+    ['/client/inspections/inspection-1/preparation', 'preparation'],
+  ])('matches reviewer workspace route %s', (path, expected) => {
+    const matches = matchRoutes(router.routes, path);
+    expect(matches?.at(-1)?.route.path ?? 'index').toBe(expected);
+  });
+
+  it('does not expose the reviewer-only route from Operations', () => {
+    const matches = matchRoutes(router.routes, '/operations/inspections/inspection-1/review');
+    expect(matches?.at(-1)?.route.path).toBe('*');
+  });
+});
+
 describe('MF1 client-only routes', () => {
   it('matches /client/workforce as a guarded client section', () => {
     const matches = matchRoutes(router.routes, '/client/workforce');

@@ -28,6 +28,7 @@ interface InspectionListTableProps {
   /** Opens the inspection's own route, which is where the MF3 workflow lives. */
   onOpen: (inspectionId: string) => void;
   showReportColumn?: boolean;
+  reviewerMode?: boolean;
 }
 
 function formatDate(value: string | null): string {
@@ -60,6 +61,7 @@ export function InspectionListTable({
   onPageSizeChange,
   onOpen,
   showReportColumn = false,
+  reviewerMode = false,
 }: InspectionListTableProps) {
   return (
     <Paper
@@ -109,39 +111,43 @@ export function InspectionListTable({
                   borderColor: 'divider',
                 }}
               >
-                Objective
+                {reviewerMode ? 'Inspection' : 'Objective'}
               </TableCell>
-              <TableCell
-                sx={{
-                  bgcolor: 'background.default',
-                  color: 'text.secondary',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  py: 1.5,
-                  px: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  width: 170,
-                }}
-              >
-                Status
-              </TableCell>
-              <TableCell
-                sx={{
-                  bgcolor: 'background.default',
-                  color: 'text.secondary',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  py: 1.5,
-                  px: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  width: 180,
-                }}
-              >
-                Updated
-              </TableCell>
-              {showReportColumn && (
+              {!reviewerMode && (
+                <>
+                  <TableCell
+                    sx={{
+                      bgcolor: 'background.default',
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      py: 1.5,
+                      px: 2,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      width: 170,
+                    }}
+                  >
+                    Status
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      bgcolor: 'background.default',
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      py: 1.5,
+                      px: 2,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      width: 180,
+                    }}
+                  >
+                    Updated
+                  </TableCell>
+                </>
+              )}
+              {(showReportColumn || reviewerMode) && (
                 <TableCell
                   sx={{
                     bgcolor: 'background.default',
@@ -151,11 +157,11 @@ export function InspectionListTable({
                     py: 1.5,
                     px: 2,
                     borderBottom: '1px solid',
-                  borderColor: 'divider',
+                    borderColor: 'divider',
                     width: 170,
                   }}
                 >
-                  Report
+                  {reviewerMode ? 'Report status' : 'Report'}
                 </TableCell>
               )}
               <TableCell
@@ -172,14 +178,14 @@ export function InspectionListTable({
                   width: 130,
                 }}
               >
-                Action
+                {reviewerMode ? 'Reviewer action' : 'Action'}
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showReportColumn ? 5 : 4}>
+                <TableCell colSpan={reviewerMode ? 3 : showReportColumn ? 5 : 4}>
                   <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.9rem' }}>
                     No inspections match this view yet.
                   </Typography>
@@ -233,6 +239,11 @@ export function InspectionListTable({
                       >
                         {row.objective}
                       </Typography>
+                      {reviewerMode && (
+                        <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                          Asset {row.assetId.slice(0, 8)}… · Inspector {row.inspectorId.slice(0, 8)}…
+                        </Typography>
+                      )}
                       <Typography
                         variant="caption"
                         sx={{
@@ -247,32 +258,36 @@ export function InspectionListTable({
                       </Typography>
                     </TableCell>
 
-                    <TableCell
-                      sx={{
-                        py: 2,
-                        px: 2,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                      }}
-                    >
-                      <StatusChip status={row.status} />
-                    </TableCell>
+                    {!reviewerMode && (
+                      <>
+                      <TableCell
+                        sx={{
+                          py: 2,
+                          px: 2,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <StatusChip status={row.status} />
+                      </TableCell>
 
-                    <TableCell
-                      sx={{
-                        py: 2,
-                        px: 2,
-                        color: 'text.secondary',
-                        fontSize: '0.875rem',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {formatDate(row.updatedAt)}
-                    </TableCell>
+                      <TableCell
+                        sx={{
+                          py: 2,
+                          px: 2,
+                          color: 'text.secondary',
+                          fontSize: '0.875rem',
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatDate(row.updatedAt)}
+                      </TableCell>
+                      </>
+                    )}
 
-                    {showReportColumn && (
+                    {(showReportColumn || reviewerMode) && (
                       <TableCell
                         sx={{
                           py: 2,
@@ -304,6 +319,17 @@ export function InspectionListTable({
                             >
                               v{row.reportVersionNo}
                             </Box>
+                          )}
+                          {reviewerMode && row.reportId && (
+                            <Typography variant="caption" color="text.secondary">
+                              {row.reportStatus === 'SUBMITTED'
+                                ? 'Reviewer decision due'
+                                : row.reportStatus === 'APPROVED'
+                                  ? 'Ready to publish'
+                                  : row.reportStatus === 'PUBLISHED'
+                                    ? 'Post-publication follow-up'
+                                    : 'Read-only status'}
+                            </Typography>
                           )}
                         </Stack>
                       </TableCell>
@@ -341,7 +367,17 @@ export function InspectionListTable({
                           },
                         }}
                       >
-                        Open
+                        {reviewerMode
+                          ? row.reportStatus === 'SUBMITTED'
+                            ? 'Review submission'
+                            : row.reportStatus === 'APPROVED'
+                              ? 'Publish report'
+                              : row.reportStatus === 'PUBLISHED'
+                                ? 'Review outcomes'
+                                : row.reportStatus === 'RETURNED'
+                                  ? 'Read returned report'
+                                  : 'Open report'
+                          : 'Open'}
                       </Button>
                     </TableCell>
                   </TableRow>

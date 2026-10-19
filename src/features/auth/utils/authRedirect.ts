@@ -52,7 +52,7 @@ export function getAuthRedirectTarget(
 
   if (portal) {
     if (!canAccessPortal(portal, roles)) {
-      return '/forbidden';
+      return defaultPath;
     }
 
     if (secondSegment === 'account' && thirdSegment === 'security') {
@@ -62,7 +62,7 @@ export function getAuthRedirectTarget(
     if (secondSegment && SECTION_IDS.some((id) => id === secondSegment)) {
       const section = secondSegment as SectionId;
       if (!canAccessSection(portal, section, roles)) {
-        return '/forbidden';
+        return defaultPath;
       }
       return `${path}${destination.search}${destination.hash}`;
     }

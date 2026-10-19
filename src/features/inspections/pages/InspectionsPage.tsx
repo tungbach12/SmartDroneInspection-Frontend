@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Alert, Box, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { FactCheckOutlined, RateReviewOutlined, TaskAltOutlined } from '@mui/icons-material';
 import {
   getSectionPath,
   PORTAL_IDS,
@@ -32,6 +33,7 @@ export default function InspectionsPage() {
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
+  const isOrganizationAdmin = roles.includes('ORG_ADMIN');
   const canBrowse =
     roles.includes('INSPECTOR') ||
     roles.includes('ORG_ADMIN') ||
@@ -49,17 +51,25 @@ export default function InspectionsPage() {
   const inspections = view === 'reports' ? reportInspections : allInspections;
 
   const openInspection = (inspectionId: string) =>
-    navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}`);
+    navigate(
+      isOrganizationAdmin
+        ? `${getSectionPath('client', 'inspections')}/${inspectionId}${view === 'reports' ? '/review' : '/evidence'}`
+        : `${getSectionPath(portal, 'inspections')}/${inspectionId}`,
+    );
 
   // Metrics calculation
   const visibleItems = inspections.data?.items ?? [];
   const items = visibleItems;
   const totalCount = inspections.data?.totalCount ?? visibleItems.length;
-  const inProgressCount = items.filter((i) =>
-    ['PREPARING', 'READY_FOR_FLIGHT', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(i.status),
+  const inProgressCount = items.filter((item) =>
+    ['PREPARING', 'READY_FOR_FLIGHT', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(item.status),
   ).length;
-  const repairPendingCount = items.filter((i) => i.status === 'REPAIR_PENDING').length;
-  const completedCount = items.filter((i) => i.status === 'COMPLETED').length;
+  const repairPendingCount = items.filter((item) => item.status === 'REPAIR_PENDING').length;
+  const completedCount = items.filter((item) => item.status === 'COMPLETED').length;
+  // The endpoint provides the current page only, so reviewer action summaries are explicitly page-scoped.
+  const reviewCount = items.filter((item) => item.reportStatus === 'SUBMITTED').length;
+  const publishCount = items.filter((item) => item.reportStatus === 'APPROVED').length;
+  const followUpCount = items.filter((item) => item.reportStatus === 'PUBLISHED' || item.status === 'REPAIR_PENDING').length;
 
   const setView = (next: InspectionsView) => {
     setPage(1);
@@ -74,12 +84,18 @@ export default function InspectionsPage() {
   return (
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
-        title="Inspections"
-        subtitle="Review field evidence, record findings, and prepare inspection reports"
+        title={isOrganizationAdmin ? (view === 'reports' ? 'Report review queue' : 'Organization inspections') : 'Inspections'}
+        subtitle={
+          isOrganizationAdmin
+            ? view === 'reports'
+              ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
+              : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
+            : 'Review field evidence, record findings, and prepare inspection reports'
+        }
       />
 
-      {/* 4 Lytic KPI Metric Cards */}
-      <Box
+      {/* Inspector workload metrics are distinct from the Organization Admin report queue. */}
+      {!isOrganizationAdmin && <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
@@ -88,11 +104,11 @@ export default function InspectionsPage() {
         }}
       >
         <MetricCard
-          label="Total Inspections"
+          label={isOrganizationAdmin ? (view === 'reports' ? 'Reports in queue' : 'Organization inspections') : 'Total Inspections'}
           value={inspections.isLoading ? '…' : totalCount.toLocaleString()}
-          change="+8.4%"
+          change={isOrganizationAdmin ? 'Current view' : 'Operational'}
           positive
-          subtext="across organization"
+          subtext={isOrganizationAdmin ? (view === 'reports' ? 'across all pages' : 'across your organization') : 'scoped to your assignment'}
           iconType="plane"
         />
         <MetricCard
@@ -100,7 +116,7 @@ export default function InspectionsPage() {
           value={inspections.isLoading ? '…' : inProgressCount.toLocaleString()}
           change="Operational"
           positive
-          subtext="active missions"
+          subtext="active inspections"
           iconType="clock"
         />
         <MetricCard
@@ -119,12 +135,14 @@ export default function InspectionsPage() {
           subtext="immutable records"
           iconType="check-circle"
         />
-      </Box>
+      </Box>}
 
-      {/* Assignment inbox for inspectors */}
-      <Box sx={{ mb: 2.5 }}>
-        <AssignmentInboxPanel />
-      </Box>
+      {/* Assignment response is an Inspector action, not part of the organization review queue. */}
+      {roles.includes('INSPECTOR') && (
+        <Box sx={{ mb: 2.5 }}>
+          <AssignmentInboxPanel />
+        </Box>
+      )}
 
       {!canBrowse ? (
         <Alert severity="info">
@@ -133,6 +151,25 @@ export default function InspectionsPage() {
         </Alert>
       ) : (
         <Stack spacing={2.5}>
+          {isOrganizationAdmin && view === 'reports' && (
+            <Alert severity="info">
+              Review submitted report versions as a whole. Approve or return with a reason; publish an approved version separately. Post-publication corrective outcomes are recorded after release.
+            </Alert>
+          )}
+          {isOrganizationAdmin && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Paper variant="outlined" role="group" aria-label={`Decision due on this page: ${reviewCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <RateReviewOutlined color={reviewCount ? 'warning' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Decision due · this page</Typography><Typography variant="h6">{reviewCount}</Typography></Box>
+            </Paper>
+            <Paper variant="outlined" role="group" aria-label={`Ready to publish on this page: ${publishCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <TaskAltOutlined color={publishCount ? 'primary' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Ready to publish · this page</Typography><Typography variant="h6">{publishCount}</Typography></Box>
+            </Paper>
+            <Paper variant="outlined" role="group" aria-label={`Published follow-up on this page: ${followUpCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <FactCheckOutlined color={followUpCount ? 'success' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Published follow-up · this page</Typography><Typography variant="h6">{followUpCount}</Typography></Box>
+            </Paper>
+          </Stack>}
           <ToggleButtonGroup
             value={view}
             exclusive
@@ -143,8 +180,8 @@ export default function InspectionsPage() {
             size="small"
             sx={{ alignSelf: 'flex-start' }}
           >
-            <ToggleButton value="all">All</ToggleButton>
-            <ToggleButton value="reports">With report</ToggleButton>
+            <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
+            <ToggleButton value="reports">{isOrganizationAdmin ? 'Review queue' : 'With report'}</ToggleButton>
           </ToggleButtonGroup>
           <QueryState
             isLoading={inspections.isLoading}
@@ -160,7 +197,7 @@ export default function InspectionsPage() {
             }
           >
             <InspectionListTable
-              title="Inspection records"
+              title={isOrganizationAdmin && view === 'reports' ? 'Reports requiring organization action' : 'Inspection records'}
               rows={visibleItems}
               page={page}
               pageSize={pageSize}
@@ -173,6 +210,7 @@ export default function InspectionsPage() {
               }}
               onOpen={openInspection}
               showReportColumn={view === 'reports'}
+              reviewerMode={isOrganizationAdmin && view === 'reports'}
             />
           </QueryState>
         </Stack>

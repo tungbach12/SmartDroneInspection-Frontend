@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios';
 import {
+  api,
   postWithBrowserCsrf,
   withBrowserRefreshLock,
 } from '@/shared/api/client';
@@ -29,6 +30,7 @@ interface ApiUser {
   roles: unknown;
   actorZone: string;
   organizationId: string | null;
+  visionFallbackEnabled?: boolean;
 }
 
 interface ApiAuthFlow {
@@ -77,6 +79,10 @@ function parseUser(value: unknown): AuthUser {
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,
+    visionFallbackEnabled:
+      typeof user.visionFallbackEnabled === 'boolean'
+        ? user.visionFallbackEnabled
+        : true,
   };
 }
 
@@ -161,6 +167,13 @@ export async function logoutCurrentSession(): Promise<void> {
 
 export async function logoutAllSessions(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout-all');
+}
+
+export async function updateVisionFallbackPreference(visionFallbackEnabled: boolean): Promise<AuthUser> {
+  const { data } = await api.put<AuthUser>('/auth/me/ai-fallback-preference', {
+    visionFallbackEnabled,
+  });
+  return parseUser(data);
 }
 
 export async function changePassword(

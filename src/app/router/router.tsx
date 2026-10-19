@@ -57,6 +57,9 @@ const ReportDetailPage = lazy(
 const InspectionDetailPage = lazy(
   () => import('@/features/inspections/pages/InspectionDetailPage'),
 );
+const OrganizationReportReviewPage = lazy(
+  () => import('@/features/reports/pages/ReportDetailPage'),
+);
 const InspectionEvidencePage = lazy(
   () => import('@/features/inspections/pages/InspectionEvidencePage'),
 );
@@ -86,6 +89,18 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
 };
+
+function InspectionWorkspaceIndexRedirect() {
+  const roles = useAuthStore((state) => state.roles);
+  return <Navigate to={roles.includes('ORG_ADMIN') ? 'review' : 'evidence'} replace />;
+}
+
+function InspectionReportStage() {
+  const roles = useAuthStore((state) => state.roles);
+  return roles.includes('ORG_ADMIN')
+    ? <Navigate to="../review" replace />
+    : <InspectionDraftPage />;
+}
 
 function PortalEntryRedirect() {
   const roles = useAuthStore((state) => state.roles);
@@ -155,10 +170,20 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           </RequireAuth>
         ),
         children: [
-          { index: true, element: <Navigate to="evidence" replace /> },
+          { index: true, element: <InspectionWorkspaceIndexRedirect /> },
+          ...(portal === 'client'
+            ? [{
+                path: 'review',
+                element: (
+                  <RequireAuth roles={['ORG_ADMIN']}>
+                    <OrganizationReportReviewPage />
+                  </RequireAuth>
+                ),
+              }]
+            : []),
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },
-          { path: 'report', element: <InspectionDraftPage /> },
+          { path: 'report', element: <InspectionReportStage /> },
           { path: 'preparation', element: <InspectionPreparationPage /> },
         ],
       },

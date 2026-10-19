@@ -34,14 +34,14 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionPreparationPage from './InspectionPreparationPage';
 
-function signInAsInspector() {
+function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: 'inspector-1',
-      email: 'inspector@example.test',
-      fullName: 'Inspector',
-      roles: ['INSPECTOR'],
+      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      email: 'user@example.test',
+      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
     },
@@ -51,7 +51,7 @@ function signInAsInspector() {
 describe('InspectionPreparationPage', () => {
   beforeEach(() => {
     cleanup();
-    signInAsInspector();
+    signInAs('INSPECTOR');
     mocks.preparationsQuery = {
       data: [],
       isLoading: false,
@@ -64,6 +64,17 @@ describe('InspectionPreparationPage', () => {
   afterEach(() => {
     cleanup();
     useAuthStore.getState().clearSession();
+  });
+
+  it('labels the readiness stage for Organization Admin and exposes the reviewer panel', () => {
+    signInAs('ORG_ADMIN');
+    mocks.preparationsQuery.data = [{ id: 'preparation-1', status: 'SUBMITTED', updatedAt: '2026-10-19T00:00:00Z' }];
+
+    renderWithRouter(<InspectionPreparationPage />);
+
+    expect(screen.getByTestId('preparation-panel')).toBeTruthy();
+    expect(screen.getByTestId('readiness-panel')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to inspection review' })).toBeTruthy();
   });
 
   it('mounts the preparation panel with a return link to the inspection', () => {

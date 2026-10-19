@@ -25,15 +25,15 @@ describe('getAuthRedirectTarget', () => {
     ).toBe('/client/assets?sort=name#owned');
   });
 
-  it('denies an authenticated user returning to an unauthorized workspace', () => {
+  it('falls back to the role workspace for an unauthorized return destination', () => {
     expect(getAuthRedirectTarget('/admin/dashboard', ['ORG_ADMIN'])).toBe(
-      '/forbidden',
+      '/client/dashboard',
     );
   });
 
-  it('denies a role from an unavailable screen in an allowed workspace', () => {
+  it('falls back to the role workspace for a screen unavailable to that role', () => {
     expect(getAuthRedirectTarget('/operations/assets', ['INSPECTOR'])).toBe(
-      '/forbidden',
+      '/operations/dashboard',
     );
   });
 

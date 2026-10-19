@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
   Box,
+  FormControlLabel,
+  Switch,
   Button,
   Chip,
   Dialog,
@@ -16,7 +18,7 @@ import {
 } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { getAuthErrorMessage, changePassword, logoutAllSessions } from '../api/authApi';
+import { getAuthErrorMessage, changePassword, logoutAllSessions, updateVisionFallbackPreference } from '../api/authApi';
 import {
   passwordChangeSchema,
   type PasswordChangeFormValues,
@@ -29,6 +31,9 @@ export default function AccountSecurityPage() {
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
+  const [preferencePending, setPreferencePending] = useState(false);
+  const visionFallbackEnabled = user?.visionFallbackEnabled ?? true;
 
   const form = useForm<PasswordChangeFormValues>({
     resolver: zodResolver(passwordChangeSchema),
@@ -103,6 +108,53 @@ export default function AccountSecurityPage() {
             </Stack>
           </Stack>
         </Box>
+
+        {user?.roles.includes('INSPECTOR') && (
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 3,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>AI analysis fallback</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  When YOLO is unavailable, automatically try the configured vision model. A valid
+                  YOLO result with no detections never triggers fallback.
+                </Typography>
+              </Box>
+              {preferenceError && <Alert severity="error">{preferenceError}</Alert>}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={visionFallbackEnabled}
+                    disabled={preferencePending}
+                    onChange={async (_event, checked) => {
+                      setPreferencePending(true);
+                      setPreferenceError(null);
+                      try {
+                        const updated = await updateVisionFallbackPreference(checked);
+                        useAuthStore.getState().setSession({
+                          accessToken: useAuthStore.getState().accessToken!,
+                          user: updated,
+                        });
+                      } catch (error) {
+                        setPreferenceError(getAuthErrorMessage(error));
+                      } finally {
+                        setPreferencePending(false);
+                      }
+                    }}
+                  />
+                }
+                label={visionFallbackEnabled ? 'Fallback enabled' : 'Fallback disabled'}
+              />
+            </Stack>
+          </Box>
+        )}
 
         <Box
           component="form"

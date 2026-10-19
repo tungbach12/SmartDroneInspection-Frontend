@@ -18,6 +18,7 @@ export interface AuthUser {
   roles: Role[];
   actorZone: ActorZone;
   organizationId: string | null;
+  visionFallbackEnabled?: boolean;
 }
 
 interface AuthSession {
