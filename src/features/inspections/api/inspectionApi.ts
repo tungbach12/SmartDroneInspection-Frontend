@@ -368,11 +368,19 @@ export interface InspectionDetail {
   organizationId: string;
   assetId: string;
   assetName: string | null;
+  locationText?: string | null;
   assetPairAssignmentId: string | null;
   inspectorId: string;
   inspectorName: string | null;
   droneId: string | null;
   droneSerialNumber: string | null;
+  droneModel?: string | null;
+  droneServiceability?: string | null;
+  flightPermitReference?: string | null;
+  flightPermitAuthority?: string | null;
+  flightPermitValidFrom?: string | null;
+  flightPermitValidUntil?: string | null;
+  flightPermitStatus?: string | null;
   objective: string;
   scope: string | null;
   componentScope: string | null;
@@ -426,10 +434,22 @@ export interface ComplianceBlocker {
   detail: string;
 }
 
+export interface PermitSummary {
+  id: string;
+  permitReference: string | null;
+  issuingAuthority: string | null;
+  permitType: string | null;
+  areaReference: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+}
+
 export interface ComplianceGate {
   blockers: ComplianceBlocker[];
   linkedPermitIds: string[];
   requiresHumanVerification: boolean;
+  permits?: PermitSummary[];
 }
 
 /**

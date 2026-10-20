@@ -1,6 +1,7 @@
 import { RuleOutlined } from '@mui/icons-material';
-import { Alert, Stack, Typography } from '@mui/material';
+import { Alert, Box, Stack, Typography } from '@mui/material';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useComplianceGate } from '../hooks/useInspections';
 
 /**
@@ -30,6 +31,44 @@ export function ComplianceGateSection({ inspectionId }: { inspectionId: string }
       >
         {null}
       </QueryState>
+
+      {compliance.data?.permits && compliance.data.permits.length > 0 ? (
+        <Box sx={{ mb: 1.5, p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155', mb: 1 }}>
+            Applicable Flight Permits ({compliance.data.permits.length})
+          </Typography>
+          <Stack spacing={1}>
+            {compliance.data.permits.map((permit) => (
+              <Box
+                key={permit.id}
+                sx={{
+                  p: 1.5,
+                  bgcolor: '#ffffff',
+                  borderRadius: 1,
+                  border: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    📜 {permit.permitReference ?? 'Unnamed Permit'} ({permit.permitType ?? 'FLIGHT'})
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    Authority: {permit.issuingAuthority ?? 'Cục Tác chiến'} · Window:{' '}
+                    {permit.validFrom ? new Date(permit.validFrom).toLocaleDateString() : '—'} to{' '}
+                    {permit.validUntil ? new Date(permit.validUntil).toLocaleDateString() : '—'}
+                  </Typography>
+                </Box>
+                <StatusChip status={permit.status} />
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      ) : null}
 
       {compliance.data && compliance.data.blockers.length > 0 ? (
         <Stack spacing={1} sx={{ mb: 1 }}>

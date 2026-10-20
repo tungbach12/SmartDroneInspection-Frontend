@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Box, Button, Tab, Tabs } from '@mui/material';
+import { Box, Button, Tab, Tabs, Typography } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import {
+  useInspection,
   useInspectionPreparations,
   useReportVersions,
 } from '../hooks/useInspections';
@@ -49,6 +50,8 @@ export default function InspectionDetailPage() {
   const isOrganizationAdmin = roles.includes('ORG_ADMIN') && location.pathname.startsWith('/client/');
   const tabs = isOrganizationAdmin ? REVIEWER_TABS : INSPECTOR_TABS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
+  const inspectionQuery = useInspection(inspectionId);
+  const inspection = inspectionQuery.data;
 
   // A phase that has nothing in it is not a tab. The reviewer sees the phases that exist for
   // this inspection, so a missing corrective step reads as "not yet" rather than as an empty form.
@@ -111,6 +114,90 @@ export default function InspectionDetailPage() {
               : `Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`
           }
         />
+
+        {inspection && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: '#f8fafc',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' },
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+              >
+                Infrastructure Asset
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                📍 {inspection.assetName ?? 'Asset'}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+              >
+                Assigned Inspector
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                👤 {inspection.inspectorName ?? inspection.inspectorId}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+              >
+                Assigned Drone
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                🛸 {inspection.droneSerialNumber ?? 'Unassigned'}{' '}
+                {inspection.droneModel ? `(${inspection.droneModel})` : ''}
+              </Typography>
+              {inspection.droneServiceability && (
+                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  Status: {inspection.droneServiceability}
+                </Typography>
+              )}
+            </Box>
+
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+              >
+                Flight Permit (Pháp lý bay)
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 600,
+                  color: inspection.flightPermitReference ? '#0f172a' : '#d97706',
+                  mt: 0.25,
+                }}
+              >
+                📜{' '}
+                {inspection.flightPermitReference
+                  ? `${inspection.flightPermitReference}`
+                  : 'Awaiting Permit Link'}
+              </Typography>
+              {inspection.flightPermitAuthority && (
+                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  {inspection.flightPermitAuthority}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
 
         <Tabs value={tabValue} sx={{ mt: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           {visibleTabs.map((tab) => (
