@@ -112,6 +112,30 @@ export function AssetsPage() {
       ),
     },
     {
+      id: 'defaultPair',
+      label: 'Assigned Pair',
+      width: 200,
+      render: (asset) => {
+        if (!asset.defaultPair) {
+          return (
+            <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
+              Unassigned
+            </Typography>
+          );
+        }
+        return (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>
+              👤 {asset.defaultPair.inspectorName ?? 'Inspector'}
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+              🛸 {asset.defaultPair.droneSerialNumber ?? 'Drone'}
+            </Typography>
+          </Box>
+        );
+      },
+    },
+    {
       id: 'status',
       label: 'Status',
       width: 160,
@@ -391,7 +415,14 @@ function CreateAssetDialogForm({
       <DialogTitle sx={{ fontWeight: 700 }}>New Asset</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {errorMessage && <Typography color="error">{errorMessage}</Typography>}
+          {errorMessage && (
+            <Alert severity="error">
+              {errorMessage.includes('SUBSCRIPTION_INACTIVE') ||
+              errorMessage.toLowerCase().includes('subscription')
+                ? 'Your organization subscription is inactive or expired. Please contact the platform administrator to activate or renew your subscription.'
+                : errorMessage}
+            </Alert>
+          )}
           <TextField
             label="Asset code"
             required

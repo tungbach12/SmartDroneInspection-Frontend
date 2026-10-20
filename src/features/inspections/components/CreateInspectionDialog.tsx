@@ -103,7 +103,14 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
         <Stack spacing={2} sx={{ mt: 1 }}>
           {createInspection.isError && (
             <Alert severity="error">
-              {getErrorMessage(createInspection.error, 'Could not create the inspection.')}
+              {getErrorMessage(createInspection.error, 'Could not create the inspection.').includes(
+                'SCHEDULE_CONFLICT',
+              ) ||
+              getErrorMessage(createInspection.error, '')
+                .toLowerCase()
+                .includes('schedule conflict')
+                ? 'Schedule conflict: The assigned inspector or drone is already committed to another active inspection during this planned window. Please select different dates or reassign a different inspector or drone.'
+                : getErrorMessage(createInspection.error, 'Could not create the inspection.')}
             </Alert>
           )}
 

@@ -1,6 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { FactCheckOutlined, RateReviewOutlined, TaskAltOutlined } from '@mui/icons-material';
 import Add from '@mui/icons-material/Add';
 import {
@@ -19,6 +30,8 @@ import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
 
 type InspectionsView = 'all' | 'reports';
+
+const EMPTY_ITEMS: never[] = [];
 
 /**
  * The scoped inspection collection — the discovery path Report 3 §3.5.1 requires. Selecting a row
@@ -42,6 +55,7 @@ export default function InspectionsPage() {
     roles.includes('ADMIN');
   const isOrgAdmin = roles.includes('ORG_ADMIN');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -71,8 +85,12 @@ export default function InspectionsPage() {
   };
 
   // Metrics calculation
-  const visibleItems = inspections.data?.items ?? [];
+  const visibleItems = inspections.data?.items ?? EMPTY_ITEMS;
   const items = visibleItems;
+  const displayedItems = useMemo(() => {
+    if (statusFilter === 'ALL') return visibleItems;
+    return visibleItems.filter((item) => item.status === statusFilter);
+  }, [visibleItems, statusFilter]);
   const totalCount = inspections.data?.totalCount ?? visibleItems.length;
   const inProgressCount = items.filter((item) =>
     ['PREPARING', 'READY_FOR_FLIGHT', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(item.status),
@@ -209,29 +227,64 @@ export default function InspectionsPage() {
               <Box><Typography variant="caption" color="text.secondary">Corrective outcome · this page</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
             </Paper>
           </Stack>}
-          <ToggleButtonGroup
-            value={view}
-            exclusive
-            onChange={(_, next: InspectionsView | null) => {
-              if (next) setView(next);
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 1.5,
             }}
-            aria-label="Inspection list view"
-            size="small"
-            sx={{ alignSelf: 'flex-start' }}
           >
-            <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
-            <ToggleButton value="reports">{isOrganizationAdmin ? 'Review queue' : 'With report'}</ToggleButton>
-          </ToggleButtonGroup>
+            <ToggleButtonGroup
+              value={view}
+              exclusive
+              onChange={(_, next: InspectionsView | null) => {
+                if (next) setView(next);
+              }}
+              aria-label="Inspection list view"
+              size="small"
+            >
+              <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
+              <ToggleButton value="reports">{isOrganizationAdmin ? 'Review queue' : 'With report'}</ToggleButton>
+            </ToggleButtonGroup>
+
+            <TextField
+              select
+              size="small"
+              label="Status filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              sx={{ minWidth: 180 }}
+            >
+              <MenuItem value="ALL">All statuses</MenuItem>
+              <MenuItem value="ASSIGNED">Assigned</MenuItem>
+              <MenuItem value="PREPARING">Preparing</MenuItem>
+              <MenuItem value="READY_FOR_FLIGHT">Ready for Flight</MenuItem>
+              <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+              <MenuItem value="FIELD_COMPLETED">Field Completed</MenuItem>
+              <MenuItem value="REPORT_DRAFT">Report Draft</MenuItem>
+              <MenuItem value="REPORT_PUBLISHED">Report Published</MenuItem>
+              <MenuItem value="REPAIR_PENDING">Repair Pending</MenuItem>
+              <MenuItem value="COMPLETED">Completed</MenuItem>
+              <MenuItem value="CANCELLED">Cancelled</MenuItem>
+            </TextField>
+          </Stack>
           <QueryState
             isLoading={inspections.isLoading}
             error={inspections.error}
-            isEmpty={visibleItems.length === 0}
+            isEmpty={displayedItems.length === 0}
             onRetry={() => void inspections.refetch()}
             loadingLabel="Loading inspections…"
             empty={
               <EmptyState
                 title="No inspections available"
-                description="Inspections you can see will appear here."
+                description={
+                  statusFilter !== 'ALL'
+                    ? `No inspections found with status "${statusFilter}".`
+                    : 'Inspections you can see will appear here.'
+                }
               />
             }
           >
@@ -243,7 +296,7 @@ export default function InspectionsPage() {
                     : 'Organization inspections'
                   : 'Inspection records'
               }
-              rows={visibleItems}
+              rows={displayedItems}
               page={page}
               pageSize={pageSize}
               totalCount={inspections.data?.totalCount ?? 0}
