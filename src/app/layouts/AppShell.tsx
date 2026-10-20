@@ -10,6 +10,7 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   Divider,
   Drawer,
   IconButton,
@@ -21,7 +22,9 @@ import {
   Menu,
   MenuItem,
   OutlinedInput,
+  Stack,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -234,6 +237,32 @@ export function AppShell({ portal }: AppShellProps) {
           </Box>
           <AccountCircleOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
         </Button>
+
+        <Divider sx={{ mb: 1 }} />
+
+        <Stack spacing={0.5}>
+          <Button
+            fullWidth
+            color="inherit"
+            startIcon={<LogoutRounded fontSize="small" />}
+            onClick={signOut}
+            disabled={signingOut}
+            aria-label="Sign out"
+            sx={{
+              justifyContent: 'flex-start',
+              gap: 1.25,
+              px: 1,
+              minHeight: 40,
+              color: 'text.secondary',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': { bgcolor: 'action.hover', color: 'error.main' },
+            }}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </Button>
+        </Stack>
       </Box>
     </Box>
   );
@@ -268,6 +297,33 @@ export function AppShell({ portal }: AppShellProps) {
           <Typography component="h1" variant="h6" noWrap sx={{ flexGrow: 1, ml: { xs: 0.5, md: 0 }, fontSize: 16, fontWeight: 600 }}>
             {getPageTitle(location.pathname, portal)}
           </Typography>
+          {roles.length > 0 && (
+            <Chip
+              label={roles[0]}
+              size="small"
+              sx={{
+                mr: 1.25,
+                height: 24,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '.04em',
+                bgcolor: 'rgba(10, 150, 138, .12)',
+                color: 'primary.dark',
+              }}
+            />
+          )}
+          <Tooltip title={signingOut ? 'Signing out…' : 'Sign out'}>
+            <span>
+              <IconButton
+                aria-label="Sign out"
+                onClick={signOut}
+                disabled={signingOut}
+                sx={{ mr: 1, color: 'text.secondary' }}
+              >
+                <LogoutRounded fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
