@@ -17,6 +17,13 @@ export function useDrones() {
   });
 }
 
+export function useDroneSelection() {
+  return useQuery({
+    queryKey: droneKeys.selection(),
+    queryFn: () => droneApi.selection(),
+  });
+}
+
 export function useDrone(id: string, enabled = true) {
   return useQuery({
     queryKey: droneKeys.detail(id),
