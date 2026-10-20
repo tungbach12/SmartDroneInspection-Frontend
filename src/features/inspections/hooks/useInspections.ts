@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useToastStore } from '@/shared/ui/Toast';
 import {
   inspectionApi,
   type EvidenceQualityDecisionType,
   type FindingDecision,
   type ApproveReadinessInput,
+  type CreateInspectionInput,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
@@ -55,6 +57,27 @@ export function useInspectionsWithReports(filters: InspectionListFilters, enable
     queryKey: inspectionKeys.listWithReports(filters),
     queryFn: () => inspectionApi.listWithReports(filters),
     enabled,
+  });
+}
+
+export function useInspection(inspectionId: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...inspectionKeys.all, 'detail', inspectionId] as const,
+    queryFn: () => inspectionApi.getById(inspectionId!),
+    enabled: enabled && Boolean(inspectionId),
+  });
+}
+
+export function useCreateInspection() {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: (input: CreateInspectionInput) => inspectionApi.create(input),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      showToast('Inspection created and assigned');
+    },
   });
 }
 

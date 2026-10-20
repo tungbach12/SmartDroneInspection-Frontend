@@ -2,7 +2,7 @@ import { AxiosError } from 'axios';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkforceUser } from '../api/workforceApi';
+import type { WorkforceCredential, WorkforceUser } from '../api/workforceApi';
 
 const { provisionUser } = vi.hoisted(() => ({ provisionUser: vi.fn() }));
 
@@ -11,7 +11,17 @@ const users: { data: WorkforceUser[] | undefined; isLoading: boolean; error: unk
   isLoading: false,
   error: null,
 };
+const credentials: { data: WorkforceCredential[] | undefined; isLoading: boolean; error: unknown } = {
+  data: [],
+  isLoading: false,
+  error: null,
+};
+const createCredential = vi.fn();
+const reviewCredential = vi.fn();
+let credentialCreateState: { isPending: boolean; isError: boolean; error: unknown };
+let credentialReviewState: { isPending: boolean; isError: boolean; error: unknown };
 const refetch = vi.fn();
+const credentialRefetch = vi.fn();
 const updateStatus = vi.fn();
 const updateRoles = vi.fn();
 const provisionReset = vi.fn();
@@ -27,6 +37,9 @@ vi.mock('../hooks/useWorkforce', () => ({
     error: users.error,
     refetch,
   }),
+  useWorkforceCredentials: () => ({ data: credentials.data, isLoading: credentials.isLoading, error: credentials.error, refetch: credentialRefetch }),
+  useCreateWorkforceCredential: () => ({ mutate: createCredential, ...credentialCreateState, reset: vi.fn() }),
+  useReviewWorkforceCredential: () => ({ mutate: reviewCredential, ...credentialReviewState, reset: vi.fn() }),
   useProvisionWorkforceUser: (onProvisioned: (credential: { user: WorkforceUser; temporaryPassword: string }) => void) => ({
     mutate: (input: unknown, options?: { onSuccess?: (user: WorkforceUser) => void; onError?: (error: unknown) => void }) =>
       provisionUser(input, {
@@ -111,6 +124,12 @@ describe('WorkforcePage users tab', () => {
     users.data = [];
     users.isLoading = false;
     users.error = null;
+    credentials.data = [];
+    credentials.isLoading = false;
+    credentials.error = null;
+    credentialRefetch.mockReset();
+    credentialCreateState = { isPending: false, isError: false, error: null };
+    credentialReviewState = { isPending: false, isError: false, error: null };
     provisionState = { isPending: false, isError: false, error: null };
     rolesState = { isPending: false, isError: false, error: null };
     provisionReset.mockImplementation(() => {
@@ -119,6 +138,8 @@ describe('WorkforcePage users tab', () => {
     rolesReset.mockImplementation(() => {
       rolesState = { isPending: false, isError: false, error: null };
     });
+    createCredential.mockImplementation((_input, options) => options?.onSuccess?.());
+    reviewCredential.mockImplementation((_input, options) => options?.onSuccess?.());
     provisionUser.mockImplementation((_input, options) => {
       options?.onSuccess?.({
         user: { ...MEMBER, email: 'new.member@example.test', fullName: 'New Member' },
@@ -585,6 +606,111 @@ describe('WorkforcePage users tab', () => {
     expect(inputValue(/Email/)).toBe('new.member@example.test');
     expect(inputValue(/Full name/)).toBe('New Member');
     expect(screen.queryByRole('dialog', { name: 'Temporary password' })).toBeNull();
+  });
+
+  it('keeps the credential empty state visible if the subject list fails', () => {
+    users.data = undefined;
+    users.error = new Error('Workforce users unavailable.');
+    credentials.data = [];
+    credentials.isLoading = false;
+    credentials.error = null;
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(screen.getByText('No credentials recorded')).toBeTruthy();
+    expect(screen.getByText(/Workforce users are unavailable/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry workforce users' }));
+    expect(refetch).toHaveBeenCalled();
+    expect(credentialRefetch).not.toHaveBeenCalled();
+  });
+
+  it('does not offer credential creation while workforce subjects are loading', () => {
+    users.data = undefined;
+    users.isLoading = true;
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(
+      screen.getAllByRole('button', { name: 'Add credential' }).every(
+        (button) => (button as HTMLButtonElement).disabled,
+      ),
+    ).toBe(true);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Add credential' })).toBeNull();
+  });
+
+  it('shows subject-list errors and retry, and does not allow credential creation', () => {
+    users.data = undefined;
+    users.error = new Error('Could not load workforce users.');
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    expect(screen.getByText(/Workforce users are unavailable/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry workforce users' })).toBeTruthy();
+    expect(
+      screen.getAllByRole('button', { name: 'Add credential' }).every(
+        (button) => (button as HTMLButtonElement).disabled,
+      ),
+    ).toBe(true);
+  });
+
+  it('creates a credential for a workforce user with optional evidence reference and ordered dates', async () => {
+    users.data = [MEMBER];
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add credential' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Add credential' });
+    fireEvent.mouseDown(within(dialog).getByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name: /Ivy Inspector/ }));
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Credential type' }), { target: { value: 'PILOT_LICENSE' } });
+    fireEvent.change(within(dialog).getByLabelText('Issued at'), { target: { value: '2026-12-31T00:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Expires at'), { target: { value: '2026-01-01T00:00' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create credential' }));
+    expect(await within(dialog).findByText('Expiry must be after the issue date.')).toBeTruthy();
+    expect(createCredential).not.toHaveBeenCalled();
+
+    fireEvent.change(within(dialog).getByLabelText('Issued at'), { target: { value: '2026-01-01T00:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Expires at'), { target: { value: '2026-12-31T00:00' } });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Evidence ID (optional)' }), { target: { value: 'evidence-raw-ref' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create credential' }));
+    await waitFor(() => expect(createCredential).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: MEMBER.userId, evidenceId: 'evidence-raw-ref' }),
+      expect.anything(),
+    ));
+  });
+
+  it('renders expiring, expired, rejected and suspended as distinct recorded statuses', async () => {
+    credentials.data = (['EXPIRING_SOON', 'EXPIRED', 'REJECTED', 'SUSPENDED'] as const).map((status, index) => ({
+      id: `cred-${index}`, userId: MEMBER.userId, organizationId: MEMBER.organizationId, credentialType: `TYPE_${index}`, status,
+      issuer: null, credentialReference: null, issuedAt: null, expiresAt: '2026-12-31T00:00:00Z', evidenceId: null,
+      verifiedByUserId: null, verifiedAt: null, verificationReason: null, createdAt: '', updatedAt: '',
+    }));
+    users.data = [MEMBER];
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+
+    for (const status of ['EXPIRING_SOON', 'EXPIRED', 'REJECTED', 'SUSPENDED']) {
+      expect(await screen.findByText(status)).toBeTruthy();
+    }
+    expect(screen.getByText(/recorded internally/i)).toBeTruthy();
+    expect(screen.queryByText(/government verified|externally verified|verification authority/i)).toBeNull();
+  });
+
+  it('requires an internal reason and supports approve and reject actions', async () => {
+    credentials.data = [{ id: 'cred-review', userId: MEMBER.userId, organizationId: MEMBER.organizationId, credentialType: 'PILOT_LICENSE', issuer: null, credentialReference: null, issuedAt: null, expiresAt: null, status: 'PENDING_REVIEW', evidenceId: null, verifiedByUserId: null, verifiedAt: null, verificationReason: null, createdAt: '', updatedAt: '' }];
+    users.data = [MEMBER];
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Credentials' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review credential' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Review credential' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve' }));
+    expect(await within(dialog).findByText('Enter a review reason.')).toBeTruthy();
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Checked against submitted record' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject' }));
+    await waitFor(() => expect(reviewCredential).toHaveBeenCalledWith(
+      { id: 'cred-review', decision: 'REJECT', reason: 'Checked against submitted record' },
+      expect.anything(),
+    ));
   });
 
   it('starts the next provisioning from an empty form rather than the previous draft', async () => {

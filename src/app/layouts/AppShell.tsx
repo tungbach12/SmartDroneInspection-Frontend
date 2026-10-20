@@ -34,6 +34,7 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
+import GroupsIcon from '@mui/icons-material/Groups';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';

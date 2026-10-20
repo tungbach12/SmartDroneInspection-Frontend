@@ -3,6 +3,9 @@ import { PersonAddAlt } from '@mui/icons-material';
 import {
   Box,
   Button,
+  Alert,
+  Tab,
+  Tabs,
   Checkbox,
   Dialog,
   DialogActions,
@@ -23,15 +26,22 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { ProvisionWorkforceUserDialog } from '../components/ProvisionWorkforceUserDialog';
 import { TemporaryPasswordDialog } from '../components/TemporaryPasswordDialog';
+import { CreateCredentialDialog } from '../components/CreateCredentialDialog';
+import { ReviewCredentialDialog } from '../components/ReviewCredentialDialog';
 import {
   GRANTABLE_WORKFORCE_ROLES,
   type GrantableWorkforceRole,
+  type CreateWorkforceCredentialInput,
   type ProvisionWorkforceUserInput,
+  type WorkforceCredential,
   type WorkforceUser,
   type WorkforceUserStatus,
 } from '../api/workforceApi';
 import {
+  useCreateWorkforceCredential,
   useProvisionWorkforceUser,
+  useReviewWorkforceCredential,
+  useWorkforceCredentials,
   useUpdateWorkforceUserRoles,
   useUpdateWorkforceUserStatus,
   useWorkforceUsers,
@@ -62,6 +72,13 @@ interface IssuedCredential {
 
 export default function WorkforcePage() {
   const { data: members, isLoading, error, refetch } = useWorkforceUsers();
+  const [issued, setIssued] = useState<IssuedCredential | null>(null);
+  const credentialQuery = useWorkforceCredentials();
+  const createCredential = useCreateWorkforceCredential();
+  const reviewCredential = useReviewWorkforceCredential();
+  const [tab, setTab] = useState(0);
+  const [credentialOpen, setCredentialOpen] = useState(false);
+  const [reviewingCredential, setReviewingCredential] = useState<WorkforceCredential | null>(null);
   const provision = useProvisionWorkforceUser((created) => {
     // Keep the one-time password only in local component state; the mutation result itself is
     // sanitized to the user projection before TanStack stores it in MutationCache.
@@ -71,7 +88,6 @@ export default function WorkforcePage() {
   const updateRoles = useUpdateWorkforceUserRoles();
 
   const [provisionOpen, setProvisionOpen] = useState(false);
-  const [issued, setIssued] = useState<IssuedCredential | null>(null);
   const [editingRoles, setEditingRoles] = useState<WorkforceUser | null>(null);
 
   const provisionButton = (
@@ -136,7 +152,12 @@ export default function WorkforcePage() {
         fallbackMessage="Could not update this workforce user."
       />
 
-      <QueryState
+      <Tabs value={tab} onChange={(_event, value: number) => setTab(value)} aria-label="Workforce management">
+        <Tab label="Users" />
+        <Tab label="Credentials" />
+      </Tabs>
+
+      {tab === 0 && <QueryState
         isLoading={isLoading}
         error={error}
         onRetry={() => void refetch()}
@@ -160,7 +181,89 @@ export default function WorkforcePage() {
             member.email.toLowerCase().includes(query)
           }
         />
-      </QueryState>
+      </QueryState>}
+
+      {tab === 1 && (
+        <Stack spacing={2} sx={{ mt: 2 }}>
+          <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              disabled={isLoading || Boolean(error) || !members?.length}
+              onClick={() => setCredentialOpen(true)}
+            >
+              Add credential
+            </Button>
+          </Stack>
+          <Alert severity="info">
+            Credential status is recorded internally. Expiry is a reminder and does not indicate
+            government or external verification.
+          </Alert>
+          {isLoading ? (
+            <Typography role="status" color="text.secondary">Loading workforce users…</Typography>
+          ) : error ? (
+            <Alert severity="warning" action={<Button onClick={() => void refetch()}>Retry workforce users</Button>}>
+              Workforce users are unavailable. Credential records can still be viewed, but a subject
+              must load before you can add one.
+            </Alert>
+          ) : members?.length === 0 ? (
+            <EmptyState
+              title="No workforce users available"
+              description="Provision an inspector or maintenance engineer before recording credentials."
+              action={provisionButton}
+            />
+          ) : null}
+          <QueryState
+            isLoading={credentialQuery.isLoading}
+            error={credentialQuery.error}
+            onRetry={() => void credentialQuery.refetch()}
+            isEmpty={Boolean(credentialQuery.data && credentialQuery.data.length === 0)}
+            empty={
+              <EmptyState
+                title="No credentials recorded"
+                description={error
+                  ? "No credentials are recorded. Workforce subjects are unavailable; retry the users list before adding a credential."
+                  : "Add a credential record for a workforce user."}
+                action={<Button disabled={isLoading || Boolean(error) || !members?.length} onClick={() => setCredentialOpen(true)}>Add credential</Button>}
+              />
+            }
+          >
+            <DataTable
+              columns={[
+                { id: 'subject', label: 'Workforce user', render: (credential) => members?.find((user) => user.userId === credential.userId)?.fullName ?? credential.userId },
+                { id: 'type', label: 'Credential type', render: (credential) => credential.credentialType },
+                { id: 'issuer', label: 'Issuer', render: (credential) => credential.issuer || '—' },
+                { id: 'expires', label: 'Expires', render: (credential) => credential.expiresAt ? new Date(credential.expiresAt).toLocaleDateString() : '—' },
+                { id: 'status', label: 'Recorded status', render: (credential) => <StatusChip status={credential.status} /> },
+                { id: 'actions', label: '', render: (credential) => credential.status === 'PENDING_REVIEW' ? <Button size="small" onClick={() => setReviewingCredential(credential)}>Review credential</Button> : null },
+              ] as DataTableColumn<WorkforceCredential>[]}
+              rows={credentialQuery.data ?? []}
+              rowKey={(credential) => credential.id}
+            />
+          </QueryState>
+        </Stack>
+      )}
+
+      {credentialOpen && (
+        <CreateCredentialDialog
+          users={members ?? []}
+          pending={createCredential.isPending}
+          isError={createCredential.isError}
+          error={createCredential.error}
+          onClose={() => { createCredential.reset(); setCredentialOpen(false); }}
+          onSubmit={(input: CreateWorkforceCredentialInput) => createCredential.mutate(input, { onSuccess: () => setCredentialOpen(false) })}
+        />
+      )}
+
+      {reviewingCredential && (
+        <ReviewCredentialDialog
+          credential={reviewingCredential}
+          pending={reviewCredential.isPending}
+          isError={reviewCredential.isError}
+          error={reviewCredential.error}
+          onClose={() => { reviewCredential.reset(); setReviewingCredential(null); }}
+          onSubmit={(input) => reviewCredential.mutate({ id: reviewingCredential.id, ...input }, { onSuccess: () => setReviewingCredential(null) })}
+        />
+      )}
 
       {provisionOpen && (
         <ProvisionWorkforceUserDialog
