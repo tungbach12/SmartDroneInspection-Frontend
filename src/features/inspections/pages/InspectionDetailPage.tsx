@@ -15,8 +15,10 @@ const INSPECTOR_TABS = [
   { value: 'findings', label: 'Findings', to: 'findings' },
   { value: 'report', label: 'Report draft', to: 'report' },
   { value: 'preparation', label: 'Preparation', to: 'preparation' },
+  { value: 'field-session', label: 'Field session', to: 'field-session' },
 ] as const;
 
+/**
 /**
  * The reviewer's tabs are decision phases, not data types.
  *
@@ -41,6 +43,7 @@ const REVIEWER_TABS = [
  * One inspection context presents role-specific stages: field-work stages to the assigned Inspector
  * and review stages to the organization administrator. The reviewer report document remains on
  * `reports/:inspectionId` and is entered through the reviewer-first route.
+ */
  */
 export default function InspectionDetailPage() {
   const { inspectionId = '' } = useParams();

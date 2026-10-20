@@ -3,6 +3,10 @@ import { useCallback, useState } from 'react';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
+  fieldSessionApi,
+  fieldSessionKeys,
+} from '../api/fieldSessionApi';
+import {
   inspectionApi,
   type Finding,
   type EvidenceQualityDecisionType,
@@ -901,5 +905,76 @@ export function usePublishReportVersion(inspectionId: string | null) {
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report was not published.'), 'error'),
+  });
+}
+
+/**
+ * MF2-09 to MF2-12: the Inspector's field sessions for one inspection.
+ *
+ * The query is enabled only for the assigned Inspector: the route is scoped to INSPECTOR, so an
+ * Inspector asking about another inspection's session collects a 404 rather than an empty list.
+ */
+export function useFieldSessions(inspectionId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: fieldSessionKeys.forInspection(inspectionId ?? ''),
+    queryFn: () => fieldSessionApi.list(inspectionId!),
+    enabled: enabled && Boolean(inspectionId),
+  });
+}
+
+/**
+ * MF2-10: starting a session.
+ *
+ * Starting also moves the inspection into `IN_PROGRESS`, so the inspection collection and the
+ * session list are both refetched rather than patched.
+ */
+export function useStartFieldSession(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (preFlightChecklistNote: string) =>
+      fieldSessionApi.start(inspectionId!, preFlightChecklistNote),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Field session started');
+    },
+  });
+}
+
+/** MF2-09: postponement and MF2-11: abort. Both need the Inspector's own stated reason. */
+export function useFieldSessionOutcome(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      outcome,
+      reason,
+    }: {
+      sessionId: string;
+      outcome: 'postpone' | 'abort';
+      reason: string;
+    }) =>
+      outcome === 'postpone'
+        ? fieldSessionApi.postpone(inspectionId!, sessionId, reason)
+        : fieldSessionApi.abort(inspectionId!, sessionId, reason),
+    onSuccess: (_data, variables) => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast(
+        variables.outcome === 'postpone'
+          ? 'Session postponed'
+          : 'Session aborted',
+      );
+    },
   });
 }

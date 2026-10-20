@@ -25,7 +25,6 @@ import Add from '@mui/icons-material/Add';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
@@ -70,7 +69,6 @@ export function AssetsPage() {
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
   const categories = useCategories();
-  const navigate = useNavigate();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
@@ -148,69 +146,27 @@ export function AssetsPage() {
       align: 'right',
       render: (asset) => (
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-          {isClient && asset.status === 'PENDING_REVIEW' && (
+          {isClient && asset.status === 'ACTIVE' && (
             <Button
               size="small"
-              variant="outlined"
+              variant="contained"
               onClick={(event) => {
                 event.stopPropagation();
-                void navigate(`/client/schedule-proposals/${asset.id}`);
+                setInspectionAssetId(asset.id);
               }}
               sx={{
                 borderRadius: '8px',
-                borderColor: '#d0d5dd',
-                color: '#344054',
+                bgcolor: '#3758f9',
+                color: '#fff',
                 fontSize: '12px',
                 fontWeight: 600,
                 textTransform: 'none',
-                '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#2b45cb' },
               }}
             >
-              Proposed schedules
+              New inspection
             </Button>
-          )}
-          {isClient && asset.status === 'ACTIVE' && (
-            <>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setInspectionAssetId(asset.id);
-                }}
-                sx={{
-                  borderRadius: '8px',
-                  bgcolor: '#3758f9',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#2b45cb' },
-                }}
-              >
-                New inspection
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void navigate(`/client/inspection-schedules/${asset.id}`);
-                }}
-                sx={{
-                  borderRadius: '8px',
-                  borderColor: '#d0d5dd',
-                  color: '#344054',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
-                }}
-              >
-                Schedules
-              </Button>
-            </>
           )}
         </Stack>
       ),

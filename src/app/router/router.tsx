@@ -41,12 +41,6 @@ const DashboardPage = lazy(
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
 const AssetReviewPage = lazy(() => import('@/features/assets/pages/AssetReviewPage'));
-const ScheduleProposalsPage = lazy(
-  () => import('@/features/assets/pages/ScheduleProposalsPage'),
-);
-const InspectionSchedulesPage = lazy(
-  () => import('@/features/assets/pages/InspectionSchedulesPage'),
-);
 const InspectionsPage = lazy(
   () => import('@/features/inspections/pages/InspectionsPage'),
 );
@@ -75,11 +69,17 @@ const InspectionDraftPage = lazy(
 const InspectionPreparationPage = lazy(
   () => import('@/features/inspections/pages/InspectionPreparationPage'),
 );
+const FieldSessionPage = lazy(
+  () => import('@/features/inspections/pages/FieldSessionPage'),
+);
 const MaintenancePage = lazy(
   () => import('@/features/maintenance/pages/MaintenancePage'),
 );
 const WorkforcePage = lazy(
   () => import('@/features/workforce/pages/WorkforcePage'),
+);
+const PlatformUsersPage = lazy(
+  () => import('@/features/admin/pages/PlatformUsersPage'),
 );
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
@@ -91,6 +91,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
+  'platform-users': <PlatformUsersPage />,
 };
 
 function InspectionWorkspaceIndexRedirect() {
@@ -145,26 +146,6 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           </RequireAuth>
         ),
       })),
-      ...(portal === 'client'
-        ? [
-            {
-              path: 'schedule-proposals/:assetId',
-              element: (
-                <RequireAuth roles={['ORG_ADMIN']}>
-                  <ScheduleProposalsPage />
-                </RequireAuth>
-              ),
-            },
-            {
-              path: 'inspection-schedules/:assetId',
-              element: (
-                <RequireAuth roles={['ORG_ADMIN']}>
-                  <InspectionSchedulesPage />
-                </RequireAuth>
-              ),
-            },
-          ]
-        : []),
       {
         path: 'inspections/:inspectionId',
         element: (
@@ -201,6 +182,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
           { path: 'preparation', element: <InspectionPreparationPage /> },
+          { path: 'field-session', element: <FieldSessionPage /> },
         ],
       },
       {

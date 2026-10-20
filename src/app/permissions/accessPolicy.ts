@@ -25,6 +25,7 @@ export const SECTION_IDS = [
   'reports',
   'maintenance',
   'workforce',
+  'platform-users',
 ] as const;
 
 export type SectionId = (typeof SECTION_IDS)[number];
@@ -38,6 +39,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   reports: 'Reports',
   maintenance: 'Maintenance',
   workforce: 'Workforce',
+  'platform-users': 'Platform accounts',
 };
 
 const SECTION_ROLE_ACCESS = {
@@ -51,6 +53,8 @@ const SECTION_ROLE_ACCESS = {
     maintenance: ['ADMIN'],
     // Workforce is a customer-organization function; the platform workspace does not expose it.
     workforce: [],
+    // Platform administration of the administrator-managed accounts (FE-01).
+    'platform-users': ['ADMIN'],
   },
   client: {
     dashboard: ['ORG_ADMIN'],
@@ -63,6 +67,8 @@ const SECTION_ROLE_ACCESS = {
     // MF1 workforce management is an ORG_ADMIN customer function. ADMIN, INSPECTOR and
     // MAINTENANCE_ENGINEER are deliberately absent rather than granted read-only access.
     workforce: ['ORG_ADMIN'],
+    // The platform's own account administration is not a customer-organization function.
+    'platform-users': [],
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -73,6 +79,7 @@ const SECTION_ROLE_ACCESS = {
     reports: ['INSPECTOR'],
     maintenance: ['MAINTENANCE_ENGINEER'],
     workforce: [],
+    'platform-users': [],
   },
 } as const satisfies Record<
   PortalId,
