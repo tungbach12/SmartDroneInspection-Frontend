@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { FactCheckOutlined, RateReviewOutlined, TaskAltOutlined } from '@mui/icons-material';
+import Add from '@mui/icons-material/Add';
 import {
   getSectionPath,
   PORTAL_IDS,
@@ -13,6 +14,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { MetricCard } from '@/shared/ui/MetricCard';
 import { InspectionListTable } from '../components/InspectionListTable';
+import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
 
@@ -38,6 +40,8 @@ export default function InspectionsPage() {
     roles.includes('INSPECTOR') ||
     roles.includes('ORG_ADMIN') ||
     roles.includes('ADMIN');
+  const isOrgAdmin = roles.includes('ORG_ADMIN');
+  const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -92,6 +96,27 @@ export default function InspectionsPage() {
     }
   };
 
+  const newInspectionButton = isOrgAdmin ? (
+    <Button
+      variant="contained"
+      startIcon={<Add />}
+      onClick={() => setCreateInspectionOpen(true)}
+      sx={{
+        borderRadius: '10px',
+        px: 2.5,
+        py: 1,
+        bgcolor: '#3758F9',
+        fontSize: '14px',
+        fontWeight: 600,
+        textTransform: 'none',
+        boxShadow: 'none',
+        '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
+      }}
+    >
+      New inspection
+    </Button>
+  ) : undefined;
+
   return (
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
@@ -103,6 +128,7 @@ export default function InspectionsPage() {
               : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
             : 'Review field evidence, record findings, and prepare inspection reports'
         }
+        actions={newInspectionButton}
       />
 
       {/* Inspector workload metrics are distinct from the Organization Admin report queue. */}
@@ -234,6 +260,12 @@ export default function InspectionsPage() {
           </QueryState>
         </Stack>
       )}
+
+      <CreateInspectionDialog
+        open={createInspectionOpen}
+        onClose={() => setCreateInspectionOpen(false)}
+        onSuccess={(id) => openInspection(id)}
+      />
     </Box>
   );
 }

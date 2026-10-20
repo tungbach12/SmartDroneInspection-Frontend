@@ -57,6 +57,8 @@ vi.mock('../hooks/useAssets', () => ({
     isLoading: false,
   }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useAssetPair: () => ({ data: null, isLoading: false }),
+  useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));

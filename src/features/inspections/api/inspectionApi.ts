@@ -350,6 +350,40 @@ export interface InspectionPage {
 
 export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY' | 'SUPERSEDED';
 
+export interface CreateInspectionInput {
+  assetId: string;
+  objective: string;
+  scope?: string | null;
+  componentScope?: string | null;
+  acceptanceCriteria?: string | null;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
+  inspectorId?: string | null;
+  droneId?: string | null;
+  reassignmentReason?: string | null;
+}
+
+export interface InspectionDetail {
+  id: string;
+  organizationId: string;
+  assetId: string;
+  assetName: string | null;
+  assetPairAssignmentId: string | null;
+  inspectorId: string;
+  inspectorName: string | null;
+  droneId: string | null;
+  droneSerialNumber: string | null;
+  objective: string;
+  scope: string | null;
+  componentScope: string | null;
+  acceptanceCriteria: string | null;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
+  status: InspectionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** One field session of an inspection, as MF2-09 to MF2-12 record it. */
 export interface FieldSession {
   id: string;
@@ -507,6 +541,12 @@ export interface ReadinessDecision {
 }
 
 export const inspectionApi = {
+  create: (input: CreateInspectionInput) =>
+    api.post<InspectionDetail>('/inspections', input).then((response) => response.data),
+
+  getById: (inspectionId: string) =>
+    api.get<InspectionDetail>(`/inspections/${inspectionId}`).then((response) => response.data),
+
   list: (filters: InspectionListFilters) =>
     api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
 

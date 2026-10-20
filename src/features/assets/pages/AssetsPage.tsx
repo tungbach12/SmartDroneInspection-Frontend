@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,8 +38,11 @@ import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
-import { useAssets, useCreateAsset } from '../hooks/useAssets';
+import { useAssets, useCreateAsset, useAssetPair, useReassignAssetPair } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
+import { useDroneSelection } from '../hooks/useDrones';
+import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
+import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { FlightPermitPanel } from './FlightPermitPanel';
 
@@ -71,6 +75,7 @@ export function AssetsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
   const [resourceTab, setResourceTab] = useState(0);
+  const [inspectionAssetId, setInspectionAssetId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -141,25 +146,47 @@ export function AssetsPage() {
             </Button>
           )}
           {isClient && asset.status === 'ACTIVE' && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={(event) => {
-                event.stopPropagation();
-                void navigate(`/client/inspection-schedules/${asset.id}`);
-              }}
-              sx={{
-                borderRadius: '8px',
-                borderColor: '#d0d5dd',
-                color: '#344054',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'none',
-                '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
-              }}
-            >
-              Schedules
-            </Button>
+            <>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setInspectionAssetId(asset.id);
+                }}
+                sx={{
+                  borderRadius: '8px',
+                  bgcolor: '#3758f9',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#2b45cb' },
+                }}
+              >
+                New inspection
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void navigate(`/client/inspection-schedules/${asset.id}`);
+                }}
+                sx={{
+                  borderRadius: '8px',
+                  borderColor: '#d0d5dd',
+                  color: '#344054',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: '#3758f9', color: '#3758f9' },
+                }}
+              >
+                Schedules
+              </Button>
+            </>
           )}
         </Stack>
       ),
@@ -287,7 +314,17 @@ export function AssetsPage() {
         onSubmit={(input) => createAsset.mutate(input, { onSuccess: () => setCreateOpen(false) })}
       />
 
-      <AssetDetailDrawer asset={selected} onClose={() => setSelected(null)} />
+      <AssetDetailDrawer
+        asset={selected}
+        onClose={() => setSelected(null)}
+        onNewInspection={(id) => setInspectionAssetId(id)}
+      />
+      <CreateInspectionDialog
+        open={Boolean(inspectionAssetId)}
+        onClose={() => setInspectionAssetId(null)}
+        preselectedAssetId={inspectionAssetId}
+        onSuccess={() => void refetch()}
+      />
       </>}
       {isClient && resourceTab === 1 && <DroneInventoryPanel />}
       {isClient && resourceTab === 2 && <FlightPermitPanel />}
@@ -307,15 +344,16 @@ interface CreateAssetDialogProps {
     description: string | null;
     categoryId: string;
     locationText: string;
+    defaultInspectorId?: string | null;
+    defaultDroneId?: string | null;
   }) => void;
 }
 
-function CreateAssetDialog({
-  open,
-  onClose,
+function CreateAssetDialogForm({
   categories,
   pending,
   errorMessage,
+  onClose,
   onSubmit,
 }: CreateAssetDialogProps) {
   const [code, setCode] = useState('');
@@ -323,8 +361,17 @@ function CreateAssetDialog({
   const [categoryId, setCategoryId] = useState('');
   const [locationText, setLocationText] = useState('');
   const [description, setDescription] = useState('');
+  const [defaultInspectorId, setDefaultInspectorId] = useState('');
+  const [defaultDroneId, setDefaultDroneId] = useState('');
 
   const activeCategories = categories.filter((category) => category.active);
+  const workforceQuery = useWorkforceUsers?.() ?? { data: [] };
+  const droneSelectionQuery = useDroneSelection?.() ?? { data: [] };
+
+  const inspectors = (workforceQuery?.data ?? []).filter(
+    (u) => Array.isArray(u?.roles) && u.roles.includes('INSPECTOR') && u.status === 'ACTIVE',
+  );
+  const drones = (droneSelectionQuery?.data ?? []).filter((d) => d?.serviceability !== 'RETIRED');
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -334,58 +381,202 @@ function CreateAssetDialog({
       categoryId,
       locationText,
       description: description || null,
+      defaultInspectorId: defaultInspectorId || null,
+      defaultDroneId: defaultDroneId || null,
     });
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <form onSubmit={submit}>
-        <DialogTitle sx={{ fontWeight: 700 }}>New Asset</DialogTitle>
+    <form onSubmit={submit}>
+      <DialogTitle sx={{ fontWeight: 700 }}>New Asset</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {errorMessage && <Typography color="error">{errorMessage}</Typography>}
+          <TextField
+            label="Asset code"
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="e.g. BR-NORTH-01"
+            helperText="Unique identifier for the structure"
+          />
+          <TextField
+            label="Asset name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. North Crossing Main Span"
+          />
+          <TextField
+            select
+            label="Category"
+            required
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            {activeCategories.map((cat) => (
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Location"
+            required
+            value={locationText}
+            onChange={(e) => setLocationText(e.target.value)}
+            placeholder="e.g. Km 12+300, Highway 1A"
+            helperText="Physical description or GPS coordinates"
+          />
+          <TextField
+            label="Description"
+            multiline
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <TextField
+            select
+            label="Default Inspector (optional)"
+            value={defaultInspectorId}
+            onChange={(e) => setDefaultInspectorId(e.target.value)}
+            helperText="Default operational inspector paired with this asset"
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {inspectors.map((inspector) => (
+              <MenuItem key={inspector.userId} value={inspector.userId}>
+                {inspector.fullName} ({inspector.email})
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Default Drone (optional)"
+            value={defaultDroneId}
+            onChange={(e) => setDefaultDroneId(e.target.value)}
+            helperText="Default operational drone paired with this asset"
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {drones.map((drone) => (
+              <MenuItem key={drone.id} value={drone.id}>
+                {drone.serialNumber} {drone.model ? `(${drone.model})` : ''} - {drone.serviceability}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="contained" disabled={pending}>
+          {pending ? 'Creating…' : 'Create Asset'}
+        </Button>
+      </DialogActions>
+    </form>
+  );
+}
+
+function CreateAssetDialog(props: CreateAssetDialogProps) {
+  return (
+    <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="sm">
+      {props.open ? <CreateAssetDialogForm {...props} /> : null}
+    </Dialog>
+  );
+}
+
+function ReassignPairDialog({
+  open,
+  onClose,
+  assetId,
+  currentInspectorId,
+  currentDroneId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  assetId: string;
+  currentInspectorId?: string | null | undefined;
+  currentDroneId?: string | null | undefined;
+}) {
+  const reassignMutation = useReassignAssetPair?.() ?? {
+    mutate: () => {},
+    isPending: false,
+    isError: false,
+    error: null,
+  };
+  const workforceQuery = useWorkforceUsers?.() ?? { data: [] };
+  const droneSelectionQuery = useDroneSelection?.() ?? { data: [] };
+
+  const [inspectorId, setInspectorId] = useState(currentInspectorId ?? '');
+  const [droneId, setDroneId] = useState(currentDroneId ?? '');
+  const [reason, setReason] = useState('');
+
+  const inspectors = (workforceQuery?.data ?? []).filter(
+    (u) => Array.isArray(u?.roles) && u.roles.includes('INSPECTOR') && u.status === 'ACTIVE',
+  );
+  const drones = (droneSelectionQuery?.data ?? []).filter((d) => d?.serviceability !== 'RETIRED');
+
+  const handleReassign = (e: FormEvent) => {
+    e.preventDefault();
+    if (!inspectorId || !droneId) return;
+    reassignMutation.mutate(
+      { assetId, input: { inspectorId, droneId, reason: reason.trim() || undefined } },
+      {
+        onSuccess: () => {
+          onClose();
+          setReason('');
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <form onSubmit={handleReassign}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Reassign Operational Pair</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            {errorMessage && <Typography color="error">{errorMessage}</Typography>}
-            <TextField
-              label="Asset code"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. BR-NORTH-01"
-              helperText="Unique identifier for the structure"
-            />
-            <TextField
-              label="Asset name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. North Crossing Main Span"
-            />
+            {reassignMutation.isError && (
+              <Alert severity="error">
+                {getErrorMessage(reassignMutation.error, 'Reassignment failed.')}
+              </Alert>
+            )}
             <TextField
               select
-              label="Category"
+              label="Inspector"
               required
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              value={inspectorId}
+              onChange={(e) => setInspectorId(e.target.value)}
             >
-              {activeCategories.map((cat) => (
-                <MenuItem key={cat.id} value={cat.id}>
-                  {cat.name}
+              {inspectors.map((ins) => (
+                <MenuItem key={ins.userId} value={ins.userId}>
+                  {ins.fullName} ({ins.email})
                 </MenuItem>
               ))}
             </TextField>
             <TextField
-              label="Location"
+              select
+              label="Drone"
               required
-              value={locationText}
-              onChange={(e) => setLocationText(e.target.value)}
-              placeholder="e.g. Km 12+300, Highway 1A"
-              helperText="Physical description or GPS coordinates"
-            />
+              value={droneId}
+              onChange={(e) => setDroneId(e.target.value)}
+            >
+              {drones.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.serialNumber} {d.model ? `(${d.model})` : ''} - {d.serviceability}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
-              label="Description"
-              multiline
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              label="Reassignment Reason"
+              required
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Schedule adjustment or maintenance"
             />
             <Typography variant="caption" color="text.secondary">
               The asset must be active before inspection scheduling.
@@ -393,11 +584,15 @@ function CreateAssetDialog({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={onClose} disabled={pending}>
+          <Button onClick={onClose} disabled={reassignMutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={pending}>
-            {pending ? 'Creating…' : 'Create Asset'}
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={reassignMutation.isPending || !inspectorId || !droneId || !reason.trim()}
+          >
+            {reassignMutation.isPending ? 'Saving…' : 'Confirm Reassignment'}
           </Button>
         </DialogActions>
       </form>
@@ -405,7 +600,73 @@ function CreateAssetDialog({
   );
 }
 
-function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: () => void }) {
+function OperationalPairSection({ assetId, isClient }: { assetId: string; isClient: boolean }) {
+  const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const pair = pairQuery.data;
+
+  return (
+    <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155' }}>
+          Operational Pair
+        </Typography>
+        {isClient && (
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => setDialogOpen(true)}
+            sx={{ textTransform: 'none', fontSize: '12px' }}
+          >
+            Reassign
+          </Button>
+        )}
+      </Stack>
+
+      {pairQuery.isLoading ? (
+        <CircularProgress size={18} />
+      ) : pair ? (
+        <Stack spacing={0.5}>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Inspector:</strong> {pair.inspectorName ?? pair.inspectorUserId}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Drone:</strong> {pair.droneSerialNumber} {pair.droneModel ? `(${pair.droneModel})` : ''}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Status: {pair.status} · Since: {new Date(pair.validFrom).toLocaleDateString()}
+          </Typography>
+        </Stack>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          No default pair currently assigned.
+        </Typography>
+      )}
+
+      {dialogOpen && (
+        <ReassignPairDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          assetId={assetId}
+          currentInspectorId={pair?.inspectorUserId}
+          currentDroneId={pair?.droneId}
+        />
+      )}
+    </Box>
+  );
+}
+
+function AssetDetailDrawer({
+  asset,
+  onClose,
+  onNewInspection,
+}: {
+  asset: Asset | null;
+  onClose: () => void;
+  onNewInspection?: (assetId: string) => void;
+}) {
+  const roles = useAuthStore((state) => state.roles);
+  const isClient = roles.includes('ORG_ADMIN');
   const documents = useAssetDocuments(asset?.id ?? '');
   const upload = useUploadDocument(asset?.id ?? '');
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
@@ -487,6 +748,29 @@ function AssetDetailDrawer({ asset, onClose }: { asset: Asset | null; onClose: (
           {asset?.code} · {formatLocation(asset?.locationText ?? null)}
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
+        {isClient && asset?.status === 'ACTIVE' && (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => {
+              if (asset) onNewInspection?.(asset.id);
+              onClose();
+            }}
+            sx={{
+              mt: 1.5,
+              mb: 1,
+              bgcolor: '#3758f9',
+              fontSize: '13px',
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#2b45cb' },
+            }}
+          >
+            Create Inspection
+          </Button>
+        )}
+        {asset && <OperationalPairSection assetId={asset.id} isClient={isClient} />}
         <Divider sx={{ my: 2 }} />
 
         <Typography variant="subtitle2" gutterBottom>
