@@ -350,6 +350,55 @@ export interface InspectionPage {
 
 export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY' | 'SUPERSEDED';
 
+export interface CreateInspectionInput {
+  assetId: string;
+  objective: string;
+  scope?: string | null;
+  componentScope?: string | null;
+  acceptanceCriteria?: string | null;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
+  inspectorId?: string | null;
+  droneId?: string | null;
+  reassignmentReason?: string | null;
+}
+
+export interface InspectionDetail {
+  id: string;
+  organizationId: string;
+  assetId: string;
+  assetName: string | null;
+  locationText?: string | null;
+  assetPairAssignmentId: string | null;
+  inspectorId: string;
+  inspectorName: string | null;
+  droneId: string | null;
+  droneSerialNumber: string | null;
+  droneModel?: string | null;
+  droneServiceability?: string | null;
+  flightPermitReference?: string | null;
+  flightPermitAuthority?: string | null;
+  flightPermitValidFrom?: string | null;
+  flightPermitValidUntil?: string | null;
+  flightPermitStatus?: string | null;
+  objective: string;
+  scope: string | null;
+  componentScope: string | null;
+  acceptanceCriteria: string | null;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
+  status: InspectionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FieldSessionStatus =
+  | 'PLANNED'
+  | 'IN_PROGRESS'
+  | 'FIELD_COMPLETED'
+  | 'POSTPONED'
+  | 'ABORTED';
+
 /** One field session of an inspection, as MF2-09 to MF2-12 record it. */
 export interface FieldSession {
   id: string;
@@ -360,7 +409,7 @@ export interface FieldSession {
   readinessDecisionId: string | null;
   checklistTemplateId: string | null;
   readinessVersion: number | null;
-  status: string;
+  status: FieldSessionStatus;
   preFlightChecklistNote: string | null;
   startedAt: string | null;
   endedAt: string | null;
@@ -392,10 +441,22 @@ export interface ComplianceBlocker {
   detail: string;
 }
 
+export interface PermitSummary {
+  id: string;
+  permitReference: string | null;
+  issuingAuthority: string | null;
+  permitType: string | null;
+  areaReference: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  status: string;
+}
+
 export interface ComplianceGate {
   blockers: ComplianceBlocker[];
   linkedPermitIds: string[];
   requiresHumanVerification: boolean;
+  permits?: PermitSummary[];
 }
 
 /**
@@ -507,6 +568,12 @@ export interface ReadinessDecision {
 }
 
 export const inspectionApi = {
+  create: (input: CreateInspectionInput) =>
+    api.post<InspectionDetail>('/inspections', input).then((response) => response.data),
+
+  getById: (inspectionId: string) =>
+    api.get<InspectionDetail>(`/inspections/${inspectionId}`).then((response) => response.data),
+
   list: (filters: InspectionListFilters) =>
     api.get<InspectionPage>('/inspections', { params: filters }).then((response) => response.data),
 

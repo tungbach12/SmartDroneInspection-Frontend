@@ -6,6 +6,7 @@ import {
   type AssetListFilters,
   type AssetReviewInput,
   type CreateAssetInput,
+  type ReassignPairInput,
 } from '../api/assetApi';
 
 export function useAssets(filters: AssetListFilters, enabled = true) {
@@ -30,6 +31,14 @@ export function useAsset(id: string) {
   });
 }
 
+export function useAssetPair(assetId: string | null | undefined) {
+  return useQuery({
+    queryKey: assetKeys.pair(assetId ?? ''),
+    queryFn: () => assetApi.getActivePair(assetId!),
+    enabled: Boolean(assetId),
+  });
+}
+
 export function useCreateAsset() {
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
@@ -38,7 +47,22 @@ export function useCreateAsset() {
     mutationFn: (input: CreateAssetInput) => assetApi.create(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: assetKeys.all });
-      showToast('Asset submitted for review');
+      showToast('Asset created successfully');
+    },
+  });
+}
+
+export function useReassignAssetPair() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: ({ assetId, input }: { assetId: string; input: ReassignPairInput }) =>
+      assetApi.reassignPair(assetId, input),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      void queryClient.invalidateQueries({ queryKey: assetKeys.pair(variables.assetId) });
+      showToast('Asset pair reassigned successfully');
     },
   });
 }
