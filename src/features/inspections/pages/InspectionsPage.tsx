@@ -50,12 +50,21 @@ export default function InspectionsPage() {
   const reportInspections = useInspectionsWithReports(listFilters, view === 'reports');
   const inspections = view === 'reports' ? reportInspections : allInspections;
 
-  const openInspection = (inspectionId: string) =>
-    navigate(
-      isOrganizationAdmin
-        ? `${getSectionPath('client', 'inspections')}/${inspectionId}${view === 'reports' ? '/review' : '/evidence'}`
-        : `${getSectionPath(portal, 'inspections')}/${inspectionId}`,
-    );
+  const openInspection = (inspectionId: string) => {
+    if (!isOrganizationAdmin) {
+      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}`);
+      return;
+    }
+    // The reviewer opens the phase the row is actually waiting in, rather than a fixed tab.
+    const row = visibleItems.find((item) => item.id === inspectionId);
+    const target =
+      row?.pendingAction === 'READINESS_REVIEW'
+        ? 'preparation'
+        : row?.pendingAction === 'CORRECTIVE_DISPOSITION'
+          ? 'corrective'
+          : 'review';
+    navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${target}`);
+  };
 
   // Metrics calculation
   const visibleItems = inspections.data?.items ?? [];
@@ -66,10 +75,12 @@ export default function InspectionsPage() {
   ).length;
   const repairPendingCount = items.filter((item) => item.status === 'REPAIR_PENDING').length;
   const completedCount = items.filter((item) => item.status === 'COMPLETED').length;
-  // The endpoint provides the current page only, so reviewer action summaries are explicitly page-scoped.
-  const reviewCount = items.filter((item) => item.reportStatus === 'SUBMITTED').length;
-  const publishCount = items.filter((item) => item.reportStatus === 'APPROVED').length;
-  const followUpCount = items.filter((item) => item.reportStatus === 'PUBLISHED' || item.status === 'REPAIR_PENDING').length;
+
+  // The administrator's queue is the decisions, not the records. The server names the phase on
+  // each row, so the counts below are read rather than inferred from a status.
+  const readinessDueCount = items.filter((item) => item.pendingAction === 'READINESS_REVIEW').length;
+  const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
+  const correctiveDueCount = items.filter((item) => item.pendingAction === 'CORRECTIVE_DISPOSITION').length;
 
   const setView = (next: InspectionsView) => {
     setPage(1);
@@ -153,21 +164,23 @@ export default function InspectionsPage() {
         <Stack spacing={2.5}>
           {isOrganizationAdmin && view === 'reports' && (
             <Alert severity="info">
-              Review submitted report versions as a whole. Approve or return with a reason; publish an approved version separately. Post-publication corrective outcomes are recorded after release.
+              The administrator's decision is report-level: approve or return the submitted report
+              with a reason. Evidence and Inspector findings are read inside the report document,
+              and the corrective outcome is recorded after publication.
             </Alert>
           )}
           {isOrganizationAdmin && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Paper variant="outlined" role="group" aria-label={`Decision due on this page: ${reviewCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <RateReviewOutlined color={reviewCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Decision due · this page</Typography><Typography variant="h6">{reviewCount}</Typography></Box>
+            <Paper variant="outlined" role="group" aria-label={`Readiness reviews due on this page: ${readinessDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <RateReviewOutlined color={readinessDueCount ? 'warning' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Readiness review · this page</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
             </Paper>
-            <Paper variant="outlined" role="group" aria-label={`Ready to publish on this page: ${publishCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <TaskAltOutlined color={publishCount ? 'primary' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Ready to publish · this page</Typography><Typography variant="h6">{publishCount}</Typography></Box>
+            <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Report review · this page</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
             </Paper>
-            <Paper variant="outlined" role="group" aria-label={`Published follow-up on this page: ${followUpCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <FactCheckOutlined color={followUpCount ? 'success' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Published follow-up · this page</Typography><Typography variant="h6">{followUpCount}</Typography></Box>
+            <Paper variant="outlined" role="group" aria-label={`Corrective outcomes due on this page: ${correctiveDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+              <FactCheckOutlined color={correctiveDueCount ? 'warning' : 'disabled'} />
+              <Box><Typography variant="caption" color="text.secondary">Corrective outcome · this page</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
             </Paper>
           </Stack>}
           <ToggleButtonGroup
@@ -197,7 +210,13 @@ export default function InspectionsPage() {
             }
           >
             <InspectionListTable
-              title={isOrganizationAdmin && view === 'reports' ? 'Reports requiring organization action' : 'Inspection records'}
+              title={
+                isOrganizationAdmin
+                  ? view === 'reports'
+                    ? 'Reports requiring organization action'
+                    : 'Organization inspections'
+                  : 'Inspection records'
+              }
               rows={visibleItems}
               page={page}
               pageSize={pageSize}
@@ -209,7 +228,7 @@ export default function InspectionsPage() {
                 setPage(1);
               }}
               onOpen={openInspection}
-              showReportColumn={view === 'reports'}
+              showReportColumn={view === 'reports' || isOrganizationAdmin}
               reviewerMode={isOrganizationAdmin && view === 'reports'}
             />
           </QueryState>

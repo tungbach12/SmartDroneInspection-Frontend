@@ -13,8 +13,21 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import type { InspectionListItem } from '../api/inspectionApi';
+import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { StatusChip } from '@/shared/ui/StatusChip';
+
+/**
+ * The one decision the organization administrator is being asked for, in the reviewer's words.
+ *
+ * <p>The phases are named rather than numbered so the queue reads as "what is waiting for me",
+ * and an inspection that needs nothing from the administrator says so instead of implying a task.
+ */
+const PENDING_ACTION_LABEL: Record<PendingAction, string> = {
+  READINESS_REVIEW: 'Readiness review due',
+  REPORT_REVIEW: 'Report review due',
+  CORRECTIVE_DISPOSITION: 'Corrective outcome due',
+  NONE: 'Nothing waiting for you',
+};
 
 interface InspectionListTableProps {
   title?: string;
@@ -161,7 +174,7 @@ export function InspectionListTable({
                     width: 170,
                   }}
                 >
-                  {reviewerMode ? 'Report status' : 'Report'}
+                  {reviewerMode ? 'Decision due' : 'Report'}
                 </TableCell>
               )}
               <TableCell
@@ -296,7 +309,7 @@ export function InspectionListTable({
                         borderColor: 'divider',
                         }}
                       >
-                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                           {row.reportStatus ? (
                             <StatusChip status={row.reportStatus} />
                           ) : (
@@ -320,18 +333,20 @@ export function InspectionListTable({
                               v{row.reportVersionNo}
                             </Box>
                           )}
-                          {reviewerMode && row.reportId && (
-                            <Typography variant="caption" color="text.secondary">
-                              {row.reportStatus === 'SUBMITTED'
-                                ? 'Reviewer decision due'
-                                : row.reportStatus === 'APPROVED'
-                                  ? 'Ready to publish'
-                                  : row.reportStatus === 'PUBLISHED'
-                                    ? 'Post-publication follow-up'
-                                    : 'Read-only status'}
-                            </Typography>
-                          )}
                         </Stack>
+                        {reviewerMode ? (
+                          // The server names the phase, so the queue never guesses a decision from
+                          // the inspection status.
+                          <Typography
+                            variant="caption"
+                            sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}
+                            color={
+                              row.pendingAction === 'NONE' ? 'text.disabled' : 'text.secondary'
+                            }
+                          >
+                            {PENDING_ACTION_LABEL[row.pendingAction] ?? row.pendingAction}
+                          </Typography>
+                        ) : null}
                       </TableCell>
                     )}
 
@@ -368,15 +383,17 @@ export function InspectionListTable({
                         }}
                       >
                         {reviewerMode
-                          ? row.reportStatus === 'SUBMITTED'
-                            ? 'Review submission'
-                            : row.reportStatus === 'APPROVED'
-                              ? 'Publish report'
-                              : row.reportStatus === 'PUBLISHED'
-                                ? 'Review outcomes'
-                                : row.reportStatus === 'RETURNED'
-                                  ? 'Read returned report'
-                                  : 'Open report'
+                          ? row.pendingAction === 'READINESS_REVIEW'
+                            ? 'Review readiness'
+                            : row.pendingAction === 'REPORT_REVIEW'
+                              ? 'Review submission'
+                              : row.pendingAction === 'CORRECTIVE_DISPOSITION'
+                                ? 'Record corrective outcome'
+                                : row.reportStatus === 'APPROVED'
+                                  ? 'Publish report'
+                                  : row.reportStatus === 'RETURNED'
+                                    ? 'Read returned report'
+                                    : 'Open report'
                           : 'Open'}
                       </Button>
                     </TableCell>

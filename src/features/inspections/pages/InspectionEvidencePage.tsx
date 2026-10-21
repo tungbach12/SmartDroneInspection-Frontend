@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -20,6 +20,8 @@ import {
   useDecideEvidenceQuality,
   useEvidenceQualityHistory,
   useInspectionEvidenceQuery,
+  useInspectionWorkflowState,
+  useFieldSessions,
   useReportVersions,
   useRetireEvidence,
   useBulkRetireEvidence,
@@ -31,19 +33,18 @@ import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
 import type { EvidenceQualityDecisionType } from '../api/inspectionApi';
 
-/** Labels shared by the decision buttons and the confirm step so they never drift apart. */
-const DECISION_LABELS: Record<EvidenceQualityDecisionType, string> = {
-  ACCEPTED: 'Accept evidence set',
-  REUPLOAD_REQUIRED: 'Re-upload required',
-  ADDITIONAL_SESSION_REQUIRED: 'Additional session needed',
-  LIMITED: 'Accept with limitation',
-};
-
 /**
  * Decisions that carry a stated reason. Accepting the set does not: the reason field is hidden
  * until one of these is chosen, so an ordinary acceptance stays a single click (Report 3 MF3-03).
  */
-const REASON_DECISIONS = ['REUPLOAD_REQUIRED', 'ADDITIONAL_SESSION_REQUIRED', 'LIMITED'] as const;
+const REASON_DECISIONS = ['ADDITIONAL_SESSION_REQUIRED'] as const;
+/** Labels shared by the decision buttons and the confirm step so they never drift apart. */
+const DECISION_LABELS: Record<EvidenceQualityDecisionType, string> = {
+  ACCEPTED: 'Accept evidence set',
+  REUPLOAD_REQUIRED: 'Re-upload required (legacy)',
+  ADDITIONAL_SESSION_REQUIRED: 'Additional session needed',
+  LIMITED: 'Accept with limitation (legacy)',
+};
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -58,6 +59,7 @@ function formatBytes(bytes: number): string {
  */
 export default function InspectionEvidencePage() {
   const { inspectionId = '' } = useParams();
+  const navigate = useNavigate();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
   const [filterMode, setFilterMode] = useState<EvidenceQueryFilters['status']>('ACTIVE');
@@ -73,6 +75,9 @@ export default function InspectionEvidencePage() {
     pageSize,
   });
   const quality = useEvidenceQualityHistory(inspectionId);
+  const workflow = useInspectionWorkflowState(inspectionId);
+  // The field-session route is Inspector-only, so a reviewer does not request it.
+  const sessionHistory = useFieldSessions(inspectionId, isInspector);
   const versions = useReportVersions(inspectionId);
   const upload = useUploadInspectionEvidence(inspectionId);
   const retire = useRetireEvidence(inspectionId);
@@ -113,7 +118,12 @@ export default function InspectionEvidencePage() {
   );
   const currentVersion = versions.data?.[0] ?? null;
   const evidenceLocked = Boolean(currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status));
-  const canEditEvidence = isInspector && !evidenceLocked;
+  const completedFieldSessionId = sessionHistory.data?.filter(
+    (session) => session.status === 'FIELD_COMPLETED',
+  ).at(-1)?.id;
+  const canAssessEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED';
+  const canEditEvidence = canAssessEvidence && !evidenceLocked;
+  const canUploadEvidence = isInspector && !evidenceLocked;
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
@@ -150,7 +160,10 @@ export default function InspectionEvidencePage() {
     // Sequential so the server sees one file per call and a failure cannot lose the rest.
     for (const file of [...queue]) {
       try {
-        await upload.mutateAsync(file);
+        await upload.mutateAsync({
+          file,
+          ...(completedFieldSessionId ? { fieldSessionId: completedFieldSessionId } : {}),
+        });
         setQueue((prev) => prev.filter((queued) => queued !== file));
         setFileErrors((prev) => {
           if (!(file.name in prev)) return prev;
@@ -183,7 +196,7 @@ export default function InspectionEvidencePage() {
           MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          {canEditEvidence && <Button component="label" variant="outlined" aria-label="Choose evidence files">
+          {canUploadEvidence && <Button component="label" variant="outlined" aria-label="Choose evidence files">
             Choose evidence files
             <input
               hidden
@@ -204,7 +217,7 @@ export default function InspectionEvidencePage() {
           </Typography>
           <Button
             variant="contained"
-            disabled={!canEditEvidence || queue.length === 0 || uploading}
+            disabled={!canUploadEvidence || queue.length === 0 || uploading}
             onClick={() => void uploadQueue()}
           >
             {uploading ? 'Uploading…' : 'Upload staged files'}
@@ -244,9 +257,16 @@ export default function InspectionEvidencePage() {
             ? 'MF3-03: compare the captured set against the shot-list — component coverage, focus and exposure, and the modality the scope asked for. Only the Inspector makes this call.'
             : 'Read the assigned Inspector’s latest recorded coverage assessment. The decision and comparison are shown for review; this page does not accept or change evidence on the Inspector’s behalf.'}
         </Typography>
-        {isInspector && activeCount === 0 && (
+        {canAssessEvidence && activeCount === 0 && (
           <Alert severity="info" sx={{ mb: 1.5 }}>
             Upload current captures before recording the evidence-quality decision.
+          </Alert>
+        )}
+        {isInspector && workflow.data?.status === 'PREPARING' && (
+          <Alert severity="info" sx={{ mb: 1.5 }}>
+            Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent ORG_ADMIN readiness review before starting another session.
+            {' '}
+            <Button component={RouterLink} to="../preparation" size="small">Open Preparation</Button>
           </Alert>
         )}
         {latestDecision && (
@@ -265,7 +285,7 @@ export default function InspectionEvidencePage() {
           </Alert>
         )}
         <Stack spacing={1.5}>
-          {isInspector && <TextField
+          {canAssessEvidence && <TextField
             label="Shot-list comparison"
             helperText="Required. What the set covers and what it does not — the report discloses this, and a disclosed gap is not evidence of no defect."
             multiline
@@ -295,7 +315,7 @@ export default function InspectionEvidencePage() {
               )}
             </Paper>
           )}
-          {isInspector && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
+          {canAssessEvidence && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               disabled={!canEditEvidence || decideQuality.isPending || activeCount === 0 || !comparison}
@@ -327,21 +347,15 @@ export default function InspectionEvidencePage() {
               Review the shot-list in preparation
             </Button>
           </Stack>}
-          {pendingDecision && isInspector && (
+          {pendingDecision && canAssessEvidence && (
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                 Confirm “{DECISION_LABELS[pendingDecision]}”
               </Typography>
-              {pendingDecision === 'LIMITED' && (
-                <Alert severity="warning" sx={{ mb: 1.5 }}>
-                  A limited acceptance records the disclosure, but it does not unlock automated
-                  processing — advisory detection and report drafting need an accepted set.
-                </Alert>
-              )}
               <Stack spacing={1.5}>
                 <TextField
-                  label="Limitation or reason"
-                  helperText="Required for this decision — it is recorded with the decision and disclosed in the report."
+                  label="Why is another field session needed?"
+                  helperText="Describe the uncovered scope and why another field visit is necessary."
                   multiline
                   minRows={2}
                   autoFocus
@@ -364,6 +378,7 @@ export default function InspectionEvidencePage() {
                           onSuccess: () => {
                             setPendingDecision(null);
                             setLimitationReason('');
+                            navigate('../preparation');
                           },
                         },
                       )
@@ -376,9 +391,8 @@ export default function InspectionEvidencePage() {
               </Stack>
             </Paper>
           )}
-          {isInspector && <Typography variant="caption" color="text.secondary">
-            Only an accepted set unlocks advisory detection and report drafting. “Accept with
-            limitation” records a disclosed gap and keeps the set out of automated processing.
+          {canAssessEvidence && <Typography variant="caption" color="text.secondary">
+            Only an accepted set unlocks advisory detection and report drafting. Additional-session requests return to MF2 preparation and independent readiness review; the system never starts the session automatically.
           </Typography>}
         </Stack>
         {decideQuality.isError && (

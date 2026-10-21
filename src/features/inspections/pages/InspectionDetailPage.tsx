@@ -4,6 +4,10 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import {
+  useInspectionPreparations,
+  useReportVersions,
+} from '../hooks/useInspections';
 
 const INSPECTOR_TABS = [
   { value: 'evidence', label: 'Evidence', to: 'evidence' },
@@ -12,11 +16,24 @@ const INSPECTOR_TABS = [
   { value: 'preparation', label: 'Preparation', to: 'preparation' },
 ] as const;
 
+/**
+ * The reviewer's tabs are decision phases, not data types.
+ *
+ * <p>Report 3 MF3-09/10 keeps the administrator's decision at report level: the reviewer does not
+ * separately accept each evidence item or each finding. A tab bar that listed "Evidence review" and
+ * "Findings overview" beside the decisions would read as a per-item queue, which is not what the
+ * administrator is asked to do.
+ *
+ * <p>So there is one tab per phase in which the administrator actually decides: the readiness
+ * review (MF2-07) before flight, the report review (MF3-09/10/11) after submission, and the
+ * corrective disposition (MF3-12) after publication. The evidence register and the confirmed
+ * findings are read inside the report document, where they are the material the decision is made
+ * on.
+ */
 const REVIEWER_TABS = [
-  { value: 'review', label: 'Review report', to: 'review' },
-  { value: 'evidence', label: 'Evidence review', to: 'evidence' },
-  { value: 'findings', label: 'Findings overview', to: 'findings' },
-  { value: 'preparation', label: 'Readiness', to: 'preparation' },
+  { value: 'preparation', label: 'Readiness review', to: 'preparation' },
+  { value: 'review', label: 'Report review', to: 'review' },
+  { value: 'corrective', label: 'Send to Maintenance', to: 'corrective' },
 ] as const;
 
 /**
@@ -32,10 +49,33 @@ export default function InspectionDetailPage() {
   const isOrganizationAdmin = roles.includes('ORG_ADMIN') && location.pathname.startsWith('/client/');
   const tabs = isOrganizationAdmin ? REVIEWER_TABS : INSPECTOR_TABS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
-  const tabValue = tabs.some((tab) => tab.value === current)
+
+  // A phase that has nothing in it is not a tab. The reviewer sees the phases that exist for
+  // this inspection, so a missing corrective step reads as "not yet" rather than as an empty form.
+  const preparations = useInspectionPreparations(isOrganizationAdmin ? inspectionId : null);
+  const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
+  const hasPreparation = Boolean(preparations.data?.length);
+  const hasPublishedVersion = Boolean(
+    versions.data?.some((version) => version.status === 'PUBLISHED'),
+  );
+
+  const visibleTabs = isOrganizationAdmin
+    ? REVIEWER_TABS.filter((tab) => {
+        if (tab.value === 'preparation') return hasPreparation;
+        if (tab.value === 'corrective') return hasPublishedVersion;
+        return true;
+      })
+    : tabs;
+
+  // The evidence and findings routes are not tabs for the reviewer: they are the material the
+  // report decision is made on, so the report tab stays lit while they are open.
+  const reviewerSourceRoutes = ['evidence', 'findings'];
+  const tabValue = visibleTabs.some((tab) => tab.value === current)
     ? current
     : isOrganizationAdmin
-      ? 'review'
+      ? reviewerSourceRoutes.includes(current)
+        ? 'review'
+        : visibleTabs[0]?.value ?? 'review'
       : 'evidence';
 
   return (
@@ -67,13 +107,13 @@ export default function InspectionDetailPage() {
           title={isOrganizationAdmin ? 'Inspection review' : 'Inspection Detail'}
           subtitle={
             isOrganizationAdmin
-              ? `Inspection ID: ${inspectionId} · Report decision, evidence and Inspector findings`
+              ? `Inspection ID: ${inspectionId} · One decision per phase: readiness, then the report, then the corrective outcome`
               : `Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`
           }
         />
 
         <Tabs value={tabValue} sx={{ mt: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <Tab
               key={tab.value}
               label={tab.label}

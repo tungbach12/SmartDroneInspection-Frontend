@@ -78,6 +78,8 @@ function submittedPreparation() {
     evidenceTypes: '["RGB"]',
     accessConstraints: null,
     safetyObservations: 'Live 110V near pier 3',
+    plannedStartAt: '2026-11-01T09:00:00Z',
+    plannedEndAt: '2026-11-01T11:00:00Z',
     permitDocumentReferences: null,
     status: 'SUBMITTED',
     submittedAt: '2026-10-09T09:00:00Z',
@@ -152,6 +154,30 @@ describe('InspectionPreparationPanel', () => {
       expect.objectContaining({
         inspectionId: INSPECTION_ID,
         input: expect.objectContaining({ safetyObservations: 'Live 110V near pier 3' }),
+      }),
+    );
+  });
+
+  it('lets an additional-session preparation update the planned session window', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [{ ...submittedPreparation(), preparationVersion: 2 }];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    fireEvent.change(screen.getByLabelText(/planned session start/i), {
+      target: { value: '2026-12-01T09:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/planned session end/i), {
+      target: { value: '2026-12-01T11:00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save draft/i }));
+
+    expect(mocks.prepare.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          plannedStartAt: new Date('2026-12-01T09:00').toISOString(),
+          plannedEndAt: new Date('2026-12-01T11:00').toISOString(),
+        }),
       }),
     );
   });
@@ -252,5 +278,30 @@ describe('InspectionPreparationPanel', () => {
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
 
     expect(screen.getByText(/PREPARATION_NOT_ALLOWED/)).toBeTruthy();
+  });
+
+  /**
+   * A reviewer judges a submitted preparation, so the content has to be readable to them. The
+   * editor is the author's alone, so the reviewer's copy is a separate read-only rendering.
+   */
+  it('shows the submitted preparation to a reviewer read-only', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.preparationsQuery.data = [submittedPreparation()];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
+
+    expect(screen.getByText(/component shot-list/i)).toBeTruthy();
+    expect(screen.getByText(/Span P4/)).toBeTruthy();
+    expect(screen.getByText(/Live 110V near pier 3/)).toBeTruthy();
+    expect(screen.queryByLabelText(/component shot-list/i)).toBeNull();
+  });
+
+  it('tells a reviewer that there is nothing to review when no preparation exists', () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.preparationsQuery.data = [];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
+
+    expect(screen.getByText(/no preparation has been recorded/i)).toBeTruthy();
   });
 });

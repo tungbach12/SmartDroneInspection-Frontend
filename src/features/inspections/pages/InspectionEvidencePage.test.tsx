@@ -17,6 +17,36 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
+  workflowQuery: {
+    data: { status: 'FIELD_COMPLETED' as string },
+    isLoading: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  sessionQuery: {
+    data: [
+      {
+        id: 'session-1',
+        inspectionId: 'inspection-1',
+        organizationId: 'org-1',
+        inspectorUserId: 'inspector-1',
+        droneId: null,
+        readinessDecisionId: 'decision-1',
+        checklistTemplateId: null,
+        readinessVersion: 1,
+        status: 'FIELD_COMPLETED',
+        preFlightChecklistNote: 'Drone identified; bridge accessible',
+        startedAt: '2026-10-08T08:00:00Z',
+        endedAt: '2026-10-08T09:00:00Z',
+        postponementReason: null,
+        abortReason: null,
+        outcomeNotes: 'Main span surveyed',
+      },
+    ] as unknown[],
+    isLoading: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
   upload: {
     mutateAsync: vi.fn(),
     isPending: false,
@@ -67,6 +97,8 @@ vi.mock('../hooks/useInspections', () => ({
   },
   useInspectionEvidence: () => mocks.evidenceQuery,
   useEvidenceQualityHistory: () => mocks.qualityQuery,
+  useInspectionWorkflowState: () => mocks.workflowQuery,
+  useFieldSessions: () => mocks.sessionQuery,
   useReportVersions: () => mocks.versions,
   useRetireEvidence: () => mocks.retire,
   useBulkRetireEvidence: () => mocks.bulkRetire,
@@ -127,6 +159,7 @@ describe('InspectionEvidencePage', () => {
     mocks.queryEvidence.mockReset();
     mocks.evidenceQuery = { data: { items: [], totalCount: 0, totalPages: 0, page: 1, pageSize: 50, activeCount: 0, retiredCount: 0, latestCreatedAt: null as string | null, latestRetiredAt: null as string | null }, isLoading: false, error: null, refetch: vi.fn() };
     mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     mocks.versions = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.retire.mutate.mockReset();
     mocks.bulkRetire.mutateAsync.mockReset();
@@ -213,7 +246,16 @@ describe('InspectionEvidencePage', () => {
     });
   });
 
-  it('requires a stated limitation before a limited decision can be sent', () => {
+  it('offers only accept and additional-session choices to the Inspector', () => {
+    renderWithRouter(<InspectionEvidencePage />);
+
+    expect(screen.getByRole('button', { name: 'Accept evidence set' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Additional session needed' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Re-upload required' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Accept with limitation' })).toBeNull();
+  });
+
+  it('requires a stated reason before an additional session decision can be sent', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -227,53 +269,30 @@ describe('InspectionEvidencePage', () => {
     writeComparison();
     expect(screen.queryByLabelText(/limitation or reason/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Re-upload required' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Additional session needed' }));
     expect(
-      (screen.getByRole('button', { name: 'Confirm Re-upload required' }) as HTMLButtonElement)
+      (screen.getByRole('button', { name: 'Confirm Additional session needed' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
 
-    fireEvent.change(screen.getByLabelText(/limitation or reason/i), {
+    fireEvent.change(screen.getByLabelText(/why is another field session needed/i), {
       target: { value: 'The east face was not observed' },
     });
     expect(
-      (screen.getByRole('button', { name: 'Confirm Re-upload required' }) as HTMLButtonElement)
+      (screen.getByRole('button', { name: 'Confirm Additional session needed' }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
   });
 
-  it('sends the limitation with the limited decision it belongs to', () => {
-    mocks.evidenceQuery = {
-      data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
+  it('keeps legacy limitation decisions read-only', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
-    writeComparison('Span P4 covered; east face not observed.');
-    fireEvent.click(screen.getByRole('button', { name: 'Accept with limitation' }));
-    // The consequence of a limited acceptance is stated before it is recorded.
-    expect(screen.getByText(/does not unlock automated\s+processing/i)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText(/limitation or reason/i), {
-      target: { value: 'The east face was not observed' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Accept with limitation' }));
-
-    expect(mocks.decideQuality.mutate).toHaveBeenCalledWith(
-      {
-        decision: 'LIMITED',
-        shotListComparison: 'Span P4 covered; east face not observed.',
-        limitationReason: 'The east face was not observed',
-      },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    expect(screen.queryByRole('button', { name: 'Accept with limitation' })).toBeNull();
+    expect(screen.queryByLabelText(/limitation or reason/i)).toBeNull();
+    expect(mocks.decideQuality.mutate).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { label: 'Re-upload required', decision: 'REUPLOAD_REQUIRED' },
-    { label: 'Additional session needed', decision: 'ADDITIONAL_SESSION_REQUIRED' },
-  ])('sends comparison and reason with $decision', ({ label, decision }) => {
+  it('sends comparison and reason with the additional-session decision', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -283,20 +302,21 @@ describe('InspectionEvidencePage', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
     writeComparison('Span P4 covered; east face not observed.');
-    fireEvent.click(screen.getByRole('button', { name: label }));
-    fireEvent.change(screen.getByLabelText(/limitation or reason/i), {
+    fireEvent.click(screen.getByRole('button', { name: 'Additional session needed' }));
+    fireEvent.change(screen.getByLabelText(/why is another field session needed/i), {
       target: { value: 'The east face was not observed' },
     });
-    fireEvent.click(screen.getByRole('button', { name: `Confirm ${label}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Additional session needed' }));
 
-    expect(mocks.decideQuality.mutate).toHaveBeenCalledWith(
-      {
-        decision,
-        shotListComparison: 'Span P4 covered; east face not observed.',
-        limitationReason: 'The east face was not observed',
-      },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    const mutation = mocks.decideQuality.mutate.mock.calls.at(-1);
+    expect(mutation?.[0]).toEqual({
+      decision: 'ADDITIONAL_SESSION_REQUIRED',
+      shotListComparison: 'Span P4 covered; east face not observed.',
+      limitationReason: 'The east face was not observed',
+    });
+    const callbacks = mutation?.[1] as { onSuccess: () => void };
+    callbacks.onSuccess();
+    expect(screen.getByRole('link', { name: /shot-list in preparation/i })).toBeTruthy();
   });
 
   it('shows the recorded decision text so the Inspector can see what was disclosed', () => {
@@ -432,13 +452,6 @@ describe('InspectionEvidencePage', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
     writeComparison();
-    expect(
-      (screen.getByRole('button', { name: 'Accept with limitation' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole('button', { name: 'Re-upload required' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
     expect(
       (screen.getByRole('button', { name: 'Additional session needed' }) as HTMLButtonElement)
         .disabled,

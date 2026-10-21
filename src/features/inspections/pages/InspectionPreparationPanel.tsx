@@ -14,7 +14,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { isConflict } from '@/shared/api/problem';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import type { InspectionPreparationStatus } from '../api/inspectionApi';
+import type { InspectionPreparation, InspectionPreparationStatus } from '../api/inspectionApi';
 import {
   useInspectionPreparations,
   useLinkPermitReferences,
@@ -71,6 +71,10 @@ function PreparationEditor({
   const [evidenceTypes, setEvidenceTypes] = useState(current?.evidenceTypes ?? '');
   const [accessConstraints, setAccessConstraints] = useState(current?.accessConstraints ?? '');
   const [safetyObservations, setSafetyObservations] = useState(current?.safetyObservations ?? '');
+  const [plannedStartAt, setPlannedStartAt] = useState(
+    current?.plannedStartAt?.slice(0, 16) ?? '',
+  );
+  const [plannedEndAt, setPlannedEndAt] = useState(current?.plannedEndAt?.slice(0, 16) ?? '');
   const [acknowledgment, setAcknowledgment] = useState('');
   const [permitId, setPermitId] = useState('');
 
@@ -83,6 +87,14 @@ function PreparationEditor({
         evidenceTypes: evidenceTypes.trim(),
         accessConstraints: accessConstraints.trim(),
         safetyObservations: safetyObservations.trim(),
+        // An additional-session version must carry a window, so the fields are sent only when the
+        // Inspector has set them; the server refuses the draft with a clear reason otherwise.
+        ...(current && current.preparationVersion > 1
+          ? {
+              ...(plannedStartAt ? { plannedStartAt: new Date(plannedStartAt).toISOString() } : {}),
+              ...(plannedEndAt ? { plannedEndAt: new Date(plannedEndAt).toISOString() } : {}),
+            }
+          : {}),
       },
     });
   };
@@ -127,11 +139,17 @@ function PreparationEditor({
           </Typography>
         ) : (
           <Alert severity="info" sx={{ mb: 2 }}>
-            No preparation recorded yet. Add the component shot-list and the hazards below, then
-            submit this mission for review.
+            {isInspector
+              ? 'No preparation recorded yet. Add the component shot-list and the hazards below, then submit this mission for review.'
+              : 'No preparation has been recorded for this inspection yet.'}
           </Alert>
         )}
       </QueryState>
+
+      {/* A reviewer judges a submitted preparation, so they have to be able to read it. The editor
+          is the author's alone, so the reviewer's copy of the content is a separate, read-only
+          rendering rather than a disabled form. */}
+      {!isInspector && current ? <PreparationSummary preparation={current} /> : null}
 
       {reviewed ? (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -198,6 +216,26 @@ function PreparationEditor({
             minRows={2}
             disabled={reviewed}
           />
+          {(current?.preparationVersion ?? 1) > 1 && (
+            <>
+              <TextField
+                label="Planned session start"
+                type="datetime-local"
+                value={plannedStartAt}
+                onChange={(event) => setPlannedStartAt(event.target.value)}
+                disabled={reviewed}
+                helperText="The readiness reviewer rechecks permit and credential validity against this time."
+              />
+              <TextField
+                label="Planned session end"
+                type="datetime-local"
+                value={plannedEndAt}
+                onChange={(event) => setPlannedEndAt(event.target.value)}
+                disabled={reviewed}
+                slotProps={{ htmlInput: { min: plannedStartAt || undefined } }}
+              />
+            </>
+          )}
           <TextField
             label="Safety observations"
             value={safetyObservations}
@@ -276,4 +314,60 @@ function PreparationEditor({
       {!isInspector ? <ComplianceGateSection inspectionId={inspectionId} /> : null}
     </Paper>
   );
+}
+
+/**
+ * The submitted preparation as a reviewer reads it.
+ *
+ * <p>MF2-07 is a judgement about a specific version's content: the shot-list, the modalities, the
+ * access limits, the hazards and the window the permits are checked against. A reviewer who sees
+ * only a version number has nothing to judge, so the content is shown read-only here.
+ */
+function PreparationSummary({ preparation }: { preparation: InspectionPreparation }) {
+  const rows = [
+    { label: 'Component shot-list', value: preparation.shotList },
+    { label: 'Evidence types', value: preparation.evidenceTypes },
+    { label: 'Access constraints', value: preparation.accessConstraints },
+    { label: 'Safety observations', value: preparation.safetyObservations },
+    {
+      label: 'Planned session',
+      value:
+        preparation.plannedStartAt && preparation.plannedEndAt
+          ? `${formatMoment(preparation.plannedStartAt)} — ${formatMoment(preparation.plannedEndAt)}`
+          : null,
+    },
+  ].filter((row) => Boolean(row.value));
+
+  if (rows.length === 0) {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        This preparation records no content yet, so there is nothing to review.
+      </Alert>
+    );
+  }
+
+  return (
+    <Stack spacing={1.5} sx={{ mb: 2 }}>
+      {rows.map((row) => (
+        <Box key={row.label}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {row.label}
+          </Typography>
+          <Typography
+            variant="body2"
+            component="pre"
+            sx={{ m: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'text.secondary' }}
+          >
+            {row.value}
+          </Typography>
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
+/** A moment as the reviewer reads it, without the raw ISO string. */
+function formatMoment(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }

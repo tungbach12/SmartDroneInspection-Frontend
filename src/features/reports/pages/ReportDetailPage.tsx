@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -29,9 +29,6 @@ import {
   useInspectionFindings,
   useInspectionEvidence,
   useSaveReportSections,
-  useRecordCorrectiveAction,
-  useCompleteCorrectiveHandoff,
-  useDeclareNoCorrectiveWork,
   useInspectionWorkflowState,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
@@ -65,11 +62,6 @@ export default function ReportDetailPage() {
   const [reviewReason, setReviewReason] = useState('');
   const [reviewReasonType, setReviewReasonType] = useState<'TEXT_REVISION' | 'FINDINGS_REVISION'>('TEXT_REVISION');
   const [withdrawReason, setWithdrawReason] = useState('');
-  const [correctiveReasons, setCorrectiveReasons] = useState<Record<string, string>>({});
-  const [correctiveChoices, setCorrectiveChoices] = useState<Record<string, boolean>>({});
-  const [correctivePriorities, setCorrectivePriorities] = useState<Record<string, string>>({});
-  const [correctiveDueDates, setCorrectiveDueDates] = useState<Record<string, string>>({});
-  const [noRepairRationale, setNoRepairRationale] = useState('');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -80,9 +72,6 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
-  const recordCorrectiveAction = useRecordCorrectiveAction(inspectionId);
-  const completeCorrectiveHandoff = useCompleteCorrectiveHandoff(inspectionId);
-  const declareNoCorrectiveWork = useDeclareNoCorrectiveWork(inspectionId);
 
   const canAuthor = canPerform('inspections.authorReport', user);
   const canReview = canPerform('reports.review', user);
@@ -93,12 +82,6 @@ export default function ReportDetailPage() {
     null;
 
   const isAuthor = Boolean(openVersion && userId === openVersion.authorUserId);
-  const officialFindings = (findings.data ?? []).filter(
-    (finding) => finding.inspectorConfirmedAt != null || finding.decidedByUserId != null,
-  );
-  const correctiveActionPending = officialFindings.filter(
-    (finding) => finding.correctiveActionReviewedByUserId == null,
-  );
   const inspectionStatus = workflowState.data?.status;
   const publishedUnhanded =
     openVersion?.status === 'PUBLISHED' &&
@@ -231,6 +214,30 @@ export default function ReportDetailPage() {
                   You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.
                 </Alert>
               )}
+
+              {/* The reviewer's sources live in the inspection workspace, not in the report
+                  document. They are read, not edited, and they are what the decision is made
+                  on, so the links are offered rather than hidden behind a tab. */}
+              {canReview && !isAuthor ? (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                  <Button
+                    variant="outlined"
+                    component={RouterLink}
+                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/evidence`}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    View the full evidence register
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    component={RouterLink}
+                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    View the Inspector findings
+                  </Button>
+                </Stack>
+              ) : null}
 
               {/* Next step banner */}
               <Alert
@@ -467,164 +474,23 @@ export default function ReportDetailPage() {
               {canReview && publishedUnhanded && (
                 <Stack spacing={2}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    Corrective action decision (MF3-12)
-                        </Typography>
-                        {officialFindings.map((finding) => {
-                          const rationale = correctiveReasons[finding.id] ?? '';
-                          const reviewed = finding.correctiveActionReviewedByUserId != null;
-                          return (
-                            <Paper key={finding.id} variant="outlined" sx={{ p: 2 }}>
-                              <Stack spacing={1.5}>
-                                <Typography variant="subtitle2">{finding.defectLabel}</Typography>
-                                {reviewed ? (
-                                  <Alert severity="success">
-                                    {finding.correctiveActionRequired
-                                      ? `Corrective action required${finding.correctiveActionPriority ? ` · ${finding.correctiveActionPriority}` : ''}${finding.correctiveActionDueAt ? ` · due ${new Date(finding.correctiveActionDueAt).toLocaleDateString()}` : ''}. `
-                                      : 'No corrective action required within scope. '}
-                                    {finding.correctiveActionRationale}
-                                  </Alert>
-                                ) : (
-                                  <>
-                                    <TextField
-                                      select
-                                      label="Corrective action"
-                                      value={
-                                        (correctiveChoices[finding.id] ?? finding.correctiveActionRequired)
-                                          ? 'YES'
-                                          : 'NO'
-                                      }
-                                      onChange={(event) =>
-                                        setCorrectiveChoices((current) => ({
-                                          ...current,
-                                          [finding.id]: event.target.value === 'YES',
-                                        }))
-                                      }
-                                    >
-                                      <MenuItem value="YES">Required — proceed to MF4 triage</MenuItem>
-                                      <MenuItem value="NO">Not required within observed scope</MenuItem>
-                                    </TextField>
-                                    {(correctiveChoices[finding.id] ?? finding.correctiveActionRequired) ? (
-                                      <>
-                                        <TextField
-                                          select
-                                          required
-                                          label="Corrective-action priority"
-                                          value={correctivePriorities[finding.id] ?? ''}
-                                          onChange={(event) =>
-                                            setCorrectivePriorities((current) => ({
-                                              ...current,
-                                              [finding.id]: event.target.value,
-                                            }))
-                                          }
-                                        >
-                                          {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
-                                            <MenuItem key={priority} value={priority}>{priority}</MenuItem>
-                                          ))}
-                                        </TextField>
-                                        <TextField
-                                          label="Due date (optional)"
-                                          type="date"
-                                          value={correctiveDueDates[finding.id] ?? ''}
-                                          onChange={(event) =>
-                                            setCorrectiveDueDates((current) => ({
-                                              ...current,
-                                              [finding.id]: event.target.value,
-                                            }))
-                                          }
-                                          slotProps={{ inputLabel: { shrink: true } }}
-                                        />
-                                      </>
-                                    ) : null}
-                                    <TextField
-                                      required
-                                      label="Corrective action rationale"
-                                      multiline
-                                      minRows={2}
-                                      value={rationale}
-                                      onChange={(event) =>
-                                        setCorrectiveReasons((current) => ({
-                                          ...current,
-                                          [finding.id]: event.target.value,
-                                        }))
-                                      }
-                                    />
-                                    <Button
-                                      disabled={
-                                        recordCorrectiveAction.isPending ||
-                                        !rationale.trim() ||
-                                        ((correctiveChoices[finding.id] ?? finding.correctiveActionRequired) &&
-                                          !correctivePriorities[finding.id])
-                                      }
-                                      onClick={() => {
-                                        const required =
-                                          correctiveChoices[finding.id] ??
-                                          finding.correctiveActionRequired;
-                                        const priority = correctivePriorities[finding.id];
-                                        const dueDate = correctiveDueDates[finding.id];
-                                        recordCorrectiveAction.mutate({
-                                          findingId: finding.id,
-                                          correctiveActionRequired: required,
-                                          ...(required && priority ? { priority } : {}),
-                                          ...(required && dueDate
-                                            ? {
-                                                dueAt: new Date(
-                                                  `${dueDate}T23:59:59`,
-                                                ).toISOString(),
-                                              }
-                                            : {}),
-                                          rationale: rationale.trim(),
-                                        });
-                                      }}
-                                    >
-                                      Record corrective action
-                                    </Button>
-                                  </>
-                                )}
-                              </Stack>
-                            </Paper>
-                          );
-                        })}
-                        {officialFindings.length === 0 ? (
-                          <TextField
-                            required
-                            label="No-repair rationale for the observed scope"
-                            value={noRepairRationale}
-                            onChange={(event) => setNoRepairRationale(event.target.value)}
-                          />
-                        ) : null}
-                        <MutationProblemAlert
-                          error={recordCorrectiveAction.error ?? completeCorrectiveHandoff.error ?? declareNoCorrectiveWork.error}
-                          isError={recordCorrectiveAction.isError || completeCorrectiveHandoff.isError || declareNoCorrectiveWork.isError}
-                          fallbackMessage="Could not record the corrective outcome."
-                        />
-                        {officialFindings.length === 0 ? (
-                          <Button
-                            variant="contained"
-                            disabled={declareNoCorrectiveWork.isPending || !noRepairRationale.trim()}
-                            onClick={() => declareNoCorrectiveWork.mutate(noRepairRationale.trim())}
-                          >
-                            {declareNoCorrectiveWork.isPending
-                              ? 'Recording…'
-                              : 'Record no corrective work and close inspection'}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="contained"
-                            disabled={completeCorrectiveHandoff.isPending || correctiveActionPending.length > 0}
-                            onClick={() => completeCorrectiveHandoff.mutate()}
-                          >
-                            {completeCorrectiveHandoff.isPending
-                              ? 'Handing off…'
-                              : 'Complete corrective handoff to MF4'}
-                          </Button>
-                        )}
-                      </Stack>
-                    )}
-              {(completeCorrectiveHandoff.isSuccess || declareNoCorrectiveWork.isSuccess) && (
-                <Alert severity="success">
-                  Corrective outcome recorded. Inspection status:{' '}
-                  {(completeCorrectiveHandoff.data ?? declareNoCorrectiveWork.data)?.inspectionStatus}.
-                </Alert>
+                    Send to Maintenance (MF3-12)
+                  </Typography>
+                  <Alert severity="info">
+                    The published version is immutable. Confirmed defect findings can be forwarded
+                    to the maintenance team as repair candidates.
+                  </Alert>
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      component={RouterLink}
+                      to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Send findings to Maintenance
+                    </Button>
+                  </Box>
+                </Stack>
               )}
 
               {/* MF3-08/MF3-11: authored sections, derived sections, and the delivered PDF */}

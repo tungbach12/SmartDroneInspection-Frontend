@@ -22,7 +22,7 @@ import SaveRounded from '@mui/icons-material/SaveRounded';
 import type {
   EvidenceItem,
   InspectionReportVersion,
-  VerifiedFinding,
+  Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -36,7 +36,7 @@ import {
 
 export interface ReportAuthoringPanelProps {
   version: InspectionReportVersion;
-  findings: VerifiedFinding[];
+  findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;
   canEdit: boolean;
