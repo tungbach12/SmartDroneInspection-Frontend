@@ -44,7 +44,6 @@ const REVIEWER_TABS = [
  * and review stages to the organization administrator. The reviewer report document remains on
  * `reports/:inspectionId` and is entered through the reviewer-first route.
  */
- */
 export default function InspectionDetailPage() {
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();

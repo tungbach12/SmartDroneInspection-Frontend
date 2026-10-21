@@ -392,6 +392,13 @@ export interface InspectionDetail {
   updatedAt: string;
 }
 
+export type FieldSessionStatus =
+  | 'PLANNED'
+  | 'IN_PROGRESS'
+  | 'FIELD_COMPLETED'
+  | 'POSTPONED'
+  | 'ABORTED';
+
 /** One field session of an inspection, as MF2-09 to MF2-12 record it. */
 export interface FieldSession {
   id: string;
@@ -402,7 +409,7 @@ export interface FieldSession {
   readinessDecisionId: string | null;
   checklistTemplateId: string | null;
   readinessVersion: number | null;
-  status: string;
+  status: FieldSessionStatus;
   preFlightChecklistNote: string | null;
   startedAt: string | null;
   endedAt: string | null;

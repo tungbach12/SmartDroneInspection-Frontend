@@ -909,20 +909,6 @@ export function usePublishReportVersion(inspectionId: string | null) {
 }
 
 /**
- * MF2-09 to MF2-12: the Inspector's field sessions for one inspection.
- *
- * The query is enabled only for the assigned Inspector: the route is scoped to INSPECTOR, so an
- * Inspector asking about another inspection's session collects a 404 rather than an empty list.
- */
-export function useFieldSessions(inspectionId: string | null, enabled = true) {
-  return useQuery({
-    queryKey: fieldSessionKeys.forInspection(inspectionId ?? ''),
-    queryFn: () => fieldSessionApi.list(inspectionId!),
-    enabled: enabled && Boolean(inspectionId),
-  });
-}
-
-/**
  * MF2-10: starting a session.
  *
  * Starting also moves the inspection into `IN_PROGRESS`, so the inspection collection and the
