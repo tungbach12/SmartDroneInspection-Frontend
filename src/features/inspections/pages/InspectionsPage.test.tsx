@@ -93,6 +93,7 @@ function listedInspection() {
     reportId: null,
     reportStatus: null,
     reportVersionNo: null,
+    pendingAction: 'NONE',
   };
 }
 
@@ -238,9 +239,9 @@ describe('InspectionsPage', () => {
     mocks.reportsQuery = {
       data: {
         items: [
-          { ...listedInspection(), id: 'submitted-1', objective: 'Review bridge report', reportId: 'report-1', reportStatus: 'SUBMITTED', reportVersionNo: 3 },
-          { ...listedInspection(), id: 'approved-1', objective: 'Publish tower report', reportId: 'report-2', reportStatus: 'APPROVED', reportVersionNo: 2 },
-          { ...listedInspection(), id: 'published-1', objective: 'Follow up dam report', reportId: 'report-3', reportStatus: 'PUBLISHED', reportVersionNo: 1 },
+          { ...listedInspection(), id: 'submitted-1', objective: 'Review bridge report', reportId: 'report-1', reportStatus: 'SUBMITTED', reportVersionNo: 3, pendingAction: 'REPORT_REVIEW' },
+          { ...listedInspection(), id: 'approved-1', objective: 'Publish tower report', reportId: 'report-2', reportStatus: 'APPROVED', reportVersionNo: 2, pendingAction: 'NONE' },
+          { ...listedInspection(), id: 'published-1', objective: 'Follow up dam report', reportId: 'report-3', reportStatus: 'PUBLISHED', reportVersionNo: 1, pendingAction: 'CORRECTIVE_DISPOSITION' },
         ],
         page: 1,
         pageSize: 10,
@@ -255,18 +256,45 @@ describe('InspectionsPage', () => {
     renderPage('/client/inspections?view=reports');
 
     expect(await screen.findByRole('heading', { name: 'Report review queue' })).toBeTruthy();
-    expect(screen.getByText(/Review submitted report versions as a whole/)).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Decision due on this page: 1' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Ready to publish on this page: 1' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Published follow-up on this page: 1' })).toBeTruthy();
+    expect(screen.getByText(/administrator's decision is report-level/i)).toBeTruthy();
+    // The queue counts the phases the administrator is actually asked to decide.
+    expect(screen.getByRole('group', { name: 'Readiness reviews due on this page: 0' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Corrective outcomes due on this page: 1' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Publish report' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Review outcomes' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Record corrective outcome' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Review submission' }));
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
       '/client/inspections/submitted-1/review',
+    );
+  });
+
+  it('opens the phase a row is waiting in, rather than a fixed tab', async () => {
+    signInAs(['ORG_ADMIN']);
+    mocks.reportsQuery = {
+      data: {
+        items: [
+          { ...listedInspection(), id: 'readiness-1', objective: 'Approve readiness', reportId: null, reportStatus: null, reportVersionNo: null, pendingAction: 'READINESS_REVIEW' },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/client/inspections?view=reports');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Review readiness' }));
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/client/inspections/readiness-1/preparation',
     );
   });
 

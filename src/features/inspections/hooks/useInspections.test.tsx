@@ -13,7 +13,7 @@ import {
   useDecideEvidenceQuality,
   useDeleteFinding,
   useRetireEvidence,
-  useReviewFindingCandidate,
+  useConfirmFinding,
   useSubmitReportVersion,
   useUpdateEvidenceLocation,
   useUpdateFinding,
@@ -29,7 +29,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       retireEvidence: vi.fn(),
       bulkRetireEvidence: vi.fn(),
       updateEvidenceLocation: vi.fn(),
-      reviewCandidate: vi.fn(),
+      confirmFinding: vi.fn(),
       createManualFinding: vi.fn(),
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
@@ -69,7 +69,7 @@ beforeEach(() => {
 describe('useAnalyzeEvidence', () => {
   it('notifies when a completed analysis returns no detections', async () => {
     const client = createClient();
-    const statusKey = [...inspectionKeys.candidates('inspection-1'), 'analysis-status'];
+    const statusKey = [...inspectionKeys.findings('inspection-1'), 'analysis-status'];
     client.setQueryData(statusKey, []);
     vi.mocked(inspectionApi.analyzeEvidence).mockResolvedValue([]);
     const { result } = renderHook(() => useAnalyzeEvidence('inspection-1'), {
@@ -163,20 +163,20 @@ function buildCases(): MutationCase[] {
       successMessage: 'Shared evidence location saved.',
     },
     {
-      name: 'candidate review',
-      apiMock: vi.mocked(inspectionApi.reviewCandidate),
-      render: (client) => renderMutation(client, () => useReviewFindingCandidate('inspection-1')),
+      name: 'finding confirmation',
+      apiMock: vi.mocked(inspectionApi.confirmFinding),
+      render: (client) => renderMutation(client, () => useConfirmFinding('inspection-1')),
       run: (runner) =>
         (
           runner.mutateAsync as (input: {
-            candidateId: string;
-            input: { defectLabel: string; severity: string; decision: string };
+            findingId: string;
+            input: { defectLabel: string; severity: string };
           }) => Promise<unknown>
         )({
-          candidateId: 'candidate-1',
-          input: { defectLabel: 'Crack', severity: 'HIGH', decision: 'REJECTED' },
+          findingId: 'finding-1',
+          input: { defectLabel: 'Crack', severity: 'HIGH' },
         }),
-      successMessage: 'AI candidate rejected.',
+      successMessage: 'Finding confirmed.',
     },
     {
       name: 'manual finding creation',
@@ -236,6 +236,25 @@ function buildCases(): MutationCase[] {
           }) => Promise<unknown>
         )({ decision: 'ACCEPTED', shotListComparison: 'complete' }),
       successMessage: 'Evidence quality accepted; the set is ready for detection.',
+    },
+    {
+      name: 'additional-session quality decision',
+      apiMock: vi.mocked(inspectionApi.decideEvidenceQuality),
+      render: (client) => renderMutation(client, () => useDecideEvidenceQuality('inspection-1')),
+      run: (runner) =>
+        (
+          runner.mutateAsync as (input: {
+            decision: string;
+            shotListComparison: string;
+            limitationReason: string;
+          }) => Promise<unknown>
+        )({
+          decision: 'ADDITIONAL_SESSION_REQUIRED',
+          shotListComparison: 'east face not captured',
+          limitationReason: 'access unavailable',
+        }),
+      successMessage:
+        'Additional field work requested. Update preparation and wait for readiness review.',
     },
     {
       name: 'findings confirmation',

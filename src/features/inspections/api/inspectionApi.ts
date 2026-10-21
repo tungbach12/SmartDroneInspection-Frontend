@@ -100,6 +100,7 @@ export interface InspectionReportContext {
     preFlightChecklistNote: string | null;
     postponementReason: string | null;
     abortReason: string | null;
+    outcomeNotes: string | null;
     limitations: string | null;
     droneSerialNumber: string | null;
     droneManufacturer: string | null;
@@ -176,21 +177,13 @@ export interface EvidenceQualityDecision {
   decidedAt: string;
 }
 
-export interface CandidateStatus {
-  id: string;
-  evidenceId: string;
-  modelProvider: string | null;
-  modelName: string;
-  modelVersion: string;
-  predictedLabel: string;
-  confidence: number;
-  boundingBox: string;
-  status: 'PENDING' | 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
-  reviewedByUserId: string | null;
-  reviewedAt: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-}
+/**
+ * Where a finding stands in the Inspector's review.
+ *
+ * <p>One vocabulary for every finding, whoever produced it: a detector suggestion and something
+ * the Inspector saw are both PENDING until the Inspector confirms them.
+ */
+export type FindingStatus = 'PENDING' | 'CONFIRMED';
 
 export interface InspectionWorkflowState {
   status: InspectionStatus;
@@ -199,35 +192,46 @@ export interface InspectionWorkflowState {
   findingsSnapshotHash: string | null;
 }
 
-export interface VerifiedFinding {
+/**
+ * A finding, whoever produced it.
+ *
+ * <p>The model provenance travels with it when there is one, so a caller can see which suggestions
+ * came from the detector without the workflow depending on that distinction. Removal is a
+ * tombstone: `deletedAt` says the finding was removed, and the status still says whether it had
+ * been confirmed.
+ */
+export interface Finding {
   id: string;
   inspectionId: string;
   evidenceId: string | null;
-  aiCandidateId: string | null;
-  source: 'AI_CONFIRMED' | 'AI_MODIFIED' | 'MANUAL';
+  status: FindingStatus;
   findingCode: string;
   defectLabel: string;
   severity: FindingSeverity;
   locationDescription: string | null;
-  technicalNotes: string;
+  technicalNotes: string | null;
   recommendedAction: string | null;
   component: string | null;
   description: string | null;
   observedCondition: string | null;
   priority: string | null;
   measurement: string | null;
-  decision: string | null;
+  boundingBox: string | null;
+  modelName: string | null;
+  modelVersion: string | null;
+  modelProvider: string | null;
+  confidence: number | null;
   inspectorConfirmedAt: string | null;
-  decidedByUserId: string | null;
-  decidedAt: string | null;
   repairRequired: boolean;
-  status: string;
   correctiveActionRequired: boolean;
   correctiveActionPriority: string | null;
   correctiveActionDueAt: string | null;
   correctiveActionReviewedByUserId: string | null;
   correctiveActionReviewedAt: string | null;
   correctiveActionRationale: string | null;
+  deletedAt: string | null;
+  deletedByUserId: string | null;
+  deletionReason: string | null;
 }
 
 export interface CorrectiveHandoffResult {
@@ -246,18 +250,24 @@ export interface PublishedReport {
   inspectionStatus: string;
 }
 
-export interface ReviewCandidateInput {
-  decision: 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
+/**
+ * The Inspector accepts a finding and states what it is.
+ *
+ * <p>Every field is optional: a field that is not sent keeps the value the finding already had,
+ * so accepting a suggestion does not have to restate what the detector already said.
+ */
+export interface ReviewFindingInput {
+  evidenceId?: string;
   defectLabel?: string;
   severity?: FindingSeverity;
   locationDescription?: string | undefined;
   technicalNotes?: string;
   recommendedAction?: string;
   component?: string;
+  description?: string;
   observedCondition?: string;
   priority?: string;
   measurement?: string;
-  reason?: string;
   repairRequired?: boolean;
 }
 
@@ -313,7 +323,22 @@ export interface InspectionListItem {
   reportId: string | null;
   reportStatus: ReportStatus | null;
   reportVersionNo: number | null;
+  /**
+   * The one decision the organization administrator is being asked for on this row.
+   *
+   * <p>The server decides this rather than the client inferring it, because the phases are
+   * distinguished by what is recorded (a submitted preparation, a submitted report, a published
+   * report with un-dispositioned findings), not by the inspection status.
+   */
+  pendingAction: PendingAction;
 }
+
+/** The phase an organization administrator is being asked to decide. */
+export type PendingAction =
+  | 'READINESS_REVIEW'
+  | 'REPORT_REVIEW'
+  | 'CORRECTIVE_DISPOSITION'
+  | 'NONE';
 
 export interface InspectionPage {
   items: InspectionListItem[];
@@ -323,13 +348,34 @@ export interface InspectionPage {
   totalPages: number;
 }
 
-export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY';
+export type InspectionPreparationStatus = 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'READY' | 'SUPERSEDED';
+
+/** One field session of an inspection, as MF2-09 to MF2-12 record it. */
+export interface FieldSession {
+  id: string;
+  inspectionId: string;
+  organizationId: string;
+  inspectorUserId: string;
+  droneId: string | null;
+  readinessDecisionId: string | null;
+  checklistTemplateId: string | null;
+  readinessVersion: number | null;
+  status: string;
+  preFlightChecklistNote: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  postponementReason: string | null;
+  abortReason: string | null;
+  outcomeNotes: string | null;
+}
 
 export interface InspectionPreparation {
   id: string;
   inspectionId: string;
   inspectorUserId: string;
   preparationVersion: number;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
   shotList: string;
   evidenceTypes: string | null;
   accessConstraints: string | null;
@@ -362,6 +408,8 @@ export interface PreparationInput {
   evidenceTypes?: string;
   accessConstraints?: string;
   safetyObservations?: string;
+  plannedStartAt?: string;
+  plannedEndAt?: string;
 }
 
 /**
@@ -465,6 +513,12 @@ export const inspectionApi = {
   listWithReports: (filters: InspectionListFilters) =>
     api
       .get<InspectionPage>('/inspections/with-reports', { params: filters })
+      .then((response) => response.data),
+
+  /** The assigned Inspector's own field sessions for this inspection. */
+  listFieldSessions: (inspectionId: string) =>
+    api
+      .get<FieldSession[]>(`/inspections/${inspectionId}/field-sessions`)
       .then((response) => response.data),
 
   /**
@@ -598,10 +652,11 @@ export const inspectionApi = {
       .get<EvidencePage>(`/inspections/${inspectionId}/evidence/query`, { params: filters })
       .then((response) => response.data),
 
-  uploadEvidence: (inspectionId: string, file: File) => {
+  uploadEvidence: (inspectionId: string, file: File, fieldSessionId?: string) => {
     const form = new FormData();
     form.append('file', file);
     form.append('source', 'WEB_UPLOAD');
+    if (fieldSessionId) form.append('fieldSessionId', fieldSessionId);
     return api
       .post<EvidenceItem>(`/inspections/${inspectionId}/evidence`, form)
       .then((response) => response.data);
@@ -656,9 +711,15 @@ export const inspectionApi = {
     api.post<void>(`/inspections/${inspectionId}/findings/reopen`).then((response) => response.data),
 
   // MF3-05/06 advisory detection and human findings.
-  listCandidates: (inspectionId: string) =>
+  listFindings: (inspectionId: string) =>
     api
-      .get<CandidateStatus[]>(`/inspections/${inspectionId}/finding-candidates`)
+      .get<Finding[]>(`/inspections/${inspectionId}/findings`)
+      .then((response) => response.data),
+
+  /** The findings the Inspector removed, for the caller that asks to see them. */
+  listRemovedFindings: (inspectionId: string) =>
+    api
+      .get<Finding[]>(`/inspections/${inspectionId}/findings/removed`)
       .then((response) => response.data),
 
   listEvidenceAnalysisStatuses: (inspectionId: string) =>
@@ -690,54 +751,39 @@ export const inspectionApi = {
 
   analyzeEvidence: (inspectionId: string, evidenceId: string, replace = false) =>
     api
-      .post<CandidateStatus[]>(
+      .post<Finding[]>(
         `/inspections/${inspectionId}/evidence/${evidenceId}/analyze`,
         null,
         { params: { replace } },
       )
       .then((response) => response.data),
 
-  // A rejection records a decision without creating a finding, so the response has no body.
-  reviewCandidate: (
-    inspectionId: string,
-    candidateId: string,
-    input: ReviewCandidateInput,
-  ) =>
+  /** The Inspector accepts a finding and states what it is. */
+  confirmFinding: (inspectionId: string, findingId: string, input: ReviewFindingInput) =>
     api
-      .post<VerifiedFinding | null>(
-        `/inspections/${inspectionId}/finding-candidates/${candidateId}/review`,
+      .post<Finding>(
+        `/inspections/${inspectionId}/findings/${findingId}/confirmation`,
         input,
       )
       .then((response) => response.data),
 
-  reviseReviewedCandidate: (
-    inspectionId: string,
-    candidateId: string,
-    input: ReviewCandidateInput,
-  ) =>
+  /** Puts a removed finding back into the working set. */
+  restoreFinding: (inspectionId: string, findingId: string) =>
     api
-      .put<VerifiedFinding | null>(
-        `/inspections/${inspectionId}/finding-candidates/${candidateId}/reviewed-revision`,
-        input,
-      )
+      .post<Finding>(`/inspections/${inspectionId}/findings/${findingId}/restore`)
       .then((response) => response.data),
   createManualFinding: (inspectionId: string, input: ManualFindingInput) =>
     api
-      .post<VerifiedFinding>(`/inspections/${inspectionId}/findings`, input)
+      .post<Finding>(`/inspections/${inspectionId}/findings`, input)
       .then((response) => response.data),
 
   updateFinding: (inspectionId: string, findingId: string, input: ManualFindingInput) =>
     api
-      .put<VerifiedFinding>(`/inspections/${inspectionId}/findings/${findingId}`, input)
+      .put<Finding>(`/inspections/${inspectionId}/findings/${findingId}`, input)
       .then((response) => response.data),
 
   deleteFinding: (inspectionId: string, findingId: string, reason: string) =>
     api.delete<void>(`/inspections/${inspectionId}/findings/${findingId}`, { data: { reason } })
-      .then((response) => response.data),
-
-  listFindings: (inspectionId: string) =>
-    api
-      .get<VerifiedFinding[]>(`/inspections/${inspectionId}/findings`)
       .then((response) => response.data),
 
   // MF3-07 to MF3-11 report workflow.
@@ -817,7 +863,7 @@ export const inspectionApi = {
     },
   ) =>
     api
-      .put<VerifiedFinding>(
+      .put<Finding>(
         `/inspections/${inspectionId}/findings/${findingId}/corrective-action`,
         input,
       )

@@ -60,6 +60,9 @@ const InspectionDetailPage = lazy(
 const OrganizationReportReviewPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
 );
+const CorrectiveDispositionPage = lazy(
+  () => import('@/features/reports/pages/CorrectiveDispositionPage'),
+);
 const InspectionEvidencePage = lazy(
   () => import('@/features/inspections/pages/InspectionEvidencePage'),
 );
@@ -172,14 +175,27 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
           ...(portal === 'client'
-            ? [{
-                path: 'review',
-                element: (
-                  <RequireAuth roles={['ORG_ADMIN']}>
-                    <OrganizationReportReviewPage />
-                  </RequireAuth>
-                ),
-              }]
+            ? [
+                {
+                  path: 'review',
+                  element: (
+                    <RequireAuth roles={['ORG_ADMIN']}>
+                      <OrganizationReportReviewPage />
+                    </RequireAuth>
+                  ),
+                },
+                {
+                  // MF3-12: the post-publication corrective disposition is its own phase, so it
+                  // is not reachable from the report review screen where a reviewer might read it
+                  // as "editing the report".
+                  path: 'corrective',
+                  element: (
+                    <RequireAuth roles={['ORG_ADMIN']}>
+                      <CorrectiveDispositionPage />
+                    </RequireAuth>
+                  ),
+                },
+              ]
             : []),
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },

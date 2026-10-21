@@ -2,14 +2,14 @@ import { Box, Chip, Stack, Typography } from '@mui/material';
 import type {
   EvidenceItem,
   InspectionReportVersion,
-  VerifiedFinding,
+  Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 
 export interface ReportDerivedSectionsProps {
   version: InspectionReportVersion;
-  findings: VerifiedFinding[];
+  findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;
   executiveSummary?: React.ReactNode;

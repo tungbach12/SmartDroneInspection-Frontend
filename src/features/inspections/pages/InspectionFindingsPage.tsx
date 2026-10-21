@@ -20,11 +20,10 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { inspectionApi } from '../api/inspectionApi';
 import type {
-  CandidateStatus,
   EvidenceItem,
+  Finding,
   FindingSeverity,
   ManualFindingInput,
-  VerifiedFinding,
 } from '../api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { AiMotionFigure } from '../components/AiMotionFigure';
@@ -37,15 +36,15 @@ import {
   useConfirmFindings,
   useEvidenceQualityHistory,
   useEvidenceAnalysisStatuses,
-  useFindingCandidates,
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
   useReopenFindings,
   useUpdateEvidenceLocation,
   useReportVersions,
-  useReviewFindingCandidate,
-  useReviseReviewedCandidate,
+  useConfirmFinding,
+  useRemovedFindings,
+  useRestoreFinding,
 } from '../hooks/useInspections';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -95,7 +94,8 @@ export default function InspectionFindingsPage() {
 
   const evidence = useInspectionEvidence(inspectionId);
   const quality = useEvidenceQualityHistory(inspectionId);
-  const candidates = useFindingCandidates(inspectionId);
+  const findings = useInspectionFindings(inspectionId);
+  const removedFindings = useRemovedFindings(inspectionId);
   const analysisStatuses = useEvidenceAnalysisStatuses(inspectionId);
   const {
     analyzeMany,
@@ -104,16 +104,15 @@ export default function InspectionFindingsPage() {
     isError: isAnalysisError,
     error: analysisError,
   } = useAnalyzeEvidence(inspectionId);
-  const reviewCandidate = useReviewFindingCandidate(inspectionId);
+  const confirmFinding = useConfirmFinding(inspectionId);
+  const restoreFinding = useRestoreFinding(inspectionId);
   const createManualFinding = useCreateManualFinding(inspectionId);
   const updateFinding = useUpdateFinding(inspectionId);
   const deleteFinding = useDeleteFinding(inspectionId);
-  const findings = useInspectionFindings(inspectionId);
   const workflow = useInspectionWorkflowState(inspectionId);
   const confirmFindings = useConfirmFindings(inspectionId);
   const reopenFindings = useReopenFindings(inspectionId);
   const reportVersions = useReportVersions(inspectionId);
-  const reviseCandidate = useReviseReviewedCandidate(inspectionId);
   const updateEvidenceLocation = useUpdateEvidenceLocation(inspectionId);
   const reportVersionsList = reportVersions.data ?? [];
   const activeEvidenceItems = useMemo(
@@ -137,28 +136,31 @@ export default function InspectionFindingsPage() {
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
+  const [showRemovedFindings, setShowRemovedFindings] = useState(false);
 
   const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
-  const activeCandidates = useMemo(
-    () => (candidates.data ?? []).filter((candidate) => activeEvidenceIds.has(candidate.evidenceId)),
-    [activeEvidenceIds, candidates.data],
+  // A finding belongs to the working set while it is linked to a current capture. One linked to
+  // retired evidence stays in the record but is not part of what the Inspector works from.
+  const activeFindings = useMemo(
+    () => (findings.data ?? []).filter((finding) => finding.evidenceId && activeEvidenceIds.has(finding.evidenceId)),
+    [activeEvidenceIds, findings.data],
   );
-  const pendingCandidates = activeCandidates.filter((candidate) => candidate.status === 'PENDING').length;
-  const reviewedItemCount = (findings.data ?? []).length + activeCandidates.filter((candidate) => candidate.status === 'REJECTED').length;
-  const noFindings = (findings.data ?? []).length === 0;
+  const pendingFindings = activeFindings.filter((finding) => finding.status === 'PENDING').length;
+  const reviewedItemCount = (findings.data ?? []).length;
+  // A finding on retired evidence is not part of the working set, so it does not count when the
+  // Inspector says the scope was reviewed and nothing was found.
+  const noFindings = activeFindings.length === 0;
   const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
   const canConfirm =
     isInspector &&
     evidenceAccepted &&
-    !candidates.isLoading &&
     !findings.isLoading &&
     !workflow.isLoading &&
-    !candidates.isError &&
-    pendingCandidates === 0 &&
+    !findings.isError &&
+    pendingFindings === 0 &&
     (!noFindings || noFindingsAcknowledged) &&
     !isAnalysisPending &&
-    !reviewCandidate.isPending &&
-    !reviseCandidate.isPending &&
+    !confirmFinding.isPending &&
     !createManualFinding.isPending &&
     !confirmFindings.isPending &&
     !isReportLocked &&
@@ -175,10 +177,10 @@ export default function InspectionFindingsPage() {
   );
   const analysedEvidenceIds = useMemo(
     () => new Set([
-      ...activeCandidates.map((candidate) => candidate.evidenceId),
+      ...activeFindings.map((finding) => finding.evidenceId),
       ...analysisStatusByEvidenceId.keys(),
     ]),
-    [activeCandidates, analysisStatusByEvidenceId],
+    [activeFindings, analysisStatusByEvidenceId],
   );
   const analysingEvidenceIds = useMemo(() => new Set(analysingIds), [analysingIds]);
   const analysingFileNames = activeEvidenceItems
@@ -191,8 +193,8 @@ export default function InspectionFindingsPage() {
       !evidenceAccepted ||
       !analysisUnlocked ||
       isAnalysisPending ||
-      candidates.isLoading ||
-      !candidates.data ||
+      findings.isLoading ||
+      !findings.data ||
       analysisStatuses.isLoading ||
       analysisStatuses.data === undefined ||
       evidence.isLoading ||
@@ -220,8 +222,8 @@ export default function InspectionFindingsPage() {
     inspectionId,
     evidenceAccepted,
     analysisUnlocked,
-    candidates.isLoading,
-    candidates.data,
+    findings.isLoading,
+    findings.data,
     analysisStatuses.isLoading,
     analysisStatuses.data,
     analysisStatusByEvidenceId,
@@ -233,31 +235,36 @@ export default function InspectionFindingsPage() {
     isAnalysisPending,
   ]);
 
-  const severityFor = (candidateId: string): FindingSeverity =>
-    severities[candidateId] ?? 'MEDIUM';
-  const locationFor = (candidateId: string): string => {
-    const candidate = (candidates.data ?? []).find((item) => item.id === candidateId);
-    return candidate ? locationDrafts[candidate.evidenceId] ?? evidence.data?.find((item) => item.id === candidate.evidenceId)?.locationDescription ?? '' : '';
+  const severityFor = (findingId: string): FindingSeverity =>
+    severities[findingId] ?? 'MEDIUM';
+  const locationFor = (findingId: string): string => {
+    const finding = (findings.data ?? []).find((item) => item.id === findingId);
+    return finding
+      ? locationDrafts[finding.evidenceId ?? ''] ??
+        evidence.data?.find((item) => item.id === finding.evidenceId)?.locationDescription ??
+        finding.locationDescription ??
+        ''
+      : '';
   };
-  const groupedCandidates = useMemo(() => {
-    type CandidateItem = NonNullable<typeof candidates.data>[number];
+  const groupedFindings = useMemo(() => {
     const groups = new Map<
       string,
       {
         evidenceId: string;
         evidence?: EvidenceItem | undefined;
-        candidates: CandidateItem[];
+        findings: Finding[];
       }
     >();
     for (const item of activeEvidenceItems) {
-      groups.set(item.id, { evidenceId: item.id, evidence: item, candidates: [] });
+      groups.set(item.id, { evidenceId: item.id, evidence: item, findings: [] });
     }
-    for (const candidate of activeCandidates) {
-      const group = groups.get(candidate.evidenceId);
-      if (group) group.candidates.push(candidate);
+    for (const finding of activeFindings) {
+      if (!finding.evidenceId) continue;
+      const group = groups.get(finding.evidenceId);
+      if (group) group.findings.push(finding);
     }
     return [...groups.values()];
-  }, [activeCandidates, activeEvidenceItems]);
+  }, [activeFindings, activeEvidenceItems]);
 
   const submitManualFinding = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -286,10 +293,7 @@ export default function InspectionFindingsPage() {
 
   if (isReviewer && !isInspector) {
     return (
-      <OrganizationFindingsOverview
-        findings={findings.data ?? []}
-        candidates={activeCandidates}
-      />
+      <OrganizationFindingsOverview findings={findings.data ?? []} />
     );
   }
 
@@ -359,7 +363,7 @@ export default function InspectionFindingsPage() {
                           color="success"
                           icon={<AiMotionFigure name="advisoryPulse" size={14} />}
                           label={
-                            activeCandidates.some((candidate) => candidate.evidenceId === item.id)
+                            activeFindings.some((finding) => finding.evidenceId === item.id)
                               ? 'Detection complete'
                               : analysisStatusByEvidenceId.get(item.id)?.detectionCount === 0
                                 ? 'No defects detected'
@@ -392,13 +396,13 @@ export default function InspectionFindingsPage() {
             Findings
           </Typography>
         </Stack>
-        {candidates.isLoading ? (
-          <Typography color="text.secondary">Loading candidate reviews…</Typography>
-        ) : candidates.isError ? (
+        {findings.isLoading ? (
+          <Typography color="text.secondary">Loading findings…</Typography>
+        ) : findings.isError ? (
           <Alert
             severity="error"
             action={
-              <Button color="inherit" onClick={() => void candidates.refetch()}>
+              <Button color="inherit" onClick={() => void findings.refetch()}>
                 Retry
               </Button>
             }
@@ -407,7 +411,7 @@ export default function InspectionFindingsPage() {
           </Alert>
         ) : (
           <Stack spacing={2.5}>
-            {groupedCandidates.map((group) => (
+            {groupedFindings.map((group) => (
                 <Paper
                   key={group.evidenceId}
                   variant="outlined"
@@ -434,12 +438,12 @@ export default function InspectionFindingsPage() {
                     </Typography>
                     <Chip
                       size="small"
-                      color={group.candidates.length === 0 ? 'default' : 'primary'}
+                      color={group.findings.length === 0 ? 'default' : 'primary'}
                       variant="outlined"
                       label={
-                        group.candidates.length === 0
+                        group.findings.length === 0
                           ? 'No detected defects'
-                          : `${group.candidates.length} ${group.candidates.length === 1 ? 'detected defect' : 'detected defects'}`
+                          : `${group.findings.length} ${group.findings.length === 1 ? 'finding' : 'findings'}`
                       }
                     />
                     {group.evidence && isInspector && (
@@ -495,36 +499,39 @@ export default function InspectionFindingsPage() {
                       <CandidatePhoto
                         inspectionId={inspectionId}
                         evidence={group.evidence}
-                        candidates={group.candidates}
+                        findings={group.findings}
                         showBoundingBoxes={showBoundingBoxes}
                         highlightedCandidateId={hoveredCandidateId}
                       />
                     </Box>
 
                     <Stack spacing={1.5}>
-                            {group.candidates.map((candidate) => {
-                        const box = parseBoundingBox(candidate.boundingBox);
+                            {group.findings.map((finding) => {
+                        const box = parseBoundingBox(finding.boundingBox ?? undefined);
+                        const confirmed = finding.status === 'CONFIRMED';
                         return (
                           <Box
-                            key={candidate.id}
-                            onMouseEnter={() => setHoveredCandidateId(candidate.id)}
+                            key={finding.id}
+                            onMouseEnter={() => setHoveredCandidateId(finding.id)}
                             onMouseLeave={() => setHoveredCandidateId(null)}
-                            onFocus={() => setHoveredCandidateId(candidate.id)}
+                            onFocus={() => setHoveredCandidateId(finding.id)}
                             onBlur={() => setHoveredCandidateId(null)}
                           >
-                          <Card variant="outlined" sx={{ borderRadius: '8px', borderColor: hoveredCandidateId === candidate.id ? 'primary.main' : 'divider' }}>
+                          <Card variant="outlined" sx={{ borderRadius: '8px', borderColor: hoveredCandidateId === finding.id ? 'primary.main' : 'divider' }}>
                             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                               <Stack spacing={1}>
                                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                                  <Typography sx={{ fontWeight: 700 }}>{candidate.predictedLabel}</Typography>
+                                  <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
+                                  {finding.confidence !== null && (
+                                    <Chip
+                                      size="small"
+                                      label={`${Math.round(finding.confidence * 100)}% confidence`}
+                                    />
+                                  )}
                                   <Chip
                                     size="small"
-                                    label={`${Math.round(candidate.confidence * 100)}% confidence`}
-                                  />
-                                  <Chip
-                                    size="small"
-                                    color={candidate.status === 'PENDING' ? 'warning' : 'default'}
-                                    label={candidate.status}
+                                    color={confirmed ? 'success' : 'warning'}
+                                    label={confirmed ? 'Confirmed' : 'Awaiting review'}
                                   />
                                   {box && (
                                     <Chip
@@ -535,21 +542,23 @@ export default function InspectionFindingsPage() {
                                     />
                                   )}
                                 </Stack>
-                                <Typography variant="caption" color="text.secondary">
-                                  {candidate.modelProvider ? `${candidate.modelProvider} · ` : ''}{candidate.modelName} · {candidate.modelVersion}
-                                </Typography>
-                                {candidate.status === 'PENDING' && isInspector && (
+                                {finding.modelName && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {finding.modelProvider ? `${finding.modelProvider} · ` : ''}{finding.modelName} · {finding.modelVersion}
+                                  </Typography>
+                                )}
+                                {!confirmed && isInspector && (
                                   <Stack spacing={1}>
                                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                                       <TextField
                                         select
                                         size="small"
-                                        label={`Severity for ${candidate.predictedLabel}`}
-                                        value={severityFor(candidate.id)}
+                                        label={`Severity for ${finding.defectLabel}`}
+                                        value={severityFor(finding.id)}
                                         onChange={(event) =>
                                           setSeverities((prev) => ({
                                             ...prev,
-                                            [candidate.id]: event.target.value as FindingSeverity,
+                                            [finding.id]: event.target.value as FindingSeverity,
                                           }))
                                         }
                                         sx={{ minWidth: 140 }}
@@ -563,7 +572,7 @@ export default function InspectionFindingsPage() {
                                       <TextField
                                         size="small"
                                         label="Evidence location"
-                                        value={locationFor(candidate.id)}
+                                        value={locationFor(finding.id)}
                                         disabled
                                         helperText="Set once on the evidence group above."
                                         sx={{ flexGrow: 1 }}
@@ -572,15 +581,15 @@ export default function InspectionFindingsPage() {
                                     <Stack direction="row" spacing={1}>
                                       <Button
                                         size="small"
-                                        disabled={reviewCandidate.isPending}
+                                        variant="contained"
+                                        disabled={confirmFinding.isPending}
                                         onClick={() =>
-                                          reviewCandidate.mutate({
-                                            candidateId: candidate.id,
+                                          confirmFinding.mutate({
+                                            findingId: finding.id,
                                             input: {
-                                              decision: 'CONFIRMED',
-                                              severity: severityFor(candidate.id),
-                                              locationDescription: locationFor(candidate.id).trim() || undefined,
-                                              technicalNotes: 'Confirmed by assigned Inspector',
+                                              severity: severityFor(finding.id),
+                                              locationDescription: locationFor(finding.id).trim() || undefined,
+                                              technicalNotes: finding.technicalNotes ?? 'Confirmed by assigned Inspector',
                                             },
                                           })
                                         }
@@ -589,61 +598,32 @@ export default function InspectionFindingsPage() {
                                       </Button>
                                       <Button
                                         size="small"
-                                        disabled={reviewCandidate.isPending}
-                                        onClick={() =>
-                                          reviewCandidate.mutate({
-                                            candidateId: candidate.id,
-                                            input: {
-                                              decision: 'MODIFIED',
-                                              defectLabel: candidate.predictedLabel,
-                                              severity: severityFor(candidate.id),
-                                              locationDescription: locationFor(candidate.id).trim() || undefined,
-                                              technicalNotes: 'Modified by assigned Inspector',
-                                            },
-                                          })
-                                        }
-                                      >
-                                        Modify
-                                      </Button>
-                                      <Button
-                                        size="small"
                                         color="error"
+                                        disabled={deleteFinding.isPending}
                                         onClick={() =>
-                                          reviewCandidate.mutate({
-                                            candidateId: candidate.id,
-                                            input: {
-                                              decision: 'REJECTED',
-                                              reason: 'Inspector marked as false positive',
-                                            },
+                                          deleteFinding.mutate({
+                                            findingId: finding.id,
+                                            reason: 'Inspector removed this suggestion',
                                           })
                                         }
                                       >
-                                        Reject
+                                        Remove
                                       </Button>
                                     </Stack>
                                   </Stack>
                                 )}
-                                {candidate.status !== 'PENDING' && (() => {
-                                  const linkedFinding = (findings.data ?? []).find(
-                                    (f) => f.aiCandidateId === candidate.id,
-                                  );
+                                {confirmed && (() => {
                                   const isLocked = isReportLocked;
-                                  const isEditing = editingCandidateId === candidate.id;
+                                  const isEditing = editingCandidateId === finding.id;
                                   return (
                                     <Stack spacing={1}>
                                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                                        <Chip
-                                          size="small"
-                                          color={candidate.status === 'REJECTED' ? 'error' : 'default'}
-                                          label={`Inspector: ${candidate.status}`}
-                                        />
+                                        <Chip size="small" color="success" label="Inspector confirmed" />
                                         {isLocked ? (
                                           <Chip size="small" color="success" label="Included in report" />
                                         ) : isReportLocked ? (
                                           <Chip size="small" color="default" label="Locked by submitted report" />
-                                        ) : (
-                                          <Chip size="small" color="success" variant="outlined" label="Inspector reviewed" />
-                                        )}
+                                        ) : null}
                                         {isInspector && !isLocked && (
                                           <Button
                                             size="small"
@@ -652,18 +632,18 @@ export default function InspectionFindingsPage() {
                                               if (isEditing) {
                                                 setEditingCandidateId(null);
                                               } else {
-                                                setEditingCandidateId(candidate.id);
+                                                setEditingCandidateId(finding.id);
                                                 setRevisedDefectLabels((prev) => ({
                                                   ...prev,
-                                                  [candidate.id]: linkedFinding?.defectLabel ?? candidate.predictedLabel,
+                                                  [finding.id]: finding.defectLabel,
                                                 }));
                                                 setSeverities((prev) => ({
                                                   ...prev,
-                                                  [candidate.id]: linkedFinding?.severity ?? 'MEDIUM',
+                                                  [finding.id]: finding.severity,
                                                 }));
                                                 setLocationDrafts((prev) => ({
                                                   ...prev,
-                                                  [candidate.evidenceId]: evidence.data?.find((item) => item.id === candidate.evidenceId)?.locationDescription ?? '',
+                                                  [finding.evidenceId ?? '']: evidence.data?.find((item) => item.id === finding.evidenceId)?.locationDescription ?? '',
                                                 }));
                                               }
                                             }}
@@ -682,11 +662,11 @@ export default function InspectionFindingsPage() {
                                             <TextField
                                               size="small"
                                               label="Defect label"
-                                              value={revisedDefectLabels[candidate.id] ?? candidate.predictedLabel}
+                                              value={revisedDefectLabels[finding.id] ?? finding.defectLabel}
                                               onChange={(event) =>
                                                 setRevisedDefectLabels((prev) => ({
                                                   ...prev,
-                                                  [candidate.id]: event.target.value,
+                                                  [finding.id]: event.target.value,
                                                 }))
                                               }
                                               slotProps={{ htmlInput: { maxLength: 160 } }}
@@ -696,11 +676,11 @@ export default function InspectionFindingsPage() {
                                                 select
                                                 size="small"
                                                 label="Severity"
-                                                value={severityFor(candidate.id)}
+                                                value={severityFor(finding.id)}
                                                 onChange={(event) =>
                                                   setSeverities((prev) => ({
                                                     ...prev,
-                                                    [candidate.id]: event.target.value as FindingSeverity,
+                                                    [finding.id]: event.target.value as FindingSeverity,
                                                   }))
                                                 }
                                                 sx={{ minWidth: 140 }}
@@ -714,7 +694,7 @@ export default function InspectionFindingsPage() {
                                               <TextField
                                                 size="small"
                                                 label="Evidence location"
-                                                value={locationFor(candidate.id)}
+                                                value={locationFor(finding.id)}
                                                 disabled
                                                 helperText="Edit the shared location on the evidence group."
                                                 sx={{ flexGrow: 1 }}
@@ -724,20 +704,16 @@ export default function InspectionFindingsPage() {
                                               <Button
                                                 size="small"
                                                 variant="contained"
-                                                disabled={reviseCandidate.isPending}
+                                                disabled={updateFinding.isPending}
                                                 onClick={() => {
-                                                  const label = (revisedDefectLabels[candidate.id] ?? candidate.predictedLabel).trim();
-                                                  const isModified = label !== candidate.predictedLabel;
-                                                  reviseCandidate.mutate({
-                                                    candidateId: candidate.id,
+                                                  updateFinding.mutate({
+                                                    findingId: finding.id,
                                                     input: {
-                                                      decision: isModified ? 'MODIFIED' : 'CONFIRMED',
-                                                      defectLabel: label,
-                                                      severity: severityFor(candidate.id),
-                                                      locationDescription: locationFor(candidate.id).trim() || undefined,
-                                                      technicalNotes: isModified
-                                                        ? 'Modified by assigned Inspector'
-                                                        : 'Confirmed by assigned Inspector',
+                                                      evidenceId: finding.evidenceId ?? '',
+                                                      defectLabel: (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim(),
+                                                      severity: severityFor(finding.id),
+                                                      locationDescription: locationFor(finding.id).trim() || undefined,
+                                                      technicalNotes: finding.technicalNotes ?? 'Corrected by assigned Inspector',
                                                     },
                                                   });
                                                   setEditingCandidateId(null);
@@ -747,38 +723,37 @@ export default function InspectionFindingsPage() {
                                               </Button>
                                               <Button
                                                 size="small"
-                                                color="error"
-                                                disabled={reviseCandidate.isPending}
-                                                onClick={() => {
-                                                  reviseCandidate.mutate({
-                                                    candidateId: candidate.id,
-                                                    input: {
-                                                      decision: 'REJECTED',
-                                                      reason: 'Inspector marked as false positive upon revision',
-                                                    },
-                                                  });
-                                                  setEditingCandidateId(null);
-                                                }}
-                                              >
-                                                Reject defect
-                                              </Button>
-                                              <Button
-                                                size="small"
                                                 onClick={() => setEditingCandidateId(null)}
                                               >
                                                 Cancel
                                               </Button>
                                             </Stack>
-                                            {reviseCandidate.isError && (
+                                            {updateFinding.isError && (
                                               <Alert severity="error">
-                                                {getErrorMessage(reviseCandidate.error, 'Candidate revision was not saved.')}
+                                                {getErrorMessage(updateFinding.error, 'The correction was not saved.')}
                                               </Alert>
                                             )}
                                           </Stack>
                                         </Paper>
                                       )}
 
-                                      {isInspector && linkedFinding?.inspectorConfirmedAt && (
+                                      {isInspector && !isLocked && (
+                                        <Button
+                                          size="small"
+                                          color="error"
+                                          disabled={deleteFinding.isPending}
+                                          onClick={() =>
+                                            deleteFinding.mutate({
+                                              findingId: finding.id,
+                                              reason: 'Inspector removed this finding',
+                                            })
+                                          }
+                                        >
+                                          Remove finding
+                                        </Button>
+                                      )}
+
+                                      {isInspector && (
                                         <Typography variant="caption" color="text.secondary">
                                           Inspector-confirmed. Organization Admin reviews the complete submitted report.
                                         </Typography>
@@ -878,12 +853,73 @@ export default function InspectionFindingsPage() {
                   ) : null}
                 </Paper>
               ))}
-            {reviewCandidate.isError && (
+            {confirmFinding.isError && (
               <Alert severity="error">
-                {getErrorMessage(reviewCandidate.error, 'Candidate review was not saved.')}
+                {getErrorMessage(confirmFinding.error, 'The finding was not confirmed.')}
               </Alert>
             )}
           </Stack>
+        )}
+
+        {isInspector && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.25}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, flexGrow: 1 }}>
+                  Removed findings
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setShowRemovedFindings((current) => !current)}
+                >
+                  {showRemovedFindings ? 'Hide removed' : 'Show removed'}
+                </Button>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                A removed finding is hidden from the working set but stays in the record, so it can
+                be brought back if it was removed by mistake.
+              </Typography>
+              {showRemovedFindings ? (
+                removedFindings.data?.length ? (
+                  <Stack spacing={1}>
+                    {removedFindings.data.map((finding) => (
+                      <Paper key={finding.id} variant="outlined" sx={{ p: 1.5 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
+                          <Chip size="small" label={finding.severity} />
+                          <Chip
+                            size="small"
+                            color={finding.status === 'CONFIRMED' ? 'success' : 'default'}
+                            label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {finding.deletionReason ? `Removed: ${finding.deletionReason}` : 'Removed'}
+                          </Typography>
+                          <Box sx={{ flexGrow: 1 }} />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            disabled={restoreFinding.isPending}
+                            onClick={() => restoreFinding.mutate(finding.id)}
+                          >
+                            Restore
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Alert severity="info">No finding has been removed.</Alert>
+                )
+              ) : null}
+              {restoreFinding.isError && (
+                <Alert severity="error">
+                  {getErrorMessage(restoreFinding.error, 'The finding was not restored.')}
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
         )}
 
         {isInspector && (
@@ -906,10 +942,10 @@ export default function InspectionFindingsPage() {
                 </Alert>
               )}
               <Typography variant="body2" color="text.secondary">
-                {pendingCandidates > 0
-                  ? `${pendingCandidates} AI candidate${pendingCandidates === 1 ? '' : 's'} still need a decision.`
+                {pendingFindings > 0
+                  ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision.`
                   : reviewedItemCount > 0
-                    ? `${reviewedItemCount} reviewed finding item${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
+                    ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
                     : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
               </Typography>
               {noFindings && (
@@ -950,7 +986,7 @@ export default function InspectionFindingsPage() {
       </Paper>
 
       <InspectorFindingRegister
-        findings={(findings.data ?? []).filter((finding) => finding.source === 'MANUAL')}
+        findings={(findings.data ?? []).filter((finding) => finding.modelName == null)}
         evidence={evidence.data ?? []}
         isEditable={isInspector && !isReportLocked}
         isPending={updateFinding.isPending || deleteFinding.isPending}
@@ -972,7 +1008,7 @@ function InspectorFindingRegister({
   onUpdate,
   onDelete,
 }: {
-  findings: VerifiedFinding[];
+  findings: Finding[];
   evidence: EvidenceItem[];
   isEditable: boolean;
   isPending: boolean;
@@ -987,7 +1023,7 @@ function InspectorFindingRegister({
   if (!isEditable || findings.length === 0) return null;
   const activeEvidence = evidence.filter((item) => item.retiredAt == null);
 
-  const submitEdit = (event: FormEvent<HTMLFormElement>, finding: VerifiedFinding) => {
+  const submitEdit = (event: FormEvent<HTMLFormElement>, finding: Finding) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     onUpdate(finding.id, {
@@ -1038,7 +1074,6 @@ function InspectorFindingRegister({
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                   <Chip size="small" label={finding.severity} />
-                  <Chip size="small" variant="outlined" label={finding.source.replaceAll('_', ' ')} />
                   {finding.inspectorConfirmedAt && <Chip size="small" color="success" label="Included in report" />}
                 </Stack>
                 <Typography variant="body2" color="text.secondary">{finding.locationDescription || finding.component || 'Location not supplied'}</Typography>
@@ -1067,18 +1102,9 @@ function InspectorFindingRegister({
  * `evidenceId`. Non-image captures have no inline preview; a missing entry
  * renders nothing rather than a broken image.
  */
-function OrganizationFindingsOverview({
-  findings,
-  candidates,
-}: {
-  findings: VerifiedFinding[];
-  candidates: CandidateStatus[];
-}) {
-  const officialFindings = findings.filter(
-    (finding) => finding.inspectorConfirmedAt != null || finding.decidedByUserId != null,
-  );
-  const pendingCount = candidates.filter((candidate) => candidate.status === 'PENDING').length;
-  const rejectedCount = candidates.filter((candidate) => candidate.status === 'REJECTED').length;
+function OrganizationFindingsOverview({ findings }: { findings: Finding[] }) {
+  const officialFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
+  const pendingFindings = findings.filter((finding) => finding.status === 'PENDING');
   const severityOrder: FindingSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
   const severitySummary = severityOrder
     .map((severity) => ({ severity, count: officialFindings.filter((finding) => finding.severity === severity).length }))
@@ -1087,20 +1113,20 @@ function OrganizationFindingsOverview({
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        This is the Inspector’s findings overview, not a reviewer decision screen. AI candidates
-        remain advisory; the submitted report is reviewed as a whole on the Review report tab.
+        This is the Inspector’s findings overview, not a reviewer decision screen. A finding the
+        Inspector has not confirmed is not official; the submitted report is reviewed as a whole on
+        the Review report tab.
       </Alert>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <Chip label={`${officialFindings.length} Inspector-confirmed finding(s)`} color="primary" variant="outlined" />
-        <Chip label={`${pendingCount} pending AI candidate(s)`} color={pendingCount ? 'warning' : 'default'} variant="outlined" />
-        {rejectedCount > 0 && <Chip label={`${rejectedCount} rejected AI candidate(s)`} variant="outlined" />}
+        <Chip label={`${pendingFindings.length} awaiting Inspector review`} color={pendingFindings.length ? 'warning' : 'default'} variant="outlined" />
         {severitySummary.map(({ severity, count }) => <Chip key={severity} label={`${severity}: ${count}`} size="small" />)}
       </Stack>
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Inspector findings</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Only findings included by the Inspector’s confirmation are presented as official report findings.
-          Pending AI suggestions are shown separately and cannot be accepted or edited here.
+          Only findings the Inspector confirmed are presented as official report findings. The rest
+          are shown separately and cannot be accepted or edited here.
         </Typography>
         {officialFindings.length === 0 ? (
           <Alert severity="info">The Inspector has not confirmed any report findings for this inspection.</Alert>
@@ -1112,7 +1138,6 @@ function OrganizationFindingsOverview({
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                     <Chip size="small" label={finding.severity} />
-                    <Chip size="small" label={finding.source.replaceAll('_', ' ')} variant="outlined" />
                     <Chip size="small" color="success" label="Inspector-confirmed" />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
@@ -1128,22 +1153,26 @@ function OrganizationFindingsOverview({
           </Stack>
         )}
       </Paper>
-      {pendingCount > 0 && (
+      {pendingFindings.length > 0 && (
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Advisory AI candidates</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>Awaiting Inspector review</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            These are not official findings. The assigned Inspector owns confirmation, modification or rejection.
+            These are not official findings. The assigned Inspector confirms or removes them.
           </Typography>
           <Stack spacing={1}>
-            {candidates.filter((candidate) => candidate.status === 'PENDING').map((candidate) => (
-              <Paper key={candidate.id} variant="outlined" sx={{ p: 1.5 }}>
+            {pendingFindings.map((finding) => (
+              <Paper key={finding.id} variant="outlined" sx={{ p: 1.5 }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontWeight: 600 }}>{candidate.predictedLabel}</Typography>
-                  <Chip size="small" label={`${Math.round(candidate.confidence * 100)}% confidence`} />
+                  <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
+                  {finding.confidence !== null && (
+                    <Chip size="small" label={`${Math.round(finding.confidence * 100)}% confidence`} />
+                  )}
                   <Chip size="small" color="warning" label="Pending Inspector review" />
-                  <Typography variant="caption" color="text.secondary">
-                    {candidate.modelProvider ? `${candidate.modelProvider} · ` : ''}{candidate.modelName} · {candidate.modelVersion}
-                  </Typography>
+                  {finding.modelName && (
+                    <Typography variant="caption" color="text.secondary">
+                      {finding.modelProvider ? `${finding.modelProvider} · ` : ''}{finding.modelName} · {finding.modelVersion}
+                    </Typography>
+                  )}
                 </Stack>
               </Paper>
             ))}
@@ -1157,13 +1186,13 @@ function OrganizationFindingsOverview({
 function CandidatePhoto({
   inspectionId,
   evidence,
-  candidates,
+  findings,
   showBoundingBoxes,
   highlightedCandidateId,
 }: {
   inspectionId: string;
   evidence: EvidenceItem | undefined;
-  candidates: NonNullable<ReturnType<typeof useFindingCandidates>['data']>;
+  findings: Finding[];
   showBoundingBoxes: boolean;
   highlightedCandidateId: string | null;
 }) {
@@ -1189,15 +1218,15 @@ function CandidatePhoto({
           maxHeight={420}
           sx={{ borderRadius: '6px', width: '100%' }}
         />
-        {showBoundingBoxes && candidates.map((candidate, index) => {
-          const box = parseBoundingBox(candidate.boundingBox);
+        {showBoundingBoxes && findings.map((finding, index) => {
+          const box = parseBoundingBox(finding.boundingBox ?? undefined);
           if (!box) return null;
-          const active = highlightedCandidateId === candidate.id;
+          const active = highlightedCandidateId === finding.id;
           const color = ['#d32f2f', '#1976d2', '#2e7d32', '#ed6c02'][index % 4];
           return (
             <Box
-              key={candidate.id}
-              aria-label={`${candidate.predictedLabel}, ${Math.round(candidate.confidence * 100)} percent confidence`}
+              key={finding.id}
+              aria-label={`${finding.defectLabel}, ${Math.round((finding.confidence ?? 0) * 100)} percent confidence`}
               sx={{
                 position: 'absolute',
                 left: `${box.xMin * 100}%`,
@@ -1209,7 +1238,7 @@ function CandidatePhoto({
                 pointerEvents: 'none',
                 zIndex: 2,
                 '&::before': {
-                  content: `"${candidate.predictedLabel} · ${Math.round(candidate.confidence * 100)}%"`,
+                  content: `"${finding.defectLabel} · ${Math.round((finding.confidence ?? 0) * 100)}%"`,
                   position: 'absolute',
                   top: -22,
                   left: -2,

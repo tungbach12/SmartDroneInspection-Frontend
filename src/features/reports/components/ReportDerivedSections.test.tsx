@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   EvidenceItem,
   InspectionReportVersion,
-  VerifiedFinding,
+  Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { ReportDerivedSections } from './ReportDerivedSections';
 
@@ -70,6 +70,7 @@ const version: InspectionReportVersion = {
         preFlightChecklistNote: 'Drone identified; bridge accessible',
         postponementReason: null,
         abortReason: null,
+        outcomeNotes: null,
         limitations: null,
         droneSerialNumber: 'DR-17',
         droneManufacturer: 'SurveyCo',
@@ -105,30 +106,33 @@ const evidence: EvidenceItem = {
   deduplicated: false,
 };
 
-function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
+function finding(overrides: Partial<Finding> = {}): Finding {
   return {
     id: 'finding-1',
     inspectionId: 'inspection-1',
     evidenceId: evidence.id,
-    aiCandidateId: null,
-    source: 'MANUAL',
+    deletedAt: null,
+    deletedByUserId: null,
+    deletionReason: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
     severity: 'HIGH',
     locationDescription: 'Pier 2 north face',
     technicalNotes: 'Visible crack',
+    boundingBox: null,
+    modelName: null,
+    modelVersion: null,
+    modelProvider: null,
+    confidence: null,
     recommendedAction: null,
     component: 'Pier 2',
     description: null,
     observedCondition: null,
     priority: null,
     measurement: null,
-    decision: 'CONFIRMED',
     inspectorConfirmedAt: '2026-01-02T00:00:00Z',
-    decidedByUserId: 'reviewer-1',
-    decidedAt: '2026-01-02T00:00:00Z',
     repairRequired: false,
-    status: 'OPEN',
+    status: 'PENDING',
     correctiveActionRequired: false,
     correctiveActionPriority: null,
     correctiveActionDueAt: null,
@@ -139,7 +143,7 @@ function finding(overrides: Partial<VerifiedFinding> = {}): VerifiedFinding {
   };
 }
 
-function renderSections(item: EvidenceItem, findings: VerifiedFinding[]) {
+function renderSections(item: EvidenceItem, findings: Finding[]) {
   const { container } = render(
     <ReportDerivedSections
       version={version}
@@ -152,7 +156,7 @@ function renderSections(item: EvidenceItem, findings: VerifiedFinding[]) {
   const locationLabel = labels.find((label) => label.textContent === 'Asset location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
   return locationLabel?.parentElement?.lastElementChild;
 }
-function renderConfirmedFindings(findings: VerifiedFinding[]) {
+function renderConfirmedFindings(findings: Finding[]) {
   const { container } = render(
     <ReportDerivedSections
       version={version}
@@ -205,7 +209,7 @@ describe('ReportDerivedSections evidence location', () => {
   it('shows the shared evidence location before reviewer decision', () => {
     const location = renderSections(
       { ...evidence, locationDescription: 'Girder G4 east face' },
-      [finding({ decision: null, decidedByUserId: null, decidedAt: null })],
+      [finding({ status: 'PENDING' })],
     );
 
     expect(location?.textContent).toContain('Girder G4 east face');

@@ -5,6 +5,28 @@ import { renderWithRouter as render } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocation } from 'react-router-dom';
 
+const mocks = vi.hoisted(() => ({
+  preparationsQuery: {
+    data: [] as { id: string }[] | undefined,
+    isLoading: false,
+    isError: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  versionsQuery: {
+    data: [] as { id: string; status: string }[] | undefined,
+    isLoading: false,
+    isError: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+}));
+
+vi.mock('../hooks/useInspections', () => ({
+  useInspectionPreparations: () => mocks.preparationsQuery,
+  useReportVersions: () => mocks.versionsQuery,
+}));
+
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -37,6 +59,20 @@ function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
 beforeEach(() => {
   navigateMock.mockClear();
   signInAs('INSPECTOR');
+  mocks.preparationsQuery = {
+    data: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  };
+  mocks.versionsQuery = {
+    data: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  };
 });
 
 afterEach(() => {
@@ -64,13 +100,14 @@ describe('InspectionDetailPage', () => {
     render(<><InspectionDetailPage /><LocationProbe /></>, { route: '/client/inspections/inspection-1' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Review report' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Evidence review' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Findings overview' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Readiness' })).toBeTruthy();
+    // The reviewer's tabs are decision phases, not data types: there is no per-evidence or
+    // per-finding tab beside the decisions.
+    expect(screen.getByRole('tab', { name: 'Report review' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Evidence review' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Findings overview' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Report draft' })).toBeNull();
 
-    expect(screen.getByRole('tab', { name: 'Review report' }).getAttribute('href')).toContain('review');
+    expect(screen.getByRole('tab', { name: 'Report review' }).getAttribute('href')).toContain('review');
     screen.getByRole('button', { name: 'Back to review queue' }).click();
     expect(navigateMock).toHaveBeenCalledWith('/client/inspections?view=reports');
   });
