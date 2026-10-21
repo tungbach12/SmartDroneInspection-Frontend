@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
+  Checkbox,
   Chip,
-  MenuItem,
+  FormControlLabel,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import EngineeringOutlined from '@mui/icons-material/EngineeringOutlined';
+import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -20,23 +23,17 @@ import {
   useCompleteCorrectiveHandoff,
   useDeclareNoCorrectiveWork,
   useInspectionFindings,
-  useInspectionWorkflowState,
-  useRecordCorrectiveAction,
   useReportVersions,
 } from '@/features/inspections/hooks/useInspections';
 
 /**
- * MF3-12 and MF3-13: the corrective disposition, as a phase of its own.
+ * Send to Maintenance: forward confirmed inspection findings to the maintenance team.
  *
- * <p>This is a disposition, not an edit. The published report version is immutable, and what is
- * recorded here is the accountable operational conclusion drawn from it: for every confirmed
- * finding, whether corrective work is required, with a rationale, a required priority and an
- * optional due date - or an explicit no-repair outcome with a rationale.
- *
- * <p>It lives apart from the report review screen on purpose. Beside the approve and publish
- * buttons, a per-finding form reads as "editing the report", which is exactly what a published
- * version forbids. Here the wording is about the corrective work, and the report stays where it
- * was published.
+ * <p>The administrator does not enter individual rationales, priorities, or due dates;
+ * that triage belongs to the maintenance team. By default, all confirmed findings are selected
+ * to forward as repair candidates. The administrator may deselect any items they wish to postpone.
+ * Deselecting all items publishes the report without creating candidates; omitted findings can
+ * still be forwarded later.
  */
 export default function CorrectiveDispositionPage() {
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
@@ -45,34 +42,68 @@ export default function CorrectiveDispositionPage() {
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
-  const workflow = useInspectionWorkflowState(inspectionId);
-  const recordCorrectiveAction = useRecordCorrectiveAction(inspectionId);
   const completeCorrectiveHandoff = useCompleteCorrectiveHandoff(inspectionId);
   const declareNoCorrectiveWork = useDeclareNoCorrectiveWork(inspectionId);
-
-  const [correctiveReasons, setCorrectiveReasons] = useState<Record<string, string>>({});
-  const [correctiveChoices, setCorrectiveChoices] = useState<Record<string, boolean>>({});
-  const [correctivePriorities, setCorrectivePriorities] = useState<Record<string, string>>({});
-  const [correctiveDueDates, setCorrectiveDueDates] = useState<Record<string, string>>({});
-  const [noRepairRationale, setNoRepairRationale] = useState('');
 
   const publishedVersion =
     versions.data?.find((version) => version.status === 'PUBLISHED') ?? null;
 
-  // Only the findings the Inspector confirmed (or decided) are official report findings, so only
-  // those carry a corrective outcome. Pending or rejected AI suggestions are not findings.
-  const officialFindings = (findings.data ?? []).filter(
-    (finding) => finding.status === 'CONFIRMED',
+  // Only Inspector-confirmed findings are official defects eligible for repair.
+  const officialFindings = useMemo(
+    () => (findings.data ?? []).filter((f) => f.status === 'CONFIRMED'),
+    [findings.data],
   );
-  const correctiveActionPending = officialFindings.filter(
-    (finding) => finding.correctiveActionReviewedByUserId == null,
+
+  const unforwardedFindings = useMemo(
+    () => officialFindings.filter((f) => !f.repairRequired && f.correctiveActionReviewedByUserId == null),
+    [officialFindings],
   );
-  const handoffRecorded = workflow.data?.status === 'REPAIR_PENDING' || workflow.data?.status === 'COMPLETED';
+
+  const alreadyForwardedFindings = useMemo(
+    () => officialFindings.filter((f) => f.repairRequired || f.correctiveActionReviewedByUserId != null),
+    [officialFindings],
+  );
+
+  // Selected findings to forward: default to all unforwarded findings.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (unforwardedFindings.length > 0) {
+      setSelectedIds(new Set(unforwardedFindings.map((f) => f.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  }, [unforwardedFindings]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(unforwardedFindings.map((f) => f.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleSend = () => {
+    if (selectedIds.size === 0) return;
+    completeCorrectiveHandoff.mutate(Array.from(selectedIds));
+  };
 
   if (!canReview) {
     return (
       <Alert severity="info" sx={{ borderRadius: '12px' }}>
-        The corrective disposition is recorded by the organization administrator.
+        Forwarding findings to maintenance is reserved for the organization administrator.
       </Alert>
     );
   }
@@ -89,13 +120,14 @@ export default function CorrectiveDispositionPage() {
       </Button>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
           <EngineeringOutlined color="primary" />
-          <Typography variant="h6">Corrective disposition</Typography>
+          <Typography variant="h6">Send to Maintenance</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          Recorded after publication and against the published version. The report PDF is not
-          changed by anything on this screen.
+          Forward confirmed findings to the maintenance team as repair candidates. The maintenance team
+          will triage, estimate, and create work orders. By default all findings are selected; you can
+          deselect items you wish to postpone.
         </Typography>
 
         <QueryState
@@ -111,11 +143,11 @@ export default function CorrectiveDispositionPage() {
 
         {!publishedVersion ? (
           <Alert severity="info" sx={{ mt: 2 }}>
-            There is no published report version yet, so there is nothing to disposition. Publish
-            the approved version from the report review screen first.
+            There is no published report version yet. Publish the approved report version from the
+            Report Review tab before forwarding findings.
           </Alert>
         ) : (
-          <Stack spacing={1.5} sx={{ mt: 2 }}>
+          <Stack spacing={2} sx={{ mt: 2 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Chip
                 size="small"
@@ -126,208 +158,160 @@ export default function CorrectiveDispositionPage() {
               <Chip
                 size="small"
                 variant="outlined"
-                label={`${officialFindings.length} official finding(s)`}
+                label={`${officialFindings.length} confirmed finding(s)`}
               />
-              {correctiveActionPending.length > 0 ? (
+              {alreadyForwardedFindings.length > 0 && (
                 <Chip
                   size="small"
-                  color="warning"
+                  color="success"
                   variant="outlined"
-                  label={`${correctiveActionPending.length} awaiting an outcome`}
+                  label={`${alreadyForwardedFindings.length} already forwarded`}
                 />
-              ) : null}
+              )}
             </Stack>
-
-            {handoffRecorded ? (
-              <Alert severity="success">
-                The corrective outcome for this publication is recorded. The handoff to MF4 is
-                recorded; a work order is created by the maintenance workflow, not from here.
-              </Alert>
-            ) : null}
 
             {officialFindings.length === 0 ? (
               <Stack spacing={2}>
                 <Alert severity="info">
-                  This inspection has no official findings. The no-repair outcome is recorded with a
-                  reason rather than inferred from an empty list.
+                  This inspection has no confirmed defect findings. You can complete the inspection
+                  without sending repair work to maintenance.
                 </Alert>
-                <TextField
-                  required
-                  multiline
-                  minRows={2}
-                  label="No-repair rationale for the observed scope"
-                  value={noRepairRationale}
-                  onChange={(event) => setNoRepairRationale(event.target.value)}
-                />
                 <Box>
                   <Button
                     variant="contained"
-                    disabled={declareNoCorrectiveWork.isPending || !noRepairRationale.trim()}
-                    onClick={() => declareNoCorrectiveWork.mutate(noRepairRationale.trim())}
+                    disabled={declareNoCorrectiveWork.isPending}
+                    onClick={() => declareNoCorrectiveWork.mutate('No findings observed in inspected scope')}
                   >
-                    {declareNoCorrectiveWork.isPending
-                      ? 'Recording…'
-                      : 'Record no corrective work and close inspection'}
+                    {declareNoCorrectiveWork.isPending ? 'Closing…' : 'Complete inspection without repair'}
                   </Button>
                 </Box>
               </Stack>
             ) : (
               <Stack spacing={2}>
-                {officialFindings.map((finding) => {
-                  const rationale = correctiveReasons[finding.id] ?? '';
-                  const reviewed = finding.correctiveActionReviewedByUserId != null;
-                  const required =
-                    correctiveChoices[finding.id] ?? finding.correctiveActionRequired;
-                  return (
-                    <Paper key={finding.id} variant="outlined" sx={{ p: 2 }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            {finding.defectLabel}
-                          </Typography>
-                          <Chip size="small" label={finding.severity} />
-                        </Stack>
-                        {reviewed ? (
-                          <Alert severity="success">
-                            {finding.correctiveActionRequired
-                              ? `Corrective action required${finding.correctiveActionPriority ? ` · ${finding.correctiveActionPriority}` : ''}${finding.correctiveActionDueAt ? ` · due ${new Date(finding.correctiveActionDueAt).toLocaleDateString()}` : ''}. `
-                              : 'No corrective action required within scope. '}
-                            {finding.correctiveActionRationale}
-                          </Alert>
-                        ) : (
-                          <>
-                            <TextField
-                              select
-                              label="Corrective action"
-                              value={required ? 'YES' : 'NO'}
-                              onChange={(event) =>
-                                setCorrectiveChoices((current) => ({
-                                  ...current,
-                                  [finding.id]: event.target.value === 'YES',
-                                }))
-                              }
-                            >
-                              <MenuItem value="YES">Required — proceed to MF4 triage</MenuItem>
-                              <MenuItem value="NO">Not required within observed scope</MenuItem>
-                            </TextField>
-                            {required ? (
-                              <>
-                                <TextField
-                                  select
-                                  required
-                                  label="Corrective-action priority"
-                                  value={correctivePriorities[finding.id] ?? ''}
-                                  onChange={(event) =>
-                                    setCorrectivePriorities((current) => ({
-                                      ...current,
-                                      [finding.id]: event.target.value,
-                                    }))
-                                  }
-                                >
-                                  {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
-                                    <MenuItem key={priority} value={priority}>
-                                      {priority}
-                                    </MenuItem>
-                                  ))}
-                                </TextField>
-                                <TextField
-                                  label="Due date (optional)"
-                                  type="date"
-                                  value={correctiveDueDates[finding.id] ?? ''}
-                                  onChange={(event) =>
-                                    setCorrectiveDueDates((current) => ({
-                                      ...current,
-                                      [finding.id]: event.target.value,
-                                    }))
-                                  }
-                                  slotProps={{ inputLabel: { shrink: true } }}
-                                />
-                              </>
-                            ) : null}
-                            <TextField
-                              required
-                              multiline
-                              minRows={2}
-                              label="Corrective action rationale"
-                              value={rationale}
-                              onChange={(event) =>
-                                setCorrectiveReasons((current) => ({
-                                  ...current,
-                                  [finding.id]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Box>
-                              <Button
-                                variant="contained"
-                                disabled={
-                                  recordCorrectiveAction.isPending ||
-                                  !rationale.trim() ||
-                                  (required && !correctivePriorities[finding.id])
-                                }
-                                onClick={() => {
-                                  const priority = correctivePriorities[finding.id];
-                                  const dueDate = correctiveDueDates[finding.id];
-                                  recordCorrectiveAction.mutate({
-                                    findingId: finding.id,
-                                    correctiveActionRequired: required,
-                                    ...(required && priority ? { priority } : {}),
-                                    ...(required && dueDate
-                                      ? { dueAt: new Date(`${dueDate}T23:59:59`).toISOString() }
-                                      : {}),
-                                    rationale: rationale.trim(),
-                                  });
-                                }}
-                              >
-                                Record corrective action
-                              </Button>
-                            </Box>
-                          </>
-                        )}
+                {unforwardedFindings.length > 0 ? (
+                  <>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        Findings ready to forward ({selectedIds.size} of {unforwardedFindings.length} selected):
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <Button size="small" onClick={selectAll} disabled={selectedIds.size === unforwardedFindings.length}>
+                          Select all
+                        </Button>
+                        <Button size="small" onClick={deselectAll} disabled={selectedIds.size === 0}>
+                          Deselect all
+                        </Button>
                       </Stack>
-                    </Paper>
-                  );
-                })}
+                    </Stack>
 
-                <Box>
-                  <Button
-                    variant="contained"
-                    disabled={
-                      completeCorrectiveHandoff.isPending || correctiveActionPending.length > 0
-                    }
-                    onClick={() => completeCorrectiveHandoff.mutate()}
-                  >
-                    {completeCorrectiveHandoff.isPending
-                      ? 'Handing off…'
-                      : 'Complete corrective handoff to MF4'}
-                  </Button>
-                </Box>
-                {correctiveActionPending.length > 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    {correctiveActionPending.length} finding(s) still need an outcome. Every official
-                    finding carries an explicit outcome before the handoff.
-                  </Typography>
-                ) : null}
+                    <Stack spacing={1.5}>
+                      {unforwardedFindings.map((finding) => {
+                        const checked = selectedIds.has(finding.id);
+                        return (
+                          <Card
+                            key={finding.id}
+                            variant="outlined"
+                            sx={{
+                              borderColor: checked ? 'primary.main' : 'divider',
+                              bgcolor: checked ? 'action.hover' : 'background.paper',
+                            }}
+                          >
+                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={checked}
+                                    onChange={() => toggleSelect(finding.id)}
+                                  />
+                                }
+                                label={
+                                  <Box sx={{ ml: 0.5 }}>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <Chip size="small" label={finding.findingCode} />
+                                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                        {finding.defectLabel}
+                                      </Typography>
+                                      <Chip size="small" label={finding.severity} />
+                                      {finding.locationDescription && (
+                                        <Typography variant="caption" color="text.secondary">
+                                          {finding.locationDescription}
+                                        </Typography>
+                                      )}
+                                    </Stack>
+                                    {finding.description && (
+                                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                        {finding.description}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                                sx={{ width: '100%', alignItems: 'flex-start' }}
+                              />
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </Stack>
+
+                    <Box sx={{ pt: 1 }}>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        startIcon={<EngineeringOutlined />}
+                        disabled={completeCorrectiveHandoff.isPending || selectedIds.size === 0}
+                        onClick={handleSend}
+                      >
+                        {completeCorrectiveHandoff.isPending
+                          ? 'Forwarding to Maintenance…'
+                          : `Send ${selectedIds.size} finding(s) to Maintenance`}
+                      </Button>
+                    </Box>
+
+                    {selectedIds.size === 0 && (
+                      <Alert severity="info">
+                        No findings selected. The report remains published without sending items to maintenance.
+                        You can return here anytime to forward findings later.
+                      </Alert>
+                    )}
+                  </>
+                ) : (
+                  <Alert severity="success" icon={<CheckCircleOutlineRounded />}>
+                    All confirmed findings from this report have already been forwarded to Maintenance.
+                  </Alert>
+                )}
+
+                {alreadyForwardedFindings.length > 0 && unforwardedFindings.length > 0 && (
+                  <Box sx={{ pt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                      Already forwarded findings ({alreadyForwardedFindings.length}):
+                    </Typography>
+                    <Stack spacing={1}>
+                      {alreadyForwardedFindings.map((finding) => (
+                        <Paper key={finding.id} variant="outlined" sx={{ p: 1.5, opacity: 0.85 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <Chip size="small" label={finding.findingCode} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {finding.defectLabel}
+                            </Typography>
+                            <Chip size="small" color="success" variant="outlined" label="Forwarded to Maintenance" />
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
               </Stack>
             )}
 
             <MutationProblemAlert
-              error={
-                recordCorrectiveAction.error ??
-                completeCorrectiveHandoff.error ??
-                declareNoCorrectiveWork.error
-              }
-              isError={
-                recordCorrectiveAction.isError ||
-                completeCorrectiveHandoff.isError ||
-                declareNoCorrectiveWork.isError
-              }
-              fallbackMessage="Could not record the corrective outcome."
+              error={completeCorrectiveHandoff.error ?? declareNoCorrectiveWork.error}
+              isError={completeCorrectiveHandoff.isError || declareNoCorrectiveWork.isError}
+              fallbackMessage="Could not forward findings to maintenance."
             />
 
             {(completeCorrectiveHandoff.isSuccess || declareNoCorrectiveWork.isSuccess) && (
               <Alert severity="success">
-                Corrective outcome recorded. Inspection status:{' '}
+                Findings successfully forwarded to Maintenance. Inspection status:{' '}
                 {(completeCorrectiveHandoff.data ?? declareNoCorrectiveWork.data)?.inspectionStatus}.
               </Alert>
             )}

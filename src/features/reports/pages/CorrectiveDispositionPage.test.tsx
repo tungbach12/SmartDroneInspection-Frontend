@@ -120,9 +120,8 @@ function finding(overrides: Partial<Finding>): Finding {
     priority: 'HIGH',
     measurement: '5 mm',
     inspectorConfirmedAt: '2026-10-01T11:00:00Z',
-    decidedByUserId: null,
-    repairRequired: true,
-    correctiveActionRequired: true,
+    repairRequired: false,
+    correctiveActionRequired: false,
     correctiveActionPriority: null,
     correctiveActionDueAt: null,
     correctiveActionReviewedByUserId: null,
@@ -144,7 +143,6 @@ describe('CorrectiveDispositionPage', () => {
       findingsConfirmedAt: '2026-10-01T11:00:00Z',
       findingsSnapshotHash: 'abc123',
     } as never);
-    mockedApi.recordCorrectiveAction.mockReset();
     mockedApi.completeCorrectiveHandoff.mockReset();
     mockedApi.declareNoCorrectiveWork.mockReset();
   });
@@ -154,99 +152,101 @@ describe('CorrectiveDispositionPage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('records the corrective outcome on a published finding', async () => {
+  it('selects all unforwarded findings by default and sends them to maintenance on button click', async () => {
     mockedApi.listFindings.mockResolvedValue([
-      finding({ correctiveActionRequired: true, repairRequired: true }),
-    ] as never);
-
-    renderPage();
-
-    fireEvent.mouseDown(await screen.findByLabelText('Corrective action'));
-    fireEvent.click(screen.getByRole('option', { name: /Not required within observed scope/ }));
-    fireEvent.change(screen.getByLabelText(/Corrective action rationale/), {
-      target: { value: 'No repair is needed within the observed span.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Record corrective action' }));
-
-    await waitFor(() =>
-      expect(mockedApi.recordCorrectiveAction).toHaveBeenCalledWith('inspection-1', 'finding-1', {
-        correctiveActionRequired: false,
-        rationale: 'No repair is needed within the observed span.',
-      }),
-    );
-  });
-
-  it('requires a rationale before declaring that no corrective work is needed', async () => {
-    renderPage();
-
-    const close = (await screen.findByRole('button', {
-      name: 'Record no corrective work and close inspection',
-    })) as HTMLButtonElement;
-    expect(close.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText(/No-repair rationale for the observed scope/), {
-      target: { value: 'The observed scope needs no corrective work.' },
-    });
-    expect(close.disabled).toBe(false);
-
-    fireEvent.click(close);
-    await waitFor(() =>
-      expect(mockedApi.declareNoCorrectiveWork).toHaveBeenCalledWith(
-        'inspection-1',
-        'The observed scope needs no corrective work.',
-      ),
-    );
-  });
-
-  it('hands corrective outcomes to MF4 only when every confirmed finding is reviewed', async () => {
-    mockedApi.listFindings.mockResolvedValue([
-      finding({
-        id: 'finding-1',
-        correctiveActionRequired: false,
-        correctiveActionReviewedByUserId: 'reviewer-1',
-        correctiveActionReviewedAt: '2026-10-01T13:00:00Z',
-        correctiveActionRationale: 'No repair is needed.',
-      }),
-      finding({ id: 'finding-2', correctiveActionRequired: true }),
-    ] as never);
-
-    renderPage();
-
-    const handoff = (await screen.findByRole('button', {
-      name: 'Complete corrective handoff to MF4',
-    })) as HTMLButtonElement;
-    expect(handoff.disabled).toBe(true);
-  });
-
-  it('hands reviewed corrective outcomes to MF4 and reports the resulting inspection status', async () => {
-    mockedApi.listFindings.mockResolvedValue([
-      finding({
-        correctiveActionRequired: true,
-        correctiveActionPriority: 'HIGH',
-        correctiveActionReviewedByUserId: 'reviewer-1',
-        correctiveActionReviewedAt: '2026-10-01T13:00:00Z',
-        correctiveActionRationale: 'Repair is required.',
-      }),
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
+      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange' }),
     ] as never);
     mockedApi.completeCorrectiveHandoff.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: ['finding-1'],
+      repairRequiredFindingIds: ['finding-1', 'finding-2'],
       inspectionStatus: 'REPAIR_PENDING',
     } as never);
 
     renderPage();
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Complete corrective handoff to MF4' }),
-    );
+    expect(await screen.findByText(/Send to Maintenance/i)).toBeTruthy();
+    expect(screen.getByText('Crack on beam')).toBeTruthy();
+    expect(screen.getByText('Corrosion on flange')).toBeTruthy();
+
+    const sendButton = await screen.findByRole('button', { name: /Send 2 finding\(s\) to Maintenance/i });
+    expect(sendButton).toBeTruthy();
+
+    fireEvent.click(sendButton);
 
     await waitFor(() =>
-      expect(mockedApi.completeCorrectiveHandoff).toHaveBeenCalledWith('inspection-1'),
+      expect(mockedApi.completeCorrectiveHandoff).toHaveBeenCalledWith('inspection-1', ['finding-1', 'finding-2']),
     );
+  });
+
+  it('allows deselecting a finding to exclude it from the maintenance handoff', async () => {
+    mockedApi.listFindings.mockResolvedValue([
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
+      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange' }),
+    ] as never);
+    mockedApi.completeCorrectiveHandoff.mockResolvedValue({
+      reportVersionId: 'version-1',
+      versionNo: 1,
+      publishedAt: '2026-10-01T12:00:00Z',
+      repairRequiredFindingIds: ['finding-2'],
+      inspectionStatus: 'REPAIR_PENDING',
+    } as never);
+
+    renderPage();
+
+    // Click checkbox for finding-1 to uncheck it
+    const checkboxes = await screen.findAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(2);
+    fireEvent.click(checkboxes[0]!);
+
+    // Now button should say "Send 1 finding(s) to Maintenance"
+    const sendButton = await screen.findByRole('button', { name: /Send 1 finding\(s\) to Maintenance/i });
+    fireEvent.click(sendButton);
+
     await waitFor(() =>
-      expect(screen.getByText(/Inspection status: REPAIR_PENDING/)).toBeTruthy(),
+      expect(mockedApi.completeCorrectiveHandoff).toHaveBeenCalledWith('inspection-1', ['finding-2']),
+    );
+  });
+
+  it('shows already forwarded findings as read-only chips', async () => {
+    mockedApi.listFindings.mockResolvedValue([
+      finding({
+        id: 'finding-1',
+        repairRequired: true,
+        correctiveActionReviewedByUserId: 'reviewer-1',
+      }),
+    ] as never);
+
+    renderPage();
+
+    expect(await screen.findByText(/All confirmed findings from this report have already been forwarded/i)).toBeTruthy();
+    expect(screen.getByText(/1 already forwarded/i)).toBeTruthy();
+  });
+
+  it('allows completing an inspection without repair when no findings exist', async () => {
+    mockedApi.listFindings.mockResolvedValue([] as never);
+    mockedApi.declareNoCorrectiveWork.mockResolvedValue({
+      reportVersionId: 'version-1',
+      versionNo: 1,
+      publishedAt: '2026-10-01T12:00:00Z',
+      repairRequiredFindingIds: [],
+      inspectionStatus: 'COMPLETED',
+    } as never);
+
+    renderPage();
+
+    const closeButton = await screen.findByRole('button', {
+      name: /Complete inspection without repair/i,
+    });
+    fireEvent.click(closeButton);
+
+    await waitFor(() =>
+      expect(mockedApi.declareNoCorrectiveWork).toHaveBeenCalledWith(
+        'inspection-1',
+        'No findings observed in inspected scope',
+      ),
     );
   });
 
@@ -265,7 +265,7 @@ describe('CorrectiveDispositionPage', () => {
     renderPage();
 
     expect(
-      await screen.findByText(/corrective disposition is recorded by the organization administrator/i),
+      await screen.findByText(/reserved for the organization administrator/i),
     ).toBeTruthy();
   });
 });

@@ -477,14 +477,13 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    expect(screen.queryByText(/Corrective disposition \(MF3-12\)/)).toBeNull();
+    expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
 
-    expect(await screen.findByText(/Corrective disposition \(MF3-12\)/)).toBeTruthy();
-    // The disposition itself is its own phase, not a form beside the publish button.
+    expect(await screen.findByText(/Send to Maintenance \(MF3-12\)/)).toBeTruthy();
     expect(
-      screen.getByRole('link', { name: /open the corrective disposition/i }),
+      screen.getByRole('link', { name: /send findings to maintenance/i }),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Record corrective action' })).toBeNull();
   });

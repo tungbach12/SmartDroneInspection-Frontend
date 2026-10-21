@@ -869,10 +869,11 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  completeCorrectiveHandoff: (inspectionId: string) =>
+  completeCorrectiveHandoff: (inspectionId: string, findingIds?: string[]) =>
     api
       .post<CorrectiveHandoffResult>(
         `/inspections/${inspectionId}/report/corrective-handoff`,
+        findingIds ? { findingIds } : {},
       )
       .then((response) => response.data),
 

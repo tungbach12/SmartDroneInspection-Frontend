@@ -33,7 +33,7 @@ const INSPECTOR_TABS = [
 const REVIEWER_TABS = [
   { value: 'preparation', label: 'Readiness review', to: 'preparation' },
   { value: 'review', label: 'Report review', to: 'review' },
-  { value: 'corrective', label: 'Corrective disposition', to: 'corrective' },
+  { value: 'corrective', label: 'Send to Maintenance', to: 'corrective' },
 ] as const;
 
 /**

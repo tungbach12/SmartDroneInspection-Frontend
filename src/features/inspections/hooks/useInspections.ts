@@ -848,16 +848,18 @@ export function useCompleteCorrectiveHandoff(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: () => inspectionApi.completeCorrectiveHandoff(inspectionId!),
+    mutationFn: (findingIds?: string[]) =>
+      inspectionApi.completeCorrectiveHandoff(inspectionId!, findingIds),
     onSuccess: () => {
-      showToast('Corrective handoff to MF4 completed.');
+      showToast('Findings forwarded to Maintenance.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       }
     },
     onError: (error) =>
-      showToast(getErrorMessage(error, 'The corrective handoff was not completed.'), 'error'),
+      showToast(getErrorMessage(error, 'Failed to forward findings to Maintenance.'), 'error'),
   });
 }
 

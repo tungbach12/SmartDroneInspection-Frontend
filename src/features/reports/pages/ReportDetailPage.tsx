@@ -474,11 +474,11 @@ export default function ReportDetailPage() {
               {canReview && publishedUnhanded && (
                 <Stack spacing={2}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    Corrective disposition (MF3-12)
+                    Send to Maintenance (MF3-12)
                   </Typography>
                   <Alert severity="info">
-                    The published version is immutable. The corrective outcome for every official
-                    finding is recorded as its own step, after publication.
+                    The published version is immutable. Confirmed defect findings can be forwarded
+                    to the maintenance team as repair candidates.
                   </Alert>
                   <Box>
                     <Button
@@ -487,7 +487,7 @@ export default function ReportDetailPage() {
                       to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
                       sx={{ textTransform: 'none' }}
                     >
-                      Open the corrective disposition
+                      Send findings to Maintenance
                     </Button>
                   </Box>
                 </Stack>
