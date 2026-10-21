@@ -24,6 +24,7 @@ const authenticatedFlow = {
 describe('browser session bootstrap', () => {
   beforeEach(() => {
     restore.mockReset();
+    localStorage.removeItem('sdi_dev_session');
     useAuthStore.setState({
       status: 'checking',
       accessToken: null,
@@ -78,5 +79,45 @@ describe('browser session bootstrap', () => {
     complete?.(authenticatedFlow);
     await Promise.all([first, second]);
     expect(useAuthStore.getState().status).toBe('authenticated');
+  });
+
+  it('does not let a stale refresh response overwrite a newer successful login', async () => {
+    let completeRestore: ((value: typeof authenticatedFlow) => void) | undefined;
+    restore.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          completeRestore = resolve;
+        }),
+    );
+
+    const bootstrap = initializeBrowserSession();
+    useAuthStore.getState().setSession({
+      accessToken: 'fresh-login-token',
+      user: {
+        ...authenticatedFlow.user,
+        id: 'fresh-user',
+        email: 'fresh-admin@example.test',
+        roles: ['ORG_ADMIN'],
+      },
+    });
+
+    completeRestore?.({
+      ...authenticatedFlow,
+      accessToken: 'stale-refresh-token',
+      user: {
+        ...authenticatedFlow.user,
+        id: 'stale-user',
+        email: 'stale-inspector@example.test',
+        roles: ['INSPECTOR'],
+      },
+    });
+    await bootstrap;
+
+    expect(useAuthStore.getState()).toMatchObject({
+      status: 'authenticated',
+      accessToken: 'fresh-login-token',
+      email: 'fresh-admin@example.test',
+      roles: ['ORG_ADMIN'],
+    });
   });
 });
