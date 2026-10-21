@@ -6,6 +6,13 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocation } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => ({
+  inspectionQuery: {
+    data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS' } as any,
+    isLoading: false,
+    isError: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
   preparationsQuery: {
     data: [] as { id: string }[] | undefined,
     isLoading: false,
@@ -23,6 +30,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../hooks/useInspections', () => ({
+  useInspection: () => mocks.inspectionQuery,
   useInspectionPreparations: () => mocks.preparationsQuery,
   useReportVersions: () => mocks.versionsQuery,
 }));

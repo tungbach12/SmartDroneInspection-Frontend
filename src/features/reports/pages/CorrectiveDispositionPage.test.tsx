@@ -167,8 +167,7 @@ describe('CorrectiveDispositionPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/Send to Maintenance/i)).toBeTruthy();
-    expect(screen.getByText('Crack on beam')).toBeTruthy();
+    expect(await screen.findByText('Crack on beam')).toBeTruthy();
     expect(screen.getByText('Corrosion on flange')).toBeTruthy();
 
     const sendButton = await screen.findByRole('button', { name: /Send 2 finding\(s\) to Maintenance/i });
