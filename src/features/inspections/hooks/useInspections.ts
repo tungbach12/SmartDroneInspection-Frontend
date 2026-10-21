@@ -242,8 +242,8 @@ function invalidateReadiness(client: ReturnType<typeof useQueryClient>, inspecti
  */
 export function useFieldSessions(inspectionId: string | null, enabled = true) {
   return useQuery({
-    queryKey: inspectionKeys.fieldSessions(inspectionId ?? ''),
-    queryFn: () => inspectionApi.listFieldSessions(inspectionId!),
+    queryKey: fieldSessionKeys.forInspection(inspectionId ?? ''),
+    queryFn: () => fieldSessionApi.list(inspectionId!),
     enabled: Boolean(inspectionId) && enabled,
   });
 }
