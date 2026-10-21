@@ -27,6 +27,12 @@ export function initializeBrowserSession(): Promise<void> {
   if (!restoration) {
     restoration = restoreBrowserSession()
       .then((flow) => {
+        // A user may complete login while the initial refresh request is still in flight. That
+        // request belongs to the anonymous bootstrap; do not let its older cookie/session response
+        // replace the role the explicit login just established.
+        if (useAuthStore.getState().status !== 'checking') {
+          return;
+        }
         if (flow.step !== 'AUTHENTICATED' || !flow.accessToken) {
           throw new Error('No active browser session was restored.');
         }
@@ -36,7 +42,11 @@ export function initializeBrowserSession(): Promise<void> {
         });
       })
       .catch(() => {
-        useAuthStore.getState().clearSession();
+        // A refresh failure is only authoritative while the initial restoration is still pending.
+        // If login already succeeded, a stale restore rejection must not clear the fresh session.
+        if (useAuthStore.getState().status === 'checking') {
+          useAuthStore.getState().clearSession();
+        }
       })
       .finally(() => {
         restoration = null;

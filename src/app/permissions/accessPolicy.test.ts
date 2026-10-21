@@ -30,6 +30,7 @@ const expectedAccess: Record<
     reports: ['ADMIN'],
     maintenance: ['ADMIN'],
     workforce: [],
+    'platform-users': ['ADMIN'],
   },
   client: {
     dashboard: ['ORG_ADMIN'],
@@ -40,6 +41,7 @@ const expectedAccess: Record<
     reports: ['ORG_ADMIN'],
     maintenance: ['ORG_ADMIN'],
     workforce: ['ORG_ADMIN'],
+    'platform-users': [],
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -50,6 +52,7 @@ const expectedAccess: Record<
     reports: ['INSPECTOR'],
     maintenance: ['MAINTENANCE_ENGINEER'],
     workforce: [],
+    'platform-users': [],
   },
 };
 

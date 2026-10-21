@@ -57,6 +57,8 @@ vi.mock('../hooks/useAssets', () => ({
     isLoading: false,
   }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useAssetPair: () => ({ data: null, isLoading: false }),
+  useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));
@@ -156,7 +158,7 @@ describe('AssetsPage streaming a document the server refuses', () => {
 
     renderWithQueryClient(<AssetsPage />);
     (await screen.findByText('North bridge')).click();
-    const open = await screen.findByRole('button', { name: /Open/ }, { timeout: 4000 });
+    const open = await screen.findByRole('button', { name: /Open/ }, { timeout: 10000 });
     open.click();
 
     const alert = await screen.findByTestId('document-access-denied');

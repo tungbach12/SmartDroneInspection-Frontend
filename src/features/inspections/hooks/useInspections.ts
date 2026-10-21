@@ -3,10 +3,15 @@ import { useCallback, useState } from 'react';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
+  fieldSessionApi,
+  fieldSessionKeys,
+} from '../api/fieldSessionApi';
+import {
   inspectionApi,
   type Finding,
   type EvidenceQualityDecisionType,
   type ApproveReadinessInput,
+  type CreateInspectionInput,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
@@ -64,6 +69,27 @@ export function useInspectionsWithReports(filters: InspectionListFilters, enable
     queryKey: inspectionKeys.listWithReports(filters),
     queryFn: () => inspectionApi.listWithReports(filters),
     enabled,
+  });
+}
+
+export function useInspection(inspectionId: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...inspectionKeys.all, 'detail', inspectionId] as const,
+    queryFn: () => inspectionApi.getById(inspectionId!),
+    enabled: enabled && Boolean(inspectionId),
+  });
+}
+
+export function useCreateInspection() {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: (input: CreateInspectionInput) => inspectionApi.create(input),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      showToast('Inspection created and assigned');
+    },
   });
 }
 
@@ -879,5 +905,62 @@ export function usePublishReportVersion(inspectionId: string | null) {
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report was not published.'), 'error'),
+  });
+}
+
+/**
+ * MF2-10: starting a session.
+ *
+ * Starting also moves the inspection into `IN_PROGRESS`, so the inspection collection and the
+ * session list are both refetched rather than patched.
+ */
+export function useStartFieldSession(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (preFlightChecklistNote: string) =>
+      fieldSessionApi.start(inspectionId!, preFlightChecklistNote),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Field session started');
+    },
+  });
+}
+
+/** MF2-09: postponement and MF2-11: abort. Both need the Inspector's own stated reason. */
+export function useFieldSessionOutcome(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      outcome,
+      reason,
+    }: {
+      sessionId: string;
+      outcome: 'postpone' | 'abort';
+      reason: string;
+    }) =>
+      outcome === 'postpone'
+        ? fieldSessionApi.postpone(inspectionId!, sessionId, reason)
+        : fieldSessionApi.abort(inspectionId!, sessionId, reason),
+    onSuccess: (_data, variables) => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast(
+        variables.outcome === 'postpone'
+          ? 'Session postponed'
+          : 'Session aborted',
+      );
+    },
   });
 }
