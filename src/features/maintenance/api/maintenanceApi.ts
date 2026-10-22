@@ -1,13 +1,5 @@
 import { api } from '@/shared/api/client';
 
-/**
- * MF4 work-order contract.
- *
- * Every transition is a named action rather than a generic state change, matching the backend
- * controller. The client never sends a status field; it names the action it wants performed, so
- * the server stays the only place that decides which transition is legal.
- */
-
 export type WorkOrderStatus =
   | 'DRAFT'
   | 'AWAITING_APPROVAL'
@@ -16,40 +8,61 @@ export type WorkOrderStatus =
   | 'IN_PROGRESS'
   | 'WORK_COMPLETED'
   | 'SUBMITTED_FOR_ACCEPTANCE'
-  | 'ACCEPTED'
-  | 'COST_RECONCILED'
-  | 'CLOSED'
   | 'REWORK_REQUIRED'
-  | 'REINSPECTION_REQUIRED';
+  | 'REINSPECTION_REQUIRED'
+  | 'ACCEPTED'
+  | 'COSTS_RECONCILED'
+  | 'CLOSED';
 
-export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type MaintenancePriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
-export type TeamMemberRole = 'LEAD' | 'REPORT_AUTHOR' | 'ACCEPTING_REVIEWER' | 'MEMBER';
+export type TeamMemberRole = 'LEAD' | 'REPORT_AUTHOR' | 'MEMBER';
 
 export type TaskStatus =
-  | 'PLANNED'
-  | 'ACCEPTED'
+  | 'PENDING'
   | 'IN_PROGRESS'
+  | 'BLOCKED'
   | 'COMPLETED'
-  | 'BLOCKED';
+  | 'CANCELLED';
 
 export type EstimateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 
-export type WorkLogStatus = 'DRAFT' | 'SUBMITTED' | 'VERIFIED';
+export type ChangeOrderStatus =
+  | 'DRAFT'
+  | 'AWAITING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RETURNED_FOR_CLARIFICATION';
 
-export type ChangeOrderStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'RETURNED';
+export type WorkLogStatus = 'DRAFT' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
 
 export type ReportVersionStatus =
   | 'DRAFT'
   | 'AUTHOR_VERIFIED'
   | 'SUBMITTED'
-  | 'ACCEPTED'
-  | 'REJECTED'
+  | 'APPROVED'
+  | 'RETURNED'
   | 'SUPERSEDED';
 
-export type AcceptanceDecisionKind = 'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED';
+export type AcceptanceDecisionKind =
+  | 'ACCEPTED'
+  | 'REWORK_REQUIRED'
+  | 'REINSPECTION_REQUIRED'
+  | 'REJECTED';
 
-export type CostLineKind = 'LABOR' | 'MATERIAL' | 'EQUIPMENT' | 'SERVICE' | 'OTHER';
+export interface RepairCandidate {
+  assetId: string;
+  inspectionId: string;
+  reportId: string;
+  reportVersionId: string;
+  findingId: string;
+  findingCode: string;
+  defectLabel: string;
+  description: string;
+  severity: string;
+  recommendedAction: string;
+  reportPublishedAt: string;
+}
 
 export interface WorkOrder {
   id: string;
@@ -60,8 +73,8 @@ export interface WorkOrder {
   priority: MaintenancePriority;
   dueAt: string | null;
   correctiveScope: string;
-  acceptanceCriteria: string | null;
-  ownerUserId: string | null;
+  acceptanceCriteria: string;
+  ownerUserId: string;
   budgetApproverUserId: string;
   teamLeadUserId: string | null;
   reportAuthorUserId: string | null;
@@ -109,7 +122,8 @@ export interface EstimateVersion {
   approvedByUserId: string | null;
   approvedAt: string | null;
   currency: string;
-  baselineTotal: string | null;
+  taxBasis: string;
+  baselineTotal: number;
   assumptions: string | null;
   snapshot: string;
   createdAt: string;
@@ -119,26 +133,32 @@ export interface WorkLog {
   id: string;
   taskId: string;
   engineerUserId: string;
-  startedAt: string | null;
+  workHours: number;
+  startedAt: string;
   endedAt: string | null;
-  hours: string;
-  actualCostReferences: string | null;
   asLeftCondition: string | null;
   testReadings: string | null;
+  verifiedByUserId: string | null;
+  verifiedAt: string | null;
   status: WorkLogStatus;
+  createdAt: string;
 }
 
 export interface ChangeOrder {
   id: string;
   changeNumber: number;
   reason: string;
-  affectedTasks: string | null;
-  proposedDelta: string | null;
+  affectedTasks: string;
+  proposedDelta: number;
+  supportingEvidence: string | null;
+  proposedStartAt: string | null;
+  proposedEndAt: string | null;
   status: ChangeOrderStatus;
   requestedByUserId: string;
   decidedByUserId: string | null;
   decidedAt: string | null;
   decisionReason: string | null;
+  createdAt: string;
 }
 
 export interface MaintenanceReportVersion {
@@ -151,7 +171,9 @@ export interface MaintenanceReportVersion {
   changeSnapshotHash: string | null;
   workLogSnapshotHash: string | null;
   actualCostSnapshotHash: string | null;
-  contentSnapshot: string | null;
+  contentSnapshot: string;
+  renderedObjectKey?: string | null;
+  renderedChecksumSha256?: string | null;
 }
 
 export interface AcceptanceDecision {
@@ -159,34 +181,26 @@ export interface AcceptanceDecision {
   reportVersionId: string;
   reviewerUserId: string;
   decision: AcceptanceDecisionKind;
-  technicalComments: string | null;
+  technicalComments: string;
   acceptanceChecklist: string | null;
   testResult: string | null;
+  signatureReference: string | null;
   decidedAt: string;
 }
 
 export interface CostReconciliation {
-  approvedBaselineTotal: string;
-  approvedChangeDelta: string;
-  authorizedAmount: string;
-  actualTotal: string;
-  variance: string;
-  variancePercent: string | null;
+  approvedBaselineTotal: number;
+  approvedChangeDelta: number;
+  authorizedAmount: number;
+  actualTotal: number;
+  variance: number;
+  variancePercent: number | null;
   currency: string;
 }
 
-export interface RepairCandidate {
-  assetId: string;
-  inspectionId: string;
-  reportId: string;
-  reportVersionId: string;
-  findingId: string;
-  findingCode: string;
-  defectLabel: string;
-  description: string | null;
-  severity: string;
-  recommendedAction: string | null;
-  reportPublishedAt: string;
+export interface WorkOrderListFilters {
+  page?: number;
+  size?: number;
 }
 
 export interface CreateWorkOrderInput {
@@ -197,7 +211,7 @@ export interface CreateWorkOrderInput {
   priority?: MaintenancePriority;
   dueAt?: string | null;
   correctiveScope: string;
-  acceptanceCriteria?: string | null;
+  acceptanceCriteria?: string;
 }
 
 export interface AssignTeamInput {
@@ -205,284 +219,261 @@ export interface AssignTeamInput {
   reportAuthorUserId: string;
   acceptingReviewerUserId: string;
   memberUserIds?: string[];
-  reason?: string | undefined;
-}
-
-export interface CreateTaskInput {
-  name: string;
-  method?: string | null;
-  assignedEngineerUserId?: string | null;
-  plannedStartAt?: string | null;
-  plannedEndAt?: string | null;
-  acceptanceCriteria?: string | null;
-}
-
-export interface EstimateLineInput {
-  taskId?: string | null;
-  lineKind: CostLineKind;
-  description: string;
-  quantity?: number | null;
-  unit?: string | null;
-  unitRate?: number | null;
-  evidenceReference?: string | null;
-}
-
-export interface CreateEstimateVersionInput {
-  currency: string;
-  taxBasis?: string | null;
-  assumptions?: string | null;
-  snapshot: string;
-  lines: EstimateLineInput[];
-}
-
-export interface RecordWorkLogInput {
-  taskId: string;
-  startedAt?: string | null;
-  endedAt?: string | null;
-  hours: number;
-  actualCostReferences?: string | null;
-  asLeftCondition?: string | null;
-  testReadings?: string | null;
-}
-
-export interface CreateChangeOrderInput {
-  reason: string;
-  affectedTasks?: string | null;
-  proposedDelta?: number | null;
-  supportingEvidence?: string | null;
-  proposedStartAt?: string | null;
-  proposedEndAt?: string | null;
-}
-
-export interface ChangeDecisionInput {
   reason?: string;
 }
 
 export interface RecordAcceptanceInput {
   decision: AcceptanceDecisionKind;
-  technicalComments?: string | null;
-  acceptanceChecklist?: string | null;
-  testResult?: string | null;
-  signatureReference?: string | null;
+  technicalComments?: string;
+  acceptanceChecklist?: string;
+  testResult?: string;
+  signatureReference?: string;
 }
 
-export interface ActualCostLineInput {
+export interface CreateTaskInput {
+  name: string;
+  method?: string;
+  assignedEngineerUserId?: string;
+  plannedStartAt?: string;
+  plannedEndAt?: string;
+  acceptanceCriteria?: string;
+}
+
+export interface RecordWorkLogInput {
   taskId: string;
-  lineKind: CostLineKind;
-  description: string;
-  quantity: number;
-  unit?: string | null;
-  unitRate: number;
-  currency: string;
-  taxTreatment?: string | null;
-  evidenceReference?: string | null;
+  hours: number;
+  startedAt?: string;
+  endedAt?: string;
+  asLeftCondition?: string;
+  testReadings?: string;
 }
 
-export interface ReconcileCostsInput {
-  actualLines: ActualCostLineInput[];
+export interface ProposeChangeInput {
+  reason: string;
+  affectedTasks?: string;
+  proposedDelta: number;
+  supportingEvidence?: string;
+  proposedStartAt?: string;
+  proposedEndAt?: string;
 }
 
-export const maintenanceKeys = {
-  all: ['maintenance'] as const,
-  workOrders: () => [...maintenanceKeys.all, 'work-orders'] as const,
-  workOrder: (id: string) => [...maintenanceKeys.all, 'work-order', id] as const,
-  repairCandidates: () => [...maintenanceKeys.all, 'repair-candidates'] as const,
-  team: (id: string) => [...maintenanceKeys.workOrder(id), 'team'] as const,
-  tasks: (id: string) => [...maintenanceKeys.workOrder(id), 'tasks'] as const,
-  estimates: (id: string) => [...maintenanceKeys.workOrder(id), 'estimate-versions'] as const,
-  workLogs: (id: string) => [...maintenanceKeys.workOrder(id), 'work-logs'] as const,
-  changes: (id: string) => [...maintenanceKeys.workOrder(id), 'changes'] as const,
-  reports: (id: string) => [...maintenanceKeys.workOrder(id), 'reports'] as const,
-  acceptance: (id: string) => [...maintenanceKeys.workOrder(id), 'acceptance-decisions'] as const,
-  reconciliation: (id: string) => [...maintenanceKeys.workOrder(id), 'cost-reconciliation'] as const,
-};
+export interface CreateReportInput {
+  contentSnapshot: string;
+  approvedScopeHash?: string;
+  changeSnapshotHash?: string;
+  workLogSnapshotHash?: string;
+  actualCostSnapshotHash?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  promptVersion?: string;
+}
 
 export const maintenanceApi = {
-  listWorkOrders: (page = 0, size = 20) =>
-    api
-      .get<WorkOrderPage>('/maintenance/work-orders', { params: { page, size } })
-      .then((r) => r.data),
+  getRepairCandidates: async (): Promise<RepairCandidate[]> => {
+    const res = await api.get<RepairCandidate[]>('/maintenance/repair-candidates');
+    return res.data;
+  },
 
-  getWorkOrder: (id: string) =>
-    api.get<WorkOrder>(`/maintenance/work-orders/${id}`).then((r) => r.data),
+  listWorkOrders: async (filters: WorkOrderListFilters = {}): Promise<WorkOrderPage> => {
+    const res = await api.get<WorkOrderPage>('/maintenance/work-orders', {
+      params: {
+        page: filters.page ?? 0,
+        size: filters.size ?? 20,
+      },
+    });
+    return res.data;
+  },
 
-  repairCandidates: () =>
-    api.get<RepairCandidate[]>('/maintenance/repair-candidates').then((r) => r.data),
+  getWorkOrder: async (workOrderId: string): Promise<WorkOrder> => {
+    const res = await api.get<WorkOrder>(`/maintenance/work-orders/${workOrderId}`);
+    return res.data;
+  },
 
-  createWorkOrder: (input: CreateWorkOrderInput) =>
-    api.post<WorkOrder>('/maintenance/work-orders', input).then((r) => r.data),
+  createWorkOrder: async (input: CreateWorkOrderInput): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>('/maintenance/work-orders', input);
+    return res.data;
+  },
 
-  listTeam: (workOrderId: string) =>
-    api.get<TeamMember[]>(`/maintenance/work-orders/${workOrderId}/team`).then((r) => r.data),
+  getTeam: async (workOrderId: string): Promise<TeamMember[]> => {
+    const res = await api.get<TeamMember[]>(`/maintenance/work-orders/${workOrderId}/team`);
+    return res.data;
+  },
 
-  assignTeam: (workOrderId: string, input: AssignTeamInput) =>
-    api
-      .post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/team`, input)
-      .then((r) => r.data),
+  assignTeam: async (workOrderId: string, input: AssignTeamInput): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/team`, input);
+    return res.data;
+  },
 
-  listTasks: (workOrderId: string) =>
-    api.get<MaintenanceTask[]>(`/maintenance/work-orders/${workOrderId}/tasks`).then((r) => r.data),
+  getTasks: async (workOrderId: string): Promise<MaintenanceTask[]> => {
+    const res = await api.get<MaintenanceTask[]>(`/maintenance/work-orders/${workOrderId}/tasks`);
+    return res.data;
+  },
 
-  createTask: (workOrderId: string, input: CreateTaskInput) =>
-    api
-      .post<MaintenanceTask>(`/maintenance/work-orders/${workOrderId}/tasks`, input)
-      .then((r) => r.data),
+  getEstimateVersions: async (workOrderId: string): Promise<EstimateVersion[]> => {
+    const res = await api.get<EstimateVersion[]>(
+      `/maintenance/work-orders/${workOrderId}/estimate-versions`,
+    );
+    return res.data;
+  },
 
-  listEstimateVersions: (workOrderId: string) =>
-    api
-      .get<EstimateVersion[]>(`/maintenance/work-orders/${workOrderId}/estimate-versions`)
-      .then((r) => r.data),
+  approveEstimate: async (workOrderId: string, versionNo: number): Promise<EstimateVersion> => {
+    const res = await api.post<EstimateVersion>(
+      `/maintenance/work-orders/${workOrderId}/estimate-versions/${versionNo}/approve`,
+    );
+    return res.data;
+  },
 
-  createEstimateVersion: (workOrderId: string, input: CreateEstimateVersionInput) =>
-    api
-      .post<EstimateVersion>(`/maintenance/work-orders/${workOrderId}/estimate-versions`, input)
-      .then((r) => r.data),
+  rejectEstimate: async (
+    workOrderId: string,
+    versionNo: number,
+    reason: string,
+  ): Promise<EstimateVersion> => {
+    const res = await api.post<EstimateVersion>(
+      `/maintenance/work-orders/${workOrderId}/estimate-versions/${versionNo}/reject`,
+      { reason },
+    );
+    return res.data;
+  },
 
-  submitEstimate: (workOrderId: string, versionNo: number) =>
-    api
-      .post<EstimateVersion>(
-        `/maintenance/work-orders/${workOrderId}/estimate-versions/${versionNo}/submit`,
-      )
-      .then((r) => r.data),
+  getWorkLogs: async (workOrderId: string): Promise<WorkLog[]> => {
+    const res = await api.get<WorkLog[]>(`/maintenance/work-orders/${workOrderId}/work-logs`);
+    return res.data;
+  },
 
-  approveEstimate: (workOrderId: string, versionNo: number) =>
-    api
-      .post<EstimateVersion>(
-        `/maintenance/work-orders/${workOrderId}/estimate-versions/${versionNo}/approve`,
-      )
-      .then((r) => r.data),
+  getChanges: async (workOrderId: string): Promise<ChangeOrder[]> => {
+    const res = await api.get<ChangeOrder[]>(`/maintenance/work-orders/${workOrderId}/changes`);
+    return res.data;
+  },
 
-  rejectEstimate: (workOrderId: string, versionNo: number, reason: string) =>
-    api
-      .post<EstimateVersion>(
-        `/maintenance/work-orders/${workOrderId}/estimate-versions/${versionNo}/reject`,
-        { reason },
-      )
-      .then((r) => r.data),
+  getReportVersions: async (workOrderId: string): Promise<MaintenanceReportVersion[]> => {
+    const res = await api.get<MaintenanceReportVersion[]>(
+      `/maintenance/work-orders/${workOrderId}/report-versions`,
+    );
+    return res.data;
+  },
 
-  // MF4-09 to MF4-12 execution transitions.
-  markReady: (workOrderId: string) =>
-    api
-      .post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/release`)
-      .then((r) => r.data),
+  getAcceptanceDecisions: async (workOrderId: string): Promise<AcceptanceDecision[]> => {
+    const res = await api.get<AcceptanceDecision[]>(
+      `/maintenance/work-orders/${workOrderId}/acceptance-decisions`,
+    );
+    return res.data;
+  },
 
-  markInProgress: (workOrderId: string) =>
-    api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/start`).then((r) => r.data),
+  recordAcceptance: async (
+    workOrderId: string,
+    input: RecordAcceptanceInput,
+  ): Promise<AcceptanceDecision> => {
+    const res = await api.post<AcceptanceDecision>(
+      `/maintenance/work-orders/${workOrderId}/acceptance-decisions`,
+      input,
+    );
+    return res.data;
+  },
 
-  markWorkCompleted: (workOrderId: string) =>
-    api
-      .post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/declare-complete`)
-      .then((r) => r.data),
+  getCostReconciliation: async (workOrderId: string): Promise<CostReconciliation> => {
+    const res = await api.get<CostReconciliation>(
+      `/maintenance/work-orders/${workOrderId}/cost-reconciliation`,
+    );
+    return res.data;
+  },
 
-  resumeAfterRework: (workOrderId: string) =>
-    api
-      .post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/resume-after-rework`)
-      .then((r) => r.data),
+  closeWorkOrder: async (workOrderId: string): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/close`);
+    return res.data;
+  },
 
-  listWorkLogs: (workOrderId: string) =>
-    api.get<WorkLog[]>(`/maintenance/work-orders/${workOrderId}/work-logs`).then((r) => r.data),
+  createTask: async (
+    workOrderId: string,
+    input: CreateTaskInput,
+  ): Promise<MaintenanceTask> => {
+    const res = await api.post<MaintenanceTask>(
+      `/maintenance/work-orders/${workOrderId}/tasks`,
+      input,
+    );
+    return res.data;
+  },
 
-  recordWork: (workOrderId: string, input: RecordWorkLogInput) =>
-    api
-      .post<WorkLog>(`/maintenance/work-orders/${workOrderId}/work-logs`, input)
-      .then((r) => r.data),
+  releaseWorkOrder: async (workOrderId: string): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/release`);
+    return res.data;
+  },
 
-  submitWorkLog: (workOrderId: string, workLogId: string) =>
-    api
-      .post<WorkLog>(`/maintenance/work-orders/${workOrderId}/work-logs/${workLogId}/submit`)
-      .then((r) => r.data),
+  startWorkOrder: async (workOrderId: string): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/start`);
+    return res.data;
+  },
 
-  verifyWorkLog: (workOrderId: string, workLogId: string) =>
-    api
-      .post<WorkLog>(`/maintenance/work-orders/${workOrderId}/work-logs/${workLogId}/verify`)
-      .then((r) => r.data),
+  recordWorkLog: async (
+    workOrderId: string,
+    input: RecordWorkLogInput,
+  ): Promise<WorkLog> => {
+    const res = await api.post<WorkLog>(
+      `/maintenance/work-orders/${workOrderId}/work-logs`,
+      input,
+    );
+    return res.data;
+  },
 
-  listChanges: (workOrderId: string) =>
-    api.get<ChangeOrder[]>(`/maintenance/work-orders/${workOrderId}/changes`).then((r) => r.data),
+  submitWorkLog: async (workOrderId: string, workLogId: string): Promise<WorkLog> => {
+    const res = await api.post<WorkLog>(
+      `/maintenance/work-orders/${workOrderId}/work-logs/${workLogId}/submit`,
+    );
+    return res.data;
+  },
 
-  proposeChange: (workOrderId: string, input: CreateChangeOrderInput) =>
-    api
-      .post<ChangeOrder>(`/maintenance/work-orders/${workOrderId}/changes`, input)
-      .then((r) => r.data),
+  verifyWorkLog: async (workOrderId: string, workLogId: string): Promise<WorkLog> => {
+    const res = await api.post<WorkLog>(
+      `/maintenance/work-orders/${workOrderId}/work-logs/${workLogId}/verify`,
+    );
+    return res.data;
+  },
 
-  approveChange: (workOrderId: string, changeNumber: number, reason?: string) =>
-    api
-      .post<ChangeOrder>(
-        `/maintenance/work-orders/${workOrderId}/changes/${changeNumber}/approve`,
-        reason ? { reason } : undefined,
-      )
-      .then((r) => r.data),
+  proposeChange: async (
+    workOrderId: string,
+    input: ProposeChangeInput,
+  ): Promise<ChangeOrder> => {
+    const res = await api.post<ChangeOrder>(
+      `/maintenance/work-orders/${workOrderId}/changes`,
+      input,
+    );
+    return res.data;
+  },
 
-  rejectChange: (workOrderId: string, changeNumber: number, reason: string) =>
-    api
-      .post<ChangeOrder>(
-        `/maintenance/work-orders/${workOrderId}/changes/${changeNumber}/reject`,
-        { reason },
-      )
-      .then((r) => r.data),
+  declareComplete: async (workOrderId: string): Promise<WorkOrder> => {
+    const res = await api.post<WorkOrder>(
+      `/maintenance/work-orders/${workOrderId}/declare-complete`,
+    );
+    return res.data;
+  },
 
-  returnChange: (workOrderId: string, changeNumber: number, reason: string) =>
-    api
-      .post<ChangeOrder>(
-        `/maintenance/work-orders/${workOrderId}/changes/${changeNumber}/return`,
-        { reason },
-      )
-      .then((r) => r.data),
+  createReport: async (
+    workOrderId: string,
+    input: CreateReportInput,
+  ): Promise<MaintenanceReportVersion> => {
+    const res = await api.post<MaintenanceReportVersion>(
+      `/maintenance/work-orders/${workOrderId}/reports`,
+      input,
+    );
+    return res.data;
+  },
 
-  listReportVersions: (workOrderId: string) =>
-    api
-      .get<MaintenanceReportVersion[]>(`/maintenance/work-orders/${workOrderId}/reports`)
-      .then((r) => r.data),
+  verifyReport: async (
+    workOrderId: string,
+    versionNo: number,
+  ): Promise<MaintenanceReportVersion> => {
+    const res = await api.post<MaintenanceReportVersion>(
+      `/maintenance/work-orders/${workOrderId}/reports/${versionNo}/verify`,
+    );
+    return res.data;
+  },
 
-  createReportVersion: (workOrderId: string, contentSnapshot: string) =>
-    api
-      .post<MaintenanceReportVersion>(`/maintenance/work-orders/${workOrderId}/reports`, {
-        contentSnapshot,
-      })
-      .then((r) => r.data),
-
-  verifyReport: (workOrderId: string, versionNo: number) =>
-    api
-      .post<MaintenanceReportVersion>(
-        `/maintenance/work-orders/${workOrderId}/reports/${versionNo}/verify`,
-      )
-      .then((r) => r.data),
-
-  submitReport: (workOrderId: string, versionNo: number) =>
-    api
-      .post<MaintenanceReportVersion>(
-        `/maintenance/work-orders/${workOrderId}/reports/${versionNo}/submit`,
-      )
-      .then((r) => r.data),
-
-  listAcceptanceDecisions: (workOrderId: string) =>
-    api
-      .get<AcceptanceDecision[]>(
-        `/maintenance/work-orders/${workOrderId}/acceptance-decisions`,
-      )
-      .then((r) => r.data),
-
-  recordAcceptance: (workOrderId: string, input: RecordAcceptanceInput) =>
-    api
-      .post<AcceptanceDecision>(
-        `/maintenance/work-orders/${workOrderId}/acceptance-decisions`,
-        input,
-      )
-      .then((r) => r.data),
-
-  reconciliationSummary: (workOrderId: string) =>
-    api
-      .get<CostReconciliation>(`/maintenance/work-orders/${workOrderId}/cost-reconciliation`)
-      .then((r) => r.data),
-
-  reconcile: (workOrderId: string, input: ReconcileCostsInput) =>
-    api
-      .post<CostReconciliation>(
-        `/maintenance/work-orders/${workOrderId}/cost-reconciliation`,
-        input,
-      )
-      .then((r) => r.data),
-
-  close: (workOrderId: string) =>
-    api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/close`).then((r) => r.data),
+  submitReport: async (
+    workOrderId: string,
+    versionNo: number,
+  ): Promise<MaintenanceReportVersion> => {
+    const res = await api.post<MaintenanceReportVersion>(
+      `/maintenance/work-orders/${workOrderId}/reports/${versionNo}/submit`,
+    );
+    return res.data;
+  },
 };

@@ -1,390 +1,310 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToastStore } from '@/shared/ui/Toast';
 import {
   maintenanceApi,
-  maintenanceKeys,
   type AssignTeamInput,
-  type ChangeDecisionInput,
-  type CreateChangeOrderInput,
-  type CreateEstimateVersionInput,
+  type CreateReportInput,
   type CreateTaskInput,
   type CreateWorkOrderInput,
+  type ProposeChangeInput,
   type RecordAcceptanceInput,
   type RecordWorkLogInput,
-  type ReconcileCostsInput,
+  type WorkOrderListFilters,
 } from '../api/maintenanceApi';
 
-export function useWorkOrders(page = 0, size = 20, enabled = true) {
-  return useQuery({
-    queryKey: [...maintenanceKeys.workOrders(), page, size],
-    queryFn: () => maintenanceApi.listWorkOrders(page, size),
-    enabled,
-  });
-}
-
-export function useWorkOrder(workOrderId: string | null | undefined, enabled = true) {
-  return useQuery({
-    queryKey: maintenanceKeys.workOrder(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.getWorkOrder(workOrderId!),
-    enabled: enabled && Boolean(workOrderId),
-  });
-}
+export const maintenanceKeys = {
+  all: ['maintenance'] as const,
+  repairCandidates: () => [...maintenanceKeys.all, 'repair-candidates'] as const,
+  workOrders: (filters?: WorkOrderListFilters) =>
+    [...maintenanceKeys.all, 'work-orders', filters] as const,
+  workOrder: (id: string) => [...maintenanceKeys.all, 'work-order', id] as const,
+  team: (id: string) => [...maintenanceKeys.all, 'team', id] as const,
+  tasks: (id: string) => [...maintenanceKeys.all, 'tasks', id] as const,
+  estimates: (id: string) => [...maintenanceKeys.all, 'estimates', id] as const,
+  workLogs: (id: string) => [...maintenanceKeys.all, 'work-logs', id] as const,
+  changes: (id: string) => [...maintenanceKeys.all, 'changes', id] as const,
+  reports: (id: string) => [...maintenanceKeys.all, 'reports', id] as const,
+  acceptanceDecisions: (id: string) =>
+    [...maintenanceKeys.all, 'acceptance-decisions', id] as const,
+  costReconciliation: (id: string) =>
+    [...maintenanceKeys.all, 'cost-reconciliation', id] as const,
+};
 
 export function useRepairCandidates(enabled = true) {
   return useQuery({
     queryKey: maintenanceKeys.repairCandidates(),
-    queryFn: maintenanceApi.repairCandidates,
+    queryFn: maintenanceApi.getRepairCandidates,
     enabled,
   });
 }
 
-export function useTeam(workOrderId: string | null | undefined, enabled = true) {
+export function useWorkOrders(filters: WorkOrderListFilters = {}, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.team(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listTeam(workOrderId!),
+    queryKey: maintenanceKeys.workOrders(filters),
+    queryFn: () => maintenanceApi.listWorkOrders(filters),
+    enabled,
+  });
+}
+
+export function useWorkOrder(workOrderId: string, enabled = true) {
+  return useQuery({
+    queryKey: maintenanceKeys.workOrder(workOrderId),
+    queryFn: () => maintenanceApi.getWorkOrder(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useTasks(workOrderId: string | null | undefined, enabled = true) {
+export function useWorkOrderTeam(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.tasks(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listTasks(workOrderId!),
+    queryKey: maintenanceKeys.team(workOrderId),
+    queryFn: () => maintenanceApi.getTeam(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useEstimateVersions(
-  workOrderId: string | null | undefined,
-  enabled = true,
-) {
+export function useWorkOrderTasks(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.estimates(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listEstimateVersions(workOrderId!),
+    queryKey: maintenanceKeys.tasks(workOrderId),
+    queryFn: () => maintenanceApi.getTasks(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useWorkLogs(workOrderId: string | null | undefined, enabled = true) {
+export function useWorkOrderEstimates(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.workLogs(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listWorkLogs(workOrderId!),
+    queryKey: maintenanceKeys.estimates(workOrderId),
+    queryFn: () => maintenanceApi.getEstimateVersions(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useChanges(workOrderId: string | null | undefined, enabled = true) {
+export function useWorkOrderLogs(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.changes(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listChanges(workOrderId!),
+    queryKey: maintenanceKeys.workLogs(workOrderId),
+    queryFn: () => maintenanceApi.getWorkLogs(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useMaintenanceReportVersions(
-  workOrderId: string | null | undefined,
-  enabled = true,
-) {
+export function useWorkOrderChanges(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.reports(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listReportVersions(workOrderId!),
+    queryKey: maintenanceKeys.changes(workOrderId),
+    queryFn: () => maintenanceApi.getChanges(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useAcceptanceDecisions(
-  workOrderId: string | null | undefined,
-  enabled = true,
-) {
+export function useWorkOrderReports(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.acceptance(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.listAcceptanceDecisions(workOrderId!),
+    queryKey: maintenanceKeys.reports(workOrderId),
+    queryFn: () => maintenanceApi.getReportVersions(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-export function useReconciliation(workOrderId: string | null | undefined, enabled = true) {
+export function useWorkOrderAcceptanceDecisions(workOrderId: string, enabled = true) {
   return useQuery({
-    queryKey: maintenanceKeys.reconciliation(workOrderId ?? ''),
-    queryFn: () => maintenanceApi.reconciliationSummary(workOrderId!),
+    queryKey: maintenanceKeys.acceptanceDecisions(workOrderId),
+    queryFn: () => maintenanceApi.getAcceptanceDecisions(workOrderId),
     enabled: enabled && Boolean(workOrderId),
   });
 }
 
-/**
- * Invalidates everything scoped to one work order.
- *
- * A single MF4 action changes several collections at once: releasing a work order makes its tasks
- * startable, approving an estimate opens the execution phase, and recording an acceptance closes
- * the loop. Refetching only the collection the button touched would leave the other panels
- * showing the previous state.
- */
-function useWorkOrderInvalidation(workOrderId: string) {
-  const client = useQueryClient();
-  return () => {
-    void client.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
-    void client.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
-    void client.invalidateQueries({ queryKey: maintenanceKeys.repairCandidates() });
-  };
+export function useWorkOrderCostReconciliation(workOrderId: string, enabled = true) {
+  return useQuery({
+    queryKey: maintenanceKeys.costReconciliation(workOrderId),
+    queryFn: () => maintenanceApi.getCostReconciliation(workOrderId),
+    enabled: enabled && Boolean(workOrderId),
+  });
 }
 
 export function useCreateWorkOrder() {
-  const client = useQueryClient();
-  const showToast = useToastStore((s) => s.showToast);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateWorkOrderInput) => maintenanceApi.createWorkOrder(input),
     onSuccess: () => {
-      void client.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
-      void client.invalidateQueries({ queryKey: maintenanceKeys.repairCandidates() });
-      showToast('Work order created');
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.repairCandidates() });
     },
   });
 }
 
-export function useAssignTeam(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useAssignTeam() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: AssignTeamInput) => maintenanceApi.assignTeam(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Team assigned');
+    mutationFn: ({ workOrderId, input }: { workOrderId: string; input: AssignTeamInput }) =>
+      maintenanceApi.assignTeam(workOrderId, input),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.team(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
     },
   });
 }
 
-export function useCreateTask(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useApproveEstimate() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateTaskInput) => maintenanceApi.createTask(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Task added');
+    mutationFn: ({ workOrderId, versionNo }: { workOrderId: string; versionNo: number }) =>
+      maintenanceApi.approveEstimate(workOrderId, versionNo),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.estimates(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
     },
   });
 }
 
-export function useCreateEstimateVersion(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (input: CreateEstimateVersionInput) =>
-      maintenanceApi.createEstimateVersion(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Estimate version created');
-    },
-  });
-}
-
-export function useSubmitEstimate(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (versionNo: number) => maintenanceApi.submitEstimate(workOrderId, versionNo),
-    onSuccess: () => {
-      invalidate();
-      showToast('Estimate submitted for approval');
-    },
-  });
-}
-
-export function useDecideEstimate(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useRejectEstimate() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
+      workOrderId,
       versionNo,
-      approve,
       reason,
     }: {
+      workOrderId: string;
       versionNo: number;
-      approve: boolean;
-      reason?: string;
-    }) =>
-      approve
-        ? maintenanceApi.approveEstimate(workOrderId, versionNo)
-        : maintenanceApi.rejectEstimate(workOrderId, versionNo, reason ?? ''),
-    onSuccess: (_data, variables) => {
-      invalidate();
-      showToast(variables.approve ? 'Estimate approved' : 'Estimate rejected');
+      reason: string;
+    }) => maintenanceApi.rejectEstimate(workOrderId, versionNo, reason),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.estimates(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
     },
   });
 }
 
-export function useWorkOrderTransition(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useRecordAcceptance() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (action: 'release' | 'start' | 'declare-complete' | 'resume-after-rework') => {
-      switch (action) {
-        case 'release':
-          return maintenanceApi.markReady(workOrderId);
-        case 'start':
-          return maintenanceApi.markInProgress(workOrderId);
-        case 'declare-complete':
-          return maintenanceApi.markWorkCompleted(workOrderId);
-        case 'resume-after-rework':
-          return maintenanceApi.resumeAfterRework(workOrderId);
-      }
-    },
-    onSuccess: () => {
-      invalidate();
-      showToast('Work order updated');
-    },
-  });
-}
-
-export function useRecordWork(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (input: RecordWorkLogInput) => maintenanceApi.recordWork(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Work recorded');
-    },
-  });
-}
-
-export function useSubmitWorkLog(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (workLogId: string) => maintenanceApi.submitWorkLog(workOrderId, workLogId),
-    onSuccess: () => {
-      invalidate();
-      showToast('Work log submitted');
-    },
-  });
-}
-
-export function useVerifyWorkLog(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (workLogId: string) => maintenanceApi.verifyWorkLog(workOrderId, workLogId),
-    onSuccess: () => {
-      invalidate();
-      showToast('Work log verified');
-    },
-  });
-}
-
-export function useProposeChange(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (input: CreateChangeOrderInput) => maintenanceApi.proposeChange(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Change proposed');
-    },
-  });
-}
-
-export function useDecideChange(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: ({
-      changeNumber,
-      decision,
-      reason,
-    }: {
-      changeNumber: number;
-      decision: 'approve' | 'reject' | 'return';
-      reason?: string;
-    }) => {
-      switch (decision) {
-        case 'approve':
-          return maintenanceApi.approveChange(workOrderId, changeNumber, reason);
-        case 'reject':
-          return maintenanceApi.rejectChange(workOrderId, changeNumber, reason ?? '');
-        case 'return':
-          return maintenanceApi.returnChange(workOrderId, changeNumber, reason ?? '');
-      }
-    },
-    onSuccess: () => {
-      invalidate();
-      showToast('Change decided');
-    },
-  });
-}
-
-export function useCreateMaintenanceReport(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (contentSnapshot: string) =>
-      maintenanceApi.createReportVersion(workOrderId, contentSnapshot),
-    onSuccess: () => {
-      invalidate();
-      showToast('Completion report drafted');
-    },
-  });
-}
-
-export function useVerifyMaintenanceReport(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (versionNo: number) => maintenanceApi.verifyReport(workOrderId, versionNo),
-    onSuccess: () => {
-      invalidate();
-      showToast('Report verified');
-    },
-  });
-}
-
-export function useSubmitMaintenanceReport(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (versionNo: number) => maintenanceApi.submitReport(workOrderId, versionNo),
-    onSuccess: () => {
-      invalidate();
-      showToast('Report submitted for acceptance');
-    },
-  });
-}
-
-export function useRecordAcceptance(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: (input: RecordAcceptanceInput) =>
+    mutationFn: ({ workOrderId, input }: { workOrderId: string; input: RecordAcceptanceInput }) =>
       maintenanceApi.recordAcceptance(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Acceptance decision recorded');
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.acceptanceDecisions(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.reports(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
     },
   });
 }
 
-export function useReconcileCosts(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useCloseWorkOrder() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: ReconcileCostsInput) => maintenanceApi.reconcile(workOrderId, input),
-    onSuccess: () => {
-      invalidate();
-      showToast('Costs reconciled');
+    mutationFn: (workOrderId: string) => maintenanceApi.closeWorkOrder(workOrderId),
+    onSuccess: (_, workOrderId) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
     },
   });
 }
 
-export function useCloseWorkOrder(workOrderId: string) {
-  const invalidate = useWorkOrderInvalidation(workOrderId);
-  const showToast = useToastStore((s) => s.showToast);
+export function useCreateTask() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => maintenanceApi.close(workOrderId),
-    onSuccess: () => {
-      invalidate();
-      showToast('Work order closed');
+    mutationFn: ({ workOrderId, input }: { workOrderId: string; input: CreateTaskInput }) =>
+      maintenanceApi.createTask(workOrderId, input),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.tasks(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
     },
   });
 }
 
-export type { ChangeDecisionInput };
+export function useReleaseWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workOrderId: string) => maintenanceApi.releaseWorkOrder(workOrderId),
+    onSuccess: (_, workOrderId) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
+    },
+  });
+}
+
+export function useStartWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workOrderId: string) => maintenanceApi.startWorkOrder(workOrderId),
+    onSuccess: (_, workOrderId) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
+    },
+  });
+}
+
+export function useRecordWorkLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      input,
+    }: {
+      workOrderId: string;
+      input: RecordWorkLogInput;
+    }) => {
+      const log = await maintenanceApi.recordWorkLog(workOrderId, input);
+      return maintenanceApi.submitWorkLog(workOrderId, log.id);
+    },
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workLogs(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.tasks(workOrderId) });
+    },
+  });
+}
+
+export function useVerifyWorkLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workOrderId, workLogId }: { workOrderId: string; workLogId: string }) =>
+      maintenanceApi.verifyWorkLog(workOrderId, workLogId),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workLogs(workOrderId) });
+    },
+  });
+}
+
+export function useProposeChange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workOrderId, input }: { workOrderId: string; input: ProposeChangeInput }) =>
+      maintenanceApi.proposeChange(workOrderId, input),
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.changes(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+    },
+  });
+}
+
+export function useDeclareComplete() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workOrderId: string) => maintenanceApi.declareComplete(workOrderId),
+    onSuccess: (_, workOrderId) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
+    },
+  });
+}
+
+export function useCreateAndSubmitReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      workOrderId,
+      input,
+    }: {
+      workOrderId: string;
+      input: CreateReportInput;
+    }) => {
+      const created = await maintenanceApi.createReport(workOrderId, input);
+      await maintenanceApi.verifyReport(workOrderId, created.versionNo);
+      return maintenanceApi.submitReport(workOrderId, created.versionNo);
+    },
+    onSuccess: (_, { workOrderId }) => {
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.reports(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrder(workOrderId) });
+      void queryClient.invalidateQueries({ queryKey: maintenanceKeys.workOrders() });
+    },
+  });
+}

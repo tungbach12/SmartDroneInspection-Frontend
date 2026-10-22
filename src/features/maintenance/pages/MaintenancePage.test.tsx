@@ -1,231 +1,307 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const roles = vi.hoisted(() => ({ current: ['MAINTENANCE_ENGINEER'] as string[] }));
-
-vi.mock('@/features/auth/store/authStore', () => ({
-  useAuthStore: (selector: (state: { roles: string[] }) => unknown) =>
-    selector({ roles: roles.current }),
-}));
-
-const mocks = vi.hoisted(() => ({
-  listWorkOrders: vi.fn(),
-  listTeam: vi.fn(),
-  listTasks: vi.fn(),
-  listWorkLogs: vi.fn(),
-  listEstimateVersions: vi.fn(),
-  listChanges: vi.fn(),
-  listReportVersions: vi.fn(),
-  listAcceptanceDecisions: vi.fn(),
-  reconciliationSummary: vi.fn(),
-  markReady: vi.fn(),
-  markInProgress: vi.fn(),
-  markWorkCompleted: vi.fn(),
-  resumeAfterRework: vi.fn(),
-  recordWork: vi.fn(),
-  submitWorkLog: vi.fn(),
-  createTask: vi.fn(),
-  createEstimateVersion: vi.fn(),
-  submitEstimate: vi.fn(),
-  approveEstimate: vi.fn(),
-  rejectEstimate: vi.fn(),
-  proposeChange: vi.fn(),
-  approveChange: vi.fn(),
-  rejectChange: vi.fn(),
-  returnChange: vi.fn(),
-  createReportVersion: vi.fn(),
-  verifyReport: vi.fn(),
-  submitReport: vi.fn(),
-  recordAcceptance: vi.fn(),
-  reconcile: vi.fn(),
-  close: vi.fn(),
-  listUsers: vi.fn(),
-}));
-
-vi.mock('../api/maintenanceApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../api/maintenanceApi')>();
-  return {
-    ...actual,
-    maintenanceApi: {
-      ...actual.maintenanceApi,
-      listWorkOrders: mocks.listWorkOrders,
-      listTeam: mocks.listTeam,
-      listTasks: mocks.listTasks,
-      listWorkLogs: mocks.listWorkLogs,
-      listEstimateVersions: mocks.listEstimateVersions,
-      listChanges: mocks.listChanges,
-      listReportVersions: mocks.listReportVersions,
-      listAcceptanceDecisions: mocks.listAcceptanceDecisions,
-      reconciliationSummary: mocks.reconciliationSummary,
-      markReady: mocks.markReady,
-      markInProgress: mocks.markInProgress,
-      markWorkCompleted: mocks.markWorkCompleted,
-      resumeAfterRework: mocks.resumeAfterRework,
-      recordWork: mocks.recordWork,
-      submitWorkLog: mocks.submitWorkLog,
-      createTask: mocks.createTask,
-      createEstimateVersion: mocks.createEstimateVersion,
-      submitEstimate: mocks.submitEstimate,
-      approveEstimate: mocks.approveEstimate,
-      rejectEstimate: mocks.rejectEstimate,
-      proposeChange: mocks.proposeChange,
-      approveChange: mocks.approveChange,
-      rejectChange: mocks.rejectChange,
-      returnChange: mocks.returnChange,
-      createReportVersion: mocks.createReportVersion,
-      verifyReport: mocks.verifyReport,
-      submitReport: mocks.submitReport,
-      recordAcceptance: mocks.recordAcceptance,
-      reconcile: mocks.reconcile,
-      close: mocks.close,
-    },
-  };
-});
-
-vi.mock('@/features/workforce/hooks/useWorkforce', () => ({
-  useWorkforceUsers: () => ({ data: mocks.listUsers() }),
-}));
-
 import MaintenancePage from './MaintenancePage';
-
-const WORK_ORDER = {
-  id: 'wo-1',
-  assetId: 'asset-1',
-  sourceReportVersionId: 'rv-1',
-  sourceFindingId: 'f-1',
-  status: 'IN_PROGRESS',
-  priority: 'HIGH',
-  dueAt: '2026-11-01T00:00:00Z',
-  correctiveScope: 'Replace corroded girder splice on span 4',
-  acceptanceCriteria: 'Load test passes per ASCE',
-  ownerUserId: null,
-  budgetApproverUserId: 'admin-1',
-  teamLeadUserId: 'eng-1',
-  reportAuthorUserId: 'eng-1',
-  acceptingReviewerUserId: 'admin-1',
-  createdAt: '2026-10-01T00:00:00Z',
-  updatedAt: '2026-10-05T00:00:00Z',
-};
-
-function renderWithClient() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <MaintenancePage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-}
+import { api } from '@/shared/api/client';
 
 describe('MaintenancePage', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
-    vi.clearAllMocks();
-    roles.current = ['MAINTENANCE_ENGINEER'];
-    mocks.listWorkOrders.mockResolvedValue({
-      items: [WORK_ORDER],
-      page: 0,
-      size: 20,
-      total: 1,
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    mocks.listTeam.mockResolvedValue([]);
-    mocks.listTasks.mockResolvedValue([]);
-    mocks.listWorkLogs.mockResolvedValue([]);
-    mocks.listEstimateVersions.mockResolvedValue([]);
-    mocks.listChanges.mockResolvedValue([]);
-    mocks.listReportVersions.mockResolvedValue([]);
-    mocks.listAcceptanceDecisions.mockResolvedValue([]);
-    mocks.reconciliationSummary.mockResolvedValue({
-      approvedBaselineTotal: '1000000',
-      approvedChangeDelta: '0',
-      authorizedAmount: '1000000',
-      actualTotal: '950000',
-      variance: '-50000',
-      variancePercent: '-5.0',
-      currency: 'VND',
-    });
-    mocks.listUsers.mockReturnValue([
-      {
-        userId: 'eng-1',
-        email: 'lead@example.test',
-        fullName: 'Lead Engineer',
-        roles: ['MAINTENANCE_ENGINEER'],
-        status: 'ACTIVE',
-        organizationId: 'org-1',
-      },
-    ]);
   });
 
   afterEach(() => {
-    cleanup();
+    vi.restoreAllMocks();
+    queryClient.clear();
   });
 
-  it('lists the organization work orders with their scope and status', async () => {
-    renderWithClient();
+  function renderPage() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MaintenancePage />
+      </QueryClientProvider>,
+    );
+  }
 
-    expect(await screen.findByText('Replace corroded girder splice on span 4')).toBeTruthy();
-    expect(screen.getByText('IN_PROGRESS')).toBeTruthy();
-    expect(screen.getByLabelText('Total Work Orders: 1')).toBeTruthy();
-  });
-
-  it('opens a work order and shows its corrective scope and gates', async () => {
-    renderWithClient();
-
-    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
-
-    expect(await screen.findByText('Load test passes per ASCE')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mark ready' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Start execution' })).toBeTruthy();
-  });
-
-  it('offers the engineer the execution transitions but not the close action', async () => {
-    renderWithClient();
-
-    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
-
-    expect(await screen.findByRole('button', { name: 'Mark ready' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Close work order' })).toBeNull();
-  });
-
-  it('offers the administrator the close action only after cost reconciliation', async () => {
-    roles.current = ['ORG_ADMIN'];
-    mocks.listWorkOrders.mockResolvedValue({
-      items: [{ ...WORK_ORDER, status: 'COST_RECONCILED' }],
-      page: 0,
-      size: 20,
-      total: 1,
+  it('renders page header and metric cards', async () => {
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [], page: 0, size: 20, total: 0 } } as never);
+      }
+      return Promise.resolve({ data: null } as never);
     });
 
-    renderWithClient();
+    renderPage();
 
-    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
-
-    expect(await screen.findByRole('button', { name: 'Close work order' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Start execution' })).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Maintenance' })).toBeDefined();
+    expect(screen.getByText('Total Work Orders')).toBeDefined();
+    expect(screen.getByText('Pending Repair')).toBeDefined();
+    expect(screen.getByText('Resolved & Closed')).toBeDefined();
   });
 
-  it('records the engineer execution transition through the named action', async () => {
-    mocks.markWorkCompleted.mockResolvedValue({ ...WORK_ORDER, status: 'WORK_COMPLETED' });
-    renderWithClient();
+  it('displays empty state when no work orders exist', async () => {
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [], page: 0, size: 20, total: 0 } } as never);
+      }
+      return Promise.resolve({ data: null } as never);
+    });
 
-    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Declare work completed' }));
+    renderPage();
 
-    await waitFor(() => expect(mocks.markWorkCompleted).toHaveBeenCalledWith('wo-1'));
+    expect(await screen.findByText('No active work orders')).toBeDefined();
   });
 
-  it('shows the reconciliation figures the platform computed', async () => {
-    renderWithClient();
+  it('renders work orders table when work orders exist', async () => {
+    const mockOrder = {
+      id: 'wo-12345678-abcd',
+      assetId: 'asset-1',
+      sourceReportVersionId: 'ver-1',
+      sourceFindingId: 'fnd-1',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      dueAt: null,
+      correctiveScope: 'Weld steel bracket',
+      acceptanceCriteria: 'Pass load test',
+      ownerUserId: 'user-1',
+      budgetApproverUserId: 'user-1',
+      teamLeadUserId: 'user-2',
+      reportAuthorUserId: 'user-3',
+      acceptingReviewerUserId: 'user-4',
+      createdAt: '2026-10-14T00:00:00Z',
+      updatedAt: '2026-10-14T00:00:00Z',
+    };
 
-    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
-    fireEvent.click(await screen.findByRole('tab', { name: 'Costs & acceptance' }));
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [mockOrder], page: 0, size: 20, total: 1 } } as never);
+      }
+      return Promise.resolve({ data: null } as never);
+    });
 
-    expect(await screen.findByText('Authorized amount')).toBeTruthy();
-    expect(screen.getAllByText('1000000 VND').length).toBeGreaterThan(0);
-    expect(screen.getByText('-50000 VND')).toBeTruthy();
+    renderPage();
+
+    expect(await screen.findByText('wo-12345...')).toBeDefined();
+    expect(screen.getByText('Weld steel bracket')).toBeDefined();
+    expect(screen.getByText('IN_PROGRESS')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'View Details' })).toBeDefined();
+  });
+
+  it('renders repair candidates when switching to Tab 1', async () => {
+    const mockCandidate = {
+      assetId: 'asset-1',
+      inspectionId: 'insp-1',
+      reportId: 'rep-1',
+      reportVersionId: 'ver-1',
+      findingId: 'fnd-1',
+      findingCode: 'FND-001',
+      defectLabel: 'Crack on beam',
+      description: 'Severe crack',
+      severity: 'CRITICAL',
+      recommendedAction: 'Replace bracket',
+      reportPublishedAt: '2026-10-14T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [mockCandidate] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [], page: 0, size: 20, total: 0 } } as never);
+      }
+      return Promise.resolve({ data: null } as never);
+    });
+
+    renderPage();
+
+    const candidatesTab = await screen.findByRole('tab', { name: /Repair Candidates/ });
+    fireEvent.click(candidatesTab);
+
+    expect(await screen.findByText('FND-001')).toBeDefined();
+    expect(screen.getByText('Crack on beam')).toBeDefined();
+    expect(screen.getByText('CRITICAL')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Open Work Order/ })).toBeDefined();
+  });
+
+  it('opens CreateWorkOrderDialog when clicking Open Work Order in Tab 1', async () => {
+    const mockCandidate = {
+      assetId: 'asset-1',
+      inspectionId: 'insp-1',
+      reportId: 'rep-1',
+      reportVersionId: 'ver-1',
+      findingId: 'fnd-1',
+      findingCode: 'FND-001',
+      defectLabel: 'Crack on beam',
+      description: 'Severe crack',
+      severity: 'CRITICAL',
+      recommendedAction: 'Replace bracket',
+      reportPublishedAt: '2026-10-14T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [mockCandidate] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [], page: 0, size: 20, total: 0 } } as never);
+      }
+      return Promise.resolve({ data: null } as never);
+    });
+
+    renderPage();
+
+    const candidatesTab = await screen.findByRole('tab', { name: /Repair Candidates/ });
+    fireEvent.click(candidatesTab);
+
+    const openButton = await screen.findByRole('button', { name: /Open Work Order/ });
+    fireEvent.click(openButton);
+
+    expect(await screen.findByText('Open Maintenance Work Order')).toBeDefined();
+  });
+
+  it('opens WorkOrderDetailDialog when clicking View Details', async () => {
+    const mockOrder = {
+      id: 'wo-12345678-abcd',
+      assetId: 'asset-1',
+      sourceReportVersionId: 'ver-1',
+      sourceFindingId: 'fnd-1',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      dueAt: null,
+      correctiveScope: 'Weld steel bracket',
+      acceptanceCriteria: 'Pass load test',
+      ownerUserId: 'user-1',
+      budgetApproverUserId: 'user-1',
+      teamLeadUserId: 'user-2',
+      reportAuthorUserId: 'user-3',
+      acceptingReviewerUserId: 'user-4',
+      createdAt: '2026-10-14T00:00:00Z',
+      updatedAt: '2026-10-14T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [mockOrder], page: 0, size: 20, total: 1 } } as never);
+      }
+      return Promise.resolve({ data: [] } as never);
+    });
+
+    renderPage();
+
+    const detailsButton = await screen.findByRole('button', { name: 'View Details' });
+    fireEvent.click(detailsButton);
+
+    expect(await screen.findByText('Work Order Details')).toBeDefined();
+    expect(screen.getByText('Weld steel bracket')).toBeDefined();
+  });
+
+  it('opens AssignTeamDialog when clicking Assign Team on a DRAFT order', async () => {
+    const mockDraftOrder = {
+      id: 'wo-draft-1234-abcd',
+      assetId: 'asset-1',
+      sourceReportVersionId: 'ver-1',
+      sourceFindingId: 'fnd-1',
+      status: 'DRAFT',
+      priority: 'MEDIUM',
+      dueAt: null,
+      correctiveScope: 'Initial inspection repair',
+      acceptanceCriteria: 'Criteria',
+      ownerUserId: 'user-1',
+      budgetApproverUserId: 'user-1',
+      teamLeadUserId: null,
+      reportAuthorUserId: null,
+      acceptingReviewerUserId: null,
+      createdAt: '2026-10-14T00:00:00Z',
+      updatedAt: '2026-10-14T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [mockDraftOrder], page: 0, size: 20, total: 1 } } as never);
+      }
+      if (url === '/workforce/users') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      return Promise.resolve({ data: [] } as never);
+    });
+
+    renderPage();
+
+    const assignButton = await screen.findByRole('button', { name: 'Assign Team' });
+    fireEvent.click(assignButton);
+
+    expect(await screen.findByText('Designate Repair Team')).toBeDefined();
+  });
+
+  it('opens CreateTaskDialog and RecordWorkLogDialog from details', async () => {
+    const mockOrder = {
+      id: 'wo-in-progress-1',
+      assetId: 'asset-1',
+      sourceReportVersionId: 'ver-1',
+      sourceFindingId: 'fnd-1',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      dueAt: null,
+      correctiveScope: 'Weld steel bracket',
+      acceptanceCriteria: 'Pass load test',
+      ownerUserId: 'user-1',
+      budgetApproverUserId: 'user-1',
+      teamLeadUserId: 'user-2',
+      reportAuthorUserId: 'user-3',
+      acceptingReviewerUserId: 'user-4',
+      createdAt: '2026-10-14T00:00:00Z',
+      updatedAt: '2026-10-14T00:00:00Z',
+    };
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/maintenance/repair-candidates') {
+        return Promise.resolve({ data: [] } as never);
+      }
+      if (url === '/maintenance/work-orders') {
+        return Promise.resolve({ data: { items: [mockOrder], page: 0, size: 20, total: 1 } } as never);
+      }
+      if (url.includes('/tasks')) {
+        return Promise.resolve({
+          data: [{ id: 'task-1', taskNumber: 1, name: 'Prepare surface', status: 'IN_PROGRESS' }],
+        } as never);
+      }
+      if (url.includes('/work-logs')) {
+        return Promise.resolve({ data: [] } as never);
+      }
+      return Promise.resolve({ data: [] } as never);
+    });
+
+    renderPage();
+
+    const detailsButton = await screen.findByRole('button', { name: 'View Details' });
+    fireEvent.click(detailsButton);
+
+    const addTaskButton = await screen.findByRole('button', { name: 'Add Task' });
+    fireEvent.click(addTaskButton);
+    expect(await screen.findByText('Add Maintenance Task')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    const recordLogButton = await screen.findByRole('button', { name: 'Record Work Log' });
+    fireEvent.click(recordLogButton);
+    expect(await screen.findByText('Record Work Log')).toBeDefined();
   });
 });
