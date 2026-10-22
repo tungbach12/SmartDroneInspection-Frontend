@@ -38,6 +38,7 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
 import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
   DRAFT: 'Waiting for the author to verify this draft.',
@@ -50,6 +51,7 @@ const NEXT_STEP: Record<string, string> = {
 };
 
 export default function ReportDetailPage() {
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -144,7 +146,7 @@ export default function ReportDetailPage() {
           {canReview && !canAuthor ? 'Organization Admin · Report review' : 'Inspection Report'}
         </Typography>
         <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.875rem' }}>
-          Inspection ID: {inspectionId} · {canReview && !canAuthor ? 'Review the submitted report, record a decision, and publish approved versions.' : 'Verified and versioned inspection findings'}
+          {t('Inspection ID:')} {inspectionId} · {canReview && !canAuthor ? 'Review the submitted report, record a decision, and publish approved versions.' : 'Verified and versioned inspection findings'}
         </Typography>
       </Box>
 
@@ -155,8 +157,8 @@ export default function ReportDetailPage() {
         onRetry={() => void versions.refetch()}
         empty={
           <EmptyState
-            title="No report versions found"
-            description="The assigned Inspector creates a report draft once field evidence is accepted."
+            title={t('No report versions found')}
+            description={t('The assigned Inspector creates a report draft once field evidence is accepted.')}
           />
         }
       >
@@ -175,7 +177,7 @@ export default function ReportDetailPage() {
             >
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                 <Typography variant="body2" sx={{ color: '#475467', fontWeight: 600 }}>
-                  Versions:
+                  {t('Versions:')}
                 </Typography>
                 {versions.data.map((version) => {
                   const isSelected = openVersion?.id === version.id;
@@ -203,15 +205,15 @@ export default function ReportDetailPage() {
               {needsFindingsRevisionDraft && (
                 <Alert severity="warning" action={
                   <Button color="inherit" size="small" onClick={() => navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`)}>
-                    Reopen findings
+                    {t('Reopen findings')}
                   </Button>
                 }>
-                  The reviewer requested a findings/evidence revision. This submitted version is preserved; correct the existing evidence/findings, confirm them again, then create a new report draft from the Report tab.
+                  {t('The reviewer requested a findings/evidence revision. This submitted version is preserved; correct the existing evidence/findings, confirm them again, then create a new report draft from the Report tab.')}
                 </Alert>
               )}
               {openVersion.withdrawnAt != null && (
                 <Alert severity="info">
-                  You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.
+                  {t('You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.')}
                 </Alert>
               )}
 
@@ -226,7 +228,7 @@ export default function ReportDetailPage() {
                     to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/evidence`}
                     sx={{ textTransform: 'none' }}
                   >
-                    View the full evidence register
+                    {t('View the full evidence register')}
                   </Button>
                   <Button
                     variant="outlined"
@@ -234,7 +236,7 @@ export default function ReportDetailPage() {
                     to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`}
                     sx={{ textTransform: 'none' }}
                   >
-                    View the Inspector findings
+                    {t('View the Inspector findings')}
                   </Button>
                 </Stack>
               ) : null}
@@ -264,7 +266,7 @@ export default function ReportDetailPage() {
                   }}
                 >
                   <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828', mb: 1.5 }}>
-                    Actions for Version {openVersion.versionNo}
+                    {t('Actions for Version')} {openVersion.versionNo}
                   </Typography>
 
                   <Stack spacing={2}>
@@ -280,7 +282,7 @@ export default function ReportDetailPage() {
                           {verify.isPending ? 'Verifying…' : 'Verify as author'}
                         </Button>
                         <Typography variant="caption" sx={{ color: '#667085' }}>
-                          Attest that you surveyed the site and the narrative is complete.
+                          {t('Attest that you surveyed the site and the narrative is complete.')}
                         </Typography>
                       </Stack>
                     )}
@@ -297,7 +299,7 @@ export default function ReportDetailPage() {
                           {submit.isPending ? 'Submitting…' : 'Submit for review'}
                         </Button>
                         <Typography variant="caption" sx={{ color: '#667085' }}>
-                          Submits this draft to an organization reviewer.
+                          {t('Submits this draft to an organization reviewer.')}
                         </Typography>
                       </Stack>
                     )}
@@ -306,33 +308,33 @@ export default function ReportDetailPage() {
                       <RefusalNotice
                         testId="report-verify-refusal"
                         reason={getErrorMessage(verify.error, '')}
-                        fallbackMessage="The server refused this verification. Refresh the report and create a new draft if its evidence has changed."
+                        fallbackMessage={t('The server refused this verification. Refresh the report and create a new draft if its evidence has changed.')}
                       />
                     ) : null}
                     <MutationProblemAlert
                       error={verify.error}
                       isError={verify.isError && !isConflict(verify.error)}
-                      fallbackMessage="Could not verify this report draft."
+                      fallbackMessage={t('Could not verify this report draft.')}
                     />
                     {submit.isError && isConflict(submit.error) ? (
                       <RefusalNotice
                         testId="report-submit-refusal"
                         reason={getErrorMessage(submit.error, '')}
-                        fallbackMessage="The server refused this submission. Refresh the report and create a new draft if its evidence has changed."
+                        fallbackMessage={t('The server refused this submission. Refresh the report and create a new draft if its evidence has changed.')}
                       />
                     ) : null}
                     <MutationProblemAlert
                       error={submit.error}
                       isError={submit.isError && !isConflict(submit.error)}
-                      fallbackMessage="Could not submit this report draft."
+                      fallbackMessage={t('Could not submit this report draft.')}
                     />
                     {canWithdrawSubmission && (
                       <Stack spacing={1.25}>
                         <Alert severity="warning">
-                          Withdraw only before the reviewer has made a finding decision. The submitted version remains in the audit trail; evidence and findings are not deleted.
+                          {t('Withdraw only before the reviewer has made a finding decision. The submitted version remains in the audit trail; evidence and findings are not deleted.')}
                         </Alert>
                         <TextField
-                          label="Reason for withdrawal"
+                          label={t('Reason for withdrawal')}
                           value={withdrawReason}
                           onChange={(event) => setWithdrawReason(event.target.value)}
                           multiline
@@ -347,7 +349,7 @@ export default function ReportDetailPage() {
                         >
                           {withdraw.isPending ? 'Withdrawing…' : 'Withdraw submission and revise'}
                         </Button>
-                        {withdraw.isError && <MutationProblemAlert error={withdraw.error} isError fallbackMessage="Could not withdraw this submission." />}
+                        {withdraw.isError && <MutationProblemAlert error={withdraw.error} isError fallbackMessage={t('Could not withdraw this submission.')} />}
                       </Stack>
                     )}
 
@@ -355,7 +357,7 @@ export default function ReportDetailPage() {
                     {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          Review the submitted report
+                          {t('Review the submitted report')}
                         </Typography>
                         {reportReadLoading ? (
                           <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
@@ -365,21 +367,21 @@ export default function ReportDetailPage() {
                           </Alert>
                         ) : (
                           <Alert severity="info">
-                            Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Admin does not separately accept each finding.
+                            {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Admin does not separately accept each finding.')}
                           </Alert>
                         )}
                         <TextField
                           select
-                          label="What needs revision?"
+                          label={t('What needs revision?')}
                           value={reviewReasonType}
                           onChange={(event) => setReviewReasonType(event.target.value as 'TEXT_REVISION' | 'FINDINGS_REVISION')}
                         >
-                          <MenuItem value="TEXT_REVISION">Report text only</MenuItem>
-                          <MenuItem value="FINDINGS_REVISION">Findings/evidence — reopen Inspector review</MenuItem>
+                          <MenuItem value="TEXT_REVISION">{t('Report text only')}</MenuItem>
+                          <MenuItem value="FINDINGS_REVISION">{t('Findings/evidence — reopen Inspector review')}</MenuItem>
                         </TextField>
                         <TextField
-                          label="Reason for return"
-                          placeholder="Required when returning for author revisions"
+                          label={t('Reason for return')}
+                          placeholder={t('Required when returning for author revisions')}
                           multiline
                           minRows={2}
                           value={reviewReason}
@@ -397,7 +399,7 @@ export default function ReportDetailPage() {
                             onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
                             sx={{ borderRadius: '8px', px: 2.5 }}
                           >
-                            Approve
+                            {t('Approve')}
                           </Button>
                           <Button
                             variant="outlined"
@@ -413,20 +415,20 @@ export default function ReportDetailPage() {
                             }
                             sx={{ borderRadius: '8px', px: 2.5 }}
                           >
-                            Return with reason
+                            {t('Return with reason')}
                           </Button>
                         </Stack>
                         {review.isError && isConflict(review.error) ? (
                           <RefusalNotice
                             testId="report-review-refusal"
                             reason={getErrorMessage(review.error, '')}
-                            fallbackMessage="The server refused this report review. Refresh the report before trying again."
+                            fallbackMessage={t('The server refused this report review. Refresh the report before trying again.')}
                           />
                         ) : null}
                         <MutationProblemAlert
                           error={review.error}
                           isError={review.isError && !isConflict(review.error)}
-                          fallbackMessage="Could not record this report review."
+                          fallbackMessage={t('Could not record this report review.')}
                         />
                       </Stack>
                     )}
@@ -443,7 +445,7 @@ export default function ReportDetailPage() {
                           {publish.isPending ? 'Publishing…' : 'Publish immutable version'}
                         </Button>
                         <Typography variant="caption" sx={{ color: '#667085' }}>
-                          Makes this version permanent and immutable.
+                          {t('Makes this version permanent and immutable.')}
                         </Typography>
                       </Stack>
                     )}
@@ -452,13 +454,13 @@ export default function ReportDetailPage() {
                       <RefusalNotice
                         testId="report-publish-refusal"
                         reason={getErrorMessage(publish.error, '')}
-                        fallbackMessage="The server refused this publication. Refresh the report before trying again."
+                        fallbackMessage={t('The server refused this publication. Refresh the report before trying again.')}
                       />
                     ) : null}
                     <MutationProblemAlert
                       error={publish.error}
                       isError={publish.isError && !isConflict(publish.error)}
-                      fallbackMessage="Could not publish this report version."
+                      fallbackMessage={t('Could not publish this report version.')}
                     />
                   </Stack>
                 </Paper>
@@ -466,7 +468,7 @@ export default function ReportDetailPage() {
 
               {publish.isSuccess && (
                 <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                  Published version {publish.data.versionNo}. The PDF is immutable; record
+                  {t('Published version')} {publish.data.versionNo}. The PDF is immutable; record
                   corrective outcomes before handing findings to MF4.
                 </Alert>
               )}
@@ -474,7 +476,7 @@ export default function ReportDetailPage() {
               {canReview && publishedUnhanded && (
                 <Stack spacing={2}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    Send to Maintenance (MF3-12)
+                    {t('Send to Maintenance (MF3-12)')}
                   </Typography>
                   <Alert severity="info">
                     The published version is immutable. Confirmed defect findings can be forwarded
@@ -487,7 +489,7 @@ export default function ReportDetailPage() {
                       to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
                       sx={{ textTransform: 'none' }}
                     >
-                      Send findings to Maintenance
+                      {t('Send findings to Maintenance')}
                     </Button>
                   </Box>
                 </Stack>

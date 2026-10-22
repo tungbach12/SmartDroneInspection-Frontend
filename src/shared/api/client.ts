@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY } from '@/shared/i18n/localeContext';
 import { unwrapApiResponse } from './apiResponse';
 import { decodeBlobProblemBody } from './errorMessage';
 
@@ -135,6 +136,14 @@ function redirectToLogin(): void {
 }
 
 api.interceptors.request.use((config) => {
+  let locale = DEFAULT_LOCALE;
+  try {
+    locale = window.localStorage.getItem(LOCALE_STORAGE_KEY) === 'vi' ? 'vi' : DEFAULT_LOCALE;
+  } catch {
+    locale = DEFAULT_LOCALE;
+  }
+  config.headers.set('Accept-Language', locale);
+
   const token = useAuthStore.getState().accessToken;
   if (token && !shouldSkipBearerToken(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;

@@ -18,8 +18,10 @@ import { canPerform } from '@/app/permissions/capability';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { usePendingReviewAssets, useReviewAsset } from '../hooks/useAssets';
 import { useProposals, useReviewProposal } from '../hooks/useProposals';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export default function AssetReviewPage() {
+  const { t } = useLocale();
   const { data, isLoading, error, refetch } = usePendingReviewAssets({ page: 1, pageSize: 50 });
   const review = useReviewAsset();
   const user = useAuthStore((state) => state.user);
@@ -31,21 +33,21 @@ export default function AssetReviewPage() {
   return (
     <Box className="workspace-page workspace-page--review">
       <PageHeader
-        title="Asset review queue"
-        subtitle="Approve a registered asset to generate its schedule proposals"
+        title={t('Asset review queue')}
+        subtitle={t('Approve a registered asset to generate its schedule proposals')}
       />
       <QueryState
         isLoading={isLoading}
         error={error}
         onRetry={() => void refetch()}
         isEmpty={pending.length === 0}
-        empty={<Alert severity="info">Nothing awaiting review.</Alert>}
+        empty={<Alert severity="info">{t('Nothing awaiting review.')}</Alert>}
       >
         <Stack spacing={2}>
           <MutationProblemAlert
             isError={review.isError}
             error={review.error}
-            fallbackMessage="Could not record the review decision."
+            fallbackMessage={t('Could not record the review decision.')}
           />
           {pending.map((asset) => (
             <Card key={asset.id} variant="outlined">
@@ -60,7 +62,7 @@ export default function AssetReviewPage() {
                 <TextField
                   fullWidth
                   size="small"
-                  label="Manager note"
+                  label={t('Manager note')}
                   sx={{ mt: 2 }}
                   value={notes[asset.id] ?? ''}
                   onChange={(event) =>
@@ -84,7 +86,7 @@ export default function AssetReviewPage() {
                       )
                     }
                   >
-                    Approve
+                    {t('Approve')}
                   </Button>
                   <Button
                     color="error"
@@ -100,7 +102,7 @@ export default function AssetReviewPage() {
                       })
                     }
                   >
-                    Reject
+                    {t('Reject')}
                   </Button>
                 </Stack>
               </CardContent>
@@ -111,7 +113,7 @@ export default function AssetReviewPage() {
 
       <Divider sx={{ my: 4 }} />
       <Typography variant="h6" gutterBottom>
-        Review schedule proposals
+        {t('Review schedule proposals')}
       </Typography>
       <Typography color="text.secondary" gutterBottom>
         Platform suggestions generated for an approved asset. Approve at least one option before the
@@ -119,11 +121,11 @@ export default function AssetReviewPage() {
       </Typography>
       <TextField
         size="small"
-        label="Approved asset id"
+        label={t('Approved asset id')}
         sx={{ mt: 1, width: { xs: '100%', sm: 360 }, maxWidth: '100%' }}
         value={proposalAssetId}
         onChange={(event) => setProposalAssetId(event.target.value)}
-        helperText="Approving an asset above fills this automatically."
+        helperText={t('Approving an asset above fills this automatically.')}
       />
       <ProposalReviewList assetId={proposalAssetId} />
     </Box>
@@ -131,6 +133,7 @@ export default function AssetReviewPage() {
 }
 
 function ProposalReviewList({ assetId }: { assetId: string }) {
+  const { t } = useLocale();
   const { data: proposals } = useProposals(assetId);
   const review = useReviewProposal(assetId);
   const user = useAuthStore((state) => state.user);
@@ -141,7 +144,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
   if (!proposals?.length) {
     return (
       <Typography color="text.secondary" sx={{ mt: 2 }}>
-        No proposals for this asset yet.
+        {t('No proposals for this asset yet.')}
       </Typography>
     );
   }
@@ -153,7 +156,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
       <MutationProblemAlert
         isError={review.isError}
         error={review.error}
-        fallbackMessage="Could not review the proposal."
+        fallbackMessage={t('Could not review the proposal.')}
       />
       {proposals.map((proposal) => (
         <Card key={proposal.id} variant="outlined">
@@ -173,7 +176,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                 <TextField
                   size="small"
                   type="number"
-                  label="Interval"
+                  label={t('Interval')}
                   sx={{ width: { xs: '100%', sm: 120 } }}
                   value={intervals[proposal.id] ?? String(proposal.frequencyInterval)}
                   onChange={(event) =>
@@ -201,7 +204,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                     })
                   }
                 >
-                  Approve
+                  {t('Approve')}
                 </Button>
                 <Button
                   color="error"
@@ -210,7 +213,7 @@ function ProposalReviewList({ assetId }: { assetId: string }) {
                   disabled={review.isPending || !canReviewAssets}
                   onClick={() => review.mutate({ id: proposal.id, input: { action: 'REJECT' } })}
                 >
-                  Reject
+                  {t('Reject')}
                 </Button>
               </Stack>
             </Stack>

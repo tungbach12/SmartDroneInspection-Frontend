@@ -4,6 +4,7 @@ import AutorenewRounded from '@mui/icons-material/AutorenewRounded';
 import CalendarTodayOutlined from '@mui/icons-material/CalendarTodayOutlined';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import type { RoleId } from '../data/report3DashboardData';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface DashboardHeaderActionsProps {
   currentRole: RoleId;
@@ -20,6 +21,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
   onRefresh,
   onExport,
 }) => {
+  const { t } = useLocale();
   const [spinning, setSpinning] = useState(false);
 
   const handleRefresh = () => {
@@ -80,10 +82,10 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
       </Box>
 
       {/* Refresh Button */}
-      <Tooltip title="Refresh metrics">
+      <Tooltip title={t('Refresh metrics')}>
         <IconButton
           onClick={handleRefresh}
-          aria-label="Refresh metrics"
+          aria-label={t('Refresh metrics')}
           sx={{
             width: 40,
             height: 40,
@@ -123,7 +125,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           '&:hover': { bgcolor: 'action.hover' },
         }}
       >
-        Sep 09 - Oct 09
+        {t('Sep 09 - Oct 09')}
       </Button>
 
       {/* Export Button */}
@@ -143,7 +145,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           '&:hover': { bgcolor: 'primary.dark' },
         }}
       >
-        Export
+        {t('Export')}
       </Button>
     </Box>
   );

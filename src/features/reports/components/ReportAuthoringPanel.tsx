@@ -27,6 +27,7 @@ import type {
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ReportDerivedSections } from './ReportDerivedSections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   EMPTY_SECTION_VALUES,
   ReportSectionField,
@@ -62,6 +63,7 @@ export function ReportAuthoringPanel({
   canEdit,
   onSaveSections,
 }: ReportAuthoringPanelProps) {
+  const { t } = useLocale();
   const [sections, setSections] = useState<ReportSectionValues>(() =>
     sectionValuesFrom(version),
   );
@@ -171,7 +173,7 @@ export function ReportAuthoringPanel({
       <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828' }}>
-            Report sections
+            {t('Report sections')}
           </Typography>
           <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>
             Sections marked with the author are yours to write. The rest are read from the reviewed
@@ -281,7 +283,7 @@ export function ReportAuthoringPanel({
             </Box>
             <Box>
               <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828' }}>
-                Report PDF Preview
+                {t('Report PDF Preview')}
               </Typography>
               <Typography variant="caption" sx={{ color: '#667085' }}>
                 {reportRef}
@@ -307,7 +309,7 @@ export function ReportAuthoringPanel({
                 onClick={() => window.open(previewUrl, '_blank')}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                Open in new tab
+                {t('Open in new tab')}
               </Button>
             )}
             {previewBlob && (
@@ -321,10 +323,10 @@ export function ReportAuthoringPanel({
                 }}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                Download PDF
+                {t('Download PDF')}
               </Button>
             )}
-            <IconButton onClick={handleClosePreview} size="small" aria-label="Close preview">
+            <IconButton onClick={handleClosePreview} size="small" aria-label={t('Close preview')}>
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -335,7 +337,7 @@ export function ReportAuthoringPanel({
             <Box
               component="iframe"
               src={previewUrl}
-              title="Report PDF Preview"
+              title={t('Report PDF Preview')}
               sx={{
                 width: '100%',
                 height: '100%',
@@ -353,7 +355,7 @@ export function ReportAuthoringPanel({
                 color: '#667085',
               }}
             >
-              <Typography>Loading preview…</Typography>
+              <Typography>{t('Loading preview…')}</Typography>
             </Box>
           )}
         </DialogContent>
@@ -370,7 +372,7 @@ export function ReportAuthoringPanel({
             size="small"
             sx={{ borderRadius: '8px', textTransform: 'none' }}
           >
-            Close
+            {t('Close')}
           </Button>
         </DialogActions>
       </Dialog>

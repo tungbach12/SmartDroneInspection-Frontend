@@ -19,6 +19,7 @@ import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRou
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useCompleteCorrectiveHandoff,
   useDeclareNoCorrectiveWork,
@@ -36,6 +37,7 @@ import {
  * still be forwarded later.
  */
 export default function CorrectiveDispositionPage() {
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const roles = useAuthStore((state) => state.roles);
   const canReview = roles.includes('ORG_ADMIN');
@@ -103,7 +105,7 @@ export default function CorrectiveDispositionPage() {
   if (!canReview) {
     return (
       <Alert severity="info" sx={{ borderRadius: '12px' }}>
-        Forwarding findings to maintenance is reserved for the organization administrator.
+        {t('Forwarding findings to maintenance is reserved for the organization administrator.')}
       </Alert>
     );
   }
@@ -116,13 +118,13 @@ export default function CorrectiveDispositionPage() {
         startIcon={<ArrowBackRounded />}
         sx={{ alignSelf: 'flex-start', color: 'text.secondary', fontWeight: 500, textTransform: 'none' }}
       >
-        Back to report review
+        {t('Back to report review')}
       </Button>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
           <EngineeringOutlined color="primary" />
-          <Typography variant="h6">Send to Maintenance</Typography>
+          <Typography variant="h6">{t('Send to Maintenance')}</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
           Forward confirmed findings to the maintenance team as repair candidates. The maintenance team
@@ -192,14 +194,14 @@ export default function CorrectiveDispositionPage() {
                   <>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        Findings ready to forward ({selectedIds.size} of {unforwardedFindings.length} selected):
+                        {t('Findings ready to forward (')}{selectedIds.size} {t('of')} {unforwardedFindings.length} {t('selected):')}
                       </Typography>
                       <Stack direction="row" spacing={1}>
                         <Button size="small" onClick={selectAll} disabled={selectedIds.size === unforwardedFindings.length}>
-                          Select all
+                          {t('Select all')}
                         </Button>
                         <Button size="small" onClick={deselectAll} disabled={selectedIds.size === 0}>
-                          Deselect all
+                          {t('Deselect all')}
                         </Button>
                       </Stack>
                     </Stack>
@@ -276,14 +278,14 @@ export default function CorrectiveDispositionPage() {
                   </>
                 ) : (
                   <Alert severity="success" icon={<CheckCircleOutlineRounded />}>
-                    All confirmed findings from this report have already been forwarded to Maintenance.
+                    {t('All confirmed findings from this report have already been forwarded to Maintenance.')}
                   </Alert>
                 )}
 
                 {alreadyForwardedFindings.length > 0 && unforwardedFindings.length > 0 && (
                   <Box sx={{ pt: 1 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
-                      Already forwarded findings ({alreadyForwardedFindings.length}):
+                      {t('Already forwarded findings (')}{alreadyForwardedFindings.length}):
                     </Typography>
                     <Stack spacing={1}>
                       {alreadyForwardedFindings.map((finding) => (
@@ -293,7 +295,7 @@ export default function CorrectiveDispositionPage() {
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {finding.defectLabel}
                             </Typography>
-                            <Chip size="small" color="success" variant="outlined" label="Forwarded to Maintenance" />
+                            <Chip size="small" color="success" variant="outlined" label={t('Forwarded to Maintenance')} />
                           </Stack>
                         </Paper>
                       ))}
@@ -306,12 +308,12 @@ export default function CorrectiveDispositionPage() {
             <MutationProblemAlert
               error={completeCorrectiveHandoff.error ?? declareNoCorrectiveWork.error}
               isError={completeCorrectiveHandoff.isError || declareNoCorrectiveWork.isError}
-              fallbackMessage="Could not forward findings to maintenance."
+              fallbackMessage={t('Could not forward findings to maintenance.')}
             />
 
             {(completeCorrectiveHandoff.isSuccess || declareNoCorrectiveWork.isSuccess) && (
               <Alert severity="success">
-                Findings successfully forwarded to Maintenance. Inspection status:{' '}
+                {t('Findings successfully forwarded to Maintenance. Inspection status:')}{' '}
                 {(completeCorrectiveHandoff.data ?? declareNoCorrectiveWork.data)?.inspectionStatus}.
               </Alert>
             )}

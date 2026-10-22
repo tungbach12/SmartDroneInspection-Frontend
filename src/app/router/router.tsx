@@ -29,6 +29,7 @@ import { MotionLabPage } from '@/features/landing/pages/MotionLabPage';
 import PortalSelectionPage from '@/app/pages/PortalSelectionPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { ToastHost } from '@/shared/ui/Toast';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
@@ -265,6 +266,7 @@ export const router = createBrowserRouter([
 ]);
 
 export function RouterWithToast() {
+  const { t } = useLocale();
   return (
     <>
       <Suspense
@@ -272,7 +274,7 @@ export function RouterWithToast() {
           <Box
             sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
           >
-            <CircularProgress aria-label="Loading page" />
+            <CircularProgress aria-label={t('Loading page')} />
           </Box>
         )}
       >

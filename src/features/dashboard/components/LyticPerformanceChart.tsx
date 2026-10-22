@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticPerformanceChartProps {
   headerLabel: string;
@@ -32,6 +33,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   yTicks,
   maxVal = 100000,
 }) => {
+  const { formatNumber } = useLocale();
+  const { t } = useLocale();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const theme = useTheme();
 
@@ -142,7 +145,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
 
         <IconButton
           size="small"
-          aria-label="Revenue performance options"
+          aria-label={t('Revenue performance options')}
           sx={{
             color: 'text.secondary',
             p: 0.75,
@@ -310,15 +313,15 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
             }}
           >
             <Typography sx={{ fontWeight: 600, fontSize: '11px', mb: 0.5 }}>
-              {months[hoverIndex]} Performance
+              {months[hoverIndex]} {t('Performance')}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series1Color }} />
-              <span>{series1Name}: {series1Data[hoverIndex]?.toLocaleString()}</span>
+              <span>{series1Name}: {(series1Data[hoverIndex] == null ? undefined : formatNumber(series1Data[hoverIndex]))}</span>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series2Color }} />
-              <span>{series2Name}: {series2Data[hoverIndex]?.toLocaleString()}</span>
+              <span>{series2Name}: {(series2Data[hoverIndex] == null ? undefined : formatNumber(series2Data[hoverIndex]))}</span>
             </Box>
           </Box>
         )}

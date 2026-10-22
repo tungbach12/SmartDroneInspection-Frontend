@@ -17,6 +17,7 @@ import { isConflict } from '@/shared/api/problem';
 import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 import { ComplianceGateSection } from './ComplianceGateSection';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useApproveReadiness,
   useComplianceGate,
@@ -68,6 +69,7 @@ function ReviewerView({
   inspectionId,
   preparationId,
 }: ReadinessReviewPanelProps) {
+  const { t } = useLocale();
   const roles = useMyCredentials().data;
   const sources = useReadinessSources(inspectionId);
   const compliance = useComplianceGate(inspectionId);
@@ -131,7 +133,7 @@ function ReviewerView({
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <ApprovalOutlined color="primary" />
-        <Typography variant="h6">Readiness review</Typography>
+        <Typography variant="h6">{t('Readiness review')}</Typography>
       </Stack>
 
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -147,7 +149,7 @@ function ReviewerView({
         <Stack spacing={2}>
           <Box>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Your credential
+              {t('Your credential')}
             </Typography>
             {(roles ?? []).map((credential) => (
               <FormControlLabel
@@ -165,7 +167,7 @@ function ReviewerView({
 
           <Box>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Assigned Inspector credentials
+              {t('Assigned Inspector credentials')}
             </Typography>
             {(sources.data?.inspectorCredentials ?? []).map((credential) => (
               <FormControlLabel
@@ -181,15 +183,15 @@ function ReviewerView({
             ))}
             {sources.data?.inspectorCredentials.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                The assigned Inspector holds no credential record.
+                {t('The assigned Inspector holds no credential record.')}
               </Typography>
             ) : null}
             {inspectorCredentialIds.length === 0 ? (
               <TextField
-                label="No Inspector credential reason"
+                label={t('No Inspector credential reason')}
                 value={noInspectorCredentialReason}
                 onChange={(event) => setNoInspectorCredentialReason(event.target.value)}
-                helperText="Required because no credential was selected, so 'nothing applies' is recorded rather than omitted."
+                helperText={t('Required because no credential was selected, so \'nothing applies\' is recorded rather than omitted.')}
                 sx={{ mt: 1 }}
               />
             ) : null}
@@ -197,7 +199,7 @@ function ReviewerView({
 
           <Box>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Drone documents
+              {t('Drone documents')}
             </Typography>
             {(sources.data?.droneDocuments ?? []).map((document) => (
               <FormControlLabel
@@ -213,15 +215,15 @@ function ReviewerView({
             ))}
             {sources.data?.droneDocuments.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                The assigned Drone holds no document record.
+                {t('The assigned Drone holds no document record.')}
               </Typography>
             ) : null}
             {droneDocumentIds.length === 0 ? (
               <TextField
-                label="No Drone document reason"
+                label={t('No Drone document reason')}
                 value={noDroneDocumentReason}
                 onChange={(event) => setNoDroneDocumentReason(event.target.value)}
-                helperText="Required because no document was selected."
+                helperText={t('Required because no document was selected.')}
                 sx={{ mt: 1 }}
               />
             ) : null}
@@ -235,19 +237,19 @@ function ReviewerView({
                   onChange={(event) => setApplicabilityComplete(event.target.checked)}
                 />
               }
-              label="Applicability attestation complete"
+              label={t('Applicability attestation complete')}
             />
             <TextField
-              label="Applicability basis reference"
+              label={t('Applicability basis reference')}
               value={applicabilityBasisReference}
               onChange={(event) => setApplicabilityBasisReference(event.target.value)}
-              helperText="A traceable reference. SRS requires one; free text is not a basis."
+              helperText={t('A traceable reference. SRS requires one; free text is not a basis.')}
             />
             <TextField
-              label="Human verification basis"
+              label={t('Human verification basis')}
               value={humanVerificationBasis}
               onChange={(event) => setHumanVerificationBasis(event.target.value)}
-              helperText="Required only when the compliance gate reports human verification."
+              helperText={t('Required only when the compliance gate reports human verification.')}
             />
           </Stack>
 
@@ -265,26 +267,26 @@ function ReviewerView({
             <RefusalNotice
               testId="approval-refusal"
               reason={getErrorMessage(approve.error, '')}
-              fallbackMessage="The server refused this approval."
+              fallbackMessage={t('The server refused this approval.')}
             />
           ) : null}
           <MutationProblemAlert
             error={approve.error}
             isError={approve.isError && !isConflict(approve.error)}
-            fallbackMessage="Could not record the approval."
+            fallbackMessage={t('Could not record the approval.')}
           />
 
           <Box sx={{ pt: 2 }}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Return for rework
+              {t('Return for rework')}
             </Typography>
             <TextField
-              label="Return reason"
+              label={t('Return reason')}
               value={returnReason}
               onChange={(event) => setReturnReason(event.target.value)}
               multiline
               minRows={2}
-              helperText="A reason is required. A rejection nobody can read is not a usable instruction."
+              helperText={t('A reason is required. A rejection nobody can read is not a usable instruction.')}
               sx={{ mb: 1.5 }}
             />
             <Button
@@ -300,7 +302,7 @@ function ReviewerView({
           <MutationProblemAlert
             error={returnPreparation.error}
             isError={returnPreparation.isError}
-            fallbackMessage="Could not return the preparation."
+            fallbackMessage={t('Could not return the preparation.')}
           />
         </Stack>
       </QueryState>

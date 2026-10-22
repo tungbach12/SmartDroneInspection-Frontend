@@ -1,7 +1,9 @@
 import { Box, Container, Link, Stack, Typography } from '@mui/material';
 import { StatusChip } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export function DarkFooter() {
+  const { t } = useLocale();
   return (
     <Box
       component="footer"
@@ -30,7 +32,7 @@ export function DarkFooter() {
               <Box
                 component="img"
                 src="/images/landing/logo.png"
-                alt="SmartDroneInspection Logo"
+                alt={t('SmartDroneInspection Logo')}
                 sx={{
                   width: 26,
                   height: 26,
@@ -74,40 +76,40 @@ export function DarkFooter() {
               underline="none"
               sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
-              Mission Stream
+              {t('Mission Stream')}
             </Link>
             <Link
               href="#bento-matrix"
               underline="none"
               sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
-              Inspection Matrix
+              {t('Inspection Matrix')}
             </Link>
             <Link
               href="#metrics"
               underline="none"
               sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
-              Metrics
+              {t('Metrics')}
             </Link>
             <Link
               href="#security"
               underline="none"
               sx={{ fontSize: '14px', color: '#5D707B', '&:hover': { color: '#253746' } }}
             >
-              Role Console
+              {t('Role Console')}
             </Link>
             <Link
               href="/login"
               underline="none"
               sx={{ fontSize: '14px', color: '#087E8B', '&:hover': { color: '#253746' } }}
             >
-              Access Portal ↗
+              {t('Access Portal ↗')}
             </Link>
           </Stack>
 
           {/* Status Indicator Pill */}
-          <StatusChip status="pass" label="ALL PIPELINES OPERATIONAL" />
+          <StatusChip status="pass" label={t('ALL PIPELINES OPERATIONAL')} />
         </Box>
 
         {/* Bottom row */}
@@ -128,7 +130,7 @@ export function DarkFooter() {
               color: '#666666',
             }}
           >
-            © 2026 SmartDroneInspection. All rights reserved. Cryptographic evidence verification engine.
+            {t('© 2026 SmartDroneInspection. All rights reserved. Cryptographic evidence verification engine.')}
           </Typography>
 
           <Typography
@@ -138,7 +140,7 @@ export function DarkFooter() {
               color: '#555555',
             }}
           >
-            EVIDENCE INTEGRITY: SHA-256 // CLOUD: ORACLE-ARM64
+            {t('EVIDENCE INTEGRITY: SHA-256 // CLOUD: ORACLE-ARM64')}
           </Typography>
         </Box>
       </Container>

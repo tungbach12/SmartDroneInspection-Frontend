@@ -20,6 +20,7 @@ import { useDroneSelection } from '@/features/assets/hooks/useDrones';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { useCreateInspection } from '../hooks/useInspections';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface CreateInspectionDialogProps {
   open: boolean;
@@ -35,6 +36,7 @@ interface InspectionFormProps {
 }
 
 function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFormProps) {
+  const { t } = useLocale();
   const [assetId, setAssetId] = useState(preselectedAssetId ?? '');
   const [objective, setObjective] = useState('');
   const [scope, setScope] = useState('');
@@ -98,7 +100,7 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
 
   return (
     <form onSubmit={handleSubmit}>
-      <DialogTitle sx={{ fontWeight: 700 }}>New Inspection</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>{t('New Inspection')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {createInspection.isError && (
@@ -117,11 +119,11 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
           {!preselectedAssetId ? (
             <TextField
               select
-              label="Target Asset"
+              label={t('Target Asset')}
               required
               value={assetId}
               onChange={(e) => setAssetId(e.target.value)}
-              helperText="Select the infrastructure asset to inspect"
+              helperText={t('Select the infrastructure asset to inspect')}
             >
               {activeAssets.map((asset) => (
                 <MenuItem key={asset.id} value={asset.id}>
@@ -141,13 +143,13 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
               }}
             >
               <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155' }}>
-                Default Operational Pair
+                {t('Default Operational Pair')}
               </Typography>
               {assetPairQuery.isLoading ? (
                 <CircularProgress size={20} sx={{ mt: 1 }} />
               ) : defaultPair ? (
                 <Typography variant="body2" sx={{ mt: 0.5, color: '#475569' }}>
-                  <strong>Inspector:</strong>{' '}
+                  <strong>{t('Inspector:')}</strong>{' '}
                   {defaultPair.inspectorName ?? defaultPair.inspectorUserId}
                   <br />
                   <strong>Drone:</strong> {defaultPair.droneSerialNumber}{' '}
@@ -155,26 +157,26 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
                 </Typography>
               ) : (
                 <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
-                  No default pair assigned. You must specify an inspector and drone below.
+                  {t('No default pair assigned. You must specify an inspector and drone below.')}
                 </Typography>
               )}
             </Box>
           )}
 
           <TextField
-            label="Inspection Objective"
+            label={t('Inspection Objective')}
             required
             multiline
             rows={2}
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
-            placeholder="e.g. Periodic visual crack survey and structural alignment check"
-            helperText="State the objective and required focus of this mission"
+            placeholder={t('e.g. Periodic visual crack survey and structural alignment check')}
+            helperText={t('State the objective and required focus of this mission')}
           />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
-              label="Planned Start"
+              label={t('Planned Start')}
               type="datetime-local"
               value={plannedStartAt}
               onChange={(e) => setPlannedStartAt(e.target.value)}
@@ -182,7 +184,7 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
               fullWidth
             />
             <TextField
-              label="Planned End"
+              label={t('Planned End')}
               type="datetime-local"
               value={plannedEndAt}
               onChange={(e) => setPlannedEndAt(e.target.value)}
@@ -192,27 +194,27 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
           </Stack>
 
           <TextField
-            label="Method / General Scope"
+            label={t('Method / General Scope')}
             value={scope}
             onChange={(e) => setScope(e.target.value)}
-            placeholder='e.g. {"method": "visual", "sensor": "RGB"}'
-            helperText="General inspection methodology and configuration"
+            placeholder={t('e.g. {"method": "visual", "sensor": "RGB"}')}
+            helperText={t('General inspection methodology and configuration')}
           />
 
           <TextField
-            label="Component Scope"
+            label={t('Component Scope')}
             value={componentScope}
             onChange={(e) => setComponentScope(e.target.value)}
-            placeholder='e.g. ["main span", "pier 1", "abutment"]'
-            helperText="Components or structures included in this inspection"
+            placeholder={t('e.g. ["main span", "pier 1", "abutment"]')}
+            helperText={t('Components or structures included in this inspection')}
           />
 
           <TextField
-            label="Acceptance Criteria"
+            label={t('Acceptance Criteria')}
             value={acceptanceCriteria}
             onChange={(e) => setAcceptanceCriteria(e.target.value)}
-            placeholder='e.g. {"minResolution": "0.5mm", "coverage": "100%"}'
-            helperText="Criteria required for satisfactory inspection"
+            placeholder={t('e.g. {"minResolution": "0.5mm", "coverage": "100%"}')}
+            helperText={t('Criteria required for satisfactory inspection')}
           />
 
           <FormControlLabel
@@ -223,7 +225,7 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
                 disabled={!defaultPair}
               />
             }
-            label="Reassign Inspector or Drone for this inspection"
+            label={t('Reassign Inspector or Drone for this inspection')}
           />
 
           {(overridePair || !defaultPair) && (
@@ -237,11 +239,11 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
               }}
             >
               <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b' }}>
-                SPECIFIC MISSION ASSIGNMENT
+                {t('SPECIFIC MISSION ASSIGNMENT')}
               </Typography>
               <TextField
                 select
-                label="Inspector"
+                label={t('Inspector')}
                 required={overridePair || !defaultPair}
                 value={overrideInspectorId}
                 onChange={(e) => setOverrideInspectorId(e.target.value)}
@@ -269,11 +271,11 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
               </TextField>
 
               <TextField
-                label="Reassignment Reason"
+                label={t('Reassignment Reason')}
                 required={overridePair}
                 value={reassignmentReason}
                 onChange={(e) => setReassignmentReason(e.target.value)}
-                placeholder="e.g. Primary inspector on leave / special thermal payload required"
+                placeholder={t('e.g. Primary inspector on leave / special thermal payload required')}
               />
             </Stack>
           )}
@@ -281,7 +283,7 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={createInspection.isPending}>
-          Cancel
+          {t('Cancel')}
         </Button>
         <Button
           type="submit"

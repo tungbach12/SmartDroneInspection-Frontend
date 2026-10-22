@@ -5,7 +5,34 @@ describe('browser API client', () => {
   it('uses the organization API prefix', () => {
     expect(api.defaults.baseURL).toBe('/api/v1');
   });
+
+  it('sends the selected locale on every request and defaults to English', async () => {
+    let requestedLocale: unknown;
+    const request = (async () => {
+      await api.get('/locale-test', {
+        adapter: async (config) => {
+          requestedLocale = config.headers.get('Accept-Language');
+          return { config, data: null, headers: {}, status: 200, statusText: 'OK' };
+        },
+      });
+    })();
+
+    await request;
+    expect(requestedLocale).toBe('en');
+
+    localStorage.setItem('sdi-locale', 'vi');
+    await api.get('/locale-test', {
+      adapter: async (config) => {
+        requestedLocale = config.headers.get('Accept-Language');
+        return { config, data: null, headers: {}, status: 200, statusText: 'OK' };
+      },
+    });
+    expect(requestedLocale).toBe('vi');
+    localStorage.removeItem('sdi-locale');
+  });
 });
+
+
 
 describe('postWithBrowserCsrf', () => {
   afterEach(() => {

@@ -1,6 +1,7 @@
 import { Navigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { Button, Container, Stack, Typography } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   canAccessSection,
   getAvailablePortals,
@@ -11,6 +12,7 @@ import {
 } from '@/app/permissions/accessPolicy';
 
 export default function PortalSelectionPage() {
+  const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const [searchParams] = useSearchParams();
   const sectionQuery = searchParams.get('section');
@@ -42,7 +44,7 @@ export default function PortalSelectionPage() {
     <Container maxWidth="sm" sx={{ py: { xs: 6, sm: 10 } }}>
       <Stack spacing={2}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>
-          Choose a workspace
+          {t('Choose a workspace')}
         </Typography>
         <Typography color="text.secondary">
           {requestedSection

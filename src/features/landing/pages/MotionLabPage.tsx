@@ -1,6 +1,7 @@
 import { Box, Container, Typography } from '@mui/material';
 import { useEffect, useRef } from 'react';
 import { animate, stagger, createDrawable, splitText } from 'animejs';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const points = [
   { x: 40, y: 220 },
@@ -16,6 +17,7 @@ function pathFrom(points: { x: number; y: number }[]) {
 }
 
 export function MotionLabPage() {
+  const { t } = useLocale();
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -60,10 +62,10 @@ export function MotionLabPage() {
       <Container maxWidth="md">
         <div ref={rootRef}>
           <Typography data-scramble variant="h3" sx={{ fontWeight: 800, letterSpacing: '-0.03em', color: 'text.primary' }}>
-            Autonomous survey trajectory
+            {t('Autonomous survey trajectory')}
           </Typography>
           <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
-            Anime.js v4 - createDrawable flight path, spring nodes, split text.
+            {t('Anime.js v4 - createDrawable flight path, spring nodes, split text.')}
           </Typography>
           <svg viewBox="0 0 660 260" width="100%" style={{ marginTop: 32 }}>
             <path

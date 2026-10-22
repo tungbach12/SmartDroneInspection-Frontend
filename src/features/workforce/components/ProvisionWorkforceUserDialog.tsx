@@ -14,6 +14,7 @@ import {
 import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   GRANTABLE_WORKFORCE_ROLES,
   type GrantableWorkforceRole,
@@ -61,6 +62,7 @@ function ProvisionForm({
   onClose,
   onSubmit,
 }: ProvisionWorkforceUserDialogProps) {
+  const { t } = useLocale();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [roles, setRoles] = useState<GrantableWorkforceRole[]>([]);
@@ -110,20 +112,20 @@ function ProvisionForm({
 
   return (
     <form onSubmit={submit} noValidate>
-      <DialogTitle>Provision a workforce user</DialogTitle>
+      <DialogTitle>{t('Provision a workforce user')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {isError && isConflict(error) ? (
             <RefusalNotice
               reason={getErrorMessage(error, '')}
-              fallbackMessage="This request conflicts with an existing workforce record."
+              fallbackMessage={t('This request conflicts with an existing workforce record.')}
               testId="provision-conflict"
             />
           ) : (
             <MutationProblemAlert
               isError={isError}
               error={error}
-              fallbackMessage="Could not provision this workforce user."
+              fallbackMessage={t('Could not provision this workforce user.')}
             />
           )}
           <TextField
@@ -137,14 +139,14 @@ function ProvisionForm({
           />
           <TextField
             required
-            label="Full name"
+            label={t('Full name')}
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
             error={Boolean(errors.fullName)}
             helperText={errors.fullName}
           />
           <Stack spacing={0.5}>
-            <Typography variant="subtitle2">Roles</Typography>
+            <Typography variant="subtitle2">{t('Roles')}</Typography>
             {GRANTABLE_WORKFORCE_ROLES.map((role) => (
               <FormControlLabel
                 key={role}
@@ -170,9 +172,9 @@ function ProvisionForm({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
         <Button type="submit" variant="contained" disabled={pending}>
-          Create user
+          {t('Create user')}
         </Button>
       </DialogActions>
     </form>

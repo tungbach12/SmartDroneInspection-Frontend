@@ -19,6 +19,7 @@ import { LyticRadialGaugeCard } from '../components/LyticRadialGaugeCard';
 import { LyticStackedBarChart } from '../components/LyticStackedBarChart';
 import { LyticQueueTable } from '../components/LyticQueueTable';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface FocusArea {
   label: string;
@@ -64,7 +65,8 @@ function getAreas(roles: readonly string[], portal: string): FocusArea[] {
 }
 
 export default function DashboardPage() {
-  const roles = useAuthStore((state) => state.roles);
+  const { formatNumber, t } = useLocale();
+    const roles = useAuthStore((state) => state.roles);
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 
@@ -125,7 +127,7 @@ export default function DashboardPage() {
         {
           id: 'registered_assets',
           label: 'Registered assets',
-          value: assets.error ? '—' : assets.isLoading ? '…' : (assets.data?.totalCount ?? 0).toLocaleString(),
+          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber((assets.data?.totalCount ?? 0)),
           change: '+100% paired',
           positive: true,
           subtext: 'in your organization',
@@ -134,7 +136,7 @@ export default function DashboardPage() {
         {
           id: 'active_page',
           label: 'Active on this page',
-          value: assets.error ? '—' : assets.isLoading ? '…' : activeAssetsCount.toLocaleString(),
+          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber(activeAssetsCount),
           change: 'Operational',
           positive: true,
           subtext: `of ${assets.data?.items.length ?? 0} shown`,
@@ -143,7 +145,7 @@ export default function DashboardPage() {
         {
           id: 'awaiting_review',
           label: 'Awaiting review',
-          value: assets.error ? '—' : assets.isLoading ? '…' : pendingAssetsCount.toLocaleString(),
+          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber(pendingAssetsCount),
           change: 'Action due',
           positive: false,
           subtext: `of ${assets.data?.items.length ?? 0} shown`,
@@ -319,7 +321,7 @@ export default function DashboardPage() {
               lineHeight: 1.2,
             }}
           >
-            Overview
+            {t('Overview')}
           </Typography>
         </Box>
 
@@ -338,7 +340,7 @@ export default function DashboardPage() {
 
       {/* Row 1: 4 Metric Cards */}
       <Box
-        aria-label="Workspace metrics"
+        aria-label={t('Workspace metrics')}
         sx={{
           display: 'grid',
           gridTemplateColumns: {
@@ -454,7 +456,7 @@ export default function DashboardPage() {
                   mb: 1.5,
                 }}
               >
-                Workspace shortcuts
+                {t('Workspace shortcuts')}
               </Typography>
               <Box
                 sx={{

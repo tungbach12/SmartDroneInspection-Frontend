@@ -44,6 +44,7 @@ import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { FlightPermitPanel } from './FlightPermitPanel';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -64,7 +65,8 @@ function formatLocation(text: string | null): string {
 }
 
 export function AssetsPage() {
-  const roles = useAuthStore((state) => state.roles);
+  const { formatNumber, t } = useLocale();
+      const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('ORG_ADMIN');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
@@ -117,7 +119,7 @@ export function AssetsPage() {
         if (!asset.defaultPair) {
           return (
             <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              Unassigned
+              {t('Unassigned')}
             </Typography>
           );
         }
@@ -165,7 +167,7 @@ export function AssetsPage() {
                 '&:hover': { bgcolor: '#2b45cb' },
               }}
             >
-              New inspection
+              {t('New inspection')}
             </Button>
           )}
         </Stack>
@@ -190,15 +192,15 @@ export function AssetsPage() {
         '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
       }}
     >
-      New asset
+      {t('New asset')}
     </Button>
   ) : undefined;
 
   return (
     <Box className="workspace-page workspace-page--assets">
       <PageHeader
-        title="Assets"
-        subtitle="Infrastructure assets registered for inspection"
+        title={t('Assets')}
+        subtitle={t('Infrastructure assets registered for inspection')}
         actions={resourceTab === 0 ? newAssetButton : undefined}
       />
       {/* 4 Lytic KPI Metric Cards */}
@@ -212,33 +214,33 @@ export function AssetsPage() {
           }}
         >
           <MetricCard
-            label="Total Assets"
-            value={isLoading ? '…' : totalCount.toLocaleString()}
-            change="+100% paired"
+            label={t('Total Assets')}
+            value={isLoading ? '…' : formatNumber(totalCount)}
+            change={t('+100% paired')}
             positive
             subtext="registered structures"
             iconType="building"
           />
           <MetricCard
-            label="Active Assets"
-            value={isLoading ? '…' : activeCount.toLocaleString()}
-            change="Operational"
+            label={t('Active Assets')}
+            value={isLoading ? '…' : formatNumber(activeCount)}
+            change={t('Operational')}
             positive
             subtext="ready for inspection"
             iconType="check-circle"
           />
           <MetricCard
-            label="Pending Review"
-            value={isLoading ? '…' : pendingCount.toLocaleString()}
+            label={t('Pending Review')}
+            value={isLoading ? '…' : formatNumber(pendingCount)}
             change={pendingCount > 0 ? 'Action due' : 'Clear'}
             positive={pendingCount === 0}
             subtext="awaiting verification"
             iconType="alert"
           />
           <MetricCard
-            label="Inspection Schedules"
-            value={isLoading ? '…' : activeCount.toLocaleString()}
-            change="Scheduled"
+            label={t('Inspection Schedules')}
+            value={isLoading ? '…' : formatNumber(activeCount)}
+            change={t('Scheduled')}
             positive
             subtext="active maintenance plans"
             iconType="shield"
@@ -246,10 +248,10 @@ export function AssetsPage() {
         </Box>
       )}
       {isClient && (
-        <Tabs value={resourceTab} onChange={(_event, value: number) => setResourceTab(value)} aria-label="Asset resources">
-          <Tab label="Assets" />
-          <Tab label="Drones" />
-          <Tab label="Permits" />
+        <Tabs value={resourceTab} onChange={(_event, value: number) => setResourceTab(value)} aria-label={t('Asset resources')}>
+          <Tab label={t('Assets')} />
+          <Tab label={t('Drones')} />
+          <Tab label={t('Permits')} />
         </Tabs>
       )}
       {(!isClient || resourceTab === 0) && <>
@@ -261,19 +263,19 @@ export function AssetsPage() {
         isEmpty={Boolean(data && data.items.length === 0)}
         empty={
           <EmptyState
-            title="No assets registered"
-            description="Add an infrastructure asset before requesting an inspection."
+            title={t('No assets registered')}
+            description={t('Add an infrastructure asset before requesting an inspection.')}
             action={newAssetButton}
           />
         }
       >
         <DataTable
-          title="Asset records"
+          title={t('Asset records')}
           columns={columns}
           rows={items}
           rowKey={(asset) => asset.id}
           searchable
-          searchPlaceholder="Search by name or code…"
+          searchPlaceholder={t('Search by name or code…')}
           searchPredicate={(asset, query) =>
             asset.name.toLowerCase().includes(query) || asset.code.toLowerCase().includes(query)
           }
@@ -336,6 +338,7 @@ function CreateAssetDialogForm({
   onClose,
   onSubmit,
 }: CreateAssetDialogProps) {
+  const { t } = useLocale();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -368,7 +371,7 @@ function CreateAssetDialogForm({
 
   return (
     <form onSubmit={submit}>
-      <DialogTitle sx={{ fontWeight: 700 }}>New Asset</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>{t('New Asset')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {errorMessage && (
@@ -380,23 +383,23 @@ function CreateAssetDialogForm({
             </Alert>
           )}
           <TextField
-            label="Asset code"
+            label={t('Asset code')}
             required
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="e.g. BR-NORTH-01"
-            helperText="Unique identifier for the structure"
+            placeholder={t('e.g. BR-NORTH-01')}
+            helperText={t('Unique identifier for the structure')}
           />
           <TextField
-            label="Asset name"
+            label={t('Asset name')}
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. North Crossing Main Span"
+            placeholder={t('e.g. North Crossing Main Span')}
           />
           <TextField
             select
-            label="Category"
+            label={t('Category')}
             required
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
@@ -408,15 +411,15 @@ function CreateAssetDialogForm({
             ))}
           </TextField>
           <TextField
-            label="Location"
+            label={t('Location')}
             required
             value={locationText}
             onChange={(e) => setLocationText(e.target.value)}
-            placeholder="e.g. Km 12+300, Highway 1A"
-            helperText="Physical description or GPS coordinates"
+            placeholder={t('e.g. Km 12+300, Highway 1A')}
+            helperText={t('Physical description or GPS coordinates')}
           />
           <TextField
-            label="Description"
+            label={t('Description')}
             multiline
             rows={2}
             value={description}
@@ -424,13 +427,13 @@ function CreateAssetDialogForm({
           />
           <TextField
             select
-            label="Default Inspector (optional)"
+            label={t('Default Inspector (optional)')}
             value={defaultInspectorId}
             onChange={(e) => setDefaultInspectorId(e.target.value)}
-            helperText="Default operational inspector paired with this asset"
+            helperText={t('Default operational inspector paired with this asset')}
           >
             <MenuItem value="">
-              <em>None</em>
+              <em>{t('None')}</em>
             </MenuItem>
             {inspectors.map((inspector) => (
               <MenuItem key={inspector.userId} value={inspector.userId}>
@@ -440,13 +443,13 @@ function CreateAssetDialogForm({
           </TextField>
           <TextField
             select
-            label="Default Drone (optional)"
+            label={t('Default Drone (optional)')}
             value={defaultDroneId}
             onChange={(e) => setDefaultDroneId(e.target.value)}
-            helperText="Default operational drone paired with this asset"
+            helperText={t('Default operational drone paired with this asset')}
           >
             <MenuItem value="">
-              <em>None</em>
+              <em>{t('None')}</em>
             </MenuItem>
             {drones.map((drone) => (
               <MenuItem key={drone.id} value={drone.id}>
@@ -458,7 +461,7 @@ function CreateAssetDialogForm({
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={pending}>
-          Cancel
+          {t('Cancel')}
         </Button>
         <Button type="submit" variant="contained" disabled={pending}>
           {pending ? 'Creating…' : 'Create Asset'}
@@ -489,6 +492,7 @@ function ReassignPairDialog({
   currentInspectorId?: string | null | undefined;
   currentDroneId?: string | null | undefined;
 }) {
+  const { t } = useLocale();
   const reassignMutation = useReassignAssetPair?.() ?? {
     mutate: () => {},
     isPending: false,
@@ -524,7 +528,7 @@ function ReassignPairDialog({
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <form onSubmit={handleReassign}>
-        <DialogTitle sx={{ fontWeight: 700 }}>Reassign Operational Pair</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t('Reassign Operational Pair')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {reassignMutation.isError && (
@@ -534,7 +538,7 @@ function ReassignPairDialog({
             )}
             <TextField
               select
-              label="Inspector"
+              label={t('Inspector')}
               required
               value={inspectorId}
               onChange={(e) => setInspectorId(e.target.value)}
@@ -559,20 +563,20 @@ function ReassignPairDialog({
               ))}
             </TextField>
             <TextField
-              label="Reassignment Reason"
+              label={t('Reassignment Reason')}
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Schedule adjustment or maintenance"
+              placeholder={t('e.g. Schedule adjustment or maintenance')}
             />
             <Typography variant="caption" color="text.secondary">
-              The asset must be active before inspection scheduling.
+              {t('The asset must be active before inspection scheduling.')}
             </Typography>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose} disabled={reassignMutation.isPending}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button
             type="submit"
@@ -588,7 +592,8 @@ function ReassignPairDialog({
 }
 
 function OperationalPairSection({ assetId, isClient }: { assetId: string; isClient: boolean }) {
-  const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
+  const { formatDate, t } = useLocale();
+    const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
   const [dialogOpen, setDialogOpen] = useState(false);
   const pair = pairQuery.data;
 
@@ -596,7 +601,7 @@ function OperationalPairSection({ assetId, isClient }: { assetId: string; isClie
     <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155' }}>
-          Operational Pair
+          {t('Operational Pair')}
         </Typography>
         {isClient && (
           <Button
@@ -605,7 +610,7 @@ function OperationalPairSection({ assetId, isClient }: { assetId: string; isClie
             onClick={() => setDialogOpen(true)}
             sx={{ textTransform: 'none', fontSize: '12px' }}
           >
-            Reassign
+            {t('Reassign')}
           </Button>
         )}
       </Stack>
@@ -615,18 +620,18 @@ function OperationalPairSection({ assetId, isClient }: { assetId: string; isClie
       ) : pair ? (
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary">
-            <strong>Inspector:</strong> {pair.inspectorName ?? pair.inspectorUserId}
+            <strong>{t('Inspector:')}</strong> {pair.inspectorName ?? pair.inspectorUserId}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             <strong>Drone:</strong> {pair.droneSerialNumber} {pair.droneModel ? `(${pair.droneModel})` : ''}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Status: {pair.status} · Since: {new Date(pair.validFrom).toLocaleDateString()}
+            {t('Status:')} {pair.status} {t('· Since:')} {formatDate(new Date(pair.validFrom))}
           </Typography>
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary">
-          No default pair currently assigned.
+          {t('No default pair currently assigned.')}
         </Typography>
       )}
 
@@ -652,6 +657,7 @@ function AssetDetailDrawer({
   onClose: () => void;
   onNewInspection?: (assetId: string) => void;
 }) {
+  const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('ORG_ADMIN');
   const documents = useAssetDocuments(asset?.id ?? '');
@@ -727,7 +733,7 @@ function AssetDetailDrawer({
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {asset?.name}
           </Typography>
-          <IconButton onClick={onClose} aria-label="Close drawer">
+          <IconButton onClick={onClose} aria-label={t('Close drawer')}>
             <Close />
           </IconButton>
         </Stack>
@@ -754,18 +760,18 @@ function AssetDetailDrawer({
               '&:hover': { bgcolor: '#2b45cb' },
             }}
           >
-            Create Inspection
+            {t('Create Inspection')}
           </Button>
         )}
         {asset && <OperationalPairSection assetId={asset.id} isClient={isClient} />}
         <Divider sx={{ my: 2 }} />
 
         <Typography variant="subtitle2" gutterBottom>
-          Documents
+          {t('Documents')}
         </Typography>
         {downloadDenied ? (
           <Alert severity="warning" data-testid="document-access-denied">
-            <strong>Permission required</strong> —{' '}
+            <strong>{t('Permission required')}</strong> —{' '}
             {getErrorMessage(
               downloadError ?? documents.error,
               'You are not allowed to view these documents.',
@@ -773,10 +779,10 @@ function AssetDetailDrawer({
           </Alert>
         ) : documents.isLoading ? (
           <Typography variant="body2" color="text.secondary">
-            Loading documents…
+            {t('Loading documents…')}
           </Typography>
         ) : documents.error ? (
-          <Alert severity="error">Could not load documents.</Alert>
+          <Alert severity="error">{t('Could not load documents.')}</Alert>
         ) : documents.data?.length ? (
           <List dense>
             {documents.data.map((document) => (
@@ -793,14 +799,14 @@ function AssetDetailDrawer({
                   disabled={downloading === document.id}
                   onClick={() => void openDocument(document)}
                 >
-                  Open
+                  {t('Open')}
                 </Button>
               </ListItem>
             ))}
           </List>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            No documents uploaded yet.
+            {t('No documents uploaded yet.')}
           </Typography>
         )}
 
@@ -810,7 +816,7 @@ function AssetDetailDrawer({
             <TextField
               select
               size="small"
-              label="Document type"
+              label={t('Document type')}
               value={documentType}
               onChange={(event) => setDocumentType(event.target.value)}
             >
@@ -823,7 +829,7 @@ function AssetDetailDrawer({
             <TextField
               size="small"
               type="date"
-              label="Document date"
+              label={t('Document date')}
               value={documentDate}
               onChange={(event) => setDocumentDate(event.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
@@ -855,12 +861,12 @@ function AssetDetailDrawer({
                 );
               }}
             >
-              Upload document
+              {t('Upload document')}
             </Button>
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Document upload is available after review.
+            {t('Document upload is available after review.')}
           </Typography>
         )}
       </Box>

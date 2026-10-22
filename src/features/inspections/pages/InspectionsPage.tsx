@@ -28,6 +28,7 @@ import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 type InspectionsView = 'all' | 'reports';
 
@@ -42,7 +43,8 @@ const EMPTY_ITEMS: never[] = [];
  * report summary already carries a status or version number.
  */
 export default function InspectionsPage() {
-  const navigate = useNavigate();
+  const { formatNumber, t } = useLocale();
+      const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
@@ -131,7 +133,7 @@ export default function InspectionsPage() {
         '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
       }}
     >
-      New inspection
+      {t('New inspection')}
     </Button>
   ) : undefined;
 
@@ -160,32 +162,32 @@ export default function InspectionsPage() {
       >
         <MetricCard
           label={isOrganizationAdmin ? (view === 'reports' ? 'Reports in queue' : 'Organization inspections') : 'Total Inspections'}
-          value={inspections.isLoading ? '…' : totalCount.toLocaleString()}
+          value={inspections.isLoading ? '…' : formatNumber(totalCount)}
           change={isOrganizationAdmin ? 'Current view' : 'Operational'}
           positive
           subtext={isOrganizationAdmin ? (view === 'reports' ? 'across all pages' : 'across your organization') : 'scoped to your assignment'}
           iconType="plane"
         />
         <MetricCard
-          label="In Progress"
-          value={inspections.isLoading ? '…' : inProgressCount.toLocaleString()}
-          change="Operational"
+          label={t('In Progress')}
+          value={inspections.isLoading ? '…' : formatNumber(inProgressCount)}
+          change={t('Operational')}
           positive
           subtext="active inspections"
           iconType="clock"
         />
         <MetricCard
-          label="Repair Pending"
-          value={inspections.isLoading ? '…' : repairPendingCount.toLocaleString()}
+          label={t('Repair Pending')}
+          value={inspections.isLoading ? '…' : formatNumber(repairPendingCount)}
           change={repairPendingCount > 0 ? 'Follow-up' : 'Clear'}
           positive={repairPendingCount === 0}
           subtext="requires maintenance"
           iconType="alert"
         />
         <MetricCard
-          label="Completed"
-          value={inspections.isLoading ? '…' : completedCount.toLocaleString()}
-          change="Published"
+          label={t('Completed')}
+          value={inspections.isLoading ? '…' : formatNumber(completedCount)}
+          change={t('Published')}
           positive
           subtext="immutable records"
           iconType="check-circle"
@@ -216,15 +218,15 @@ export default function InspectionsPage() {
           {isOrganizationAdmin && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Paper variant="outlined" role="group" aria-label={`Readiness reviews due on this page: ${readinessDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <RateReviewOutlined color={readinessDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Readiness review · this page</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">{t('Readiness review · this page')}</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
             </Paper>
             <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Report review · this page</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">{t('Report review · this page')}</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
             </Paper>
             <Paper variant="outlined" role="group" aria-label={`Corrective outcomes due on this page: ${correctiveDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
               <FactCheckOutlined color={correctiveDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">Corrective outcome · this page</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">{t('Corrective outcome · this page')}</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
             </Paper>
           </Stack>}
           <Stack
@@ -243,7 +245,7 @@ export default function InspectionsPage() {
               onChange={(_, next: InspectionsView | null) => {
                 if (next) setView(next);
               }}
-              aria-label="Inspection list view"
+              aria-label={t('Inspection list view')}
               size="small"
             >
               <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
@@ -253,22 +255,22 @@ export default function InspectionsPage() {
             <TextField
               select
               size="small"
-              label="Status filter"
+              label={t('Status filter')}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               sx={{ minWidth: 180 }}
             >
-              <MenuItem value="ALL">All statuses</MenuItem>
-              <MenuItem value="ASSIGNED">Assigned</MenuItem>
-              <MenuItem value="PREPARING">Preparing</MenuItem>
-              <MenuItem value="READY_FOR_FLIGHT">Ready for Flight</MenuItem>
-              <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-              <MenuItem value="FIELD_COMPLETED">Field Completed</MenuItem>
-              <MenuItem value="REPORT_DRAFT">Report Draft</MenuItem>
-              <MenuItem value="REPORT_PUBLISHED">Report Published</MenuItem>
-              <MenuItem value="REPAIR_PENDING">Repair Pending</MenuItem>
-              <MenuItem value="COMPLETED">Completed</MenuItem>
-              <MenuItem value="CANCELLED">Cancelled</MenuItem>
+              <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+              <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
+              <MenuItem value="PREPARING">{t('Preparing')}</MenuItem>
+              <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
+              <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
+              <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
+              <MenuItem value="REPORT_DRAFT">{t('Report Draft')}</MenuItem>
+              <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
+              <MenuItem value="REPAIR_PENDING">{t('Repair Pending')}</MenuItem>
+              <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
+              <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
             </TextField>
           </Stack>
           <QueryState
@@ -276,10 +278,10 @@ export default function InspectionsPage() {
             error={inspections.error}
             isEmpty={displayedItems.length === 0}
             onRetry={() => void inspections.refetch()}
-            loadingLabel="Loading inspections…"
+            loadingLabel={t('Loading inspections…')}
             empty={
               <EmptyState
-                title="No inspections available"
+                title={t('No inspections available')}
                 description={
                   statusFilter !== 'ALL'
                     ? `No inspections found with status "${statusFilter}".`

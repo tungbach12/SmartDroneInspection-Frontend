@@ -1,8 +1,10 @@
 import { Box, Container, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import { StatusChip } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export function DarkFinalCta() {
+  const { t } = useLocale();
   return (
     <Box
       component="section"
@@ -40,8 +42,8 @@ export function DarkFinalCta() {
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ mb: 3 }}>
-            <StatusChip status="pass" label="START TODAY" />
-            <StatusChip status="active" label="ZERO COMMITMENT" />
+            <StatusChip status="pass" label={t('START TODAY')} />
+            <StatusChip status="active" label={t('ZERO COMMITMENT')} />
           </Stack>
 
           <Typography
@@ -56,7 +58,7 @@ export function DarkFinalCta() {
               lineHeight: 1.08,
             }}
           >
-            Ready to Protect Your Infrastructure with Drone AI?
+            {t('Ready to Protect Your Infrastructure with Drone AI?')}
           </Typography>
 
           <Typography
@@ -68,7 +70,7 @@ export function DarkFinalCta() {
               lineHeight: 1.65,
             }}
           >
-            Start with a single bridge, solar farm, or industrial facility. Experience 10x faster defect detection, zero climbing hazard, and instant repair dispatch.
+            {t('Start with a single bridge, solar farm, or industrial facility. Experience 10x faster defect detection, zero climbing hazard, and instant repair dispatch.')}
           </Typography>
 
           <Stack
@@ -100,7 +102,7 @@ export function DarkFinalCta() {
                 },
               }}
             >
-              Start Free Inspection
+              {t('Start Free Inspection')}
               <NorthEastIcon sx={{ fontSize: 16 }} />
             </Box>
 
@@ -129,7 +131,7 @@ export function DarkFinalCta() {
                 },
               }}
             >
-              Sign In for Field Operations
+              {t('Sign In for Field Operations')}
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>
@@ -142,7 +144,7 @@ export function DarkFinalCta() {
               mt: 2.5,
             }}
           >
-            No credit card required · Free onboarding support · Setup in minutes
+            {t('No credit card required · Free onboarding support · Setup in minutes')}
           </Typography>
         </Box>
       </Container>

@@ -16,6 +16,7 @@ import {
 } from '../hooks/useInspections';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { AiMotionFigure } from '../components/AiMotionFigure';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * MF3-07 report draft, one stage of the inspection workspace.
@@ -25,6 +26,7 @@ import { AiMotionFigure } from '../components/AiMotionFigure';
  * enabled only once a version exists.
  */
 export default function InspectionDraftPage() {
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
@@ -61,7 +63,7 @@ export default function InspectionDraftPage() {
 
       {isInspector && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
-          Create report draft
+          {t('Create report draft')}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           MF3-07 proposes a value for each authored report section from the authorized sources.
@@ -70,17 +72,17 @@ export default function InspectionDraftPage() {
         </Typography>
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
           {isPublished ? (
-            <Alert severity="success">The report has been published. This version is immutable.</Alert>
+            <Alert severity="success">{t('The report has been published. This version is immutable.')}</Alert>
           ) : !findingsConfirmed ? (
             <Alert
               severity="info"
               action={
                 <Button component={RouterLink} to="../findings" color="inherit" size="small">
-                  Go to Findings
+                  {t('Go to Findings')}
                 </Button>
               }
             >
-              Confirm the reviewed findings before choosing how to create the report. This step does not create a report automatically.
+              {t('Confirm the reviewed findings before choosing how to create the report. This step does not create a report automatically.')}
             </Alert>
           ) : null}
           <Button
@@ -97,12 +99,12 @@ export default function InspectionDraftPage() {
           {createDraft.isPending && <DraftProgressTracker />}
           {createDraft.isSuccess && (
             <Alert severity="success">
-              Report draft created successfully! You can now view and edit the document below.
+              {t('Report draft created successfully! You can now view and edit the document below.')}
             </Alert>
           )}
           {!evidenceAccepted && (
             <Alert severity="warning">
-              Accept the evidence set before generating a report draft.
+              {t('Accept the evidence set before generating a report draft.')}
             </Alert>
           )}
           {createDraft.isError && (
@@ -115,7 +117,7 @@ export default function InspectionDraftPage() {
           )}
           <Divider />
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            Start a draft without the model
+            {t('Start a draft without the model')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Creates an empty structured report version without calling the drafting model. Author
@@ -155,11 +157,11 @@ export default function InspectionDraftPage() {
             variant="outlined"
             sx={{ textTransform: 'none' }}
           >
-            Open the report document
+            {t('Open the report document')}
           </Button>
         ) : (
           <Button variant="outlined" disabled sx={{ textTransform: 'none' }}>
-            Open the report document
+            {t('Open the report document')}
           </Button>
         )}
       </Paper>

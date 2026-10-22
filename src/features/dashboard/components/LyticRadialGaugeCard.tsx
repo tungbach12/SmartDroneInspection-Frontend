@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 import { useTheme } from '@mui/material/styles';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticRadialGaugeCardProps {
   title: string;
@@ -24,6 +25,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
   percentage,
   subMetrics,
 }) => {
+  const { t } = useLocale();
   const theme = useTheme();
 
   // Semi-circle SVG gauge calculation
@@ -97,7 +99,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
 
         <IconButton
           size="small"
-          aria-label="Gauge options"
+          aria-label={t('Gauge options')}
           sx={{
             color: 'text.secondary',
             p: 0.75,

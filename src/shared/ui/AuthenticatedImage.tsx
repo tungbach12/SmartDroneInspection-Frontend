@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import BrokenImageOutlined from '@mui/icons-material/BrokenImageOutlined';
 import { api } from '@/shared/api/client';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface AuthenticatedImageProps {
   src: string;
@@ -12,6 +13,7 @@ interface AuthenticatedImageProps {
 
 /** Fetches image bytes with the shared authenticated API client. */
 export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: AuthenticatedImageProps) {
+  const { t } = useLocale();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -65,7 +67,7 @@ export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: Authentica
       >
         <img src="" alt={alt} style={{ display: 'none' }} />
         <BrokenImageOutlined sx={{ fontSize: 32, color: '#98a2b3' }} />
-        <Typography variant="caption">Could not load preview</Typography>
+        <Typography variant="caption">{t('Could not load preview')}</Typography>
       </Box>
     );
   }

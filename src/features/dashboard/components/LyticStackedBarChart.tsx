@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 import { useTheme } from '@mui/material/styles';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticStackedBarChartProps {
   title: string;
@@ -20,6 +21,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   channels,
   maxStack = 120,
 }) => {
+  const { t } = useLocale();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const theme = useTheme();
 
@@ -64,7 +66,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
 
         <IconButton
           size="small"
-          aria-label="Acquisition channels options"
+          aria-label={t('Acquisition channels options')}
           sx={{
             color: 'text.secondary',
             p: 0.75,

@@ -8,6 +8,7 @@ import { RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { FrequencyUnit } from '../api/catalogApi';
 import { useSchedules, useToggleSchedule } from '../hooks/useSchedules';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const UNIT_LABEL: Record<FrequencyUnit, string> = {
   DAY: 'day',
@@ -17,7 +18,8 @@ const UNIT_LABEL: Record<FrequencyUnit, string> = {
 };
 
 export default function InspectionSchedulesPage() {
-  const { assetId = '' } = useParams();
+  const { formatDate, t } = useLocale();
+    const { assetId = '' } = useParams();
   const { data: schedules, isLoading, error, refetch } = useSchedules(assetId);
   const toggle = useToggleSchedule(assetId);
   // One ACTIVE schedule per asset is enforced by the server; a 409 is that rule refusing, and the
@@ -27,22 +29,22 @@ export default function InspectionSchedulesPage() {
   return (
     <Box>
       <PageHeader
-        title="Inspection schedules"
-        subtitle="Pause or resume the inspection cycle for this asset"
+        title={t('Inspection schedules')}
+        subtitle={t('Pause or resume the inspection cycle for this asset')}
       />
       <QueryState
         isLoading={isLoading}
         error={error}
         onRetry={() => void refetch()}
         isEmpty={Boolean(schedules && schedules.length === 0)}
-        empty={<Alert severity="info">No schedule selected for this asset yet.</Alert>}
+        empty={<Alert severity="info">{t('No schedule selected for this asset yet.')}</Alert>}
       >
         <Stack spacing={2}>
           {conflicting && (
             <RefusalNotice
               testId="schedule-conflict"
               reason={getErrorMessage(toggle.error, '')}
-              fallbackMessage="The server refused this schedule change."
+              fallbackMessage={t('The server refused this schedule change.')}
             />
           )}
           {!conflicting && toggle.isError && (
@@ -60,11 +62,11 @@ export default function InspectionSchedulesPage() {
                 >
                   <Box>
                     <Typography variant="h6">
-                      Every {schedule.frequencyInterval} {UNIT_LABEL[schedule.frequencyUnit]}
+                      {t('Every')} {schedule.frequencyInterval} {UNIT_LABEL[schedule.frequencyUnit]}
                       {schedule.frequencyInterval > 1 ? 's' : ''}
                     </Typography>
                     <Typography color="text.secondary">
-                      Next due {new Date(schedule.nextDueAt).toLocaleDateString()}
+                      {t('Next due')} {formatDate(new Date(schedule.nextDueAt))}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

@@ -1,6 +1,7 @@
 import { Alert, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import { EmptyState } from './EmptyState';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface QueryStateProps {
   isLoading: boolean;
@@ -21,6 +22,7 @@ export function QueryState({
   loadingLabel = 'Loading records…',
   children,
 }: QueryStateProps) {
+  const { t } = useLocale();
   if (isLoading) {
     return (
       <Stack
@@ -44,13 +46,13 @@ export function QueryState({
         action={
           onRetry ? (
             <Button color="inherit" size="small" onClick={onRetry}>
-              Try again
+              {t('Try again')}
             </Button>
           ) : undefined
         }
         sx={{ alignItems: 'center', borderRadius: 1.25 }}
       >
-        We could not load this information. Please try again.
+        {t('We could not load this information. Please try again.')}
       </Alert>
     );
   }
