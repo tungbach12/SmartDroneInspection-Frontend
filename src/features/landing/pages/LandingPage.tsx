@@ -5,6 +5,7 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const services = [
   {
@@ -61,6 +62,7 @@ const actionSx = {
 };
 
 export default function LandingPage() {
+  const { t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SmartDroneInspection | A clearer view of every asset';
@@ -103,7 +105,7 @@ export default function LandingPage() {
           <Link
             href="/"
             underline="none"
-            aria-label="SmartDroneInspection home"
+            aria-label={t('SmartDroneInspection home')}
             sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
           >
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
@@ -117,7 +119,7 @@ export default function LandingPage() {
             component="nav"
             direction="row"
             spacing={{ xs: 2, md: 4 }}
-            aria-label="Main navigation"
+            aria-label={t('Main navigation')}
             sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}
           >
             {navLinks.map((item) => (
@@ -149,11 +151,11 @@ export default function LandingPage() {
                 '&:hover': { color: '#fff' },
               }}
             >
-              Sign in
+              {t('Sign in')}
             </Link>
           </Stack>
           <Box component="a" href="/register" sx={{ ...actionSx, minHeight: 38, px: 2, fontSize: 11 }}>
-            Get a consultation
+            {t('Get a consultation')}
           </Box>
         </Box>
       </Box>
@@ -196,9 +198,9 @@ export default function LandingPage() {
               textWrap: 'balance',
             }}
           >
-            Clearer asset inspections
+            {t('Clearer asset inspections')}
             <br />
-            with drones and AI.
+            {t('with drones and AI.')}
           </Typography>
           <Typography
             sx={{
@@ -209,11 +211,11 @@ export default function LandingPage() {
               lineHeight: 1.7,
             }}
           >
-            Drone imagery and AI-assisted inspection help your team understand the places and structures you’re responsible for—and decide what to do next.
+            {t('Drone imagery and AI-assisted inspection help your team understand the places and structures you’re responsible for—and decide what to do next.')}
           </Typography>
           <Stack direction="row" spacing={3} sx={{ alignItems: 'center', mt: 3.5, flexWrap: 'wrap', rowGap: 2 }}>
             <Box component="a" href="/register" sx={actionSx}>
-              Get a consultation <NorthEastIcon sx={{ fontSize: 16 }} />
+              {t('Get a consultation')} <NorthEastIcon sx={{ fontSize: 16 }} />
             </Box>
             <Link
               href="#how-it-works"
@@ -228,7 +230,7 @@ export default function LandingPage() {
                 pb: 0.5,
               }}
             >
-              How it works
+              {t('How it works')}
             </Link>
           </Stack>
         </Box>
@@ -259,7 +261,7 @@ export default function LandingPage() {
               borderBottom: '1px solid #d9dbd6',
             }}
           >
-            What we do
+            {t('What we do')}
           </Typography>
           <Box
             sx={{
@@ -283,10 +285,10 @@ export default function LandingPage() {
                   textWrap: 'balance',
                 }}
               >
-                One platform for the assets you’re responsible for.
+                {t('One platform for the assets you’re responsible for.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5 }}>
-                Get a consultation <NorthEastIcon sx={{ fontSize: 16 }} />
+                {t('Get a consultation')} <NorthEastIcon sx={{ fontSize: 16 }} />
               </Box>
             </Box>
             <Box
@@ -354,7 +356,7 @@ export default function LandingPage() {
       >
         <Box sx={{ width: '100%', maxWidth: 1440, mx: 'auto' }}>
           <Typography sx={{ color: '#777b75', fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase', pb: 2, borderBottom: '1px solid #252724' }}>
-            About us
+            {t('About us')}
           </Typography>
           <Box
             id="how-it-works"
@@ -381,7 +383,7 @@ export default function LandingPage() {
               <Box
                 component="img"
                 src="/images/landing/ai-defect-review.jpg"
-                alt="Illustrative AI-assisted inspection highlighting a possible concrete crack and surface corrosion"
+                alt={t('Illustrative AI-assisted inspection highlighting a possible concrete crack and surface corrosion')}
                 sx={{
                   position: 'absolute',
                   inset: 0,
@@ -403,7 +405,7 @@ export default function LandingPage() {
               <Box sx={{ position: 'relative', left: { xs: 14, md: 30 }, bottom: { xs: 14, md: 30 }, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#65DFBA', boxShadow: '0 0 10px rgba(101,223,186,.72)' }} />
                 <Typography sx={{ color: 'rgba(255,255,255,.8)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-                  Illustrative AI confidence — not a risk score
+                  {t('Illustrative AI confidence — not a risk score')}
                 </Typography>
               </Box>
             </Box>
@@ -412,13 +414,13 @@ export default function LandingPage() {
                 component="h2"
                 sx={{ fontSize: 'clamp(34px, 4.3vw, 58px)', fontWeight: 430, lineHeight: 1.03, letterSpacing: '-.065em', textWrap: 'balance' }}
               >
-                Technology brings it into view. People decide what it means.
+                {t('Technology brings it into view. People decide what it means.')}
               </Typography>
               <Typography sx={{ mt: 3, maxWidth: 490, color: 'rgba(255,255,255,.62)', fontSize: 14, lineHeight: 1.8 }}>
-                AI can help your team notice and organize details. Inspectors review the evidence, make the call and keep the next step connected to the asset.
+                {t('AI can help your team notice and organize details. Inspectors review the evidence, make the call and keep the next step connected to the asset.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5, alignSelf: 'flex-start' }}>
-                See how the platform works <NorthEastIcon sx={{ fontSize: 16 }} />
+                {t('See how the platform works')} <NorthEastIcon sx={{ fontSize: 16 }} />
               </Box>
             </Box>
           </Box>
@@ -465,7 +467,7 @@ export default function LandingPage() {
             </Stack>
             <Stack
               component="nav"
-              aria-label="Footer navigation"
+              aria-label={t('Footer navigation')}
               direction="row"
               spacing={{ xs: 2, md: 3.5 }}
               sx={{ flexWrap: 'wrap', rowGap: 1.5 }}
@@ -476,12 +478,12 @@ export default function LandingPage() {
                 </Link>
               ))}
               <Link href="/login" underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
-                Sign in
+                {t('Sign in')}
               </Link>
             </Stack>
           </Box>
           <Typography sx={{ color: '#686c66', fontSize: 12 }}>
-            © 2026 SmartDroneInspection. All rights reserved.
+            {t('© 2026 SmartDroneInspection. All rights reserved.')}
           </Typography>
         </Box>
       </Box>

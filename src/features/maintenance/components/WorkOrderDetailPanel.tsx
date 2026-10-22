@@ -51,6 +51,7 @@ import {
   useMaintenanceReportVersions,
 } from '../hooks/useMaintenance';
 import type { WorkOrder } from '../api/maintenanceApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface WorkOrderDetailPanelProps {
   workOrder: WorkOrder;
@@ -83,6 +84,7 @@ export function WorkOrderDetailPanel({
   onClose,
   onOpenInspection,
 }: WorkOrderDetailPanelProps) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<DetailTab>('overview');
 
   return (
@@ -99,7 +101,7 @@ export function WorkOrderDetailPanel({
           alignSelf: 'flex-start',
         }}
       >
-        Back to work orders
+        {t('Back to work orders')}
       </Button>
 
       <PageHeader
@@ -152,7 +154,8 @@ function OverviewTab({
   isOrgAdmin,
   onOpenInspection,
 }: OverviewTabProps) {
-  const transition = useWorkOrderTransition(workOrder.id);
+  const { formatDateTime, t } = useLocale();
+    const transition = useWorkOrderTransition(workOrder.id);
   const close = useCloseWorkOrder(workOrder.id);
   const [teamOpen, setTeamOpen] = useState(false);
 
@@ -168,18 +171,18 @@ function OverviewTab({
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Stack spacing={2}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-          <DetailField label="Acceptance criteria" value={workOrder.acceptanceCriteria} />
-          <DetailField label="Due" value={workOrder.dueAt ? new Date(workOrder.dueAt).toLocaleString() : 'Not set'} />
-          <DetailField label="Budget approver" value={workOrder.budgetApproverUserId} />
-          <DetailField label="Team lead" value={workOrder.teamLeadUserId} />
-          <DetailField label="Report author" value={workOrder.reportAuthorUserId} />
-          <DetailField label="Accepting reviewer" value={workOrder.acceptingReviewerUserId} />
+          <DetailField label={t('Acceptance criteria')} value={workOrder.acceptanceCriteria} />
+          <DetailField label={t('Due')} value={workOrder.dueAt ? formatDateTime(new Date(workOrder.dueAt)) : 'Not set'} />
+          <DetailField label={t('Budget approver')} value={workOrder.budgetApproverUserId} />
+          <DetailField label={t('Team lead')} value={workOrder.teamLeadUserId} />
+          <DetailField label={t('Report author')} value={workOrder.reportAuthorUserId} />
+          <DetailField label={t('Accepting reviewer')} value={workOrder.acceptingReviewerUserId} />
         </Box>
 
         {onOpenInspection ? (
           <Box>
             <Button size="small" variant="outlined" onClick={onOpenInspection}>
-              Open the source inspection
+              {t('Open the source inspection')}
             </Button>
           </Box>
         ) : null}
@@ -189,12 +192,12 @@ function OverviewTab({
         <MutationProblemAlert
           error={transition.error}
           isError={transition.isError}
-          fallbackMessage="Could not update the work order."
+          fallbackMessage={t('Could not update the work order.')}
         />
         <MutationProblemAlert
           error={close.error}
           isError={close.isError}
-          fallbackMessage="Could not close the work order."
+          fallbackMessage={t('Could not close the work order.')}
         />
 
         <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
@@ -217,7 +220,7 @@ function OverviewTab({
               variant="outlined"
               onClick={() => setTeamOpen(true)}
             >
-              Assign the repair team
+              {t('Assign the repair team')}
             </Button>
           ) : null}
           {isOrgAdmin && workOrder.status === 'COST_RECONCILED' ? (
@@ -227,7 +230,7 @@ function OverviewTab({
               loading={close.isPending}
               onClick={() => close.mutate()}
             >
-              Close work order
+              {t('Close work order')}
             </LoadingButton>
           ) : null}
         </Stack>
@@ -282,6 +285,7 @@ function AssignTeamDialog({
   workOrderId: string;
   onAssigned: () => void;
 }) {
+  const { t } = useLocale();
   const assignTeam = useAssignTeam(workOrderId);
   const workforce = useWorkforceUsers();
 
@@ -313,17 +317,17 @@ function AssignTeamDialog({
           );
         }}
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Assign the repair team</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t('Assign the repair team')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <MutationProblemAlert
               error={assignTeam.error}
               isError={assignTeam.isError}
-              fallbackMessage="Could not assign the team."
+              fallbackMessage={t('Could not assign the team.')}
             />
             <TextField
               select
-              label="Team lead"
+              label={t('Team lead')}
               required
               value={leadUserId}
               onChange={(e) => setLeadUserId(e.target.value)}
@@ -336,7 +340,7 @@ function AssignTeamDialog({
             </TextField>
             <TextField
               select
-              label="Report author"
+              label={t('Report author')}
               required
               value={reportAuthorUserId}
               onChange={(e) => setReportAuthorUserId(e.target.value)}
@@ -349,11 +353,11 @@ function AssignTeamDialog({
             </TextField>
             <TextField
               select
-              label="Independent accepting reviewer"
+              label={t('Independent accepting reviewer')}
               required
               value={acceptingReviewerUserId}
               onChange={(e) => setAcceptingReviewerUserId(e.target.value)}
-              helperText="Must be someone outside the executing team."
+              helperText={t('Must be someone outside the executing team.')}
             >
               {orgAdmins.map((admin) => (
                 <MenuItem key={admin.userId} value={admin.userId}>
@@ -362,10 +366,10 @@ function AssignTeamDialog({
               ))}
             </TextField>
             <TextField
-              label="Reason"
+              label={t('Reason')}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              helperText="Why this team was designated."
+              helperText={t('Why this team was designated.')}
             />
             <Alert severity="warning">
               The lead and the report author may be the same engineer. The accepting reviewer may
@@ -374,14 +378,14 @@ function AssignTeamDialog({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
           <LoadingButton
             type="submit"
             variant="contained"
             loading={assignTeam.isPending}
             disabled={!leadUserId || !reportAuthorUserId || !acceptingReviewerUserId}
           >
-            Assign team
+            {t('Assign team')}
           </LoadingButton>
         </DialogActions>
       </form>
@@ -396,6 +400,7 @@ function ExecutionTab({
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
 }) {
+  const { t } = useLocale();
   const tasks = useTasks(workOrder.id);
   const logs = useWorkLogs(workOrder.id);
   const team = useTeam(workOrder.id);
@@ -421,7 +426,7 @@ function ExecutionTab({
     <Stack spacing={2.5}>
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-          Repair team
+          {t('Repair team')}
         </Typography>
         <QueryState
           isLoading={team.isLoading}
@@ -451,7 +456,7 @@ function ExecutionTab({
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            No team assigned yet.
+            {t('No team assigned yet.')}
           </Typography>
         )}
       </Paper>
@@ -459,11 +464,11 @@ function ExecutionTab({
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
-            Tasks
+            {t('Tasks')}
           </Typography>
           {!isOrgAdmin ? (
             <Button size="small" variant="outlined" onClick={() => setTaskOpen(true)}>
-              Add task
+              {t('Add task')}
             </Button>
           ) : null}
         </Stack>
@@ -474,7 +479,7 @@ function ExecutionTab({
           isEmpty={(tasks.data ?? []).length === 0}
           empty={
             <Typography variant="body2" color="text.secondary">
-              No task planned yet.
+              {t('No task planned yet.')}
             </Typography>
           }
         >
@@ -499,7 +504,7 @@ function ExecutionTab({
                 </Stack>
                 {task.method ? (
                   <Typography variant="caption" sx={{ color: '#667085' }}>
-                    Method: {task.method}
+                    {t('Method:')} {task.method}
                   </Typography>
                 ) : null}
               </Box>
@@ -510,7 +515,7 @@ function ExecutionTab({
 
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-          Work logs
+          {t('Work logs')}
         </Typography>
         <QueryState
           isLoading={logs.isLoading}
@@ -519,7 +524,7 @@ function ExecutionTab({
           isEmpty={(logs.data ?? []).length === 0}
           empty={
             <Typography variant="body2" color="text.secondary">
-              No time recorded yet.
+              {t('No time recorded yet.')}
             </Typography>
           }
         >
@@ -538,7 +543,7 @@ function ExecutionTab({
                   sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                 >
                   <Typography variant="body2" sx={{ color: '#344054' }}>
-                    {log.hours} h · {log.asLeftCondition ?? 'No as-left condition recorded'}
+                    {log.hours} {t('h ·')} {log.asLeftCondition ?? 'No as-left condition recorded'}
                   </Typography>
                   <StatusChip status={log.status} />
                 </Stack>
@@ -548,7 +553,7 @@ function ExecutionTab({
                     variant="text"
                     onClick={() => submitLog.mutate(log.id)}
                   >
-                    Submit for verification
+                    {t('Submit for verification')}
                   </Button>
                 ) : null}
               </Box>
@@ -559,13 +564,13 @@ function ExecutionTab({
         {!isOrgAdmin && (tasks.data ?? []).length > 0 ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-              Record work
+              {t('Record work')}
             </Typography>
             <Stack spacing={1.5}>
               <TextField
                 select
                 size="small"
-                label="Task"
+                label={t('Task')}
                 value={logTaskId}
                 onChange={(e) => setLogTaskId(e.target.value)}
               >
@@ -577,27 +582,27 @@ function ExecutionTab({
               </TextField>
               <TextField
                 size="small"
-                label="Hours"
+                label={t('Hours')}
                 type="number"
                 value={logHours}
                 onChange={(e) => setLogHours(e.target.value)}
               />
               <TextField
                 size="small"
-                label="As-left condition"
+                label={t('As-left condition')}
                 value={logCondition}
                 onChange={(e) => setLogCondition(e.target.value)}
               />
               <TextField
                 size="small"
-                label="Test readings"
+                label={t('Test readings')}
                 value={logReadings}
                 onChange={(e) => setLogReadings(e.target.value)}
               />
               <MutationProblemAlert
                 error={recordWork.error}
                 isError={recordWork.isError}
-                fallbackMessage="Could not record the work."
+                fallbackMessage={t('Could not record the work.')}
               />
               <LoadingButton
                 size="small"
@@ -613,7 +618,7 @@ function ExecutionTab({
                   })
                 }
               >
-                Record work
+                {t('Record work')}
               </LoadingButton>
             </Stack>
           </Box>
@@ -634,28 +639,28 @@ function ExecutionTab({
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>Add task</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Add task')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={createTask.error}
                 isError={createTask.isError}
-                fallbackMessage="Could not add the task."
+                fallbackMessage={t('Could not add the task.')}
               />
               <TextField
-                label="Task name"
+                label={t('Task name')}
                 required
                 value={taskName}
                 onChange={(e) => setTaskName(e.target.value)}
               />
               <TextField
-                label="Method"
+                label={t('Method')}
                 value={taskMethod}
                 onChange={(e) => setTaskMethod(e.target.value)}
               />
               <TextField
                 select
-                label="Assigned engineer"
+                label={t('Assigned engineer')}
                 value={taskEngineer}
                 onChange={(e) => setTaskEngineer(e.target.value)}
               >
@@ -668,9 +673,9 @@ function ExecutionTab({
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setTaskOpen(false)}>Cancel</Button>
+            <Button onClick={() => setTaskOpen(false)}>{t('Cancel')}</Button>
             <Button type="submit" variant="contained" disabled={!taskName.trim()}>
-              Add task
+              {t('Add task')}
             </Button>
           </DialogActions>
         </form>
@@ -686,6 +691,7 @@ function EstimateTab({
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
 }) {
+  const { t } = useLocale();
   const estimates = useEstimateVersions(workOrder.id);
   const createEstimate = useCreateEstimateVersion(workOrder.id);
   const submitEstimate = useSubmitEstimate(workOrder.id);
@@ -702,11 +708,11 @@ function EstimateTab({
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
-          Estimate versions
+          {t('Estimate versions')}
         </Typography>
         {!isOrgAdmin ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)}>
-            New estimate
+            {t('New estimate')}
           </Button>
         ) : null}
       </Stack>
@@ -718,7 +724,7 @@ function EstimateTab({
         isEmpty={(estimates.data ?? []).length === 0}
         empty={
           <Typography variant="body2" color="text.secondary">
-            No estimate prepared yet. The engineer supplies the rates; the platform totals them.
+            {t('No estimate prepared yet. The engineer supplies the rates; the platform totals them.')}
           </Typography>
         }
       >
@@ -735,7 +741,7 @@ function EstimateTab({
                 sx={{ alignItems: 'center', justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
-                  Version {version.versionNo} · {version.baselineTotal ?? '—'} {version.currency}
+                  {t('Version')} {version.versionNo} · {version.baselineTotal ?? '—'} {version.currency}
                 </Typography>
                 <StatusChip status={version.status} />
               </Stack>
@@ -751,7 +757,7 @@ function EstimateTab({
                     variant="outlined"
                     onClick={() => submitEstimate.mutate(version.versionNo)}
                   >
-                    Submit for approval
+                    {t('Submit for approval')}
                   </Button>
                 ) : null}
                 {isOrgAdmin && version.status === 'SUBMITTED' ? (
@@ -763,7 +769,7 @@ function EstimateTab({
                         decideEstimate.mutate({ versionNo: version.versionNo, approve: true })
                       }
                     >
-                      Approve
+                      {t('Approve')}
                     </Button>
                     <Button
                       size="small"
@@ -777,7 +783,7 @@ function EstimateTab({
                         })
                       }
                     >
-                      Reject
+                      {t('Reject')}
                     </Button>
                   </>
                 ) : null}
@@ -790,12 +796,12 @@ function EstimateTab({
       <MutationProblemAlert
         error={createEstimate.error}
         isError={createEstimate.isError}
-        fallbackMessage="Could not create the estimate."
+        fallbackMessage={t('Could not create the estimate.')}
       />
       <MutationProblemAlert
         error={decideEstimate.error}
         isError={decideEstimate.isError}
-        fallbackMessage="Could not record the estimate decision."
+        fallbackMessage={t('Could not record the estimate decision.')}
       />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
@@ -819,17 +825,17 @@ function EstimateTab({
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>New estimate version</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('New estimate version')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={createEstimate.error}
                 isError={createEstimate.isError}
-                fallbackMessage="Could not create the estimate."
+                fallbackMessage={t('Could not create the estimate.')}
               />
               <TextField
                 select
-                label="Currency"
+                label={t('Currency')}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
               >
@@ -837,21 +843,21 @@ function EstimateTab({
                 <MenuItem value="USD">USD</MenuItem>
               </TextField>
               <TextField
-                label="Line description"
+                label={t('Line description')}
                 required
                 value={lineDescription}
                 onChange={(e) => setLineDescription(e.target.value)}
               />
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="Quantity"
+                  label={t('Quantity')}
                   type="number"
                   value={lineQuantity}
                   onChange={(e) => setLineQuantity(e.target.value)}
                   fullWidth
                 />
                 <TextField
-                  label="Unit rate"
+                  label={t('Unit rate')}
                   type="number"
                   value={lineRate}
                   onChange={(e) => setLineRate(e.target.value)}
@@ -859,23 +865,23 @@ function EstimateTab({
                 />
               </Stack>
               <TextField
-                label="Assumptions"
+                label={t('Assumptions')}
                 value={snapshot}
                 onChange={(e) => setSnapshot(e.target.value)}
               />
               <Alert severity="info">
-                The platform totals the priced lines. A missing rate is not recorded as zero.
+                {t('The platform totals the priced lines. A missing rate is not recorded as zero.')}
               </Alert>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => setOpen(false)}>{t('Cancel')}</Button>
             <Button
               type="submit"
               variant="contained"
               disabled={!lineDescription.trim() || !lineRate}
             >
-              Create estimate
+              {t('Create estimate')}
             </Button>
           </DialogActions>
         </form>
@@ -891,6 +897,7 @@ function ChangesTab({
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
 }) {
+  const { t } = useLocale();
   const changes = useChanges(workOrder.id);
   const propose = useProposeChange(workOrder.id);
   const decide = useDecideChange(workOrder.id);
@@ -904,11 +911,11 @@ function ChangesTab({
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
-          Change requests
+          {t('Change requests')}
         </Typography>
         {!isOrgAdmin ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)}>
-            Propose change
+            {t('Propose change')}
           </Button>
         ) : null}
       </Stack>
@@ -938,7 +945,7 @@ function ChangesTab({
                 sx={{ alignItems: 'center', justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
-                  Change #{change.changeNumber}
+                  {t('Change #')}{change.changeNumber}
                   {change.proposedDelta ? ` · ${change.proposedDelta}` : ''}
                 </Typography>
                 <StatusChip status={change.status} />
@@ -959,7 +966,7 @@ function ChangesTab({
                       })
                     }
                   >
-                    Approve
+                    {t('Approve')}
                   </Button>
                   <Button
                     size="small"
@@ -973,7 +980,7 @@ function ChangesTab({
                       })
                     }
                   >
-                    Reject
+                    {t('Reject')}
                   </Button>
                   <Button
                     size="small"
@@ -986,7 +993,7 @@ function ChangesTab({
                       })
                     }
                   >
-                    Return
+                    {t('Return')}
                   </Button>
                 </Stack>
               ) : null}
@@ -998,7 +1005,7 @@ function ChangesTab({
       <MutationProblemAlert
         error={propose.error}
         isError={propose.isError}
-        fallbackMessage="Could not propose the change."
+        fallbackMessage={t('Could not propose the change.')}
       />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
@@ -1015,16 +1022,16 @@ function ChangesTab({
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>Propose a change</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Propose a change')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={propose.error}
                 isError={propose.isError}
-                fallbackMessage="Could not propose the change."
+                fallbackMessage={t('Could not propose the change.')}
               />
               <TextField
-                label="Reason"
+                label={t('Reason')}
                 required
                 multiline
                 minRows={2}
@@ -1032,22 +1039,22 @@ function ChangesTab({
                 onChange={(e) => setReason(e.target.value)}
               />
               <TextField
-                label="Proposed cost delta"
+                label={t('Proposed cost delta')}
                 type="number"
                 value={delta}
                 onChange={(e) => setDelta(e.target.value)}
               />
               <TextField
-                label="Supporting evidence"
+                label={t('Supporting evidence')}
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
               />
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => setOpen(false)}>{t('Cancel')}</Button>
             <Button type="submit" variant="contained" disabled={!reason.trim()}>
-              Propose
+              {t('Propose')}
             </Button>
           </DialogActions>
         </form>
@@ -1063,6 +1070,7 @@ function ReportTab({
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
 }) {
+  const { t } = useLocale();
   const reports = useMaintenanceReportVersions(workOrder.id);
   const createReport = useCreateMaintenanceReport(workOrder.id);
   const verifyReport = useVerifyMaintenanceReport(workOrder.id);
@@ -1073,7 +1081,7 @@ function ReportTab({
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-        Completion report versions
+        {t('Completion report versions')}
       </Typography>
 
       <QueryState
@@ -1083,7 +1091,7 @@ function ReportTab({
         isEmpty={(reports.data ?? []).length === 0}
         empty={
           <Typography variant="body2" color="text.secondary">
-            No completion report drafted yet.
+            {t('No completion report drafted yet.')}
           </Typography>
         }
       >
@@ -1100,7 +1108,7 @@ function ReportTab({
                 sx={{ alignItems: 'center', justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
-                  Version {version.versionNo}
+                  {t('Version')} {version.versionNo}
                 </Typography>
                 <StatusChip status={version.status} />
               </Stack>
@@ -1120,7 +1128,7 @@ function ReportTab({
                       variant="outlined"
                       onClick={() => verifyReport.mutate(version.versionNo)}
                     >
-                      Verify against sources
+                      {t('Verify against sources')}
                     </Button>
                   ) : null}
                   {version.status === 'AUTHOR_VERIFIED' ? (
@@ -1129,7 +1137,7 @@ function ReportTab({
                       variant="contained"
                       onClick={() => submitReport.mutate(version.versionNo)}
                     >
-                      Submit for acceptance
+                      {t('Submit for acceptance')}
                     </Button>
                   ) : null}
                 </Stack>
@@ -1142,11 +1150,11 @@ function ReportTab({
       {!isOrgAdmin ? (
         <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-            Draft a completion report
+            {t('Draft a completion report')}
           </Typography>
           <Stack spacing={1.5}>
             <TextField
-              label="Completion narrative"
+              label={t('Completion narrative')}
               multiline
               minRows={4}
               value={content}
@@ -1155,7 +1163,7 @@ function ReportTab({
             <MutationProblemAlert
               error={createReport.error}
               isError={createReport.isError}
-              fallbackMessage="Could not draft the report."
+              fallbackMessage={t('Could not draft the report.')}
             />
             <LoadingButton
               size="small"
@@ -1164,7 +1172,7 @@ function ReportTab({
               disabled={!content.trim()}
               onClick={() => createReport.mutate(content.trim())}
             >
-              Draft report
+              {t('Draft report')}
             </LoadingButton>
           </Stack>
         </Box>
@@ -1180,7 +1188,8 @@ function CostsTab({
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
 }) {
-  const reconciliation = useReconciliation(workOrder.id);
+  const { formatDateTime, t } = useLocale();
+    const reconciliation = useReconciliation(workOrder.id);
   const acceptance = useAcceptanceDecisions(workOrder.id);
   const recordAcceptance = useRecordAcceptance(workOrder.id);
   const reconcile = useReconcileCosts(workOrder.id);
@@ -1200,7 +1209,7 @@ function CostsTab({
     <Stack spacing={2.5}>
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-          Cost reconciliation
+          {t('Cost reconciliation')}
         </Typography>
         <QueryState
           isLoading={reconciliation.isLoading}
@@ -1218,27 +1227,27 @@ function CostsTab({
             }}
           >
             <DetailField
-              label="Approved baseline"
+              label={t('Approved baseline')}
               value={`${reconciliation.data.approvedBaselineTotal} ${reconciliation.data.currency}`}
             />
             <DetailField
-              label="Approved changes"
+              label={t('Approved changes')}
               value={`${reconciliation.data.approvedChangeDelta} ${reconciliation.data.currency}`}
             />
             <DetailField
-              label="Authorized amount"
+              label={t('Authorized amount')}
               value={`${reconciliation.data.authorizedAmount} ${reconciliation.data.currency}`}
             />
             <DetailField
-              label="Actual total"
+              label={t('Actual total')}
               value={`${reconciliation.data.actualTotal} ${reconciliation.data.currency}`}
             />
             <DetailField
-              label="Variance"
+              label={t('Variance')}
               value={`${reconciliation.data.variance} ${reconciliation.data.currency}`}
             />
             <DetailField
-              label="Variance %"
+              label={t('Variance %')}
               value={
                 reconciliation.data.variancePercent === null
                   ? 'Not applicable'
@@ -1251,25 +1260,25 @@ function CostsTab({
         {isOrgAdmin ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-              Record actual cost
+              {t('Record actual cost')}
             </Typography>
             <Stack spacing={1.5}>
               <TextField
-                label="Description"
+                label={t('Description')}
                 required
                 value={lineDescription}
                 onChange={(e) => setLineDescription(e.target.value)}
               />
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="Quantity"
+                  label={t('Quantity')}
                   type="number"
                   value={lineQuantity}
                   onChange={(e) => setLineQuantity(e.target.value)}
                   fullWidth
                 />
                 <TextField
-                  label="Unit rate"
+                  label={t('Unit rate')}
                   type="number"
                   value={lineRate}
                   onChange={(e) => setLineRate(e.target.value)}
@@ -1277,7 +1286,7 @@ function CostsTab({
                 />
                 <TextField
                   select
-                  label="Currency"
+                  label={t('Currency')}
                   value={lineCurrency}
                   onChange={(e) => setLineCurrency(e.target.value)}
                   fullWidth
@@ -1289,7 +1298,7 @@ function CostsTab({
               <MutationProblemAlert
                 error={reconcile.error}
                 isError={reconcile.isError}
-                fallbackMessage="Could not reconcile the costs."
+                fallbackMessage={t('Could not reconcile the costs.')}
               />
               <LoadingButton
                 size="small"
@@ -1311,7 +1320,7 @@ function CostsTab({
                   })
                 }
               >
-                Reconcile costs
+                {t('Reconcile costs')}
               </LoadingButton>
               <Alert severity="info">
                 Actual cost lines never overwrite an estimate line. The variance is computed by the
@@ -1324,7 +1333,7 @@ function CostsTab({
 
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-          Acceptance decisions
+          {t('Acceptance decisions')}
         </Typography>
         <QueryState
           isLoading={acceptance.isLoading}
@@ -1333,7 +1342,7 @@ function CostsTab({
           isEmpty={(acceptance.data ?? []).length === 0}
           empty={
             <Typography variant="body2" color="text.secondary">
-              No acceptance decision recorded yet.
+              {t('No acceptance decision recorded yet.')}
             </Typography>
           }
         >
@@ -1352,7 +1361,7 @@ function CostsTab({
                     {entry.decision}
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#667085' }}>
-                    {new Date(entry.decidedAt).toLocaleString()}
+                    {formatDateTime(new Date(entry.decidedAt))}
                   </Typography>
                 </Stack>
                 {entry.technicalComments ? (
@@ -1368,42 +1377,42 @@ function CostsTab({
         {isOrgAdmin ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-              Record the acceptance decision
+              {t('Record the acceptance decision')}
             </Typography>
             <Stack spacing={1.5}>
               <TextField
                 select
-                label="Decision"
+                label={t('Decision')}
                 value={decision}
                 onChange={(e) =>
                   setDecision(e.target.value as typeof decision)
                 }
               >
-                <MenuItem value="ACCEPTED">Accepted</MenuItem>
-                <MenuItem value="REWORK_REQUIRED">Return for rework</MenuItem>
-                <MenuItem value="REINSPECTION_REQUIRED">Request re-inspection</MenuItem>
+                <MenuItem value="ACCEPTED">{t('Accepted')}</MenuItem>
+                <MenuItem value="REWORK_REQUIRED">{t('Return for rework')}</MenuItem>
+                <MenuItem value="REINSPECTION_REQUIRED">{t('Request re-inspection')}</MenuItem>
               </TextField>
               <TextField
-                label="Technical comments"
+                label={t('Technical comments')}
                 multiline
                 minRows={2}
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
               />
               <TextField
-                label="Acceptance checklist"
+                label={t('Acceptance checklist')}
                 value={checklist}
                 onChange={(e) => setChecklist(e.target.value)}
               />
               <TextField
-                label="Test result"
+                label={t('Test result')}
                 value={testResult}
                 onChange={(e) => setTestResult(e.target.value)}
               />
               <MutationProblemAlert
                 error={recordAcceptance.error}
                 isError={recordAcceptance.isError}
-                fallbackMessage="Could not record the acceptance decision."
+                fallbackMessage={t('Could not record the acceptance decision.')}
               />
               <LoadingButton
                 size="small"
@@ -1418,7 +1427,7 @@ function CostsTab({
                   })
                 }
               >
-                Record decision
+                {t('Record decision')}
               </LoadingButton>
               <Alert severity="warning">
                 Only the designated independent reviewer can record this. The engineer who did the

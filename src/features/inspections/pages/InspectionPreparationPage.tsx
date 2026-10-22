@@ -5,6 +5,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import InspectionPreparationPanel from './InspectionPreparationPanel';
 import ReadinessReviewPanel from './ReadinessReviewPanel';
 import { useInspectionPreparations } from '../hooks/useInspections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * MF2 preparation, one stage of the inspection workspace.
@@ -13,6 +14,7 @@ import { useInspectionPreparations } from '../hooks/useInspections';
  * change here.
  */
 export default function InspectionPreparationPage() {
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
@@ -34,7 +36,7 @@ export default function InspectionPreparationPage() {
       >
         {isReviewer ? 'Back to inspection review' : 'Back to inspection'}
       </Button>
-      {isReviewer && <Alert severity="info">Read the submitted preparation and its documented readiness decision. This view does not establish legal clearance or independently verify credentials beyond recorded workflow data.</Alert>}
+      {isReviewer && <Alert severity="info">{t('Read the submitted preparation and its documented readiness decision. This view does not establish legal clearance or independently verify credentials beyond recorded workflow data.')}</Alert>}
       <InspectionPreparationPanel inspectionId={inspectionId} isInspector={isInspector} />
       {isReviewer && activePreparationId ? (
         <ReadinessReviewPanel inspectionId={inspectionId} preparationId={activePreparationId} />

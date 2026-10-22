@@ -32,9 +32,11 @@ import {
 } from '../schemas/authSchemas';
 import { getAuthRedirectTarget, getLoginReturnTo } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export default function LoginPage() {
-  const status = useAuthStore((state) => state.status);
+  const { t } = useLocale();
+    const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const setSession = useAuthStore((state) => state.setSession);
   const location = useLocation();
@@ -146,9 +148,9 @@ export default function LoginPage() {
   if (pendingSetupEmail) {
     return (
       <AuthPageLayout
-        eyebrow="One-time security step"
-        title="Set your password"
-        description="Your administrator issued a temporary password. Replace it before entering your workspace."
+        eyebrow={t('One-time security step')}
+        title={t('Set your password')}
+        description={t('Your administrator issued a temporary password. Replace it before entering your workspace.')}
       >
         <Stack
           component="form"
@@ -161,14 +163,14 @@ export default function LoginPage() {
             after the change.
           </Alert>
           <TextField
-            label="Work email"
+            label={t('Work email')}
             value={pendingSetupEmail}
             fullWidth
             disabled
           />
           <TextField
             {...setupForm.register('currentPassword')}
-            label="Temporary password"
+            label={t('Temporary password')}
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             fullWidth
@@ -193,7 +195,7 @@ export default function LoginPage() {
           />
           <TextField
             {...setupForm.register('password')}
-            label="New password"
+            label={t('New password')}
             type={showNewPassword ? 'text' : 'password'}
             autoComplete="new-password"
             fullWidth
@@ -221,7 +223,7 @@ export default function LoginPage() {
           />
           <TextField
             {...setupForm.register('confirmPassword')}
-            label="Confirm new password"
+            label={t('Confirm new password')}
             type={showNewPassword ? 'text' : 'password'}
             autoComplete="new-password"
             fullWidth
@@ -257,7 +259,7 @@ export default function LoginPage() {
               setErrorMessage(null);
             }}
           >
-            Back to sign in
+            {t('Back to sign in')}
           </Button>
         </Stack>
       </AuthPageLayout>
@@ -308,13 +310,13 @@ export default function LoginPage() {
 
   return (
     <AuthPageLayout
-      title="Welcome back"
-      subtitleText="Don't have an account?"
-      subtitleLinkText="Sign up"
+      title={t('Welcome back')}
+      subtitleText={t('Don\'t have an account?')}
+      subtitleLinkText={t('Sign up')}
       subtitleLinkTo="/register"
-      backLabel="Back to website"
+      backLabel={t('Back to website')}
       backTo="/"
-      socialPrompt="Or sign in with"
+      socialPrompt={t('Or sign in with')}
       heroTagline={{
         line1: 'Precision View,',
         line2: 'Intelligent Insights',
@@ -328,17 +330,17 @@ export default function LoginPage() {
       >
         {registrationComplete && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
-            Your organization and Organization Admin account are ready. Sign in to open your workspace.
+            {t('Your organization and Organization Admin account are ready. Sign in to open your workspace.')}
           </Alert>
         )}
         {passwordChanged && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
-            Your password was changed. Sign in again with the new password.
+            {t('Your password was changed. Sign in again with the new password.')}
           </Alert>
         )}
         <TextField
           {...loginForm.register('email')}
-          label="Email address"
+          label={t('Email address')}
           placeholder="name@company.com"
           type="email"
           autoComplete="username"
@@ -350,7 +352,7 @@ export default function LoginPage() {
         />
         <TextField
           {...loginForm.register('password')}
-          label="Password"
+          label={t('Password')}
           placeholder="••••••••••••"
           type={showPassword ? 'text' : 'password'}
           autoComplete="current-password"

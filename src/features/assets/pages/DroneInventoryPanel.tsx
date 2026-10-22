@@ -20,6 +20,7 @@ import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type {
   Drone,
   DroneDocument,
@@ -53,6 +54,7 @@ const ALLOWED_DOCUMENT_TYPES =
   'image/png,image/jpeg,image/webp,application/pdf';
 
 export function DroneInventoryPanel() {
+  const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const canManage = roles.includes('ORG_ADMIN');
   const drones = useDrones();
@@ -82,7 +84,7 @@ export function DroneInventoryPanel() {
       label: '',
       render: (drone) => (
         <Button size="small" onClick={() => setSelectedId(drone.id)}>
-          Open drone
+          {t('Open drone')}
         </Button>
       ),
     },
@@ -94,7 +96,7 @@ export function DroneInventoryPanel() {
       startIcon={<Add />}
       onClick={() => setCreateOpen(true)}
     >
-      Register drone
+      {t('Register drone')}
     </Button>
   ) : undefined;
 
@@ -111,12 +113,12 @@ export function DroneInventoryPanel() {
         isLoading={drones.isLoading}
         error={drones.error}
         onRetry={() => void drones.refetch()}
-        loadingLabel="Loading drones…"
+        loadingLabel={t('Loading drones…')}
         isEmpty={Boolean(drones.data && drones.data.length === 0)}
         empty={
           <EmptyState
-            title="No drones registered"
-            description="Register an organization drone to keep its serviceability and documents together."
+            title={t('No drones registered')}
+            description={t('Register an organization drone to keep its serviceability and documents together.')}
             action={registerButton}
           />
         }
@@ -126,7 +128,7 @@ export function DroneInventoryPanel() {
           rows={drones.data ?? []}
           rowKey={(drone) => drone.id}
           searchable
-          searchPlaceholder="Search by serial number or model…"
+          searchPlaceholder={t('Search by serial number or model…')}
           searchPredicate={(drone, query) =>
             drone.serialNumber.toLowerCase().includes(query) ||
             (drone.model ?? '').toLowerCase().includes(query) ||
@@ -178,6 +180,7 @@ function CreateDroneDialog({
     notes?: string;
   }) => void;
 }) {
+  const { t } = useLocale();
   const [serialNumber, setSerialNumber] = useState('');
   const [model, setModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
@@ -210,28 +213,28 @@ function CreateDroneDialog({
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>Register drone</DialogTitle>
+        <DialogTitle>{t('Register drone')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
             <TextField
               required
-              label="Serial number"
+              label={t('Serial number')}
               value={serialNumber}
               onChange={(event) => setSerialNumber(event.target.value)}
             />
             <TextField
-              label="Model"
+              label={t('Model')}
               value={model}
               onChange={(event) => setModel(event.target.value)}
             />
             <TextField
-              label="Manufacturer"
+              label={t('Manufacturer')}
               value={manufacturer}
               onChange={(event) => setManufacturer(event.target.value)}
             />
             <TextField
-              label="Payload metadata JSON"
+              label={t('Payload metadata JSON')}
               value={payloadMetadata}
               onChange={(event) => {
                 setPayloadMetadata(event.target.value);
@@ -246,7 +249,7 @@ function CreateDroneDialog({
               }
             />
             <TextField
-              label="Notes"
+              label={t('Notes')}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               multiline
@@ -255,9 +258,9 @@ function CreateDroneDialog({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
           <Button type="submit" variant="contained" disabled={pending}>
-            Register drone
+            {t('Register drone')}
           </Button>
         </DialogActions>
       </form>
@@ -274,7 +277,8 @@ function DroneDetailDrawer({
   canManage: boolean;
   onClose: () => void;
 }) {
-  const isOpen = Boolean(droneId);
+  const { formatDate, t } = useLocale();
+    const isOpen = Boolean(droneId);
   const drone = useDrone(droneId ?? '', isOpen);
   const documents = useDroneDocuments(droneId ?? '', isOpen);
   const updateServiceability = useUpdateDroneServiceability();
@@ -317,7 +321,7 @@ function DroneDetailDrawer({
       label: 'Valid until',
       render: (document) =>
         document.validUntil
-          ? new Date(document.validUntil).toLocaleDateString()
+          ? formatDate(new Date(document.validUntil))
           : '—',
     },
     {
@@ -366,12 +370,12 @@ function DroneDetailDrawer({
         }}
       >
         {drone.isLoading ? (
-          <Typography role="status">Loading drone…</Typography>
+          <Typography role="status">{t('Loading drone…')}</Typography>
         ) : drone.error ? (
           <Alert
             severity="error"
             action={
-              <Button onClick={() => void drone.refetch()}>Retry drone</Button>
+              <Button onClick={() => void drone.refetch()}>{t('Retry drone')}</Button>
             }
           >
             {getErrorMessage(drone.error, 'Could not load drone details.')}
@@ -383,7 +387,7 @@ function DroneDetailDrawer({
               {drone.data.manufacturer || '—'} · {drone.data.model || '—'}
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Serviceability: {drone.data.serviceability}
+              {t('Serviceability:')} {drone.data.serviceability}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Serviceability is not flight clearance or a permit/readiness
@@ -394,7 +398,7 @@ function DroneDetailDrawer({
                 select
                 fullWidth
                 sx={{ mt: 2 }}
-                label="Serviceability"
+                label={t('Serviceability')}
                 value={drone.data.serviceability}
                 disabled={updateServiceability.isPending}
                 onChange={(event) =>
@@ -420,18 +424,18 @@ function DroneDetailDrawer({
               </Alert>
             )}
             <Typography variant="subtitle1" sx={{ mt: 3 }}>
-              Drone documents
+              {t('Drone documents')}
             </Typography>
             <QueryState
               isLoading={documents.isLoading}
               error={documents.error}
               onRetry={() => void documents.refetch()}
-              loadingLabel="Loading drone documents…"
+              loadingLabel={t('Loading drone documents…')}
               isEmpty={Boolean(documents.data && documents.data.length === 0)}
               empty={
                 <EmptyState
-                  title="No drone documents"
-                  description="Upload a record such as an airworthiness or maintenance document."
+                  title={t('No drone documents')}
+                  description={t('Upload a record such as an airworthiness or maintenance document.')}
                 />
               }
             >
@@ -452,33 +456,33 @@ function DroneDetailDrawer({
             {canManage && (
               <Stack spacing={1.5} sx={{ mt: 2 }}>
                 <Typography variant="subtitle2">
-                  Add a document record
+                  {t('Add a document record')}
                 </Typography>
                 <TextField
-                  label="Document type"
+                  label={t('Document type')}
                   value={documentType}
                   onChange={(event) => setDocumentType(event.target.value)}
                 />
                 <TextField
-                  label="Issuer"
+                  label={t('Issuer')}
                   value={issuer}
                   onChange={(event) => setIssuer(event.target.value)}
                 />
                 <TextField
-                  label="Document reference"
+                  label={t('Document reference')}
                   value={documentReference}
                   onChange={(event) => setDocumentReference(event.target.value)}
                 />
                 <TextField
                   type="datetime-local"
-                  label="Valid from"
+                  label={t('Valid from')}
                   value={validFrom}
                   onChange={(event) => setValidFrom(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <TextField
                   type="datetime-local"
-                  label="Valid until"
+                  label={t('Valid until')}
                   value={validUntil}
                   onChange={(event) => setValidUntil(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -531,7 +535,7 @@ function DroneDetailDrawer({
                     );
                   }}
                 >
-                  Upload document
+                  {t('Upload document')}
                 </Button>
               </Stack>
             )}

@@ -1,5 +1,6 @@
 import { Alert, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material';
 import { AiMotionFigure } from './AiMotionFigure';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const draftingFigures = ['draftStack', 'draftRibbon'] as const;
 
@@ -10,6 +11,7 @@ const draftingFigures = ['draftStack', 'draftRibbon'] as const;
  * or a remaining time, because none of those exist in the contract.
  */
 export function DraftProgressTracker() {
+  const { t } = useLocale();
   return (
     <Card
       variant="outlined"
@@ -30,11 +32,11 @@ export function DraftProgressTracker() {
                 key={figure}
                 name={figure}
                 size={figure === 'draftStack' ? 40 : 32}
-                alt="Report drafting in progress"
+                alt={t('Report drafting in progress')}
               />
             ))}
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              Generating report draft
+              {t('Generating report draft')}
             </Typography>
           </Stack>
           <LinearProgress sx={{ borderRadius: 4 }} />
@@ -44,9 +46,9 @@ export function DraftProgressTracker() {
             submitting it.
           </Alert>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <AiMotionFigure name="draftBurst" size={22} alt="Report drafting in progress" />
+            <AiMotionFigure name="draftBurst" size={22} alt={t('Report drafting in progress')} />
             <Typography variant="caption" color="text.secondary">
-              You can keep working in another tab; this request continues on its own.
+              {t('You can keep working in another tab; this request continues on its own.')}
             </Typography>
           </Stack>
         </Stack>

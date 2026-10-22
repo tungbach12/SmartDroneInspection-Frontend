@@ -32,6 +32,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
 import type { EvidenceQualityDecisionType } from '../api/inspectionApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * Decisions that carry a stated reason. Accepting the set does not: the reason field is hidden
@@ -58,7 +59,8 @@ function formatBytes(bytes: number): string {
  * remove or block the others.
  */
 export default function InspectionEvidencePage() {
-  const { inspectionId = '' } = useParams();
+  const { formatDateTime, t } = useLocale();
+    const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
@@ -191,13 +193,13 @@ export default function InspectionEvidencePage() {
       )}
 
       {isInspector && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">Evidence intake</Typography>
+        <Typography variant="h6">{t('Evidence intake')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.
+          {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          {canUploadEvidence && <Button component="label" variant="outlined" aria-label="Choose evidence files">
-            Choose evidence files
+          {canUploadEvidence && <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
+            {t('Choose evidence files')}
             <input
               hidden
               type="file"
@@ -223,7 +225,7 @@ export default function InspectionEvidencePage() {
             {uploading ? 'Uploading…' : 'Upload staged files'}
           </Button>
         </Stack>
-        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.</Alert>}
+        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>{t('Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.')}</Alert>}
         {queue.length > 0 && canEditEvidence && (
           <Stack spacing={1} sx={{ mt: 2 }}>
             {queue.map((file) => (
@@ -233,7 +235,7 @@ export default function InspectionEvidencePage() {
                     {file.name}
                   </Typography>
                   <Button size="small" onClick={() => removeFromQueue(file.name)}>
-                    Remove
+                    {t('Remove')}
                   </Button>
                 </Stack>
                 {fileErrors[file.name] && (
@@ -246,7 +248,7 @@ export default function InspectionEvidencePage() {
           </Stack>
         )}
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-          Uploaded captures become eligible for advisory detection once the set is accepted below.
+          {t('Uploaded captures become eligible for advisory detection once the set is accepted below.')}
         </Typography>
       </Paper>}
 
@@ -259,14 +261,14 @@ export default function InspectionEvidencePage() {
         </Typography>
         {canAssessEvidence && activeCount === 0 && (
           <Alert severity="info" sx={{ mb: 1.5 }}>
-            Upload current captures before recording the evidence-quality decision.
+            {t('Upload current captures before recording the evidence-quality decision.')}
           </Alert>
         )}
         {isInspector && workflow.data?.status === 'PREPARING' && (
           <Alert severity="info" sx={{ mb: 1.5 }}>
-            Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent ORG_ADMIN readiness review before starting another session.
+            {t('Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent ORG_ADMIN readiness review before starting another session.')}
             {' '}
-            <Button component={RouterLink} to="../preparation" size="small">Open Preparation</Button>
+            <Button component={RouterLink} to="../preparation" size="small">{t('Open Preparation')}</Button>
           </Alert>
         )}
         {latestDecision && (
@@ -279,15 +281,15 @@ export default function InspectionEvidencePage() {
         )}
         {!qualityIsCurrent && latestQualityDecision && (
           <Alert severity="warning" sx={{ mb: 1.5 }}>
-            The evidence set changed after this decision. {isInspector
+            {t('The evidence set changed after this decision.')} {isInspector
               ? 'Compare the current captures with the shot-list and record a new quality decision before analysis or report drafting.'
               : 'This historical assessment is shown for context; the Inspector must reassess the current set.'}
           </Alert>
         )}
         <Stack spacing={1.5}>
           {canAssessEvidence && <TextField
-            label="Shot-list comparison"
-            helperText="Required. What the set covers and what it does not — the report discloses this, and a disclosed gap is not evidence of no defect."
+            label={t('Shot-list comparison')}
+            helperText={t('Required. What the set covers and what it does not — the report discloses this, and a disclosed gap is not evidence of no defect.')}
             multiline
             minRows={2}
             value={shotListComparison}
@@ -300,8 +302,8 @@ export default function InspectionEvidencePage() {
               sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: '8px' }}
             >
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
-                {DECISION_LABELS[latestQualityDecision.decision]} recorded{' '}
-                {new Date(latestQualityDecision.decidedAt).toLocaleString()}
+                {DECISION_LABELS[latestQualityDecision.decision]} {t('recorded')}{' '}
+                {formatDateTime(new Date(latestQualityDecision.decidedAt))}
                 {qualityIsCurrent ? '' : ' — no longer current, shown for reference'}
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
@@ -310,7 +312,7 @@ export default function InspectionEvidencePage() {
               </Typography>
               {latestQualityDecision.limitationReason?.trim() && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
-                  Limitation or reason: {latestQualityDecision.limitationReason}
+                  {t('Limitation or reason:')} {latestQualityDecision.limitationReason}
                 </Typography>
               )}
             </Paper>
@@ -344,18 +346,18 @@ export default function InspectionEvidencePage() {
               variant="text"
               sx={{ alignSelf: 'flex-start' }}
             >
-              Review the shot-list in preparation
+              {t('Review the shot-list in preparation')}
             </Button>
           </Stack>}
           {pendingDecision && canAssessEvidence && (
             <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                Confirm “{DECISION_LABELS[pendingDecision]}”
+                {t('Confirm “')}{DECISION_LABELS[pendingDecision]}”
               </Typography>
               <Stack spacing={1.5}>
                 <TextField
-                  label="Why is another field session needed?"
-                  helperText="Describe the uncovered scope and why another field visit is necessary."
+                  label={t('Why is another field session needed?')}
+                  helperText={t('Describe the uncovered scope and why another field visit is necessary.')}
                   multiline
                   minRows={2}
                   autoFocus
@@ -384,15 +386,15 @@ export default function InspectionEvidencePage() {
                       )
                     }
                   >
-                    Confirm {DECISION_LABELS[pendingDecision]}
+                    {t('Confirm')} {DECISION_LABELS[pendingDecision]}
                   </Button>
-                  <Button onClick={() => setPendingDecision(null)}>Cancel</Button>
+                  <Button onClick={() => setPendingDecision(null)}>{t('Cancel')}</Button>
                 </Stack>
               </Stack>
             </Paper>
           )}
           {canAssessEvidence && <Typography variant="caption" color="text.secondary">
-            Only an accepted set unlocks advisory detection and report drafting. Additional-session requests return to MF2 preparation and independent readiness review; the system never starts the session automatically.
+            {t('Only an accepted set unlocks advisory detection and report drafting. Additional-session requests return to MF2 preparation and independent readiness review; the system never starts the session automatically.')}
           </Typography>}
         </Stack>
         {decideQuality.isError && (
@@ -410,15 +412,15 @@ export default function InspectionEvidencePage() {
           sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', mb: 2 }}
         >
           <Box>
-            <Typography variant="h6">Evidence register</Typography>
+            <Typography variant="h6">{t('Evidence register')}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Showing {displayedEvidenceItems.length} of {totalEvidenceCount} matching captures
+              {t('Showing')} {displayedEvidenceItems.length} {t('of')} {totalEvidenceCount} {t('matching captures')}
             </Typography>
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: { sm: 'min(100%, 620px)' } }}>
             <TextField
               size="small"
-              label="Search evidence"
+              label={t('Search evidence')}
               value={searchQuery}
               onChange={(event) => updateSearch(event.target.value)}
               sx={{ flex: 1 }}
@@ -426,27 +428,27 @@ export default function InspectionEvidencePage() {
             <TextField
               select
               size="small"
-              label="File type"
+              label={t('File type')}
               value={fileTypeFilter}
               onChange={(event) => updateMediaType(event.target.value as typeof fileTypeFilter)}
               sx={{ minWidth: 150 }}
             >
-              <MenuItem value="ALL">All types</MenuItem>
-              <MenuItem value="IMAGE">Images</MenuItem>
+              <MenuItem value="ALL">{t('All types')}</MenuItem>
+              <MenuItem value="IMAGE">{t('Images')}</MenuItem>
               <MenuItem value="VIDEO">Video</MenuItem>
-              <MenuItem value="DOCUMENT">Documents</MenuItem>
+              <MenuItem value="DOCUMENT">{t('Documents')}</MenuItem>
             </TextField>
             <TextField
               select
               size="small"
-              label="Evidence status"
+              label={t('Evidence status')}
               value={filterMode}
               onChange={(event) => updateStatus(event.target.value as typeof filterMode)}
               sx={{ minWidth: 170 }}
             >
-              <MenuItem value="ACTIVE">Active only ({activeCount})</MenuItem>
-              <MenuItem value="RETIRED">Retired audit ({retiredCount})</MenuItem>
-              <MenuItem value="ALL">All evidence ({activeCount + retiredCount})</MenuItem>
+              <MenuItem value="ACTIVE">{t('Active only (')}{activeCount})</MenuItem>
+              <MenuItem value="RETIRED">{t('Retired audit (')}{retiredCount})</MenuItem>
+              <MenuItem value="ALL">{t('All evidence (')}{activeCount + retiredCount})</MenuItem>
             </TextField>
           </Stack>
         </Stack>
@@ -470,7 +472,7 @@ export default function InspectionEvidencePage() {
                   </Button>
                   {selectedBatchIds.length > 0 && (
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                      {selectedBatchIds.length} capture(s) selected
+                      {selectedBatchIds.length} {t('capture(s) selected')}
                     </Typography>
                   )}
                 </Stack>
@@ -491,16 +493,16 @@ export default function InspectionEvidencePage() {
               {showBulkRetireForm && (
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    Retire {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} capture(s) with a shared audit reason
+                    {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s) with a shared audit reason')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                    Original files and checksums remain preserved for audit. Remove or re-link any findings citing these captures first.
+                    {t('Original files and checksums remain preserved for audit. Remove or re-link any findings citing these captures first.')}
                   </Typography>
                   <Stack spacing={1.5}>
                     <TextField
                       size="small"
-                      label="Shared reason for retiring batch"
-                      placeholder="e.g. Uploaded wrong SD card from another site / invalid flight session"
+                      label={t('Shared reason for retiring batch')}
+                      placeholder={t('e.g. Uploaded wrong SD card from another site / invalid flight session')}
                       value={bulkRetireReason}
                       onChange={(e) => setBulkRetireReason(e.target.value)}
                       required
@@ -527,7 +529,7 @@ export default function InspectionEvidencePage() {
                         {bulkRetire.isPending ? 'Retiring captures…' : 'Confirm bulk retire'}
                       </Button>
                       <Button size="small" onClick={() => { setShowBulkRetireForm(false); setBulkRetireReason(''); }}>
-                        Cancel
+                        {t('Cancel')}
                       </Button>
                     </Stack>
                     {bulkRetire.isError && (
@@ -549,15 +551,15 @@ export default function InspectionEvidencePage() {
           isEmpty={totalEvidenceCount === 0 && !evidence.isLoading}
           empty={
             <EmptyState
-              title="No evidence recorded"
-              description="Upload captures above; they appear here with previews and provenance."
+              title={t('No evidence recorded')}
+              description={t('Upload captures above; they appear here with previews and provenance.')}
             />
           }
         >
           {displayedEvidenceItems.length === 0 && totalEvidenceCount > 0 ? (
             <EmptyState
-              title="No evidence matches these filters"
-              description="Change the search text or filters to see other captures. Retired captures are available under Evidence status."
+              title={t('No evidence matches these filters')}
+              description={t('Change the search text or filters to see other captures. Retired captures are available under Evidence status.')}
             />
           ) : (
             <Box
@@ -604,7 +606,7 @@ export default function InspectionEvidencePage() {
                           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
                             {item.fileName}
                           </Typography>
-                          {item.retiredAt && <Chip size="small" color="warning" label="Retired — audit copy" />}
+                          {item.retiredAt && <Chip size="small" color="warning" label={t('Retired — audit copy')} />}
                         </Stack>
                         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                           {item.contentType} · {formatBytes(item.sizeBytes)}
@@ -633,7 +635,7 @@ export default function InspectionEvidencePage() {
                     />
                   ) : (
                     <Alert severity="info">
-                      {selectedEvidence.contentType} has no inline preview.
+                      {selectedEvidence.contentType} {t('has no inline preview.')}
                     </Alert>
                   )}
                   <Box>
@@ -641,22 +643,22 @@ export default function InspectionEvidencePage() {
                       SHA-256 {selectedEvidence.checksumSha256}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                      Captured {selectedEvidence.captureTime ?? 'time not recorded'} · Source{' '}
+                      {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'} {t('· Source')}{' '}
                       {selectedEvidence.source}
                     </Typography>
                     {selectedEvidence.retiredAt ? (
                       <Alert severity="warning" sx={{ mt: 1 }}>
-                        Retired from the current evidence set on {new Date(selectedEvidence.retiredAt).toLocaleString()}. The original bytes remain available for audit.
+                        {t('Retired from the current evidence set on')} {formatDateTime(new Date(selectedEvidence.retiredAt))}{t('. The original bytes remain available for audit.')}
                         {selectedEvidence.retirementReason ? ` Reason: ${selectedEvidence.retirementReason}` : ''}
                       </Alert>
                     ) : canEditEvidence ? (
                       <Stack spacing={1} sx={{ mt: 1.5 }}>
                         <TextField
                           size="small"
-                          label="Reason for replacing this capture"
+                          label={t('Reason for replacing this capture')}
                           value={retireReason}
                           onChange={(event) => setRetireReason(event.target.value)}
-                          helperText="The original capture and checksum stay in the audit record. Remove or re-link findings that use it first."
+                          helperText={t('The original capture and checksum stay in the audit record. Remove or re-link findings that use it first.')}
                         />
                         <Button
                           color="warning"

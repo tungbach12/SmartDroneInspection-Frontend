@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   Button,
   Dialog,
@@ -32,6 +33,7 @@ export function TemporaryPasswordDialog({
   temporaryPassword,
   onClose,
 }: TemporaryPasswordDialogProps) {
+  const { t } = useLocale();
   // The copy acknowledgement is component state, and the caller unmounts this dialog when it
   // closes, so it starts fresh on the next issuance rather than inheriting a stale "Copied".
   const [copied, setCopied] = useState(false);
@@ -49,16 +51,16 @@ export function TemporaryPasswordDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Temporary password</DialogTitle>
+      <DialogTitle>{t('Temporary password')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <DialogContentText component="div">
-            Share this one-time password with {email} through a channel you trust. It is shown once
+            {t('Share this one-time password with')} {email} through a channel you trust. It is shown once
             and cannot be retrieved again — if it is lost, reset the user&apos;s password instead of
             searching for a copy here.
           </DialogContentText>
           <TextField
-            label="Temporary password"
+            label={t('Temporary password')}
             value={temporaryPassword}
             fullWidth
             slotProps={{ htmlInput: { readOnly: true, 'aria-label': 'Temporary password' } }}
@@ -72,7 +74,7 @@ export function TemporaryPasswordDialog({
       <DialogActions>
         <Button onClick={() => void copy()}>{copied ? 'Copied' : 'Copy password'}</Button>
         <Button variant="contained" onClick={onClose}>
-          Done
+          {t('Done')}
         </Button>
       </DialogActions>
     </Dialog>

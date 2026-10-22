@@ -26,6 +26,7 @@ import {
   useStartFieldSession,
 } from '../hooks/useInspections';
 import type { FieldSession } from '../api/fieldSessionApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * MF2-09 to MF2-12: the Inspector's field session for one inspection.
@@ -35,7 +36,8 @@ import type { FieldSession } from '../api/fieldSessionApi';
  * start, not hardware flight time.
  */
 export default function FieldSessionPage() {
-  const { inspectionId = '' } = useParams();
+  const { formatDateTime, t } = useLocale();
+    const { inspectionId = '' } = useParams();
   const sessions = useFieldSessions(inspectionId);
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
@@ -68,12 +70,12 @@ export default function FieldSessionPage() {
           borderRadius: '8px',
         }}
       >
-        Back to inspection
+        {t('Back to inspection')}
       </Button>
 
       <PageHeader
-        title="Field session"
-        subtitle="Record the on-site work: the pre-flight checklist, the session itself, and why it stopped."
+        title={t('Field session')}
+        subtitle={t('Record the on-site work: the pre-flight checklist, the session itself, and why it stopped.')}
       />
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
@@ -87,7 +89,7 @@ export default function FieldSessionPage() {
               <FlightTakeoffRounded color="primary" />
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
-                  Sessions
+                  {t('Sessions')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   A session starts only after the pre-flight checklist is recorded and readiness
@@ -109,12 +111,12 @@ export default function FieldSessionPage() {
           <MutationProblemAlert
             error={startSession.error}
             isError={startSession.isError}
-            fallbackMessage="Could not start the field session."
+            fallbackMessage={t('Could not start the field session.')}
           />
           <MutationProblemAlert
             error={outcome.error}
             isError={outcome.isError}
-            fallbackMessage="Could not record the session outcome."
+            fallbackMessage={t('Could not record the session outcome.')}
           />
 
           <QueryState
@@ -122,10 +124,10 @@ export default function FieldSessionPage() {
             error={sessions.error}
             onRetry={() => void sessions.refetch()}
             isEmpty={items.length === 0}
-            loadingLabel="Loading field sessions…"
+            loadingLabel={t('Loading field sessions…')}
             empty={
               <Typography variant="body2" color="text.secondary">
-                No field session yet. Complete the pre-flight checklist on site, then start one.
+                {t('No field session yet. Complete the pre-flight checklist on site, then start one.')}
               </Typography>
             }
           >
@@ -147,12 +149,12 @@ export default function FieldSessionPage() {
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
                         {session.startedAt
-                          ? `Started ${new Date(session.startedAt).toLocaleString()}`
+                          ? `Started ${formatDateTime(new Date(session.startedAt))}`
                           : 'Not started'}
                       </Typography>
                       {session.endedAt ? (
                         <Typography variant="caption" sx={{ color: '#667085' }}>
-                          Ended {new Date(session.endedAt).toLocaleString()}
+                          {t('Ended')} {formatDateTime(new Date(session.endedAt))}
                         </Typography>
                       ) : null}
                     </Box>
@@ -161,12 +163,12 @@ export default function FieldSessionPage() {
 
                   {session.postponementReason ? (
                     <Typography variant="caption" sx={{ color: '#b54708', display: 'block', mt: 0.5 }}>
-                      Postponed: {session.postponementReason}
+                      {t('Postponed:')} {session.postponementReason}
                     </Typography>
                   ) : null}
                   {session.abortReason ? (
                     <Typography variant="caption" sx={{ color: '#b42318', display: 'block', mt: 0.5 }}>
-                      Aborted: {session.abortReason}
+                      {t('Aborted:')} {session.abortReason}
                     </Typography>
                   ) : null}
 
@@ -180,7 +182,7 @@ export default function FieldSessionPage() {
                           setOutcomeTarget({ session, kind: 'postpone' });
                         }}
                       >
-                        Postpone
+                        {t('Postpone')}
                       </Button>
                       <Button
                         size="small"
@@ -191,7 +193,7 @@ export default function FieldSessionPage() {
                           setOutcomeTarget({ session, kind: 'abort' });
                         }}
                       >
-                        Abort
+                        {t('Abort')}
                       </Button>
                     </Stack>
                   ) : null}
@@ -220,22 +222,22 @@ export default function FieldSessionPage() {
             });
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>Start the field session</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Start the field session')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={startSession.error}
                 isError={startSession.isError}
-                fallbackMessage="Could not start the field session."
+                fallbackMessage={t('Could not start the field session.')}
               />
               <TextField
-                label="Pre-flight checklist note"
+                label={t('Pre-flight checklist note')}
                 required
                 multiline
                 minRows={4}
                 value={preFlightNote}
                 onChange={(event) => setPreFlightNote(event.target.value)}
-                helperText="Record what you checked on site: the assigned drone, its condition, the site access and the weather."
+                helperText={t('Record what you checked on site: the assigned drone, its condition, the site access and the weather.')}
               />
               <Alert severity="warning">
                 This note is your own record of the check. It is stored with the session and read by
@@ -244,13 +246,13 @@ export default function FieldSessionPage() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setStartOpen(false)}>Cancel</Button>
+            <Button onClick={() => setStartOpen(false)}>{t('Cancel')}</Button>
             <Button
               type="submit"
               variant="contained"
               disabled={!preFlightNote.trim()}
             >
-              Start session
+              {t('Start session')}
             </Button>
           </DialogActions>
         </form>
@@ -283,10 +285,10 @@ export default function FieldSessionPage() {
               <MutationProblemAlert
                 error={outcome.error}
                 isError={outcome.isError}
-                fallbackMessage="Could not record the session outcome."
+                fallbackMessage={t('Could not record the session outcome.')}
               />
               <TextField
-                label="Reason"
+                label={t('Reason')}
                 required
                 multiline
                 minRows={3}
@@ -301,7 +303,7 @@ export default function FieldSessionPage() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setOutcomeTarget(null)}>Cancel</Button>
+            <Button onClick={() => setOutcomeTarget(null)}>{t('Cancel')}</Button>
             <Button
               type="submit"
               variant="contained"

@@ -4,6 +4,7 @@ import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { getAuthRedirectTarget, getLoginReturnTo } from '../utils/authRedirect';
 import { initializeBrowserSession } from '../api/sessionBootstrap';
 import { useAuthStore } from '../store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export function AuthSessionBootstrapper() {
   useEffect(() => {
@@ -14,11 +15,12 @@ export function AuthSessionBootstrapper() {
 }
 
 export function AuthLoadingScreen() {
+  const { t } = useLocale();
   return (
     <Box
       sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
     >
-      <CircularProgress aria-label="Checking your session" />
+      <CircularProgress aria-label={t('Checking your session')} />
     </Box>
   );
 }
