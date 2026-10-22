@@ -17,7 +17,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  */
 export function ComplianceGateSection({ inspectionId }: { inspectionId: string }) {
   const { formatDate, t } = useLocale();
-    const compliance = useComplianceGate(inspectionId);
+  const compliance = useComplianceGate(inspectionId);
 
   return (
     <Stack>

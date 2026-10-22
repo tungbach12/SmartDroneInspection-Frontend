@@ -66,7 +66,7 @@ function getAreas(roles: readonly string[], portal: string): FocusArea[] {
 
 export default function DashboardPage() {
   const { formatNumber, t } = useLocale();
-    const roles = useAuthStore((state) => state.roles);
+  const roles = useAuthStore((state) => state.roles);
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 

@@ -67,7 +67,7 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
  */
 export default function MaintenancePage() {
   const { formatDate, formatNumber, t } = useLocale();
-      const navigate = useNavigate();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isOrgAdmin = roles.includes('ORG_ADMIN');
   const workOrders = useWorkOrders(0, 50);

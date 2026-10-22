@@ -37,7 +37,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  */
 export default function FieldSessionPage() {
   const { formatDateTime, t } = useLocale();
-    const { inspectionId = '' } = useParams();
+  const { inspectionId = '' } = useParams();
   const sessions = useFieldSessions(inspectionId);
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);

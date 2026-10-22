@@ -60,7 +60,7 @@ function formatBytes(bytes: number): string {
  */
 export default function InspectionEvidencePage() {
   const { formatDateTime, t } = useLocale();
-    const { inspectionId = '' } = useParams();
+  const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 

@@ -70,7 +70,7 @@ const authInputSx = {
 
 export default function RegisterPage() {
   const { t } = useLocale();
-    const status = useAuthStore((state) => state.status);
+  const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

@@ -66,7 +66,7 @@ function formatLocation(text: string | null): string {
 
 export function AssetsPage() {
   const { formatNumber, t } = useLocale();
-      const roles = useAuthStore((state) => state.roles);
+  const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('ORG_ADMIN');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
@@ -593,7 +593,7 @@ function ReassignPairDialog({
 
 function OperationalPairSection({ assetId, isClient }: { assetId: string; isClient: boolean }) {
   const { formatDate, t } = useLocale();
-    const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
+  const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
   const [dialogOpen, setDialogOpen] = useState(false);
   const pair = pairQuery.data;
 
