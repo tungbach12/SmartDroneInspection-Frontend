@@ -73,7 +73,7 @@ interface IssuedCredential {
 
 export default function WorkforcePage() {
   const { formatDate, t } = useLocale();
-    const { data: members, isLoading, error, refetch } = useWorkforceUsers();
+  const { data: members, isLoading, error, refetch } = useWorkforceUsers();
   const [issued, setIssued] = useState<IssuedCredential | null>(null);
   const credentialQuery = useWorkforceCredentials();
   const createCredential = useCreateWorkforceCredential();

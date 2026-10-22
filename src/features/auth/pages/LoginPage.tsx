@@ -36,7 +36,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export default function LoginPage() {
   const { t } = useLocale();
-    const status = useAuthStore((state) => state.status);
+  const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const setSession = useAuthStore((state) => state.setSession);
   const location = useLocation();

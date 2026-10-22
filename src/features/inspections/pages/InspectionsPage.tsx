@@ -44,7 +44,7 @@ const EMPTY_ITEMS: never[] = [];
  */
 export default function InspectionsPage() {
   const { formatNumber, t } = useLocale();
-      const navigate = useNavigate();
+  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??

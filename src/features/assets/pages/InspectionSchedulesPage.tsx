@@ -19,7 +19,7 @@ const UNIT_LABEL: Record<FrequencyUnit, string> = {
 
 export default function InspectionSchedulesPage() {
   const { formatDate, t } = useLocale();
-    const { assetId = '' } = useParams();
+  const { assetId = '' } = useParams();
   const { data: schedules, isLoading, error, refetch } = useSchedules(assetId);
   const toggle = useToggleSchedule(assetId);
   // One ACTIVE schedule per asset is enforced by the server; a 409 is that rule refusing, and the

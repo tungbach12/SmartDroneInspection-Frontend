@@ -155,7 +155,7 @@ function OverviewTab({
   onOpenInspection,
 }: OverviewTabProps) {
   const { formatDateTime, t } = useLocale();
-    const transition = useWorkOrderTransition(workOrder.id);
+  const transition = useWorkOrderTransition(workOrder.id);
   const close = useCloseWorkOrder(workOrder.id);
   const [teamOpen, setTeamOpen] = useState(false);
 
@@ -1189,7 +1189,7 @@ function CostsTab({
   isOrgAdmin: boolean;
 }) {
   const { formatDateTime, t } = useLocale();
-    const reconciliation = useReconciliation(workOrder.id);
+  const reconciliation = useReconciliation(workOrder.id);
   const acceptance = useAcceptanceDecisions(workOrder.id);
   const recordAcceptance = useRecordAcceptance(workOrder.id);
   const reconcile = useReconcileCosts(workOrder.id);

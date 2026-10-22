@@ -278,7 +278,7 @@ function DroneDetailDrawer({
   onClose: () => void;
 }) {
   const { formatDate, t } = useLocale();
-    const isOpen = Boolean(droneId);
+  const isOpen = Boolean(droneId);
   const drone = useDrone(droneId ?? '', isOpen);
   const documents = useDroneDocuments(droneId ?? '', isOpen);
   const updateServiceability = useUpdateDroneServiceability();
