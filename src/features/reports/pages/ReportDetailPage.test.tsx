@@ -39,10 +39,8 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     withdrawVersion: vi.fn(),
     reviewVersion: vi.fn(),
     publishVersion: vi.fn(),
-    workflowState: vi.fn(),
-    recordCorrectiveAction: vi.fn(),
     completeCorrectiveHandoff: vi.fn(),
-    declareNoCorrectiveWork: vi.fn(),
+    workflowState: vi.fn(),
   },
 }));
 
@@ -102,19 +100,12 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     versionNo: 1,
     status: 'SUBMITTED' as const,
     authorUserId: 'someone-else',
-    authorVerifiedAt: '2026-10-01T10:00:00Z',
+    submittedAt: null,
     reviewerUserId: null,
     reviewedAt: null,
-    reviewReason: null,
-    returnReasonType: null,
-    withdrawnByUserId: null,
+    returnReason: null,
     withdrawnAt: null,
     withdrawalReason: null,
-    llmModel: 'test-model',
-    promptVersion: 'mf3-report-v1',
-    generatedAt: '2026-10-01T09:00:00Z',
-    evidenceSnapshotHash: 'abcdef1234567890',
-    findingsSnapshotHash: 'fedcba0987654321',
     publishedAt: null,
     createdAt: '2026-10-01T09:00:00Z',
     narrative: 'The north span was surveyed from both maintenance walkways.',
@@ -138,12 +129,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     inspectionId: 'inspection-1',
     evidenceId: 'evidence-1',
     deletedAt: null,
-    deletedByUserId: null,
-    deletionReason: null,
+    forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
     severity: 'HIGH',
-    locationDescription: null,
     technicalNotes: 'Visible crack',
     boundingBox: null,
     modelName: null,
@@ -151,20 +140,8 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     modelProvider: null,
     confidence: null,
     recommendedAction: null,
-    component: 'Pier 2',
-    description: null,
-    observedCondition: null,
-    priority: null,
-    measurement: null,
     inspectorConfirmedAt: null,
-    repairRequired: false,
     status: 'PENDING',
-    correctiveActionRequired: false,
-    correctiveActionPriority: null,
-    correctiveActionDueAt: null,
-    correctiveActionReviewedByUserId: null,
-    correctiveActionReviewedAt: null,
-    correctiveActionRationale: null,
     ...overrides,
   };
 }
@@ -236,18 +213,19 @@ describe('ReportDetailPage MF3 gates', () => {
 
     fireEvent.click(returnButton);
     await waitFor(() =>
-      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed', 'TEXT_REVISION'),
+      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
     );
   });
 
-  it('lets the Organization Admin return the whole report for a findings/evidence revision', async () => {
+  it('returns the report with a reviewer-entered reason, without a revision-category field', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([]);
 
     renderPage();
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'What needs revision?' }));
-    fireEvent.click(screen.getByRole('option', { name: /Findings\/evidence/ }));
-    fireEvent.change(screen.getByLabelText('Reason for return'), { target: { value: 'Revisit the evidence and findings.' } });
+    expect(screen.queryByLabelText('What needs revision?')).toBeNull();
+    fireEvent.change(await screen.findByLabelText('Reason for return'), {
+      target: { value: 'Revisit the evidence and findings.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Return with reason' }));
 
     await waitFor(() =>
@@ -256,7 +234,6 @@ describe('ReportDetailPage MF3 gates', () => {
         'version-1',
         false,
         'Revisit the evidence and findings.',
-        'FINDINGS_REVISION',
       ),
     );
   });
@@ -266,7 +243,7 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.listVersions.mockResolvedValue([version({ status: 'SUBMITTED', authorUserId: 'user-1' })]);
     mockedApi.listFindings.mockResolvedValue([finding({ inspectorConfirmedAt: '2026-10-01T11:00:00Z' })]);
     mockedApi.withdrawVersion.mockResolvedValue(
-      version({ status: 'RETURNED', authorUserId: 'user-1', withdrawnByUserId: 'user-1', withdrawnAt: '2026-10-01T12:00:00Z', withdrawalReason: 'Correct the report.' }),
+      version({ status: 'RETURNED', authorUserId: 'user-1', withdrawnAt: '2026-10-01T12:00:00Z', withdrawalReason: 'Correct the report.' }),
     );
 
     renderPage();
@@ -352,7 +329,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('lets the Inspector re-verify a returned report version', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'RETURNED', authorUserId: 'user-1', reviewReason: 'Clarify east-face coverage' }),
+      version({ status: 'RETURNED', authorUserId: 'user-1', returnReason: 'Clarify east-face coverage' }),
     ]);
 
     renderPage();
@@ -416,7 +393,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByLabelText('Reason for return')).toBeNull();
   });
 
-  it('publishes without inventing corrective work and points to the MF3-12 outcomes', async () => {
+  it('publishes the approved report without immediately forwarding its findings', async () => {
     mockedApi.listVersions.mockResolvedValue([
       version({ status: 'APPROVED', authorUserId: 'someone-else' }),
     ]);
@@ -424,7 +401,7 @@ describe('ReportDetailPage MF3 gates', () => {
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: [],
+      forwardedFindingIds: [],
       inspectionStatus: 'REPORT_PUBLISHED',
     });
 
@@ -432,18 +409,14 @@ describe('ReportDetailPage MF3 gates', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/record corrective outcomes before handing findings to MF4/i),
-      ).toBeTruthy(),
-    );
-    expect(screen.queryByText(/No corrective work was required/)).toBeNull();
+    expect(await screen.findByText(/Published version 1\. The PDF is immutable/i)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();
+    expect(screen.queryByLabelText(/rationale/i)).toBeNull();
   });
 
-  it('reveals the MF3-12 outcomes as soon as the reviewer publishes the version', async () => {
+  it('reveals the send-to-maintenance navigation after the report is published', async () => {
     // The inspection only reaches REPORT_PUBLISHED through the publish call, so the page has to
-    // refetch the workflow state; without that the corrective-outcome pointer stays hidden until a
-    // manual reload even though the page tells the reviewer to record outcomes.
+    // refetch workflow state before exposing the separate per-finding forwarding screen.
     mockedApi.listVersions
       .mockResolvedValueOnce([version({ status: 'APPROVED', authorUserId: 'someone-else' })])
       .mockResolvedValue([
@@ -456,13 +429,11 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.workflowState
       .mockResolvedValueOnce({
         status: 'REPORT_DRAFT',
-        findingsConfirmedByUserId: 'inspector-1',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       })
       .mockResolvedValue({
         status: 'REPORT_PUBLISHED',
-        findingsConfirmedByUserId: 'inspector-1',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       });
@@ -471,7 +442,7 @@ describe('ReportDetailPage MF3 gates', () => {
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: [],
+      forwardedFindingIds: [],
       inspectionStatus: 'REPORT_PUBLISHED',
     });
 
@@ -482,10 +453,8 @@ describe('ReportDetailPage MF3 gates', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
 
     expect(await screen.findByText(/Send to Maintenance \(MF3-12\)/)).toBeTruthy();
-    expect(
-      screen.getByRole('link', { name: /send findings to maintenance/i }),
-    ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Record corrective action' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Send findings to Maintenance' })).toBeTruthy();
+    expect(screen.queryByText(/record corrective outcomes before handing findings to MF4/i)).toBeNull();
   });
 
   it('returns to the reports queue on the inspections list', async () => {

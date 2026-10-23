@@ -17,9 +17,7 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     listFindings: vi.fn(),
     listEvidence: vi.fn(),
     workflowState: vi.fn(),
-    recordCorrectiveAction: vi.fn(),
     completeCorrectiveHandoff: vi.fn(),
-    declareNoCorrectiveWork: vi.fn(),
   },
 }));
 
@@ -75,19 +73,12 @@ function version(status: 'SUBMITTED' | 'PUBLISHED' = 'PUBLISHED') {
     versionNo: 1,
     status,
     authorUserId: 'someone-else',
-    authorVerifiedAt: '2026-10-01T10:00:00Z',
+    submittedAt: '2026-10-01T10:00:00Z',
     reviewerUserId: 'reviewer-1',
     reviewedAt: '2026-10-01T11:00:00Z',
-    reviewReason: null,
-    returnReasonType: null,
-    withdrawnByUserId: null,
+    returnReason: null,
     withdrawnAt: null,
     withdrawalReason: null,
-    llmModel: 'test-model',
-    promptVersion: 'mf3-report-v1',
-    generatedAt: '2026-10-01T09:00:00Z',
-    evidenceSnapshotHash: 'abcdef1234567890',
-    findingsSnapshotHash: 'fedcba0987654321',
     publishedAt: '2026-10-01T12:00:00Z',
     createdAt: '2026-10-01T09:00:00Z',
     narrative: 'The north span was surveyed.',
@@ -101,12 +92,10 @@ function finding(overrides: Partial<Finding>): Finding {
     evidenceId: null,
     status: 'CONFIRMED',
     deletedAt: null,
-    deletedByUserId: null,
-    deletionReason: null,
+    forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Spalling on the north parapet',
     severity: 'HIGH',
-    locationDescription: 'North parapet, bay 3',
     technicalNotes: 'Surface loss of 5 mm',
     boundingBox: null,
     modelName: null,
@@ -114,19 +103,7 @@ function finding(overrides: Partial<Finding>): Finding {
     modelProvider: null,
     confidence: null,
     recommendedAction: 'Patch and seal',
-    component: 'Parapet',
-    description: 'Spalling',
-    observedCondition: 'Active spalling',
-    priority: 'HIGH',
-    measurement: '5 mm',
     inspectorConfirmedAt: '2026-10-01T11:00:00Z',
-    repairRequired: false,
-    correctiveActionRequired: false,
-    correctiveActionPriority: null,
-    correctiveActionDueAt: null,
-    correctiveActionReviewedByUserId: null,
-    correctiveActionReviewedAt: null,
-    correctiveActionRationale: null,
     ...overrides,
   } as Finding;
 }
@@ -139,12 +116,10 @@ describe('CorrectiveDispositionPage', () => {
     mockedApi.listFindings.mockResolvedValue([] as never);
     mockedApi.workflowState.mockResolvedValue({
       status: 'REPORT_PUBLISHED',
-      findingsConfirmedByUserId: 'inspector-1',
       findingsConfirmedAt: '2026-10-01T11:00:00Z',
       findingsSnapshotHash: 'abc123',
     } as never);
     mockedApi.completeCorrectiveHandoff.mockReset();
-    mockedApi.declareNoCorrectiveWork.mockReset();
   });
 
   afterEach(() => {
@@ -154,14 +129,14 @@ describe('CorrectiveDispositionPage', () => {
 
   it('selects all unforwarded findings by default and sends them to maintenance on button click', async () => {
     mockedApi.listFindings.mockResolvedValue([
-      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
-      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange' }),
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam', evidenceId: 'evidence-1' }),
+      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange', evidenceId: 'evidence-2' }),
     ] as never);
     mockedApi.completeCorrectiveHandoff.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: ['finding-1', 'finding-2'],
+      forwardedFindingIds: ['finding-1', 'finding-2'],
       inspectionStatus: 'REPAIR_PENDING',
     } as never);
 
@@ -182,14 +157,14 @@ describe('CorrectiveDispositionPage', () => {
 
   it('allows deselecting a finding to exclude it from the maintenance handoff', async () => {
     mockedApi.listFindings.mockResolvedValue([
-      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
-      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange' }),
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam', evidenceId: 'evidence-1' }),
+      finding({ id: 'finding-2', findingCode: 'F-2', defectLabel: 'Corrosion on flange', evidenceId: 'evidence-2' }),
     ] as never);
     mockedApi.completeCorrectiveHandoff.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: ['finding-2'],
+      forwardedFindingIds: ['finding-2'],
       inspectionStatus: 'REPAIR_PENDING',
     } as never);
 
@@ -209,12 +184,28 @@ describe('CorrectiveDispositionPage', () => {
     );
   });
 
+  it('does not offer another handoff after the inspection is complete', async () => {
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'COMPLETED',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    } as never);
+    mockedApi.listFindings.mockResolvedValue([
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
+    ] as never);
+
+    renderPage();
+
+    expect(await screen.findByText(/this inspection is complete/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Send .* to Maintenance/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Complete inspection without forwarding/i })).toBeNull();
+  });
+
   it('shows already forwarded findings as read-only chips', async () => {
     mockedApi.listFindings.mockResolvedValue([
       finding({
         id: 'finding-1',
-        repairRequired: true,
-        correctiveActionReviewedByUserId: 'reviewer-1',
+        forwardedToMaintenanceAt: '2026-10-01T12:00:00Z',
       }),
     ] as never);
 
@@ -224,28 +215,32 @@ describe('CorrectiveDispositionPage', () => {
     expect(screen.getByText(/1 already forwarded/i)).toBeTruthy();
   });
 
-  it('allows completing an inspection without repair when no findings exist', async () => {
-    mockedApi.listFindings.mockResolvedValue([] as never);
-    mockedApi.declareNoCorrectiveWork.mockResolvedValue({
+  it('allows the administrator to complete without forwarding and explains that it is final', async () => {
+    mockedApi.listFindings.mockResolvedValue([
+      finding({ id: 'finding-1', defectLabel: 'Crack on beam' }),
+    ] as never);
+    mockedApi.completeCorrectiveHandoff.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
-      repairRequiredFindingIds: [],
+      forwardedFindingIds: [],
       inspectionStatus: 'COMPLETED',
     } as never);
 
     renderPage();
-
-    const closeButton = await screen.findByRole('button', {
-      name: /Complete inspection without repair/i,
+    fireEvent.click(await screen.findByRole('checkbox'));
+    const completeButton = await screen.findByRole('button', {
+      name: /Complete inspection without forwarding/i,
     });
-    fireEvent.click(closeButton);
+    expect(screen.getByText(/this decision is final/i)).toBeTruthy();
+    fireEvent.click(completeButton);
+
+    expect(await screen.findByRole('dialog', { name: /complete without forwarding/i })).toBeTruthy();
+    expect(mockedApi.completeCorrectiveHandoff).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /confirm completion without forwarding/i }));
 
     await waitFor(() =>
-      expect(mockedApi.declareNoCorrectiveWork).toHaveBeenCalledWith(
-        'inspection-1',
-        'No findings observed in inspected scope',
-      ),
+      expect(mockedApi.completeCorrectiveHandoff).toHaveBeenCalledWith('inspection-1', []),
     );
   });
 

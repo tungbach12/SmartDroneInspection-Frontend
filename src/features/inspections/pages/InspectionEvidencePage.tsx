@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -17,8 +17,6 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { inspectionApi } from '../api/inspectionApi';
 import {
-  useDecideEvidenceQuality,
-  useEvidenceQualityHistory,
   useInspectionEvidenceQuery,
   useInspectionWorkflowState,
   useFieldSessions,
@@ -31,28 +29,15 @@ import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
-import type { EvidenceQualityDecisionType } from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-/**
- * Decisions that carry a stated reason. Accepting the set does not: the reason field is hidden
- * until one of these is chosen, so an ordinary acceptance stays a single click (Report 3 MF3-03).
- */
-const REASON_DECISIONS = ['ADDITIONAL_SESSION_REQUIRED'] as const;
-/** Labels shared by the decision buttons and the confirm step so they never drift apart. */
-const DECISION_LABELS: Record<EvidenceQualityDecisionType, string> = {
-  ACCEPTED: 'Accept evidence set',
-  REUPLOAD_REQUIRED: 'Re-upload required (legacy)',
-  ADDITIONAL_SESSION_REQUIRED: 'Additional session needed',
-  LIMITED: 'Accept with limitation (legacy)',
-};
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 /**
- * MF3-01/02 upload plus the MF3-03 set-level Accept, one stage of the inspection workspace.
+ * MF3-01/02 evidence intake, one stage of the inspection workspace.
  *
  * Bulk upload is a client-side sequential loop: POST /evidence takes one file per call, so each
  * queued file is sent in order. A failed file stays in the queue with its error and does not
@@ -61,7 +46,6 @@ function formatBytes(bytes: number): string {
 export default function InspectionEvidencePage() {
   const { formatDateTime, t } = useLocale();
   const { inspectionId = '' } = useParams();
-  const navigate = useNavigate();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
   const [filterMode, setFilterMode] = useState<EvidenceQueryFilters['status']>('ACTIVE');
@@ -76,30 +60,18 @@ export default function InspectionEvidencePage() {
     page,
     pageSize,
   });
-  const quality = useEvidenceQualityHistory(inspectionId);
   const workflow = useInspectionWorkflowState(inspectionId);
-  // The field-session route is Inspector-only, so a reviewer does not request it.
   const sessionHistory = useFieldSessions(inspectionId, isInspector);
   const versions = useReportVersions(inspectionId);
   const upload = useUploadInspectionEvidence(inspectionId);
   const retire = useRetireEvidence(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
-  const decideQuality = useDecideEvidenceQuality(inspectionId);
 
   const [queue, setQueue] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
-  const [shotListComparison, setShotListComparison] = useState('');
-  const [limitationReason, setLimitationReason] = useState('');
-  // Which reason-carrying decision is being confirmed. Null until the Inspector picks one, so the
-  // reason field only appears when it is actually required.
-  const [pendingDecision, setPendingDecision] = useState<
-    (typeof REASON_DECISIONS)[number] | null
-  >(null);
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
-  const [retireReason, setRetireReason] = useState('');
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
-  const [bulkRetireReason, setBulkRetireReason] = useState('');
   const [showBulkRetireForm, setShowBulkRetireForm] = useState(false);
 
   const displayedEvidenceItems = evidence.data?.items ?? [];
@@ -107,25 +79,13 @@ export default function InspectionEvidencePage() {
   const activeCount = evidence.data?.activeCount ?? 0;
   const retiredCount = evidence.data?.retiredCount ?? 0;
   const currentEvidenceItems = displayedEvidenceItems.filter((item) => item.retiredAt == null);
-  const comparison = shotListComparison.trim();
-  const reason = limitationReason.trim();
-  const latestQualityDecision = quality.data?.[0] ?? null;
-  const latestDecision = latestQualityDecision?.decision ?? null;
-  const qualityIsCurrent = Boolean(
-    latestQualityDecision &&
-      (!evidence.data?.latestCreatedAt ||
-        evidence.data.latestCreatedAt <= latestQualityDecision.decidedAt) &&
-      (!evidence.data?.latestRetiredAt ||
-        evidence.data.latestRetiredAt <= latestQualityDecision.decidedAt),
-  );
   const currentVersion = versions.data?.[0] ?? null;
   const evidenceLocked = Boolean(currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status));
   const completedFieldSessionId = sessionHistory.data?.filter(
     (session) => session.status === 'FIELD_COMPLETED',
   ).at(-1)?.id;
-  const canAssessEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED';
-  const canEditEvidence = canAssessEvidence && !evidenceLocked;
-  const canUploadEvidence = isInspector && !evidenceLocked;
+  const canEditEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED' && !evidenceLocked;
+  const canUploadEvidence = isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
@@ -187,8 +147,8 @@ export default function InspectionEvidencePage() {
     <Stack spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          Review the accepted evidence set and its recorded coverage decision below. Original captures
-          and quality decisions are read-only for Organization Admin reviewers.
+          Review the current evidence set below. Original captures are read-only for Organization
+          Admin reviewers.
         </Alert>
       )}
 
@@ -248,160 +208,25 @@ export default function InspectionEvidencePage() {
           </Stack>
         )}
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-          {t('Uploaded captures become eligible for advisory detection once the set is accepted below.')}
+          {t('Uploaded captures are the source for advisory detection and the report. Analysis runs only when you ask for it, on the Findings step.')}
         </Typography>
       </Paper>}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">{isInspector ? 'Evidence quality decision' : 'Inspector evidence assessment'}</Typography>
+        <Typography variant="h6">Evidence coverage</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {isInspector
-            ? 'MF3-03: compare the captured set against the shot-list — component coverage, focus and exposure, and the modality the scope asked for. Only the Inspector makes this call.'
-            : 'Read the assigned Inspector’s latest recorded coverage assessment. The decision and comparison are shown for review; this page does not accept or change evidence on the Inspector’s behalf.'}
+          The Inspector records what the evidence covers and any limitations in the authored report.
+          This register preserves active and retired captures; it does not issue an evidence-quality
+          decision.
         </Typography>
-        {canAssessEvidence && activeCount === 0 && (
-          <Alert severity="info" sx={{ mb: 1.5 }}>
-            {t('Upload current captures before recording the evidence-quality decision.')}
-          </Alert>
-        )}
-        {isInspector && workflow.data?.status === 'PREPARING' && (
-          <Alert severity="info" sx={{ mb: 1.5 }}>
-            {t('Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent ORG_ADMIN readiness review before starting another session.')}
-            {' '}
-            <Button component={RouterLink} to="../preparation" size="small">{t('Open Preparation')}</Button>
-          </Alert>
-        )}
-        {latestDecision && (
-          <Chip
-            size="small"
-            sx={{ mb: 1 }}
-            color={qualityIsCurrent ? (latestDecision === 'ACCEPTED' ? 'success' : 'warning') : 'warning'}
-            label={qualityIsCurrent ? latestDecision.replaceAll('_', ' ') : 'EVIDENCE SET CHANGED — REASSESS'}
-          />
-        )}
-        {!qualityIsCurrent && latestQualityDecision && (
-          <Alert severity="warning" sx={{ mb: 1.5 }}>
-            {t('The evidence set changed after this decision.')} {isInspector
-              ? 'Compare the current captures with the shot-list and record a new quality decision before analysis or report drafting.'
-              : 'This historical assessment is shown for context; the Inspector must reassess the current set.'}
-          </Alert>
-        )}
-        <Stack spacing={1.5}>
-          {canAssessEvidence && <TextField
-            label={t('Shot-list comparison')}
-            helperText={t('Required. What the set covers and what it does not — the report discloses this, and a disclosed gap is not evidence of no defect.')}
-            multiline
-            minRows={2}
-            value={shotListComparison}
-            onChange={(event) => setShotListComparison(event.target.value)}
-            slotProps={{ htmlInput: { maxLength: 8000 } }}
-          />}
-          {latestQualityDecision && (
-            <Paper
-              variant="outlined"
-              sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: '8px' }}
-            >
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
-                {DECISION_LABELS[latestQualityDecision.decision]} {t('recorded')}{' '}
-                {formatDateTime(new Date(latestQualityDecision.decidedAt))}
-                {qualityIsCurrent ? '' : ' — no longer current, shown for reference'}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
-                {latestQualityDecision.shotListComparison?.trim() ||
-                  'No shot-list comparison was recorded.'}
-              </Typography>
-              {latestQualityDecision.limitationReason?.trim() && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
-                  {t('Limitation or reason:')} {latestQualityDecision.limitationReason}
-                </Typography>
-              )}
-            </Paper>
-          )}
-          {canAssessEvidence && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexWrap: 'wrap' }}>
-            <Button
-              variant="contained"
-              disabled={!canEditEvidence || decideQuality.isPending || activeCount === 0 || !comparison}
-              onClick={() =>
-                decideQuality.mutate({
-                  decision: 'ACCEPTED',
-                  shotListComparison: comparison,
-                })
-              }
-            >
-              {DECISION_LABELS.ACCEPTED}
-            </Button>
-            {REASON_DECISIONS.map((decision) => (
-              <Button
-                key={decision}
-                variant="outlined"
-                disabled={!canEditEvidence || decideQuality.isPending || activeCount === 0 || !comparison}
-                onClick={() => setPendingDecision(decision)}
-              >
-                {DECISION_LABELS[decision]}
-              </Button>
-            ))}
-            <Button
-              component={RouterLink}
-              to="../preparation"
-              variant="text"
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              {t('Review the shot-list in preparation')}
-            </Button>
-          </Stack>}
-          {pendingDecision && canAssessEvidence && (
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                {t('Confirm “')}{DECISION_LABELS[pendingDecision]}”
-              </Typography>
-              <Stack spacing={1.5}>
-                <TextField
-                  label={t('Why is another field session needed?')}
-                  helperText={t('Describe the uncovered scope and why another field visit is necessary.')}
-                  multiline
-                  minRows={2}
-                  autoFocus
-                  value={limitationReason}
-                  onChange={(event) => setLimitationReason(event.target.value)}
-                  slotProps={{ htmlInput: { maxLength: 2000 } }}
-                />
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant="contained"
-                    disabled={decideQuality.isPending || !reason || !comparison}
-                    onClick={() =>
-                      decideQuality.mutate(
-                        {
-                          decision: pendingDecision,
-                          shotListComparison: comparison,
-                          limitationReason: reason,
-                        },
-                        {
-                          onSuccess: () => {
-                            setPendingDecision(null);
-                            setLimitationReason('');
-                            navigate('../preparation');
-                          },
-                        },
-                      )
-                    }
-                  >
-                    {t('Confirm')} {DECISION_LABELS[pendingDecision]}
-                  </Button>
-                  <Button onClick={() => setPendingDecision(null)}>{t('Cancel')}</Button>
-                </Stack>
-              </Stack>
-            </Paper>
-          )}
-          {canAssessEvidence && <Typography variant="caption" color="text.secondary">
-            {t('Only an accepted set unlocks advisory detection and report drafting. Additional-session requests return to MF2 preparation and independent readiness review; the system never starts the session automatically.')}
-          </Typography>}
-        </Stack>
-        {decideQuality.isError && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            {getErrorMessage(decideQuality.error, 'The evidence decision was not recorded.')}
-          </Alert>
-        )}
+        <Button
+          component={RouterLink}
+          to="../preparation"
+          variant="text"
+          sx={{ alignSelf: 'flex-start' }}
+        >
+          {t('Review the shot-list in preparation')}
+        </Button>
       </Paper>
 
       {/* The stored captures and their provenance. Intake happens above, so this card only reads. */}
@@ -493,42 +318,30 @@ export default function InspectionEvidencePage() {
               {showBulkRetireForm && (
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s) with a shared audit reason')}
+                    {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s)')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                    {t('Original files and checksums remain preserved for audit. Remove or re-link any findings citing these captures first.')}
+                    {t('Original files remain preserved for audit. Remove or re-link any findings citing these captures first.')}
                   </Typography>
                   <Stack spacing={1.5}>
-                    <TextField
-                      size="small"
-                      label={t('Shared reason for retiring batch')}
-                      placeholder={t('e.g. Uploaded wrong SD card from another site / invalid flight session')}
-                      value={bulkRetireReason}
-                      onChange={(e) => setBulkRetireReason(e.target.value)}
-                      required
-                    />
                     <Stack direction="row" spacing={1}>
                       <Button
                         variant="contained"
                         color="warning"
-                        disabled={bulkRetire.isPending || !bulkRetireReason.trim()}
+                        disabled={bulkRetire.isPending}
                         onClick={async () => {
                           const targets =
                             selectedBatchIds.length > 0
                               ? selectedBatchIds
                               : currentEvidenceItems.map((e) => e.id);
-                          await bulkRetire.mutateAsync({
-                            evidenceIds: targets,
-                            reason: bulkRetireReason.trim(),
-                          });
+                          await bulkRetire.mutateAsync(targets);
                           setSelectedBatchIds([]);
-                          setBulkRetireReason('');
                           setShowBulkRetireForm(false);
                         }}
                       >
                         {bulkRetire.isPending ? 'Retiring captures…' : 'Confirm bulk retire'}
                       </Button>
-                      <Button size="small" onClick={() => { setShowBulkRetireForm(false); setBulkRetireReason(''); }}>
+                      <Button size="small" onClick={() => setShowBulkRetireForm(false)}>
                         {t('Cancel')}
                       </Button>
                     </Stack>
@@ -639,32 +452,20 @@ export default function InspectionEvidencePage() {
                     </Alert>
                   )}
                   <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                      SHA-256 {selectedEvidence.checksumSha256}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                      {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'} {t('· Source')}{' '}
-                      {selectedEvidence.source}
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                      {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'}
                     </Typography>
                     {selectedEvidence.retiredAt ? (
                       <Alert severity="warning" sx={{ mt: 1 }}>
                         {t('Retired from the current evidence set on')} {formatDateTime(new Date(selectedEvidence.retiredAt))}{t('. The original bytes remain available for audit.')}
-                        {selectedEvidence.retirementReason ? ` Reason: ${selectedEvidence.retirementReason}` : ''}
                       </Alert>
                     ) : canEditEvidence ? (
                       <Stack spacing={1} sx={{ mt: 1.5 }}>
-                        <TextField
-                          size="small"
-                          label={t('Reason for replacing this capture')}
-                          value={retireReason}
-                          onChange={(event) => setRetireReason(event.target.value)}
-                          helperText={t('The original capture and checksum stay in the audit record. Remove or re-link findings that use it first.')}
-                        />
                         <Button
                           color="warning"
                           variant="outlined"
-                          disabled={!retireReason.trim() || retire.isPending}
-                          onClick={() => retire.mutate({ evidenceId: selectedEvidence.id, reason: retireReason.trim() }, { onSuccess: () => setRetireReason('') })}
+                          disabled={retire.isPending}
+                          onClick={() => retire.mutate(selectedEvidence.id)}
                           sx={{ alignSelf: 'flex-start' }}
                         >
                           {retire.isPending ? 'Retiring capture…' : 'Retire from current evidence set'}

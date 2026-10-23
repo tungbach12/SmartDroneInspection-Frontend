@@ -4,14 +4,13 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useToastStore } from '@/shared/ui/Toast';
 import { inspectionApi } from '../api/inspectionApi';
-import { inspectionKeys } from './useInspections';
 import {
   useAnalyzeEvidence,
   useBulkRetireEvidence,
   useConfirmFindings,
   useCreateManualFinding,
-  useDecideEvidenceQuality,
   useDeleteFinding,
+  useRequestAdditionalSession,
   useRetireEvidence,
   useConfirmFinding,
   useSubmitReportVersion,
@@ -33,7 +32,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       createManualFinding: vi.fn(),
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
-      decideEvidenceQuality: vi.fn(),
+      requestAdditionalSession: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
     },
@@ -69,8 +68,6 @@ beforeEach(() => {
 describe('useAnalyzeEvidence', () => {
   it('notifies when a completed analysis returns no detections', async () => {
     const client = createClient();
-    const statusKey = [...inspectionKeys.findings('inspection-1'), 'analysis-status'];
-    client.setQueryData(statusKey, []);
     vi.mocked(inspectionApi.analyzeEvidence).mockResolvedValue([]);
     const { result } = renderHook(() => useAnalyzeEvidence('inspection-1'), {
       wrapper: wrapper(client),
@@ -85,7 +82,8 @@ describe('useAnalyzeEvidence', () => {
       message: 'Analysis completed; no defects were detected in this image.',
       severity: 'info',
     });
-    expect(client.getQueryState(statusKey)?.isInvalidated).toBe(true);
+    expect(result.current.completedIds).toEqual(['evidence-1']);
+    expect(result.current.noDetectionIds).toEqual(['evidence-1']);
   });
 
   it('shows an error notification when analysis fails', async () => {
@@ -129,10 +127,7 @@ function buildCases(): MutationCase[] {
       apiMock: vi.mocked(inspectionApi.retireEvidence),
       render: (client) => renderMutation(client, () => useRetireEvidence('inspection-1')),
       run: (runner) =>
-        (runner.mutateAsync as (input: { evidenceId: string; reason: string }) => Promise<unknown>)({
-          evidenceId: 'evidence-1',
-          reason: 'blurred',
-        }),
+        (runner.mutateAsync as (evidenceId: string) => Promise<unknown>)('evidence-1'),
       successMessage: 'Evidence retired and retained for audit.',
     },
     {
@@ -141,12 +136,7 @@ function buildCases(): MutationCase[] {
       apiResult: [{ id: 'evidence-1', fileName: 'defect-01.jpg', retiredAt: '2026-10-19T00:00:00Z' }],
       render: (client) => renderMutation(client, () => useBulkRetireEvidence('inspection-1')),
       run: (runner) =>
-        (
-          runner.mutateAsync as (input: {
-            evidenceIds: string[];
-            reason: string;
-          }) => Promise<unknown>
-        )({ evidenceIds: ['evidence-1'], reason: 'blurred' }),
+        (runner.mutateAsync as (evidenceIds: string[]) => Promise<unknown>)(['evidence-1']),
       successMessage: 'Retired 1 capture(s); originals remain available for audit.',
     },
     {
@@ -218,41 +208,15 @@ function buildCases(): MutationCase[] {
       apiMock: vi.mocked(inspectionApi.deleteFinding),
       render: (client) => renderMutation(client, () => useDeleteFinding('inspection-1')),
       run: (runner) =>
-        (runner.mutateAsync as (input: { findingId: string; reason: string }) => Promise<unknown>)({
-          findingId: 'finding-1',
-          reason: 'duplicate',
-        }),
+        (runner.mutateAsync as (findingId: string) => Promise<unknown>)('finding-1'),
       successMessage: 'Finding removed from the confirmed set.',
     },
     {
-      name: 'evidence quality decision',
-      apiMock: vi.mocked(inspectionApi.decideEvidenceQuality),
-      render: (client) => renderMutation(client, () => useDecideEvidenceQuality('inspection-1')),
+      name: 'additional session request',
+      apiMock: vi.mocked(inspectionApi.requestAdditionalSession),
+      render: (client) => renderMutation(client, () => useRequestAdditionalSession('inspection-1')),
       run: (runner) =>
-        (
-          runner.mutateAsync as (input: {
-            decision: string;
-            shotListComparison: string;
-          }) => Promise<unknown>
-        )({ decision: 'ACCEPTED', shotListComparison: 'complete' }),
-      successMessage: 'Evidence quality accepted; the set is ready for detection.',
-    },
-    {
-      name: 'additional-session quality decision',
-      apiMock: vi.mocked(inspectionApi.decideEvidenceQuality),
-      render: (client) => renderMutation(client, () => useDecideEvidenceQuality('inspection-1')),
-      run: (runner) =>
-        (
-          runner.mutateAsync as (input: {
-            decision: string;
-            shotListComparison: string;
-            limitationReason: string;
-          }) => Promise<unknown>
-        )({
-          decision: 'ADDITIONAL_SESSION_REQUIRED',
-          shotListComparison: 'east face not captured',
-          limitationReason: 'access unavailable',
-        }),
+        (runner.mutateAsync as (reason: string) => Promise<unknown>)('east face not captured'),
       successMessage:
         'Additional field work requested. Update preparation and wait for readiness review.',
     },

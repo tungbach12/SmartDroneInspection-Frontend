@@ -104,12 +104,10 @@ export function ReportDerivedSections({
           <Field label={t('Asset location')} value={context?.assetLocation} />
           <Field label={t('Asset category')} value={context?.assetCategory} />
           <Field label={t('Author')} value={version.authorUserId} />
-          <Field label={t('Author verification')} value={formatDateTime(version.authorVerifiedAt, formatDateTimeValue, t('Not supplied'))} />
+          <Field label={t('Submitted')} value={formatDateTime(version.submittedAt, formatDateTimeValue, t('Not supplied'))} />
           <Field label={t('Reviewer')} value={version.reviewerUserId} />
           <Field label={t('Review decision')} value={formatDateTime(version.reviewedAt, formatDateTimeValue, t('Not supplied'))} />
           <Field label={t('Published')} value={formatDateTime(version.publishedAt, formatDateTimeValue, t('Not supplied'))} />
-          <Field label={t('Evidence snapshot hash')} value={version.evidenceSnapshotHash} />
-          <Field label={t('Model provenance')} value={version.llmModel ? `${version.llmModel} · ${version.promptVersion ?? 'no prompt version'}` : 'Manual authoring'} />
         </Box>
       </ReadOnlySection>
 
@@ -122,7 +120,7 @@ export function ReportDerivedSections({
         <ReadOnlySection
           title={t('Inspection preparation and recorded session context')}
           accountable={t('Inspector · Organization Admin reviewer')}
-          description={t('Source records from inspection preparation, readiness review, evidence-quality assessment and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
+          description={t('Source records from inspection preparation, readiness review and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
         >
           <Box>
             <Field label={t('Assigned Drone')} value={[context.assignedDrone?.manufacturer, context.assignedDrone?.model, context.assignedDrone?.serialNumber].filter(Boolean).join(' · ')} />
@@ -135,10 +133,7 @@ export function ReportDerivedSections({
             <Field label={t('Readiness decision')} value={context.preparation?.readinessDecision} />
             <Field label={t('Readiness decision time')} value={formatDateTime(context.preparation?.readinessDecisionAt, formatDateTimeValue, t('Not supplied'))} />
             <Field label={t('Readiness reason')} value={context.preparation?.readinessReason} />
-            <Field label={t('Evidence quality decision')} value={context.evidenceQuality?.decision} />
-            <Field label={t('Evidence quality comparison')} value={context.evidenceQuality?.shotListComparison} />
-            <Field label={t('Evidence quality limitation')} value={context.evidenceQuality?.limitationReason} />
-            <Field label={t('Findings confirmation')} value={context.findingsConfirmedBy ? `${context.findingsConfirmedBy} · ${formatDateTime(context.findingsConfirmedAt, formatDateTimeValue, t('Not supplied'))}` : formatDateTime(context.findingsConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
+            <Field label={t('Findings confirmation')} value={formatDateTime(context.findingsConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
             {context.fieldSessions.map((session) => (
               <Box key={session.id} sx={{ mt: 1, p: 1.5, border: '1px solid #e4e7ec', borderRadius: '8px' }}>
                 <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>{t('Field session ·')} {session.status}</Typography>
@@ -152,7 +147,6 @@ export function ReportDerivedSections({
               </Box>
             ))}
             <Field label={t('Reviewer qualification disclosure')} value={context.reviewerQualificationDisclosure} />
-            <Field label={t('Source findings snapshot hash')} value={context.findingsSnapshotHash} />
           </Box>
         </ReadOnlySection>
       )}
@@ -160,7 +154,7 @@ export function ReportDerivedSections({
       <ReadOnlySection
         title={t('Evidence register')}
         accountable={t('Inspector · SYSTEM indexes')}
-        description={t('Evidence linked to this report version, with capture metadata, shared asset location and checksum.')}
+        description={t('Evidence linked to this report version, with capture time, GPS when available, and its shared asset location.')}
       >
         {evidenceList.length === 0 ? (
           <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>{t('No evidence was linked to this version.')}</Typography>
@@ -180,7 +174,6 @@ export function ReportDerivedSections({
                     <Field label={t('Asset location')} value={item.locationDescription} />
                     <Field label="GPS" value={item.latitude != null && item.longitude != null ? `${item.latitude}, ${item.longitude}` : null} />
                     <Field label={t('Linked findings')} value={linkedFindings.length ? linkedFindings.map((finding) => `${finding.defectLabel} (${finding.severity})`).join('; ') : null} />
-                    <Field label="SHA-256" value={item.checksumSha256} />
                   </Box>
                 </Box>
               );
@@ -208,10 +201,7 @@ export function ReportDerivedSections({
                       <Chip size="small" label={finding.severity} />
                       <Chip size="small" color="success" label={t('Inspector-confirmed')} />
                     </Stack>
-                    <Field label={t('Component')} value={finding.component} />
-                    <Field label={t('Asset location')} value={linkedEvidence?.locationDescription ?? finding.locationDescription} />
-                    <Field label={t('Observed condition')} value={finding.observedCondition} />
-                    <Field label={t('Measurement')} value={finding.measurement} />
+                    <Field label={t('Asset location')} value={linkedEvidence?.locationDescription} />
                     <Field label={t('Technical notes')} value={finding.technicalNotes} />
                     <Field label={t('Recommended action')} value={finding.recommendedAction} />
                     <Field label={t('Inspector confirmation')} value={formatDateTime(finding.inspectorConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
@@ -233,15 +223,17 @@ export function ReportDerivedSections({
 
       <ReadOnlySection title={t('Appendices')} accountable={t('Inspector · SYSTEM compiles')} description={t('Evidence index and source-linked inspection context are shown above.')}>
         <Typography variant="body2" sx={{ color: '#475467', fontSize: '0.8125rem' }}>
-          {t('Evidence photographs are listed in the Evidence register with checksums. The delivered PDF reproduces them as numbered plates. Checklist responses are shown only when the source responses are available.')}
+        title={t('Evidence register')}
+        accountable={t('Inspector · SYSTEM indexes')}
+        description={t('Evidence linked to this report version, with capture time, GPS when available, and its shared asset location.')}
         </Typography>
       </ReadOnlySection>
 
       <ReadOnlySection title={t('Approval and revisions')} accountable={t('Organization Admin · SYSTEM records')} description={t('Who approved this version and when. A correction is issued as a new linked version; a published version is never altered.')}>
         <Box>
-          <Field label={t('Author confirmation')} value={formatDateTime(version.authorVerifiedAt, formatDateTimeValue, t('Not supplied'))} />
+          <Field label={t('Submitted')} value={formatDateTime(version.submittedAt, formatDateTimeValue, t('Not supplied'))} />
           <Field label={t('Reviewer approval')} value={formatDateTime(version.reviewedAt, formatDateTimeValue, t('Not supplied'))} />
-          <Field label={t('Return rationale')} value={version.reviewReason} />
+          <Field label={t('Return rationale')} value={version.returnReason} />
           <Field label={t('Approved version')} value={formatDateTime(version.publishedAt, formatDateTimeValue, t('Not supplied'))} />
         </Box>
         <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#667085', fontStyle: 'italic' }}>
