@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -43,6 +44,7 @@ import {
   useSubmitEstimate,
   useSubmitMaintenanceReport,
   useSubmitWorkLog,
+  useVerifyWorkLog,
   useTasks,
   useTeam,
   useVerifyMaintenanceReport,
@@ -50,7 +52,7 @@ import {
   useWorkOrderTransition,
   useMaintenanceReportVersions,
 } from '../hooks/useMaintenance';
-import type { WorkOrder } from '../api/maintenanceApi';
+import { maintenanceApi, type WorkOrder } from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface WorkOrderDetailPanelProps {
@@ -167,6 +169,21 @@ function OverviewTab({
       { action: 'resume-after-rework', label: 'Resume after rework' },
     ];
 
+  const isActionDisabled = (action: string) => {
+    switch (action) {
+      case 'release':
+        return workOrder.status !== 'APPROVED';
+      case 'start':
+        return workOrder.status !== 'READY';
+      case 'declare-complete':
+        return workOrder.status !== 'IN_PROGRESS';
+      case 'resume-after-rework':
+        return workOrder.status !== 'REWORK_REQUIRED';
+      default:
+        return false;
+    }
+  };
+
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Stack spacing={2}>
@@ -207,6 +224,7 @@ function OverviewTab({
                   key={entry.action}
                   size="small"
                   variant="outlined"
+                  disabled={isActionDisabled(entry.action)}
                   loading={transition.isPending && transition.variables === entry.action}
                   onClick={() => transition.mutate(entry.action)}
                 >
@@ -407,6 +425,7 @@ function ExecutionTab({
   const createTask = useCreateTask(workOrder.id);
   const recordWork = useRecordWork(workOrder.id);
   const submitLog = useSubmitWorkLog(workOrder.id);
+  const verifyLog = useVerifyWorkLog(workOrder.id);
   const workforce = useWorkforceUsers();
 
   const engineers = (workforce.data ?? []).filter(
@@ -555,6 +574,16 @@ function ExecutionTab({
                   >
                     {t('Submit for verification')}
                   </Button>
+                ) : null}
+                {!isOrgAdmin && log.status === 'SUBMITTED' ? (
+                  <LoadingButton
+                    size="small"
+                    variant="text"
+                    loading={verifyLog.isPending}
+                    onClick={() => verifyLog.mutate(log.id)}
+                  >
+                    {t('Verify work log')}
+                  </LoadingButton>
                 ) : null}
               </Box>
             ))}
@@ -1120,28 +1149,37 @@ function ReportTab({
                   {version.contentSnapshot}
                 </Typography>
               ) : null}
-              {!isOrgAdmin ? (
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                  {version.status === 'DRAFT' ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => verifyReport.mutate(version.versionNo)}
-                    >
-                      {t('Verify against sources')}
-                    </Button>
-                  ) : null}
-                  {version.status === 'AUTHOR_VERIFIED' ? (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={() => submitReport.mutate(version.versionNo)}
-                    >
-                      {t('Submit for acceptance')}
-                    </Button>
-                  ) : null}
-                </Stack>
-              ) : null}
+              <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
+                {!isOrgAdmin && version.status === 'DRAFT' ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => verifyReport.mutate(version.versionNo)}
+                  >
+                    {t('Verify against sources')}
+                  </Button>
+                ) : null}
+                {!isOrgAdmin && version.status === 'AUTHOR_VERIFIED' ? (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => submitReport.mutate(version.versionNo)}
+                  >
+                    {t('Submit for acceptance')}
+                  </Button>
+                ) : null}
+                <Button
+                  size="small"
+                  variant="text"
+                  component="a"
+                  href={maintenanceApi.getReportPdfUrl(workOrder.id, version.versionNo)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  startIcon={<PictureAsPdfOutlined />}
+                >
+                  {t('Download PDF')}
+                </Button>
+              </Stack>
             </Box>
           ))}
         </Stack>
@@ -1193,6 +1231,7 @@ function CostsTab({
   const acceptance = useAcceptanceDecisions(workOrder.id);
   const recordAcceptance = useRecordAcceptance(workOrder.id);
   const reconcile = useReconcileCosts(workOrder.id);
+  const tasks = useTasks(workOrder.id);
 
   const [decision, setDecision] = useState<'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED'>(
     'ACCEPTED',
@@ -1200,6 +1239,7 @@ function CostsTab({
   const [comments, setComments] = useState('');
   const [checklist, setChecklist] = useState('');
   const [testResult, setTestResult] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState('');
   const [lineDescription, setLineDescription] = useState('');
   const [lineQuantity, setLineQuantity] = useState('1');
   const [lineRate, setLineRate] = useState('');
@@ -1269,6 +1309,22 @@ function CostsTab({
                 value={lineDescription}
                 onChange={(e) => setLineDescription(e.target.value)}
               />
+              {(tasks.data ?? []).length > 0 ? (
+                <TextField
+                  select
+                  label={t('Task')}
+                  required
+                  value={selectedTaskId || (tasks.data?.[0]?.id ?? '')}
+                  onChange={(e) => setSelectedTaskId(e.target.value)}
+                  fullWidth
+                >
+                  {(tasks.data ?? []).map((task) => (
+                    <MenuItem key={task.id} value={task.id}>
+                      #{task.taskNumber} · {task.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
               <Stack direction="row" spacing={2}>
                 <TextField
                   label={t('Quantity')}
@@ -1304,12 +1360,14 @@ function CostsTab({
                 size="small"
                 variant="contained"
                 loading={reconcile.isPending}
-                disabled={!lineDescription.trim() || !lineRate}
-                onClick={() =>
+                disabled={!lineDescription.trim() || !lineRate || !(selectedTaskId || tasks.data?.[0]?.id)}
+                onClick={() => {
+                  const effectiveTaskId = selectedTaskId || tasks.data?.[0]?.id;
+                  if (!effectiveTaskId) return;
                   reconcile.mutate({
                     actualLines: [
                       {
-                        taskId: workOrder.sourceFindingId,
+                        taskId: effectiveTaskId,
                         lineKind: 'MATERIAL',
                         description: lineDescription,
                         quantity: Number(lineQuantity),
@@ -1317,8 +1375,8 @@ function CostsTab({
                         currency: lineCurrency,
                       },
                     ],
-                  })
-                }
+                  });
+                }}
               >
                 {t('Reconcile costs')}
               </LoadingButton>

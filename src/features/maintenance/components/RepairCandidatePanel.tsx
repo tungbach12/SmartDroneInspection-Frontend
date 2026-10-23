@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -22,6 +24,7 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import {
   useCreateWorkOrder,
   useRepairCandidates,
+  useSuggestWorkOrderScope,
 } from '../hooks/useMaintenance';
 import type { RepairCandidate } from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -41,6 +44,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const { t } = useLocale();
   const candidates = useRepairCandidates();
   const createWorkOrder = useCreateWorkOrder();
+  const suggestScope = useSuggestWorkOrderScope();
   const workforce = useWorkforceUsers();
 
   const [target, setTarget] = useState<RepairCandidate | null>(null);
@@ -49,6 +53,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
   const [dueAt, setDueAt] = useState('');
   const [budgetApprover, setBudgetApprover] = useState('');
+  const [standards, setStandards] = useState<string[]>([]);
 
   const orgAdmins = (workforce.data ?? []).filter(
     (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
@@ -138,6 +143,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       );
                       setDueAt('');
                       setBudgetApprover(orgAdmins[0]?.userId ?? '');
+                      setStandards([]);
                     }}
                   >
                     {t('Open work order')}
@@ -186,6 +192,78 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 <Alert severity="info">
                   {target.findingCode} · {target.defectLabel}
                 </Alert>
+              ) : null}
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 700, color: '#344054', textTransform: 'uppercase' }}
+                >
+                  {t('Corrective Specification')}
+                </Typography>
+                <LoadingButton
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AutoAwesomeOutlined />}
+                  loading={suggestScope.isPending}
+                  onClick={() => {
+                    if (!target) return;
+                    suggestScope.mutate(
+                      {
+                        sourceReportVersionId: target.reportVersionId,
+                        sourceFindingId: target.findingId,
+                        findingCode: target.findingCode,
+                        defectLabel: target.defectLabel,
+                        description: target.description,
+                        severity: target.severity,
+                        recommendedAction: target.recommendedAction,
+                        component: target.component,
+                        locationDescription: target.locationDescription,
+                        measurement: target.measurement,
+                      },
+                      {
+                        onSuccess: (data) => {
+                          if (data.correctiveScope) setCorrectiveScope(data.correctiveScope);
+                          if (data.acceptanceCriteria) setAcceptanceCriteria(data.acceptanceCriteria);
+                          if (data.referenceStandards && data.referenceStandards.length > 0) {
+                            setStandards(data.referenceStandards);
+                          }
+                        },
+                      },
+                    );
+                  }}
+                >
+                  {t('AI Suggest Scope & Criteria (RAG)')}
+                </LoadingButton>
+              </Stack>
+              <MutationProblemAlert
+                error={suggestScope.error}
+                isError={suggestScope.isError}
+                fallbackMessage={t('Could not generate scope suggestions.')}
+              />
+              {standards.length > 0 ? (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  sx={{ flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}
+                >
+                  <Typography variant="caption" sx={{ color: '#475467', fontWeight: 600 }}>
+                    {t('Standards:')}
+                  </Typography>
+                  {standards.map((std) => (
+                    <Chip
+                      key={std}
+                      label={std}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{ height: 22, fontSize: 11 }}
+                    />
+                  ))}
+                </Stack>
               ) : null}
               <TextField
                 label={t('Corrective scope')}
