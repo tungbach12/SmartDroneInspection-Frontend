@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -55,9 +56,26 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const [budgetApprover, setBudgetApprover] = useState('');
   const [standards, setStandards] = useState<string[]>([]);
 
-  const orgAdmins = (workforce.data ?? []).filter(
-    (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
-  );
+  const currentUser = useAuthStore((state) => state.user);
+  const orgAdmins = useMemo(() => {
+    const list = (workforce.data ?? []).filter(
+      (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
+    );
+    if (list.length > 0) return list;
+    if (currentUser?.roles.includes('ORG_ADMIN')) {
+      return [
+        {
+          userId: currentUser.id,
+          email: currentUser.email,
+          fullName: currentUser.fullName,
+          roles: currentUser.roles,
+          status: 'ACTIVE',
+          organizationId: currentUser.organizationId ?? '',
+        },
+      ];
+    }
+    return [];
+  }, [workforce.data, currentUser]);
 
   const items = candidates.data ?? [];
 
