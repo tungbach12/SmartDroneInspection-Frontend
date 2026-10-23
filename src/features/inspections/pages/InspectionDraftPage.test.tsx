@@ -4,12 +4,6 @@ import { renderWithRouter } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
 
 const mocks = vi.hoisted(() => ({
-  qualityQuery: {
-    data: [] as unknown[] | undefined,
-    isLoading: false,
-    error: null as Error | null,
-    refetch: vi.fn(),
-  },
   versionsQuery: {
     data: [] as unknown[] | undefined,
     isLoading: false,
@@ -17,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   workflowQuery: {
-    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedByUserId: null as string | null, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
     isLoading: false,
     error: null as Error | null,
   },
@@ -31,7 +25,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../hooks/useInspections', () => ({
-  useEvidenceQualityHistory: () => mocks.qualityQuery,
   useInspectionWorkflowState: () => mocks.workflowQuery,
   useReportVersions: () => mocks.versionsQuery,
   useGenerateReportDraft: () => mocks.createDraft,
@@ -66,9 +59,8 @@ describe('InspectionDraftPage', () => {
   beforeEach(() => {
     cleanup();
     signInAs('INSPECTOR');
-    mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
     mocks.createDraft.mutate.mockReset();
     mocks.createDraft.isPending = false;
     mocks.authorManualDraft.mutate.mockReset();
@@ -79,22 +71,16 @@ describe('InspectionDraftPage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('keeps draft generation blocked until the evidence set is accepted', () => {
+  it('keeps draft generation blocked until findings have been confirmed, without an evidence decision', () => {
     renderWithRouter(<InspectionDraftPage />);
 
     expect(
       (screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    expect(screen.getByText(/Accept the evidence set before generating/)).toBeTruthy();
+    expect(screen.queryByText(/Accept the evidence set/)).toBeNull();
   });
 
   it('keeps manual draft creation disabled until findings have been confirmed', () => {
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
     renderWithRouter(<InspectionDraftPage />);
 
     expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
@@ -102,17 +88,11 @@ describe('InspectionDraftPage', () => {
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
   });
 
-  it('generates a draft once accepted and findings are confirmed', () => {
+  it('generates a draft once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
       isLoading: false,
       error: null,
-    };
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
     };
     renderWithRouter(<InspectionDraftPage />);
 
@@ -178,7 +158,6 @@ describe('InspectionDraftPage', () => {
     mocks.workflowQuery = {
       data: {
         status: 'REPORT_PUBLISHED',
-        findingsConfirmedByUserId: 'inspector-1',
         findingsConfirmedAt: '2026-10-15T09:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -219,7 +198,7 @@ describe('InspectionDraftPage', () => {
 
   it('creates an empty manual structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedByUserId: 'inspector-1', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
       isLoading: false,
       error: null,
     };

@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
-  analysisStatusQuery: { data: [] as unknown[], isLoading: false, isError: false },
   findingsQuery: {
     data: [] as unknown[] | undefined,
     isLoading: false,
@@ -31,14 +30,8 @@ const mocks = vi.hoisted(() => ({
     error?: Error | null;
     refetch?: ReturnType<typeof vi.fn>;
   },
-  qualityQuery: {
-    data: [] as unknown[] | undefined,
-    isLoading: false,
-    error: null as Error | null,
-    refetch: vi.fn(),
-  },
   workflowQuery: {
-    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedByUserId: null as string | null, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
     isLoading: false,
     error: null as Error | null,
   },
@@ -53,6 +46,8 @@ const mocks = vi.hoisted(() => ({
   analyze: {
     analyzeMany: vi.fn(),
     analysingIds: [] as string[],
+    completedIds: [] as string[],
+    noDetectionIds: [] as string[],
     isPending: false,
     isError: false,
     error: null as Error | null,
@@ -68,13 +63,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useRemovedFindings: () => mocks.removedFindingsQuery,
-  useEvidenceAnalysisStatuses: () => mocks.analysisStatusQuery,
   useInspectionFindings: () => mocks.findingsQuery,
   useInspectionWorkflowState: () => mocks.workflowQuery,
   useConfirmFindings: () => mocks.confirm,
   useReopenFindings: () => mocks.reopen,
   useReportVersions: () => mocks.reportVersionsQuery,
-  useEvidenceQualityHistory: () => mocks.qualityQuery,
   useAnalyzeEvidence: () => mocks.analyze,
   useConfirmFinding: () => mocks.review,
   useRestoreFinding: () => mocks.restore,
@@ -102,14 +95,10 @@ function imageEvidence() {
     fileName: 'span.png',
     contentType: 'image/png',
     sizeBytes: 8,
-    checksumSha256: 'abcdef1234567890',
     retiredAt: null,
     locationDescription: null,
+    deduplicated: false,
   };
-}
-
-function accepted() {
-  return [{ id: 'decision-1', inspectionId: INSPECTION_ID, decision: 'ACCEPTED' }];
 }
 
 /** A finding the detector proposed and the Inspector has not looked at yet. */
@@ -122,30 +111,16 @@ function pendingFinding() {
     findingCode: 'F-0002',
     defectLabel: 'Coating crack',
     severity: 'HIGH',
-    locationDescription: null,
     technicalNotes: 'Coating crack',
     recommendedAction: null,
-    component: null,
-    description: null,
-    observedCondition: null,
-    priority: null,
-    measurement: null,
     boundingBox: '',
     modelProvider: 'yolo',
     modelName: 'advisor',
     modelVersion: 'v3',
     confidence: 0.82,
     inspectorConfirmedAt: null,
-    repairRequired: false,
-    correctiveActionRequired: true,
-    correctiveActionPriority: null,
-    correctiveActionDueAt: null,
-    correctiveActionReviewedByUserId: null,
-    correctiveActionReviewedAt: null,
-    correctiveActionRationale: null,
+    forwardedToMaintenanceAt: null,
     deletedAt: null,
-    deletedByUserId: null,
-    deletionReason: null,
   };
 }
 
@@ -159,30 +134,16 @@ function undecidedFinding() {
     findingCode: 'F-0001',
     defectLabel: 'Coating blistering',
     severity: 'HIGH',
-    locationDescription: 'Girder G4',
     technicalNotes: 'Roughly 60mm across.',
     recommendedAction: 'Repaint.',
-    component: null,
-    description: null,
-    observedCondition: null,
-    priority: null,
-    measurement: null,
     boundingBox: null,
     modelName: null,
     modelVersion: null,
     modelProvider: null,
     confidence: null,
     inspectorConfirmedAt: null,
-    repairRequired: true,
-    correctiveActionRequired: true,
-    correctiveActionPriority: null,
-    correctiveActionDueAt: null,
-    correctiveActionReviewedByUserId: null,
-    correctiveActionReviewedAt: null,
-    correctiveActionRationale: null,
+    forwardedToMaintenanceAt: null,
     deletedAt: null,
-    deletedByUserId: null,
-    deletionReason: null,
   };
 }
 
@@ -216,16 +177,14 @@ describe('InspectionFindingsPage', () => {
     signInAs(['INSPECTOR']);
     mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
-    mocks.analysisStatusQuery = { data: [], isLoading: false, isError: false };
     mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedByUserId: null, findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
     mocks.reportVersionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.analyze.isPending = false;
     mocks.analyze.analysingIds = [];
+    mocks.analyze.completedIds = [];
+    mocks.analyze.noDetectionIds = [];
     mocks.analyze.analyzeMany.mockReset();
-    // The one-time auto-detection offer is remembered per user and inspection for the tab session.
-    window.sessionStorage.clear();
     mocks.confirm.mutate.mockReset();
     mocks.reopen.mutate.mockReset();
     Object.values(mocks).forEach((value) => {
@@ -254,25 +213,23 @@ describe('InspectionFindingsPage', () => {
     ));
   });
 
-  it('lets the Inspector soft-delete a finding with a reason while the report is not submitted', async () => {
+  it('lets the Inspector soft-delete a finding without collecting a UI-only reason', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [undecidedFinding()], isLoading: false, isError: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
-    fireEvent.change(await screen.findByLabelText(/Removal reason/), { target: { value: 'False alarm after source review' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm remove' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]!);
 
-    await waitFor(() => expect(mocks.deleteFinding.mutate).toHaveBeenCalledWith({ findingId: 'finding-1', reason: 'False alarm after source review' }));
+    await waitFor(() => expect(mocks.deleteFinding.mutate).toHaveBeenCalledWith('finding-1'));
   });
 
-  it('offers no detection before the evidence set is accepted', () => {
-    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+  it('offers no detection before any capture exists', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
     expect(
-      screen.getByText(/Detection starts after an accepted evidence quality decision/),
+      screen.getByText(/Upload current captures before running advisory detection/),
     ).toBeTruthy();
   });
 
@@ -286,7 +243,6 @@ describe('InspectionFindingsPage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [{ ...pendingFinding(), evidenceId: 'retired-evidence' }],
       isLoading: false,
@@ -296,8 +252,8 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
-    expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1);
+    // Detection is an explicit action: nothing runs until the Inspector asks for it.
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
     expect(screen.queryByText('retired-span.png')).toBeNull();
     expect(screen.queryByText('Coating crack')).toBeNull();
     expect(screen.queryByRole('img', { name: 'Coating crack' })).toBeNull();
@@ -308,7 +264,7 @@ describe('InspectionFindingsPage', () => {
     ).toBe(false);
   });
 
-  it('runs detection automatically once accepted, and only for unanalysed images', async () => {
+  it('does not analyse automatically and analyses only when the Inspector asks', async () => {
     mocks.evidenceQuery = {
       data: [
         imageEvidence(),
@@ -317,23 +273,27 @@ describe('InspectionFindingsPage', () => {
           fileName: 'permit.pdf',
           contentType: 'application/pdf',
           sizeBytes: 8,
-          checksumSha256: 'abcdef1234567891',
+          retiredAt: null,
+          locationDescription: null,
+          deduplicated: false,
         },
       ],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1));
-    // One parallel pass over the images that have no candidates yet; the PDF is not analysed.
-    expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']);
+    // Opening the stage must not start the model on its own.
+    expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
+
+    // One request over the images only; the PDF is not analysed.
+    fireEvent.click(screen.getByRole('button', { name: /Analyse 1 image\(s\)/ }));
+    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
   });
 
-  it('analyses every unanalysed image in one parallel pass', async () => {
+  it('analyses every image in one parallel pass on request', async () => {
     mocks.evidenceQuery = {
       data: [
         imageEvidence(),
@@ -344,23 +304,23 @@ describe('InspectionFindingsPage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    // MF3-05: the accepted set is analysed together, not one image after another, so each result can
+    // MF3-05: the images are analysed together, not one image after another, so each result can
     // reach the Findings list as it arrives instead of waiting for the slowest image.
-    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledTimes(1));
-    expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith([
-      'evidence-1',
-      'evidence-2',
-      'evidence-3',
-    ]);
+    fireEvent.click(screen.getByRole('button', { name: /Analyse 3 image\(s\)/ }));
+    await waitFor(() =>
+      expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith([
+        'evidence-1',
+        'evidence-2',
+        'evidence-3',
+      ]),
+    );
   });
 
   it('animates advisory detection only while the analysis request is in flight', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
@@ -369,30 +329,14 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByRole('img', { name: 'Advisory detection in progress' })).toBeNull();
   });
 
-  it('does not auto-analyze again after the Inspector reopens findings', async () => {
+  it('does not auto-analyze when the Inspector reopens findings', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
-    // First arrival with an accepted evidence set: detection offers itself once and runs.
-    const { unmount } = renderWithRouter(<InspectionFindingsPage />);
-    await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
-    unmount();
-    mocks.analyze.analyzeMany.mockClear();
-
-    // The Inspector confirms findings, leaves the stage, and comes back to reopen it. Unmounting is
-    // what tab navigation does, so the automatic offer has to be remembered outside the component.
-    mocks.workflowQuery = {
-      data: {
-        status: 'REPORT_DRAFT',
-        findingsConfirmedByUserId: 'inspector-1',
-        findingsConfirmedAt: '2026-10-08T09:00:00Z',
-        findingsSnapshotHash: 'abcdef1234567890',
-      },
-      isLoading: false,
-      error: null,
-    };
+    // The Inspector confirms findings, leaves the stage, and comes back to reopen it. Detection
+    // must not silently re-fire just because the Inspector changed their mind about the reviewed
+    // set: reopening is a review action, not a request to run the model.
     const reopened = renderWithRouter(<InspectionFindingsPage />);
-    await screen.findByRole('button', { name: 'Reopen Findings' });
+    await screen.findByRole('button', { name: 'Confirm findings and continue' });
 
     // Reopening returns the inspection to FIELD_COMPLETED. Detection must not silently re-fire
     // just because the Inspector changed their mind about the reviewed set: reopening is a review
@@ -400,7 +344,6 @@ describe('InspectionFindingsPage', () => {
     mocks.workflowQuery = {
       data: {
         status: 'FIELD_COMPLETED',
-        findingsConfirmedByUserId: null,
         findingsConfirmedAt: null,
         findingsSnapshotHash: null,
       },
@@ -415,7 +358,6 @@ describe('InspectionFindingsPage', () => {
 
   it('re-runs detection on an analysed image and asks the server to replace its suggestions', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [pendingFinding()],
       isLoading: false,
@@ -436,7 +378,6 @@ describe('InspectionFindingsPage', () => {
 
   it('analyses an image that has no candidates without replacing anything', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionFindingsPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Analyze' }));
@@ -448,7 +389,6 @@ describe('InspectionFindingsPage', () => {
 
   it('shows the detection motion and names the image being analysed', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.analyze.isPending = true;
     mocks.analyze.analysingIds = ['evidence-1'];
 
@@ -462,41 +402,32 @@ describe('InspectionFindingsPage', () => {
     ).toContain('/images/ai-motion/');
   });
 
-  it('says no defects detected after a completed empty analysis result', () => {
+  it('shows no-defects status only for an analysis completed in the current page session', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.analysisStatusQuery = {
-      data: [{ evidenceId: 'evidence-1', completedAt: '2026-10-18T10:00:00Z', detectionCount: 0 }],
-      isLoading: false,
-      isError: false,
-    };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
+    mocks.analyze.completedIds = ['evidence-1'];
+    mocks.analyze.noDetectionIds = ['evidence-1'];
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.getByText('No defects detected')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Analyze again' })).toBeTruthy();
   });
 
-  it('says no detected defects for an image that produced no candidates', () => {
+  it('does not claim an analysis result before the Inspector runs it', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    // Detection ran and returned nothing. Say so about detection rather than about findings, because
-    // an image can carry a finding the Inspector recorded while detection itself returned nothing.
-    expect(screen.getAllByText('No detected defects').length).toBeGreaterThan(0);
-    expect(screen.queryByText('0 detected defects')).toBeNull();
+    expect(screen.queryByText('No defects detected')).toBeNull();
+    expect(screen.getByText('No detected defects')).toBeTruthy();
   });
 
-  it('does not auto-analyze an image once findings confirmation moved the inspection forward', async () => {
+  it('does not auto-analyze after findings confirmation moved the inspection forward', async () => {
     // MF3: confirmation advances the inspection to the Report step, where analysis is locked. A
     // page loaded in that state must not fire analysis the backend would refuse with 409.
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = {
       data: {
         status: 'REPORT_DRAFT',
-        findingsConfirmedByUserId: 'user-1',
         findingsConfirmedAt: '2026-10-08T09:00:00Z',
         findingsSnapshotHash: 'abcdef1234567890',
       },
@@ -513,7 +444,6 @@ describe('InspectionFindingsPage', () => {
 
   it('requires explicit acknowledgment when the reviewed set is empty', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionFindingsPage />);
 
     const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
@@ -529,7 +459,6 @@ describe('InspectionFindingsPage', () => {
 
   it('blocks aggregate confirmation while any finding remains undecided', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [pendingFinding()], isLoading: false, isError: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionFindingsPage />);
 
@@ -539,7 +468,6 @@ describe('InspectionFindingsPage', () => {
 
   it('requires no-findings acknowledgment when the working set is empty', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [],
       isLoading: false,
@@ -560,9 +488,8 @@ describe('InspectionFindingsPage', () => {
     );
   });
 
-  it('waits for existing candidate records before starting the automatic detection pass', () => {
+  it('waits for existing candidate records before enabling manual detection', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: undefined,
       isLoading: true,
@@ -576,7 +503,6 @@ describe('InspectionFindingsPage', () => {
 
   it('allows confirming a candidate without location prose', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [pendingFinding()],
       isLoading: false,
@@ -589,13 +515,12 @@ describe('InspectionFindingsPage', () => {
 
     expect(mocks.review.mutate).toHaveBeenCalledWith({
       findingId: 'finding-detected-1',
-      input: expect.objectContaining({ locationDescription: undefined }),
+      input: expect.objectContaining({ technicalNotes: 'Coating crack' }),
     });
   });
 
-  it('sends CONFIRMED with optional location and image-backed candidate context', () => {
+  it('confirms candidate severity and notes while persisting the shared evidence location', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [pendingFinding()],
       isLoading: false,
@@ -614,7 +539,6 @@ describe('InspectionFindingsPage', () => {
       findingId: 'finding-detected-1',
       input: {
         severity: 'HIGH',
-        locationDescription: 'Girder G4, east face',
         technicalNotes: 'Coating crack',
       },
     });
@@ -653,7 +577,6 @@ describe('InspectionFindingsPage', () => {
 
   it('shows labelled bounding boxes and hides them with the evidence toggle', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [pendingFinding()],
       isLoading: false,
@@ -685,7 +608,6 @@ describe('InspectionFindingsPage', () => {
           inspectorConfirmedAt: '2026-10-08T09:00:00Z',
           defectLabel: 'Deck spall',
           severity: 'HIGH',
-          component: 'North pier',
         },
       ],
       isLoading: false, isError: false,
@@ -721,7 +643,6 @@ describe('InspectionFindingsPage', () => {
   it('keeps detection Inspector-only and never exposes per-finding Org Admin decisions', () => {
     signInAs(['ORG_ADMIN']);
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -809,7 +730,6 @@ describe('InspectionFindingsPage', () => {
   });
   it('allows the Inspector to edit a reviewed candidate before report submission', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: accepted(), isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [{ ...pendingFinding(), status: 'CONFIRMED' }],
       isLoading: false,

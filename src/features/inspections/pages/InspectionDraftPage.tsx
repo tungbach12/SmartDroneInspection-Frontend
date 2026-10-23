@@ -9,7 +9,6 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
   useAuthorManualDraft,
-  useEvidenceQualityHistory,
   useInspectionWorkflowState,
   useGenerateReportDraft,
   useReportVersions,
@@ -33,13 +32,11 @@ export default function InspectionDraftPage() {
     PORTAL_IDS[0]) as PortalId;
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
-  const quality = useEvidenceQualityHistory(inspectionId);
   const workflow = useInspectionWorkflowState(inspectionId);
   const versions = useReportVersions(inspectionId);
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
 
-  const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
   const findingsConfirmed = Boolean(workflow.data?.findingsSnapshotHash) && [
     'REPORT_DRAFT',
     'REPORT_PUBLISHED',
@@ -87,7 +84,7 @@ export default function InspectionDraftPage() {
           ) : null}
           <Button
             variant="contained"
-            disabled={!isInspector || isPublished || createDraft.isPending || !evidenceAccepted || !findingsConfirmed}
+            disabled={!isInspector || isPublished || createDraft.isPending || !findingsConfirmed}
             startIcon={
               createDraft.isPending ? <AiMotionFigure name="draftBurst" size={22} /> : undefined
             }
@@ -102,16 +99,12 @@ export default function InspectionDraftPage() {
               {t('Report draft created successfully! You can now view and edit the document below.')}
             </Alert>
           )}
-          {!evidenceAccepted && (
-            <Alert severity="warning">
-              {t('Accept the evidence set before generating a report draft.')}
-            </Alert>
-          )}
+
           {createDraft.isError && (
             <Alert severity="warning">
               {getErrorMessage(
                 createDraft.error,
-                'Accept the evidence set before generating a report draft.',
+                'The report draft was not created.',
               )}
             </Alert>
           )}

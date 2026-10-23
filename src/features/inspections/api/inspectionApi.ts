@@ -19,11 +19,6 @@ export type FindingSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 /** Legacy reviewer decision literals retained to read existing finding history. */
 export type FindingDecision = 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
 
-export type EvidenceQualityDecisionType =
-  | 'ACCEPTED'
-  | 'REUPLOAD_REQUIRED'
-  | 'ADDITIONAL_SESSION_REQUIRED'
-  | 'LIMITED';
 
 export interface InspectionReportVersion {
   id: string;
@@ -31,23 +26,14 @@ export interface InspectionReportVersion {
   versionNo: number;
   status: ReportStatus;
   authorUserId: string;
-  authorVerifiedAt: string | null;
+  submittedAt: string | null;
   reviewerUserId: string | null;
   reviewedAt: string | null;
-  reviewReason: string | null;
-  returnReasonType: 'TEXT_REVISION' | 'FINDINGS_REVISION' | null;
-  withdrawnByUserId: string | null;
+  returnReason: string | null;
   withdrawnAt: string | null;
   withdrawalReason: string | null;
-  llmModel: string | null;
-  promptVersion: string | null;
-  generatedAt: string | null;
-  evidenceSnapshotHash: string | null;
-  findingsSnapshotHash: string | null;
   publishedAt: string | null;
   createdAt: string;
-  /** The document body as the author wrote it. Null for versions stored before it was exposed. */
-  narrative: string | null;
   /** Why no automated drafting contributed, present on manual drafts only. */
   omissionDisclosure: string | null;
   /** Full raw JSON snapshot containing structured report fields & custom enterprise schemas. */
@@ -85,13 +71,6 @@ export interface InspectionReportContext {
     permitDocumentReferences: string | null;
     submittedAt: string | null;
   } | null;
-  evidenceQuality: {
-    decision: string;
-    shotListComparison: string | null;
-    limitationReason: string | null;
-    decidedByUserId: string | null;
-    decidedAt: string | null;
-  } | null;
   fieldSessions: Array<{
     id: string;
     status: string;
@@ -107,9 +86,7 @@ export interface InspectionReportContext {
     droneModel: string | null;
   }>;
   reviewerQualificationDisclosure: string | null;
-  findingsConfirmedBy: string | null;
   findingsConfirmedAt: string | null;
-  findingsSnapshotHash: string | null;
 }
 
 export type ReportOverallCondition = 'GOOD' | 'FAIR' | 'POOR' | 'CRITICAL';
@@ -125,12 +102,6 @@ export interface ReportSections {
 }
 
 export type ReportSectionsInput = ReportSections;
-
-export interface EvidenceAnalysisStatus {
-  evidenceId: string;
-  completedAt: string;
-  detectionCount: number;
-}
 
 export interface EvidencePage {
   items: EvidenceItem[];
@@ -151,30 +122,14 @@ export interface EvidenceItem {
   fileName: string;
   contentType: string;
   sizeBytes: number;
-  checksumSha256: string;
   captureTime: string | null;
-  source: string;
   latitude: number | null;
   longitude: number | null;
-  externalReference: string | null;
   uploadStatus: string;
   createdAt: string;
-  retiredByUserId: string | null;
   retiredAt: string | null;
-  retirementReason: string | null;
-  locationDescription?: string | null;
-  deduplicated?: boolean;
-}
-
-export interface EvidenceQualityDecision {
-  id: string;
-  inspectionId: string;
-  fieldSessionId: string | null;
-  decision: EvidenceQualityDecisionType;
-  shotListComparison: string | null;
-  limitationReason: string | null;
-  decidedByUserId: string;
-  decidedAt: string;
+  locationDescription: string | null;
+  deduplicated: boolean;
 }
 
 /**
@@ -187,7 +142,6 @@ export type FindingStatus = 'PENDING' | 'CONFIRMED';
 
 export interface InspectionWorkflowState {
   status: InspectionStatus;
-  findingsConfirmedByUserId: string | null;
   findingsConfirmedAt: string | null;
   findingsSnapshotHash: string | null;
 }
@@ -208,45 +162,23 @@ export interface Finding {
   findingCode: string;
   defectLabel: string;
   severity: FindingSeverity;
-  locationDescription: string | null;
-  technicalNotes: string | null;
+  technicalNotes: string;
   recommendedAction: string | null;
-  component: string | null;
-  description: string | null;
-  observedCondition: string | null;
-  priority: string | null;
-  measurement: string | null;
   boundingBox: string | null;
   modelName: string | null;
   modelVersion: string | null;
   modelProvider: string | null;
   confidence: number | null;
   inspectorConfirmedAt: string | null;
-  repairRequired: boolean;
-  correctiveActionRequired: boolean;
-  correctiveActionPriority: string | null;
-  correctiveActionDueAt: string | null;
-  correctiveActionReviewedByUserId: string | null;
-  correctiveActionReviewedAt: string | null;
-  correctiveActionRationale: string | null;
+  forwardedToMaintenanceAt: string | null;
   deletedAt: string | null;
-  deletedByUserId: string | null;
-  deletionReason: string | null;
-}
-
-export interface CorrectiveHandoffResult {
-  reportVersionId: string;
-  versionNo: number;
-  publishedAt: string;
-  repairRequiredFindingIds: string[];
-  inspectionStatus: string;
 }
 
 export interface PublishedReport {
   reportVersionId: string;
   versionNo: number;
   publishedAt: string;
-  repairRequiredFindingIds: string[];
+  forwardedFindingIds: string[];
   inspectionStatus: string;
 }
 
@@ -260,29 +192,16 @@ export interface ReviewFindingInput {
   evidenceId?: string;
   defectLabel?: string;
   severity?: FindingSeverity;
-  locationDescription?: string | undefined;
   technicalNotes?: string;
   recommendedAction?: string;
-  component?: string;
-  description?: string;
-  observedCondition?: string;
-  priority?: string;
-  measurement?: string;
-  repairRequired?: boolean;
 }
 
 export interface ManualFindingInput {
   evidenceId: string;
   defectLabel: string;
   severity: FindingSeverity;
-  locationDescription?: string | undefined;
   technicalNotes: string;
   recommendedAction?: string | undefined;
-  component?: string | undefined;
-  observedCondition?: string | undefined;
-  priority?: string | undefined;
-  measurement?: string | undefined;
-  repairRequired?: boolean | undefined;
 }
 
 export interface ManualDraftInput {}
@@ -722,7 +641,6 @@ export const inspectionApi = {
   uploadEvidence: (inspectionId: string, file: File, fieldSessionId?: string) => {
     const form = new FormData();
     form.append('file', file);
-    form.append('source', 'WEB_UPLOAD');
     if (fieldSessionId) form.append('fieldSessionId', fieldSessionId);
     return api
       .post<EvidenceItem>(`/inspections/${inspectionId}/evidence`, form)
@@ -739,27 +657,16 @@ export const inspectionApi = {
   evidenceContentUrl: (inspectionId: string, evidenceId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/evidence/${evidenceId}/content`,
 
-  // MF3-03/04: the assigned Inspector's own adequacy decision.
-  decideEvidenceQuality: (
-    inspectionId: string,
-    input: {
-      decision: EvidenceQualityDecisionType;
-      shotListComparison?: string;
-      limitationReason?: string;
-    },
-  ) =>
+  /**
+   * MF2/MF3: the assigned Inspector asks for another field visit because the completed session
+   * did not cover the required scope. The prior readiness is invalidated and a new preparation
+   * draft is opened, so the visit must be planned and independently approved again.
+   */
+  requestAdditionalSession: (inspectionId: string, reason: string) =>
     api
-      .post<EvidenceQualityDecision>(
-        `/inspections/${inspectionId}/evidence-quality-decisions`,
-        input,
-      )
-      .then((response) => response.data),
-
-  evidenceQualityHistory: (inspectionId: string) =>
-    api
-      .get<EvidenceQualityDecision[]>(
-        `/inspections/${inspectionId}/evidence-quality-decisions`,
-      )
+      .post<InspectionPreparation>(`/inspections/${inspectionId}/field-sessions/additional-session`, {
+        reason,
+      })
       .then((response) => response.data),
 
   workflowState: (inspectionId: string) =>
@@ -789,30 +696,21 @@ export const inspectionApi = {
       .get<Finding[]>(`/inspections/${inspectionId}/findings/removed`)
       .then((response) => response.data),
 
-  listEvidenceAnalysisStatuses: (inspectionId: string) =>
-    api
-      .get<EvidenceAnalysisStatus[]>(`/inspections/${inspectionId}/evidence/analysis-status`)
-      .then((response) => response.data),
-
   /**
    * MF3-05. Runs detection for one capture. Without `replace` a capture that already has candidates
    * returns them instead of running the detector again; with it, the image's unreviewed candidates
    * are replaced by the fresh result while reviewed ones are kept.
    */
-  retireEvidence: (inspectionId: string, evidenceId: string, reason: string) =>
+  retireEvidence: (inspectionId: string, evidenceId: string) =>
     api
-      .post<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/retire`, { reason })
+      .post<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/retire`)
       .then((response) => response.data),
 
-  bulkRetireEvidence: (
-    inspectionId: string,
-    evidenceIds: string[],
-    reason: string,
-  ) =>
+  bulkRetireEvidence: (inspectionId: string, evidenceIds: string[]) =>
     api
       .post<EvidenceItem[]>(
         `/inspections/${inspectionId}/evidence/bulk-retire`,
-        { evidenceIds, reason },
+        { evidenceIds },
       )
       .then((response) => response.data),
 
@@ -849,8 +747,8 @@ export const inspectionApi = {
       .put<Finding>(`/inspections/${inspectionId}/findings/${findingId}`, input)
       .then((response) => response.data),
 
-  deleteFinding: (inspectionId: string, findingId: string, reason: string) =>
-    api.delete<void>(`/inspections/${inspectionId}/findings/${findingId}`, { data: { reason } })
+  deleteFinding: (inspectionId: string, findingId: string) =>
+    api.delete<void>(`/inspections/${inspectionId}/findings/${findingId}`)
       .then((response) => response.data),
 
   // MF3-07 to MF3-11 report workflow.
@@ -902,13 +800,12 @@ export const inspectionApi = {
     versionId: string,
     approve: boolean,
     reason?: string,
-    reasonType?: 'TEXT_REVISION' | 'FINDINGS_REVISION',
   ) =>
     api
       .post<InspectionReportVersion>(
         `/inspections/${inspectionId}/report/versions/${versionId}/review`,
         null,
-        { params: { approve, reason, reasonType } },
+        { params: { approve, reason } },
       )
       .then((response) => response.data),
 
@@ -919,36 +816,11 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  recordCorrectiveAction: (
-    inspectionId: string,
-    findingId: string,
-    input: {
-      correctiveActionRequired: boolean;
-      priority?: string;
-      dueAt?: string;
-      rationale: string;
-    },
-  ) =>
+  completeCorrectiveHandoff: (inspectionId: string, findingIds: string[]) =>
     api
-      .put<Finding>(
-        `/inspections/${inspectionId}/findings/${findingId}/corrective-action`,
-        input,
-      )
-      .then((response) => response.data),
-
-  completeCorrectiveHandoff: (inspectionId: string, findingIds?: string[]) =>
-    api
-      .post<CorrectiveHandoffResult>(
+      .post<PublishedReport>(
         `/inspections/${inspectionId}/report/corrective-handoff`,
-        findingIds ? { findingIds } : {},
-      )
-      .then((response) => response.data),
-
-  declareNoCorrectiveWork: (inspectionId: string, rationale: string) =>
-    api
-      .post<CorrectiveHandoffResult>(
-        `/inspections/${inspectionId}/report/no-corrective-work`,
-        { rationale },
+        { findingIds },
       )
       .then((response) => response.data),
 

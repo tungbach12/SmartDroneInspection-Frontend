@@ -17,8 +17,10 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import type { InspectionPreparation, InspectionPreparationStatus } from '../api/inspectionApi';
 import {
   useInspectionPreparations,
+  useInspectionWorkflowState,
   useLinkPermitReferences,
   usePrepareShotList,
+  useRequestAdditionalSession,
   useSubmitPreparation,
 } from '../hooks/useInspections';
 import { ComplianceGateSection } from './ComplianceGateSection';
@@ -66,8 +68,10 @@ function PreparationEditor({
   const prepare = usePrepareShotList();
   const submit = useSubmitPreparation();
   const linkPermits = useLinkPermitReferences();
+  const requestAdditionalSession = useRequestAdditionalSession(inspectionId);
 
   const current = preparations.data?.[0];
+  const workflow = useInspectionWorkflowState(inspectionId);
 
   const [shotList, setShotList] = useState(current?.shotList ?? '');
   const [evidenceTypes, setEvidenceTypes] = useState(current?.evidenceTypes ?? '');
@@ -79,6 +83,7 @@ function PreparationEditor({
   const [plannedEndAt, setPlannedEndAt] = useState(current?.plannedEndAt?.slice(0, 16) ?? '');
   const [acknowledgment, setAcknowledgment] = useState('');
   const [permitId, setPermitId] = useState('');
+  const [additionalSessionReason, setAdditionalSessionReason] = useState('');
 
   const saveDraft = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -119,6 +124,11 @@ function PreparationEditor({
   const status: InspectionPreparationStatus = current?.status ?? 'DRAFT';
   const reviewed = status === 'READY';
   const canSubmit = Boolean(current) && status === 'SUBMITTED';
+  const canRequestAdditionalSession = Boolean(
+    isInspector &&
+      workflow.data?.status === 'FIELD_COMPLETED' &&
+      current?.status === 'READY',
+  );
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
@@ -184,7 +194,49 @@ function PreparationEditor({
           isError={submit.isError}
           fallbackMessage={t('Could not submit the preparation.')}
         />
+        <MutationProblemAlert
+          error={requestAdditionalSession.error}
+          isError={requestAdditionalSession.isError}
+          fallbackMessage="Could not request another field session."
+        />
       </Box>
+
+      {canRequestAdditionalSession ? (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'action.hover' }}>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Another field session needed?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Explain what the completed visit did not cover. The current readiness approval will be
+              invalidated and a new preparation draft will be opened for planning and independent
+              review.
+            </Typography>
+            <TextField
+              label="Why is another field session needed?"
+              value={additionalSessionReason}
+              onChange={(event) => setAdditionalSessionReason(event.target.value)}
+              required
+              multiline
+              minRows={2}
+              slotProps={{ htmlInput: { maxLength: 2000 } }}
+            />
+            <Box>
+              <Button
+                variant="outlined"
+                disabled={requestAdditionalSession.isPending || !additionalSessionReason.trim()}
+                onClick={() =>
+                  requestAdditionalSession.mutate(additionalSessionReason.trim(), {
+                    onSuccess: () => setAdditionalSessionReason(''),
+                  })
+                }
+              >
+                {requestAdditionalSession.isPending ? 'Requesting…' : 'Additional session needed'}
+              </Button>
+            </Box>
+          </Stack>
+        </Paper>
+      ) : null}
 
       {isInspector ? (
         <Stack
