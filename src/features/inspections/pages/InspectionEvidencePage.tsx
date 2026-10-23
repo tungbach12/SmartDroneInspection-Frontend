@@ -318,7 +318,6 @@ export default function InspectionEvidencePage() {
               {showBulkRetireForm && (
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                     {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s)')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
@@ -344,7 +343,6 @@ export default function InspectionEvidencePage() {
                       </Button>
                       <Button size="small" onClick={() => setShowBulkRetireForm(false)}>
                         {t('Cancel')}
-                      </Button>
                       </Button>
                     </Stack>
                     {bulkRetire.isError && (

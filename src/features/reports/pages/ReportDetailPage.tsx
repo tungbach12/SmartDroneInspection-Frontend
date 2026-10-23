@@ -360,7 +360,6 @@ export default function ReportDetailPage() {
                           </Alert>
                         )}
                         <TextField
-                        <TextField
                           label={t('Reason for return')}
                           placeholder={t('Required when returning for author revisions')}
                           multiline
