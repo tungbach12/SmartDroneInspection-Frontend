@@ -117,7 +117,7 @@ export function WorkOrderDetailPanel({
           <Tab
             key={entry.value}
             value={entry.value}
-            label={entry.label}
+            label={t(entry.label)}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           />
         ))}
@@ -228,7 +228,7 @@ function OverviewTab({
                   loading={transition.isPending && transition.variables === entry.action}
                   onClick={() => transition.mutate(entry.action)}
                 >
-                  {entry.label}
+                  {t(entry.label)}
                 </LoadingButton>
               ))
             : null}
@@ -254,8 +254,7 @@ function OverviewTab({
         </Stack>
 
         <Alert severity="info">
-          A work order closes only after independent acceptance and cost reconciliation. Closing is
-          not a shortcut: the platform keeps the record either way.
+          {t('A work order closes only after independent acceptance and cost reconciliation. Closing is not a shortcut: the platform keeps the record either way.')}
         </Alert>
 
         <AssignTeamDialog
@@ -390,8 +389,7 @@ function AssignTeamDialog({
               helperText={t('Why this team was designated.')}
             />
             <Alert severity="warning">
-              The lead and the report author may be the same engineer. The accepting reviewer may
-              not be on the executing team, and the platform refuses that assignment.
+              {t('The lead and the report author may be the same engineer. The accepting reviewer may not be on the executing team, and the platform refuses that assignment.')}
             </Alert>
           </Stack>
         </DialogContent>
@@ -1381,8 +1379,7 @@ function CostsTab({
                 {t('Reconcile costs')}
               </LoadingButton>
               <Alert severity="info">
-                Actual cost lines never overwrite an estimate line. The variance is computed by the
-                platform from the approved baseline, the approved changes and these actuals.
+                {t('Actual cost lines never overwrite an estimate line. The variance is computed by the platform from the approved baseline, the approved changes and these actuals.')}
               </Alert>
             </Stack>
           </Box>
@@ -1488,8 +1485,7 @@ function CostsTab({
                 {t('Record decision')}
               </LoadingButton>
               <Alert severity="warning">
-                Only the designated independent reviewer can record this. The engineer who did the
-                work cannot accept it.
+                {t('Only the designated independent reviewer can record this. The engineer who did the work cannot accept it.')}
               </Alert>
             </Stack>
           </Box>

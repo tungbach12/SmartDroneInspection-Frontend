@@ -3,8 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Alert,
   Box,
-  FormControlLabel,
-  Switch,
   Button,
   Chip,
   Dialog,
@@ -12,7 +10,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
+  FormControlLabel,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -27,7 +31,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export default function AccountSecurityPage() {
-  const { t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
   const navigate = useNavigate();
@@ -81,13 +85,13 @@ export default function AccountSecurityPage() {
             {t('Security and sign-in')}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Manage your password and active sessions. Changing your password
-            signs out all existing sessions.
+            {t('Manage your password and active sessions. Changing your password signs out all existing sessions.')}
           </Typography>
         </Box>
 
         {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
+        {/* Signed-in Account Info */}
         <Box
           sx={{
             p: { xs: 2, sm: 3 },
@@ -111,6 +115,53 @@ export default function AccountSecurityPage() {
           </Stack>
         </Box>
 
+        {/* Language and Regional Settings */}
+        <Box
+          sx={{
+            p: { xs: 2, sm: 3 },
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 3,
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {t('Language & display')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {t('Choose your preferred language for the application interface.')}
+              </Typography>
+            </Box>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <FormControl size="small" sx={{ minWidth: 240 }}>
+                <InputLabel id="account-language-select-label">{t('Language')}</InputLabel>
+                <Select
+                  labelId="account-language-select-label"
+                  id="account-language-select"
+                  value={locale}
+                  label={t('Language')}
+                  onChange={(e) => setLocale(e.target.value === 'vi' ? 'vi' : 'en')}
+                >
+                  <MenuItem value="vi">🇻🇳 Tiếng Việt (Vietnamese)</MenuItem>
+                  <MenuItem value="en">🇺🇸 English (Tiếng Anh)</MenuItem>
+                </Select>
+              </FormControl>
+              <Chip
+                color={locale === 'vi' ? 'primary' : 'default'}
+                variant="outlined"
+                label={locale === 'vi' ? 'Đang sử dụng: Tiếng Việt' : 'Active: English'}
+                sx={{ fontWeight: 600, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+              />
+            </Stack>
+          </Stack>
+        </Box>
+
         {user?.roles.includes('INSPECTOR') && (
           <Box
             sx={{
@@ -125,8 +176,7 @@ export default function AccountSecurityPage() {
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{t('AI analysis fallback')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  When YOLO is unavailable, automatically try the configured vision model. A valid
-                  YOLO result with no detections never triggers fallback.
+                  {t('When YOLO is unavailable, automatically try the configured vision model. A valid YOLO result with no detections never triggers fallback.')}
                 </Typography>
               </Box>
               {preferenceError && <Alert severity="error">{preferenceError}</Alert>}
@@ -152,7 +202,7 @@ export default function AccountSecurityPage() {
                     }}
                   />
                 }
-                label={visionFallbackEnabled ? 'Fallback enabled' : 'Fallback disabled'}
+                label={visionFallbackEnabled ? t('Fallback enabled') : t('Fallback disabled')}
               />
             </Stack>
           </Box>
@@ -176,8 +226,7 @@ export default function AccountSecurityPage() {
                 {t('Change password')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Choose 15–128 characters. Common passwords and account details
-                are rejected.
+                {t('Choose 15–128 characters. Common passwords and account details are rejected.')}
               </Typography>
             </Box>
             <TextField
@@ -213,7 +262,7 @@ export default function AccountSecurityPage() {
               disabled={form.formState.isSubmitting}
               sx={{ alignSelf: 'flex-start', minWidth: 170 }}
             >
-              {form.formState.isSubmitting ? 'Updating…' : 'Update password'}
+              {form.formState.isSubmitting ? t('Updating…') : t('Update password')}
             </Button>
           </Stack>
         </Box>
