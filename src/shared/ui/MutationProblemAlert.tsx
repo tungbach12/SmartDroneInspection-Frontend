@@ -1,6 +1,7 @@
 import { Alert } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface MutationProblemAlertProps {
   /** The rejected mutation, or its error. */
@@ -21,6 +22,7 @@ export function MutationProblemAlert({
   isError,
   fallbackMessage,
 }: MutationProblemAlertProps) {
+  const { t } = useLocale();
   if (!isError) {
     return null;
   }
@@ -28,7 +30,7 @@ export function MutationProblemAlert({
   if (isPermissionDenied(error)) {
     return (
       <Alert severity="warning" data-testid="permission-denied">
-        <strong>Permission required</strong> — {getErrorMessage(error, fallbackMessage)}
+        <strong>{t('Permission required')}</strong> — {getErrorMessage(error, fallbackMessage)}
       </Alert>
     );
   }

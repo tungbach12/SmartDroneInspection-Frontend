@@ -28,6 +28,7 @@ import { ProvisionWorkforceUserDialog } from '../components/ProvisionWorkforceUs
 import { TemporaryPasswordDialog } from '../components/TemporaryPasswordDialog';
 import { CreateCredentialDialog } from '../components/CreateCredentialDialog';
 import { ReviewCredentialDialog } from '../components/ReviewCredentialDialog';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   GRANTABLE_WORKFORCE_ROLES,
   type GrantableWorkforceRole,
@@ -71,6 +72,7 @@ interface IssuedCredential {
 }
 
 export default function WorkforcePage() {
+  const { formatDate, t } = useLocale();
   const { data: members, isLoading, error, refetch } = useWorkforceUsers();
   const [issued, setIssued] = useState<IssuedCredential | null>(null);
   const credentialQuery = useWorkforceCredentials();
@@ -92,7 +94,7 @@ export default function WorkforcePage() {
 
   const provisionButton = (
     <Button variant="contained" startIcon={<PersonAddAlt />} onClick={() => setProvisionOpen(true)}>
-      Provision user
+      {t('Provision user')}
     </Button>
   );
 
@@ -119,7 +121,7 @@ export default function WorkforcePage() {
         return (
           <Stack direction="row" spacing={1}>
             <Button size="small" onClick={() => setEditingRoles(member)}>
-              Edit roles
+              {t('Edit roles')}
             </Button>
             {nextStatus && (
               <Button
@@ -141,20 +143,20 @@ export default function WorkforcePage() {
   return (
     <Box className="workspace-page workspace-page--workforce">
       <PageHeader
-        title="Workforce"
-        subtitle="Inspectors and maintenance engineers in your organization"
+        title={t('Workforce')}
+        subtitle={t('Inspectors and maintenance engineers in your organization')}
         actions={provisionButton}
       />
 
       <MutationProblemAlert
         isError={updateStatus.isError}
         error={updateStatus.error}
-        fallbackMessage="Could not update this workforce user."
+        fallbackMessage={t('Could not update this workforce user.')}
       />
 
-      <Tabs value={tab} onChange={(_event, value: number) => setTab(value)} aria-label="Workforce management">
-        <Tab label="Users" />
-        <Tab label="Credentials" />
+      <Tabs value={tab} onChange={(_event, value: number) => setTab(value)} aria-label={t('Workforce management')}>
+        <Tab label={t('Users')} />
+        <Tab label={t('Credentials')} />
       </Tabs>
 
       {tab === 0 && <QueryState
@@ -164,8 +166,8 @@ export default function WorkforcePage() {
         isEmpty={Boolean(members && members.length === 0)}
         empty={
           <EmptyState
-            title="No workforce users yet"
-            description="Provision an inspector or maintenance engineer to assign inspection and maintenance work."
+            title={t('No workforce users yet')}
+            description={t('Provision an inspector or maintenance engineer to assign inspection and maintenance work.')}
             action={provisionButton}
           />
         }
@@ -175,7 +177,7 @@ export default function WorkforcePage() {
           rows={members ?? []}
           rowKey={(member) => member.userId}
           searchable
-          searchPlaceholder="Search by name or email…"
+          searchPlaceholder={t('Search by name or email…')}
           searchPredicate={(member, query) =>
             member.fullName.toLowerCase().includes(query) ||
             member.email.toLowerCase().includes(query)
@@ -191,7 +193,7 @@ export default function WorkforcePage() {
               disabled={isLoading || Boolean(error) || !members?.length}
               onClick={() => setCredentialOpen(true)}
             >
-              Add credential
+              {t('Add credential')}
             </Button>
           </Stack>
           <Alert severity="info">
@@ -199,16 +201,16 @@ export default function WorkforcePage() {
             government or external verification.
           </Alert>
           {isLoading ? (
-            <Typography role="status" color="text.secondary">Loading workforce users…</Typography>
+            <Typography role="status" color="text.secondary">{t('Loading workforce users…')}</Typography>
           ) : error ? (
-            <Alert severity="warning" action={<Button onClick={() => void refetch()}>Retry workforce users</Button>}>
+            <Alert severity="warning" action={<Button onClick={() => void refetch()}>{t('Retry workforce users')}</Button>}>
               Workforce users are unavailable. Credential records can still be viewed, but a subject
               must load before you can add one.
             </Alert>
           ) : members?.length === 0 ? (
             <EmptyState
-              title="No workforce users available"
-              description="Provision an inspector or maintenance engineer before recording credentials."
+              title={t('No workforce users available')}
+              description={t('Provision an inspector or maintenance engineer before recording credentials.')}
               action={provisionButton}
             />
           ) : null}
@@ -219,11 +221,11 @@ export default function WorkforcePage() {
             isEmpty={Boolean(credentialQuery.data && credentialQuery.data.length === 0)}
             empty={
               <EmptyState
-                title="No credentials recorded"
+                title={t('No credentials recorded')}
                 description={error
                   ? "No credentials are recorded. Workforce subjects are unavailable; retry the users list before adding a credential."
                   : "Add a credential record for a workforce user."}
-                action={<Button disabled={isLoading || Boolean(error) || !members?.length} onClick={() => setCredentialOpen(true)}>Add credential</Button>}
+                action={<Button disabled={isLoading || Boolean(error) || !members?.length} onClick={() => setCredentialOpen(true)}>{t('Add credential')}</Button>}
               />
             }
           >
@@ -232,9 +234,9 @@ export default function WorkforcePage() {
                 { id: 'subject', label: 'Workforce user', render: (credential) => members?.find((user) => user.userId === credential.userId)?.fullName ?? credential.userId },
                 { id: 'type', label: 'Credential type', render: (credential) => credential.credentialType },
                 { id: 'issuer', label: 'Issuer', render: (credential) => credential.issuer || '—' },
-                { id: 'expires', label: 'Expires', render: (credential) => credential.expiresAt ? new Date(credential.expiresAt).toLocaleDateString() : '—' },
+                { id: 'expires', label: 'Expires', render: (credential) => credential.expiresAt ? formatDate(new Date(credential.expiresAt)) : '—' },
                 { id: 'status', label: 'Recorded status', render: (credential) => <StatusChip status={credential.status} /> },
-                { id: 'actions', label: '', render: (credential) => credential.status === 'PENDING_REVIEW' ? <Button size="small" onClick={() => setReviewingCredential(credential)}>Review credential</Button> : null },
+                { id: 'actions', label: '', render: (credential) => credential.status === 'PENDING_REVIEW' ? <Button size="small" onClick={() => setReviewingCredential(credential)}>{t('Review credential')}</Button> : null },
               ] as DataTableColumn<WorkforceCredential>[]}
               rows={credentialQuery.data ?? []}
               rowKey={(credential) => credential.id}
@@ -347,6 +349,7 @@ function EditRolesDialog({
   onClose,
   onSubmit,
 }: EditRolesDialogProps) {
+  const { t } = useLocale();
   const initialRoles = GRANTABLE_WORKFORCE_ROLES.filter((role) =>
     member.roles.includes(role),
   );
@@ -360,7 +363,7 @@ function EditRolesDialog({
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Edit roles</DialogTitle>
+      <DialogTitle>{t('Edit roles')}</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
@@ -369,14 +372,14 @@ function EditRolesDialog({
           {isError && isConflict(error) ? (
             <RefusalNotice
               reason={getErrorMessage(error, '')}
-              fallbackMessage="These roles conflict with the user's current organization role."
+              fallbackMessage={t('These roles conflict with the user\'s current organization role.')}
               testId="roles-conflict"
             />
           ) : (
             <MutationProblemAlert
               isError={isError}
               error={error}
-              fallbackMessage="Could not update these roles."
+              fallbackMessage={t('Could not update these roles.')}
             />
           )}
           {GRANTABLE_WORKFORCE_ROLES.map((role) => (
@@ -394,14 +397,14 @@ function EditRolesDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
         <LoadingButton
           variant="contained"
           loading={pending}
           disabled={roles.length === 0}
           onClick={() => onSubmit(roles)}
         >
-          Save roles
+          {t('Save roles')}
         </LoadingButton>
       </DialogActions>
     </Dialog>

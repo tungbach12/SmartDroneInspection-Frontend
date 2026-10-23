@@ -20,6 +20,7 @@ import { useWorkOrders } from '../hooks/useMaintenance';
 import type { WorkOrder, WorkOrderStatus } from '../api/maintenanceApi';
 import { WorkOrderDetailPanel } from '../components/WorkOrderDetailPanel';
 import { RepairCandidatePanel } from '../components/RepairCandidatePanel';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const maintenanceSteps = [
   { label: 'Accepted finding', icon: AssignmentTurnedInOutlined },
@@ -65,6 +66,7 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
  * scope, budget and acceptance, while a MAINTENANCE_ENGINEER records the work itself.
  */
 export default function MaintenancePage() {
+  const { formatDate, formatNumber, t } = useLocale();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isOrgAdmin = roles.includes('ORG_ADMIN');
@@ -120,7 +122,7 @@ export default function MaintenancePage() {
       width: 130,
       render: (order) => (
         <Typography sx={{ color: '#475467', fontSize: '0.8125rem' }}>
-          {order.dueAt ? new Date(order.dueAt).toLocaleDateString() : '—'}
+          {order.dueAt ? formatDate(new Date(order.dueAt)) : '—'}
         </Typography>
       ),
     },
@@ -129,8 +131,8 @@ export default function MaintenancePage() {
   return (
     <Box className="workspace-page workspace-page--maintenance">
       <PageHeader
-        title="Maintenance"
-        subtitle="Repair work opened from accepted inspection findings"
+        title={t('Maintenance')}
+        subtitle={t('Repair work opened from accepted inspection findings')}
       />
 
       {/* 4 Lytic KPI Metric Cards */}
@@ -143,32 +145,32 @@ export default function MaintenancePage() {
         }}
       >
         <MetricCard
-          label="Total Work Orders"
-          value={workOrders.isLoading ? '…' : totalCount.toLocaleString()}
-          change="Tracked"
+          label={t('Total Work Orders')}
+          value={workOrders.isLoading ? '…' : formatNumber(totalCount)}
+          change={t('Tracked')}
           positive
           subtext="repair work orders"
           iconType="wrench"
         />
         <MetricCard
-          label="Open Work"
-          value={workOrders.isLoading ? '…' : openCount.toLocaleString()}
+          label={t('Open Work')}
+          value={workOrders.isLoading ? '…' : formatNumber(openCount)}
           change={openCount > 0 ? 'Action required' : 'Clear'}
           positive={openCount === 0}
           subtext="not yet closed"
           iconType="alert"
         />
         <MetricCard
-          label="In Progress"
-          value={workOrders.isLoading ? '…' : inProgressCount.toLocaleString()}
-          change="Operational"
+          label={t('In Progress')}
+          value={workOrders.isLoading ? '…' : formatNumber(inProgressCount)}
+          change={t('Operational')}
           positive
           subtext="engineers on site"
           iconType="clock"
         />
         <MetricCard
-          label="Awaiting Acceptance"
-          value={workOrders.isLoading ? '…' : awaitingAcceptance.toLocaleString()}
+          label={t('Awaiting Acceptance')}
+          value={workOrders.isLoading ? '…' : formatNumber(awaitingAcceptance)}
           change={awaitingAcceptance > 0 ? 'Review due' : 'Clear'}
           positive={awaitingAcceptance === 0}
           subtext="independent review"
@@ -212,22 +214,22 @@ export default function MaintenancePage() {
               isLoading={workOrders.isLoading}
               error={workOrders.error}
               onRetry={() => void workOrders.refetch()}
-              loadingLabel="Loading work orders…"
+              loadingLabel={t('Loading work orders…')}
               isEmpty={items.length === 0}
               empty={
                 <EmptyState
-                  title="No maintenance tasks"
-                  description="Assigned maintenance work will appear here with its source finding, owner, and resolution status."
+                  title={t('No maintenance tasks')}
+                  description={t('Assigned maintenance work will appear here with its source finding, owner, and resolution status.')}
                 />
               }
             >
               <DataTable
-                title="Work orders"
+                title={t('Work orders')}
                 columns={columns}
                 rows={items}
                 rowKey={(order) => order.id}
                 searchable
-                searchPlaceholder="Search by corrective scope…"
+                searchPlaceholder={t('Search by corrective scope…')}
                 searchPredicate={(order, query) =>
                   order.correctiveScope.toLowerCase().includes(query)
                 }
@@ -247,10 +249,10 @@ export default function MaintenancePage() {
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 700, color: '#101828' }}>
-              Traceable follow-up
+              {t('Traceable follow-up')}
             </Typography>
             <Typography variant="body2" sx={{ color: '#667085', mt: 0.75 }}>
-              Keep the reason for the work visible from the finding through completion.
+              {t('Keep the reason for the work visible from the finding through completion.')}
             </Typography>
             <Stack spacing={2} sx={{ mt: 3 }}>
               {maintenanceSteps.map(({ label, icon: Icon }) => (

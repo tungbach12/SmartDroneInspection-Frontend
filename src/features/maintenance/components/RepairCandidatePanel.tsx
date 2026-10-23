@@ -24,6 +24,7 @@ import {
   useRepairCandidates,
 } from '../hooks/useMaintenance';
 import type { RepairCandidate } from '../api/maintenanceApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface RepairCandidatePanelProps {
   onCreated: () => void;
@@ -37,6 +38,7 @@ interface RepairCandidatePanelProps {
  * finding already under repair is not a new triage decision.
  */
 export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
+  const { t } = useLocale();
   const candidates = useRepairCandidates();
   const createWorkOrder = useCreateWorkOrder();
   const workforce = useWorkforceUsers();
@@ -61,10 +63,10 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
           <AssignmentTurnedInOutlined color="primary" />
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
-              Repair candidates
+              {t('Repair candidates')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Confirmed findings on a published report that still need corrective work.
+              {t('Confirmed findings on a published report that still need corrective work.')}
             </Typography>
           </Box>
         </Stack>
@@ -72,7 +74,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
         <MutationProblemAlert
           error={createWorkOrder.error}
           isError={createWorkOrder.isError}
-          fallbackMessage="Could not create the work order."
+          fallbackMessage={t('Could not create the work order.')}
         />
 
         <QueryState
@@ -80,10 +82,10 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
           error={candidates.error}
           onRetry={() => void candidates.refetch()}
           isEmpty={items.length === 0}
-          loadingLabel="Loading repair candidates…"
+          loadingLabel={t('Loading repair candidates…')}
           empty={
             <Typography variant="body2" color="text.secondary">
-              No repair-required finding is waiting for corrective work.
+              {t('No repair-required finding is waiting for corrective work.')}
             </Typography>
           }
         >
@@ -114,7 +116,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                     </Typography>
                     {candidate.recommendedAction ? (
                       <Typography variant="caption" sx={{ color: '#667085', display: 'block', mt: 0.5 }}>
-                        Recommended: {candidate.recommendedAction}
+                        {t('Recommended:')} {candidate.recommendedAction}
                       </Typography>
                     ) : null}
                   </Box>
@@ -136,7 +138,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       setBudgetApprover(orgAdmins[0]?.userId ?? '');
                     }}
                   >
-                    Open work order
+                    {t('Open work order')}
                   </Button>
                 </Stack>
               </Box>
@@ -170,13 +172,13 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>Open a work order</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Open a work order')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={createWorkOrder.error}
                 isError={createWorkOrder.isError}
-                fallbackMessage="Could not create the work order."
+                fallbackMessage={t('Could not create the work order.')}
               />
               {target ? (
                 <Alert severity="info">
@@ -184,39 +186,39 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 </Alert>
               ) : null}
               <TextField
-                label="Corrective scope"
+                label={t('Corrective scope')}
                 required
                 multiline
                 minRows={3}
                 value={correctiveScope}
                 onChange={(e) => setCorrectiveScope(e.target.value)}
-                helperText="What has to be repaired to close this finding."
+                helperText={t('What has to be repaired to close this finding.')}
               />
               <TextField
-                label="Acceptance criteria"
+                label={t('Acceptance criteria')}
                 multiline
                 minRows={2}
                 value={acceptanceCriteria}
                 onChange={(e) => setAcceptanceCriteria(e.target.value)}
-                helperText="What proves the repair is acceptable."
+                helperText={t('What proves the repair is acceptable.')}
               />
               <Stack direction="row" spacing={2}>
                 <TextField
                   select
-                  label="Priority"
+                  label={t('Priority')}
                   value={priority}
                   onChange={(e) =>
                     setPriority(e.target.value as typeof priority)
                   }
                   fullWidth
                 >
-                  <MenuItem value="LOW">Low</MenuItem>
-                  <MenuItem value="MEDIUM">Medium</MenuItem>
-                  <MenuItem value="HIGH">High</MenuItem>
-                  <MenuItem value="CRITICAL">Critical</MenuItem>
+                  <MenuItem value="LOW">{t('Low')}</MenuItem>
+                  <MenuItem value="MEDIUM">{t('Medium')}</MenuItem>
+                  <MenuItem value="HIGH">{t('High')}</MenuItem>
+                  <MenuItem value="CRITICAL">{t('Critical')}</MenuItem>
                 </TextField>
                 <TextField
-                  label="Due"
+                  label={t('Due')}
                   type="datetime-local"
                   value={dueAt}
                   onChange={(e) => setDueAt(e.target.value)}
@@ -226,11 +228,11 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
               </Stack>
               <TextField
                 select
-                label="Budget approver"
+                label={t('Budget approver')}
                 required
                 value={budgetApprover}
                 onChange={(e) => setBudgetApprover(e.target.value)}
-                helperText="The Organization Admin who approves the cost baseline."
+                helperText={t('The Organization Admin who approves the cost baseline.')}
               >
                 {orgAdmins.map((admin) => (
                   <MenuItem key={admin.userId} value={admin.userId}>
@@ -241,14 +243,14 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setTarget(null)}>Cancel</Button>
+            <Button onClick={() => setTarget(null)}>{t('Cancel')}</Button>
             <LoadingButton
               type="submit"
               variant="contained"
               loading={createWorkOrder.isPending}
               disabled={!correctiveScope.trim() || !budgetApprover}
             >
-              Create work order
+              {t('Create work order')}
             </LoadingButton>
           </DialogActions>
         </form>

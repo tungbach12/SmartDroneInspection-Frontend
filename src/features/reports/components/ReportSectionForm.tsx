@@ -1,4 +1,5 @@
 import { Box, Chip, Stack, TextField, Typography } from '@mui/material';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type {
   InspectionReportVersion,
   ReportOverallCondition,
@@ -170,19 +171,20 @@ export function ReportSectionField({
 }: Pick<ReportSectionFormProps, 'sections' | 'onChange' | 'disabled'> & {
   section: AuthoredReportSection;
 }) {
+  const { t } = useLocale();
   const details = SECTION_DETAILS[section];
   if (section === 'purposeScopeCriteria') {
     return (
       <Section {...details}>
         <Stack spacing={1.5}>
           <Box
-            aria-label="Purpose scope and criteria from inspection records"
+            aria-label={t('Purpose scope and criteria from inspection records')}
             sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'action.hover', whiteSpace: 'pre-line' }}
           >
             <Typography variant="body2">{sections.purposeScopeCriteria || 'Inspection objective, scope, components, criteria and planned shot-list are not supplied.'}</Typography>
           </Box>
           <SectionField
-            label="Inspector coverage assessment (optional)"
+            label={t('Inspector coverage assessment (optional)')}
             value={sections.inspectorCoverageAssessment}
             onChange={(value) => onChange('inspectorCoverageAssessment', value)}
             disabled={disabled}
@@ -199,7 +201,7 @@ export function ReportSectionField({
       <Section {...details}>
         <Stack spacing={1.5}>
           <Box>
-            <Typography variant="caption" sx={{ color: '#475467', fontWeight: 700 }}>Overall condition</Typography>
+            <Typography variant="caption" sx={{ color: '#475467', fontWeight: 700 }}>{t('Overall condition')}</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
               {CONDITIONS.map((option) => (
                 <Chip
@@ -214,7 +216,7 @@ export function ReportSectionField({
               ))}
             </Stack>
           </Box>
-          <SectionField label="Executive summary text" value={sections.executiveSummary} onChange={(value) => onChange('executiveSummary', value)} disabled={disabled} maxLength={details.maxLength} rows={details.rows} />
+          <SectionField label={t('Executive summary text')} value={sections.executiveSummary} onChange={(value) => onChange('executiveSummary', value)} disabled={disabled} maxLength={details.maxLength} rows={details.rows} />
         </Stack>
       </Section>
     );

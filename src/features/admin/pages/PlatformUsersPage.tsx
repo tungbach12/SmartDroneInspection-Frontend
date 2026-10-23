@@ -28,6 +28,7 @@ import {
   useUpdatePlatformUserStatus,
 } from '../hooks/usePlatformUsers';
 import type { PlatformUser, PlatformUserRole } from '../api/platformUserApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const ZONE_LABELS: Record<string, string> = {
   PLATFORM: 'Platform',
@@ -50,6 +51,7 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
  * controls rather than a full workforce roster.
  */
 export default function PlatformUsersPage() {
+  const { t } = useLocale();
   const users = usePlatformUsers();
   const createUser = useCreatePlatformUser();
   const resetPassword = useResetPlatformUserPassword();
@@ -115,7 +117,7 @@ export default function PlatformUsersPage() {
             variant="outlined"
             onClick={() => resetPassword.mutate(user.id)}
           >
-            Reset password
+            {t('Reset password')}
           </Button>
           <Button
             size="small"
@@ -123,7 +125,7 @@ export default function PlatformUsersPage() {
             color="error"
             onClick={() => updateStatus.mutate({ userId: user.id, status: 'SUSPENDED' })}
           >
-            Suspend
+            {t('Suspend')}
           </Button>
         </Stack>
       ),
@@ -133,8 +135,8 @@ export default function PlatformUsersPage() {
   return (
     <Box className="workspace-page workspace-page--admin-users">
       <PageHeader
-        title="Platform accounts"
-        subtitle="Administrator-managed accounts: platform admins and each workspace's Organization Admin"
+        title={t('Platform accounts')}
+        subtitle={t('Administrator-managed accounts: platform admins and each workspace\'s Organization Admin')}
         actions={
           <Button
             variant="contained"
@@ -152,7 +154,7 @@ export default function PlatformUsersPage() {
               '&:hover': { bgcolor: '#2b45cb' },
             }}
           >
-            New account
+            {t('New account')}
           </Button>
         }
       />
@@ -170,17 +172,17 @@ export default function PlatformUsersPage() {
         <MutationProblemAlert
           error={createUser.error}
           isError={createUser.isError}
-          fallbackMessage="Could not create the account."
+          fallbackMessage={t('Could not create the account.')}
         />
         <MutationProblemAlert
           error={resetPassword.error}
           isError={resetPassword.isError}
-          fallbackMessage="Could not reset the password."
+          fallbackMessage={t('Could not reset the password.')}
         />
         <MutationProblemAlert
           error={updateStatus.error}
           isError={updateStatus.isError}
-          fallbackMessage="Could not update the account."
+          fallbackMessage={t('Could not update the account.')}
         />
 
         <QueryState
@@ -188,21 +190,21 @@ export default function PlatformUsersPage() {
           error={users.error}
           onRetry={() => void users.refetch()}
           isEmpty={items.length === 0}
-          loadingLabel="Loading platform accounts…"
+          loadingLabel={t('Loading platform accounts…')}
           empty={
             <EmptyState
-              title="No platform accounts"
-              description="Platform and Organization Admin accounts will appear here."
+              title={t('No platform accounts')}
+              description={t('Platform and Organization Admin accounts will appear here.')}
             />
           }
         >
           <DataTable
-            title="Accounts"
+            title={t('Accounts')}
             columns={columns}
             rows={items}
             rowKey={(user) => user.id}
             searchable
-            searchPlaceholder="Search by name or email…"
+            searchPlaceholder={t('Search by name or email…')}
             searchPredicate={(user, query) =>
               user.fullName.toLowerCase().includes(query) ||
               user.email.toLowerCase().includes(query)
@@ -238,44 +240,44 @@ export default function PlatformUsersPage() {
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>New platform account</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('New platform account')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
                 error={createUser.error}
                 isError={createUser.isError}
-                fallbackMessage="Could not create the account."
+                fallbackMessage={t('Could not create the account.')}
               />
               <TextField
-                label="Email address"
+                label={t('Email address')}
                 required
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
               <TextField
-                label="Full name"
+                label={t('Full name')}
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
               <TextField
                 select
-                label="Zone"
+                label={t('Zone')}
                 value={actorZone}
                 onChange={(e) =>
                   setActorZone(e.target.value as typeof actorZone)
                 }
               >
-                <MenuItem value="PLATFORM">Platform</MenuItem>
-                <MenuItem value="CUSTOMER_ORGANIZATION">Customer organization</MenuItem>
+                <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
+                <MenuItem value="CUSTOMER_ORGANIZATION">{t('Customer organization')}</MenuItem>
               </TextField>
               <TextField
                 select
-                label="Role"
+                label={t('Role')}
                 value={roles[0] ?? 'ADMIN'}
                 onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
-                helperText="The platform manages administrator-managed accounts only."
+                helperText={t('The platform manages administrator-managed accounts only.')}
               >
                 {(Object.keys(ROLE_LABELS) as PlatformUserRole[]).map((role) => (
                   <MenuItem key={role} value={role}>
@@ -291,14 +293,14 @@ export default function PlatformUsersPage() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => setCreateOpen(false)}>{t('Cancel')}</Button>
             <LoadingButton
               type="submit"
               variant="contained"
               loading={createUser.isPending}
               disabled={!email.trim() || !fullName.trim()}
             >
-              Create account
+              {t('Create account')}
             </LoadingButton>
           </DialogActions>
         </form>
@@ -309,7 +311,7 @@ export default function PlatformUsersPage() {
         onClose={() => setIssuedPassword(null)}
         fullWidth maxWidth="sm"
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Temporary password issued</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{t('Temporary password issued')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Alert severity="warning">
@@ -318,7 +320,7 @@ export default function PlatformUsersPage() {
             </Alert>
             <Box>
               <Typography variant="caption" sx={{ color: '#667085', fontWeight: 600 }}>
-                ACCOUNT
+                {t('ACCOUNT')}
               </Typography>
               <Typography variant="body2" sx={{ color: '#344054' }}>
                 {issuedPassword?.email}
@@ -326,7 +328,7 @@ export default function PlatformUsersPage() {
             </Box>
             <Box>
               <Typography variant="caption" sx={{ color: '#667085', fontWeight: 600 }}>
-                TEMPORARY PASSWORD
+                {t('TEMPORARY PASSWORD')}
               </Typography>
               <Typography
                 sx={{
@@ -347,7 +349,7 @@ export default function PlatformUsersPage() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button variant="contained" onClick={() => setIssuedPassword(null)}>
-            Done
+            {t('Done')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Box, Container, Stack, Typography } from '@mui/material';
 import { StatusChip, type StatusType } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface LifecycleStep {
   id: string;
@@ -77,6 +78,7 @@ const lifecycleSteps: LifecycleStep[] = [
 ];
 
 export function EventStreamTable() {
+  const { t } = useLocale();
   const [selectedId, setSelectedId] = useState<string>('STEP-03');
 
   const selectedStep = lifecycleSteps.find((s) => s.id === selectedId) || lifecycleSteps[2];
@@ -104,7 +106,7 @@ export function EventStreamTable() {
               mb: 1,
             }}
           >
-            END-TO-END INSPECTION LIFECYCLE
+            {t('END-TO-END INSPECTION LIFECYCLE')}
           </Typography>
           <Typography
             component="h2"
@@ -116,7 +118,7 @@ export function EventStreamTable() {
               color: '#253746',
             }}
           >
-            From Flight to Fix in Six Steps
+            {t('From Flight to Fix in Six Steps')}
           </Typography>
           <Typography
             sx={{
@@ -126,7 +128,7 @@ export function EventStreamTable() {
               maxWidth: '680px',
             }}
           >
-            See how SmartDroneInspection turns complex aerial missions into certified reports and actionable repair tickets with zero human climbing risk.
+            {t('See how SmartDroneInspection turns complex aerial missions into certified reports and actionable repair tickets with zero human climbing risk.')}
           </Typography>
         </Box>
 
@@ -162,15 +164,15 @@ export function EventStreamTable() {
                   letterSpacing: '0.04em',
                 }}
               >
-                LIFECYCLE FLOW: MISSION #SDI-2026-9041A
+                {t('LIFECYCLE FLOW: MISSION #SDI-2026-9041A')}
               </Typography>
-              <StatusChip status="pass" label="ACTIVE LIFECYCLE" />
+              <StatusChip status="pass" label={t('ACTIVE LIFECYCLE')} />
             </Stack>
 
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <StatusChip status="pass" label="GSD: 0.8MM/PX" />
-              <StatusChip status="active" label="AI SCREENING: ENABLED" />
-              <StatusChip status="fail" label="INSPECTOR SIGN-OFF: REQUIRED" />
+              <StatusChip status="pass" label={t('GSD: 0.8MM/PX')} />
+              <StatusChip status="active" label={t('AI SCREENING: ENABLED')} />
+              <StatusChip status="fail" label={t('INSPECTOR SIGN-OFF: REQUIRED')} />
             </Stack>
           </Box>
 
@@ -206,7 +208,7 @@ export function EventStreamTable() {
                     px: 1,
                   }}
                 >
-                  LIFECYCLE PHASES
+                  {t('LIFECYCLE PHASES')}
                 </Typography>
 
                 <Stack spacing={0.5}>
@@ -281,7 +283,7 @@ export function EventStreamTable() {
                   <Box
                     component="img"
                     src="/images/landing/flight-mission-plan.jpg"
-                    alt="Autonomous 3D Drone Flight Plan"
+                    alt={t('Autonomous 3D Drone Flight Plan')}
                     sx={{
                       width: '100%',
                       height: '100%',
@@ -290,7 +292,7 @@ export function EventStreamTable() {
                     }}
                   />
                   <Box sx={{ position: 'absolute', bottom: 6, left: 6 }}>
-                    <StatusChip status="active" label="AUTONOMOUS 3D FLIGHT" />
+                    <StatusChip status="active" label={t('AUTONOMOUS 3D FLIGHT')} />
                   </Box>
                 </Box>
 
@@ -327,10 +329,10 @@ export function EventStreamTable() {
                     letterSpacing: '0.08em',
                   }}
                 >
-                  <Box>INSPECTION STAGE</Box>
-                  <Box>PIPELINE PROGRESSION</Box>
-                  <Box sx={{ textAlign: 'right' }}>PHASE</Box>
-                  <Box sx={{ textAlign: 'right' }}>STATUS</Box>
+                  <Box>{t('INSPECTION STAGE')}</Box>
+                  <Box>{t('PIPELINE PROGRESSION')}</Box>
+                  <Box sx={{ textAlign: 'right' }}>{t('PHASE')}</Box>
+                  <Box sx={{ textAlign: 'right' }}>{t('STATUS')}</Box>
                 </Box>
 
                 {/* Rows */}

@@ -15,6 +15,7 @@ import {
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * The one decision the organization administrator is being asked for, in the reviewer's words.
@@ -44,11 +45,14 @@ interface InspectionListTableProps {
   reviewerMode?: boolean;
 }
 
-function formatDate(value: string | null): string {
+function formatDate(
+  value: string | null,
+  format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+): string {
   if (!value) return '—';
   try {
     const d = new Date(value);
-    return d.toLocaleDateString(undefined, {
+    return format(d, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -76,6 +80,7 @@ export function InspectionListTable({
   showReportColumn = false,
   reviewerMode = false,
 }: InspectionListTableProps) {
+  const { t, formatDate: formatDateValue } = useLocale();
   return (
     <Paper
       variant="outlined"
@@ -104,12 +109,12 @@ export function InspectionListTable({
           {title}
         </Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-          {totalCount} total {totalCount === 1 ? 'record' : 'records'}
+          {totalCount} {t('total')} {totalCount === 1 ? 'record' : 'records'}
         </Typography>
       </Box>
 
       <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table aria-label="Inspections table">
+        <Table aria-label={t('Inspections table')}>
           <TableHead>
             <TableRow>
               <TableCell
@@ -141,7 +146,7 @@ export function InspectionListTable({
                       width: 170,
                     }}
                   >
-                    Status
+                    {t('Status')}
                   </TableCell>
                   <TableCell
                     sx={{
@@ -156,7 +161,7 @@ export function InspectionListTable({
                       width: 180,
                     }}
                   >
-                    Updated
+                    {t('Updated')}
                   </TableCell>
                 </>
               )}
@@ -200,7 +205,7 @@ export function InspectionListTable({
               <TableRow>
                 <TableCell colSpan={reviewerMode ? 3 : showReportColumn ? 5 : 4}>
                   <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.9rem' }}>
-                    No inspections match this view yet.
+                    {t('No inspections match this view yet.')}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -254,7 +259,7 @@ export function InspectionListTable({
                       </Typography>
                       {reviewerMode && (
                         <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
-                          Asset {row.assetId.slice(0, 8)}… · Inspector {row.inspectorId.slice(0, 8)}…
+                          {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…
                         </Typography>
                       )}
                       <Typography
@@ -295,7 +300,7 @@ export function InspectionListTable({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {formatDate(row.updatedAt)}
+                        {formatDate(row.updatedAt, formatDateValue)}
                       </TableCell>
                       </>
                     )}
@@ -314,7 +319,7 @@ export function InspectionListTable({
                             <StatusChip status={row.reportStatus} />
                           ) : (
                             <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                              No report
+                              {t('No report')}
                             </Typography>
                           )}
                           {row.reportVersionNo !== null && (

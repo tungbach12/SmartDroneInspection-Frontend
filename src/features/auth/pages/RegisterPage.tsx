@@ -24,6 +24,7 @@ import {
 } from '../schemas/authSchemas';
 import { getAuthRedirectTarget } from '../utils/authRedirect';
 import { useAuthStore } from '../store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const authInputSx = {
   '& .MuiOutlinedInput-root': {
@@ -68,6 +69,7 @@ const authInputSx = {
 };
 
 export default function RegisterPage() {
+  const { t } = useLocale();
   const status = useAuthStore((state) => state.status);
   const roles = useAuthStore((state) => state.roles);
   const navigate = useNavigate();
@@ -111,13 +113,13 @@ export default function RegisterPage() {
 
   return (
     <AuthPageLayout
-      title="Create an account"
-      subtitleText="Already have an account?"
-      subtitleLinkText="Log in"
+      title={t('Create an account')}
+      subtitleText={t('Already have an account?')}
+      subtitleLinkText={t('Log in')}
       subtitleLinkTo="/login"
-      backLabel="Back to website"
+      backLabel={t('Back to website')}
       backTo="/"
-      socialPrompt="Or register with"
+      socialPrompt={t('Or register with')}
       heroTagline={{
         line1: 'Capturing Perspectives,',
         line2: 'Creating Confidence',
@@ -132,7 +134,7 @@ export default function RegisterPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
             {...form.register('fullName')}
-            label="Your full name"
+            label={t('Your full name')}
             placeholder="Jane Doe"
             autoComplete="name"
             fullWidth
@@ -142,7 +144,7 @@ export default function RegisterPage() {
           />
           <TextField
             {...form.register('email')}
-            label="Work email"
+            label={t('Work email')}
             placeholder="jane@company.com"
             type="email"
             autoComplete="email"
@@ -156,8 +158,8 @@ export default function RegisterPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
             {...form.register('organizationName')}
-            label="Organization name"
-            placeholder="Acme Infrastructure"
+            label={t('Organization name')}
+            placeholder={t('Acme Infrastructure')}
             autoComplete="organization"
             fullWidth
             error={Boolean(form.formState.errors.organizationName)}
@@ -166,7 +168,7 @@ export default function RegisterPage() {
           />
           <TextField
             {...form.register('organizationCode')}
-            label="Organization code"
+            label={t('Organization code')}
             placeholder="ACME"
             fullWidth
             error={Boolean(form.formState.errors.organizationCode)}
@@ -178,7 +180,7 @@ export default function RegisterPage() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
             {...form.register('password')}
-            label="Password"
+            label={t('Password')}
             placeholder="••••••••••••"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
@@ -206,7 +208,7 @@ export default function RegisterPage() {
           />
           <TextField
             {...form.register('confirmPassword')}
-            label="Confirm password"
+            label={t('Confirm password')}
             placeholder="••••••••••••"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
@@ -229,7 +231,7 @@ export default function RegisterPage() {
             }}
           />
           <Typography sx={{ fontSize: '13px', color: '#526C66' }}>
-            I agree to the{' '}
+            {t('I agree to the')}{' '}
             <Link
               component={RouterLink}
               to="#"

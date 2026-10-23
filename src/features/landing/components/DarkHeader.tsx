@@ -3,6 +3,7 @@ import { Box, Drawer, IconButton, Link, Stack, Typography } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close';
 import MenuIcon from '@mui/icons-material/Menu';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const navLinks = [
   { label: 'Mission Stream', href: '#event-stream' },
@@ -12,6 +13,7 @@ const navLinks = [
 ];
 
 export function DarkHeader() {
+  const { t } = useLocale();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -49,7 +51,7 @@ export function DarkHeader() {
           <Box
             component="img"
             src="/images/landing/logo.png"
-            alt="SmartDroneInspection Logo"
+            alt={t('SmartDroneInspection Logo')}
             sx={{
               width: 32,
               height: 32,
@@ -125,14 +127,14 @@ export function DarkHeader() {
               },
             }}
           >
-            Access Portal
+            {t('Access Portal')}
             <NorthEastIcon sx={{ fontSize: 13 }} />
           </Box>
 
           <IconButton
             onClick={() => setMobileOpen(true)}
             sx={{ display: { xs: 'inline-flex', md: 'none' }, color: '#253746', p: 0.5 }}
-            aria-label="Open navigation menu"
+            aria-label={t('Open navigation menu')}
           >
             <MenuIcon />
           </IconButton>
@@ -162,7 +164,7 @@ export function DarkHeader() {
               <Box
                 component="img"
                 src="/images/landing/logo.png"
-                alt="SmartDroneInspection Logo"
+                alt={t('SmartDroneInspection Logo')}
                 sx={{ width: 28, height: 28 }}
               />
               <Typography sx={{ color: '#253746', fontFamily: '"Geist Sans", sans-serif', fontWeight: 600, fontSize: '16px' }}>
@@ -210,7 +212,7 @@ export function DarkHeader() {
               mt: 3,
             }}
           >
-            Access Portal
+            {t('Access Portal')}
             <NorthEastIcon sx={{ fontSize: 14 }} />
           </Box>
         </Stack>

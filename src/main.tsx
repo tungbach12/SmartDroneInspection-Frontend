@@ -14,6 +14,7 @@ import '@fontsource/geist-sans/700.css';
 import '@fontsource/geist-sans/800.css';
 import './index.css';
 import { useAuthStore } from './features/auth/store/authStore';
+import { LocaleProvider } from './shared/i18n/LocaleProvider';
 
 if (import.meta.env.DEV) {
   (window as unknown as { __authStore: typeof useAuthStore }).__authStore = useAuthStore;
@@ -58,6 +59,8 @@ function ThemedApp() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemedApp />
+    <LocaleProvider>
+      <ThemedApp />
+    </LocaleProvider>
   </StrictMode>,
 );

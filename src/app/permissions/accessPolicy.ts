@@ -1,4 +1,5 @@
 import type { Role } from '@/features/auth/store/authStore';
+import type { Locale } from '@/shared/i18n/LocaleProvider';
 
 export const PORTAL_ROLE_ACCESS = {
   admin: ['ADMIN'],
@@ -41,6 +42,56 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   workforce: 'Workforce',
   'platform-users': 'Platform accounts',
 };
+
+/**
+ * Locale-aware labels. The English maps above stay the canonical source; these carry the
+ * Vietnamese display text so the route IDs and access rules never change with the locale.
+ */
+const PORTAL_LABELS_VI: Record<PortalId, string> = {
+  admin: 'Không gian quản trị',
+  client: 'Không gian khách hàng',
+  operations: 'Không gian vận hành',
+};
+
+const SECTION_LABELS_VI: Record<SectionId, string> = {
+  dashboard: 'Bảng điều khiển',
+  assets: 'Tài sản',
+  'asset-catalog': 'Danh mục tài sản',
+  'asset-review': 'Duyệt tài sản',
+  inspections: 'Đợt kiểm tra',
+  reports: 'Báo cáo',
+  maintenance: 'Bảo trì',
+  workforce: 'Nhân sự',
+  'platform-users': 'Tài khoản nền tảng',
+};
+
+export function getPortalLabel(portal: PortalId, locale: Locale): string {
+  return locale === 'vi' ? PORTAL_LABELS_VI[portal] : PORTAL_CONFIG[portal].label;
+}
+
+export function getSectionLabel(section: SectionId, locale: Locale): string {
+  return locale === 'vi' ? SECTION_LABELS_VI[section] : SECTION_LABELS[section];
+}
+
+export function getPageLabel(pathname: string, portal: PortalId, locale: Locale): string {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.includes('inspections') && segments.length > 2) {
+    return locale === 'vi' ? 'Chi tiết đợt kiểm tra' : 'Inspection detail';
+  }
+  if (segments.includes('reports') && segments.length > 2) {
+    return locale === 'vi' ? 'Chi tiết báo cáo' : 'Report detail';
+  }
+  const section = segments.at(-1);
+  if (section === 'security') {
+    return locale === 'vi' ? 'Bảo mật tài khoản' : 'Account security';
+  }
+  if (section && section in SECTION_LABELS) {
+    return section === 'dashboard'
+      ? (locale === 'vi' ? 'Tổng quan' : 'Overview')
+      : getSectionLabel(section as SectionId, locale);
+  }
+  return getPortalLabel(portal, locale);
+}
 
 const SECTION_ROLE_ACCESS = {
   admin: {

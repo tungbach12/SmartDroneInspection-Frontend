@@ -17,6 +17,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { InspectorAssignment } from '../api/inspectionApi';
 import { useAssignmentInbox, useRespondToAssignment } from '../hooks/useInspections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * MF2-01 and MF2-02: the Inspector accepts or declines the pairings an administrator opened.
@@ -44,6 +45,7 @@ export default function AssignmentInboxPanel() {
 }
 
 function Inbox() {
+  const { t } = useLocale();
   const inbox = useAssignmentInbox();
   const respond = useRespondToAssignment();
 
@@ -67,7 +69,7 @@ function Inbox() {
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
         <AssignmentTurnedInOutlined color="primary" />
-        <Typography variant="h6">Assignments</Typography>
+        <Typography variant="h6">{t('Assignments')}</Typography>
       </Stack>
 
       <Alert severity="info" sx={{ mb: 2 }}>
@@ -80,7 +82,7 @@ function Inbox() {
           <RefusalNotice
             testId="assignment-refusal"
             reason={getErrorMessage(respond.error, '')}
-            fallbackMessage="The server refused this response."
+            fallbackMessage={t('The server refused this response.')}
           />
         </Box>
       ) : null}
@@ -88,7 +90,7 @@ function Inbox() {
         <MutationProblemAlert
           error={respond.error}
           isError={respond.isError && !isConflict(respond.error)}
-          fallbackMessage="Could not record this response."
+          fallbackMessage={t('Could not record this response.')}
         />
       </Box>
 
@@ -111,16 +113,16 @@ function Inbox() {
                   <StatusChip status={assignment.droneServiceability} />
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
-                  Drone {assignment.droneSerialNumber} · valid from{' '}
-                  {assignment.validFrom?.slice(0, 10) ?? 'unspecified'} to{' '}
+                  Drone {assignment.droneSerialNumber} {t('· valid from')}{' '}
+                  {assignment.validFrom?.slice(0, 10) ?? 'unspecified'} {t('to')}{' '}
                   {assignment.validUntil?.slice(0, 10) ?? 'unspecified'}
                 </Typography>
                 <Stack spacing={1.5} sx={{ mt: 1.5 }}>
                   <TextField
-                    label="Reason for declining"
+                    label={t('Reason for declining')}
                     value={rejectionReason}
                     onChange={(event) => setRejectionReason(event.target.value)}
-                    helperText="Required only when declining, so an administrator knows what to fix."
+                    helperText={t('Required only when declining, so an administrator knows what to fix.')}
                     size="small"
                   />
                   <Stack direction="row" spacing={1}>
@@ -136,7 +138,7 @@ function Inbox() {
                       disabled={respond.isPending || rejectionReason.trim().length === 0}
                       onClick={() => send(assignment, 'REJECTED')}
                     >
-                      Decline
+                      {t('Decline')}
                     </Button>
                   </Stack>
                 </Stack>

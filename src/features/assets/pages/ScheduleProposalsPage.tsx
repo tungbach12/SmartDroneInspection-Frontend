@@ -8,6 +8,7 @@ import { RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { FrequencyUnit } from '../api/catalogApi';
 import { useProposals, useSelectProposal } from '../hooks/useProposals';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const UNIT_LABEL: Record<FrequencyUnit, string> = {
   DAY: 'day',
@@ -21,6 +22,7 @@ function frequencyLabel(unit: FrequencyUnit, interval: number) {
 }
 
 export default function ScheduleProposalsPage() {
+  const { t } = useLocale();
   const { assetId = '' } = useParams();
   const { data: proposals, isLoading, error, refetch } = useProposals(assetId);
   const select = useSelectProposal(assetId);
@@ -30,8 +32,8 @@ export default function ScheduleProposalsPage() {
   return (
     <Box>
       <PageHeader
-        title="Proposed schedules"
-        subtitle="Choose the inspection frequency for this asset"
+        title={t('Proposed schedules')}
+        subtitle={t('Choose the inspection frequency for this asset')}
       />
       <QueryState
         isLoading={isLoading}
@@ -52,7 +54,7 @@ export default function ScheduleProposalsPage() {
             <RefusalNotice
               testId="schedule-conflict"
               reason={getErrorMessage(select.error, '')}
-              fallbackMessage="The server refused this selection."
+              fallbackMessage={t('The server refused this selection.')}
             />
           )}
           {!alreadyScheduled && select.isError && (
@@ -90,7 +92,7 @@ export default function ScheduleProposalsPage() {
                         disabled={select.isPending}
                         onClick={() => select.mutate(proposal.id)}
                       >
-                        Select
+                        {t('Select')}
                       </Button>
                     )}
                   </Stack>

@@ -14,6 +14,7 @@ import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { Link as RouterLink } from 'react-router-dom';
 import { alpha, useTheme } from '@mui/material/styles';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticQueueTableProps {
   title: string;
@@ -40,6 +41,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
   viewAllLink,
   viewAllText,
 }) => {
+  const { t } = useLocale();
   const theme = useTheme();
   const getBadgeStyle = (status: 'positive' | 'warning' | 'negative' | 'neutral') => {
     switch (status) {
@@ -115,7 +117,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
 
         <IconButton
           size="small"
-          aria-label="Table options"
+          aria-label={t('Table options')}
           sx={{
             color: 'text.secondary',
             p: 0.75,

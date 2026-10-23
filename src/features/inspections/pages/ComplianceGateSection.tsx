@@ -3,6 +3,7 @@ import { Alert, Box, Stack, Typography } from '@mui/material';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useComplianceGate } from '../hooks/useInspections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
  * MF2-05: what stands in the way of a readiness decision.
@@ -15,13 +16,14 @@ import { useComplianceGate } from '../hooks/useInspections';
  * has to decide, so the empty state says exactly that rather than reading as permission to fly.
  */
 export function ComplianceGateSection({ inspectionId }: { inspectionId: string }) {
+  const { formatDate, t } = useLocale();
   const compliance = useComplianceGate(inspectionId);
 
   return (
     <Stack>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
         <RuleOutlined color="primary" />
-        <Typography variant="subtitle1">Compliance gate</Typography>
+        <Typography variant="subtitle1">{t('Compliance gate')}</Typography>
       </Stack>
 
       <QueryState
@@ -35,7 +37,7 @@ export function ComplianceGateSection({ inspectionId }: { inspectionId: string }
       {compliance.data?.permits && compliance.data.permits.length > 0 ? (
         <Box sx={{ mb: 1.5, p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155', mb: 1 }}>
-            Applicable Flight Permits ({compliance.data.permits.length})
+            {t('Applicable Flight Permits (')}{compliance.data.permits.length})
           </Typography>
           <Stack spacing={1}>
             {compliance.data.permits.map((permit) => (
@@ -58,9 +60,9 @@ export function ComplianceGateSection({ inspectionId }: { inspectionId: string }
                     📜 {permit.permitReference ?? 'Unnamed Permit'} ({permit.permitType ?? 'FLIGHT'})
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    Authority: {permit.issuingAuthority ?? 'Cục Tác chiến'} · Window:{' '}
-                    {permit.validFrom ? new Date(permit.validFrom).toLocaleDateString() : '—'} to{' '}
-                    {permit.validUntil ? new Date(permit.validUntil).toLocaleDateString() : '—'}
+                    {t('Authority:')} {permit.issuingAuthority ?? 'Cục Tác chiến'} {t('· Window:')}{' '}
+                    {permit.validFrom ? formatDate(new Date(permit.validFrom)) : '—'} {t('to')}{' '}
+                    {permit.validUntil ? formatDate(new Date(permit.validUntil)) : '—'}
                   </Typography>
                 </Box>
                 <StatusChip status={permit.status} />
@@ -82,13 +84,13 @@ export function ComplianceGateSection({ inspectionId }: { inspectionId: string }
 
       {compliance.data && compliance.data.blockers.length === 0 ? (
         <Alert severity="success" sx={{ mb: 1 }}>
-          No blocker found. A named reviewer still has to decide; this is not flight clearance.
+          {t('No blocker found. A named reviewer still has to decide; this is not flight clearance.')}
         </Alert>
       ) : null}
 
       {compliance.data?.requiresHumanVerification ? (
         <Alert severity="info">
-          Some findings need human verification. They cannot be cleared by inference.
+          {t('Some findings need human verification. They cannot be cleared by inference.')}
         </Alert>
       ) : null}
     </Stack>

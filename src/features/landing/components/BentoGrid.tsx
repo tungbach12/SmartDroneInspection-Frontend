@@ -1,7 +1,9 @@
 import { Box, Container, Stack, Typography } from '@mui/material';
 import { StatusChip } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export function BentoGrid() {
+  const { t } = useLocale();
   return (
     <Box
       id="bento-matrix"
@@ -25,7 +27,7 @@ export function BentoGrid() {
               mb: 1,
             }}
           >
-            INTELLIGENT DRONE INSPECTION CAPABILITIES
+            {t('INTELLIGENT DRONE INSPECTION CAPABILITIES')}
           </Typography>
           <Typography
             component="h2"
@@ -37,7 +39,7 @@ export function BentoGrid() {
               color: '#253746',
             }}
           >
-            How AI and Drones Protect Your Assets
+            {t('How AI and Drones Protect Your Assets')}
           </Typography>
           <Typography
             sx={{
@@ -47,7 +49,7 @@ export function BentoGrid() {
               maxWidth: '680px',
             }}
           >
-            Replace manual inspection guesswork with automated crack vision, thermal heat loss detection, and certified compliance reports.
+            {t('Replace manual inspection guesswork with automated crack vision, thermal heat loss detection, and certified compliance reports.')}
           </Typography>
         </Box>
 
@@ -81,7 +83,7 @@ export function BentoGrid() {
                   textTransform: 'uppercase',
                 }}
               >
-                COMPUTER VISION
+                {t('COMPUTER VISION')}
               </Typography>
               <Typography
                 sx={{
@@ -93,10 +95,10 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Sub-Millimeter Defect Detection
+                {t('Sub-Millimeter Defect Detection')}
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
-                Neural vision models analyze 4K aerial imagery down to 0.8mm resolution, instantly spotting fractures and corrosion before structural failures occur.
+                {t('Neural vision models analyze 4K aerial imagery down to 0.8mm resolution, instantly spotting fractures and corrosion before structural failures occur.')}
               </Typography>
 
               {/* Generated Image Asset: Camera POV with Bounding Boxes */}
@@ -114,7 +116,7 @@ export function BentoGrid() {
                 <Box
                   component="img"
                   src="/images/landing/defect-detection-preview.jpg"
-                  alt="Drone camera defect bounding box detection"
+                  alt={t('Drone camera defect bounding box detection')}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -123,10 +125,10 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="pass" label="AI CONFIDENCE: 96%" />
+                  <StatusChip status="pass" label={t('AI CONFIDENCE: 96%')} />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="warn" label="HUMAN REVIEW GATE" />
+                  <StatusChip status="warn" label={t('HUMAN REVIEW GATE')} />
                 </Box>
               </Box>
 
@@ -159,7 +161,7 @@ export function BentoGrid() {
                           color: '#5D707B',
                         }}
                       >
-                        STATUS: {item.delta}
+                        {t('STATUS:')} {item.delta}
                       </Typography>
                     </Box>
                     <StatusChip status={item.status} label={item.chip} />
@@ -178,7 +180,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(23, 54, 74, 0.08)',
               }}
             >
-              ZERO FALSE ALARM RELEASES // VERIFIED BY INSPECTORS
+              {t('ZERO FALSE ALARM RELEASES // VERIFIED BY INSPECTORS')}
             </Typography>
           </Box>
 
@@ -204,7 +206,7 @@ export function BentoGrid() {
                   textTransform: 'uppercase',
                 }}
               >
-                RADIOMETRIC THERMAL
+                {t('RADIOMETRIC THERMAL')}
               </Typography>
               <Typography
                 sx={{
@@ -219,7 +221,7 @@ export function BentoGrid() {
                 Thermal & Spatial Mapping
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
-                Pinpoint invisible insulation leaks, solar cell hotspots, and roof moisture traps without drilling or dismantling physical infrastructure.
+                {t('Pinpoint invisible insulation leaks, solar cell hotspots, and roof moisture traps without drilling or dismantling physical infrastructure.')}
               </Typography>
 
               {/* Generated Image Asset: LiDAR False Color Heatmap */}
@@ -237,7 +239,7 @@ export function BentoGrid() {
                 <Box
                   component="img"
                   src="/images/landing/inspection-scan-ortho.jpg"
-                  alt="Thermal radiometric scan and orthomosaic map"
+                  alt={t('Thermal radiometric scan and orthomosaic map')}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -246,10 +248,10 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="active" label="THERMAL OVERLAY" />
+                  <StatusChip status="active" label={t('THERMAL OVERLAY')} />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="pass" label="RTK GPS ACCURATE" />
+                  <StatusChip status="pass" label={t('RTK GPS ACCURATE')} />
                 </Box>
               </Box>
 
@@ -266,7 +268,7 @@ export function BentoGrid() {
                         {item.label}
                       </Typography>
                       <Typography sx={{ fontFamily: '"Geist Mono", monospace', fontSize: '11px', color: '#5D707B' }}>
-                        {item.value}% EFFICIENCY
+                        {item.value}{t('% EFFICIENCY')}
                       </Typography>
                     </Box>
                     <Box
@@ -295,7 +297,7 @@ export function BentoGrid() {
                 borderTop: '1px solid rgba(23, 54, 74, 0.08)',
               }}
             >
-              ACCURATE TEMPERATURE PROFILING // INSTANT ROI
+              {t('ACCURATE TEMPERATURE PROFILING // INSTANT ROI')}
             </Typography>
           </Box>
 
@@ -333,10 +335,10 @@ export function BentoGrid() {
                   mb: 1,
                 }}
               >
-                Certified Compliance Reports
+                {t('Certified Compliance Reports')}
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
-                Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, then dispatch verified maintenance tickets.
+                {t('Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, then dispatch verified maintenance tickets.')}
               </Typography>
 
               {/* Generated Image Asset: Immutable Inspection Certificate */}
@@ -354,7 +356,7 @@ export function BentoGrid() {
                 <Box
                   component="img"
                   src="/images/landing/immutable-report-preview.jpg"
-                  alt="Cryptographic immutable inspection report preview"
+                  alt={t('Cryptographic immutable inspection report preview')}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -363,10 +365,10 @@ export function BentoGrid() {
                   }}
                 />
                 <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
-                  <StatusChip status="pass" label="SEALED EVIDENCE" />
+                  <StatusChip status="pass" label={t('SEALED EVIDENCE')} />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="active" label="MAINTENANCE DISPATCHED" />
+                  <StatusChip status="active" label={t('MAINTENANCE DISPATCHED')} />
                 </Box>
               </Box>
 

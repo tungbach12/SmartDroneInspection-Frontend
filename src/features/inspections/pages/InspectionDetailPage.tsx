@@ -4,6 +4,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useInspection,
   useInspectionPreparations,
@@ -45,6 +46,7 @@ const REVIEWER_TABS = [
  * `reports/:inspectionId` and is entered through the reviewer-first route.
  */
 export default function InspectionDetailPage() {
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -135,7 +137,7 @@ export default function InspectionDetailPage() {
                 variant="caption"
                 sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
               >
-                Infrastructure Asset
+                {t('Infrastructure Asset')}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
                 📍 {inspection.assetName ?? 'Asset'}
@@ -147,7 +149,7 @@ export default function InspectionDetailPage() {
                 variant="caption"
                 sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
               >
-                Assigned Inspector
+                {t('Assigned Inspector')}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
                 👤 {inspection.inspectorName ?? inspection.inspectorId}
@@ -159,7 +161,7 @@ export default function InspectionDetailPage() {
                 variant="caption"
                 sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
               >
-                Assigned Drone
+                {t('Assigned Drone')}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
                 🛸 {inspection.droneSerialNumber ?? 'Unassigned'}{' '}
@@ -167,7 +169,7 @@ export default function InspectionDetailPage() {
               </Typography>
               {inspection.droneServiceability && (
                 <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                  Status: {inspection.droneServiceability}
+                  {t('Status:')} {inspection.droneServiceability}
                 </Typography>
               )}
             </Box>
@@ -177,7 +179,7 @@ export default function InspectionDetailPage() {
                 variant="caption"
                 sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
               >
-                Flight Permit (Pháp lý bay)
+                {t('Flight Permit (Pháp lý bay)')}
               </Typography>
               <Typography
                 variant="body2"

@@ -24,8 +24,10 @@ import {
   type PasswordChangeFormValues,
 } from '../schemas/authSchemas';
 import { useAuthStore } from '../store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export default function AccountSecurityPage() {
+  const { t } = useLocale();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
   const navigate = useNavigate();
@@ -73,10 +75,10 @@ export default function AccountSecurityPage() {
       <Stack spacing={3}>
         <Box>
           <Typography variant="overline" color="primary" sx={{ fontWeight: 800 }}>
-            Account
+            {t('Account')}
           </Typography>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 800 }}>
-            Security and sign-in
+            {t('Security and sign-in')}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
             Manage your password and active sessions. Changing your password
@@ -97,7 +99,7 @@ export default function AccountSecurityPage() {
         >
           <Stack spacing={1.5}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Signed-in account
+              {t('Signed-in account')}
             </Typography>
             <Typography sx={{ fontWeight: 600 }}>{user?.fullName}</Typography>
             <Typography color="text.secondary">{user?.email}</Typography>
@@ -121,7 +123,7 @@ export default function AccountSecurityPage() {
           >
             <Stack spacing={1.5}>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>AI analysis fallback</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>{t('AI analysis fallback')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   When YOLO is unavailable, automatically try the configured vision model. A valid
                   YOLO result with no detections never triggers fallback.
@@ -171,7 +173,7 @@ export default function AccountSecurityPage() {
           <Stack spacing={2}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Change password
+                {t('Change password')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                 Choose 15–128 characters. Common passwords and account details
@@ -180,7 +182,7 @@ export default function AccountSecurityPage() {
             </Box>
             <TextField
               {...form.register('currentPassword')}
-              label="Current password"
+              label={t('Current password')}
               type="password"
               autoComplete="current-password"
               fullWidth
@@ -189,7 +191,7 @@ export default function AccountSecurityPage() {
             />
             <TextField
               {...form.register('newPassword')}
-              label="New password"
+              label={t('New password')}
               type="password"
               autoComplete="new-password"
               fullWidth
@@ -198,7 +200,7 @@ export default function AccountSecurityPage() {
             />
             <TextField
               {...form.register('confirmPassword')}
-              label="Confirm new password"
+              label={t('Confirm new password')}
               type="password"
               autoComplete="new-password"
               fullWidth
@@ -235,10 +237,10 @@ export default function AccountSecurityPage() {
           >
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Sign out everywhere
+                {t('Sign out everywhere')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Revoke all active sessions for this account, including this one.
+                {t('Revoke all active sessions for this account, including this one.')}
               </Typography>
             </Box>
             <Button
@@ -247,7 +249,7 @@ export default function AccountSecurityPage() {
               onClick={() => setLogoutDialogOpen(true)}
               sx={{ flexShrink: 0 }}
             >
-              Sign out everywhere
+              {t('Sign out everywhere')}
             </Button>
           </Stack>
         </Box>
@@ -258,17 +260,17 @@ export default function AccountSecurityPage() {
         onClose={() => setLogoutDialogOpen(false)}
         aria-labelledby="logout-all-title"
       >
-        <DialogTitle id="logout-all-title">Sign out on every device?</DialogTitle>
+        <DialogTitle id="logout-all-title">{t('Sign out on every device?')}</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">
-            This revokes all active sessions. You will need to sign in again.
+            {t('This revokes all active sessions. You will need to sign in again.')}
           </Typography>
         </DialogContent>
         <Divider />
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setLogoutDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setLogoutDialogOpen(false)}>{t('Cancel')}</Button>
           <Button color="error" variant="contained" onClick={onLogoutAll}>
-            Sign out everywhere
+            {t('Sign out everywhere')}
           </Button>
         </DialogActions>
       </Dialog>

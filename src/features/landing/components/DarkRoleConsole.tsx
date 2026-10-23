@@ -1,6 +1,7 @@
 import { Box, Container, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import { StatusChip } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const roles = [
   {
@@ -46,6 +47,7 @@ const roles = [
 ];
 
 export function DarkRoleConsole() {
+  const { t } = useLocale();
   return (
     <Box
       id="security"
@@ -68,7 +70,7 @@ export function DarkRoleConsole() {
               mb: 1,
             }}
           >
-            ROLE-BASED WORKSPACE ARCHITECTURE
+            {t('ROLE-BASED WORKSPACE ARCHITECTURE')}
           </Typography>
           <Typography
             component="h2"
@@ -80,7 +82,7 @@ export function DarkRoleConsole() {
               color: '#253746',
             }}
           >
-            Separation of Duties by Design
+            {t('Separation of Duties by Design')}
           </Typography>
           <Typography
             sx={{
@@ -90,7 +92,7 @@ export function DarkRoleConsole() {
               maxWidth: '680px',
             }}
           >
-            Role permissions and organization boundaries prevent unverified findings from releasing without an assigned human sign-off.
+            {t('Role permissions and organization boundaries prevent unverified findings from releasing without an assigned human sign-off.')}
           </Typography>
         </Box>
 

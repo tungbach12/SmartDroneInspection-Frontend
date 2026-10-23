@@ -24,6 +24,7 @@ import {
   useSubmitPreparation,
 } from '../hooks/useInspections';
 import { ComplianceGateSection } from './ComplianceGateSection';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface InspectionPreparationPanelProps {
   inspectionId: string;
@@ -63,6 +64,7 @@ function PreparationEditor({
 }: InspectionPreparationPanelProps & {
   preparations: ReturnType<typeof useInspectionPreparations>;
 }) {
+  const { t } = useLocale();
   const prepare = usePrepareShotList();
   const submit = useSubmitPreparation();
   const linkPermits = useLinkPermitReferences();
@@ -132,7 +134,7 @@ function PreparationEditor({
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <AssignmentTurnedInOutlined color="primary" />
-        <Typography variant="h6">Mission preparation</Typography>
+        <Typography variant="h6">{t('Mission preparation')}</Typography>
         <Box sx={{ flexGrow: 1 }} />
         <StatusChip status={status} />
       </Stack>
@@ -144,7 +146,7 @@ function PreparationEditor({
       >
         {current ? (
           <Typography variant="body2" color="text.secondary">
-            Version {current.preparationVersion} ·{' '}
+            {t('Version')} {current.preparationVersion} ·{' '}
             {current.submittedAt ? 'submitted' : 'not yet submitted'}
           </Typography>
         ) : (
@@ -176,13 +178,13 @@ function PreparationEditor({
           <RefusalNotice
             testId="draft-refusal"
             reason={getErrorMessage(prepare.error, '')}
-            fallbackMessage="The server refused this draft change."
+            fallbackMessage={t('The server refused this draft change.')}
           />
         ) : null}
         <MutationProblemAlert
           error={prepare.error}
           isError={prepare.isError && !isConflict(prepare.error)}
-          fallbackMessage="Could not save the preparation draft."
+          fallbackMessage={t('Could not save the preparation draft.')}
         />
       </Box>
 
@@ -190,7 +192,7 @@ function PreparationEditor({
         <MutationProblemAlert
           error={submit.error}
           isError={submit.isError}
-          fallbackMessage="Could not submit the preparation."
+          fallbackMessage={t('Could not submit the preparation.')}
         />
         <MutationProblemAlert
           error={requestAdditionalSession.error}
@@ -242,26 +244,26 @@ function PreparationEditor({
           onSubmit={saveDraft}
           spacing={2}
           sx={{ mb: 2 }}
-          aria-label="Preparation draft"
+          aria-label={t('Preparation draft')}
         >
           <TextField
-            label="Component shot-list (JSON)"
+            label={t('Component shot-list (JSON)')}
             value={shotList}
             onChange={(event) => setShotList(event.target.value)}
             multiline
             minRows={3}
             disabled={reviewed}
-            helperText="One entry per component, for example [{&quot;component&quot;:&quot;Span P4&quot;,&quot;modality&quot;:&quot;RGB&quot;}]."
+            helperText={t('One entry per component, for example [{"component":"Span P4","modality":"RGB"}].')}
           />
           <TextField
-            label="Evidence types (JSON)"
+            label={t('Evidence types (JSON)')}
             value={evidenceTypes}
             onChange={(event) => setEvidenceTypes(event.target.value)}
             disabled={reviewed}
-            helperText="Modalities the inspection needs, for example [&quot;RGB&quot;]."
+            helperText={t('Modalities the inspection needs, for example ["RGB"].')}
           />
           <TextField
-            label="Access constraints"
+            label={t('Access constraints')}
             value={accessConstraints}
             onChange={(event) => setAccessConstraints(event.target.value)}
             multiline
@@ -271,15 +273,15 @@ function PreparationEditor({
           {(current?.preparationVersion ?? 1) > 1 && (
             <>
               <TextField
-                label="Planned session start"
+                label={t('Planned session start')}
                 type="datetime-local"
                 value={plannedStartAt}
                 onChange={(event) => setPlannedStartAt(event.target.value)}
                 disabled={reviewed}
-                helperText="The readiness reviewer rechecks permit and credential validity against this time."
+                helperText={t('The readiness reviewer rechecks permit and credential validity against this time.')}
               />
               <TextField
-                label="Planned session end"
+                label={t('Planned session end')}
                 type="datetime-local"
                 value={plannedEndAt}
                 onChange={(event) => setPlannedEndAt(event.target.value)}
@@ -289,13 +291,13 @@ function PreparationEditor({
             </>
           )}
           <TextField
-            label="Safety observations"
+            label={t('Safety observations')}
             value={safetyObservations}
             onChange={(event) => setSafetyObservations(event.target.value)}
             multiline
             minRows={2}
             disabled={reviewed}
-            helperText="Required before submission, so the reviewer sees the hazards you recorded."
+            helperText={t('Required before submission, so the reviewer sees the hazards you recorded.')}
           />
           <Box>
             <Button type="submit" variant="contained" disabled={reviewed || prepare.isPending}>
@@ -311,13 +313,13 @@ function PreparationEditor({
           onSubmit={submitPreparation}
           spacing={2}
           sx={{ mb: 2 }}
-          aria-label="Preparation submission"
+          aria-label={t('Preparation submission')}
         >
           <TextField
-            label="Safety acknowledgment"
+            label={t('Safety acknowledgment')}
             value={acknowledgment}
             onChange={(event) => setAcknowledgment(event.target.value)}
-            helperText="Records that you read the restrictions. It is not a statutory licence."
+            helperText={t('Records that you read the restrictions. It is not a statutory licence.')}
           />
           <Box>
             <Button type="submit" variant="contained" disabled={submit.isPending}>
@@ -333,13 +335,13 @@ function PreparationEditor({
           onSubmit={linkPermit}
           spacing={1.5}
           sx={{ mb: 2 }}
-          aria-label="Permit reference"
+          aria-label={t('Permit reference')}
         >
           <TextField
-            label="Permit ID"
+            label={t('Permit ID')}
             value={permitId}
             onChange={(event) => setPermitId(event.target.value)}
-            helperText="A permit your organization holds. A permit from another tenant is refused."
+            helperText={t('A permit your organization holds. A permit from another tenant is refused.')}
           />
           <Box>
             <Button
@@ -357,7 +359,7 @@ function PreparationEditor({
         <MutationProblemAlert
           error={linkPermits.error}
           isError={linkPermits.isError}
-          fallbackMessage="Could not link the permit."
+          fallbackMessage={t('Could not link the permit.')}
         />
       </Box>
 
@@ -376,6 +378,7 @@ function PreparationEditor({
  * only a version number has nothing to judge, so the content is shown read-only here.
  */
 function PreparationSummary({ preparation }: { preparation: InspectionPreparation }) {
+  const { t, formatDateTime } = useLocale();
   const rows = [
     { label: 'Component shot-list', value: preparation.shotList },
     { label: 'Evidence types', value: preparation.evidenceTypes },
@@ -385,7 +388,7 @@ function PreparationSummary({ preparation }: { preparation: InspectionPreparatio
       label: 'Planned session',
       value:
         preparation.plannedStartAt && preparation.plannedEndAt
-          ? `${formatMoment(preparation.plannedStartAt)} — ${formatMoment(preparation.plannedEndAt)}`
+          ? `${formatMoment(preparation.plannedStartAt, formatDateTime)} — ${formatMoment(preparation.plannedEndAt, formatDateTime)}`
           : null,
     },
   ].filter((row) => Boolean(row.value));
@@ -393,7 +396,7 @@ function PreparationSummary({ preparation }: { preparation: InspectionPreparatio
   if (rows.length === 0) {
     return (
       <Alert severity="warning" sx={{ mb: 2 }}>
-        This preparation records no content yet, so there is nothing to review.
+        {t('This preparation records no content yet, so there is nothing to review.')}
       </Alert>
     );
   }
@@ -419,7 +422,10 @@ function PreparationSummary({ preparation }: { preparation: InspectionPreparatio
 }
 
 /** A moment as the reviewer reads it, without the raw ISO string. */
-function formatMoment(value: string): string {
+function formatMoment(
+  value: string,
+  format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+): string {
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  return Number.isNaN(parsed.getTime()) ? value : format(parsed);
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PauseRounded, PlayArrowRounded } from '@mui/icons-material';
 import { Box, IconButton, Stack } from '@mui/material';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const slideIntervalMs = 5_500;
 
@@ -11,6 +12,7 @@ const heroSlides = [
 ] as const;
 
 export function AuthHeroSlideshow() {
+  const { t } = useLocale();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -64,7 +66,7 @@ export function AuthHeroSlideshow() {
 
       <Box
         role="group"
-        aria-label="Hero image controls"
+        aria-label={t('Hero image controls')}
         sx={{
           position: 'absolute',
           zIndex: 3,

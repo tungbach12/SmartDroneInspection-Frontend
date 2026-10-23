@@ -46,11 +46,12 @@ import SecurityRounded from '@mui/icons-material/SecurityRounded';
 import {
   canAccessSection,
   getAvailablePortals,
+  getPageLabel,
+  getPortalLabel,
+  getSectionLabel,
   getSectionPath,
   PORTAL_CONFIG,
-  SECTION_LABELS,
   type PortalId,
-  type SectionId,
 } from '@/app/permissions/accessPolicy';
 import { layoutTokens } from '@/app/theme/tokens';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -61,6 +62,8 @@ import {
 import { useToastStore } from '@/shared/ui/Toast';
 import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
 import '@/features/dashboard/styles/workspace-pages.css';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { LocaleToggle } from '@/shared/i18n/LocaleToggle';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
@@ -79,19 +82,8 @@ interface AppShellProps {
   portal: PortalId;
 }
 
-function getPageTitle(pathname: string, portal: PortalId) {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.includes('inspections') && segments.length > 2) return 'Inspection detail';
-  if (segments.includes('reports') && segments.length > 2) return 'Report detail';
-  const section = segments.at(-1);
-  if (section === 'security') return 'Account security';
-  if (section && section in SECTION_LABELS) {
-    return section === 'dashboard' ? 'Overview' : SECTION_LABELS[section as SectionId];
-  }
-  return PORTAL_CONFIG[portal].label;
-}
-
 export function AppShell({ portal }: AppShellProps) {
+  const { locale, t } = useLocale();
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -108,7 +100,7 @@ export function AppShell({ portal }: AppShellProps) {
   const showToast = useToastStore((state) => state.showToast);
   const visibleNavigation = NAV_ITEMS.filter(({ section }) =>
     canAccessSection(portal, section, roles) &&
-    SECTION_LABELS[section].toLowerCase().includes(search.trim().toLowerCase()),
+    getSectionLabel(section, locale).toLowerCase().includes(search.trim().toLowerCase()),
   );
   const availablePortals = getAvailablePortals(roles);
 
@@ -150,7 +142,7 @@ export function AppShell({ portal }: AppShellProps) {
           size="small"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search"
+          placeholder={t('Search')}
           inputProps={{ 'aria-label': 'Search workspace navigation' }}
           startAdornment={<InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment>}
           sx={{
@@ -165,9 +157,9 @@ export function AppShell({ portal }: AppShellProps) {
 
       <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto' }}>
         <Typography variant="caption" sx={{ px: 2.5, pb: 1, display: 'block', color: 'text.secondary' }}>
-          {PORTAL_CONFIG[portal].label}
+          {getPortalLabel(portal, locale)}
         </Typography>
-        <List component="nav" aria-label={`${PORTAL_CONFIG[portal].label} navigation`} sx={{ px: 1.25, py: 0 }}>
+        <List component="nav" aria-label={`${getPortalLabel(portal, locale)} navigation`} sx={{ px: 1.25, py: 0 }}>
           {visibleNavigation.map(({ section, icon }) => {
             const path = getSectionPath(portal, section);
             const selected = location.pathname === path;
@@ -196,7 +188,7 @@ export function AppShell({ portal }: AppShellProps) {
               >
                 <ListItemIcon>{icon}</ListItemIcon>
                 <ListItemText
-                  primary={SECTION_LABELS[section]}
+                  primary={getSectionLabel(section, locale)}
                   slotProps={{ primary: { variant: 'body2', sx: { fontWeight: selected ? 650 : 500 } } }}
                 />
               </ListItemButton>
@@ -204,7 +196,7 @@ export function AppShell({ portal }: AppShellProps) {
           })}
           {visibleNavigation.length === 0 && (
             <Typography role="status" variant="body2" color="text.secondary" sx={{ px: 1.5, py: 2 }}>
-              No matching sections.
+              {t('No matching sections.')}
             </Typography>
           )}
         </List>
@@ -214,7 +206,7 @@ export function AppShell({ portal }: AppShellProps) {
         <Divider sx={{ mb: 1 }} />
         {availablePortals.length > 1 && (
           <Button component={RouterLink} to="/portals" fullWidth color="inherit" size="small" sx={{ justifyContent: 'flex-start', px: 1, mb: 0.5 }}>
-            Switch workspace
+            {t('Switch workspace')}
           </Button>
         )}
         <Button
@@ -249,7 +241,7 @@ export function AppShell({ portal }: AppShellProps) {
             startIcon={<LogoutRounded fontSize="small" />}
             onClick={signOut}
             disabled={signingOut}
-            aria-label="Sign out"
+            aria-label={t('Sign out')}
             sx={{
               justifyContent: 'flex-start',
               gap: 1.25,
@@ -297,7 +289,7 @@ export function AppShell({ portal }: AppShellProps) {
             {isDesktop ? (navVisible ? <MenuOpenRounded /> : <MenuIcon />) : <MenuIcon />}
           </IconButton>
           <Typography component="h1" variant="h6" noWrap sx={{ flexGrow: 1, ml: { xs: 0.5, md: 0 }, fontSize: 16, fontWeight: 600 }}>
-            {getPageTitle(location.pathname, portal)}
+            {getPageLabel(location.pathname, portal, locale)}
           </Typography>
           {roles.length > 0 && (
             <Chip
@@ -317,7 +309,7 @@ export function AppShell({ portal }: AppShellProps) {
           <Tooltip title={signingOut ? 'Signing out…' : 'Sign out'}>
             <span>
               <IconButton
-                aria-label="Sign out"
+                aria-label={t('Sign out')}
                 onClick={signOut}
                 disabled={signingOut}
                 sx={{ mr: 1, color: 'text.secondary' }}
@@ -326,6 +318,7 @@ export function AppShell({ portal }: AppShellProps) {
               </IconButton>
             </span>
           </Tooltip>
+          <LocaleToggle />
           <ColorModeToggle />
         </Toolbar>
       </AppBar>
@@ -377,7 +370,7 @@ export function AppShell({ portal }: AppShellProps) {
       >
         <MenuItem component={RouterLink} to={`${PORTAL_CONFIG[portal].path}/account/security`} onClick={() => { setAccountMenuAnchor(null); setMobileOpen(false); }}>
           <ListItemIcon><SecurityRounded fontSize="small" /></ListItemIcon>
-          Account security
+          {t('Account security')}
         </MenuItem>
         <MenuItem onClick={signOut} disabled={signingOut}>
           <ListItemIcon><LogoutRounded fontSize="small" /></ListItemIcon>

@@ -1,4 +1,5 @@
 import { Box, Container, Typography } from '@mui/material';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const metrics = [
   {
@@ -24,6 +25,7 @@ const metrics = [
 ];
 
 export function MetricsGrid() {
+  const { t } = useLocale();
   return (
     <Box
       id="metrics"
@@ -48,7 +50,7 @@ export function MetricsGrid() {
               mb: 1,
             }}
           >
-            PROVEN OPERATIONAL IMPACT
+            {t('PROVEN OPERATIONAL IMPACT')}
           </Typography>
           <Typography
             component="h2"
@@ -60,7 +62,7 @@ export function MetricsGrid() {
               color: '#253746',
             }}
           >
-            Measurable Value for Infrastructure Owners
+            {t('Measurable Value for Infrastructure Owners')}
           </Typography>
           <Typography
             sx={{
@@ -70,7 +72,7 @@ export function MetricsGrid() {
               maxWidth: '680px',
             }}
           >
-            Real outcomes delivered across energy grids, bridges, telecommunications, and industrial facilities.
+            {t('Real outcomes delivered across energy grids, bridges, telecommunications, and industrial facilities.')}
           </Typography>
         </Box>
 

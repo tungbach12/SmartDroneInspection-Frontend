@@ -3,8 +3,10 @@ import NorthEastIcon from '@mui/icons-material/NorthEast';
 import { useEffect, useRef } from 'react';
 import { animate, stagger } from 'animejs';
 import { StatusChip } from './StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export function DarkHero() {
+  const { t } = useLocale();
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function DarkHero() {
       <Box
         component="img"
         src="/images/landing/dark-drone-hero.jpg"
-        alt="Automated infrastructure drone inspection"
+        alt={t('Automated infrastructure drone inspection')}
         loading="eager"
         sx={{
           position: 'absolute',
@@ -100,9 +102,9 @@ export function DarkHero() {
             spacing={1.5}
             sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}
           >
-            <StatusChip status="pass" label="ZERO HUMAN CLIMBING RISK" />
-            <StatusChip status="active" label="AI VISION DEFECT SCREENING" />
-            <StatusChip status="pass" label="CERTIFIED INSPECTOR SIGN-OFF" />
+            <StatusChip status="pass" label={t('ZERO HUMAN CLIMBING RISK')} />
+            <StatusChip status="active" label={t('AI VISION DEFECT SCREENING')} />
+            <StatusChip status="pass" label={t('CERTIFIED INSPECTOR SIGN-OFF')} />
           </Stack>
 
           {/* Outcome-driven Headline: What the visitor achieves */}
@@ -120,7 +122,7 @@ export function DarkHero() {
               textWrap: 'balance',
             }}
           >
-            Inspect Infrastructure 10x Faster with Drones and AI
+            {t('Inspect Infrastructure 10x Faster with Drones and AI')}
           </Typography>
 
           {/* Subtext: Who it is for & the painful problem it eliminates */}
@@ -135,7 +137,7 @@ export function DarkHero() {
               maxWidth: '680px',
             }}
           >
-            Eliminate costly scaffolding and hazardous rope access. SmartDroneInspection coordinates autonomous drone flights, flags structural cracks with computer vision, and delivers audit-ready repair tickets certified by licensed inspectors.
+            {t('Eliminate costly scaffolding and hazardous rope access. SmartDroneInspection coordinates autonomous drone flights, flags structural cracks with computer vision, and delivers audit-ready repair tickets certified by licensed inspectors.')}
           </Typography>
 
           {/* Square CTAs (0px border-radius, brutalist contrast) */}
@@ -169,7 +171,7 @@ export function DarkHero() {
                 },
               }}
             >
-              Start Free Inspection
+              {t('Start Free Inspection')}
               <NorthEastIcon sx={{ fontSize: 16 }} />
             </Box>
 
@@ -199,7 +201,7 @@ export function DarkHero() {
                 },
               }}
             >
-              Sign In for Field Operations
+              {t('Sign In for Field Operations')}
               <NorthEastIcon sx={{ fontSize: 14 }} />
             </Box>
           </Stack>
@@ -214,7 +216,7 @@ export function DarkHero() {
               mt: 2,
             }}
           >
-            No credit card required · Instant setup · End-to-end audit compliance
+            {t('No credit card required · Instant setup · End-to-end audit compliance')}
           </Typography>
         </div>
       </Container>

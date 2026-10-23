@@ -20,6 +20,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { FlightPermit, FlightPermitStatus } from '../api/permitApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useCreateFlightPermit,
   useFlightPermits,
@@ -36,6 +37,7 @@ const PERMIT_STATUSES: FlightPermitStatus[] = [
 ];
 
 export function FlightPermitPanel() {
+  const { t, formatDate: formatDateValue } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const canManage = roles.includes('ORG_ADMIN');
   const permits = useFlightPermits();
@@ -52,14 +54,14 @@ export function FlightPermitPanel() {
     {
       id: 'validity',
       label: 'Validity window',
-      render: (permit) => `${formatDate(permit.validFrom)} – ${formatDate(permit.validUntil)}`,
+      render: (permit) => `${formatDate(permit.validFrom, formatDateValue)} – ${formatDate(permit.validUntil, formatDateValue)}`,
     },
     { id: 'status', label: 'Organization-recorded status', render: (permit) => <StatusChip status={permit.status} /> },
     {
       id: 'review',
       label: 'Internal review',
       render: (permit) => canManage ? (
-        <Button size="small" onClick={() => setReviewing(permit)}>Review permit</Button>
+        <Button size="small" onClick={() => setReviewing(permit)}>{t('Review permit')}</Button>
       ) : null,
     },
   ];
@@ -67,31 +69,31 @@ export function FlightPermitPanel() {
   return (
     <Stack spacing={2}>
       <PageHeader
-        title="Flight permits"
-        subtitle="Organization-recorded permit and compliance inputs"
+        title={t('Flight permits')}
+        subtitle={t('Organization-recorded permit and compliance inputs')}
         actions={canManage ? (
           <Button variant="contained" startIcon={<Add />} onClick={() => setCreateOpen(true)}>
-            Record permit
+            {t('Record permit')}
           </Button>
         ) : undefined}
       />
       <Alert severity="info">
-        This is the organization-recorded permit status. No authority or registry verification is performed, and the record does not establish permission to fly or operational readiness.
+        {t('This is the organization-recorded permit status. No authority or registry verification is performed, and the record does not establish permission to fly or operational readiness.')}
       </Alert>
       <QueryState
         isLoading={permits.isLoading}
         error={permits.error}
         onRetry={() => void permits.refetch()}
-        loadingLabel="Loading permit records…"
+        loadingLabel={t('Loading permit records…')}
         isEmpty={Boolean(permits.data && permits.data.length === 0)}
-        empty={<EmptyState title="No permit records yet" description="Record the permit and compliance information held by your organization." action={canManage ? <Button variant="contained" onClick={() => setCreateOpen(true)}>Record permit</Button> : undefined} />}
+        empty={<EmptyState title={t('No permit records yet')} description={t('Record the permit and compliance information held by your organization.')} action={canManage ? <Button variant="contained" onClick={() => setCreateOpen(true)}>{t('Record permit')}</Button> : undefined} />}
       >
         <DataTable
           columns={columns}
           rows={permits.data ?? []}
           rowKey={(permit) => permit.id}
           searchable
-          searchPlaceholder="Search by type, area or reference…"
+          searchPlaceholder={t('Search by type, area or reference…')}
           searchPredicate={(permit, query) => [permit.permitType, permit.areaReference, permit.permitReference].some((value) => value?.toLowerCase().includes(query))}
         />
       </QueryState>
@@ -143,6 +145,7 @@ function CreateFlightPermitDialog({
     sourceEvidenceId?: string;
   }) => void;
 }) {
+  const { t } = useLocale();
   const [permitType, setPermitType] = useState('');
   const [areaReference, setAreaReference] = useState('');
   const [issuingAuthority, setIssuingAuthority] = useState('');
@@ -193,31 +196,31 @@ function CreateFlightPermitDialog({
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>Record organization permit</DialogTitle>
+        <DialogTitle>{t('Record organization permit')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
-            <Alert severity="info">Record only information held by your organization. This does not verify a permit with an authority.</Alert>
-            <TextField required label="Permit type" value={permitType} onChange={(event) => setPermitType(event.target.value)} />
-            <TextField label="Area reference" value={areaReference} onChange={(event) => setAreaReference(event.target.value)} />
-            <TextField label="Issuing authority (as recorded)" value={issuingAuthority} onChange={(event) => setIssuingAuthority(event.target.value)} />
-            <TextField label="Permit reference" value={permitReference} onChange={(event) => setPermitReference(event.target.value)} />
-            <TextField label="Geographic scope JSON" value={geographicScope} onChange={(event) => { setGeographicScope(event.target.value); setJsonError(null); }} multiline minRows={2} helperText="Optional JSON value as recorded by your organization." />
-            <TextField label="Conditions JSON" value={conditions} onChange={(event) => { setConditions(event.target.value); setJsonError(null); }} multiline minRows={2} helperText="Optional JSON value as recorded by your organization." />
+            <Alert severity="info">{t('Record only information held by your organization. This does not verify a permit with an authority.')}</Alert>
+            <TextField required label={t('Permit type')} value={permitType} onChange={(event) => setPermitType(event.target.value)} />
+            <TextField label={t('Area reference')} value={areaReference} onChange={(event) => setAreaReference(event.target.value)} />
+            <TextField label={t('Issuing authority (as recorded)')} value={issuingAuthority} onChange={(event) => setIssuingAuthority(event.target.value)} />
+            <TextField label={t('Permit reference')} value={permitReference} onChange={(event) => setPermitReference(event.target.value)} />
+            <TextField label={t('Geographic scope JSON')} value={geographicScope} onChange={(event) => { setGeographicScope(event.target.value); setJsonError(null); }} multiline minRows={2} helperText={t('Optional JSON value as recorded by your organization.')} />
+            <TextField label={t('Conditions JSON')} value={conditions} onChange={(event) => { setConditions(event.target.value); setJsonError(null); }} multiline minRows={2} helperText={t('Optional JSON value as recorded by your organization.')} />
             {jsonError && <Alert severity="error">{jsonError}</Alert>}
-            <TextField type="datetime-local" label="Valid from" value={validFrom} onChange={(event) => { setValidFrom(event.target.value); setDateError(null); }} slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField type="datetime-local" label="Valid until" value={validUntil} onChange={(event) => { setValidUntil(event.target.value); setDateError(null); }} slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField type="datetime-local" label={t('Valid from')} value={validFrom} onChange={(event) => { setValidFrom(event.target.value); setDateError(null); }} slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField type="datetime-local" label={t('Valid until')} value={validUntil} onChange={(event) => { setValidUntil(event.target.value); setDateError(null); }} slotProps={{ inputLabel: { shrink: true } }} />
             {dateError && <Alert severity="error">{dateError}</Alert>}
-            <TextField select label="Organization-recorded status" value={status} onChange={(event) => setStatus(event.target.value as FlightPermitStatus)}>
+            <TextField select label={t('Organization-recorded status')} value={status} onChange={(event) => setStatus(event.target.value as FlightPermitStatus)}>
               {PERMIT_STATUSES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
             </TextField>
-            <TextField label="Related asset ID (optional)" value={assetId} onChange={(event) => setAssetId(event.target.value)} />
-            <TextField label="Source evidence ID (optional)" value={sourceEvidenceId} onChange={(event) => setSourceEvidenceId(event.target.value)} />
+            <TextField label={t('Related asset ID (optional)')} value={assetId} onChange={(event) => setAssetId(event.target.value)} />
+            <TextField label={t('Source evidence ID (optional)')} value={sourceEvidenceId} onChange={(event) => setSourceEvidenceId(event.target.value)} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={pending}>Record permit</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" variant="contained" disabled={pending}>{t('Record permit')}</Button>
         </DialogActions>
       </form>
     </Dialog>
@@ -237,6 +240,7 @@ function ReviewFlightPermitDialog({
   onClose: () => void;
   onSubmit: (input: { status: FlightPermitStatus; reason: string }) => void;
 }) {
+  const { t } = useLocale();
   const [status, setStatus] = useState<FlightPermitStatus>(permit?.status ?? 'APPLICATION');
   const [reason, setReason] = useState('');
 
@@ -249,21 +253,21 @@ function ReviewFlightPermitDialog({
   return (
     <Dialog open={Boolean(permit)} onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>Internal permit record review</DialogTitle>
+        <DialogTitle>{t('Internal permit record review')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
-            <Alert severity="info">This records your organization’s internal review only; it is not external verification or flight clearance.</Alert>
+            <Alert severity="info">{t('This records your organization’s internal review only; it is not external verification or flight clearance.')}</Alert>
             <Typography variant="body2">{permit?.permitType} · {permit?.permitReference || 'No reference recorded'}</Typography>
-            <TextField select label="Organization-recorded status" value={status} onChange={(event) => setStatus(event.target.value as FlightPermitStatus)}>
+            <TextField select label={t('Organization-recorded status')} value={status} onChange={(event) => setStatus(event.target.value as FlightPermitStatus)}>
               {PERMIT_STATUSES.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
             </TextField>
-            <TextField required label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} multiline minRows={3} />
+            <TextField required label={t('Reason')} value={reason} onChange={(event) => setReason(event.target.value)} multiline minRows={3} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={pending || !reason.trim()}>Save internal review</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" variant="contained" disabled={pending || !reason.trim()}>{t('Save internal review')}</Button>
         </DialogActions>
       </form>
     </Dialog>
@@ -280,6 +284,9 @@ function parseJson(value: string): { value?: string; error?: string } {
   }
 }
 
-function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleDateString() : '—';
+function formatDate(
+  value: string | null,
+  format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+) {
+  return value ? format(new Date(value)) : '—';
 }

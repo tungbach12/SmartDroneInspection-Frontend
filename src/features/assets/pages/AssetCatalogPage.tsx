@@ -16,6 +16,7 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { FrequencyUnit } from '../api/catalogApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useAddFrequency,
   useCategories,
@@ -27,6 +28,7 @@ import {
 const FREQUENCY_UNITS: FrequencyUnit[] = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
 
 export default function AssetCatalogPage() {
+  const { t } = useLocale();
   const categories = useCategories();
   const createCategory = useCreateCategory();
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -66,21 +68,21 @@ export default function AssetCatalogPage() {
   return (
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
-        title="Asset catalog"
-        subtitle="Maintain inspection categories and the frequencies suggested for each one"
+        title={t('Asset catalog')}
+        subtitle={t('Maintain inspection categories and the frequencies suggested for each one')}
       />
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
         <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Categories
+              {t('Categories')}
             </Typography>
             <QueryState
               isLoading={categories.isLoading}
               error={categories.error}
               onRetry={() => void categories.refetch()}
               isEmpty={Boolean(categories.data && categories.data.length === 0)}
-              empty={<Alert severity="info">No categories yet. Create the first one below.</Alert>}
+              empty={<Alert severity="info">{t('No categories yet. Create the first one below.')}</Alert>}
             >
               <Stack spacing={1}>
                 {categories.data?.map((category) => (
@@ -98,7 +100,7 @@ export default function AssetCatalogPage() {
 
             <Box component="form" onSubmit={submitCategory} sx={{ mt: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
-                New category
+                {t('New category')}
               </Typography>
               <Stack spacing={2}>
                 {createCategory.isError && (
@@ -109,20 +111,20 @@ export default function AssetCatalogPage() {
                 <TextField
                   required
                   size="small"
-                  label="Code"
+                  label={t('Code')}
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                 />
                 <TextField
                   required
                   size="small"
-                  label="Name"
+                  label={t('Name')}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                 />
                 <TextField
                   size="small"
-                  label="Description"
+                  label={t('Description')}
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                 />
@@ -132,7 +134,7 @@ export default function AssetCatalogPage() {
                   startIcon={<Add />}
                   disabled={createCategory.isPending}
                 >
-                  Save category
+                  {t('Save category')}
                 </Button>
               </Stack>
             </Box>
@@ -142,10 +144,10 @@ export default function AssetCatalogPage() {
         <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Suggested frequencies
+              {t('Suggested frequencies')}
             </Typography>
             {!selectedCategoryId ? (
-              <Alert severity="info">Select a category to manage its suggested frequencies.</Alert>
+              <Alert severity="info">{t('Select a category to manage its suggested frequencies.')}</Alert>
             ) : (
               <>
                 <QueryState
@@ -189,7 +191,7 @@ export default function AssetCatalogPage() {
                     <TextField
                       select
                       size="small"
-                      label="Unit"
+                      label={t('Unit')}
                       value={unit}
                       onChange={(event) => setUnit(event.target.value as FrequencyUnit)}
                     >
@@ -203,7 +205,7 @@ export default function AssetCatalogPage() {
                       required
                       size="small"
                       type="number"
-                      label="Interval"
+                      label={t('Interval')}
                       value={interval}
                       onChange={(event) => setIntervalValue(event.target.value)}
                       slotProps={{ htmlInput: { min: 1 } }}
@@ -214,7 +216,7 @@ export default function AssetCatalogPage() {
                       startIcon={<Add />}
                       disabled={addFrequency.isPending}
                     >
-                      Add frequency
+                      {t('Add frequency')}
                     </Button>
                   </Stack>
                 </Box>

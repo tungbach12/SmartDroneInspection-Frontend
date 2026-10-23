@@ -29,6 +29,7 @@ import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -43,6 +44,7 @@ function formatBytes(bytes: number): string {
  * remove or block the others.
  */
 export default function InspectionEvidencePage() {
+  const { formatDateTime, t } = useLocale();
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
@@ -151,13 +153,13 @@ export default function InspectionEvidencePage() {
       )}
 
       {isInspector && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">Evidence intake</Typography>
+        <Typography variant="h6">{t('Evidence intake')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.
+          {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          {canUploadEvidence && <Button component="label" variant="outlined" aria-label="Choose evidence files">
-            Choose evidence files
+          {canUploadEvidence && <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
+            {t('Choose evidence files')}
             <input
               hidden
               type="file"
@@ -183,7 +185,7 @@ export default function InspectionEvidencePage() {
             {uploading ? 'Uploading…' : 'Upload staged files'}
           </Button>
         </Stack>
-        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.</Alert>}
+        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>{t('Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.')}</Alert>}
         {queue.length > 0 && canEditEvidence && (
           <Stack spacing={1} sx={{ mt: 2 }}>
             {queue.map((file) => (
@@ -193,7 +195,7 @@ export default function InspectionEvidencePage() {
                     {file.name}
                   </Typography>
                   <Button size="small" onClick={() => removeFromQueue(file.name)}>
-                    Remove
+                    {t('Remove')}
                   </Button>
                 </Stack>
                 {fileErrors[file.name] && (
@@ -206,8 +208,7 @@ export default function InspectionEvidencePage() {
           </Stack>
         )}
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-          Uploaded captures are the source for advisory detection and the report. Analysis runs only
-          when you ask for it, on the Findings step.
+          {t('Uploaded captures are the source for advisory detection and the report. Analysis runs only when you ask for it, on the Findings step.')}
         </Typography>
       </Paper>}
 
@@ -224,7 +225,7 @@ export default function InspectionEvidencePage() {
           variant="text"
           sx={{ alignSelf: 'flex-start' }}
         >
-          Review the shot-list in preparation
+          {t('Review the shot-list in preparation')}
         </Button>
       </Paper>
 
@@ -236,15 +237,15 @@ export default function InspectionEvidencePage() {
           sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', mb: 2 }}
         >
           <Box>
-            <Typography variant="h6">Evidence register</Typography>
+            <Typography variant="h6">{t('Evidence register')}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Showing {displayedEvidenceItems.length} of {totalEvidenceCount} matching captures
+              {t('Showing')} {displayedEvidenceItems.length} {t('of')} {totalEvidenceCount} {t('matching captures')}
             </Typography>
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: { sm: 'min(100%, 620px)' } }}>
             <TextField
               size="small"
-              label="Search evidence"
+              label={t('Search evidence')}
               value={searchQuery}
               onChange={(event) => updateSearch(event.target.value)}
               sx={{ flex: 1 }}
@@ -252,27 +253,27 @@ export default function InspectionEvidencePage() {
             <TextField
               select
               size="small"
-              label="File type"
+              label={t('File type')}
               value={fileTypeFilter}
               onChange={(event) => updateMediaType(event.target.value as typeof fileTypeFilter)}
               sx={{ minWidth: 150 }}
             >
-              <MenuItem value="ALL">All types</MenuItem>
-              <MenuItem value="IMAGE">Images</MenuItem>
+              <MenuItem value="ALL">{t('All types')}</MenuItem>
+              <MenuItem value="IMAGE">{t('Images')}</MenuItem>
               <MenuItem value="VIDEO">Video</MenuItem>
-              <MenuItem value="DOCUMENT">Documents</MenuItem>
+              <MenuItem value="DOCUMENT">{t('Documents')}</MenuItem>
             </TextField>
             <TextField
               select
               size="small"
-              label="Evidence status"
+              label={t('Evidence status')}
               value={filterMode}
               onChange={(event) => updateStatus(event.target.value as typeof filterMode)}
               sx={{ minWidth: 170 }}
             >
-              <MenuItem value="ACTIVE">Active only ({activeCount})</MenuItem>
-              <MenuItem value="RETIRED">Retired audit ({retiredCount})</MenuItem>
-              <MenuItem value="ALL">All evidence ({activeCount + retiredCount})</MenuItem>
+              <MenuItem value="ACTIVE">{t('Active only (')}{activeCount})</MenuItem>
+              <MenuItem value="RETIRED">{t('Retired audit (')}{retiredCount})</MenuItem>
+              <MenuItem value="ALL">{t('All evidence (')}{activeCount + retiredCount})</MenuItem>
             </TextField>
           </Stack>
         </Stack>
@@ -296,7 +297,7 @@ export default function InspectionEvidencePage() {
                   </Button>
                   {selectedBatchIds.length > 0 && (
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                      {selectedBatchIds.length} capture(s) selected
+                      {selectedBatchIds.length} {t('capture(s) selected')}
                     </Typography>
                   )}
                 </Stack>
@@ -317,10 +318,11 @@ export default function InspectionEvidencePage() {
               {showBulkRetireForm && (
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    Retire {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} capture(s)
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s)')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                    Original files remain preserved for audit. Remove or re-link any findings citing these captures first.
+                    {t('Original files remain preserved for audit. Remove or re-link any findings citing these captures first.')}
                   </Typography>
                   <Stack spacing={1.5}>
                     <Stack direction="row" spacing={1}>
@@ -341,7 +343,8 @@ export default function InspectionEvidencePage() {
                         {bulkRetire.isPending ? 'Retiring captures…' : 'Confirm bulk retire'}
                       </Button>
                       <Button size="small" onClick={() => setShowBulkRetireForm(false)}>
-                        Cancel
+                        {t('Cancel')}
+                      </Button>
                       </Button>
                     </Stack>
                     {bulkRetire.isError && (
@@ -363,15 +366,15 @@ export default function InspectionEvidencePage() {
           isEmpty={totalEvidenceCount === 0 && !evidence.isLoading}
           empty={
             <EmptyState
-              title="No evidence recorded"
-              description="Upload captures above; they appear here with previews and provenance."
+              title={t('No evidence recorded')}
+              description={t('Upload captures above; they appear here with previews and provenance.')}
             />
           }
         >
           {displayedEvidenceItems.length === 0 && totalEvidenceCount > 0 ? (
             <EmptyState
-              title="No evidence matches these filters"
-              description="Change the search text or filters to see other captures. Retired captures are available under Evidence status."
+              title={t('No evidence matches these filters')}
+              description={t('Change the search text or filters to see other captures. Retired captures are available under Evidence status.')}
             />
           ) : (
             <Box
@@ -418,7 +421,7 @@ export default function InspectionEvidencePage() {
                           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
                             {item.fileName}
                           </Typography>
-                          {item.retiredAt && <Chip size="small" color="warning" label="Retired — audit copy" />}
+                          {item.retiredAt && <Chip size="small" color="warning" label={t('Retired — audit copy')} />}
                         </Stack>
                         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                           {item.contentType} · {formatBytes(item.sizeBytes)}
@@ -447,16 +450,16 @@ export default function InspectionEvidencePage() {
                     />
                   ) : (
                     <Alert severity="info">
-                      {selectedEvidence.contentType} has no inline preview.
+                      {selectedEvidence.contentType} {t('has no inline preview.')}
                     </Alert>
                   )}
                   <Box>
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                      Captured {selectedEvidence.captureTime ?? 'time not recorded'}
+                      {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'}
                     </Typography>
                     {selectedEvidence.retiredAt ? (
                       <Alert severity="warning" sx={{ mt: 1 }}>
-                        Retired from the current evidence set on {new Date(selectedEvidence.retiredAt).toLocaleString()}. The original bytes remain available for audit.
+                        {t('Retired from the current evidence set on')} {formatDateTime(new Date(selectedEvidence.retiredAt))}{t('. The original bytes remain available for audit.')}
                       </Alert>
                     ) : canEditEvidence ? (
                       <Stack spacing={1} sx={{ mt: 1.5 }}>
