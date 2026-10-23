@@ -97,12 +97,10 @@ export function ReportDerivedSections({
           <Field label="Asset location" value={context?.assetLocation} />
           <Field label="Asset category" value={context?.assetCategory} />
           <Field label="Author" value={version.authorUserId} />
-          <Field label="Author verification" value={formatDateTime(version.authorVerifiedAt)} />
+          <Field label="Submitted" value={formatDateTime(version.submittedAt)} />
           <Field label="Reviewer" value={version.reviewerUserId} />
           <Field label="Review decision" value={formatDateTime(version.reviewedAt)} />
           <Field label="Published" value={formatDateTime(version.publishedAt)} />
-          <Field label="Evidence snapshot hash" value={version.evidenceSnapshotHash} />
-          <Field label="Model provenance" value={version.llmModel ? `${version.llmModel} · ${version.promptVersion ?? 'no prompt version'}` : 'Manual authoring'} />
         </Box>
       </ReadOnlySection>
 
@@ -115,7 +113,7 @@ export function ReportDerivedSections({
         <ReadOnlySection
           title="Inspection preparation and recorded session context"
           accountable="Inspector · Organization Admin reviewer"
-          description="Source records from inspection preparation, readiness review, evidence-quality assessment and recorded field sessions. These records do not certify flight, permits or professional qualifications."
+          description="Source records from inspection preparation, readiness review and recorded field sessions. These records do not certify flight, permits or professional qualifications."
         >
           <Box>
             <Field label="Assigned Drone" value={[context.assignedDrone?.manufacturer, context.assignedDrone?.model, context.assignedDrone?.serialNumber].filter(Boolean).join(' · ')} />
@@ -128,10 +126,7 @@ export function ReportDerivedSections({
             <Field label="Readiness decision" value={context.preparation?.readinessDecision} />
             <Field label="Readiness decision time" value={formatDateTime(context.preparation?.readinessDecisionAt)} />
             <Field label="Readiness reason" value={context.preparation?.readinessReason} />
-            <Field label="Evidence quality decision" value={context.evidenceQuality?.decision} />
-            <Field label="Evidence quality comparison" value={context.evidenceQuality?.shotListComparison} />
-            <Field label="Evidence quality limitation" value={context.evidenceQuality?.limitationReason} />
-            <Field label="Findings confirmation" value={context.findingsConfirmedBy ? `${context.findingsConfirmedBy} · ${formatDateTime(context.findingsConfirmedAt)}` : formatDateTime(context.findingsConfirmedAt)} />
+            <Field label="Findings confirmation" value={formatDateTime(context.findingsConfirmedAt)} />
             {context.fieldSessions.map((session) => (
               <Box key={session.id} sx={{ mt: 1, p: 1.5, border: '1px solid #e4e7ec', borderRadius: '8px' }}>
                 <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>Field session · {session.status}</Typography>
@@ -145,7 +140,6 @@ export function ReportDerivedSections({
               </Box>
             ))}
             <Field label="Reviewer qualification disclosure" value={context.reviewerQualificationDisclosure} />
-            <Field label="Source findings snapshot hash" value={context.findingsSnapshotHash} />
           </Box>
         </ReadOnlySection>
       )}
@@ -153,7 +147,7 @@ export function ReportDerivedSections({
       <ReadOnlySection
         title="Evidence register"
         accountable="Inspector · SYSTEM indexes"
-        description="Evidence linked to this report version, with capture metadata, shared asset location and checksum."
+        description="Evidence linked to this report version, with capture time, GPS when available, and its shared asset location."
       >
         {evidenceList.length === 0 ? (
           <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>No evidence was linked to this version.</Typography>
@@ -173,7 +167,6 @@ export function ReportDerivedSections({
                     <Field label="Asset location" value={item.locationDescription} />
                     <Field label="GPS" value={item.latitude != null && item.longitude != null ? `${item.latitude}, ${item.longitude}` : null} />
                     <Field label="Linked findings" value={linkedFindings.length ? linkedFindings.map((finding) => `${finding.defectLabel} (${finding.severity})`).join('; ') : null} />
-                    <Field label="SHA-256" value={item.checksumSha256} />
                   </Box>
                 </Box>
               );
@@ -201,10 +194,7 @@ export function ReportDerivedSections({
                       <Chip size="small" label={finding.severity} />
                       <Chip size="small" color="success" label="Inspector-confirmed" />
                     </Stack>
-                    <Field label="Component" value={finding.component} />
-                    <Field label="Asset location" value={linkedEvidence?.locationDescription ?? finding.locationDescription} />
-                    <Field label="Observed condition" value={finding.observedCondition} />
-                    <Field label="Measurement" value={finding.measurement} />
+                    <Field label="Asset location" value={linkedEvidence?.locationDescription} />
                     <Field label="Technical notes" value={finding.technicalNotes} />
                     <Field label="Recommended action" value={finding.recommendedAction} />
                     <Field label="Inspector confirmation" value={formatDateTime(finding.inspectorConfirmedAt)} />
@@ -226,15 +216,15 @@ export function ReportDerivedSections({
 
       <ReadOnlySection title="Appendices" accountable="Inspector · SYSTEM compiles" description="Evidence index and source-linked inspection context are shown above.">
         <Typography variant="body2" sx={{ color: '#475467', fontSize: '0.8125rem' }}>
-          Evidence photographs are listed in the Evidence register with checksums. The delivered PDF reproduces them as numbered plates. Checklist responses are shown only when the source responses are available.
+          Evidence photographs are listed in the Evidence register. The delivered PDF reproduces them as numbered plates. Checklist responses are shown only when the source responses are available.
         </Typography>
       </ReadOnlySection>
 
       <ReadOnlySection title="Approval and revisions" accountable="Organization Admin · SYSTEM records" description="Who approved this version and when. A correction is issued as a new linked version; a published version is never altered.">
         <Box>
-          <Field label="Author confirmation" value={formatDateTime(version.authorVerifiedAt)} />
+          <Field label="Submitted" value={formatDateTime(version.submittedAt)} />
           <Field label="Reviewer approval" value={formatDateTime(version.reviewedAt)} />
-          <Field label="Return rationale" value={version.reviewReason} />
+          <Field label="Return rationale" value={version.returnReason} />
           <Field label="Approved version" value={formatDateTime(version.publishedAt)} />
         </Box>
         <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#667085', fontStyle: 'italic' }}>

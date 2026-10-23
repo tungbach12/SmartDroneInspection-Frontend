@@ -28,9 +28,11 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
+  workflowQuery: { data: { status: 'FIELD_COMPLETED' as string } },
   prepare: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   submit: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   linkPermits: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  requestAdditionalSession: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   compliance: {
     data: undefined as { blockers: unknown[]; linkedPermitIds: string[] } | undefined,
     isLoading: false,
@@ -42,7 +44,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../hooks/useInspections', () => ({
   useInspectionPreparations: () => mocks.preparationsQuery,
+  useInspectionWorkflowState: () => mocks.workflowQuery,
   usePrepareShotList: () => mocks.prepare,
+  useRequestAdditionalSession: () => mocks.requestAdditionalSession,
   useSubmitPreparation: () => mocks.submit,
   useLinkPermitReferences: () => mocks.linkPermits,
   // Spy so a test can assert the hook was never reached, which is what keeps the 403 off the wire.
@@ -155,6 +159,26 @@ describe('InspectionPreparationPanel', () => {
         inspectionId: INSPECTION_ID,
         input: expect.objectContaining({ safetyObservations: 'Live 110V near pier 3' }),
       }),
+    );
+  });
+
+  it('offers an additional session action on MF2 only after a completed visit with approved readiness', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [{ ...submittedPreparation(), status: 'READY' }];
+    mocks.workflowQuery.data = { status: 'FIELD_COMPLETED' };
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    const requestButton = screen.getByRole('button', { name: 'Additional session needed' });
+    expect((requestButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/why is another field session needed/i), {
+      target: { value: 'The east face was not covered' },
+    });
+    fireEvent.click(requestButton);
+
+    expect(mocks.requestAdditionalSession.mutate).toHaveBeenCalledWith(
+      'The east face was not covered',
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 

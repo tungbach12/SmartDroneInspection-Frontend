@@ -183,7 +183,7 @@ export interface RepairCandidate {
   findingId: string;
   findingCode: string;
   defectLabel: string;
-  description: string | null;
+  technicalNotes: string;
   severity: string;
   recommendedAction: string | null;
   reportPublishedAt: string;

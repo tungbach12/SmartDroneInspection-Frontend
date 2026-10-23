@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -8,6 +8,11 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControlLabel,
   Paper,
   Stack,
@@ -21,8 +26,8 @@ import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 import {
   useCompleteCorrectiveHandoff,
-  useDeclareNoCorrectiveWork,
   useInspectionFindings,
+  useInspectionWorkflowState,
   useReportVersions,
 } from '@/features/inspections/hooks/useInspections';
 
@@ -31,9 +36,8 @@ import {
  *
  * <p>The administrator does not enter individual rationales, priorities, or due dates;
  * that triage belongs to the maintenance team. By default, all confirmed findings are selected
- * to forward as repair candidates. The administrator may deselect any items they wish to postpone.
- * Deselecting all items publishes the report without creating candidates; omitted findings can
- * still be forwarded later.
+ * to forward as repair candidates. Sending an empty selection closes the inspection without
+ * forwarding findings; this decision is final for the inspection.
  */
 export default function CorrectiveDispositionPage() {
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
@@ -42,8 +46,9 @@ export default function CorrectiveDispositionPage() {
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
+  const workflow = useInspectionWorkflowState(inspectionId);
   const completeCorrectiveHandoff = useCompleteCorrectiveHandoff(inspectionId);
-  const declareNoCorrectiveWork = useDeclareNoCorrectiveWork(inspectionId);
+  const [confirmCompletionOpen, setConfirmCompletionOpen] = useState(false);
 
   const publishedVersion =
     versions.data?.find((version) => version.status === 'PUBLISHED') ?? null;
@@ -55,49 +60,52 @@ export default function CorrectiveDispositionPage() {
   );
 
   const unforwardedFindings = useMemo(
-    () => officialFindings.filter((f) => !f.repairRequired && f.correctiveActionReviewedByUserId == null),
+    () => officialFindings.filter((finding) => finding.forwardedToMaintenanceAt == null),
     [officialFindings],
   );
 
   const alreadyForwardedFindings = useMemo(
-    () => officialFindings.filter((f) => f.repairRequired || f.correctiveActionReviewedByUserId != null),
+    () => officialFindings.filter((finding) => finding.forwardedToMaintenanceAt != null),
     [officialFindings],
   );
 
-  // Selected findings to forward: default to all unforwarded findings.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (unforwardedFindings.length > 0) {
-      setSelectedIds(new Set(unforwardedFindings.map((f) => f.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  }, [unforwardedFindings]);
+  // Selected findings default to all current unforwarded rows; keep user edits only for that set.
+  const findingKey = unforwardedFindings.map((finding) => finding.id).join('|');
+  const [selection, setSelection] = useState<{ findingKey: string; ids: Set<string> } | null>(null);
+  const selectedIds =
+    selection?.findingKey === findingKey
+      ? selection.ids
+      : new Set(unforwardedFindings.map((finding) => finding.id));
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelection({ findingKey, ids: next });
   };
 
   const selectAll = () => {
-    setSelectedIds(new Set(unforwardedFindings.map((f) => f.id)));
+    setSelection({ findingKey, ids: new Set(unforwardedFindings.map((finding) => finding.id)) });
   };
 
   const deselectAll = () => {
-    setSelectedIds(new Set());
+    setSelection({ findingKey, ids: new Set() });
   };
 
   const handleSend = () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 && workflow.data?.status === 'REPORT_PUBLISHED') {
+      setConfirmCompletionOpen(true);
+      return;
+    }
     completeCorrectiveHandoff.mutate(Array.from(selectedIds));
+  };
+
+  const confirmCompletionWithoutForwarding = () => {
+    setConfirmCompletionOpen(false);
+    completeCorrectiveHandoff.mutate([]);
   };
 
   if (!canReview) {
@@ -125,17 +133,18 @@ export default function CorrectiveDispositionPage() {
           <Typography variant="h6">Send to Maintenance</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          Forward confirmed findings to the maintenance team as repair candidates. The maintenance team
-          will triage, estimate, and create work orders. By default all findings are selected; you can
-          deselect items you wish to postpone.
+          Forward selected confirmed findings to the maintenance team as repair candidates. The maintenance team
+          will triage, estimate, and create work orders. By default all findings are selected. Sending no findings
+          completes this inspection without maintenance forwarding.
         </Typography>
 
         <QueryState
-          isLoading={versions.isLoading || findings.isLoading}
-          error={versions.error ?? findings.error}
+          isLoading={versions.isLoading || findings.isLoading || workflow.isLoading}
+          error={versions.error ?? findings.error ?? workflow.error}
           onRetry={() => {
             void versions.refetch();
             void findings.refetch();
+            void workflow.refetch();
           }}
         >
           {null}
@@ -170,22 +179,16 @@ export default function CorrectiveDispositionPage() {
               )}
             </Stack>
 
-            {officialFindings.length === 0 ? (
-              <Stack spacing={2}>
-                <Alert severity="info">
-                  This inspection has no confirmed defect findings. You can complete the inspection
-                  without sending repair work to maintenance.
-                </Alert>
-                <Box>
-                  <Button
-                    variant="contained"
-                    disabled={declareNoCorrectiveWork.isPending}
-                    onClick={() => declareNoCorrectiveWork.mutate('No findings observed in inspected scope')}
-                  >
-                    {declareNoCorrectiveWork.isPending ? 'Closing…' : 'Complete inspection without repair'}
-                  </Button>
-                </Box>
-              </Stack>
+            {workflow.data?.status === 'COMPLETED' ? (
+              <Alert severity="success" icon={<CheckCircleOutlineRounded />}>
+                This inspection is complete. Its maintenance decision is final; additional findings
+                cannot be forwarded from this inspection.
+              </Alert>
+            ) : officialFindings.length === 0 ? (
+              <Alert severity="info">
+                No confirmed findings are awaiting maintenance. The published report records the
+                Inspector’s explicit no-findings acknowledgment and observed coverage.
+              </Alert>
             ) : (
               <Stack spacing={2}>
                 {unforwardedFindings.length > 0 ? (
@@ -232,17 +235,15 @@ export default function CorrectiveDispositionPage() {
                                         {finding.defectLabel}
                                       </Typography>
                                       <Chip size="small" label={finding.severity} />
-                                      {finding.locationDescription && (
+                                      {finding.evidenceId && (
                                         <Typography variant="caption" color="text.secondary">
-                                          {finding.locationDescription}
+                                          Evidence · {finding.evidenceId.slice(0, 8)}…
                                         </Typography>
                                       )}
                                     </Stack>
-                                    {finding.description && (
-                                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                        {finding.description}
-                                      </Typography>
-                                    )}
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                      {finding.technicalNotes}
+                                    </Typography>
                                   </Box>
                                 }
                                 sx={{ width: '100%', alignItems: 'flex-start' }}
@@ -258,19 +259,24 @@ export default function CorrectiveDispositionPage() {
                         variant="contained"
                         size="large"
                         startIcon={<EngineeringOutlined />}
-                        disabled={completeCorrectiveHandoff.isPending || selectedIds.size === 0}
+                        disabled={completeCorrectiveHandoff.isPending || !workflow.data}
                         onClick={handleSend}
                       >
                         {completeCorrectiveHandoff.isPending
-                          ? 'Forwarding to Maintenance…'
-                          : `Send ${selectedIds.size} finding(s) to Maintenance`}
+                          ? 'Saving maintenance decision…'
+                          : selectedIds.size === 0
+                            ? workflow.data?.status === 'REPAIR_PENDING'
+                              ? 'Leave remaining findings unforwarded'
+                              : 'Complete inspection without forwarding'
+                            : `Send ${selectedIds.size} finding(s) to Maintenance`}
                       </Button>
                     </Box>
 
                     {selectedIds.size === 0 && (
                       <Alert severity="info">
-                        No findings selected. The report remains published without sending items to maintenance.
-                        You can return here anytime to forward findings later.
+                        {workflow.data?.status === 'REPAIR_PENDING'
+                          ? 'No additional findings selected. The inspection remains in maintenance; these findings can be forwarded later.'
+                          : 'Completing now closes the inspection without forwarding; this decision is final.'}
                       </Alert>
                     )}
                   </>
@@ -304,20 +310,45 @@ export default function CorrectiveDispositionPage() {
             )}
 
             <MutationProblemAlert
-              error={completeCorrectiveHandoff.error ?? declareNoCorrectiveWork.error}
-              isError={completeCorrectiveHandoff.isError || declareNoCorrectiveWork.isError}
+              error={completeCorrectiveHandoff.error}
+              isError={completeCorrectiveHandoff.isError}
               fallbackMessage="Could not forward findings to maintenance."
             />
 
-            {(completeCorrectiveHandoff.isSuccess || declareNoCorrectiveWork.isSuccess) && (
+            {completeCorrectiveHandoff.isSuccess && (
               <Alert severity="success">
                 Findings successfully forwarded to Maintenance. Inspection status:{' '}
-                {(completeCorrectiveHandoff.data ?? declareNoCorrectiveWork.data)?.inspectionStatus}.
+                {completeCorrectiveHandoff.data?.inspectionStatus}.
               </Alert>
             )}
           </Stack>
         )}
       </Paper>
+
+      <Dialog
+        open={confirmCompletionOpen}
+        onClose={() => setConfirmCompletionOpen(false)}
+        aria-labelledby="complete-inspection-dialog-title"
+      >
+        <DialogTitle id="complete-inspection-dialog-title">Complete without forwarding?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This closes the inspection without sending findings to Maintenance. A completed inspection
+            cannot be reopened for later forwarding.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmCompletionOpen(false)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmCompletionWithoutForwarding}
+            disabled={completeCorrectiveHandoff.isPending}
+          >
+            Confirm completion without forwarding
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

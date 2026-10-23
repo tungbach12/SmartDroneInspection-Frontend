@@ -17,23 +17,16 @@ const version: InspectionReportVersion = {
   versionNo: 1,
   status: 'DRAFT',
   authorUserId: 'author-1',
-  authorVerifiedAt: null,
+  submittedAt: null,
   reviewerUserId: null,
   reviewedAt: null,
-  reviewReason: null,
-  returnReasonType: null,
-  withdrawnByUserId: null,
+  returnReason: null,
   withdrawnAt: null,
   withdrawalReason: null,
-  llmModel: null,
-  promptVersion: null,
-  generatedAt: null,
-  evidenceSnapshotHash: null,
-  findingsSnapshotHash: null,
   publishedAt: null,
   createdAt: '2026-01-01T00:00:00Z',
-  narrative: null,
   omissionDisclosure: null,
+  sections: { inspectorCoverageAssessment: 'North span covered; east face not observed.' },
   reportContext: {
     organizationName: 'Northwind Infrastructure',
     assetCode: 'BR-014',
@@ -54,13 +47,6 @@ const version: InspectionReportVersion = {
       permitDocumentReferences: null,
       submittedAt: '2026-01-02T08:00:00Z',
     },
-    evidenceQuality: {
-      decision: 'ACCEPTED',
-      shotListComparison: 'North span covered',
-      limitationReason: 'East face partly obscured',
-      decidedByUserId: 'inspector-1',
-      decidedAt: '2026-01-02T10:00:00Z',
-    },
     fieldSessions: [
       {
         id: 'session-1',
@@ -78,9 +64,7 @@ const version: InspectionReportVersion = {
       },
     ],
     reviewerQualificationDisclosure: 'Professional qualification was not independently validated.',
-    findingsConfirmedBy: 'inspector-1',
     findingsConfirmedAt: '2026-01-02T11:00:00Z',
-    findingsSnapshotHash: 'findings-hash',
   },
 };
 
@@ -91,17 +75,12 @@ const evidence: EvidenceItem = {
   fileName: 'spalling.jpg',
   contentType: 'image/jpeg',
   sizeBytes: 10,
-  checksumSha256: 'checksum',
   captureTime: null,
-  source: 'WEB_UPLOAD',
   latitude: null,
   longitude: null,
-  externalReference: null,
   uploadStatus: 'AVAILABLE',
   createdAt: '2026-01-01T00:00:00Z',
-  retiredByUserId: null,
   retiredAt: null,
-  retirementReason: null,
   locationDescription: null,
   deduplicated: false,
 };
@@ -112,12 +91,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     inspectionId: 'inspection-1',
     evidenceId: evidence.id,
     deletedAt: null,
-    deletedByUserId: null,
-    deletionReason: null,
+    forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
     severity: 'HIGH',
-    locationDescription: 'Pier 2 north face',
     technicalNotes: 'Visible crack',
     boundingBox: null,
     modelName: null,
@@ -125,20 +102,8 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     modelProvider: null,
     confidence: null,
     recommendedAction: null,
-    component: 'Pier 2',
-    description: null,
-    observedCondition: null,
-    priority: null,
-    measurement: null,
     inspectorConfirmedAt: '2026-01-02T00:00:00Z',
-    repairRequired: false,
     status: 'PENDING',
-    correctiveActionRequired: false,
-    correctiveActionPriority: null,
-    correctiveActionDueAt: null,
-    correctiveActionReviewedByUserId: null,
-    correctiveActionReviewedAt: null,
-    correctiveActionRationale: null,
     ...overrides,
   };
 }
@@ -171,7 +136,7 @@ function renderConfirmedFindings(findings: Finding[]) {
 }
 
 describe('ReportDerivedSections source context', () => {
-  it('shows source-backed organization, asset, preparation, decision and session details', () => {
+  it('shows source-backed organization, asset, preparation and session details', () => {
     const { container } = render(
       <ReportDerivedSections
         version={version}
@@ -185,7 +150,6 @@ describe('ReportDerivedSections source context', () => {
     expect(container.textContent).toContain('North span bridge');
     expect(container.textContent).toContain('BR-014');
     expect(container.textContent).toContain('North span, east face');
-    expect(container.textContent).toContain('North span covered');
     expect(container.textContent).toContain('Drone identified; bridge accessible');
     expect(container.textContent).toContain('Professional qualification was not independently validated.');
   });

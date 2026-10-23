@@ -109,11 +109,9 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       </Typography>
                       <StatusChip status={candidate.severity} />
                     </Stack>
-                    {candidate.description ? (
-                      <Typography variant="body2" sx={{ color: '#475467', mt: 0.5 }}>
-                        {candidate.description}
-                      </Typography>
-                    ) : null}
+                    <Typography variant="body2" sx={{ color: '#475467', mt: 0.5 }}>
+                      {candidate.technicalNotes}
+                    </Typography>
                     {candidate.recommendedAction ? (
                       <Typography variant="caption" sx={{ color: '#667085', display: 'block', mt: 0.5 }}>
                         Recommended: {candidate.recommendedAction}

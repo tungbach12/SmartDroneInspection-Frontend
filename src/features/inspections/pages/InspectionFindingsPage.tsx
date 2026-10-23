@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { AutoAwesomeOutlined, ReportProblemOutlined } from '@mui/icons-material';
 import {
   Alert,
@@ -27,15 +27,12 @@ import type {
 } from '../api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { AiMotionFigure } from '../components/AiMotionFigure';
-import { hasAutoDetectionRun, markAutoDetectionRun } from '../autoDetectionRun';
 import {
   useAnalyzeEvidence,
   useCreateManualFinding,
   useUpdateFinding,
   useDeleteFinding,
   useConfirmFindings,
-  useEvidenceQualityHistory,
-  useEvidenceAnalysisStatuses,
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
@@ -88,18 +85,17 @@ export default function InspectionFindingsPage() {
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
-  const userId = useAuthStore((state) => state.userId);
   const isInspector = roles.includes('INSPECTOR');
   const isReviewer = roles.includes('ORG_ADMIN');
 
   const evidence = useInspectionEvidence(inspectionId);
-  const quality = useEvidenceQualityHistory(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const removedFindings = useRemovedFindings(inspectionId);
-  const analysisStatuses = useEvidenceAnalysisStatuses(inspectionId);
   const {
     analyzeMany,
     analysingIds,
+    completedIds,
+    noDetectionIds,
     isPending: isAnalysisPending,
     isError: isAnalysisError,
     error: analysisError,
@@ -138,7 +134,7 @@ export default function InspectionFindingsPage() {
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
   const [showRemovedFindings, setShowRemovedFindings] = useState(false);
 
-  const evidenceAccepted = quality.data?.[0]?.decision === 'ACCEPTED';
+  const hasActiveEvidence = activeEvidenceItems.length > 0;
   // A finding belongs to the working set while it is linked to a current capture. One linked to
   // retired evidence stays in the record but is not part of what the Inspector works from.
   const activeFindings = useMemo(
@@ -153,7 +149,7 @@ export default function InspectionFindingsPage() {
   const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
   const canConfirm =
     isInspector &&
-    evidenceAccepted &&
+    hasActiveEvidence &&
     !findings.isLoading &&
     !workflow.isLoading &&
     !findings.isError &&
@@ -165,75 +161,25 @@ export default function InspectionFindingsPage() {
     !confirmFindings.isPending &&
     !isReportLocked &&
     !['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
-  const autoAnalysed = useRef(new Set<string>());
-  const autoPassOffered = useRef(false);
-
-  // MF3-05 runs one automatic pass for the accepted set. Reopening Findings returns the workflow
-  // to FIELD_COMPLETED but must not silently restart detection; the Inspector can still explicitly
-  // analyse an image that has no candidates.
-  const analysisStatusByEvidenceId = useMemo(
-    () => new Map((analysisStatuses.data ?? []).map((status) => [status.evidenceId, status])),
-    [analysisStatuses.data],
-  );
+  // MF3-05 detection is an explicit action: the Inspector chooses which images to analyse. The
+  // automatic one-time pass that used to run when the evidence set was accepted is gone, so
+  // reopening Findings never starts the model by itself.
   const analysedEvidenceIds = useMemo(
-    () => new Set([
-      ...activeFindings.map((finding) => finding.evidenceId),
-      ...analysisStatusByEvidenceId.keys(),
-    ]),
-    [activeFindings, analysisStatusByEvidenceId],
+    () => new Set([...activeFindings.map((finding) => finding.evidenceId), ...completedIds]),
+    [activeFindings, completedIds],
+  );
+  const noDetectionEvidenceIds = useMemo(() => new Set(noDetectionIds), [noDetectionIds]);
+  const analysableImageIds = useMemo(
+    () =>
+      activeEvidenceItems
+        .filter((item) => item.contentType.startsWith('image/'))
+        .map((item) => item.id),
+    [activeEvidenceItems],
   );
   const analysingEvidenceIds = useMemo(() => new Set(analysingIds), [analysingIds]);
   const analysingFileNames = activeEvidenceItems
     .filter((item) => analysingEvidenceIds.has(item.id))
     .map((item) => item.fileName);
-  useEffect(() => {
-    if (
-      !isInspector ||
-      !userId ||
-      !evidenceAccepted ||
-      !analysisUnlocked ||
-      isAnalysisPending ||
-      findings.isLoading ||
-      !findings.data ||
-      analysisStatuses.isLoading ||
-      analysisStatuses.data === undefined ||
-      evidence.isLoading ||
-      evidence.data === undefined
-    ) {
-      return;
-    }
-    if (!autoPassOffered.current) {
-      autoPassOffered.current = true;
-      if (hasAutoDetectionRun(userId, inspectionId)) return;
-      markAutoDetectionRun(userId, inspectionId);
-    }
-    const pending = activeEvidenceItems.filter(
-      (item) =>
-        item.contentType.startsWith('image/') &&
-        !autoAnalysed.current.has(item.id) &&
-        !analysedEvidenceIds.has(item.id),
-    );
-    if (pending.length === 0) return;
-    pending.forEach((item) => autoAnalysed.current.add(item.id));
-    void analyzeMany(pending.map((item) => item.id));
-  }, [
-    isInspector,
-    userId,
-    inspectionId,
-    evidenceAccepted,
-    analysisUnlocked,
-    findings.isLoading,
-    findings.data,
-    analysisStatuses.isLoading,
-    analysisStatuses.data,
-    analysisStatusByEvidenceId,
-    evidence.isLoading,
-    evidence.data,
-    analysedEvidenceIds,
-    activeEvidenceItems,
-    analyzeMany,
-    isAnalysisPending,
-  ]);
 
   const severityFor = (findingId: string): FindingSeverity =>
     severities[findingId] ?? 'MEDIUM';
@@ -242,7 +188,6 @@ export default function InspectionFindingsPage() {
     return finding
       ? locationDrafts[finding.evidenceId ?? ''] ??
         evidence.data?.find((item) => item.id === finding.evidenceId)?.locationDescription ??
-        finding.locationDescription ??
         ''
       : '';
   };
@@ -275,7 +220,6 @@ export default function InspectionFindingsPage() {
       evidenceId,
       defectLabel: String(formData.get('defectLabel') ?? '').trim(),
       severity: String(formData.get('severity') ?? 'MEDIUM') as FindingSeverity,
-      locationDescription: evidence.data?.find((item) => item.id === evidenceId)?.locationDescription ?? undefined,
       technicalNotes: String(formData.get('technicalNotes') ?? '').trim(),
       recommendedAction: String(formData.get('recommendedAction') ?? '').trim(),
     });
@@ -293,7 +237,10 @@ export default function InspectionFindingsPage() {
 
   if (isReviewer && !isInspector) {
     return (
-      <OrganizationFindingsOverview findings={findings.data ?? []} />
+      <OrganizationFindingsOverview
+        findings={findings.data ?? []}
+        inspectionId={inspectionId}
+      />
     );
   }
 
@@ -305,14 +252,13 @@ export default function InspectionFindingsPage() {
           <Typography variant="h6">Advisory detection</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Runs automatically once, the first time the evidence set is accepted. Reopening Findings
-          does not start it again — analyse any image yourself from here, including again after a
-          detector change. Re-analysing an image replaces its unreviewed suggestions and keeps the
-          ones you already decided. Every suggestion remains a
-          candidate until the Inspector confirms, modifies or rejects it; the manual path stays open.
+          Detection runs only when you ask for it. Analyse the images you want, or all of them at
+          once, and re-analyse an image after a detector change — that replaces its unreviewed
+          suggestions and keeps the ones you already decided. Every suggestion remains a candidate
+          until the Inspector confirms, modifies or rejects it; the manual path stays open.
         </Typography>
-        {!evidenceAccepted ? (
-          <Alert severity="info">Detection starts after an accepted evidence quality decision.</Alert>
+        {!hasActiveEvidence ? (
+          <Alert severity="info">Upload current captures before running advisory detection.</Alert>
         ) : (
           <Stack spacing={1}>
             {!isInspector && (
@@ -336,6 +282,21 @@ export default function InspectionFindingsPage() {
                   'AI analysis is unavailable; existing evidence remains available.',
                 )}
               </Alert>
+            )}
+            {isInspector && analysisUnlocked && (
+              <Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AutoAwesomeOutlined />}
+                  disabled={isAnalysisPending || analysableImageIds.length === 0}
+                  onClick={() => void analyzeMany(analysableImageIds)}
+                >
+                  {isAnalysisPending
+                    ? 'Analysing…'
+                    : `Analyse ${analysableImageIds.length} image(s)`}
+                </Button>
+              </Box>
             )}
             {activeEvidenceItems
               .filter((item) => item.contentType.startsWith('image/'))
@@ -363,11 +324,9 @@ export default function InspectionFindingsPage() {
                           color="success"
                           icon={<AiMotionFigure name="advisoryPulse" size={14} />}
                           label={
-                            activeFindings.some((finding) => finding.evidenceId === item.id)
-                              ? 'Detection complete'
-                              : analysisStatusByEvidenceId.get(item.id)?.detectionCount === 0
-                                ? 'No defects detected'
-                                : 'Detection complete'
+                            noDetectionEvidenceIds.has(item.id)
+                              ? 'No defects detected'
+                              : 'Detection complete'
                           }
                         />
                       )}
@@ -521,6 +480,7 @@ export default function InspectionFindingsPage() {
                             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                               <Stack spacing={1}>
                                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                                  <Chip size="small" label={finding.findingCode} />
                                   <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                                   {finding.confidence !== null && (
                                     <Chip
@@ -542,6 +502,12 @@ export default function InspectionFindingsPage() {
                                     />
                                   )}
                                 </Stack>
+                                <Typography variant="body2">{finding.technicalNotes}</Typography>
+                                {finding.recommendedAction && (
+                                  <Typography variant="body2">
+                                    <strong>Recommended action:</strong> {finding.recommendedAction}
+                                  </Typography>
+                                )}
                                 {finding.modelName && (
                                   <Typography variant="caption" color="text.secondary">
                                     {finding.modelProvider ? `${finding.modelProvider} · ` : ''}{finding.modelName} · {finding.modelVersion}
@@ -588,7 +554,6 @@ export default function InspectionFindingsPage() {
                                             findingId: finding.id,
                                             input: {
                                               severity: severityFor(finding.id),
-                                              locationDescription: locationFor(finding.id).trim() || undefined,
                                               technicalNotes: finding.technicalNotes ?? 'Confirmed by assigned Inspector',
                                             },
                                           })
@@ -601,10 +566,7 @@ export default function InspectionFindingsPage() {
                                         color="error"
                                         disabled={deleteFinding.isPending}
                                         onClick={() =>
-                                          deleteFinding.mutate({
-                                            findingId: finding.id,
-                                            reason: 'Inspector removed this suggestion',
-                                          })
+                                          deleteFinding.mutate(finding.id)
                                         }
                                       >
                                         Remove
@@ -712,7 +674,6 @@ export default function InspectionFindingsPage() {
                                                       evidenceId: finding.evidenceId ?? '',
                                                       defectLabel: (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim(),
                                                       severity: severityFor(finding.id),
-                                                      locationDescription: locationFor(finding.id).trim() || undefined,
                                                       technicalNotes: finding.technicalNotes ?? 'Corrected by assigned Inspector',
                                                     },
                                                   });
@@ -743,10 +704,7 @@ export default function InspectionFindingsPage() {
                                           color="error"
                                           disabled={deleteFinding.isPending}
                                           onClick={() =>
-                                            deleteFinding.mutate({
-                                              findingId: finding.id,
-                                              reason: 'Inspector removed this finding',
-                                            })
+                                            deleteFinding.mutate(finding.id)
                                           }
                                         >
                                           Remove finding
@@ -894,7 +852,7 @@ export default function InspectionFindingsPage() {
                             label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {finding.deletionReason ? `Removed: ${finding.deletionReason}` : 'Removed'}
+                            Removed · {finding.deletedAt ? new Date(finding.deletedAt).toLocaleString() : 'time unavailable'}
                           </Typography>
                           <Box sx={{ flexGrow: 1 }} />
                           <Button
@@ -992,7 +950,7 @@ export default function InspectionFindingsPage() {
         isPending={updateFinding.isPending || deleteFinding.isPending}
         error={updateFinding.error ?? deleteFinding.error}
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
-        onDelete={(findingId, reason) => deleteFinding.mutate({ findingId, reason })}
+        onDelete={(findingId) => deleteFinding.mutate(findingId)}
       />
 
     </Stack>
@@ -1014,11 +972,9 @@ function InspectorFindingRegister({
   isPending: boolean;
   error: unknown;
   onUpdate: (findingId: string, input: ManualFindingInput) => void;
-  onDelete: (findingId: string, reason: string) => void;
+  onDelete: (findingId: string) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletionReason, setDeletionReason] = useState('');
 
   if (!isEditable || findings.length === 0) return null;
   const activeEvidence = evidence.filter((item) => item.retiredAt == null);
@@ -1030,14 +986,8 @@ function InspectorFindingRegister({
       evidenceId: String(data.get('evidenceId') ?? finding.evidenceId ?? ''),
       defectLabel: String(data.get('defectLabel') ?? '').trim(),
       severity: String(data.get('severity') ?? finding.severity) as FindingSeverity,
-      locationDescription: String(data.get('locationDescription') ?? '').trim() || undefined,
       technicalNotes: String(data.get('technicalNotes') ?? '').trim(),
       recommendedAction: String(data.get('recommendedAction') ?? '').trim() || undefined,
-      component: String(data.get('component') ?? '').trim() || undefined,
-      observedCondition: String(data.get('observedCondition') ?? '').trim() || undefined,
-      priority: String(data.get('priority') ?? '').trim() || undefined,
-      measurement: String(data.get('measurement') ?? '').trim() || undefined,
-      repairRequired: finding.repairRequired,
     });
     setEditingId(null);
   };
@@ -1062,8 +1012,6 @@ function InspectorFindingRegister({
                 </TextField>
                 <TextField name="technicalNotes" label="Technical notes" size="small" multiline minRows={2} defaultValue={finding.technicalNotes} required sx={{ gridColumn: '1 / -1' }} />
                 <TextField name="recommendedAction" label="Recommended action" size="small" multiline minRows={2} defaultValue={finding.recommendedAction ?? ''} sx={{ gridColumn: '1 / -1' }} />
-                <TextField name="component" label="Component" size="small" defaultValue={finding.component ?? ''} />
-                <TextField name="observedCondition" label="Observed condition" size="small" defaultValue={finding.observedCondition ?? ''} />
                 <Stack direction="row" spacing={1} sx={{ gridColumn: '1 / -1' }}>
                   <Button type="submit" variant="contained" size="small" disabled={isPending || activeEvidence.length === 0}>Save finding</Button>
                   <Button size="small" onClick={() => setEditingId(null)}>Cancel</Button>
@@ -1076,16 +1024,14 @@ function InspectorFindingRegister({
                   <Chip size="small" label={finding.severity} />
                   {finding.inspectorConfirmedAt && <Chip size="small" color="success" label="Included in report" />}
                 </Stack>
-                <Typography variant="body2" color="text.secondary">{finding.locationDescription || finding.component || 'Location not supplied'}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {evidence.find((item) => item.id === finding.evidenceId)?.locationDescription || 'Location not supplied'}
+                </Typography>
                 <Stack direction="row" spacing={1}>
                   <Button size="small" onClick={() => setEditingId(finding.id)}>Edit</Button>
-                  {deletingId === finding.id ? (
-                    <>
-                      <TextField size="small" label="Removal reason" value={deletionReason} onChange={(event) => setDeletionReason(event.target.value)} required />
-                      <Button size="small" color="error" disabled={!deletionReason.trim() || isPending} onClick={() => { onDelete(finding.id, deletionReason.trim()); setDeletingId(null); setDeletionReason(''); }}>Confirm remove</Button>
-                      <Button size="small" onClick={() => setDeletingId(null)}>Cancel</Button>
-                    </>
-                  ) : <Button size="small" color="error" onClick={() => { setDeletingId(finding.id); setDeletionReason(''); }}>Remove</Button>}
+                  <Button size="small" color="error" disabled={isPending} onClick={() => onDelete(finding.id)}>
+                    Remove
+                  </Button>
                 </Stack>
               </Stack>
             )}
@@ -1102,7 +1048,14 @@ function InspectorFindingRegister({
  * `evidenceId`. Non-image captures have no inline preview; a missing entry
  * renders nothing rather than a broken image.
  */
-function OrganizationFindingsOverview({ findings }: { findings: Finding[] }) {
+function OrganizationFindingsOverview({
+  findings,
+  inspectionId,
+}: {
+  findings: Finding[];
+  inspectionId: string;
+}) {
+  const evidence = useInspectionEvidence(inspectionId);
   const officialFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const pendingFindings = findings.filter((finding) => finding.status === 'PENDING');
   const severityOrder: FindingSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -1141,9 +1094,8 @@ function OrganizationFindingsOverview({ findings }: { findings: Finding[] }) {
                     <Chip size="small" color="success" label="Inspector-confirmed" />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {finding.component ?? finding.locationDescription ?? 'Location not recorded'}
+                    {(evidence.data ?? []).find((item) => item.id === finding.evidenceId)?.locationDescription ?? 'Location not recorded'}
                   </Typography>
-                  {finding.observedCondition && <Typography variant="body2">{finding.observedCondition}</Typography>}
                   {finding.technicalNotes && <Typography variant="body2" color="text.secondary">{finding.technicalNotes}</Typography>}
                   {finding.recommendedAction && <Typography variant="body2"><strong>Recommended action:</strong> {finding.recommendedAction}</Typography>}
                   {finding.evidenceId && <Typography variant="caption" color="text.secondary">Linked evidence · {finding.evidenceId.slice(0, 8)}…</Typography>}
