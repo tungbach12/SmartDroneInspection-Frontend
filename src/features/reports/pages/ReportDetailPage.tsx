@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -62,13 +61,12 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
-  const [reviewReasonType, setReviewReasonType] = useState<'TEXT_REVISION' | 'FINDINGS_REVISION'>('TEXT_REVISION');
   const [withdrawReason, setWithdrawReason] = useState('');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
-  const workflowState = useInspectionWorkflowState(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
+  const workflowState = useInspectionWorkflowState(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
@@ -88,15 +86,14 @@ export default function ReportDetailPage() {
   const publishedUnhanded =
     openVersion?.status === 'PUBLISHED' &&
     (inspectionStatus === 'REPORT_PUBLISHED' || inspectionStatus == null);
-  const reportReadLoading = findings.isLoading || evidence.isLoading || Boolean(findings.error || evidence.error);
+  const reportReadLoading =
+    findings.isLoading || evidence.isLoading || Boolean(findings.error || evidence.error);
   const canWithdrawSubmission = Boolean(
     canAuthor && isAuthor && openVersion?.status === 'SUBMITTED' &&
       openVersion.reviewerUserId == null && openVersion.reviewedAt == null,
   );
-  const needsFindingsRevisionDraft =
-    openVersion?.status === 'RETURNED' && openVersion.returnReasonType === 'FINDINGS_REVISION';
   const canEditReturnedText =
-    canAuthor && isAuthor && openVersion?.status === 'RETURNED' && !needsFindingsRevisionDraft;
+    canAuthor && isAuthor && openVersion?.status === 'RETURNED';
 
   const saveSections = useSaveReportSections(inspectionId);
 
@@ -202,15 +199,7 @@ export default function ReportDetailPage() {
 
           {openVersion && (
             <>
-              {needsFindingsRevisionDraft && (
-                <Alert severity="warning" action={
-                  <Button color="inherit" size="small" onClick={() => navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`)}>
-                    {t('Reopen findings')}
-                  </Button>
-                }>
-                  {t('The reviewer requested a findings/evidence revision. This submitted version is preserved; correct the existing evidence/findings, confirm them again, then create a new report draft from the Report tab.')}
-                </Alert>
-              )}
+
               {openVersion.withdrawnAt != null && (
                 <Alert severity="info">
                   {t('You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.')}
@@ -371,15 +360,6 @@ export default function ReportDetailPage() {
                           </Alert>
                         )}
                         <TextField
-                          select
-                          label={t('What needs revision?')}
-                          value={reviewReasonType}
-                          onChange={(event) => setReviewReasonType(event.target.value as 'TEXT_REVISION' | 'FINDINGS_REVISION')}
-                        >
-                          <MenuItem value="TEXT_REVISION">{t('Report text only')}</MenuItem>
-                          <MenuItem value="FINDINGS_REVISION">{t('Findings/evidence — reopen Inspector review')}</MenuItem>
-                        </TextField>
-                        <TextField
                           label={t('Reason for return')}
                           placeholder={t('Required when returning for author revisions')}
                           multiline
@@ -410,7 +390,6 @@ export default function ReportDetailPage() {
                                 versionId: openVersion.id,
                                 approve: false,
                                 reason: reviewReason.trim(),
-                                reasonType: reviewReasonType,
                               })
                             }
                             sx={{ borderRadius: '8px', px: 2.5 }}
@@ -468,8 +447,8 @@ export default function ReportDetailPage() {
 
               {publish.isSuccess && (
                 <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                  {t('Published version')} {publish.data.versionNo}. The PDF is immutable; record
-                  corrective outcomes before handing findings to MF4.
+                  {t('Published version')} {publish.data.versionNo}. The PDF is immutable; forward
+                  confirmed findings to maintenance individually when they require corrective work.
                 </Alert>
               )}
 
@@ -479,8 +458,8 @@ export default function ReportDetailPage() {
                     {t('Send to Maintenance (MF3-12)')}
                   </Typography>
                   <Alert severity="info">
-                    The published version is immutable. Confirmed defect findings can be forwarded
-                    to the maintenance team as repair candidates.
+                    The published version is immutable. Select which confirmed findings to forward to
+                    maintenance; each finding’s forwarding time is recorded separately.
                   </Alert>
                   <Box>
                     <Button

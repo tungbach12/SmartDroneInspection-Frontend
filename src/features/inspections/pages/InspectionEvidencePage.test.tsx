@@ -11,12 +11,6 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
-  qualityQuery: {
-    data: [] as unknown[] | undefined,
-    isLoading: false,
-    error: null as Error | null,
-    refetch: vi.fn(),
-  },
   workflowQuery: {
     data: { status: 'FIELD_COMPLETED' as string },
     isLoading: false,
@@ -53,7 +47,6 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     error: null as Error | null,
   },
-  decideQuality: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   versions: { data: [] as unknown[], isLoading: false, error: null as Error | null, refetch: vi.fn() },
   retire: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   bulkRetire: { mutateAsync: vi.fn(), isPending: false, isError: false, error: null as Error | null },
@@ -96,14 +89,12 @@ vi.mock('../hooks/useInspections', () => ({
     };
   },
   useInspectionEvidence: () => mocks.evidenceQuery,
-  useEvidenceQualityHistory: () => mocks.qualityQuery,
   useInspectionWorkflowState: () => mocks.workflowQuery,
   useFieldSessions: () => mocks.sessionQuery,
   useReportVersions: () => mocks.versions,
   useRetireEvidence: () => mocks.retire,
   useBulkRetireEvidence: () => mocks.bulkRetire,
   useUploadInspectionEvidence: () => mocks.upload,
-  useDecideEvidenceQuality: () => mocks.decideQuality,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -122,12 +113,8 @@ function imageEvidence() {
     fileName: 'span.png',
     contentType: 'image/png',
     sizeBytes: 8,
-    checksumSha256: 'abcdef1234567890',
     captureTime: '2026-10-08T08:15:00Z',
-    source: 'WEB_UPLOAD',
-    retiredByUserId: null,
     retiredAt: null,
-    retirementReason: null,
   }; 
 }
 
@@ -145,27 +132,18 @@ function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
   });
 }
 
-/** MF3-03 makes the comparison a required input, so the accept path starts here. */
-function writeComparison(text = 'Span P4 covered; east face not observed.') {
-  fireEvent.change(screen.getByLabelText(/shot-list comparison/i), {
-    target: { value: text },
-  });
-}
-
 describe('InspectionEvidencePage', () => {
   beforeEach(() => {
     cleanup();
     signInAs('INSPECTOR');
     mocks.queryEvidence.mockReset();
     mocks.evidenceQuery = { data: { items: [], totalCount: 0, totalPages: 0, page: 1, pageSize: 50, activeCount: 0, retiredCount: 0, latestCreatedAt: null as string | null, latestRetiredAt: null as string | null }, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.qualityQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     mocks.versions = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.retire.mutate.mockReset();
     mocks.bulkRetire.mutateAsync.mockReset();
     mocks.upload.mutateAsync.mockReset();
     mocks.upload.mutateAsync.mockResolvedValue({ id: 'evidence-1' });
-    mocks.decideQuality.mutate.mockReset();
   });
 
   afterEach(() => {
@@ -173,7 +151,7 @@ describe('InspectionEvidencePage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('gives Organization Admin a read-only evidence review instead of disabled Inspector intake controls', () => {
+  it('gives Organization Admin a read-only evidence register instead of Inspector intake controls', () => {
     signInAs('ORG_ADMIN');
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
@@ -181,16 +159,10 @@ describe('InspectionEvidencePage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', decision: 'ACCEPTED', shotListComparison: 'Main span captured; east face not observed.', limitationReason: null, decidedByUserId: 'inspector-1', decidedAt: '2026-10-08T09:00:00Z' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('heading', { name: 'Inspector evidence assessment' })).toBeTruthy();
-    expect(screen.getByText('Main span captured; east face not observed.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Evidence coverage' })).toBeTruthy();
+    expect(screen.getByText(/does not issue an evidence-quality decision/i)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Evidence intake' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
     expect(screen.queryByLabelText(/shot-list comparison/i)).toBeNull();
@@ -198,22 +170,14 @@ describe('InspectionEvidencePage', () => {
     expect(screen.getAllByText('span.png').length).toBeGreaterThan(0);
   });
 
-  it('refuses the accept decision until a comparison and at least one evidence item exist', () => {
+  it('does not expose an evidence quality accept action', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
-    const accept = screen.getByRole('button', {
-      name: 'Accept evidence set',
-    }) as HTMLButtonElement;
-    expect(accept.disabled).toBe(true);
-
-    // Comparison alone is not enough without stored evidence.
-    writeComparison();
-    expect(
-      (screen.getByRole('button', { name: 'Accept evidence set' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
+    expect(screen.queryByLabelText(/shot-list comparison/i)).toBeNull();
   });
 
-  it('enables accept once a comparison is entered and evidence exists', () => {
+  it('leaves coverage authoring to the report instead of adding an evidence comparison input', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -222,13 +186,10 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    writeComparison();
-    expect(
-      (screen.getByRole('button', { name: 'Accept evidence set' }) as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect(screen.queryByLabelText(/shot-list comparison/i)).toBeNull();
   });
 
-  it('sends the shot-list comparison with the accept decision', () => {
+  it('does not create or send an evidence quality decision', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -237,25 +198,17 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    writeComparison('Span P4 covered; east face not observed.');
-    fireEvent.click(screen.getByRole('button', { name: 'Accept evidence set' }));
-
-    expect(mocks.decideQuality.mutate).toHaveBeenCalledWith({
-      decision: 'ACCEPTED',
-      shotListComparison: 'Span P4 covered; east face not observed.',
-    });
+    expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
   });
 
-  it('offers only accept and additional-session choices to the Inspector', () => {
+  it('keeps additional-session requests out of the MF3 Evidence page', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('button', { name: 'Accept evidence set' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Additional session needed' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Re-upload required' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Accept with limitation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Additional session needed' })).toBeNull();
+    expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 
-  it('requires a stated reason before an additional session decision can be sent', () => {
+  it('links back to the shot-list in MF2 without requiring an evidence-quality decision', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -264,79 +217,15 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    // The reason field is not on screen until a reason-carrying decision is chosen, so an
-    // ordinary acceptance stays a single click (Report 3 MF3-03).
-    writeComparison();
-    expect(screen.queryByLabelText(/limitation or reason/i)).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Additional session needed' }));
-    expect(
-      (screen.getByRole('button', { name: 'Confirm Additional session needed' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
-
-    fireEvent.change(screen.getByLabelText(/why is another field session needed/i), {
-      target: { value: 'The east face was not observed' },
-    });
-    expect(
-      (screen.getByRole('button', { name: 'Confirm Additional session needed' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(false);
-  });
-
-  it('keeps legacy limitation decisions read-only', () => {
-    renderWithRouter(<InspectionEvidencePage />);
-
-    expect(screen.queryByRole('button', { name: 'Accept with limitation' })).toBeNull();
-    expect(screen.queryByLabelText(/limitation or reason/i)).toBeNull();
-    expect(mocks.decideQuality.mutate).not.toHaveBeenCalled();
-  });
-
-  it('sends comparison and reason with the additional-session decision', () => {
-    mocks.evidenceQuery = {
-      data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    renderWithRouter(<InspectionEvidencePage />);
-
-    writeComparison('Span P4 covered; east face not observed.');
-    fireEvent.click(screen.getByRole('button', { name: 'Additional session needed' }));
-    fireEvent.change(screen.getByLabelText(/why is another field session needed/i), {
-      target: { value: 'The east face was not observed' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Additional session needed' }));
-
-    const mutation = mocks.decideQuality.mutate.mock.calls.at(-1);
-    expect(mutation?.[0]).toEqual({
-      decision: 'ADDITIONAL_SESSION_REQUIRED',
-      shotListComparison: 'Span P4 covered; east face not observed.',
-      limitationReason: 'The east face was not observed',
-    });
-    const callbacks = mutation?.[1] as { onSuccess: () => void };
-    callbacks.onSuccess();
     expect(screen.getByRole('link', { name: /shot-list in preparation/i })).toBeTruthy();
+    expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 
-  it('shows the recorded decision text so the Inspector can see what was disclosed', () => {
-    mocks.evidenceQuery = {
-      data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', fieldSessionId: null, decision: 'LIMITED', shotListComparison: 'Span P4 covered; east face not observed.', limitationReason: 'The east face was not observed', decidedByUserId: 'inspector-1', decidedAt: '2026-10-08T09:00:00Z' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByText('Span P4 covered; east face not observed.')).toBeTruthy();
-    expect(screen.getByText(/Limitation or reason: The east face was not observed/)).toBeTruthy();
-  });
+
+
+
+
 
   it('hides retired captures by default and shows them in the retired audit filter', () => {
     mocks.evidenceQuery = {
@@ -381,20 +270,13 @@ describe('InspectionEvidencePage', () => {
     );
   });
 
-  it('shows the retired original through the retired filter and requires a fresh quality decision', () => {
+  it('shows the retired original through the retired filter without a quality-decision gate', () => {
     mocks.evidenceQuery = {
-      data: { items: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z', retiredByUserId: 'inspector-1', retirementReason: 'Replaced with a sharper capture' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 0, retiredCount: 1, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: '2026-10-17T10:00:00Z' },
+      data: { items: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 0, retiredCount: 1, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: '2026-10-17T10:00:00Z' },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
-    mocks.qualityQuery = {
-      data: [{ id: 'decision-1', inspectionId: 'inspection-1', fieldSessionId: null, decision: 'ACCEPTED', shotListComparison: 'Old set accepted', limitationReason: null, decidedByUserId: 'inspector-1', decidedAt: '2026-10-16T10:00:00Z' }],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-
     renderWithRouter(<InspectionEvidencePage />);
 
     expect(screen.queryByText('Retired — audit copy')).toBeNull();
@@ -405,29 +287,20 @@ describe('InspectionEvidencePage', () => {
       'inspection-1',
       expect.objectContaining({ status: 'RETIRED' }),
     );
-    expect(screen.getByText(/EVIDENCE SET CHANGED — REASSESS/)).toBeTruthy();
     expect(screen.getByText(/original bytes remain available for audit/i)).toBeTruthy();
-    // The stale decision is still shown, labelled as no longer current, so the Inspector can see
-    // what the previous disclosure said before replacing it.
-    expect(screen.getByText(/Old set accepted/)).toBeTruthy();
-    expect(screen.getByText(/no longer current, shown for reference/)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Accept evidence set' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
   });
 
-  it('offers a reasoned retire action while the report is editable', () => {
+  it('offers a soft-retire action while the report is editable', () => {
     mocks.evidenceQuery = { data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null }, isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionEvidencePage />);
 
-    fireEvent.change(screen.getByLabelText('Reason for replacing this capture'), { target: { value: 'Image is blurred' } });
     fireEvent.click(screen.getByRole('button', { name: 'Retire from current evidence set' }));
 
-    expect(mocks.retire.mutate).toHaveBeenCalledWith(
-      { evidenceId: 'evidence-1', reason: 'Image is blurred' },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    expect(mocks.retire.mutate).toHaveBeenCalledWith('evidence-1');
   });
 
-  it('allows bulk retiring active captures with a shared audit reason', async () => {
+  it('allows bulk retiring active captures without a UI-only reason', async () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence(), { ...imageEvidence(), id: 'evidence-2', fileName: 'span2.png' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 1, activeCount: 2, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -437,26 +310,12 @@ describe('InspectionEvidencePage', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
     fireEvent.click(screen.getByRole('button', { name: /Bulk retire all active/ }));
-    fireEvent.change(screen.getByLabelText(/Shared reason for retiring batch/), {
-      target: { value: 'Imported wrong SD card from another flight session' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Confirm bulk retire' }));
 
-    expect(mocks.bulkRetire.mutateAsync).toHaveBeenCalledWith({
-      evidenceIds: ['evidence-1', 'evidence-2'],
-      reason: 'Imported wrong SD card from another flight session',
-    });
+    expect(mocks.bulkRetire.mutateAsync).toHaveBeenCalledWith(['evidence-1', 'evidence-2']);
   });
 
-  it('keeps non-accept decisions disabled without stored evidence', () => {
-    renderWithRouter(<InspectionEvidencePage />);
 
-    writeComparison();
-    expect(
-      (screen.getByRole('button', { name: 'Additional session needed' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
-  });
 
   it('picker admits exactly the backend allowlist', () => {
     renderWithRouter(<InspectionEvidencePage />);
@@ -492,13 +351,13 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByText('span-b.png')).toBeNull();
   });
 
-  it('links to the preparation stage for shot-list review', () => {
+  it('does not offer the MF2 additional-session action from Evidence', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('link', { name: /shot-list in preparation/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Additional session needed' })).toBeNull();
   });
 
-  it('renders the stored evidence register with checksum and provenance', () => {
+  it('renders the stored evidence register without non-persisted checksum/source fields', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -510,8 +369,8 @@ describe('InspectionEvidencePage', () => {
     expect(screen.getByText('Evidence register')).toBeTruthy();
     expect(screen.getByText('Showing 1 of 1 matching captures')).toBeTruthy();
     expect(screen.getByText('span.png')).toBeTruthy();
-    expect(screen.getByText(/abcdef1234567890/)).toBeTruthy();
-    expect(screen.getByText(/WEB_UPLOAD/)).toBeTruthy();
+    expect(screen.queryByText(/abcdef1234567890/)).toBeNull();
+    expect(screen.queryByText(/WEB_UPLOAD/)).toBeNull();
     // AuthenticatedImage renders the stored content endpoint on its image element.
     const preview = document.querySelector(
       'img[data-src*="/api/v1/inspections/inspection-1/evidence/evidence-1/content"]',
