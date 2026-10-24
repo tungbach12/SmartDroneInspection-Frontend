@@ -61,7 +61,6 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
-  const [withdrawReason, setWithdrawReason] = useState('');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -200,12 +199,6 @@ export default function ReportDetailPage() {
           {openVersion && (
             <>
 
-              {openVersion.withdrawnAt != null && (
-                <Alert severity="info">
-                  {t('You withdrew this submission before the reviewer acted. The same version is retained for audit; evidence and findings were kept and are editable. Correct them if needed, then verify and submit again.')}
-                </Alert>
-              )}
-
               {/* The reviewer's sources live in the inspection workspace, not in the report
                   document. They are read, not edited, and they are what the decision is made
                   on, so the links are offered rather than hidden behind a tab. */}
@@ -322,18 +315,11 @@ export default function ReportDetailPage() {
                         <Alert severity="warning">
                           {t('Withdraw only before the reviewer has made a finding decision. The submitted version remains in the audit trail; evidence and findings are not deleted.')}
                         </Alert>
-                        <TextField
-                          label={t('Reason for withdrawal')}
-                          value={withdrawReason}
-                          onChange={(event) => setWithdrawReason(event.target.value)}
-                          multiline
-                          minRows={2}
-                        />
                         <Button
                           variant="outlined"
                           color="warning"
-                          disabled={withdraw.isPending || !withdrawReason.trim()}
-                          onClick={() => withdraw.mutate({ versionId: openVersion.id, reason: withdrawReason.trim() })}
+                          disabled={withdraw.isPending}
+                          onClick={() => withdraw.mutate({ versionId: openVersion.id })}
                           sx={{ alignSelf: 'flex-start' }}
                         >
                           {withdraw.isPending ? 'Withdrawing…' : 'Withdraw submission and revise'}

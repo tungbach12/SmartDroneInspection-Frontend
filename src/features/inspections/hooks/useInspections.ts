@@ -768,7 +768,7 @@ export function useWithdrawReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
+    mutationFn: ({ versionId, reason }: { versionId: string; reason?: string }) =>
       inspectionApi.withdrawVersion(inspectionId!, versionId, reason),
     onSuccess: () => {
       showToast('Submission withdrawn back to draft.');

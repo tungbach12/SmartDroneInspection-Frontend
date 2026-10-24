@@ -30,8 +30,6 @@ export interface InspectionReportVersion {
   reviewerUserId: string | null;
   reviewedAt: string | null;
   returnReason: string | null;
-  withdrawnAt: string | null;
-  withdrawalReason: string | null;
   publishedAt: string | null;
   createdAt: string;
   /** Why no automated drafting contributed, present on manual drafts only. */
@@ -125,9 +123,8 @@ export interface EvidenceItem {
   captureTime: string | null;
   latitude: number | null;
   longitude: number | null;
-  uploadStatus: string;
   createdAt: string;
-  retiredAt: string | null;
+  isDeleted: boolean;
   locationDescription: string | null;
   deduplicated: boolean;
 }
@@ -151,7 +148,7 @@ export interface InspectionWorkflowState {
  *
  * <p>The model provenance travels with it when there is one, so a caller can see which suggestions
  * came from the detector without the workflow depending on that distinction. Removal is a
- * tombstone: `deletedAt` says the finding was removed, and the status still says whether it had
+ * tombstone: `isDeleted` says the finding was removed, and the status still says whether it had
  * been confirmed.
  */
 export interface Finding {
@@ -166,12 +163,9 @@ export interface Finding {
   recommendedAction: string | null;
   boundingBox: string | null;
   modelName: string | null;
-  modelVersion: string | null;
-  modelProvider: string | null;
   confidence: number | null;
-  inspectorConfirmedAt: string | null;
   forwardedToMaintenanceAt: string | null;
-  deletedAt: string | null;
+  isDeleted: boolean;
 }
 
 export interface PublishedReport {
@@ -790,9 +784,12 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  withdrawVersion: (inspectionId: string, versionId: string, reason: string) =>
+  withdrawVersion: (inspectionId: string, versionId: string, reason?: string) =>
     api
-      .post<InspectionReportVersion>(`/inspections/${inspectionId}/report/versions/${versionId}/withdraw`, { reason })
+      .post<InspectionReportVersion>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/withdraw`,
+        reason ? { reason } : {},
+      )
       .then((response) => response.data),
 
   reviewVersion: (

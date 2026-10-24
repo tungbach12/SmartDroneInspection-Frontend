@@ -114,7 +114,7 @@ export default function InspectionFindingsPage() {
   const updateEvidenceLocation = useUpdateEvidenceLocation(inspectionId);
   const reportVersionsList = reportVersions.data ?? [];
   const activeEvidenceItems = useMemo(
-    () => (evidence.data ?? []).filter((item) => item.retiredAt == null),
+    () => (evidence.data ?? []).filter((item) => !item.isDeleted),
     [evidence.data],
   );
   const activeEvidenceIds = useMemo(
@@ -512,7 +512,7 @@ export default function InspectionFindingsPage() {
                                 )}
                                 {finding.modelName && (
                                   <Typography variant="caption" color="text.secondary">
-                                    {finding.modelProvider ? `${finding.modelProvider} · ` : ''}{finding.modelName} · {finding.modelVersion}
+                                    {finding.modelName}
                                   </Typography>
                                 )}
                                 {!confirmed && isInspector && (
@@ -853,9 +853,11 @@ export default function InspectionFindingsPage() {
                             color={finding.status === 'CONFIRMED' ? 'success' : 'default'}
                             label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
                           />
-                          <Typography variant="caption" color="text.secondary">
-                            Removed · {finding.deletedAt ? new Date(finding.deletedAt).toLocaleString() : 'time unavailable'}
-                          </Typography>
+                          {finding.isDeleted && (
+                            <Typography variant="caption" color="text.secondary">
+                              Removed
+                            </Typography>
+                          )}
                           <Box sx={{ flexGrow: 1 }} />
                           <Button
                             size="small"
@@ -980,7 +982,7 @@ function InspectorFindingRegister({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!isEditable || findings.length === 0) return null;
-  const activeEvidence = evidence.filter((item) => item.retiredAt == null);
+  const activeEvidence = evidence.filter((item) => !item.isDeleted);
 
   const submitEdit = (event: FormEvent<HTMLFormElement>, finding: Finding) => {
     event.preventDefault();
@@ -1025,7 +1027,7 @@ function InspectorFindingRegister({
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                   <Chip size="small" label={finding.severity} />
-                  {finding.inspectorConfirmedAt && <Chip size="small" color="success" label={t('Included in report')} />}
+                  {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Included in report')} />}
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
                   {evidence.find((item) => item.id === finding.evidenceId)?.locationDescription || 'Location not supplied'}
@@ -1126,7 +1128,7 @@ function OrganizationFindingsOverview({
                   <Chip size="small" color="warning" label={t('Pending Inspector review')} />
                   {finding.modelName && (
                     <Typography variant="caption" color="text.secondary">
-                      {finding.modelProvider ? `${finding.modelProvider} · ` : ''}{finding.modelName} · {finding.modelVersion}
+                      {finding.modelName}
                     </Typography>
                   )}
                 </Stack>

@@ -21,8 +21,6 @@ const version: InspectionReportVersion = {
   reviewerUserId: null,
   reviewedAt: null,
   returnReason: null,
-  withdrawnAt: null,
-  withdrawalReason: null,
   publishedAt: null,
   createdAt: '2026-01-01T00:00:00Z',
   omissionDisclosure: null,
@@ -78,9 +76,8 @@ const evidence: EvidenceItem = {
   captureTime: null,
   latitude: null,
   longitude: null,
-  uploadStatus: 'AVAILABLE',
   createdAt: '2026-01-01T00:00:00Z',
-  retiredAt: null,
+  isDeleted: false,
   locationDescription: null,
   deduplicated: false,
 };
@@ -90,7 +87,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     id: 'finding-1',
     inspectionId: 'inspection-1',
     evidenceId: evidence.id,
-    deletedAt: null,
     forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
@@ -98,12 +94,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     technicalNotes: 'Visible crack',
     boundingBox: null,
     modelName: null,
-    modelVersion: null,
-    modelProvider: null,
     confidence: null,
     recommendedAction: null,
-    inspectorConfirmedAt: '2026-01-02T00:00:00Z',
     status: 'PENDING',
+    isDeleted: false,
     ...overrides,
   };
 }
@@ -183,7 +177,7 @@ describe('ReportDerivedSections evidence location', () => {
 describe('ReportDerivedSections confirmed findings', () => {
   it('lists an Inspector-confirmed finding before reviewer decision', () => {
     const section = renderConfirmedFindings([
-      finding({ defectLabel: 'GussetPlateSectionLoss', inspectorConfirmedAt: '2026-01-02T00:00:00Z' }),
+      finding({ defectLabel: 'GussetPlateSectionLoss', status: 'CONFIRMED' }),
     ]);
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
@@ -195,7 +189,7 @@ describe('ReportDerivedSections confirmed findings', () => {
 
   it('excludes reviewer-rejected findings from the section', () => {
     const section = renderConfirmedFindings([
-      finding({ defectLabel: 'spurious-seam', inspectorConfirmedAt: null }),
+      finding({ defectLabel: 'spurious-seam', status: 'PENDING' }),
     ]);
 
     expect(section?.textContent).not.toContain('spurious-seam');

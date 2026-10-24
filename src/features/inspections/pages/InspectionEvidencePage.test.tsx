@@ -64,12 +64,12 @@ vi.mock('../hooks/useInspections', () => ({
       id: string;
       fileName: string;
       contentType: string;
-      retiredAt: string | null;
+      isDeleted: boolean;
     }>;
     const items = all.filter((item) => {
       const statusMatches =
         filters.status === 'ALL' ||
-        (filters.status === 'ACTIVE' ? item.retiredAt == null : item.retiredAt != null);
+        (filters.status === 'ACTIVE' ? !item.isDeleted : item.isDeleted);
       const mediaTypeMatches =
         filters.mediaType === 'ALL' ||
         (filters.mediaType === 'IMAGE' && item.contentType.startsWith('image/')) ||
@@ -114,7 +114,7 @@ function imageEvidence() {
     contentType: 'image/png',
     sizeBytes: 8,
     captureTime: '2026-10-08T08:15:00Z',
-    retiredAt: null,
+    isDeleted: false,
   }; 
 }
 
@@ -272,14 +272,14 @@ describe('InspectionEvidencePage', () => {
 
   it('shows the retired original through the retired filter without a quality-decision gate', () => {
     mocks.evidenceQuery = {
-      data: { items: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 0, retiredCount: 1, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: '2026-10-17T10:00:00Z' },
+      data: { items: [{ ...imageEvidence(), isDeleted: true }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 0, retiredCount: 1, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: '2026-10-17T10:00:00Z' },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.queryByText('Retired — audit copy')).toBeNull();
+    expect(screen.queryByText('Retired')).toBeNull();
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Evidence status' }));
     fireEvent.click(screen.getByRole('option', { name: /Retired audit \(1\)/ }));
 
