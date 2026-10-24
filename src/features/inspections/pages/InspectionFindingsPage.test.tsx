@@ -95,7 +95,7 @@ function imageEvidence() {
     fileName: 'span.png',
     contentType: 'image/png',
     sizeBytes: 8,
-    retiredAt: null,
+    isDeleted: false,
     locationDescription: null,
     deduplicated: false,
   };
@@ -114,13 +114,10 @@ function pendingFinding() {
     technicalNotes: 'Coating crack',
     recommendedAction: null,
     boundingBox: '',
-    modelProvider: 'yolo',
     modelName: 'advisor',
-    modelVersion: 'v3',
     confidence: 0.82,
-    inspectorConfirmedAt: null,
     forwardedToMaintenanceAt: null,
-    deletedAt: null,
+    isDeleted: false,
   };
 }
 
@@ -138,12 +135,9 @@ function undecidedFinding() {
     recommendedAction: 'Repaint.',
     boundingBox: null,
     modelName: null,
-    modelVersion: null,
-    modelProvider: null,
     confidence: null,
-    inspectorConfirmedAt: null,
     forwardedToMaintenanceAt: null,
-    deletedAt: null,
+    isDeleted: false,
   };
 }
 
@@ -237,7 +231,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = {
       data: [
         imageEvidence(),
-        { ...imageEvidence(), id: 'retired-evidence', fileName: 'retired-span.png', retiredAt: '2026-10-17T10:00:00Z' },
+        { ...imageEvidence(), id: 'retired-evidence', fileName: 'retired-span.png', isDeleted: true },
       ],
       isLoading: false,
       error: null,
@@ -273,7 +267,7 @@ describe('InspectionFindingsPage', () => {
           fileName: 'permit.pdf',
           contentType: 'application/pdf',
           sizeBytes: 8,
-          retiredAt: null,
+          isDeleted: false,
           locationDescription: null,
           deduplicated: false,
         },
@@ -551,7 +545,7 @@ describe('InspectionFindingsPage', () => {
   it('does not show a retired evidence image in reviewer verdicts', () => {
     signInAs(['ORG_ADMIN']);
     mocks.evidenceQuery = {
-      data: [{ ...imageEvidence(), retiredAt: '2026-10-17T10:00:00Z' }],
+      data: [{ ...imageEvidence(), isDeleted: true }],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -592,7 +586,7 @@ describe('InspectionFindingsPage', () => {
     );
     expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
     expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
-    expect(screen.getByText('yolo · advisor · v3')).toBeTruthy();
+    expect(screen.getByText('advisor')).toBeTruthy();
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();
@@ -605,7 +599,6 @@ describe('InspectionFindingsPage', () => {
         {
           ...undecidedFinding(),
           status: 'CONFIRMED',
-          inspectorConfirmedAt: '2026-10-08T09:00:00Z',
           defectLabel: 'Deck spall',
           severity: 'HIGH',
         },
@@ -742,7 +735,6 @@ describe('InspectionFindingsPage', () => {
           ...undecidedFinding(),
           id: 'finding-detected-1',
           status: 'CONFIRMED',
-          inspectorConfirmedAt: '2026-10-09T09:00:00Z',
           defectLabel: 'Coating crack',
         },
       ],

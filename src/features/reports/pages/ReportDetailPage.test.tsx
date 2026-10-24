@@ -104,8 +104,6 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     reviewerUserId: null,
     reviewedAt: null,
     returnReason: null,
-    withdrawnAt: null,
-    withdrawalReason: null,
     publishedAt: null,
     createdAt: '2026-10-01T09:00:00Z',
     narrative: 'The north span was surveyed from both maintenance walkways.',
@@ -128,7 +126,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     id: 'finding-1',
     inspectionId: 'inspection-1',
     evidenceId: 'evidence-1',
-    deletedAt: null,
     forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
@@ -136,12 +133,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     technicalNotes: 'Visible crack',
     boundingBox: null,
     modelName: null,
-    modelVersion: null,
-    modelProvider: null,
     confidence: null,
     recommendedAction: null,
-    inspectorConfirmedAt: null,
     status: 'PENDING',
+    isDeleted: false,
     ...overrides,
   };
 }
@@ -158,7 +153,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('allows the Organization Admin to approve the report without per-finding decisions', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
-      finding({ status: 'CONFIRMED', inspectorConfirmedAt: '2026-10-18T07:00:00Z' }),
+      finding({ status: 'CONFIRMED' }),
     ]);
 
     renderPage();
@@ -241,17 +236,16 @@ describe('ReportDetailPage MF3 gates', () => {
   it('lets the Inspector withdraw a submitted report before report-level reviewer action', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([version({ status: 'SUBMITTED', authorUserId: 'user-1' })]);
-    mockedApi.listFindings.mockResolvedValue([finding({ inspectorConfirmedAt: '2026-10-01T11:00:00Z' })]);
+    mockedApi.listFindings.mockResolvedValue([finding({ status: 'CONFIRMED' })]);
     mockedApi.withdrawVersion.mockResolvedValue(
-      version({ status: 'RETURNED', authorUserId: 'user-1', withdrawnAt: '2026-10-01T12:00:00Z', withdrawalReason: 'Correct the report.' }),
+      version({ status: 'RETURNED', authorUserId: 'user-1' }),
     );
 
     renderPage();
-    fireEvent.change(await screen.findByLabelText('Reason for withdrawal'), { target: { value: 'Correct the report.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Withdraw submission and revise' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw submission and revise' }));
 
     await waitFor(() =>
-      expect(mockedApi.withdrawVersion).toHaveBeenCalledWith('inspection-1', 'version-1', 'Correct the report.'),
+      expect(mockedApi.withdrawVersion).toHaveBeenCalledWith('inspection-1', 'version-1', undefined),
     );
   });
 

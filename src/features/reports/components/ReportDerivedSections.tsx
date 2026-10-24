@@ -84,7 +84,7 @@ export function ReportDerivedSections({
   conclusions,
 }: ReportDerivedSectionsProps) {
   const { t, formatDateTime: formatDateTimeValue } = useLocale();
-  const reportableFindings = findings.filter((finding) => finding.inspectorConfirmedAt != null);
+  const reportableFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const context = version.reportContext;
 
   return (
@@ -199,12 +199,13 @@ export function ReportDerivedSections({
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
                       <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                       <Chip size="small" label={finding.severity} />
-                      <Chip size="small" color="success" label={t('Inspector-confirmed')} />
+                      {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Inspector-confirmed')} />}
                     </Stack>
                     <Field label={t('Asset location')} value={linkedEvidence?.locationDescription} />
                     <Field label={t('Technical notes')} value={finding.technicalNotes} />
                     <Field label={t('Recommended action')} value={finding.recommendedAction} />
-                    <Field label={t('Inspector confirmation')} value={formatDateTime(finding.inspectorConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
+                    <Field label={t('Inspector confirmation')} value={finding.status === 'CONFIRMED' ? t('Confirmed') : t('Not supplied')} />
+                    <Field label={t('Model')} value={finding.modelName} />
                   </Box>
                   {linkedEvidence && linkedEvidence.contentType.startsWith('image/') && (
                     <Box sx={{ borderRadius: '8px', border: '1px solid #eaecf0', overflow: 'hidden', p: 1.25, bgcolor: '#f8fafc' }}>

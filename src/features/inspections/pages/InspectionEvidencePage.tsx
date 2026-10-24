@@ -44,7 +44,7 @@ function formatBytes(bytes: number): string {
  * remove or block the others.
  */
 export default function InspectionEvidencePage() {
-  const { formatDateTime, t } = useLocale();
+  const { t } = useLocale();
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
@@ -78,7 +78,7 @@ export default function InspectionEvidencePage() {
   const totalEvidenceCount = evidence.data?.totalCount ?? 0;
   const activeCount = evidence.data?.activeCount ?? 0;
   const retiredCount = evidence.data?.retiredCount ?? 0;
-  const currentEvidenceItems = displayedEvidenceItems.filter((item) => item.retiredAt == null);
+  const currentEvidenceItems = displayedEvidenceItems.filter((item) => !item.isDeleted);
   const currentVersion = versions.data?.[0] ?? null;
   const evidenceLocked = Boolean(currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status));
   const completedFieldSessionId = sessionHistory.data?.filter(
@@ -401,7 +401,7 @@ export default function InspectionEvidencePage() {
                     onClick={() => setSelectedEvidenceId(item.id)}
                   >
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      {canEditEvidence && !item.retiredAt && (
+                      {canEditEvidence && !item.isDeleted && (
                         <Checkbox
                           size="small"
                           checked={isChecked}
@@ -419,7 +419,7 @@ export default function InspectionEvidencePage() {
                           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
                             {item.fileName}
                           </Typography>
-                          {item.retiredAt && <Chip size="small" color="warning" label={t('Retired — audit copy')} />}
+                          {item.isDeleted && <Chip size="small" color="warning" label={t('Retired')} />}
                         </Stack>
                         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                           {item.contentType} · {formatBytes(item.sizeBytes)}
@@ -455,9 +455,9 @@ export default function InspectionEvidencePage() {
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                       {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'}
                     </Typography>
-                    {selectedEvidence.retiredAt ? (
+                    {selectedEvidence.isDeleted ? (
                       <Alert severity="warning" sx={{ mt: 1 }}>
-                        {t('Retired from the current evidence set on')} {formatDateTime(new Date(selectedEvidence.retiredAt))}{t('. The original bytes remain available for audit.')}
+                        {t('Retired from the current evidence set. The original bytes remain available for audit.')}
                       </Alert>
                     ) : canEditEvidence ? (
                       <Stack spacing={1} sx={{ mt: 1.5 }}>

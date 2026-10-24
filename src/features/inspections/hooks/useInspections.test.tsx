@@ -133,7 +133,7 @@ function buildCases(): MutationCase[] {
     {
       name: 'bulk retirement',
       apiMock: vi.mocked(inspectionApi.bulkRetireEvidence),
-      apiResult: [{ id: 'evidence-1', fileName: 'defect-01.jpg', retiredAt: '2026-10-19T00:00:00Z' }],
+      apiResult: [{ id: 'evidence-1', fileName: 'defect-01.jpg', isDeleted: true }],
       render: (client) => renderMutation(client, () => useBulkRetireEvidence('inspection-1')),
       run: (runner) =>
         (runner.mutateAsync as (evidenceIds: string[]) => Promise<unknown>)(['evidence-1']),
