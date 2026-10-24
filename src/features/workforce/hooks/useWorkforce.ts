@@ -11,10 +11,11 @@ import {
   type UpdateWorkforceUserStatusInput,
 } from '../api/workforceApi';
 
-export function useWorkforceUsers() {
+export function useWorkforceUsers(enabled = true) {
   return useQuery({
     queryKey: workforceKeys.users(),
     queryFn: () => workforceApi.listUsers(),
+    enabled,
   });
 }
 

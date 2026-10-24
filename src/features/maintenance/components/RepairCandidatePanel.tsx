@@ -27,7 +27,7 @@ import {
   useRepairCandidates,
   useSuggestWorkOrderScope,
 } from '../hooks/useMaintenance';
-import type { RepairCandidate } from '../api/maintenanceApi';
+import type { RepairCandidate, SuggestedTask } from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface RepairCandidatePanelProps {
@@ -51,10 +51,11 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const [target, setTarget] = useState<RepairCandidate | null>(null);
   const [correctiveScope, setCorrectiveScope] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [priority, setPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL');
   const [dueAt, setDueAt] = useState('');
   const [budgetApprover, setBudgetApprover] = useState('');
   const [standards, setStandards] = useState<string[]>([]);
+  const [suggestedTasks, setSuggestedTasks] = useState<SuggestedTask[]>([]);
 
   const currentUser = useAuthStore((state) => state.user);
   const orgAdmins = useMemo(() => {
@@ -77,6 +78,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
     return [];
   }, [workforce.data, currentUser]);
 
+  const effectiveBudgetApprover = budgetApprover || orgAdmins[0]?.userId || '';
   const items = candidates.data ?? [];
 
   return (
@@ -152,14 +154,17 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       setAcceptanceCriteria('');
                       setPriority(
                         candidate.severity === 'CRITICAL'
-                          ? 'CRITICAL'
+                          ? 'URGENT'
                           : candidate.severity === 'HIGH'
                             ? 'HIGH'
-                            : 'MEDIUM',
+                            : candidate.severity === 'LOW'
+                              ? 'LOW'
+                              : 'NORMAL',
                       );
                       setDueAt('');
                       setBudgetApprover(orgAdmins[0]?.userId ?? '');
                       setStandards([]);
+                      setSuggestedTasks([]);
                     }}
                   >
                     {t('Open work order')}
@@ -181,7 +186,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 assetId: target.assetId,
                 sourceReportVersionId: target.reportVersionId,
                 sourceFindingId: target.findingId,
-                budgetApproverUserId: budgetApprover,
+                budgetApproverUserId: effectiveBudgetApprover,
                 priority,
                 dueAt: dueAt ? new Date(dueAt).toISOString() : null,
                 correctiveScope: correctiveScope.trim(),
@@ -233,7 +238,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                         sourceFindingId: target.findingId,
                         findingCode: target.findingCode,
                         defectLabel: target.defectLabel,
-                        description: target.description,
+                        description: target.technicalNotes,
                         severity: target.severity,
                         recommendedAction: target.recommendedAction,
                         component: target.component,
@@ -244,9 +249,8 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                         onSuccess: (data) => {
                           if (data.correctiveScope) setCorrectiveScope(data.correctiveScope);
                           if (data.acceptanceCriteria) setAcceptanceCriteria(data.acceptanceCriteria);
-                          if (data.referenceStandards && data.referenceStandards.length > 0) {
-                            setStandards(data.referenceStandards);
-                          }
+                          setStandards(data.referenceStandards ?? []);
+                          setSuggestedTasks(data.suggestedTasks ?? []);
                         },
                       },
                     );
@@ -281,6 +285,21 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                   ))}
                 </Stack>
               ) : null}
+              {suggestedTasks.length > 0 ? (
+                <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+                  <Typography variant="caption" sx={{ color: '#344054', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                    {t('Recommended repair steps:')}
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {suggestedTasks.map((task) => (
+                      <Typography key={task.taskNumber} variant="caption" sx={{ color: '#475467' }}>
+                        {task.taskNumber}. <strong>{task.name}</strong>
+                        {task.method ? ` — ${task.method}` : ''}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
               <TextField
                 label={t('Corrective scope')}
                 required
@@ -309,9 +328,9 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                   fullWidth
                 >
                   <MenuItem value="LOW">{t('Low')}</MenuItem>
-                  <MenuItem value="MEDIUM">{t('Medium')}</MenuItem>
+                  <MenuItem value="NORMAL">{t('Medium')}</MenuItem>
                   <MenuItem value="HIGH">{t('High')}</MenuItem>
-                  <MenuItem value="CRITICAL">{t('Critical')}</MenuItem>
+                  <MenuItem value="URGENT">{t('Critical')}</MenuItem>
                 </TextField>
                 <TextField
                   label={t('Due')}
@@ -326,7 +345,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 select
                 label={t('Budget approver')}
                 required
-                value={budgetApprover}
+                value={effectiveBudgetApprover}
                 onChange={(e) => setBudgetApprover(e.target.value)}
                 helperText={t('The Organization Admin who approves the cost baseline.')}
               >
@@ -344,7 +363,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
               type="submit"
               variant="contained"
               loading={createWorkOrder.isPending}
-              disabled={!correctiveScope.trim() || !budgetApprover}
+              disabled={!correctiveScope.trim() || !effectiveBudgetApprover}
             >
               {t('Create work order')}
             </LoadingButton>

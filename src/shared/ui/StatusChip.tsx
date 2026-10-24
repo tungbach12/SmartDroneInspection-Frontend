@@ -45,6 +45,9 @@ const THEMES: Record<StatusVariant, ThemeInfo> = {
 const STATUS_MAP: Record<string, StatusVariant> = {
   active: 'success',
   approved: 'success',
+  accepted: 'success',
+  cost_reconciled: 'success',
+  verified: 'success',
   completed: 'success',
   closed: 'success',
   ready: 'success',
@@ -52,6 +55,11 @@ const STATUS_MAP: Record<string, StatusVariant> = {
 
   pending: 'warning',
   pending_review: 'warning',
+  awaiting_approval: 'warning',
+  submitted_for_acceptance: 'warning',
+  reinspection_required: 'warning',
+  paused_for_change: 'warning',
+  proposed: 'warning',
   repair_pending: 'warning',
   submitted: 'warning',
   author_verified: 'warning',
@@ -62,6 +70,7 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   report_draft: 'warning',
 
   returned: 'error',
+  rework_required: 'error',
   cancelled: 'error',
   rejected: 'error',
   suspended: 'error',
@@ -69,6 +78,8 @@ const STATUS_MAP: Record<string, StatusVariant> = {
 
   scheduled: 'info',
   assigned: 'info',
+  planned: 'info',
+  work_completed: 'info',
 
   draft: 'default',
   inactive: 'default',

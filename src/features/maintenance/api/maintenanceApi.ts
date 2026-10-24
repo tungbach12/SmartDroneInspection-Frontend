@@ -22,34 +22,59 @@ export type WorkOrderStatus =
   | 'REWORK_REQUIRED'
   | 'REINSPECTION_REQUIRED';
 
-export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type MaintenancePriority = 'LOW' | 'NORMAL' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
 
 export type TeamMemberRole = 'LEAD' | 'REPORT_AUTHOR' | 'ACCEPTING_REVIEWER' | 'MEMBER';
 
 export type TaskStatus =
   | 'PLANNED'
-  | 'ACCEPTED'
+  | 'READY'
   | 'IN_PROGRESS'
+  | 'WORK_COMPLETED'
+  | 'REWORK_REQUIRED'
+  | 'ACCEPTED'
+  | 'CANCELLED'
   | 'COMPLETED'
   | 'BLOCKED';
 
-export type EstimateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+export type EstimateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED';
 
-export type WorkLogStatus = 'DRAFT' | 'SUBMITTED' | 'VERIFIED';
+export type WorkLogStatus =
+  | 'IN_PROGRESS'
+  | 'PAUSED_FOR_CHANGE'
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'VERIFIED';
 
-export type ChangeOrderStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'RETURNED';
+export type ChangeOrderStatus =
+  | 'DRAFT'
+  | 'AWAITING_APPROVAL'
+  | 'PROPOSED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RETURNED'
+  | 'SUPERSEDED';
 
 export type ReportVersionStatus =
   | 'DRAFT'
   | 'AUTHOR_VERIFIED'
   | 'SUBMITTED'
+  | 'RETURNED'
+  | 'APPROVED'
   | 'ACCEPTED'
   | 'REJECTED'
   | 'SUPERSEDED';
 
 export type AcceptanceDecisionKind = 'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED';
 
-export type CostLineKind = 'LABOR' | 'MATERIAL' | 'EQUIPMENT' | 'SERVICE' | 'OTHER';
+export type CostLineKind =
+  | 'LABOR'
+  | 'MATERIAL'
+  | 'EQUIPMENT'
+  | 'EXTERNAL_SERVICE'
+  | 'SERVICE'
+  | 'OTHER'
+  | 'CONTINGENCY';
 
 export interface WorkOrder {
   id: string;
@@ -66,6 +91,10 @@ export interface WorkOrder {
   teamLeadUserId: string | null;
   reportAuthorUserId: string | null;
   acceptingReviewerUserId: string | null;
+  budgetApproverName?: string | null;
+  teamLeadName?: string | null;
+  reportAuthorName?: string | null;
+  acceptingReviewerName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +109,8 @@ export interface WorkOrderPage {
 export interface TeamMember {
   id: string;
   engineerUserId: string;
+  engineerName?: string | null;
+  engineerEmail?: string | null;
   memberRole: TeamMemberRole;
   effectiveFrom: string;
   effectiveUntil: string | null;
@@ -489,6 +520,14 @@ export const maintenanceApi = {
 
   getReportPdfUrl: (workOrderId: string, versionNo: number) =>
     `/api/v1/maintenance/work-orders/${workOrderId}/reports/${versionNo}/pdf`,
+
+  downloadReportPdf: (workOrderId: string, versionNo: number, preview = false) =>
+    api
+      .get<Blob>(`/maintenance/work-orders/${workOrderId}/reports/${versionNo}/pdf`, {
+        params: preview ? { preview: true } : undefined,
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
 
   listAcceptanceDecisions: (workOrderId: string) =>
     api
