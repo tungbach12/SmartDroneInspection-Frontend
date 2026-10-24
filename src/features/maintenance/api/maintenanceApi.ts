@@ -22,34 +22,59 @@ export type WorkOrderStatus =
   | 'REWORK_REQUIRED'
   | 'REINSPECTION_REQUIRED';
 
-export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type MaintenancePriority = 'LOW' | 'NORMAL' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
 
 export type TeamMemberRole = 'LEAD' | 'REPORT_AUTHOR' | 'ACCEPTING_REVIEWER' | 'MEMBER';
 
 export type TaskStatus =
   | 'PLANNED'
-  | 'ACCEPTED'
+  | 'READY'
   | 'IN_PROGRESS'
+  | 'WORK_COMPLETED'
+  | 'REWORK_REQUIRED'
+  | 'ACCEPTED'
+  | 'CANCELLED'
   | 'COMPLETED'
   | 'BLOCKED';
 
-export type EstimateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+export type EstimateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SUPERSEDED';
 
-export type WorkLogStatus = 'DRAFT' | 'SUBMITTED' | 'VERIFIED';
+export type WorkLogStatus =
+  | 'IN_PROGRESS'
+  | 'PAUSED_FOR_CHANGE'
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'VERIFIED';
 
-export type ChangeOrderStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'RETURNED';
+export type ChangeOrderStatus =
+  | 'DRAFT'
+  | 'AWAITING_APPROVAL'
+  | 'PROPOSED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RETURNED'
+  | 'SUPERSEDED';
 
 export type ReportVersionStatus =
   | 'DRAFT'
   | 'AUTHOR_VERIFIED'
   | 'SUBMITTED'
+  | 'RETURNED'
+  | 'APPROVED'
   | 'ACCEPTED'
   | 'REJECTED'
   | 'SUPERSEDED';
 
 export type AcceptanceDecisionKind = 'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED';
 
-export type CostLineKind = 'LABOR' | 'MATERIAL' | 'EQUIPMENT' | 'SERVICE' | 'OTHER';
+export type CostLineKind =
+  | 'LABOR'
+  | 'MATERIAL'
+  | 'EQUIPMENT'
+  | 'EXTERNAL_SERVICE'
+  | 'SERVICE'
+  | 'OTHER'
+  | 'CONTINGENCY';
 
 export interface WorkOrder {
   id: string;
@@ -66,6 +91,10 @@ export interface WorkOrder {
   teamLeadUserId: string | null;
   reportAuthorUserId: string | null;
   acceptingReviewerUserId: string | null;
+  budgetApproverName?: string | null;
+  teamLeadName?: string | null;
+  reportAuthorName?: string | null;
+  acceptingReviewerName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +109,8 @@ export interface WorkOrderPage {
 export interface TeamMember {
   id: string;
   engineerUserId: string;
+  engineerName?: string | null;
+  engineerEmail?: string | null;
   memberRole: TeamMemberRole;
   effectiveFrom: string;
   effectiveUntil: string | null;
@@ -187,6 +218,38 @@ export interface RepairCandidate {
   severity: string;
   recommendedAction: string | null;
   reportPublishedAt: string;
+  component?: string | null;
+  locationDescription?: string | null;
+  measurement?: string | null;
+}
+
+export interface SuggestedTask {
+  taskNumber: number;
+  name: string;
+  method?: string | null;
+  acceptanceCriteria?: string | null;
+}
+
+export interface SuggestScopeInput {
+  sourceReportVersionId?: string | null | undefined;
+  sourceFindingId?: string | null | undefined;
+  findingCode?: string | null | undefined;
+  defectLabel?: string | null | undefined;
+  description?: string | null | undefined;
+  severity?: string | null | undefined;
+  recommendedAction?: string | null | undefined;
+  component?: string | null | undefined;
+  locationDescription?: string | null | undefined;
+  measurement?: string | null | undefined;
+}
+
+export interface SuggestScopeResponse {
+  correctiveScope: string;
+  acceptanceCriteria: string;
+  referenceStandards: string[];
+  suggestedTasks: SuggestedTask[];
+  modelName: string;
+  fallbackApplied: boolean;
 }
 
 export interface CreateWorkOrderInput {
@@ -455,6 +518,17 @@ export const maintenanceApi = {
       )
       .then((r) => r.data),
 
+  getReportPdfUrl: (workOrderId: string, versionNo: number) =>
+    `/api/v1/maintenance/work-orders/${workOrderId}/reports/${versionNo}/pdf`,
+
+  downloadReportPdf: (workOrderId: string, versionNo: number, preview = false) =>
+    api
+      .get<Blob>(`/maintenance/work-orders/${workOrderId}/reports/${versionNo}/pdf`, {
+        params: preview ? { preview: true } : undefined,
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
+
   listAcceptanceDecisions: (workOrderId: string) =>
     api
       .get<AcceptanceDecision[]>(
@@ -485,4 +559,7 @@ export const maintenanceApi = {
 
   close: (workOrderId: string) =>
     api.post<WorkOrder>(`/maintenance/work-orders/${workOrderId}/close`).then((r) => r.data),
+
+  suggestScope: (input: SuggestScopeInput) =>
+    api.post<SuggestScopeResponse>('/maintenance/suggest-scope', input).then((r) => r.data),
 };

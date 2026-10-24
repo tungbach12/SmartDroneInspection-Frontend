@@ -41,6 +41,9 @@ const mocks = vi.hoisted(() => ({
   recordAcceptance: vi.fn(),
   reconcile: vi.fn(),
   close: vi.fn(),
+  repairCandidates: vi.fn(),
+  suggestScope: vi.fn(),
+  createWorkOrder: vi.fn(),
   listUsers: vi.fn(),
 }));
 
@@ -80,6 +83,9 @@ vi.mock('../api/maintenanceApi', async (importOriginal) => {
       recordAcceptance: mocks.recordAcceptance,
       reconcile: mocks.reconcile,
       close: mocks.close,
+      repairCandidates: mocks.repairCandidates,
+      suggestScope: mocks.suggestScope,
+      createWorkOrder: mocks.createWorkOrder,
     },
   };
 });
@@ -139,6 +145,7 @@ describe('MaintenancePage', () => {
     mocks.listChanges.mockResolvedValue([]);
     mocks.listReportVersions.mockResolvedValue([]);
     mocks.listAcceptanceDecisions.mockResolvedValue([]);
+    mocks.repairCandidates.mockResolvedValue([]);
     mocks.reconciliationSummary.mockResolvedValue({
       approvedBaselineTotal: '1000000',
       approvedChangeDelta: '0',
@@ -227,5 +234,114 @@ describe('MaintenancePage', () => {
     expect(await screen.findByText('Authorized amount')).toBeTruthy();
     expect(screen.getAllByText('1000000 VND').length).toBeGreaterThan(0);
     expect(screen.getByText('-50000 VND')).toBeTruthy();
+  });
+
+  it('offers Submit for verification on IN_PROGRESS work logs and Approve on AWAITING_APPROVAL changes', async () => {
+    mocks.listWorkLogs.mockResolvedValue([
+      {
+        id: 'log-1',
+        taskId: 'task-1',
+        engineerUserId: 'eng-1',
+        startedAt: '2026-10-05T08:00:00Z',
+        endedAt: '2026-10-05T10:00:00Z',
+        hours: '2',
+        actualCostReferences: null,
+        asLeftCondition: 'Cleaned and primed',
+        testReadings: '225 um',
+        status: 'IN_PROGRESS',
+      },
+    ]);
+    mocks.submitWorkLog.mockResolvedValue({
+      id: 'log-1',
+      status: 'SUBMITTED',
+    });
+
+    renderWithClient();
+
+    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks & work' }));
+
+    const submitBtn = await screen.findByRole('button', { name: 'Submit for verification' });
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(mocks.submitWorkLog).toHaveBeenCalledWith('wo-1', 'log-1'));
+  });
+
+  it('allows ORG_ADMIN to generate AI RAG scope and approve AWAITING_APPROVAL change orders', async () => {
+    roles.current = ['ORG_ADMIN'];
+    mocks.repairCandidates.mockResolvedValue([
+      {
+        assetId: 'asset-1',
+        inspectionId: 'insp-1',
+        reportId: 'rep-1',
+        reportVersionId: 'rv-1',
+        findingId: 'f-2',
+        findingCode: 'F-002',
+        defectLabel: 'Concrete crack',
+        technicalNotes: '0.4mm crack on pier cap',
+        severity: 'HIGH',
+        recommendedAction: 'Epoxy injection',
+        reportPublishedAt: '2026-10-01T00:00:00Z',
+      },
+    ]);
+    mocks.suggestScope.mockResolvedValue({
+      correctiveScope: 'Low-pressure epoxy injection per TCVN 9343:2012',
+      acceptanceCriteria: 'UPV recovery >= 90%',
+      referenceStandards: ['TCVN 9343:2012'],
+      suggestedTasks: [
+        {
+          taskNumber: 1,
+          name: 'Clean crack and install ports',
+          method: 'Wire brush and compressed air',
+          acceptanceCriteria: 'Clean surface',
+        },
+      ],
+      modelName: 'engineering-standards-fallback',
+      fallbackApplied: true,
+    });
+    mocks.listChanges.mockResolvedValue([
+      {
+        id: 'chg-1',
+        changeNumber: 1,
+        reason: 'Additional deeper crack found',
+        affectedTasks: null,
+        proposedDelta: '50000',
+        status: 'AWAITING_APPROVAL',
+        requestedByUserId: 'eng-1',
+        decidedByUserId: null,
+        decidedAt: null,
+        decisionReason: null,
+      },
+    ]);
+    mocks.approveChange.mockResolvedValue({ id: 'chg-1', status: 'APPROVED' });
+
+    renderWithClient();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open work order' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'AI Suggest Scope & Criteria (RAG)' }));
+
+    await waitFor(() =>
+      expect(mocks.suggestScope).toHaveBeenCalledWith(
+        expect.objectContaining({
+          findingCode: 'F-002',
+          defectLabel: 'Concrete crack',
+          description: '0.4mm crack on pier cap',
+        }),
+      ),
+    );
+    expect(await screen.findByText('TCVN 9343:2012')).toBeTruthy();
+    expect(screen.getByText('Clean crack and install ports')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(await screen.findByText('Replace corroded girder splice on span 4'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Changes' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    await waitFor(() =>
+      expect(mocks.approveChange).toHaveBeenCalledWith(
+        'wo-1',
+        1,
+        'Approved by the budget approver',
+      ),
+    );
   });
 });

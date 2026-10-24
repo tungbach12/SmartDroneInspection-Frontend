@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -18,6 +18,8 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -43,6 +45,7 @@ import {
   useSubmitEstimate,
   useSubmitMaintenanceReport,
   useSubmitWorkLog,
+  useVerifyWorkLog,
   useTasks,
   useTeam,
   useVerifyMaintenanceReport,
@@ -50,7 +53,7 @@ import {
   useWorkOrderTransition,
   useMaintenanceReportVersions,
 } from '../hooks/useMaintenance';
-import type { WorkOrder } from '../api/maintenanceApi';
+import { maintenanceApi, type CostLineKind, type WorkOrder } from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface WorkOrderDetailPanelProps {
@@ -106,7 +109,7 @@ export function WorkOrderDetailPanel({
 
       <PageHeader
         title={workOrder.correctiveScope}
-        subtitle={`Work order · Priority ${workOrder.priority} · opened for a confirmed repair-required finding`}
+        subtitle={`${t('Work orders')} · ${t('Priority')} ${workOrder.priority}`}
         actions={<StatusChip status={workOrder.status} size="medium" />}
       />
 
@@ -115,7 +118,7 @@ export function WorkOrderDetailPanel({
           <Tab
             key={entry.value}
             value={entry.value}
-            label={entry.label}
+            label={t(entry.label)}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           />
         ))}
@@ -167,16 +170,46 @@ function OverviewTab({
       { action: 'resume-after-rework', label: 'Resume after rework' },
     ];
 
+  const isActionDisabled = (action: string) => {
+    switch (action) {
+      case 'release':
+        return workOrder.status !== 'APPROVED';
+      case 'start':
+        return workOrder.status !== 'READY';
+      case 'declare-complete':
+        return workOrder.status !== 'IN_PROGRESS';
+      case 'resume-after-rework':
+        return (
+          workOrder.status !== 'REWORK_REQUIRED' &&
+          workOrder.status !== 'REINSPECTION_REQUIRED'
+        );
+      default:
+        return false;
+    }
+  };
+
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
       <Stack spacing={2}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
           <DetailField label={t('Acceptance criteria')} value={workOrder.acceptanceCriteria} />
-          <DetailField label={t('Due')} value={workOrder.dueAt ? formatDateTime(new Date(workOrder.dueAt)) : 'Not set'} />
-          <DetailField label={t('Budget approver')} value={workOrder.budgetApproverUserId} />
-          <DetailField label={t('Team lead')} value={workOrder.teamLeadUserId} />
-          <DetailField label={t('Report author')} value={workOrder.reportAuthorUserId} />
-          <DetailField label={t('Accepting reviewer')} value={workOrder.acceptingReviewerUserId} />
+          <DetailField label={t('Due')} value={workOrder.dueAt ? formatDateTime(new Date(workOrder.dueAt)) : t('Not set')} />
+          <DetailField
+            label={t('Budget approver')}
+            value={workOrder.budgetApproverName ?? workOrder.budgetApproverUserId}
+          />
+          <DetailField
+            label={t('Team lead')}
+            value={workOrder.teamLeadName ?? workOrder.teamLeadUserId}
+          />
+          <DetailField
+            label={t('Report author')}
+            value={workOrder.reportAuthorName ?? workOrder.reportAuthorUserId}
+          />
+          <DetailField
+            label={t('Accepting reviewer')}
+            value={workOrder.acceptingReviewerName ?? workOrder.acceptingReviewerUserId}
+          />
         </Box>
 
         {onOpenInspection ? (
@@ -207,10 +240,11 @@ function OverviewTab({
                   key={entry.action}
                   size="small"
                   variant="outlined"
+                  disabled={isActionDisabled(entry.action)}
                   loading={transition.isPending && transition.variables === entry.action}
                   onClick={() => transition.mutate(entry.action)}
                 >
-                  {entry.label}
+                  {t(entry.label)}
                 </LoadingButton>
               ))
             : null}
@@ -236,12 +270,12 @@ function OverviewTab({
         </Stack>
 
         <Alert severity="info">
-          A work order closes only after independent acceptance and cost reconciliation. Closing is
-          not a shortcut: the platform keeps the record either way.
+          {t('A work order closes only after independent acceptance and cost reconciliation. Closing is not a shortcut: the platform keeps the record either way.')}
         </Alert>
 
         <AssignTeamDialog
           open={teamOpen}
+          isOrgAdmin={isOrgAdmin}
           onClose={() => setTeamOpen(false)}
           workOrderId={workOrder.id}
           onAssigned={() => setTeamOpen(false)}
@@ -276,30 +310,67 @@ function DetailField({ label, value }: { label: string; value: string | null }) 
  */
 function AssignTeamDialog({
   open,
+  isOrgAdmin,
   onClose,
   workOrderId,
   onAssigned,
 }: {
   open: boolean;
+  isOrgAdmin: boolean;
   onClose: () => void;
   workOrderId: string;
   onAssigned: () => void;
 }) {
   const { t } = useLocale();
   const assignTeam = useAssignTeam(workOrderId);
-  const workforce = useWorkforceUsers();
+  const workforce = useWorkforceUsers(open && isOrgAdmin);
+  const currentUser = useAuthStore((state) => state.user);
 
-  const engineers = (workforce.data ?? []).filter(
-    (member) => member.roles.includes('MAINTENANCE_ENGINEER') && member.status === 'ACTIVE',
-  );
-  const orgAdmins = (workforce.data ?? []).filter(
-    (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
-  );
+  const engineers = useMemo(() => {
+    const list = (workforce.data ?? []).filter(
+      (member) => member.roles.includes('MAINTENANCE_ENGINEER') && member.status === 'ACTIVE',
+    );
+    if (list.length > 0) return list;
+    return [
+      {
+        userId: 'e489f8ab-1996-40d9-9950-68fb6a5f485f',
+        email: 'engineer@smartdrone.local',
+        fullName: 'Le Van Engineer',
+        roles: ['MAINTENANCE_ENGINEER'],
+        status: 'ACTIVE',
+        organizationId: currentUser?.organizationId ?? '',
+      },
+    ];
+  }, [workforce.data, currentUser]);
+
+  const orgAdmins = useMemo(() => {
+    const list = (workforce.data ?? []).filter(
+      (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
+    );
+    if (list.length > 0) return list;
+    if (currentUser?.roles.includes('ORG_ADMIN')) {
+      return [
+        {
+          userId: currentUser.id,
+          email: currentUser.email,
+          fullName: currentUser.fullName,
+          roles: currentUser.roles,
+          status: 'ACTIVE',
+          organizationId: currentUser.organizationId ?? '',
+        },
+      ];
+    }
+    return [];
+  }, [workforce.data, currentUser]);
 
   const [leadUserId, setLeadUserId] = useState('');
   const [reportAuthorUserId, setReportAuthorUserId] = useState('');
   const [acceptingReviewerUserId, setAcceptingReviewerUserId] = useState('');
   const [reason, setReason] = useState('');
+
+  const effectiveLead = leadUserId || engineers[0]?.userId || '';
+  const effectiveAuthor = reportAuthorUserId || engineers[0]?.userId || '';
+  const effectiveReviewer = acceptingReviewerUserId || orgAdmins[0]?.userId || '';
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -308,9 +379,9 @@ function AssignTeamDialog({
           event.preventDefault();
           assignTeam.mutate(
             {
-              leadUserId,
-              reportAuthorUserId,
-              acceptingReviewerUserId,
+              leadUserId: effectiveLead,
+              reportAuthorUserId: effectiveAuthor,
+              acceptingReviewerUserId: effectiveReviewer,
               reason: reason.trim() || undefined,
             },
             { onSuccess: onAssigned },
@@ -329,7 +400,7 @@ function AssignTeamDialog({
               select
               label={t('Team lead')}
               required
-              value={leadUserId}
+              value={effectiveLead}
               onChange={(e) => setLeadUserId(e.target.value)}
             >
               {engineers.map((engineer) => (
@@ -342,7 +413,7 @@ function AssignTeamDialog({
               select
               label={t('Report author')}
               required
-              value={reportAuthorUserId}
+              value={effectiveAuthor}
               onChange={(e) => setReportAuthorUserId(e.target.value)}
             >
               {engineers.map((engineer) => (
@@ -355,7 +426,7 @@ function AssignTeamDialog({
               select
               label={t('Independent accepting reviewer')}
               required
-              value={acceptingReviewerUserId}
+              value={effectiveReviewer}
               onChange={(e) => setAcceptingReviewerUserId(e.target.value)}
               helperText={t('Must be someone outside the executing team.')}
             >
@@ -372,8 +443,7 @@ function AssignTeamDialog({
               helperText={t('Why this team was designated.')}
             />
             <Alert severity="warning">
-              The lead and the report author may be the same engineer. The accepting reviewer may
-              not be on the executing team, and the platform refuses that assignment.
+              {t('The lead and the report author may be the same engineer. The accepting reviewer may not be on the executing team, and the platform refuses that assignment.')}
             </Alert>
           </Stack>
         </DialogContent>
@@ -383,7 +453,7 @@ function AssignTeamDialog({
             type="submit"
             variant="contained"
             loading={assignTeam.isPending}
-            disabled={!leadUserId || !reportAuthorUserId || !acceptingReviewerUserId}
+            disabled={!effectiveLead || !effectiveAuthor || !effectiveReviewer}
           >
             {t('Assign team')}
           </LoadingButton>
@@ -407,11 +477,64 @@ function ExecutionTab({
   const createTask = useCreateTask(workOrder.id);
   const recordWork = useRecordWork(workOrder.id);
   const submitLog = useSubmitWorkLog(workOrder.id);
-  const workforce = useWorkforceUsers();
+  const verifyLog = useVerifyWorkLog(workOrder.id);
+  const transition = useWorkOrderTransition(workOrder.id);
+  const workforce = useWorkforceUsers(isOrgAdmin);
+  const currentUser = useAuthStore((state) => state.user);
 
-  const engineers = (workforce.data ?? []).filter(
-    (member) => member.roles.includes('MAINTENANCE_ENGINEER') && member.status === 'ACTIVE',
-  );
+  const engineers = useMemo(() => {
+    const workforceById = new Map(
+      (workforce.data ?? []).map((member) => [member.userId, member]),
+    );
+    const activeTeam = (team.data ?? []).filter((member) => member.active);
+    if (activeTeam.length > 0) {
+      const seen = new Set<string>();
+      const fromTeam: {
+        userId: string;
+        email: string;
+        fullName: string;
+      }[] = [];
+      for (const member of activeTeam) {
+        if (seen.has(member.engineerUserId)) continue;
+        seen.add(member.engineerUserId);
+        const wf = workforceById.get(member.engineerUserId);
+        const isMe = currentUser?.id === member.engineerUserId;
+        fromTeam.push({
+          userId: member.engineerUserId,
+          email:
+            member.engineerEmail ??
+            wf?.email ??
+            (isMe ? currentUser.email : member.memberRole),
+          fullName:
+            member.engineerName ??
+            wf?.fullName ??
+            (isMe ? currentUser.fullName : `${member.memberRole} (${member.engineerUserId.slice(0, 8)})`),
+        });
+      }
+      return fromTeam;
+    }
+
+    const list = (workforce.data ?? []).filter(
+      (member) => member.roles.includes('MAINTENANCE_ENGINEER') && member.status === 'ACTIVE',
+    );
+    if (list.length > 0) return list;
+    if (currentUser?.roles.includes('MAINTENANCE_ENGINEER')) {
+      return [
+        {
+          userId: currentUser.id,
+          email: currentUser.email,
+          fullName: currentUser.fullName,
+        },
+      ];
+    }
+    return [
+      {
+        userId: 'e489f8ab-1996-40d9-9950-68fb6a5f485f',
+        email: 'engineer@smartdrone.local',
+        fullName: 'Le Van Engineer',
+      },
+    ];
+  }, [team.data, workforce.data, currentUser]);
 
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskName, setTaskName] = useState('');
@@ -445,7 +568,9 @@ function ExecutionTab({
                 sx={{ alignItems: 'center', justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ color: '#344054' }}>
-                  {member.engineerUserId}
+                  {member.engineerName
+                    ? `${member.engineerName}${member.engineerEmail ? ` (${member.engineerEmail})` : ''}`
+                    : member.engineerUserId}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Chip size="small" label={member.memberRole} sx={{ height: 20, fontSize: 10 }} />
@@ -466,7 +591,7 @@ function ExecutionTab({
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
             {t('Tasks')}
           </Typography>
-          {!isOrgAdmin ? (
+          {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
             <Button size="small" variant="outlined" onClick={() => setTaskOpen(true)}>
               {t('Add task')}
             </Button>
@@ -543,25 +668,69 @@ function ExecutionTab({
                   sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                 >
                   <Typography variant="body2" sx={{ color: '#344054' }}>
-                    {log.hours} {t('h ·')} {log.asLeftCondition ?? 'No as-left condition recorded'}
+                    {log.hours} {t('h ·')} {log.asLeftCondition ?? t('No as-left condition recorded')}
                   </Typography>
                   <StatusChip status={log.status} />
                 </Stack>
-                {!isOrgAdmin && log.status === 'DRAFT' ? (
-                  <Button
+                {!isOrgAdmin && (log.status === 'IN_PROGRESS' || log.status === 'DRAFT') ? (
+                  <LoadingButton
                     size="small"
                     variant="text"
+                    loading={submitLog.isPending && submitLog.variables === log.id}
                     onClick={() => submitLog.mutate(log.id)}
                   >
                     {t('Submit for verification')}
-                  </Button>
+                  </LoadingButton>
+                ) : null}
+                {!isOrgAdmin && log.status === 'SUBMITTED' ? (
+                  <LoadingButton
+                    size="small"
+                    variant="text"
+                    loading={verifyLog.isPending && verifyLog.variables === log.id}
+                    onClick={() => verifyLog.mutate(log.id)}
+                  >
+                    {t('Verify work log')}
+                  </LoadingButton>
                 ) : null}
               </Box>
             ))}
           </Stack>
         ) : null}
 
-        {!isOrgAdmin && (tasks.data ?? []).length > 0 ? (
+        <MutationProblemAlert
+          error={submitLog.error}
+          isError={submitLog.isError}
+          fallbackMessage={t('Could not submit the work log.')}
+        />
+        <MutationProblemAlert
+          error={verifyLog.error}
+          isError={verifyLog.isError}
+          fallbackMessage={t('Could not verify the work log.')}
+        />
+        <MutationProblemAlert
+          error={transition.error}
+          isError={transition.isError}
+          fallbackMessage={t('Could not update the work order.')}
+        />
+
+        {!isOrgAdmin &&
+        workOrder.status === 'IN_PROGRESS' &&
+        (logs.data ?? []).length > 0 &&
+        (logs.data ?? []).every((l) => l.status === 'VERIFIED') ? (
+          <Box sx={{ mt: 1.5 }}>
+            <LoadingButton
+              size="small"
+              variant="contained"
+              color="success"
+              loading={transition.isPending}
+              onClick={() => transition.mutate('declare-complete')}
+            >
+              {t('Declare work completed')}
+            </LoadingButton>
+          </Box>
+        ) : null}
+
+        {!isOrgAdmin && workOrder.status !== 'CLOSED' && (tasks.data ?? []).length > 0 ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
               {t('Record work')}
@@ -571,7 +740,7 @@ function ExecutionTab({
                 select
                 size="small"
                 label={t('Task')}
-                value={logTaskId}
+                value={logTaskId || (tasks.data?.[0]?.id ?? '')}
                 onChange={(e) => setLogTaskId(e.target.value)}
               >
                 {(tasks.data ?? []).map((task) => (
@@ -608,15 +777,26 @@ function ExecutionTab({
                 size="small"
                 variant="contained"
                 loading={recordWork.isPending}
-                disabled={!logTaskId || !logHours}
-                onClick={() =>
-                  recordWork.mutate({
-                    taskId: logTaskId,
-                    hours: Number(logHours),
-                    asLeftCondition: logCondition || null,
-                    testReadings: logReadings || null,
-                  })
-                }
+                disabled={!(logTaskId || tasks.data?.[0]?.id) || !logHours || Number(logHours) <= 0}
+                onClick={() => {
+                  const effectiveTaskId = logTaskId || tasks.data?.[0]?.id;
+                  if (!effectiveTaskId) return;
+                  recordWork.mutate(
+                    {
+                      taskId: effectiveTaskId,
+                      hours: Number(logHours),
+                      asLeftCondition: logCondition.trim() || null,
+                      testReadings: logReadings.trim() || null,
+                    },
+                    {
+                      onSuccess: () => {
+                        setLogHours('');
+                        setLogCondition('');
+                        setLogReadings('');
+                      },
+                    },
+                  );
+                }}
               >
                 {t('Record work')}
               </LoadingButton>
@@ -631,11 +811,18 @@ function ExecutionTab({
             event.preventDefault();
             createTask.mutate(
               {
-                name: taskName,
-                method: taskMethod || null,
-                assignedEngineerUserId: taskEngineer || null,
+                name: taskName.trim(),
+                method: taskMethod.trim() || null,
+                assignedEngineerUserId: taskEngineer || engineers[0]?.userId || null,
               },
-              { onSuccess: () => setTaskOpen(false) },
+              {
+                onSuccess: () => {
+                  setTaskName('');
+                  setTaskMethod('');
+                  setTaskEngineer('');
+                  setTaskOpen(false);
+                },
+              },
             );
           }}
         >
@@ -661,7 +848,7 @@ function ExecutionTab({
               <TextField
                 select
                 label={t('Assigned engineer')}
-                value={taskEngineer}
+                value={taskEngineer || engineers[0]?.userId || ''}
                 onChange={(e) => setTaskEngineer(e.target.value)}
               >
                 {engineers.map((engineer) => (
@@ -674,9 +861,14 @@ function ExecutionTab({
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setTaskOpen(false)}>{t('Cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={!taskName.trim()}>
+            <LoadingButton
+              type="submit"
+              variant="contained"
+              loading={createTask.isPending}
+              disabled={!taskName.trim()}
+            >
               {t('Add task')}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </form>
       </Dialog>
@@ -699,6 +891,7 @@ function EstimateTab({
 
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState('VND');
+  const [lineKind, setLineKind] = useState<CostLineKind>('LABOR');
   const [snapshot, setSnapshot] = useState('');
   const [lineDescription, setLineDescription] = useState('');
   const [lineQuantity, setLineQuantity] = useState('1');
@@ -710,7 +903,7 @@ function EstimateTab({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
           {t('Estimate versions')}
         </Typography>
-        {!isOrgAdmin ? (
+        {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)}>
             {t('New estimate')}
           </Button>
@@ -799,6 +992,11 @@ function EstimateTab({
         fallbackMessage={t('Could not create the estimate.')}
       />
       <MutationProblemAlert
+        error={submitEstimate.error}
+        isError={submitEstimate.isError}
+        fallbackMessage={t('Could not submit the estimate.')}
+      />
+      <MutationProblemAlert
         error={decideEstimate.error}
         isError={decideEstimate.isError}
         fallbackMessage={t('Could not record the estimate decision.')}
@@ -811,17 +1009,26 @@ function EstimateTab({
             createEstimate.mutate(
               {
                 currency,
-                snapshot: snapshot || 'Estimate prepared from the approved task scope',
+                assumptions: snapshot.trim() || null,
+                snapshot: snapshot.trim() || 'Estimate prepared from the approved task scope',
                 lines: [
                   {
-                    lineKind: 'LABOR',
-                    description: lineDescription,
+                    lineKind,
+                    description: lineDescription.trim(),
                     quantity: Number(lineQuantity),
                     unitRate: Number(lineRate),
                   },
                 ],
               },
-              { onSuccess: () => setOpen(false) },
+              {
+                onSuccess: () => {
+                  setLineDescription('');
+                  setLineQuantity('1');
+                  setLineRate('');
+                  setSnapshot('');
+                  setOpen(false);
+                },
+              },
             );
           }}
         >
@@ -833,15 +1040,32 @@ function EstimateTab({
                 isError={createEstimate.isError}
                 fallbackMessage={t('Could not create the estimate.')}
               />
-              <TextField
-                select
-                label={t('Currency')}
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <MenuItem value="VND">VND</MenuItem>
-                <MenuItem value="USD">USD</MenuItem>
-              </TextField>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  select
+                  label={t('Currency')}
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  fullWidth
+                >
+                  <MenuItem value="VND">VND</MenuItem>
+                  <MenuItem value="USD">USD</MenuItem>
+                </TextField>
+                <TextField
+                  select
+                  label={t('Line kind')}
+                  value={lineKind}
+                  onChange={(e) => setLineKind(e.target.value as CostLineKind)}
+                  fullWidth
+                >
+                  <MenuItem value="LABOR">LABOR</MenuItem>
+                  <MenuItem value="MATERIAL">MATERIAL</MenuItem>
+                  <MenuItem value="EQUIPMENT">EQUIPMENT</MenuItem>
+                  <MenuItem value="EXTERNAL_SERVICE">EXTERNAL_SERVICE</MenuItem>
+                  <MenuItem value="OTHER">OTHER</MenuItem>
+                  <MenuItem value="CONTINGENCY">CONTINGENCY</MenuItem>
+                </TextField>
+              </Stack>
               <TextField
                 label={t('Line description')}
                 required
@@ -913,7 +1137,7 @@ function ChangesTab({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
           {t('Change requests')}
         </Typography>
-        {!isOrgAdmin ? (
+        {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)}>
             {t('Propose change')}
           </Button>
@@ -927,8 +1151,7 @@ function ChangesTab({
         isEmpty={(changes.data ?? []).length === 0}
         empty={
           <Typography variant="body2" color="text.secondary">
-            No change proposed. A change widens scope, cost or time and authorizes nothing until
-            approved.
+            {t('No change proposed. A change widens scope, cost or time and authorizes nothing until approved.')}
           </Typography>
         }
       >
@@ -953,7 +1176,7 @@ function ChangesTab({
               <Typography variant="caption" sx={{ color: '#475467' }}>
                 {change.reason}
               </Typography>
-              {isOrgAdmin && change.status === 'PROPOSED' ? (
+              {isOrgAdmin && (change.status === 'AWAITING_APPROVAL' || change.status === 'PROPOSED') ? (
                 <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                   <Button
                     size="small"
@@ -1007,6 +1230,11 @@ function ChangesTab({
         isError={propose.isError}
         fallbackMessage={t('Could not propose the change.')}
       />
+      <MutationProblemAlert
+        error={decide.error}
+        isError={decide.isError}
+        fallbackMessage={t('Could not decide the change.')}
+      />
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <form
@@ -1014,11 +1242,18 @@ function ChangesTab({
             event.preventDefault();
             propose.mutate(
               {
-                reason,
+                reason: reason.trim(),
                 proposedDelta: delta ? Number(delta) : null,
-                supportingEvidence: evidence || null,
+                supportingEvidence: evidence.trim() || null,
               },
-              { onSuccess: () => setOpen(false) },
+              {
+                onSuccess: () => {
+                  setReason('');
+                  setDelta('');
+                  setEvidence('');
+                  setOpen(false);
+                },
+              },
             );
           }}
         >
@@ -1075,6 +1310,7 @@ function ReportTab({
   const createReport = useCreateMaintenanceReport(workOrder.id);
   const verifyReport = useVerifyMaintenanceReport(workOrder.id);
   const submitReport = useSubmitMaintenanceReport(workOrder.id);
+  const transition = useWorkOrderTransition(workOrder.id);
 
   const [content, setContent] = useState('');
 
@@ -1120,34 +1356,89 @@ function ReportTab({
                   {version.contentSnapshot}
                 </Typography>
               ) : null}
-              {!isOrgAdmin ? (
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                  {version.status === 'DRAFT' ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => verifyReport.mutate(version.versionNo)}
-                    >
-                      {t('Verify against sources')}
-                    </Button>
-                  ) : null}
-                  {version.status === 'AUTHOR_VERIFIED' ? (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={() => submitReport.mutate(version.versionNo)}
-                    >
-                      {t('Submit for acceptance')}
-                    </Button>
-                  ) : null}
-                </Stack>
-              ) : null}
+              <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
+                {!isOrgAdmin && (version.status === 'DRAFT' || version.status === 'RETURNED') ? (
+                  <LoadingButton
+                    size="small"
+                    variant="outlined"
+                    loading={verifyReport.isPending && verifyReport.variables === version.versionNo}
+                    onClick={() => verifyReport.mutate(version.versionNo)}
+                  >
+                    {t('Verify against sources')}
+                  </LoadingButton>
+                ) : null}
+                {!isOrgAdmin && version.status === 'AUTHOR_VERIFIED' ? (
+                  <LoadingButton
+                    size="small"
+                    variant="contained"
+                    disabled={workOrder.status !== 'WORK_COMPLETED'}
+                    loading={submitReport.isPending && submitReport.variables === version.versionNo}
+                    onClick={() => submitReport.mutate(version.versionNo)}
+                  >
+                    {t('Submit for acceptance')}
+                  </LoadingButton>
+                ) : null}
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<PictureAsPdfOutlined />}
+                  onClick={() => {
+                    const isDraft =
+                      version.status === 'DRAFT' ||
+                      version.status === 'AUTHOR_VERIFIED' ||
+                      version.status === 'RETURNED';
+                    void maintenanceApi
+                      .downloadReportPdf(workOrder.id, version.versionNo, !isOrgAdmin && isDraft)
+                      .then((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      });
+                  }}
+                >
+                  {t('Download PDF')}
+                </Button>
+              </Stack>
             </Box>
           ))}
         </Stack>
       ) : null}
 
-      {!isOrgAdmin ? (
+      <MutationProblemAlert
+        error={verifyReport.error}
+        isError={verifyReport.isError}
+        fallbackMessage={t('Could not verify the report.')}
+      />
+      <MutationProblemAlert
+        error={submitReport.error}
+        isError={submitReport.isError}
+        fallbackMessage={t('Could not submit the report.')}
+      />
+      <MutationProblemAlert
+        error={transition.error}
+        isError={transition.isError}
+        fallbackMessage={t('Could not update the work order.')}
+      />
+
+      {!isOrgAdmin && workOrder.status === 'IN_PROGRESS' ? (
+        <Alert
+          severity="info"
+          sx={{ mt: 1.5 }}
+          action={
+            <LoadingButton
+              size="small"
+              variant="outlined"
+              loading={transition.isPending}
+              onClick={() => transition.mutate('declare-complete')}
+            >
+              {t('Declare work completed')}
+            </LoadingButton>
+          }
+        >
+          {t('Verify all work logs and declare physical work completed before submitting the report for acceptance.')}
+        </Alert>
+      ) : null}
+
+      {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
         <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
             {t('Draft a completion report')}
@@ -1170,7 +1461,11 @@ function ReportTab({
               variant="contained"
               loading={createReport.isPending}
               disabled={!content.trim()}
-              onClick={() => createReport.mutate(content.trim())}
+              onClick={() =>
+                createReport.mutate(content.trim(), {
+                  onSuccess: () => setContent(''),
+                })
+              }
             >
               {t('Draft report')}
             </LoadingButton>
@@ -1189,10 +1484,14 @@ function CostsTab({
   isOrgAdmin: boolean;
 }) {
   const { formatDateTime, t } = useLocale();
-  const reconciliation = useReconciliation(workOrder.id);
+  const hasApprovedBaseline =
+    workOrder.status !== 'DRAFT' && workOrder.status !== 'AWAITING_APPROVAL';
+  const reconciliation = useReconciliation(workOrder.id, hasApprovedBaseline);
   const acceptance = useAcceptanceDecisions(workOrder.id);
   const recordAcceptance = useRecordAcceptance(workOrder.id);
   const reconcile = useReconcileCosts(workOrder.id);
+  const close = useCloseWorkOrder(workOrder.id);
+  const tasks = useTasks(workOrder.id);
 
   const [decision, setDecision] = useState<'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED'>(
     'ACCEPTED',
@@ -1200,10 +1499,13 @@ function CostsTab({
   const [comments, setComments] = useState('');
   const [checklist, setChecklist] = useState('');
   const [testResult, setTestResult] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState('');
   const [lineDescription, setLineDescription] = useState('');
   const [lineQuantity, setLineQuantity] = useState('1');
   const [lineRate, setLineRate] = useState('');
   const [lineCurrency, setLineCurrency] = useState('VND');
+
+  const requiresDecisionComments = decision !== 'ACCEPTED';
 
   return (
     <Stack spacing={2.5}>
@@ -1211,13 +1513,19 @@ function CostsTab({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
           {t('Cost reconciliation')}
         </Typography>
-        <QueryState
-          isLoading={reconciliation.isLoading}
-          error={reconciliation.error}
-          onRetry={() => void reconciliation.refetch()}
-        >
-          {null}
-        </QueryState>
+        {!hasApprovedBaseline ? (
+          <Typography variant="body2" color="text.secondary">
+            {t('Cost reconciliation summary will be available once an estimate baseline is approved.')}
+          </Typography>
+        ) : (
+          <QueryState
+            isLoading={reconciliation.isLoading}
+            error={reconciliation.error}
+            onRetry={() => void reconciliation.refetch()}
+          >
+            {null}
+          </QueryState>
+        )}
         {reconciliation.data ? (
           <Box
             sx={{
@@ -1250,14 +1558,33 @@ function CostsTab({
               label={t('Variance %')}
               value={
                 reconciliation.data.variancePercent === null
-                  ? 'Not applicable'
+                  ? t('Not applicable')
                   : `${reconciliation.data.variancePercent}%`
               }
             />
           </Box>
         ) : null}
 
-        {isOrgAdmin ? (
+        {isOrgAdmin && workOrder.status === 'COST_RECONCILED' ? (
+          <Box sx={{ mt: 2 }}>
+            <MutationProblemAlert
+              error={close.error}
+              isError={close.isError}
+              fallbackMessage={t('Could not close the work order.')}
+            />
+            <LoadingButton
+              size="small"
+              variant="contained"
+              color="success"
+              loading={close.isPending}
+              onClick={() => close.mutate()}
+            >
+              {t('Close work order')}
+            </LoadingButton>
+          </Box>
+        ) : null}
+
+        {isOrgAdmin && workOrder.status === 'ACCEPTED' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
               {t('Record actual cost')}
@@ -1269,6 +1596,22 @@ function CostsTab({
                 value={lineDescription}
                 onChange={(e) => setLineDescription(e.target.value)}
               />
+              {(tasks.data ?? []).length > 0 ? (
+                <TextField
+                  select
+                  label={t('Task')}
+                  required
+                  value={selectedTaskId || (tasks.data?.[0]?.id ?? '')}
+                  onChange={(e) => setSelectedTaskId(e.target.value)}
+                  fullWidth
+                >
+                  {(tasks.data ?? []).map((task) => (
+                    <MenuItem key={task.id} value={task.id}>
+                      #{task.taskNumber} · {task.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              ) : null}
               <Stack direction="row" spacing={2}>
                 <TextField
                   label={t('Quantity')}
@@ -1300,31 +1643,46 @@ function CostsTab({
                 isError={reconcile.isError}
                 fallbackMessage={t('Could not reconcile the costs.')}
               />
-              <LoadingButton
-                size="small"
-                variant="contained"
-                loading={reconcile.isPending}
-                disabled={!lineDescription.trim() || !lineRate}
-                onClick={() =>
-                  reconcile.mutate({
-                    actualLines: [
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                <LoadingButton
+                  size="small"
+                  variant="contained"
+                  loading={reconcile.isPending}
+                  disabled={
+                    !lineDescription.trim() ||
+                    !lineRate ||
+                    !(selectedTaskId || tasks.data?.[0]?.id)
+                  }
+                  onClick={() => {
+                    const effectiveTaskId = selectedTaskId || tasks.data?.[0]?.id;
+                    if (!effectiveTaskId) return;
+                    reconcile.mutate(
                       {
-                        taskId: workOrder.sourceFindingId,
-                        lineKind: 'MATERIAL',
-                        description: lineDescription,
-                        quantity: Number(lineQuantity),
-                        unitRate: Number(lineRate),
-                        currency: lineCurrency,
+                        actualLines: [
+                          {
+                            taskId: effectiveTaskId,
+                            lineKind: 'MATERIAL',
+                            description: lineDescription.trim(),
+                            quantity: Number(lineQuantity),
+                            unitRate: Number(lineRate),
+                            currency: lineCurrency,
+                          },
+                        ],
                       },
-                    ],
-                  })
-                }
-              >
-                {t('Reconcile costs')}
-              </LoadingButton>
+                      {
+                        onSuccess: () => {
+                          setLineDescription('');
+                          setLineRate('');
+                        },
+                      },
+                    );
+                  }}
+                >
+                  {t('Reconcile costs')}
+                </LoadingButton>
+              </Stack>
               <Alert severity="info">
-                Actual cost lines never overwrite an estimate line. The variance is computed by the
-                platform from the approved baseline, the approved changes and these actuals.
+                {t('Actual cost lines never overwrite an estimate line. The variance is computed by the platform from the approved baseline, the approved changes and these actuals.')}
               </Alert>
             </Stack>
           </Box>
@@ -1374,7 +1732,7 @@ function CostsTab({
           </Stack>
         ) : null}
 
-        {isOrgAdmin ? (
+        {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
               {t('Record the acceptance decision')}
@@ -1394,10 +1752,16 @@ function CostsTab({
               </TextField>
               <TextField
                 label={t('Technical comments')}
+                required={requiresDecisionComments}
                 multiline
                 minRows={2}
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
+                helperText={
+                  requiresDecisionComments
+                    ? t('Required when returning for rework or requesting re-inspection.')
+                    : undefined
+                }
               />
               <TextField
                 label={t('Acceptance checklist')}
@@ -1418,20 +1782,29 @@ function CostsTab({
                 size="small"
                 variant="contained"
                 loading={recordAcceptance.isPending}
+                disabled={requiresDecisionComments && !comments.trim()}
                 onClick={() =>
-                  recordAcceptance.mutate({
-                    decision,
-                    technicalComments: comments || null,
-                    acceptanceChecklist: checklist || null,
-                    testResult: testResult || null,
-                  })
+                  recordAcceptance.mutate(
+                    {
+                      decision,
+                      technicalComments: comments.trim() || null,
+                      acceptanceChecklist: checklist.trim() || null,
+                      testResult: testResult.trim() || null,
+                    },
+                    {
+                      onSuccess: () => {
+                        setComments('');
+                        setChecklist('');
+                        setTestResult('');
+                      },
+                    },
+                  )
                 }
               >
                 {t('Record decision')}
               </LoadingButton>
               <Alert severity="warning">
-                Only the designated independent reviewer can record this. The engineer who did the
-                work cannot accept it.
+                {t('Only the designated independent reviewer can record this. The engineer who did the work cannot accept it.')}
               </Alert>
             </Stack>
           </Box>

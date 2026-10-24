@@ -92,7 +92,7 @@ export default function MaintenancePage() {
   const columns: DataTableColumn<WorkOrder>[] = [
     {
       id: 'scope',
-      label: 'Corrective scope',
+      label: t('Corrective scope'),
       render: (order) => (
         <Typography sx={{ fontWeight: 600, color: '#101828', fontSize: '0.875rem' }}>
           {order.correctiveScope}
@@ -101,12 +101,12 @@ export default function MaintenancePage() {
     },
     {
       id: 'status',
-      label: 'Status',
+      label: t('Status'),
       width: 190,
       render: (order) => (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <StatusChip status={order.status} />
-          {order.priority !== 'MEDIUM' ? (
+          {order.priority !== 'MEDIUM' && order.priority !== 'NORMAL' ? (
             <Chip
               size="small"
               label={order.priority}
@@ -118,7 +118,7 @@ export default function MaintenancePage() {
     },
     {
       id: 'due',
-      label: 'Due',
+      label: t('Due'),
       width: 130,
       render: (order) => (
         <Typography sx={{ color: '#475467', fontSize: '0.8125rem' }}>
@@ -149,15 +149,15 @@ export default function MaintenancePage() {
           value={workOrders.isLoading ? '…' : formatNumber(totalCount)}
           change={t('Tracked')}
           positive
-          subtext="repair work orders"
+          subtext={t('repair work orders')}
           iconType="wrench"
         />
         <MetricCard
           label={t('Open Work')}
           value={workOrders.isLoading ? '…' : formatNumber(openCount)}
-          change={openCount > 0 ? 'Action required' : 'Clear'}
+          change={openCount > 0 ? t('Action required') : t('Clear')}
           positive={openCount === 0}
-          subtext="not yet closed"
+          subtext={t('not yet closed')}
           iconType="alert"
         />
         <MetricCard
@@ -165,15 +165,15 @@ export default function MaintenancePage() {
           value={workOrders.isLoading ? '…' : formatNumber(inProgressCount)}
           change={t('Operational')}
           positive
-          subtext="engineers on site"
+          subtext={t('engineers on site')}
           iconType="clock"
         />
         <MetricCard
           label={t('Awaiting Acceptance')}
           value={workOrders.isLoading ? '…' : formatNumber(awaitingAcceptance)}
-          change={awaitingAcceptance > 0 ? 'Review due' : 'Clear'}
+          change={awaitingAcceptance > 0 ? t('Review due') : t('Clear')}
           positive={awaitingAcceptance === 0}
-          subtext="independent review"
+          subtext={t('independent review')}
           iconType="check-circle"
         />
       </Box>
@@ -183,7 +183,7 @@ export default function MaintenancePage() {
           workOrder={selected}
           isOrgAdmin={isOrgAdmin}
           onClose={() => setSelectedId(null)}
-          onOpenInspection={() => navigate(`/client/inspections/${selected.assetId}`)}
+          onOpenInspection={isOrgAdmin ? () => navigate('/client/inspections') : undefined}
         />
       ) : (
         <Stack spacing={2.5}>
@@ -272,7 +272,7 @@ export default function MaintenancePage() {
                     <Icon fontSize="small" />
                   </Box>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#344054' }}>
-                    {label}
+                    {t(label)}
                   </Typography>
                 </Stack>
               ))}
@@ -280,8 +280,8 @@ export default function MaintenancePage() {
             <Divider sx={{ my: 2.5 }} />
             <Typography variant="caption" sx={{ color: '#667085' }}>
               {isOrgAdmin
-                ? 'As Organization Admin you approve scope, budget, changes and final acceptance.'
-                : 'As Maintenance Engineer you record tasks, time, changes and the completion report.'}
+                ? t('As Organization Admin you approve scope, budget, changes and final acceptance.')
+                : t('As Maintenance Engineer you record tasks, time, changes and the completion report.')}
             </Typography>
           </Paper>
           </Box>

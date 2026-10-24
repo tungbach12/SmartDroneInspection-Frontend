@@ -12,6 +12,7 @@ import {
   type RecordAcceptanceInput,
   type RecordWorkLogInput,
   type ReconcileCostsInput,
+  type SuggestScopeInput,
 } from '../api/maintenanceApi';
 
 export function useWorkOrders(page = 0, size = 20, enabled = true) {
@@ -383,6 +384,20 @@ export function useCloseWorkOrder(workOrderId: string) {
     onSuccess: () => {
       invalidate();
       showToast('Work order closed');
+    },
+  });
+}
+
+export function useSuggestWorkOrderScope() {
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (input: SuggestScopeInput) => maintenanceApi.suggestScope(input),
+    onSuccess: (data) => {
+      showToast(
+        data.fallbackApplied
+          ? 'Scope and criteria suggested (Standard guidelines)'
+          : 'AI scope and criteria generated',
+      );
     },
   });
 }
