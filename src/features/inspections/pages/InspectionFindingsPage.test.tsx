@@ -748,13 +748,20 @@ describe('InspectionFindingsPage', () => {
     const editBtn = screen.getByRole('button', { name: 'Edit / Change defect' });
     fireEvent.click(editBtn);
 
+    expect(screen.queryByLabelText('Evidence location')).toBeNull();
     fireEvent.change(screen.getByLabelText('Defect label'), { target: { value: 'Coating blistering' } });
+    fireEvent.change(screen.getByLabelText(/Technical notes/), { target: { value: 'Updated technical notes' } });
+    fireEvent.change(screen.getByLabelText(/Recommended action/), { target: { value: 'Apply protective epoxy coating' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save correction' }));
 
     expect(mocks.updateFinding.mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         findingId: 'finding-detected-1',
-        input: expect.objectContaining({ defectLabel: 'Coating blistering' }),
+        input: expect.objectContaining({
+          defectLabel: 'Coating blistering',
+          technicalNotes: 'Updated technical notes',
+          recommendedAction: 'Apply protective epoxy coating',
+        }),
       }),
     );
   });
