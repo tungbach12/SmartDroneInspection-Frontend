@@ -132,6 +132,8 @@ export default function InspectionFindingsPage() {
   const [hoveredCandidateId, setHoveredCandidateId] = useState<string | null>(null);
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
+  const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
+  const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
   const [showRemovedFindings, setShowRemovedFindings] = useState(false);
@@ -185,14 +187,6 @@ export default function InspectionFindingsPage() {
 
   const severityFor = (findingId: string): FindingSeverity =>
     severities[findingId] ?? 'MEDIUM';
-  const locationFor = (findingId: string): string => {
-    const finding = (findings.data ?? []).find((item) => item.id === findingId);
-    return finding
-      ? locationDrafts[finding.evidenceId ?? ''] ??
-        evidence.data?.find((item) => item.id === finding.evidenceId)?.locationDescription ??
-        ''
-      : '';
-  };
   const groupedFindings = useMemo(() => {
     const groups = new Map<
       string,
@@ -537,16 +531,8 @@ export default function InspectionFindingsPage() {
                                           </MenuItem>
                                         ))}
                                       </TextField>
-                                      <TextField
-                                        size="small"
-                                        label={t('Evidence location')}
-                                        value={locationFor(finding.id)}
-                                        disabled
-                                        helperText={t('Set once on the evidence group above.')}
-                                        sx={{ flexGrow: 1 }}
-                                      />
                                     </Stack>
-                                    <Stack direction="row" spacing={1}>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                                       <Button
                                         size="small"
                                         variant="contained"
@@ -562,6 +548,35 @@ export default function InspectionFindingsPage() {
                                         }
                                       >
                                         {t('Confirm')}
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        variant="text"
+                                        onClick={() => {
+                                          if (editingCandidateId === finding.id) {
+                                            setEditingCandidateId(null);
+                                          } else {
+                                            setEditingCandidateId(finding.id);
+                                            setRevisedDefectLabels((prev) => ({
+                                              ...prev,
+                                              [finding.id]: finding.defectLabel,
+                                            }));
+                                            setSeverities((prev) => ({
+                                              ...prev,
+                                              [finding.id]: finding.severity,
+                                            }));
+                                            setRevisedTechnicalNotes((prev) => ({
+                                              ...prev,
+                                              [finding.id]: finding.technicalNotes ?? '',
+                                            }));
+                                            setRevisedRecommendedActions((prev) => ({
+                                              ...prev,
+                                              [finding.id]: finding.recommendedAction ?? '',
+                                            }));
+                                          }
+                                        }}
+                                      >
+                                        {editingCandidateId === finding.id ? t('Cancel edit') : t('Edit / Change defect')}
                                       </Button>
                                       <Button
                                         size="small"
@@ -605,9 +620,13 @@ export default function InspectionFindingsPage() {
                                                   ...prev,
                                                   [finding.id]: finding.severity,
                                                 }));
-                                                setLocationDrafts((prev) => ({
+                                                setRevisedTechnicalNotes((prev) => ({
                                                   ...prev,
-                                                  [finding.evidenceId ?? '']: evidence.data?.find((item) => item.id === finding.evidenceId)?.locationDescription ?? '',
+                                                  [finding.id]: finding.technicalNotes ?? '',
+                                                }));
+                                                setRevisedRecommendedActions((prev) => ({
+                                                  ...prev,
+                                                  [finding.id]: finding.recommendedAction ?? '',
                                                 }));
                                               }
                                             }}
@@ -616,89 +635,6 @@ export default function InspectionFindingsPage() {
                                           </Button>
                                         )}
                                       </Stack>
-
-                                      {isEditing && isInspector && !isLocked && (
-                                        <Paper variant="outlined" sx={{ p: 1.5, mt: 1, bgcolor: 'action.hover' }}>
-                                          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
-                                            {t('Correct Inspector finding details:')}
-                                          </Typography>
-                                          <Stack spacing={1}>
-                                            <TextField
-                                              size="small"
-                                              label={t('Defect label')}
-                                              value={revisedDefectLabels[finding.id] ?? finding.defectLabel}
-                                              onChange={(event) =>
-                                                setRevisedDefectLabels((prev) => ({
-                                                  ...prev,
-                                                  [finding.id]: event.target.value,
-                                                }))
-                                              }
-                                              slotProps={{ htmlInput: { maxLength: 160 } }}
-                                            />
-                                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                                              <TextField
-                                                select
-                                                size="small"
-                                                label={t('Severity')}
-                                                value={severityFor(finding.id)}
-                                                onChange={(event) =>
-                                                  setSeverities((prev) => ({
-                                                    ...prev,
-                                                    [finding.id]: event.target.value as FindingSeverity,
-                                                  }))
-                                                }
-                                                sx={{ minWidth: 140 }}
-                                              >
-                                                {SEVERITIES.map((level) => (
-                                                  <MenuItem key={level} value={level}>
-                                                    {level}
-                                                  </MenuItem>
-                                                ))}
-                                              </TextField>
-                                              <TextField
-                                                size="small"
-                                                label={t('Evidence location')}
-                                                value={locationFor(finding.id)}
-                                                disabled
-                                                helperText={t('Edit the shared location on the evidence group.')}
-                                                sx={{ flexGrow: 1 }}
-                                              />
-                                            </Stack>
-                                            <Stack direction="row" spacing={1}>
-                                              <Button
-                                                size="small"
-                                                variant="contained"
-                                                disabled={updateFinding.isPending}
-                                                onClick={() => {
-                                                  updateFinding.mutate({
-                                                    findingId: finding.id,
-                                                    input: {
-                                                      evidenceId: finding.evidenceId ?? '',
-                                                      defectLabel: (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim(),
-                                                      severity: severityFor(finding.id),
-                                                      technicalNotes: finding.technicalNotes ?? 'Corrected by assigned Inspector',
-                                                    },
-                                                  });
-                                                  setEditingCandidateId(null);
-                                                }}
-                                              >
-                                                {t('Save correction')}
-                                              </Button>
-                                              <Button
-                                                size="small"
-                                                onClick={() => setEditingCandidateId(null)}
-                                              >
-                                                {t('Cancel')}
-                                              </Button>
-                                            </Stack>
-                                            {updateFinding.isError && (
-                                              <Alert severity="error">
-                                                {getErrorMessage(updateFinding.error, 'The correction was not saved.')}
-                                              </Alert>
-                                            )}
-                                          </Stack>
-                                        </Paper>
-                                      )}
 
                                       {isInspector && !isLocked && (
                                         <Button
@@ -721,6 +657,115 @@ export default function InspectionFindingsPage() {
                                     </Stack>
                                   );
                                 })()}
+
+                                {editingCandidateId === finding.id && isInspector && !isReportLocked && (
+                                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1, bgcolor: 'action.hover' }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                                      {t('Correct Inspector finding details:')}
+                                    </Typography>
+                                    <Stack spacing={1}>
+                                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                                        <TextField
+                                          size="small"
+                                          label={t('Defect label')}
+                                          value={revisedDefectLabels[finding.id] ?? finding.defectLabel}
+                                          onChange={(event) =>
+                                            setRevisedDefectLabels((prev) => ({
+                                              ...prev,
+                                              [finding.id]: event.target.value,
+                                            }))
+                                          }
+                                          slotProps={{ htmlInput: { maxLength: 160 } }}
+                                          sx={{ flexGrow: 1 }}
+                                        />
+                                        <TextField
+                                          select
+                                          size="small"
+                                          label={t('Severity')}
+                                          value={severityFor(finding.id)}
+                                          onChange={(event) =>
+                                            setSeverities((prev) => ({
+                                              ...prev,
+                                              [finding.id]: event.target.value as FindingSeverity,
+                                            }))
+                                          }
+                                          sx={{ minWidth: 140 }}
+                                        >
+                                          {SEVERITIES.map((level) => (
+                                            <MenuItem key={level} value={level}>
+                                              {level}
+                                            </MenuItem>
+                                          ))}
+                                        </TextField>
+                                      </Stack>
+                                      <TextField
+                                        size="small"
+                                        label={t('Technical notes')}
+                                        multiline
+                                        minRows={2}
+                                        value={revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? ''}
+                                        onChange={(event) =>
+                                          setRevisedTechnicalNotes((prev) => ({
+                                            ...prev,
+                                            [finding.id]: event.target.value,
+                                          }))
+                                        }
+                                        slotProps={{ htmlInput: { maxLength: 4000 } }}
+                                        required
+                                      />
+                                      <TextField
+                                        size="small"
+                                        label={t('Recommended action')}
+                                        multiline
+                                        minRows={2}
+                                        value={revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? ''}
+                                        onChange={(event) =>
+                                          setRevisedRecommendedActions((prev) => ({
+                                            ...prev,
+                                            [finding.id]: event.target.value,
+                                          }))
+                                        }
+                                        slotProps={{ htmlInput: { maxLength: 4000 } }}
+                                      />
+                                      <Stack direction="row" spacing={1}>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          disabled={updateFinding.isPending}
+                                          onClick={() => {
+                                            const defectLabel = (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim();
+                                            const technicalNotes = (revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '').trim();
+                                            const recommendedAction = (revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? '').trim();
+                                            updateFinding.mutate({
+                                              findingId: finding.id,
+                                              input: {
+                                                evidenceId: finding.evidenceId ?? '',
+                                                defectLabel,
+                                                severity: severityFor(finding.id),
+                                                technicalNotes: technicalNotes || 'Corrected by assigned Inspector',
+                                                recommendedAction: recommendedAction || undefined,
+                                              },
+                                            });
+                                            setEditingCandidateId(null);
+                                          }}
+                                        >
+                                          {t('Save correction')}
+                                        </Button>
+                                        <Button
+                                          size="small"
+                                          onClick={() => setEditingCandidateId(null)}
+                                        >
+                                          {t('Cancel')}
+                                        </Button>
+                                      </Stack>
+                                      {updateFinding.isError && (
+                                        <Alert severity="error">
+                                          {getErrorMessage(updateFinding.error, 'The correction was not saved.')}
+                                        </Alert>
+                                      )}
+                                    </Stack>
+                                  </Paper>
+                                )}
                               </Stack>
                             </CardContent>
                           </Card>
