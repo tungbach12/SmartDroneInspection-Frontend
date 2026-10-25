@@ -129,7 +129,6 @@ export interface MaintenanceTask {
   plannedEndAt: string | null;
   acceptanceCriteria: string | null;
   status: TaskStatus;
-  displayOrder: number;
 }
 
 export interface EstimateVersion {
@@ -142,7 +141,6 @@ export interface EstimateVersion {
   currency: string;
   baselineTotal: string | null;
   assumptions: string | null;
-  snapshot: string;
   createdAt: string;
 }
 
@@ -153,7 +151,6 @@ export interface WorkLog {
   startedAt: string | null;
   endedAt: string | null;
   hours: string;
-  actualCostReferences: string | null;
   asLeftCondition: string | null;
   testReadings: string | null;
   status: WorkLogStatus;
@@ -163,7 +160,6 @@ export interface ChangeOrder {
   id: string;
   changeNumber: number;
   reason: string;
-  affectedTasks: string | null;
   proposedDelta: string | null;
   status: ChangeOrderStatus;
   requestedByUserId: string;
@@ -178,11 +174,9 @@ export interface MaintenanceReportVersion {
   status: ReportVersionStatus;
   authorUserId: string;
   authorVerifiedAt: string | null;
-  approvedScopeHash: string | null;
-  changeSnapshotHash: string | null;
-  workLogSnapshotHash: string | null;
-  actualCostSnapshotHash: string | null;
   contentSnapshot: string | null;
+  renderedObjectKey?: string | null;
+  renderedChecksumSha256?: string | null;
 }
 
 export interface AcceptanceDecision {
@@ -287,14 +281,11 @@ export interface EstimateLineInput {
   quantity?: number | null;
   unit?: string | null;
   unitRate?: number | null;
-  evidenceReference?: string | null;
 }
 
 export interface CreateEstimateVersionInput {
   currency: string;
-  taxBasis?: string | null;
   assumptions?: string | null;
-  snapshot: string;
   lines: EstimateLineInput[];
 }
 
@@ -303,18 +294,13 @@ export interface RecordWorkLogInput {
   startedAt?: string | null;
   endedAt?: string | null;
   hours: number;
-  actualCostReferences?: string | null;
   asLeftCondition?: string | null;
   testReadings?: string | null;
 }
 
 export interface CreateChangeOrderInput {
   reason: string;
-  affectedTasks?: string | null;
   proposedDelta?: number | null;
-  supportingEvidence?: string | null;
-  proposedStartAt?: string | null;
-  proposedEndAt?: string | null;
 }
 
 export interface ChangeDecisionInput {
@@ -326,7 +312,6 @@ export interface RecordAcceptanceInput {
   technicalComments?: string | null;
   acceptanceChecklist?: string | null;
   testResult?: string | null;
-  signatureReference?: string | null;
 }
 
 export interface ActualCostLineInput {
@@ -337,8 +322,6 @@ export interface ActualCostLineInput {
   unit?: string | null;
   unitRate: number;
   currency: string;
-  taxTreatment?: string | null;
-  evidenceReference?: string | null;
 }
 
 export interface ReconcileCostsInput {
