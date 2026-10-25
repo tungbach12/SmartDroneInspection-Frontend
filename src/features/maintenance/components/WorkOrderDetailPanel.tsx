@@ -1129,7 +1129,6 @@ function ChangesTab({
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [delta, setDelta] = useState('');
-  const [evidence, setEvidence] = useState('');
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
@@ -1244,13 +1243,11 @@ function ChangesTab({
               {
                 reason: reason.trim(),
                 proposedDelta: delta ? Number(delta) : null,
-                supportingEvidence: evidence.trim() || null,
               },
               {
                 onSuccess: () => {
                   setReason('');
                   setDelta('');
-                  setEvidence('');
                   setOpen(false);
                 },
               },
@@ -1278,11 +1275,6 @@ function ChangesTab({
                 type="number"
                 value={delta}
                 onChange={(e) => setDelta(e.target.value)}
-              />
-              <TextField
-                label={t('Supporting evidence')}
-                value={evidence}
-                onChange={(e) => setEvidence(e.target.value)}
               />
             </Stack>
           </DialogContent>

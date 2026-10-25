@@ -245,7 +245,6 @@ describe('MaintenancePage', () => {
         startedAt: '2026-10-05T08:00:00Z',
         endedAt: '2026-10-05T10:00:00Z',
         hours: '2',
-        actualCostReferences: null,
         asLeftCondition: 'Cleaned and primed',
         testReadings: '225 um',
         status: 'IN_PROGRESS',
