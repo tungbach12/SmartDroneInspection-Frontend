@@ -23,9 +23,9 @@ import {
 
 const user = {
   id: 'user-1',
-  email: 'org-admin@example.com',
-  fullName: 'Organization Admin',
-  roles: ['ORG_ADMIN'],
+  email: 'org-manager@example.com',
+  fullName: 'Organization Manager',
+  roles: ['ORG_MANAGER'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
   visionFallbackEnabled: true,
@@ -72,7 +72,8 @@ describe('browser auth API', () => {
           ...user,
           roles: [
             'ADMIN',
-            'ORG_ADMIN',
+            'PLATFORM_MANAGER',
+            'ORG_MANAGER',
             'INSPECTOR',
             'MAINTENANCE_ENGINEER',
             'UNKNOWN_ROLE',
@@ -81,11 +82,12 @@ describe('browser auth API', () => {
       },
     });
 
-    const result = await login('org-admin@example.com', 'secret password');
+    const result = await login('org-manager@example.com', 'secret password');
 
     expect(result.user.roles).toEqual([
       'ADMIN',
-      'ORG_ADMIN',
+      'PLATFORM_MANAGER',
+      'ORG_MANAGER',
       'INSPECTOR',
       'MAINTENANCE_ENGINEER',
     ]);
@@ -158,27 +160,27 @@ describe('browser auth API', () => {
         organizationId: 'org-1',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
-        user: { ...user, roles: ['ORG_ADMIN', 'UNKNOWN_ROLE'] },
+        user: { ...user, roles: ['ORG_MANAGER', 'UNKNOWN_ROLE'] },
       },
     });
 
     const result = await registerOrganization({
-      email: 'org-admin@example.com',
-      fullName: 'Organization Admin',
+      email: 'org-manager@example.com',
+      fullName: 'Organization Manager',
       organizationName: 'Example Org',
       organizationCode: 'EXAMPLE',
       password: 'a much longer secure password',
     });
 
     expect(transport.postWithBrowserCsrf).toHaveBeenCalledWith('/auth/register', {
-      email: 'org-admin@example.com',
-      fullName: 'Organization Admin',
+      email: 'org-manager@example.com',
+      fullName: 'Organization Manager',
       organizationName: 'Example Org',
       organizationCode: 'EXAMPLE',
       password: 'a much longer secure password',
     });
     expect(result.organizationCode).toBe('EXAMPLE');
-    expect(result.user.roles).toEqual(['ORG_ADMIN']);
+    expect(result.user.roles).toEqual(['ORG_MANAGER']);
   });
 
   it('uses CSRF-protected browser endpoints for one-device and all-device logout', async () => {

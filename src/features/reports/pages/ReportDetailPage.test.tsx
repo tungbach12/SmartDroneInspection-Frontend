@@ -147,10 +147,10 @@ describe('ReportDetailPage MF3 gates', () => {
     vi.clearAllMocks();
     mockedApi.listFindings.mockResolvedValue([]);
     mockedApi.listEvidence.mockResolvedValue([]);
-    setRole(['ORG_ADMIN']);
+    setRole(['ORG_MANAGER']);
   });
 
-  it('allows the Organization Admin to approve the report without per-finding decisions', async () => {
+  it('allows the Organization Manager to approve the report without per-finding decisions', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
       finding({ status: 'CONFIRMED' }),
@@ -454,7 +454,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('returns to the reports queue on the inspections list', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
 
-    setRole(['ORG_ADMIN']);
+    setRole(['ORG_MANAGER']);
     renderPage('/client/reports/inspection-1');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Back to review queue' }));

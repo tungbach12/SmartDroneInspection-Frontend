@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { useAuthStore } from '../store/authStore';
 import { RequireAuth } from './RequireAuth';
 
-const roles: Array<'ADMIN' | 'ORG_ADMIN' | 'INSPECTOR' | 'MAINTENANCE_ENGINEER'> = [
+const roles: Array<'ADMIN' | 'PLATFORM_MANAGER' | 'ORG_MANAGER' | 'INSPECTOR' | 'MAINTENANCE_ENGINEER'> = [
   'ADMIN',
-  'ORG_ADMIN',
+  'PLATFORM_MANAGER',
+  'ORG_MANAGER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ];
@@ -15,7 +16,7 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
   afterEach(() => useAuthStore.getState().clearSession());
 
   it.each(['/client/workforce', '/client/assets'])(
-    'allows ORG_ADMIN at %s and redirects the other roles to forbidden',
+    'allows ORG_MANAGER at %s and redirects the other roles to forbidden',
     async (path) => {
       for (const role of roles) {
         useAuthStore.getState().setSession({
@@ -32,7 +33,7 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
               <Route
                 path="/client/workforce"
                 element={
-                  <RequireAuth roles={['ORG_ADMIN']}>
+                  <RequireAuth roles={['ORG_MANAGER']}>
                     <div>Workforce screen</div>
                   </RequireAuth>
                 }
@@ -40,7 +41,7 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
               <Route
                 path="/client/assets"
                 element={
-                  <RequireAuth roles={['ORG_ADMIN']}>
+                  <RequireAuth roles={['ORG_MANAGER']}>
                     <div>Assets resource screen</div>
                   </RequireAuth>
                 }
@@ -51,7 +52,7 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
           </MemoryRouter>,
         );
 
-        if (role === 'ORG_ADMIN') {
+        if (role === 'ORG_MANAGER') {
           expect(screen.getByText(path.endsWith('workforce') ? 'Workforce screen' : 'Assets resource screen')).toBeTruthy();
         } else {
           expect(screen.getByText('Forbidden screen')).toBeTruthy();

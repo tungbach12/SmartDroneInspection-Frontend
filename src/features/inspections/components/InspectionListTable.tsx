@@ -18,7 +18,7 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 /**
- * The one decision the organization administrator is being asked for, in the reviewer's words.
+ * The one decision the organization manageristrator is being asked for, in the reviewer's words.
  *
  * <p>The phases are named rather than numbered so the queue reads as "what is waiting for me",
  * and an inspection that needs nothing from the administrator says so instead of implying a task.

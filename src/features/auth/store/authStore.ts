@@ -2,10 +2,13 @@ import { create } from 'zustand';
 
 export const ROLE_CODES = [
   'ADMIN',
-  'ORG_ADMIN',
+  'PLATFORM_MANAGER',
+  'ORG_MANAGER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;
+
+export const KNOWN_ROLES = ROLE_CODES;
 
 export type Role = (typeof ROLE_CODES)[number];
 export type ActorZone = 'PLATFORM' | 'CUSTOMER_ORGANIZATION';

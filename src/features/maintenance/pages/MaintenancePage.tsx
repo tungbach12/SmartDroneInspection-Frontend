@@ -62,14 +62,14 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
  *
  * The list is the discovery path. A row opens the work order, where the team, tasks, estimate,
  * execution records, change requests, completion report, acceptance and cost reconciliation each
- * live in their own panel. The role decides which of those actions appear: an ORG_ADMIN approves
+ * live in their own panel. The role decides which of those actions appear: an ORG_MANAGER approves
  * scope, budget and acceptance, while a MAINTENANCE_ENGINEER records the work itself.
  */
 export default function MaintenancePage() {
   const { formatDate, formatNumber, t } = useLocale();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
-  const isOrgAdmin = roles.includes('ORG_ADMIN');
+  const isOrgAdmin = roles.includes('ORG_MANAGER');
   const workOrders = useWorkOrders(0, 50);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -280,7 +280,7 @@ export default function MaintenancePage() {
             <Divider sx={{ my: 2.5 }} />
             <Typography variant="caption" sx={{ color: '#667085' }}>
               {isOrgAdmin
-                ? t('As Organization Admin you approve scope, budget, changes and final acceptance.')
+                ? t('As Organization Manager you approve scope, budget, changes and final acceptance.')
                 : t('As Maintenance Engineer you record tasks, time, changes and the completion report.')}
             </Typography>
           </Paper>

@@ -39,7 +39,7 @@ const PERMIT_STATUSES: FlightPermitStatus[] = [
 export function FlightPermitPanel() {
   const { t, formatDate: formatDateValue } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const canManage = roles.includes('ORG_ADMIN');
+  const canManage = roles.includes('ORG_MANAGER');
   const permits = useFlightPermits();
   const createPermit = useCreateFlightPermit();
   const reviewPermit = useReviewFlightPermit();

@@ -2,6 +2,7 @@ import { api } from '@/shared/api/client';
 
 export type DroneServiceability =
   'ACTIVE' | 'MAINTENANCE' | 'SUSPENDED' | 'RETIRED';
+export type DroneOwnershipType = 'OWNED' | 'LEASED';
 export type DroneDocumentStatus =
   'PENDING_REVIEW' | 'ACTIVE' | 'EXPIRED' | 'REJECTED' | 'REVOKED';
 
@@ -12,6 +13,9 @@ export interface Drone {
   manufacturer: string | null;
   payloadMetadata: string | null;
   serviceability: DroneServiceability;
+  ownershipType?: DroneOwnershipType;
+  leaseId?: string | null;
+  leaseExpiresAt?: string | null;
   lastMaintenanceAt: string | null;
   nextMaintenanceAt: string | null;
   notes: string | null;

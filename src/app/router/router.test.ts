@@ -12,7 +12,7 @@ describe('retired provider routes', () => {
   );
 });
 
-describe('Organization Admin MF3 reviewer routes', () => {
+describe('Organization Manager MF3 reviewer routes', () => {
   it.each([
     ['/client/inspections/inspection-1', 'index'],
     ['/client/inspections/inspection-1/review', 'review'],
@@ -58,8 +58,12 @@ describe('MF1 client-only routes', () => {
   );
 
   it.each([
-    ['/client/workforce', 'ORG_ADMIN'],
-    ['/client/assets', 'ORG_ADMIN'],
+    ['/client/workforce', 'ORG_MANAGER'],
+    ['/client/assets', 'ORG_MANAGER'],
+    ['/client/subscriptions', 'ORG_MANAGER'],
+    ['/client/drone-leasing', 'ORG_MANAGER'],
+    ['/admin/subscriptions', 'PLATFORM_MANAGER'],
+    ['/admin/drone-leasing', 'PLATFORM_MANAGER'],
     ['/client/workforce', 'ADMIN'],
     ['/client/assets', 'ADMIN'],
     ['/client/workforce', 'INSPECTOR'],

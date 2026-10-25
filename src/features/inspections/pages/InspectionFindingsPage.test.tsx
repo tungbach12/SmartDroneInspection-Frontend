@@ -155,7 +155,7 @@ function signInAs(roles: Role[]) {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: roles.includes('ORG_ADMIN') ? 'admin-1' : 'inspector-1',
+      id: roles.includes('ORG_MANAGER') ? 'admin-1' : 'inspector-1',
       email: 'user@example.test',
       fullName: 'User',
       roles,
@@ -543,7 +543,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not show a retired evidence image in reviewer verdicts', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.evidenceQuery = {
       data: [{ ...imageEvidence(), isDeleted: true }],
       isLoading: false,
@@ -592,8 +592,8 @@ describe('InspectionFindingsPage', () => {
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();
   });
 
-  it('shows a read-only Inspector findings overview for Organization Admin', () => {
-    signInAs(['ORG_ADMIN']);
+  it('shows a read-only Inspector findings overview for Organization Manager', () => {
+    signInAs(['ORG_MANAGER']);
     mocks.findingsQuery = {
       data: [
         {
@@ -619,7 +619,7 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByRole('button', { name: 'Add manual finding' })).toBeNull();
   });
 
-  it('does not show a per-finding Organization Admin reviewer panel', () => {
+  it('does not show a per-finding Organization Manager reviewer panel', () => {
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -633,8 +633,8 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByText(/awaiting decision/)).toBeNull();
   });
 
-  it('keeps detection Inspector-only and never exposes per-finding Org Admin decisions', () => {
-    signInAs(['ORG_ADMIN']);
+  it('keeps detection Inspector-only and never exposes per-finding Org Manager decisions', () => {
+    signInAs(['ORG_MANAGER']);
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -660,7 +660,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not show the removed per-finding reviewer surface on a draft', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -681,7 +681,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not bring back per-finding controls from an older submitted report version', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -702,7 +702,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('withholds the removed per-finding reviewer surface from report authors too', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,

@@ -67,7 +67,7 @@ function formatLocation(text: string | null): string {
 export function AssetsPage() {
   const { formatNumber, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const isClient = roles.includes('ORG_ADMIN');
+  const isClient = roles.includes('ORG_MANAGER');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
   const categories = useCategories();
@@ -659,7 +659,7 @@ function AssetDetailDrawer({
 }) {
   const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const isClient = roles.includes('ORG_ADMIN');
+  const isClient = roles.includes('ORG_MANAGER');
   const documents = useAssetDocuments(asset?.id ?? '');
   const upload = useUploadDocument(asset?.id ?? '');
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');

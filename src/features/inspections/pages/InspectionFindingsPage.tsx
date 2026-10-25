@@ -78,7 +78,7 @@ function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
 /**
  * MF3-05 advisory detection plus MF3-06 candidate review, one stage of the inspection workspace.
  *
- * The MF3-09 reviewer verdict is available to a non-author Organization Admin while the latest
+ * The MF3-09 reviewer verdict is available to a non-author Organization Manager while the latest
  * report version is submitted; the Inspector only recommends by confirming, modifying, or rejecting
  * candidates.
  */
@@ -88,7 +88,7 @@ export default function InspectionFindingsPage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const isReviewer = roles.includes('ORG_ADMIN');
+  const isReviewer = roles.includes('ORG_MANAGER');
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -651,7 +651,7 @@ export default function InspectionFindingsPage() {
 
                                       {isInspector && (
                                         <Typography variant="caption" color="text.secondary">
-                                          {t('Inspector-confirmed. Organization Admin reviews the complete submitted report.')}
+                                          {t('Inspector-confirmed. Organization Manager reviews the complete submitted report.')}
                                         </Typography>
                                       )}
                                     </Stack>

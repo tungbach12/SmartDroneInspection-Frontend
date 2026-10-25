@@ -50,12 +50,12 @@ export default function InspectionsPage() {
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin = roles.includes('ORG_ADMIN');
+  const isOrganizationAdmin = roles.includes('ORG_MANAGER');
   const canBrowse =
     roles.includes('INSPECTOR') ||
-    roles.includes('ORG_ADMIN') ||
+    roles.includes('ORG_MANAGER') ||
     roles.includes('ADMIN');
-  const isOrgAdmin = roles.includes('ORG_ADMIN');
+  const isOrgAdmin = roles.includes('ORG_MANAGER');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
@@ -151,7 +151,7 @@ export default function InspectionsPage() {
         actions={newInspectionButton}
       />
 
-      {/* Inspector workload metrics are distinct from the Organization Admin report queue. */}
+      {/* Inspector workload metrics are distinct from the Organization Manager report queue. */}
       {!isOrganizationAdmin && <Box
         sx={{
           display: 'grid',
@@ -203,7 +203,7 @@ export default function InspectionsPage() {
 
       {!canBrowse ? (
         <Alert severity="info">
-          The inspection list is available to Inspectors, organization administrators, and platform
+          The inspection list is available to Inspectors, organization manageristrators, and platform
           administrators. Maintenance engineers track corrective work in Maintenance.
         </Alert>
       ) : (

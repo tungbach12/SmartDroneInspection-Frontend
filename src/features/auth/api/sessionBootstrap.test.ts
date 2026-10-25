@@ -14,9 +14,9 @@ const authenticatedFlow: AuthFlowResponse = {
   accessTokenExpiresInSeconds: 900,
   user: {
     id: 'user-1',
-    email: 'org-admin@example.com',
-    fullName: 'Organization Admin',
-    roles: ['ORG_ADMIN'] as Role[],
+    email: 'org-manager@example.com',
+    fullName: 'Organization Manager',
+    roles: ['ORG_MANAGER'] as Role[],
     actorZone: 'CUSTOMER_ORGANIZATION',
     organizationId: 'org-1',
   },
@@ -47,8 +47,8 @@ describe('browser session bootstrap', () => {
     expect(useAuthStore.getState()).toMatchObject({
       status: 'authenticated',
       accessToken: 'restored-memory-token',
-      email: 'org-admin@example.com',
-      roles: ['ORG_ADMIN'],
+      email: 'org-manager@example.com',
+      roles: ['ORG_MANAGER'],
     });
   });
 
@@ -111,7 +111,7 @@ describe('browser session bootstrap', () => {
         id: 'fresh-user',
         email: 'fresh-admin@example.test',
         fullName: 'Fresh Admin',
-        roles: ['ORG_ADMIN'],
+        roles: ['ORG_MANAGER'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-2',
       },
@@ -124,7 +124,7 @@ describe('browser session bootstrap', () => {
       status: 'authenticated',
       accessToken: 'fresh-login-token',
       email: 'fresh-admin@example.test',
-      roles: ['ORG_ADMIN'],
+      roles: ['ORG_MANAGER'],
     });
   });
 });

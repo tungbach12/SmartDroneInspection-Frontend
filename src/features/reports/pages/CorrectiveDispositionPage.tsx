@@ -44,7 +44,7 @@ export default function CorrectiveDispositionPage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const roles = useAuthStore((state) => state.roles);
-  const canReview = roles.includes('ORG_ADMIN');
+  const canReview = roles.includes('ORG_MANAGER');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -113,7 +113,7 @@ export default function CorrectiveDispositionPage() {
   if (!canReview) {
     return (
       <Alert severity="info" sx={{ borderRadius: '12px' }}>
-        {t('Forwarding findings to maintenance is reserved for the organization administrator.')}
+        {t('Forwarding findings to maintenance is reserved for the organization manager.')}
       </Alert>
     );
   }

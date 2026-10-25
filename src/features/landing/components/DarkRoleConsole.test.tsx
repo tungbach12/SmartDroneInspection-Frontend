@@ -6,7 +6,7 @@ describe('landing role console', () => {
   it('shows only the four canonical roles without provider-workspace links', () => {
     render(<DarkRoleConsole />);
 
-    for (const role of ['ADMIN', 'ORG_ADMIN', 'INSPECTOR', 'MAINTENANCE_ENGINEER']) {
+    for (const role of ['ADMIN', 'ORG_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER']) {
       expect(screen.getByText(role)).toBeTruthy();
     }
 

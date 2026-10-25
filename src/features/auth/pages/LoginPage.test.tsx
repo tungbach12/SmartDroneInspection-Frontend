@@ -25,7 +25,8 @@ function LocationProbe() {
 
 const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER_ORGANIZATION' }[] = [
   { role: 'ADMIN', path: '/admin/dashboard', actorZone: 'PLATFORM' },
-  { role: 'ORG_ADMIN', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
+  { role: 'PLATFORM_MANAGER', path: '/admin/dashboard', actorZone: 'PLATFORM' },
+  { role: 'ORG_MANAGER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'MAINTENANCE_ENGINEER', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
 ];
@@ -79,7 +80,13 @@ describe('role-aware sign-in flow', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'valid-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    await screen.findByText(role === 'ADMIN' ? 'Admin dashboard' : role === 'ORG_ADMIN' ? 'Client dashboard' : 'Operations dashboard');
+    await screen.findByText(
+      role === 'ADMIN' || role === 'PLATFORM_MANAGER'
+        ? 'Admin dashboard'
+        : role === 'ORG_MANAGER'
+          ? 'Client dashboard'
+          : 'Operations dashboard',
+    );
     expect(screen.getByLabelText('Current location').textContent).toBe(path);
     expect(useAuthStore.getState()).toMatchObject({ status: 'authenticated', accessToken: 'memory-access-token', roles: [role] });
   });

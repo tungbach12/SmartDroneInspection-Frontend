@@ -106,7 +106,7 @@ function finding(overrides: Partial<Finding>): Finding {
 describe('CorrectiveDispositionPage', () => {
   beforeEach(() => {
     cleanup();
-    setRole(['ORG_ADMIN']);
+    setRole(['ORG_MANAGER']);
     mockedApi.listVersions.mockResolvedValue([version()] as never);
     mockedApi.listFindings.mockResolvedValue([] as never);
     mockedApi.workflowState.mockResolvedValue({
@@ -249,12 +249,12 @@ describe('CorrectiveDispositionPage', () => {
     ).toBeTruthy();
   });
 
-  it('offers the disposition to an organization administrator only', async () => {
+  it('offers the disposition to an organization manager only', async () => {
     setRole(['INSPECTOR']);
     renderPage();
 
     expect(
-      await screen.findByText(/reserved for the organization administrator/i),
+      await screen.findByText(/reserved for the organization manager/i),
     ).toBeTruthy();
   });
 });

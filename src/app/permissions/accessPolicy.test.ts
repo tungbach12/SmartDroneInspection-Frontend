@@ -12,7 +12,8 @@ import {
 
 const allRoles: Role[] = [
   'ADMIN',
-  'ORG_ADMIN',
+  'PLATFORM_MANAGER',
+  'ORG_MANAGER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ];
@@ -22,25 +23,29 @@ const expectedAccess: Record<
   Record<SectionId, readonly Role[]>
 > = {
   admin: {
-    dashboard: ['ADMIN'],
-    assets: ['ADMIN'],
+    dashboard: ['ADMIN', 'PLATFORM_MANAGER'],
+    assets: ['ADMIN', 'PLATFORM_MANAGER'],
     'asset-catalog': ['ADMIN'],
     'asset-review': [],
-    inspections: ['ADMIN'],
-    reports: ['ADMIN'],
+    inspections: ['ADMIN', 'PLATFORM_MANAGER'],
+    reports: ['ADMIN', 'PLATFORM_MANAGER'],
     maintenance: ['ADMIN'],
     workforce: [],
+    subscriptions: ['ADMIN', 'PLATFORM_MANAGER'],
+    'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
     'platform-users': ['ADMIN'],
   },
   client: {
-    dashboard: ['ORG_ADMIN'],
-    assets: ['ORG_ADMIN'],
+    dashboard: ['ORG_MANAGER'],
+    assets: ['ORG_MANAGER'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['ORG_ADMIN'],
-    reports: ['ORG_ADMIN'],
-    maintenance: ['ORG_ADMIN'],
-    workforce: ['ORG_ADMIN'],
+    inspections: ['ORG_MANAGER'],
+    reports: ['ORG_MANAGER'],
+    maintenance: ['ORG_MANAGER'],
+    workforce: ['ORG_MANAGER'],
+    subscriptions: ['ORG_MANAGER'],
+    'drone-leasing': ['ORG_MANAGER'],
     'platform-users': [],
   },
   operations: {
@@ -52,6 +57,8 @@ const expectedAccess: Record<
     reports: ['INSPECTOR'],
     maintenance: ['MAINTENANCE_ENGINEER'],
     workforce: [],
+    subscriptions: [],
+    'drone-leasing': [],
     'platform-users': [],
   },
 };
@@ -78,51 +85,52 @@ describe('role-aware portal access policy', () => {
   });
 
   it('routes each canonical user role to its matching portal entry', () => {
-    expect(getPortalEntryPath(['ORG_ADMIN'])).toBe('/client/dashboard');
+    expect(getPortalEntryPath(['ORG_MANAGER'])).toBe('/client/dashboard');
     expect(getPortalEntryPath(['INSPECTOR'])).toBe('/operations/dashboard');
     expect(getPortalEntryPath(['MAINTENANCE_ENGINEER'])).toBe(
       '/operations/dashboard',
     );
     expect(getPortalEntryPath(['ADMIN'])).toBe('/admin/dashboard');
+    expect(getPortalEntryPath(['PLATFORM_MANAGER'])).toBe('/admin/dashboard');
   });
 
   it('offers a portal choice when the user has roles in multiple portals', () => {
-    expect(getAvailablePortals(['ORG_ADMIN', 'INSPECTOR'])).toEqual([
+    expect(getAvailablePortals(['ORG_MANAGER', 'INSPECTOR'])).toEqual([
       'client',
       'operations',
     ]);
-    expect(getPortalEntryPath(['ORG_ADMIN', 'INSPECTOR'])).toBe('/portals');
+    expect(getPortalEntryPath(['ORG_MANAGER', 'INSPECTOR'])).toBe('/portals');
   });
 
   it('redirects legacy section URLs to an allowed portal or the portal chooser', () => {
-    expect(getLegacySectionRedirectPath(['ORG_ADMIN'], 'assets')).toBe(
+    expect(getLegacySectionRedirectPath(['ORG_MANAGER'], 'assets')).toBe(
       '/client/assets',
     );
     expect(
-      getLegacySectionRedirectPath(['ORG_ADMIN', 'INSPECTOR'], 'inspections'),
+      getLegacySectionRedirectPath(['ORG_MANAGER', 'INSPECTOR'], 'inspections'),
     ).toBe('/portals?section=inspections');
     expect(
       getLegacySectionRedirectPath(['MAINTENANCE_ENGINEER'], 'assets'),
     ).toBe('/forbidden');
   });
 
-  it('sends Workforce navigation to an ORG_ADMIN path and denies the other roles', () => {
+  it('sends Workforce navigation to an ORG_MANAGER path and denies the other roles', () => {
     expect(getSectionPath('client', 'workforce')).toBe('/client/workforce');
-    expect(getLegacySectionRedirectPath(['ORG_ADMIN'], 'workforce')).toBe(
+    expect(getLegacySectionRedirectPath(['ORG_MANAGER'], 'workforce')).toBe(
       '/client/workforce',
     );
-    for (const role of ['ADMIN', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as Role[]) {
+    for (const role of ['ADMIN', 'PLATFORM_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as Role[]) {
       expect(getLegacySectionRedirectPath([role], 'workforce')).toBe('/forbidden');
     }
-    // A session that is not an organization administrator gets no Workforce entry even when it
+    // A session that is not an organization manager gets no Workforce entry even when it
     // already has another workspace.
     expect(
       getLegacySectionRedirectPath(['INSPECTOR', 'MAINTENANCE_ENGINEER'], 'workforce'),
     ).toBe('/forbidden');
-    // Holding ORG_ADMIN alongside a second role must still resolve to the client path rather than
+    // Holding ORG_MANAGER alongside a second role must still resolve to the client path rather than
     // the portal chooser, because the operations workspace grants no role here.
     expect(
-      getLegacySectionRedirectPath(['ORG_ADMIN', 'INSPECTOR'], 'workforce'),
+      getLegacySectionRedirectPath(['ORG_MANAGER', 'INSPECTOR'], 'workforce'),
     ).toBe('/client/workforce');
   });
 

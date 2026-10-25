@@ -148,7 +148,7 @@ export default function InspectionEvidencePage() {
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           Review the current evidence set below. Original captures are read-only for Organization
-          Admin reviewers.
+          Manager reviewers.
         </Alert>
       )}
 

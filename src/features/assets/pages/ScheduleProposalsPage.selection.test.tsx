@@ -77,8 +77,8 @@ describe('ScheduleProposalsPage selection outcomes', () => {
     expect(alert.textContent).not.toContain('This asset already has an active schedule');
   });
 
-  it('offers Select only on an approved row, which is the only status the organization-admin list returns', () => {
-    // listForOrgAdmin filters on MANAGER_APPROVED, so an ORG_ADMIN caller receives only that status.
+  it('offers Select only on an approved row, which is the only status the organization-manager list returns', () => {
+    // listForOrgAdmin filters on MANAGER_APPROVED, so an ORG_MANAGER caller receives only that status.
     // Every row is therefore offered the action, and the gate never hides one.
     proposals = [baseProposal, { ...baseProposal, id: 'p2', frequencyInterval: 6 }];
 

@@ -15,8 +15,8 @@ const roles = [
     href: '/login',
   },
   {
-    role: 'ORG_ADMIN',
-    title: 'Organization Admin',
+    role: 'ORG_MANAGER',
+    title: 'Organization Manager',
     description:
       'Register site assets, submit inspection requests, and review released inspection reports.',
     status: 'pass' as const,

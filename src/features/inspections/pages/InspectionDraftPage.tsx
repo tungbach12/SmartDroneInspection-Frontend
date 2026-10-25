@@ -53,7 +53,7 @@ export default function InspectionDraftPage() {
     <Stack spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          Organization Admin review actions are available on the Review report tab. This stage is
+          Organization Manager review actions are available on the Review report tab. This stage is
           retained for read-only status and version history.
         </Alert>
       )}
