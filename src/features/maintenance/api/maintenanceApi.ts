@@ -141,7 +141,6 @@ export interface EstimateVersion {
   currency: string;
   baselineTotal: string | null;
   assumptions: string | null;
-  snapshot: string;
   createdAt: string;
 }
 
@@ -161,7 +160,6 @@ export interface ChangeOrder {
   id: string;
   changeNumber: number;
   reason: string;
-  affectedTasks: string | null;
   proposedDelta: string | null;
   status: ChangeOrderStatus;
   requestedByUserId: string;
@@ -288,7 +286,6 @@ export interface EstimateLineInput {
 export interface CreateEstimateVersionInput {
   currency: string;
   assumptions?: string | null;
-  snapshot: string;
   lines: EstimateLineInput[];
 }
 
@@ -303,7 +300,6 @@ export interface RecordWorkLogInput {
 
 export interface CreateChangeOrderInput {
   reason: string;
-  affectedTasks?: string | null;
   proposedDelta?: number | null;
 }
 

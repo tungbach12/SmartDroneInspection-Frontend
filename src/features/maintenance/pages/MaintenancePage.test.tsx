@@ -302,7 +302,6 @@ describe('MaintenancePage', () => {
         id: 'chg-1',
         changeNumber: 1,
         reason: 'Additional deeper crack found',
-        affectedTasks: null,
         proposedDelta: '50000',
         status: 'AWAITING_APPROVAL',
         requestedByUserId: 'eng-1',

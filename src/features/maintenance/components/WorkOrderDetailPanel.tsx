@@ -1010,7 +1010,6 @@ function EstimateTab({
               {
                 currency,
                 assumptions: snapshot.trim() || null,
-                snapshot: snapshot.trim() || 'Estimate prepared from the approved task scope',
                 lines: [
                   {
                     lineKind,
