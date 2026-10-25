@@ -46,7 +46,7 @@ describe('AssetReviewPage', () => {
         id: 'mgr-1',
         email: 'mgr@example.com',
         fullName: 'Mgr',
-        roles: ['ORG_ADMIN'],
+        roles: ['ORG_MANAGER'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
       },

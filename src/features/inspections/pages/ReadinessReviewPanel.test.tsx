@@ -131,7 +131,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('offers the review sources a decision must name, without asking for UUIDs', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = { blockers: [], linkedPermitIds: [], requiresHumanVerification: false };
@@ -146,7 +146,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('sends the ids the reviewer selected rather than free text', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = { blockers: [], linkedPermitIds: [], requiresHumanVerification: false };
@@ -182,7 +182,7 @@ describe('ReadinessReviewPanel', () => {
    * recorded judgement rather than an omission. The client cannot word it for the reviewer.
    */
   it('asks for a reason when the reviewer selects no Drone document', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = { blockers: [], linkedPermitIds: [], requiresHumanVerification: false };
@@ -202,7 +202,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('requires a stated reason before returning the preparation', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = { blockers: [], linkedPermitIds: [], requiresHumanVerification: false };
@@ -225,7 +225,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('keeps the approval disabled while a compliance blocker stands', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = {
@@ -243,7 +243,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('asks for a human-verification basis when the gate reports one', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = {
@@ -260,7 +260,7 @@ describe('ReadinessReviewPanel', () => {
   });
 
   it('shows a refused approval with the server reason rather than a generic failure', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.ownCredentialsQuery.data = [reviewerCredential()];
     mocks.sourcesQuery.data = sources();
     mocks.complianceQuery.data = { blockers: [], linkedPermitIds: [], requiresHumanVerification: false };

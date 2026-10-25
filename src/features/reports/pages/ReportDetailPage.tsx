@@ -139,7 +139,7 @@ export default function ReportDetailPage() {
             mb: 0.5,
           }}
         >
-          {canReview && !canAuthor ? 'Organization Admin · Report review' : 'Inspection Report'}
+          {canReview && !canAuthor ? 'Organization Manager · Report review' : 'Inspection Report'}
         </Typography>
         <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.875rem' }}>
           {t('Inspection ID:')} {inspectionId} · {canReview && !canAuthor ? 'Review the submitted report, record a decision, and publish approved versions.' : 'Verified and versioned inspection findings'}
@@ -342,7 +342,7 @@ export default function ReportDetailPage() {
                           </Alert>
                         ) : (
                           <Alert severity="info">
-                            {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Admin does not separately accept each finding.')}
+                            {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Manager does not separately accept each finding.')}
                           </Alert>
                         )}
                         <TextField

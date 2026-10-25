@@ -345,10 +345,10 @@ function AssignTeamDialog({
 
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
-      (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
+      (member) => member.roles.includes('ORG_MANAGER') && member.status === 'ACTIVE',
     );
     if (list.length > 0) return list;
-    if (currentUser?.roles.includes('ORG_ADMIN')) {
+    if (currentUser?.roles.includes('ORG_MANAGER')) {
       return [
         {
           userId: currentUser.id,

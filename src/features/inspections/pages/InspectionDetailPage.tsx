@@ -42,7 +42,7 @@ const REVIEWER_TABS = [
 
 /**
  * One inspection context presents role-specific stages: field-work stages to the assigned Inspector
- * and review stages to the organization administrator. The reviewer report document remains on
+ * and review stages to the organization manageristrator. The reviewer report document remains on
  * `reports/:inspectionId` and is entered through the reviewer-first route.
  */
 export default function InspectionDetailPage() {
@@ -51,7 +51,7 @@ export default function InspectionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin = roles.includes('ORG_ADMIN') && location.pathname.startsWith('/client/');
+  const isOrganizationAdmin = roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/');
   const tabs = isOrganizationAdmin ? REVIEWER_TABS : INSPECTOR_TABS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
   const inspectionQuery = useInspection(inspectionId);

@@ -53,8 +53,8 @@ const adminAreas: FocusArea[] = [
 ];
 
 function getAreas(roles: readonly string[], portal: string): FocusArea[] {
-  if (portal === 'client' && roles.includes('ORG_ADMIN')) return clientAreas;
-  if (portal === 'admin' && roles.includes('ADMIN')) return adminAreas;
+  if (portal === 'client' && roles.includes('ORG_MANAGER')) return clientAreas;
+  if (portal === 'admin' && (roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER'))) return adminAreas;
   if (portal === 'operations') {
     return [
       ...(roles.includes('INSPECTOR') ? inspectorAreas : []),
@@ -70,29 +70,31 @@ export default function DashboardPage() {
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 
-  const isOrganization = portal === 'client' && roles.includes('ORG_ADMIN');
-  const isAdmin = portal === 'admin' && roles.includes('ADMIN');
+  const isOrganization = portal === 'client' && roles.includes('ORG_MANAGER');
+  const isAdmin = portal === 'admin' && (roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER'));
   const isInspector = portal === 'operations' && roles.includes('INSPECTOR');
   const isMaintenanceEngineer = portal === 'operations' && roles.includes('MAINTENANCE_ENGINEER');
   const canReadAssets = isOrganization;
 
   const focusAreas = getAreas(roles, portal);
   const dashboardRoleOptions: RoleId[] = portal === 'admin'
-    ? ['ADMIN']
+    ? ['ADMIN', 'PLATFORM_MANAGER']
     : portal === 'client'
-      ? ['ORG_ADMIN']
+      ? ['ORG_MANAGER']
       : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
   const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
   const assets = useAssets({ page: 1, pageSize: 50 }, canReadAssets);
 
   // Role controls only vary presentation within roles actually assigned to the account.
   const defaultRole: RoleId = isOrganization
-    ? 'ORG_ADMIN'
-    : isAdmin
-      ? 'ADMIN'
-      : isMaintenanceEngineer && !isInspector
-        ? 'MAINTENANCE_ENGINEER'
-        : 'INSPECTOR';
+    ? 'ORG_MANAGER'
+    : portal === 'admin' && roles.includes('PLATFORM_MANAGER') && !roles.includes('ADMIN')
+      ? 'PLATFORM_MANAGER'
+      : isAdmin
+        ? 'ADMIN'
+        : isMaintenanceEngineer && !isInspector
+          ? 'MAINTENANCE_ENGINEER'
+          : 'INSPECTOR';
   const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
   const activeRole =
     selectedRole && availableDashboardRoles.includes(selectedRole) ? selectedRole : defaultRole;

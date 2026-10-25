@@ -41,13 +41,13 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionDraftPage from './InspectionDraftPage';
 
-function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
+function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -180,7 +180,7 @@ describe('InspectionDraftPage', () => {
   });
 
   it('shows the reviewer version list without Inspector draft controls', () => {
-    signInAs('ORG_ADMIN');
+    signInAs('ORG_MANAGER');
     mocks.versionsQuery = {
       data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'SUBMITTED' }],
       isLoading: false,
@@ -189,7 +189,7 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />, { route: '/client/inspections/inspection-1/report' });
 
-    expect(screen.getByText('Organization Admin review actions are available on the Review report tab. This stage is retained for read-only status and version history.')).toBeTruthy();
+    expect(screen.getByText('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Report versions' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Generate report draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create manual draft' })).toBeNull();

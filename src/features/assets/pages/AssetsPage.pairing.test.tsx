@@ -10,7 +10,7 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-const roles = vi.hoisted(() => ({ current: ['ORG_ADMIN'] as string[] }));
+const roles = vi.hoisted(() => ({ current: ['ORG_MANAGER'] as string[] }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) =>
@@ -129,7 +129,7 @@ describe('AssetsPage operational pairing', () => {
   });
 
   beforeEach(() => {
-    roles.current = ['ORG_ADMIN'];
+    roles.current = ['ORG_MANAGER'];
   });
 
   it('displays the assigned operational pair in the asset details drawer', async () => {
@@ -145,7 +145,7 @@ describe('AssetsPage operational pairing', () => {
     expect(screen.getByText(/DJI-001/)).toBeTruthy();
   });
 
-  it('renders "New inspection" button on active asset row for ORG_ADMIN', async () => {
+  it('renders "New inspection" button on active asset row for ORG_MANAGER', async () => {
     renderWithClient(<AssetsPage />);
 
     const newInspectionBtn = await screen.findByRole('button', { name: 'New inspection' });

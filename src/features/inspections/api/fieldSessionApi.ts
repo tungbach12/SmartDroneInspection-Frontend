@@ -18,17 +18,14 @@ export type FieldSessionStatus =
 export interface FieldSession {
   id: string;
   inspectionId: string;
-  organizationId: string;
-  inspectorUserId: string;
-  droneId: string | null;
-  readinessDecisionId: string | null;
-  checklistTemplateId: string | null;
-  readinessVersion: number | null;
+  preparationId: string | null;
   status: FieldSessionStatus;
+  preFlightChecklistNote: string | null;
   startedAt: string | null;
   endedAt: string | null;
   postponementReason: string | null;
   abortReason: string | null;
+  outcomeNotes: string | null;
 }
 
 export const fieldSessionKeys = {
@@ -47,12 +44,20 @@ export const fieldSessionApi = {
    * MF2-10. The pre-flight note is the Inspector's own record that MF2-09's checklist was
    * completed on site, so it is prose the Inspector writes rather than a flag the client sets.
    */
-  start: (inspectionId: string, preFlightChecklistNote: string, checklistTemplateId?: string) =>
+  start: (inspectionId: string, preFlightChecklistNote: string) =>
     api
       .post<FieldSession>(`/inspections/${inspectionId}/field-sessions`, {
         preFlightChecklistNote,
-        ...(checklistTemplateId ? { checklistTemplateId } : {}),
       })
+      .then((r) => r.data),
+
+  /** MF2-12: the on-site session finished and moves the inspection into FIELD_COMPLETED. */
+  complete: (inspectionId: string, sessionId: string, outcomeNotes: string) =>
+    api
+      .post<FieldSession>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/completion`,
+        { outcomeNotes },
+      )
       .then((r) => r.data),
 
   /** MF2-09: weather or site safety stopped the session; the inspection stays startable. */

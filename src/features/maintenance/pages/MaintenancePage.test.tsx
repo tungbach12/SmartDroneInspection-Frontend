@@ -199,7 +199,7 @@ describe('MaintenancePage', () => {
   });
 
   it('offers the administrator the close action only after cost reconciliation', async () => {
-    roles.current = ['ORG_ADMIN'];
+    roles.current = ['ORG_MANAGER'];
     mocks.listWorkOrders.mockResolvedValue({
       items: [{ ...WORK_ORDER, status: 'COST_RECONCILED' }],
       page: 0,
@@ -265,8 +265,8 @@ describe('MaintenancePage', () => {
     await waitFor(() => expect(mocks.submitWorkLog).toHaveBeenCalledWith('wo-1', 'log-1'));
   });
 
-  it('allows ORG_ADMIN to generate AI RAG scope and approve AWAITING_APPROVAL change orders', async () => {
-    roles.current = ['ORG_ADMIN'];
+  it('allows ORG_MANAGER to generate AI RAG scope and approve AWAITING_APPROVAL change orders', async () => {
+    roles.current = ['ORG_MANAGER'];
     mocks.repairCandidates.mockResolvedValue([
       {
         assetId: 'asset-1',

@@ -91,7 +91,7 @@ export function ReportDerivedSections({
     <Box>
       <ReadOnlySection
         title={t('Identification')}
-        accountable={t('Inspector · Organization Admin')}
+        accountable={t('Inspector · Organization Manager')}
         description={t('Report and inspection identifiers, version, asset and approval records.')}
       >
         <Box>
@@ -119,7 +119,7 @@ export function ReportDerivedSections({
       {context && (
         <ReadOnlySection
           title={t('Inspection preparation and recorded session context')}
-          accountable={t('Inspector · Organization Admin reviewer')}
+          accountable={t('Inspector · Organization Manager reviewer')}
           description={t('Source records from inspection preparation, readiness review and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
         >
           <Box>
@@ -142,7 +142,7 @@ export function ReportDerivedSections({
                 <Field label={t('Pre-flight checklist note')} value={session.preFlightChecklistNote} />
                 <Field label={t('Postponement reason')} value={session.postponementReason} />
                 <Field label={t('Abort reason')} value={session.abortReason} />
-                <Field label={t('Recorded limitations')} value={session.limitations} />
+                <Field label={t('Outcome notes')} value={session.outcomeNotes} />
                 <Field label={t('Assigned Drone reference')} value={[session.droneManufacturer, session.droneModel, session.droneSerialNumber].filter(Boolean).join(' · ')} />
               </Box>
             ))}
@@ -185,7 +185,7 @@ export function ReportDerivedSections({
       <ReadOnlySection
         title={t('Confirmed findings')}
         accountable={t('Inspector-confirmed · reviewed with the report')}
-        description={t('The Organization Admin reviews these findings as part of the complete report; they are not separately accepted.')}
+        description={t('The Organization Manager reviews these findings as part of the complete report; they are not separately accepted.')}
       >
         {reportableFindings.length === 0 ? (
           <Typography variant="body2" sx={{ color: '#98a2b3', fontStyle: 'italic', fontSize: '0.8125rem' }}>{t('No Inspector-confirmed findings were recorded for this version.')}</Typography>
@@ -230,7 +230,7 @@ export function ReportDerivedSections({
         </Typography>
       </ReadOnlySection>
 
-      <ReadOnlySection title={t('Approval and revisions')} accountable={t('Organization Admin · SYSTEM records')} description={t('Who approved this version and when. A correction is issued as a new linked version; a published version is never altered.')}>
+      <ReadOnlySection title={t('Approval and revisions')} accountable={t('Organization Manager · SYSTEM records')} description={t('Who approved this version and when. A correction is issued as a new linked version; a published version is never altered.')}>
         <Box>
           <Field label={t('Submitted')} value={formatDateTime(version.submittedAt, formatDateTimeValue, t('Not supplied'))} />
           <Field label={t('Reviewer approval')} value={formatDateTime(version.reviewedAt, formatDateTimeValue, t('Not supplied'))} />

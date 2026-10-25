@@ -46,7 +46,7 @@ export default function FieldSessionPage() {
   const [preFlightNote, setPreFlightNote] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
-    kind: 'postpone' | 'abort';
+    kind: 'postpone' | 'abort' | 'complete';
   } | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
 
@@ -171,9 +171,25 @@ export default function FieldSessionPage() {
                       {t('Aborted:')} {session.abortReason}
                     </Typography>
                   ) : null}
+                  {session.status === 'FIELD_COMPLETED' && session.outcomeNotes ? (
+                    <Typography variant="caption" sx={{ color: '#027a48', display: 'block', mt: 0.5 }}>
+                      {t('Outcome notes:')} {session.outcomeNotes}
+                    </Typography>
+                  ) : null}
 
                   {session.status === 'IN_PROGRESS' ? (
                     <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="success"
+                        onClick={() => {
+                          setOutcomeReason('');
+                          setOutcomeTarget({ session, kind: 'complete' });
+                        }}
+                      >
+                        {t('Complete session')}
+                      </Button>
                       <Button
                         size="small"
                         variant="outlined"
@@ -278,7 +294,11 @@ export default function FieldSessionPage() {
           }}
         >
           <DialogTitle sx={{ fontWeight: 700 }}>
-            {outcomeTarget?.kind === 'abort' ? 'Abort the session' : 'Postpone the session'}
+            {outcomeTarget?.kind === 'abort'
+              ? 'Abort the session'
+              : outcomeTarget?.kind === 'complete'
+                ? 'Complete the session'
+                : 'Postpone the session'}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -288,7 +308,7 @@ export default function FieldSessionPage() {
                 fallbackMessage={t('Could not record the session outcome.')}
               />
               <TextField
-                label={t('Reason')}
+                label={outcomeTarget?.kind === 'complete' ? t('Outcome notes') : t('Reason')}
                 required
                 multiline
                 minRows={3}
@@ -297,7 +317,9 @@ export default function FieldSessionPage() {
                 helperText={
                   outcomeTarget?.kind === 'abort'
                     ? 'Why this session cannot continue and will not resume under this record.'
-                    : 'Why the work stopped for now. The inspection stays startable.'
+                    : outcomeTarget?.kind === 'complete'
+                      ? 'Summarize the on-site coverage and any field observations recorded during this session.'
+                      : 'Why the work stopped for now. The inspection stays startable.'
                 }
               />
             </Stack>
@@ -307,10 +329,20 @@ export default function FieldSessionPage() {
             <Button
               type="submit"
               variant="contained"
-              color={outcomeTarget?.kind === 'abort' ? 'error' : 'primary'}
+              color={
+                outcomeTarget?.kind === 'abort'
+                  ? 'error'
+                  : outcomeTarget?.kind === 'complete'
+                    ? 'success'
+                    : 'primary'
+              }
               disabled={!outcomeReason.trim()}
             >
-              {outcomeTarget?.kind === 'abort' ? 'Abort session' : 'Postpone session'}
+              {outcomeTarget?.kind === 'abort'
+                ? 'Abort session'
+                : outcomeTarget?.kind === 'complete'
+                  ? 'Complete session'
+                  : 'Postpone session'}
             </Button>
           </DialogActions>
         </form>

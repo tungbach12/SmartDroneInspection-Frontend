@@ -38,7 +38,7 @@ function LocationProbe() {
 describe('ReportsPage', () => {
   beforeEach(() => {
     cleanup();
-    setRole(['ORG_ADMIN']);
+    setRole(['ORG_MANAGER']);
   });
 
   afterEach(() => {

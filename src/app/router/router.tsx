@@ -4,6 +4,7 @@ import {
   Navigate,
   Outlet,
   RouterProvider,
+  useLocation,
 } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { AppShell } from '@/app/layouts/AppShell';
@@ -79,9 +80,39 @@ const MaintenancePage = lazy(
 const WorkforcePage = lazy(
   () => import('@/features/workforce/pages/WorkforcePage'),
 );
+const PlatformSubscriptionsPage = lazy(
+  () => import('@/features/subscription/pages/PlatformSubscriptionsPage'),
+);
+const ClientSubscriptionPage = lazy(
+  () => import('@/features/subscription/pages/ClientSubscriptionPage'),
+);
+const PlatformDroneLeasingPage = lazy(
+  () => import('@/features/assets/pages/PlatformDroneLeasingPage'),
+);
+const ClientDroneLeasingPage = lazy(
+  () => import('@/features/assets/pages/ClientDroneLeasingPage'),
+);
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
+
+function SubscriptionsSectionRoute() {
+  const location = useLocation();
+  return location.pathname.startsWith('/admin') ? (
+    <PlatformSubscriptionsPage />
+  ) : (
+    <ClientSubscriptionPage />
+  );
+}
+
+function DroneLeasingSectionRoute() {
+  const location = useLocation();
+  return location.pathname.startsWith('/admin') ? (
+    <PlatformDroneLeasingPage />
+  ) : (
+    <ClientDroneLeasingPage />
+  );
+}
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -92,17 +123,19 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
+  subscriptions: <SubscriptionsSectionRoute />,
+  'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
 };
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
-  return <Navigate to={roles.includes('ORG_ADMIN') ? 'review' : 'evidence'} replace />;
+  return <Navigate to={roles.includes('ORG_MANAGER') ? 'review' : 'evidence'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
-  return roles.includes('ORG_ADMIN')
+  return roles.includes('ORG_MANAGER')
     ? <Navigate to="../review" replace />
     : <InspectionDraftPage />;
 }
@@ -161,7 +194,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                 {
                   path: 'review',
                   element: (
-                    <RequireAuth roles={['ORG_ADMIN']}>
+                    <RequireAuth roles={['ORG_MANAGER']}>
                       <OrganizationReportReviewPage />
                     </RequireAuth>
                   ),
@@ -172,7 +205,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                   // as "editing the report".
                   path: 'corrective',
                   element: (
-                    <RequireAuth roles={['ORG_ADMIN']}>
+                    <RequireAuth roles={['ORG_MANAGER']}>
                       <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),

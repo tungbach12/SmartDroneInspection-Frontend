@@ -3,7 +3,7 @@ import { api } from '@/shared/api/client';
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a qualified ORG_ADMIN reviewer who is not the author decides.
+ * and a qualified ORG_MANAGER reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'
@@ -78,7 +78,6 @@ export interface InspectionReportContext {
     postponementReason: string | null;
     abortReason: string | null;
     outcomeNotes: string | null;
-    limitations: string | null;
     droneSerialNumber: string | null;
     droneManufacturer: string | null;
     droneModel: string | null;
@@ -237,7 +236,7 @@ export interface InspectionListItem {
   reportStatus: ReportStatus | null;
   reportVersionNo: number | null;
   /**
-   * The one decision the organization administrator is being asked for on this row.
+   * The one decision the organization manageristrator is being asked for on this row.
    *
    * <p>The server decides this rather than the client inferring it, because the phases are
    * distinguished by what is recorded (a submitted preparation, a submitted report, a published
@@ -246,7 +245,7 @@ export interface InspectionListItem {
   pendingAction: PendingAction;
 }
 
-/** The phase an organization administrator is being asked to decide. */
+/** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
   | 'READINESS_REVIEW'
   | 'REPORT_REVIEW'
@@ -316,12 +315,7 @@ export type FieldSessionStatus =
 export interface FieldSession {
   id: string;
   inspectionId: string;
-  organizationId: string;
-  inspectorUserId: string;
-  droneId: string | null;
-  readinessDecisionId: string | null;
-  checklistTemplateId: string | null;
-  readinessVersion: number | null;
+  preparationId: string | null;
   status: FieldSessionStatus;
   preFlightChecklistNote: string | null;
   startedAt: string | null;
@@ -334,7 +328,6 @@ export interface FieldSession {
 export interface InspectionPreparation {
   id: string;
   inspectionId: string;
-  inspectorUserId: string;
   preparationVersion: number;
   plannedStartAt: string | null;
   plannedEndAt: string | null;
@@ -345,6 +338,9 @@ export interface InspectionPreparation {
   permitDocumentReferences: string | null;
   status: InspectionPreparationStatus;
   submittedAt: string | null;
+  reviewedByUserId?: string | null;
+  reviewedAt?: string | null;
+  reviewReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -476,7 +472,6 @@ export interface ReadinessDecision {
   decision: 'APPROVED' | 'RETURNED';
   reviewedByUserId: string;
   reason: string | null;
-  sourceHash: string;
   decidedAt: string;
 }
 

@@ -1,6 +1,7 @@
 export type RoleId =
-  | 'ORG_ADMIN'
+  | 'ORG_MANAGER'
   | 'ADMIN'
+  | 'PLATFORM_MANAGER'
   | 'INSPECTOR'
   | 'MAINTENANCE_ENGINEER';
 
@@ -78,12 +79,12 @@ export interface DashboardRoleConfig {
 }
 
 export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
-  // 1. ORG_ADMIN (Organization Admin) - Report 3 Customer Enterprise Authority
-  ORG_ADMIN: {
-    id: 'ORG_ADMIN',
-    name: 'Organization Admin',
+  // 1. ORG_MANAGER (Organization Manager) - Report 3 Customer Enterprise Authority
+  ORG_MANAGER: {
+    id: 'ORG_MANAGER',
+    name: 'Organization Manager',
     badge: 'Enterprise Authority',
-    report3RoleName: 'ORG_ADMIN',
+    report3RoleName: 'ORG_MANAGER',
     roleDescription: 'Customer enterprise authority: asset registration (MF1), readiness authorization (MF2), report approvals (MF3), and repair budget reconciliation (MF4).',
     overviewTitle: 'Asset overview',
     overviewSubtitle: 'Recent structures, fleet readiness, and workflow approvals registered to your organization.',
@@ -271,6 +272,104 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
       ],
       viewAllLink: '/admin/asset-catalog',
       viewAllText: 'View platform catalog',
+    },
+  },
+
+  // 2b. PLATFORM_MANAGER (Platform Manager) - Commercial & B2B Drone Leasing Operations
+  PLATFORM_MANAGER: {
+    id: 'PLATFORM_MANAGER',
+    name: 'Platform Manager',
+    badge: 'Commercial & Leasing Operations',
+    report3RoleName: 'PLATFORM_MANAGER',
+    roleDescription: 'Platform commercial operator: enterprise subscription settlement, B2B drone leasing pool management, wire reconciliation, and lease provisioning.',
+    overviewTitle: 'Platform overview',
+    overviewSubtitle: 'Enterprise subscriptions, B2B drone leasing pool, and commercial settlement status.',
+    stats: [
+      {
+        id: 'organizations',
+        label: 'Organizations',
+        value: '142 Orgs',
+        change: '+14.2% MoM',
+        positive: true,
+        subtext: 'summary not available',
+        iconType: 'building',
+      },
+      {
+        id: 'asset_records',
+        label: 'Asset records',
+        value: '3,840 Assets',
+        change: '+8.5% Growth',
+        positive: true,
+        subtext: 'summary not available',
+        iconType: 'shield',
+      },
+      {
+        id: 'inspection_records',
+        label: 'Inspection records',
+        value: '12,980',
+        change: '+22.4% Volume',
+        positive: true,
+        subtext: 'summary not available',
+        iconType: 'plane',
+      },
+      {
+        id: 'report_versions',
+        label: 'Report versions',
+        value: '8,421',
+        change: '+18.1% Active',
+        positive: true,
+        subtext: 'summary not available',
+        iconType: 'check-circle',
+      },
+    ],
+    performanceChart: {
+      headerLabel: 'STORAGE INGESTION & AI COMPUTE',
+      headlineValue: '42.8 TB',
+      trendBadge: '+24% Ingested',
+      series1Name: 'Telemetry & Evidence Storage (TB)',
+      series1Color: '#3758F9',
+      series1Data: [18, 22, 26, 25, 29, 32, 36, 38, 39, 41, 41.5, 42.8],
+      series2Name: 'AI Model Inference Pipeline (k)',
+      series2Color: '#F97316',
+      series2Data: [8, 12, 14, 11, 15, 18, 22, 20, 24, 26, 25, 28],
+      months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      yTicks: ['50 TB', '40 TB', '30 TB', '20 TB', '10 TB', '0 TB'],
+      maxVal: 50,
+    },
+    radialGauge: {
+      title: 'Platform Availability SLA',
+      subtitle: '99.98% availability commitment across customer clusters',
+      targetValue: '99.98%',
+      targetLabel: 'Uptime Achieved',
+      percentage: 99.98,
+      subMetrics: [
+        { label: 'MinIO Distributed Object Store', value: '99.99% Uptime', percentage: 99.99 },
+        { label: 'PostgreSQL Relational DB Cluster', value: '99.98% Uptime', percentage: 99.98 },
+      ],
+    },
+    stackedBarChart: {
+      title: 'Tenant Subscription Tiers & Workspaces',
+      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+      channels: [
+        { name: 'Enterprise Annual (12 mo)', color: '#1E3A8A', data: [32, 36, 38, 42, 45, 48, 52, 56] },
+        { name: 'Corporate Bi-Annual (6 mo)', color: '#3758F9', data: [22, 25, 28, 30, 32, 34, 38, 40] },
+        { name: 'Standard Monthly (1 mo)', color: '#60A5FA', data: [18, 20, 19, 22, 24, 26, 25, 28] },
+        { name: 'Pilot Evaluation (14 d)', color: '#C7D2FE', data: [10, 12, 14, 11, 13, 15, 12, 14] },
+      ],
+      maxStack: 140,
+    },
+    table: {
+      title: 'Platform overview',
+      subtitle: 'Choose a workspace to review its records and activity.',
+      headers: ['ORGANIZATION', 'SUBSCRIPTION', 'ASSETS', 'HEALTH', 'CONVERSION'],
+      rows: [
+        { col1: 'Nordic Energy Infrastructure', col2: 'Enterprise 12-mo', col3: '348 Assets', col4: 'Healthy (99.9%)', col5: '3.2%', status: 'positive', link: '/admin/subscriptions' },
+        { col1: 'Metro Transit Department', col2: 'Corporate 6-mo', col3: '112 Assets', col4: 'Healthy (99.8%)', col5: '2.8%', status: 'positive', link: '/admin/subscriptions' },
+        { col1: 'Vanguard Civil Engineering', col2: 'Enterprise 12-mo', col3: '240 Assets', col4: 'Healthy (99.9%)', col5: '3.5%', status: 'positive', link: '/admin/subscriptions' },
+        { col1: 'Apex Renewable Power', col2: 'Monthly 1-mo', col3: '64 Assets', col4: 'Renewal Due', col5: '1.2%', status: 'warning', link: '/admin/subscriptions' },
+      ],
+      viewAllLink: '/admin/subscriptions',
+      viewAllText: 'View platform subscriptions',
     },
   },
 

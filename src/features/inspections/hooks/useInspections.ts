@@ -24,8 +24,6 @@ export const inspectionKeys = {
   myCredentials: () => [...inspectionKeys.all, 'my-credentials'] as const,
   readinessSources: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'readiness-sources'] as const,
-  readinessDecisions: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'readiness-decisions'] as const,
   all: ['inspections'] as const,
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
@@ -582,7 +580,6 @@ export function useRequestAdditionalSession(inspectionId: string | null) {
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
       client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.readinessDecisions(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
       client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
@@ -729,7 +726,7 @@ export function useSubmitReportVersion(inspectionId: string | null) {
     mutationFn: (versionId: string) =>
       inspectionApi.submitVersion(inspectionId!, versionId),
     onSuccess: () => {
-      showToast('Report submitted for Organization Admin review.');
+      showToast('Report submitted for Organization Manager review.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
@@ -849,7 +846,7 @@ export function useStartFieldSession(inspectionId: string | null) {
   });
 }
 
-/** MF2-09: postponement and MF2-11: abort. Both need the Inspector's own stated reason. */
+/** MF2-09: postponement, MF2-11: abort, and MF2-12: completion. Each records the Inspector's own stated notes/reason. */
 export function useFieldSessionOutcome(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
@@ -860,23 +857,33 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       reason,
     }: {
       sessionId: string;
-      outcome: 'postpone' | 'abort';
+      outcome: 'postpone' | 'abort' | 'complete';
       reason: string;
-    }) =>
-      outcome === 'postpone'
+    }) => {
+      if (outcome === 'complete') {
+        return fieldSessionApi.complete(inspectionId!, sessionId, reason);
+      }
+      return outcome === 'postpone'
         ? fieldSessionApi.postpone(inspectionId!, sessionId, reason)
-        : fieldSessionApi.abort(inspectionId!, sessionId, reason),
+        : fieldSessionApi.abort(inspectionId!, sessionId, reason);
+    },
     onSuccess: (_data, variables) => {
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: fieldSessionKeys.forInspection(inspectionId),
         });
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.workflowState(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
       showToast(
-        variables.outcome === 'postpone'
-          ? 'Session postponed'
-          : 'Session aborted',
+        variables.outcome === 'complete'
+          ? 'Session completed'
+          : variables.outcome === 'postpone'
+            ? 'Session postponed'
+            : 'Session aborted',
       );
     },
   });

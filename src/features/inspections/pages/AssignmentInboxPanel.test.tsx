@@ -142,7 +142,7 @@ describe('AssignmentInboxPanel', () => {
   });
 
   it('is hidden from a reader who is not an inspector', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
 
     render(<AssignmentInboxPanel />);
 

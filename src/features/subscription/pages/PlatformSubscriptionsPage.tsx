@@ -27,6 +27,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   usePlatformSubscriptions,
   useConfirmSubscriptionPayment,
@@ -36,6 +37,11 @@ import type { Subscription } from '../api/subscriptionApi';
 const STATUS_FILTERS = ['ALL', 'PENDING', 'ACTIVE', 'PAST_DUE', 'EXPIRED', 'CANCELLED'] as const;
 
 export default function PlatformSubscriptionsPage() {
+  const roles = useAuthStore((s) => s.roles);
+  const isReadOnlyAdmin = roles.includes('ADMIN') && !roles.includes('PLATFORM_MANAGER');
+  const canConfirmPayment =
+    roles.includes('PLATFORM_MANAGER') || (!roles.includes('ADMIN') && roles.length === 0);
+
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [activeTermsDialogSub, setActiveTermsDialogSub] = useState<Subscription | null>(null);
   const [activeContractModalSub, setActiveContractModalSub] = useState<Subscription | null>(null);
@@ -112,6 +118,12 @@ export default function PlatformSubscriptionsPage() {
         title="Enterprise Subscriptions"
         subtitle="Platform-wide tenant subscriptions, contract terms snapshots, custom periods, and administrative payment verification."
       />
+
+      {isReadOnlyAdmin && (
+        <Alert severity="info" sx={{ mt: 2, mb: 2, borderRadius: '10px' }}>
+          Read-only for Platform Admin — payment confirmation requires Platform Manager
+        </Alert>
+      )}
 
       {/* KPI Metric Summary Cards */}
       <Grid container spacing={2} sx={{ mt: 1, mb: 3 }}>
@@ -348,7 +360,7 @@ export default function PlatformSubscriptionsPage() {
                           </Button>
                         )}
 
-                        {sub.status !== 'ACTIVE' && (
+                        {sub.status !== 'ACTIVE' && canConfirmPayment && (
                           <Button
                             size="small"
                             variant="contained"

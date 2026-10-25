@@ -18,7 +18,7 @@ export default function InspectionPreparationPage() {
   const { inspectionId = '' } = useParams();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const isReviewer = roles.includes('ORG_ADMIN');
+  const isReviewer = roles.includes('ORG_MANAGER');
   const preparations = useInspectionPreparations(inspectionId);
   // The reviewer's decision is about a submitted version, so the panel targets the newest
   // submission. A draft that is still open belongs to the Inspector, and a superseded version

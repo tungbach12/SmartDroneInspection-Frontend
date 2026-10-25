@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -54,13 +55,23 @@ const ALLOWED_DOCUMENT_TYPES =
   'image/png,image/jpeg,image/webp,application/pdf';
 
 export function DroneInventoryPanel() {
-  const { t } = useLocale();
+  const { formatDate, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const canManage = roles.includes('ORG_ADMIN');
+  const canManage = roles.includes('ORG_MANAGER');
   const drones = useDrones();
   const createDrone = useCreateDrone();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [ownershipFilter, setOwnershipFilter] = useState<'ALL' | 'OWNED' | 'LEASED'>('ALL');
+  const [serviceabilityFilter, setServiceabilityFilter] = useState<'ALL' | DroneServiceability>('ALL');
+
+  const rawDrones = drones.data ?? [];
+  const filteredDrones = rawDrones.filter((d) => {
+    const ownership = d.ownershipType ?? 'OWNED';
+    if (ownershipFilter !== 'ALL' && ownership !== ownershipFilter) return false;
+    if (serviceabilityFilter !== 'ALL' && d.serviceability !== serviceabilityFilter) return false;
+    return true;
+  });
 
   const columns: DataTableColumn<Drone>[] = [
     {
@@ -73,6 +84,28 @@ export function DroneInventoryPanel() {
       id: 'manufacturer',
       label: 'Manufacturer',
       render: (drone) => drone.manufacturer || '—',
+    },
+    {
+      id: 'ownership',
+      label: 'Ownership',
+      render: (drone) => {
+        const ownership = drone.ownershipType ?? 'OWNED';
+        return (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Chip
+              size="small"
+              label={ownership}
+              color={ownership === 'LEASED' ? 'primary' : 'default'}
+              variant={ownership === 'LEASED' ? 'filled' : 'outlined'}
+            />
+            {ownership === 'LEASED' && drone.leaseExpiresAt && (
+              <Typography variant="caption" color="text.secondary">
+                Expires {formatDate(new Date(drone.leaseExpiresAt))}
+              </Typography>
+            )}
+          </Stack>
+        );
+      },
     },
     {
       id: 'serviceability',
@@ -106,7 +139,38 @@ export function DroneInventoryPanel() {
         Serviceability describes the recorded maintenance state only; it does
         not confirm permission to fly or operational readiness.
       </Alert>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <TextField
+            select
+            size="small"
+            label="Ownership"
+            value={ownershipFilter}
+            onChange={(e) => setOwnershipFilter(e.target.value as 'ALL' | 'OWNED' | 'LEASED')}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="ALL">All ownership</MenuItem>
+            <MenuItem value="OWNED">Owned</MenuItem>
+            <MenuItem value="LEASED">Leased</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Serviceability"
+            value={serviceabilityFilter}
+            onChange={(e) => setServiceabilityFilter(e.target.value as 'ALL' | DroneServiceability)}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="ALL">All serviceability</MenuItem>
+            {SERVICEABILITY_VALUES.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+
         {registerButton}
       </Box>
       <QueryState
@@ -125,15 +189,16 @@ export function DroneInventoryPanel() {
       >
         <DataTable
           columns={columns}
-          rows={drones.data ?? []}
+          rows={filteredDrones}
           rowKey={(drone) => drone.id}
           searchable
           searchPlaceholder={t('Search by serial number or model…')}
           searchPredicate={(drone, query) =>
             drone.serialNumber.toLowerCase().includes(query) ||
-            (drone.model ?? '').toLowerCase().includes(query) ||
-            (drone.manufacturer ?? '').toLowerCase().includes(query)
+            Boolean(drone.model && drone.model.toLowerCase().includes(query)) ||
+            Boolean(drone.manufacturer && drone.manufacturer.toLowerCase().includes(query))
           }
+          emptyMessage={t('No drones match the selected filters or search query.')}
         />
       </QueryState>
       <CreateDroneDialog
@@ -184,22 +249,20 @@ function CreateDroneDialog({
   const [serialNumber, setSerialNumber] = useState('');
   const [model, setModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
-  const [payloadMetadata, setPayloadMetadata] = useState('');
+  const [cameraModel, setCameraModel] = useState('');
+  const [sensorResolution, setSensorResolution] = useState('');
+  const [thermalSupport, setThermalSupport] = useState(false);
   const [notes, setNotes] = useState('');
-  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     let metadata: string | undefined;
-    if (payloadMetadata.trim()) {
-      try {
-        JSON.parse(payloadMetadata);
-        metadata = payloadMetadata;
-        setMetadataError(null);
-      } catch {
-        setMetadataError('Enter valid JSON for payload metadata.');
-        return;
-      }
+    if (cameraModel.trim() || sensorResolution.trim() || thermalSupport) {
+      metadata = JSON.stringify({
+        cameraModel: cameraModel.trim() || undefined,
+        sensorResolution: sensorResolution.trim() || undefined,
+        thermalSupport,
+      });
     }
     onSubmit({
       serialNumber: serialNumber.trim(),
@@ -233,21 +296,37 @@ function CreateDroneDialog({
               value={manufacturer}
               onChange={(event) => setManufacturer(event.target.value)}
             />
+            <Typography variant="caption" sx={{ fontWeight: 600, color: '#475467', mt: 1 }}>
+              Payload & Camera Equipment
+            </Typography>
+            <Stack direction="row" spacing={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Camera / Sensor model"
+                placeholder="e.g. Zenmuse H20T"
+                value={cameraModel}
+                onChange={(event) => setCameraModel(event.target.value)}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Sensor resolution"
+                placeholder="e.g. 20 MP"
+                value={sensorResolution}
+                onChange={(event) => setSensorResolution(event.target.value)}
+              />
+            </Stack>
             <TextField
-              label={t('Payload metadata JSON')}
-              value={payloadMetadata}
-              onChange={(event) => {
-                setPayloadMetadata(event.target.value);
-                setMetadataError(null);
-              }}
-              multiline
-              minRows={3}
-              error={Boolean(metadataError)}
-              helperText={
-                metadataError ??
-                'Optional JSON object describing carried equipment.'
-              }
-            />
+              select
+              size="small"
+              label="Thermal imaging capability"
+              value={thermalSupport ? 'YES' : 'NO'}
+              onChange={(event) => setThermalSupport(event.target.value === 'YES')}
+            >
+              <MenuItem value="NO">Standard Optical Only</MenuItem>
+              <MenuItem value="YES">Thermal & Optical</MenuItem>
+            </TextField>
             <TextField
               label={t('Notes')}
               value={notes}

@@ -15,12 +15,12 @@ export type Capability =
 const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   'inspections.capture': ['INSPECTOR'],
   'inspections.authorReport': ['INSPECTOR'],
-  // MF3-09: a qualified ORG_ADMIN decides findings and the report. The backend separately refuses a
+  // MF3-09: a qualified ORG_MANAGER decides findings and the report. The backend separately refuses a
   // reviewer who authored the report.
-  'reports.review': ['ORG_ADMIN'],
-  'reports.publish': ['ORG_ADMIN'],
-  'findings.decide': ['ORG_ADMIN'],
-  'assets.review': ['ORG_ADMIN'],
+  'reports.review': ['ORG_MANAGER'],
+  'reports.publish': ['ORG_MANAGER'],
+  'findings.decide': ['ORG_MANAGER'],
+  'assets.review': ['ORG_MANAGER'],
 };
 
 export function canPerform(

@@ -76,7 +76,6 @@ function submittedPreparation() {
   return {
     id: 'prep-1',
     inspectionId: INSPECTION_ID,
-    inspectorUserId: 'inspector-1',
     preparationVersion: 1,
     shotList: '[{"component":"Span P4","modality":"RGB","required":true}]',
     evidenceTypes: '["RGB"]',
@@ -184,7 +183,9 @@ describe('InspectionPreparationPanel', () => {
 
   it('lets an additional-session preparation update the planned session window', () => {
     signInAs(['INSPECTOR']);
-    mocks.preparationsQuery.data = [{ ...submittedPreparation(), preparationVersion: 2 }];
+    mocks.preparationsQuery.data = [
+      { ...submittedPreparation(), preparationVersion: 2, status: 'DRAFT', submittedAt: null },
+    ];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
 
@@ -206,9 +207,11 @@ describe('InspectionPreparationPanel', () => {
     );
   });
 
-  it('offers submission only once a submitted preparation exists', () => {
+  it('offers submission only when a draft preparation exists', () => {
     signInAs(['INSPECTOR']);
-    mocks.preparationsQuery.data = [submittedPreparation()];
+    mocks.preparationsQuery.data = [
+      { ...submittedPreparation(), status: 'DRAFT', submittedAt: null },
+    ];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
 
@@ -224,6 +227,42 @@ describe('InspectionPreparationPanel', () => {
     });
   });
 
+  it('disables draft editing and hides submission while the preparation is SUBMITTED', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [submittedPreparation()];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    expect((screen.getByLabelText(/component shot-list/i) as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: /save draft/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.queryByRole('button', { name: /submit preparation/i })).toBeNull();
+  });
+
+  it('shows the reviewer return reason and keeps draft editing enabled when RETURNED', () => {
+    signInAs(['INSPECTOR']);
+    mocks.preparationsQuery.data = [
+      {
+        ...submittedPreparation(),
+        status: 'RETURNED',
+        reviewReason: 'Airworthiness certificate is missing from the drone record.',
+      },
+    ];
+
+    render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector />);
+
+    expect(
+      screen.getByText('Airworthiness certificate is missing from the drone record.'),
+    ).toBeTruthy();
+    expect((screen.getByLabelText(/component shot-list/i) as HTMLInputElement).disabled).toBe(
+      false,
+    );
+    expect((screen.getByRole('button', { name: /save draft/i }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
   it('keeps the inspection status visible so the inspector knows why submit is unavailable', () => {
     signInAs(['INSPECTOR']);
     mocks.preparationsQuery.data = [{ ...submittedPreparation(), status: 'READY' }];
@@ -234,7 +273,7 @@ describe('InspectionPreparationPanel', () => {
   });
 
   it('shows a compliance blocker instead of hiding it behind an error', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [];
     mocks.compliance.data = {
       blockers: [{ code: 'PERMIT_MISSING', detail: 'No applicable flight permit is linked.' }],
@@ -246,7 +285,7 @@ describe('InspectionPreparationPanel', () => {
     expect(screen.getByText(/PERMIT_MISSING/)).toBeTruthy();
   });
 
-  it('does not ask an inspector for the compliance gate the backend scopes to ORG_ADMIN', () => {
+  it('does not ask an inspector for the compliance gate the backend scopes to ORG_MANAGER', () => {
     signInAs(['INSPECTOR']);
     mocks.preparationsQuery.data = [];
     vi.mocked(useComplianceGate).mockClear();
@@ -259,7 +298,7 @@ describe('InspectionPreparationPanel', () => {
   });
 
   it('still reads the gate for a compliance officer', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [];
     vi.mocked(useComplianceGate).mockClear();
 
@@ -269,7 +308,7 @@ describe('InspectionPreparationPanel', () => {
   });
 
   it('hides the preparation editor from a reader who is not the assigned inspector', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
@@ -278,8 +317,8 @@ describe('InspectionPreparationPanel', () => {
     expect(screen.queryByRole('button', { name: /submit preparation/i })).toBeNull();
   });
 
-  it('lets an organization admin link a permit the organization holds', () => {
-    signInAs(['ORG_ADMIN']);
+  it('lets an organization manager link a permit the organization holds', () => {
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [{ ...submittedPreparation(), status: 'DRAFT' }];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
@@ -309,7 +348,7 @@ describe('InspectionPreparationPanel', () => {
    * editor is the author's alone, so the reviewer's copy is a separate read-only rendering.
    */
   it('shows the submitted preparation to a reviewer read-only', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [submittedPreparation()];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);
@@ -321,7 +360,7 @@ describe('InspectionPreparationPanel', () => {
   });
 
   it('tells a reviewer that there is nothing to review when no preparation exists', () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.preparationsQuery.data = [];
 
     render(<InspectionPreparationPanel inspectionId={INSPECTION_ID} isInspector={false} />);

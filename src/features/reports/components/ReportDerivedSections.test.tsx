@@ -55,7 +55,6 @@ const version: InspectionReportVersion = {
         postponementReason: null,
         abortReason: null,
         outcomeNotes: null,
-        limitations: null,
         droneSerialNumber: 'DR-17',
         droneManufacturer: 'SurveyCo',
         droneModel: 'S2',
@@ -182,7 +181,7 @@ describe('ReportDerivedSections confirmed findings', () => {
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
     expect(section?.textContent).toContain('Inspector-confirmed');
-    expect(section?.textContent).not.toContain('await Organization Admin decision');
+    expect(section?.textContent).not.toContain('await Organization Manager decision');
     expect(section?.textContent).not.toContain('additional finding(s)');
     expect(section?.textContent).not.toContain('No confirmed findings were recorded');
   });

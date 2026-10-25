@@ -3,7 +3,7 @@ import { getAuthRedirectTarget, getLoginReturnTo } from './authRedirect';
 
 describe('getAuthRedirectTarget', () => {
   it('routes canonical single-role users to their matching workspace', () => {
-    expect(getAuthRedirectTarget(null, ['ORG_ADMIN'])).toBe('/client/dashboard');
+    expect(getAuthRedirectTarget(null, ['ORG_MANAGER'])).toBe('/client/dashboard');
     expect(getAuthRedirectTarget(null, ['INSPECTOR'])).toBe(
       '/operations/dashboard',
     );
@@ -11,22 +11,23 @@ describe('getAuthRedirectTarget', () => {
       '/operations/dashboard',
     );
     expect(getAuthRedirectTarget(null, ['ADMIN'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget(null, ['PLATFORM_MANAGER'])).toBe('/admin/dashboard');
   });
 
   it('asks a cross-workspace user to choose a workspace', () => {
-    expect(getAuthRedirectTarget(null, ['ORG_ADMIN', 'INSPECTOR'])).toBe(
+    expect(getAuthRedirectTarget(null, ['ORG_MANAGER', 'INSPECTOR'])).toBe(
       '/portals',
     );
   });
 
   it('preserves an authorized internal destination, query, and hash', () => {
     expect(
-      getAuthRedirectTarget('/client/assets?sort=name#owned', ['ORG_ADMIN']),
+      getAuthRedirectTarget('/client/assets?sort=name#owned', ['ORG_MANAGER']),
     ).toBe('/client/assets?sort=name#owned');
   });
 
   it('falls back to the role workspace for an unauthorized return destination', () => {
-    expect(getAuthRedirectTarget('/admin/dashboard', ['ORG_ADMIN'])).toBe(
+    expect(getAuthRedirectTarget('/admin/dashboard', ['ORG_MANAGER'])).toBe(
       '/client/dashboard',
     );
   });
@@ -39,9 +40,9 @@ describe('getAuthRedirectTarget', () => {
 
   it('does not accept external or protocol-relative return URLs', () => {
     expect(
-      getAuthRedirectTarget('https://example.com/steal', ['ORG_ADMIN']),
+      getAuthRedirectTarget('https://example.com/steal', ['ORG_MANAGER']),
     ).toBe('/client/dashboard');
-    expect(getAuthRedirectTarget('//example.com/steal', ['ORG_ADMIN'])).toBe(
+    expect(getAuthRedirectTarget('//example.com/steal', ['ORG_MANAGER'])).toBe(
       '/client/dashboard',
     );
   });

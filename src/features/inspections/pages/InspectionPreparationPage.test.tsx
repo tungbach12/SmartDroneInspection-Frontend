@@ -34,13 +34,13 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionPreparationPage from './InspectionPreparationPage';
 
-function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
+function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -66,8 +66,8 @@ describe('InspectionPreparationPage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('labels the readiness stage for Organization Admin and exposes the reviewer panel', () => {
-    signInAs('ORG_ADMIN');
+  it('labels the readiness stage for Organization Manager and exposes the reviewer panel', () => {
+    signInAs('ORG_MANAGER');
     mocks.preparationsQuery.data = [{ id: 'preparation-1', status: 'SUBMITTED', updatedAt: '2026-10-19T00:00:00Z' }];
 
     renderWithRouter(<InspectionPreparationPage />);

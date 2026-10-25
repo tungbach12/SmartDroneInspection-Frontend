@@ -37,7 +37,8 @@ const ZONE_LABELS: Record<string, string> = {
 
 const ROLE_LABELS: Record<PlatformUserRole, string> = {
   ADMIN: 'Platform admin',
-  ORG_ADMIN: 'Organization admin',
+  PLATFORM_MANAGER: 'Platform manager',
+  ORG_MANAGER: 'Organization manager',
   INSPECTOR: 'Inspector',
   MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
@@ -45,10 +46,10 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
 /**
  * The platform administrator's accounts.
  *
- * The platform manages the administrator-managed accounts: platform admins and the Organization
- * Admin of each customer workspace. An organization's own workforce is administered by that
- * organization's ORG_ADMIN, so the Inspector and Engineer rows here show the accounts the platform
- * controls rather than a full workforce roster.
+ * The platform manages the administrator-managed accounts: platform admins, platform managers, and
+ * the Organization Manager of each customer workspace. An organization's own workforce is
+ * administered by that organization's ORG_MANAGER, so the Inspector and Engineer rows here show
+ * the accounts the platform controls rather than a full workforce roster.
  */
 export default function PlatformUsersPage() {
   const { t } = useLocale();
@@ -136,7 +137,7 @@ export default function PlatformUsersPage() {
     <Box className="workspace-page workspace-page--admin-users">
       <PageHeader
         title={t('Platform accounts')}
-        subtitle={t('Administrator-managed accounts: platform admins and each workspace\'s Organization Admin')}
+        subtitle={t('Administrator-managed accounts: platform admins and each workspace\'s Organization Manager')}
         actions={
           <Button
             variant="contained"
@@ -194,7 +195,7 @@ export default function PlatformUsersPage() {
           empty={
             <EmptyState
               title={t('No platform accounts')}
-              description={t('Platform and Organization Admin accounts will appear here.')}
+              description={t('Platform and Organization Manager accounts will appear here.')}
             />
           }
         >
@@ -265,9 +266,15 @@ export default function PlatformUsersPage() {
                 select
                 label={t('Zone')}
                 value={actorZone}
-                onChange={(e) =>
-                  setActorZone(e.target.value as typeof actorZone)
-                }
+                onChange={(e) => {
+                  const nextZone = e.target.value as typeof actorZone;
+                  setActorZone(nextZone);
+                  if (nextZone === 'PLATFORM') {
+                    setRoles(['ADMIN']);
+                  } else {
+                    setRoles(['ORG_MANAGER']);
+                  }
+                }}
               >
                 <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
                 <MenuItem value="CUSTOMER_ORGANIZATION">{t('Customer organization')}</MenuItem>
@@ -275,11 +282,15 @@ export default function PlatformUsersPage() {
               <TextField
                 select
                 label={t('Role')}
-                value={roles[0] ?? 'ADMIN'}
+                value={roles[0] ?? (actorZone === 'PLATFORM' ? 'ADMIN' : 'ORG_MANAGER')}
                 onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
                 helperText={t('The platform manages administrator-managed accounts only.')}
               >
-                {(Object.keys(ROLE_LABELS) as PlatformUserRole[]).map((role) => (
+                {(
+                  actorZone === 'PLATFORM'
+                    ? (['ADMIN', 'PLATFORM_MANAGER'] as PlatformUserRole[])
+                    : (['ORG_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
+                ).map((role) => (
                   <MenuItem key={role} value={role}>
                     {ROLE_LABELS[role]}
                   </MenuItem>
@@ -288,7 +299,7 @@ export default function PlatformUsersPage() {
               <Alert severity="info">
                 A customer-organization account needs the organization it belongs to. Provisioning
                 one here registers the account without a workspace, so use the organization's own
-                registration or its Organization Admin for that.
+                registration or its Organization Manager for that.
               </Alert>
             </Stack>
           </DialogContent>

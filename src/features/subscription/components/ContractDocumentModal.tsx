@@ -185,7 +185,7 @@ export default function ContractDocumentModal({
                     <strong>Mã tổ chức (Org ID):</strong> <code>{subscription.organizationId}</code>
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block', color: '#475467' }}>
-                    <strong>Người gửi yêu cầu:</strong> {snapshot?.agreedByFullName || 'Organization Admin'}
+                    <strong>Người gửi yêu cầu:</strong> {snapshot?.agreedByFullName || 'Organization Manager'}
                   </Typography>
                   <Typography variant="caption" sx={{ display: 'block', color: '#475467' }}>
                     <strong>Email giao dịch:</strong> {snapshot?.agreedByUserEmail || 'N/A'}

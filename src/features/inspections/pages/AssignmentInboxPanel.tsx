@@ -147,7 +147,7 @@ function Inbox() {
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary">
-            Nothing to answer. An organization administrator pairs an Inspector with a Drone before
+            Nothing to answer. An organization manageristrator pairs an Inspector with a Drone before
             preparation can start.
           </Typography>
         )}

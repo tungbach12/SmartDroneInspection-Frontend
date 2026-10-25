@@ -91,10 +91,10 @@ describe('PlatformSubscriptionsPage', () => {
     useAuthStore.getState().setSession({
       accessToken: 'test-token',
       user: {
-        id: 'admin-platform',
-        email: 'admin@platform.test',
-        fullName: 'Platform Admin',
-        roles: ['ADMIN'],
+        id: 'pm-platform',
+        email: 'pm@platform.test',
+        fullName: 'Platform Manager',
+        roles: ['PLATFORM_MANAGER'],
         actorZone: 'PLATFORM',
         organizationId: null,
       },
@@ -116,6 +116,30 @@ describe('PlatformSubscriptionsPage', () => {
     expect(screen.getByText(/WIRE-2026-CHASE-010/i)).toBeTruthy();
     expect(screen.getByText(/9 Months/i)).toBeTruthy();
     expect(screen.getByText(/Offer: \$8[.,]000 USD/i)).toBeTruthy();
+  });
+
+  it('shows read-only alert and hides Confirm & Activate button for ADMIN', async () => {
+    useAuthStore.getState().setSession({
+      accessToken: 'test-token',
+      user: {
+        id: 'admin-platform',
+        email: 'admin@platform.test',
+        fullName: 'Platform Admin',
+        roles: ['ADMIN'],
+        actorZone: 'PLATFORM',
+        organizationId: null,
+      },
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Skyward Inspections')).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Read-only for Platform Admin — payment confirmation requires Platform Manager/i,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Confirm & Activate/i })).toBeNull();
   });
 
   it('opens terms snapshot dialog and displays agreed terms metadata, deal proposal, and clauses', async () => {

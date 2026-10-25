@@ -51,7 +51,7 @@ export default function ReadinessReviewPanel({
   preparationId,
 }: ReadinessReviewPanelProps) {
   const roles = useAuthStore((state) => state.roles);
-  if (!roles.includes('ORG_ADMIN')) {
+  if (!roles.includes('ORG_MANAGER')) {
     return null;
   }
 

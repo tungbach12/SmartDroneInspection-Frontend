@@ -83,7 +83,7 @@ describe('ContractDocumentModal', () => {
 
     // Acknowledgement status is not presented as an electronic signature.
     expect(screen.getByText(/TERMS ACCEPTANCE RECORDED/i)).toBeTruthy();
-    expect(screen.queryByText(/E-SIGNED BY ORG_ADMIN/i)).toBeNull();
+    expect(screen.queryByText(/E-SIGNED BY ORG_MANAGER/i)).toBeNull();
 
     // The sample clause is retained from the snapshot without inventing an uptime promise.
     expect(screen.queryByText(/99\.98% uptime SLA/i)).toBeNull();

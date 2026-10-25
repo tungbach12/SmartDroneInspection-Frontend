@@ -73,7 +73,7 @@ const updateDocumentStatusMutate = vi.fn();
 function setDefaultHooks() {
   vi.mocked(useAuthStore).mockImplementation(((
     selector: (state: { roles: string[] }) => unknown,
-  ) => selector({ roles: ['ORG_ADMIN'] })) as never);
+  ) => selector({ roles: ['ORG_MANAGER'] })) as never);
   vi.mocked(useDrones).mockReturnValue({
     data: [DRONE],
     isLoading: false,
@@ -150,7 +150,7 @@ describe('DroneInventoryPanel', () => {
     ).toBeNull();
   });
 
-  it('provides create controls only to ORG_ADMIN', () => {
+  it('provides create controls only to ORG_MANAGER', () => {
     render(<DroneInventoryPanel />);
     expect(
       screen.getByRole('button', { name: /register drone/i }),
@@ -166,6 +166,30 @@ describe('DroneInventoryPanel', () => {
     ).toBeNull();
   });
 
+  it('displays LEASED ownership badge and expiration date on leased drones', () => {
+    vi.mocked(useDrones).mockReturnValue({
+      data: [
+        {
+          ...DRONE,
+          id: 'drone-leased',
+          serialNumber: 'SDI-LEASE-99',
+          ownershipType: 'LEASED',
+          leaseId: 'lease-1',
+          leaseExpiresAt: '2027-06-15T00:00:00Z',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as never);
+
+    render(<DroneInventoryPanel />);
+
+    expect(screen.getByText('SDI-LEASE-99')).toBeTruthy();
+    expect(screen.getByText('LEASED')).toBeTruthy();
+    expect(screen.getByText(/Expires/i)).toBeTruthy();
+  });
+
   it('submits JSON payload metadata without sending organization scope', () => {
     render(<DroneInventoryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /register drone/i }));
@@ -173,15 +197,22 @@ describe('DroneInventoryPanel', () => {
     fireEvent.change(dialog.querySelector('input[required]')!, {
       target: { value: 'SDI-02' },
     });
-    fireEvent.change(within(dialog).getByLabelText('Payload metadata JSON'), {
-      target: { value: '{"camera":"visual"}' },
+    fireEvent.change(within(dialog).getByLabelText(/Camera \/ Sensor model/i), {
+      target: { value: 'Zenmuse H20T' },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/Sensor resolution/i), {
+      target: { value: '20 MP' },
     });
     fireEvent.submit(dialog.querySelector('form')!);
 
     expect(createDroneMutate).toHaveBeenCalledWith(
       {
         serialNumber: 'SDI-02',
-        payloadMetadata: '{"camera":"visual"}',
+        payloadMetadata: JSON.stringify({
+          cameraModel: 'Zenmuse H20T',
+          sensorResolution: '20 MP',
+          thermalSupport: false,
+        }),
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
@@ -285,10 +316,11 @@ describe('DroneInventoryPanel', () => {
     ).toBeTruthy();
   });
 
-  it('updates serviceability only for ORG_ADMIN', () => {
+  it('updates serviceability only for ORG_MANAGER', () => {
     render(<DroneInventoryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /open drone/i }));
-    fireEvent.mouseDown(screen.getByLabelText(/serviceability/i));
+    const drawer = screen.getByRole('dialog');
+    fireEvent.mouseDown(within(drawer).getByLabelText(/serviceability/i));
     fireEvent.click(screen.getByRole('option', { name: 'MAINTENANCE' }));
     expect(serviceabilityMutate).toHaveBeenCalledWith({
       id: 'drone-1',
@@ -301,7 +333,8 @@ describe('DroneInventoryPanel', () => {
     ) => selector({ roles: ['INSPECTOR'] })) as never);
     render(<DroneInventoryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /open drone/i }));
-    expect(screen.queryByLabelText(/serviceability/i)).toBeNull();
+    const drawerInspect = screen.getByRole('dialog');
+    expect(within(drawerInspect).queryByLabelText(/serviceability/i)).toBeNull();
     expect(
       screen.queryByRole('button', { name: /upload document/i }),
     ).toBeNull();

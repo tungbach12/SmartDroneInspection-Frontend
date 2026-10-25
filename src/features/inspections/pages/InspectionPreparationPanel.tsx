@@ -28,7 +28,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface InspectionPreparationPanelProps {
   inspectionId: string;
-  /** False for a reader such as an ORG_ADMIN: they may link permits and read blockers, not draft. */
+  /** False for a reader such as an ORG_MANAGER: they may link permits and read blockers, not draft. */
   isInspector: boolean;
 }
 
@@ -38,8 +38,8 @@ interface InspectionPreparationPanelProps {
  * <p>The panel shows the current preparation rather than a blank form, because MF2-07 reviews a
  * specific version. Reopening a returned version means revising that one, not starting over.
  *
- * <p>Submission is offered only for a `SUBMITTED` preparation and only when a readiness decision has
- * not been made. A `READY` preparation is the reviewer's decision about a particular compliance
+ * <p>Submission is offered only for a `DRAFT` preparation before a readiness decision has
+ * been made. A `READY` preparation is the reviewer's decision about a particular compliance
  * basis; letting the inspector keep editing it would leave that decision pointing at content nobody
  * reviewed.
  */
@@ -123,7 +123,8 @@ function PreparationEditor({
 
   const status: InspectionPreparationStatus = current?.status ?? 'DRAFT';
   const reviewed = status === 'READY';
-  const canSubmit = Boolean(current) && status === 'SUBMITTED';
+  const editable = status === 'DRAFT' || status === 'RETURNED';
+  const canSubmit = Boolean(current) && status === 'DRAFT';
   const canRequestAdditionalSession = Boolean(
     isInspector &&
       workflow.data?.status === 'FIELD_COMPLETED' &&
@@ -167,6 +168,12 @@ function PreparationEditor({
         <Alert severity="info" sx={{ mb: 2 }}>
           A readiness decision has been made on this preparation. Further edits are refused until the
           inspection goes back for rework.
+        </Alert>
+      ) : null}
+
+      {status === 'RETURNED' && current?.reviewReason ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {current.reviewReason}
         </Alert>
       ) : null}
 
@@ -252,14 +259,14 @@ function PreparationEditor({
             onChange={(event) => setShotList(event.target.value)}
             multiline
             minRows={3}
-            disabled={reviewed}
+            disabled={!editable}
             helperText={t('One entry per component, for example [{"component":"Span P4","modality":"RGB"}].')}
           />
           <TextField
             label={t('Evidence types (JSON)')}
             value={evidenceTypes}
             onChange={(event) => setEvidenceTypes(event.target.value)}
-            disabled={reviewed}
+            disabled={!editable}
             helperText={t('Modalities the inspection needs, for example ["RGB"].')}
           />
           <TextField
@@ -268,7 +275,7 @@ function PreparationEditor({
             onChange={(event) => setAccessConstraints(event.target.value)}
             multiline
             minRows={2}
-            disabled={reviewed}
+            disabled={!editable}
           />
           {(current?.preparationVersion ?? 1) > 1 && (
             <>
@@ -277,7 +284,7 @@ function PreparationEditor({
                 type="datetime-local"
                 value={plannedStartAt}
                 onChange={(event) => setPlannedStartAt(event.target.value)}
-                disabled={reviewed}
+                disabled={!editable}
                 helperText={t('The readiness reviewer rechecks permit and credential validity against this time.')}
               />
               <TextField
@@ -285,7 +292,7 @@ function PreparationEditor({
                 type="datetime-local"
                 value={plannedEndAt}
                 onChange={(event) => setPlannedEndAt(event.target.value)}
-                disabled={reviewed}
+                disabled={!editable}
                 slotProps={{ htmlInput: { min: plannedStartAt || undefined } }}
               />
             </>
@@ -296,11 +303,11 @@ function PreparationEditor({
             onChange={(event) => setSafetyObservations(event.target.value)}
             multiline
             minRows={2}
-            disabled={reviewed}
+            disabled={!editable}
             helperText={t('Required before submission, so the reviewer sees the hazards you recorded.')}
           />
           <Box>
-            <Button type="submit" variant="contained" disabled={reviewed || prepare.isPending}>
+            <Button type="submit" variant="contained" disabled={!editable || prepare.isPending}>
               {prepare.isPending ? 'Saving…' : 'Save draft'}
             </Button>
           </Box>
@@ -363,7 +370,7 @@ function PreparationEditor({
         />
       </Box>
 
-      {/* The gate is a compliance officer's view: the backend scopes it to ORG_ADMIN, so an
+      {/* The gate is a compliance officer's view: the backend scopes it to ORG_MANAGER, so an
           Inspector asking for it would only collect a 403. */}
       {!isInspector ? <ComplianceGateSection inspectionId={inspectionId} /> : null}
     </Paper>

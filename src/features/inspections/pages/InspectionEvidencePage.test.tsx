@@ -22,12 +22,7 @@ const mocks = vi.hoisted(() => ({
       {
         id: 'session-1',
         inspectionId: 'inspection-1',
-        organizationId: 'org-1',
-        inspectorUserId: 'inspector-1',
-        droneId: null,
-        readinessDecisionId: 'decision-1',
-        checklistTemplateId: null,
-        readinessVersion: 1,
+        preparationId: 'prep-1',
         status: 'FIELD_COMPLETED',
         preFlightChecklistNote: 'Drone identified; bridge accessible',
         startedAt: '2026-10-08T08:00:00Z',
@@ -118,13 +113,13 @@ function imageEvidence() {
   }; 
 }
 
-function signInAs(role: 'INSPECTOR' | 'ORG_ADMIN') {
+function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_ADMIN' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_ADMIN' ? 'Organization Admin' : 'Inspector',
+      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -151,8 +146,8 @@ describe('InspectionEvidencePage', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it('gives Organization Admin a read-only evidence register instead of Inspector intake controls', () => {
-    signInAs('ORG_ADMIN');
+  it('gives Organization Manager a read-only evidence register instead of Inspector intake controls', () => {
+    signInAs('ORG_MANAGER');
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,

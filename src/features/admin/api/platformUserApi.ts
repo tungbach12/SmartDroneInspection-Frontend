@@ -4,11 +4,16 @@ import { api } from '@/shared/api/client';
  * Platform user administration.
  *
  * The platform administrator manages the accounts that are administrator-managed: platform
- * admins, and the Organization Admin of each customer workspace. The organization administrator
- * manages their own workforce through a separate contract; this one is the platform's.
+ * admins, platform managers, and the Organization Manager of each customer workspace. The
+ * organization manager manages their own workforce through a separate contract; this one is the platform's.
  */
 
-export type PlatformUserRole = 'ADMIN' | 'ORG_ADMIN' | 'INSPECTOR' | 'MAINTENANCE_ENGINEER';
+export type PlatformUserRole =
+  | 'ADMIN'
+  | 'PLATFORM_MANAGER'
+  | 'ORG_MANAGER'
+  | 'INSPECTOR'
+  | 'MAINTENANCE_ENGINEER';
 
 export type PlatformUserStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 

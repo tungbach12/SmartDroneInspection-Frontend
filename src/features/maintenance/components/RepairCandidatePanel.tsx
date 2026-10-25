@@ -60,10 +60,10 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const currentUser = useAuthStore((state) => state.user);
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
-      (member) => member.roles.includes('ORG_ADMIN') && member.status === 'ACTIVE',
+      (member) => member.roles.includes('ORG_MANAGER') && member.status === 'ACTIVE',
     );
     if (list.length > 0) return list;
-    if (currentUser?.roles.includes('ORG_ADMIN')) {
+    if (currentUser?.roles.includes('ORG_MANAGER')) {
       return [
         {
           userId: currentUser.id,
@@ -347,7 +347,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 required
                 value={effectiveBudgetApprover}
                 onChange={(e) => setBudgetApprover(e.target.value)}
-                helperText={t('The Organization Admin who approves the cost baseline.')}
+                helperText={t('The Organization Manager who approves the cost baseline.')}
               >
                 {orgAdmins.map((admin) => (
                   <MenuItem key={admin.userId} value={admin.userId}>

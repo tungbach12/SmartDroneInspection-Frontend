@@ -36,7 +36,7 @@ const reviewMutate = vi.fn();
 
 function setDefaults() {
   vi.mocked(useAuthStore).mockImplementation(((selector: (state: { roles: string[] }) => unknown) =>
-    selector({ roles: ['ORG_ADMIN'] })) as never);
+    selector({ roles: ['ORG_MANAGER'] })) as never);
   vi.mocked(useFlightPermits).mockReturnValue({ data: [PERMIT], isLoading: false, error: null, refetch: vi.fn() } as never);
   vi.mocked(useCreateFlightPermit).mockReturnValue({ mutate: createMutate, isPending: false, isError: false, error: null, reset: vi.fn() } as never);
   vi.mocked(useReviewFlightPermit).mockReturnValue({ mutate: reviewMutate, isPending: false, isError: false, error: null } as never);
@@ -122,7 +122,7 @@ describe('FlightPermitPanel', () => {
     expect(createMutate).not.toHaveBeenCalled();
   });
 
-  it('requires a reason for internal review and limits review controls to ORG_ADMIN', () => {
+  it('requires a reason for internal review and limits review controls to ORG_MANAGER', () => {
     render(<FlightPermitPanel />);
     fireEvent.click(screen.getByRole('button', { name: /review permit/i }));
     const dialog = screen.getByRole('dialog', { name: /internal permit record review/i });

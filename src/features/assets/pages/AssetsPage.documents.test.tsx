@@ -42,7 +42,7 @@ content.mockResolvedValue(new Blob(['pdf']));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) =>
-    selector({ roles: ['ORG_ADMIN'] }),
+    selector({ roles: ['ORG_MANAGER'] }),
 }));
 
 vi.mock('react-router-dom', () => ({

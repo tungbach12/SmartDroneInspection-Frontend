@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   start: vi.fn(),
+  complete: vi.fn(),
   postpone: vi.fn(),
   abort: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
       ...actual.fieldSessionApi,
       list: mocks.list,
       start: mocks.start,
+      complete: mocks.complete,
       postpone: mocks.postpone,
       abort: mocks.abort,
     },
@@ -29,17 +31,14 @@ import FieldSessionPage from './FieldSessionPage';
 const SESSION = {
   id: 'session-1',
   inspectionId: 'inspection-1',
-  organizationId: 'org-1',
-  inspectorUserId: 'inspector-1',
-  droneId: 'drone-1',
-  readinessDecisionId: 'readiness-1',
-  checklistTemplateId: null,
-  readinessVersion: 1,
+  preparationId: 'prep-1',
   status: 'IN_PROGRESS' as const,
+  preFlightChecklistNote: 'Checked assigned drone M350, site access clear.',
   startedAt: '2026-10-20T02:00:00Z',
   endedAt: null,
   postponementReason: null,
   abortReason: null,
+  outcomeNotes: null,
 };
 
 function renderWithClient() {
@@ -66,6 +65,11 @@ describe('FieldSessionPage', () => {
     vi.clearAllMocks();
     mocks.list.mockResolvedValue([SESSION]);
     mocks.start.mockResolvedValue(SESSION);
+    mocks.complete.mockResolvedValue({
+      ...SESSION,
+      status: 'FIELD_COMPLETED',
+      outcomeNotes: 'All bridge spans surveyed.',
+    });
     mocks.postpone.mockResolvedValue({ ...SESSION, status: 'POSTPONED' });
     mocks.abort.mockResolvedValue({ ...SESSION, status: 'ABORTED' });
   });
@@ -149,6 +153,41 @@ describe('FieldSessionPage', () => {
         'Unauthorised personnel entered the exclusion zone.',
       ),
     );
+  });
+
+  it('records session completion with the inspector outcome notes and displays them when completed', async () => {
+    renderWithClient();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Complete session' }));
+    fireEvent.change(await screen.findByLabelText(/Outcome notes/), {
+      target: { value: 'All bridge spans surveyed.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete session', hidden: false }));
+
+    await waitFor(() =>
+      expect(mocks.complete).toHaveBeenCalledWith(
+        'inspection-1',
+        'session-1',
+        'All bridge spans surveyed.',
+      ),
+    );
+  });
+
+  it('displays outcome notes on a FIELD_COMPLETED session row', async () => {
+    mocks.list.mockResolvedValue([
+      {
+        ...SESSION,
+        status: 'FIELD_COMPLETED',
+        endedAt: '2026-10-20T03:00:00Z',
+        outcomeNotes: 'North and south spans fully photographed.',
+      },
+    ]);
+
+    renderWithClient();
+
+    expect(
+      await screen.findByText(/North and south spans fully photographed\./),
+    ).toBeTruthy();
   });
 
   it('does not offer a second session while one is open', async () => {

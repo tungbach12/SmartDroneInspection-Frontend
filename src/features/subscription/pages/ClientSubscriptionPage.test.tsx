@@ -97,9 +97,9 @@ describe('ClientSubscriptionPage', () => {
       accessToken: 'test-token',
       user: {
         id: 'user-1',
-        email: 'org.admin@acme.test',
-        fullName: 'Alice OrgAdmin',
-        roles: ['ORG_ADMIN'],
+        email: 'org.manager@acme.test',
+        fullName: 'Alice OrgManager',
+        roles: ['ORG_MANAGER'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
       },

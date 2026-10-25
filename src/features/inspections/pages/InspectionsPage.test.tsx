@@ -199,7 +199,7 @@ describe('InspectionsPage', () => {
     renderPage();
 
     expect(
-      await screen.findByText(/available to Inspectors, organization administrators/),
+      await screen.findByText(/available to Inspectors, organization manageristrators/),
     ).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
@@ -234,8 +234,8 @@ describe('InspectionsPage', () => {
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 
-  it('presents an Organization Admin review queue with status-specific next actions', async () => {
-    signInAs(['ORG_ADMIN']);
+  it('presents an Organization Manager review queue with status-specific next actions', async () => {
+    signInAs(['ORG_MANAGER']);
     mocks.reportsQuery = {
       data: {
         items: [
@@ -273,7 +273,7 @@ describe('InspectionsPage', () => {
   });
 
   it('opens the phase a row is waiting in, rather than a fixed tab', async () => {
-    signInAs(['ORG_ADMIN']);
+    signInAs(['ORG_MANAGER']);
     mocks.reportsQuery = {
       data: {
         items: [
