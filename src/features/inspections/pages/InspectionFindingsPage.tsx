@@ -517,8 +517,8 @@ export default function InspectionFindingsPage() {
               <MenuItem value="ACTIVE">{t('Active only (default)')}</MenuItem>
               <MenuItem value="PENDING">{t('Awaiting review')}</MenuItem>
               <MenuItem value="CONFIRMED">{t('Confirmed only')}</MenuItem>
-              <MenuItem value="REMOVED">{t('Audit log / Removed')}</MenuItem>
-              <MenuItem value="ALL">{t('All findings (incl. removed)')}</MenuItem>
+              <MenuItem value="REMOVED">{t('Removed')}</MenuItem>
+              <MenuItem value="ALL">{t('All findings')}</MenuItem>
             </TextField>
 
             <TextField
@@ -602,7 +602,7 @@ export default function InspectionFindingsPage() {
             size="small"
             color="error"
             variant="outlined"
-            label={t('Viewing Audit Log / Removed Findings')}
+            label={t('Viewing Removed Findings')}
             sx={{ fontWeight: 600 }}
           />
         )}
