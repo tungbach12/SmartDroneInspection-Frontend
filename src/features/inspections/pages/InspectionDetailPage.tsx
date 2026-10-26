@@ -23,6 +23,9 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useInspection,
+  useInspectionEvidence,
+  useInspectionFindings,
+  useInspectionWorkflowState,
   useReportVersions,
 } from '../hooks/useInspections';
 
@@ -111,6 +114,21 @@ export default function InspectionDetailPage() {
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
+  const workflowQuery = useInspectionWorkflowState(inspectionId);
+  const evidenceQuery = useInspectionEvidence(inspectionId);
+  const findingsQuery = useInspectionFindings(inspectionId);
+
+  const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
+  const hasConfirmedFindings = Boolean(
+    findingsQuery.data?.some((f) => f.status === 'CONFIRMED' && !f.isDeleted),
+  );
+  const findingsConfirmedInWorkflow = Boolean(
+    workflowQuery.data?.findingsConfirmedAt ||
+    workflowQuery.data?.status === 'REPORT_DRAFT' ||
+    workflowQuery.data?.status === 'REPORT_PUBLISHED' ||
+    workflowQuery.data?.status === 'REPAIR_PENDING' ||
+    workflowQuery.data?.status === 'COMPLETED',
+  );
 
   const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
   const hasPublishedVersion = Boolean(
@@ -147,21 +165,27 @@ export default function InspectionDetailPage() {
       return false;
     }
 
-    const status = inspection?.status ?? '';
+    const status = workflowQuery.data?.status ?? inspection?.status ?? '';
     switch (stepValue) {
-      case 'evidence':
-        return ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-          status,
-        );
-      case 'findings':
-        return ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-          status,
-        );
-      case 'report':
-        return ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
       case 'field-session':
         return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
           status,
+        );
+      case 'evidence':
+        return (
+          activeEvidenceCount > 0 ||
+          ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+        );
+      case 'findings':
+        return (
+          findingsConfirmedInWorkflow ||
+          hasConfirmedFindings ||
+          ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+        );
+      case 'report':
+        return (
+          hasPublishedVersion ||
+          ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
         );
       default:
         return false;
