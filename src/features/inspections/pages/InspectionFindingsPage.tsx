@@ -1,13 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { AutoAwesomeOutlined, ReportProblemOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
-  FormControlLabel,
-  Switch,
   Button,
-  Card,
-  CardContent,
   Chip,
   MenuItem,
   Paper,
@@ -15,17 +10,16 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import { inspectionApi } from '../api/inspectionApi';
 import type {
   EvidenceItem,
   Finding,
   FindingSeverity,
   ManualFindingInput,
 } from '../api/inspectionApi';
-import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
@@ -44,44 +38,10 @@ import {
   useRemovedFindings,
   useRestoreFinding,
 } from '../hooks/useInspections';
+import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-interface BoundingBoxCoords {
-  xMin: number;
-  yMin: number;
-  xMax: number;
-  yMax: number;
-}
-
-function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed.xMin === 'number' &&
-      typeof parsed.yMin === 'number' &&
-      typeof parsed.xMax === 'number' &&
-      typeof parsed.yMax === 'number' &&
-      parsed.xMin >= 0 && parsed.yMin >= 0 &&
-      parsed.xMax <= 1 && parsed.yMax <= 1 &&
-      parsed.xMin < parsed.xMax && parsed.yMin < parsed.yMax
-    ) {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-/**
- * MF3-05 advisory detection plus MF3-06 candidate review, one stage of the inspection workspace.
- *
- * The MF3-09 reviewer verdict is available to a non-author Organization Manager while the latest
- * report version is submitted; the Inspector only recommends by confirming, modifying, or rejecting
- * candidates.
- */
 export default function InspectionFindingsPage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams();
@@ -113,6 +73,7 @@ export default function InspectionFindingsPage() {
   const reportVersions = useReportVersions(inspectionId);
   const updateEvidenceLocation = useUpdateEvidenceLocation(inspectionId);
   const reportVersionsList = reportVersions.data ?? [];
+
   const activeEvidenceItems = useMemo(
     () => (evidence.data ?? []).filter((item) => !item.isDeleted),
     [evidence.data],
@@ -124,12 +85,10 @@ export default function InspectionFindingsPage() {
   const isReportLocked = reportVersionsList.some((version) =>
     ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
   );
-  // Per-candidate review inputs, so Confirm/Modify send the values entered on that card.
+
   const [severities, setSeverities] = useState<Record<string, FindingSeverity>>({});
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [locationErrors, setLocationErrors] = useState<Record<string, string>>({});
-  const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
-  const [hoveredCandidateId, setHoveredCandidateId] = useState<string | null>(null);
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
   const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
@@ -138,19 +97,20 @@ export default function InspectionFindingsPage() {
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
   const [showRemovedFindings, setShowRemovedFindings] = useState(false);
 
-  const hasActiveEvidence = activeEvidenceItems.length > 0;
-  // A finding belongs to the working set while it is linked to a current capture. One linked to
-  // retired evidence stays in the record but is not part of what the Inspector works from.
   const activeFindings = useMemo(
-    () => (findings.data ?? []).filter((finding) => finding.evidenceId && activeEvidenceIds.has(finding.evidenceId)),
+    () =>
+      (findings.data ?? []).filter(
+        (finding) =>
+          !finding.isDeleted && finding.evidenceId && activeEvidenceIds.has(finding.evidenceId),
+      ),
     [activeEvidenceIds, findings.data],
   );
   const pendingFindings = activeFindings.filter((finding) => finding.status === 'PENDING').length;
-  const reviewedItemCount = (findings.data ?? []).length;
-  // A finding on retired evidence is not part of the working set, so it does not count when the
-  // Inspector says the scope was reviewed and nothing was found.
+  const reviewedItemCount = activeFindings.length;
   const noFindings = activeFindings.length === 0;
+  const hasActiveEvidence = activeEvidenceItems.length > 0;
   const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
+
   const canConfirm =
     isInspector &&
     hasActiveEvidence &&
@@ -165,9 +125,7 @@ export default function InspectionFindingsPage() {
     !confirmFindings.isPending &&
     !isReportLocked &&
     !['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
-  // MF3-05 detection is an explicit action: the Inspector chooses which images to analyse. The
-  // automatic one-time pass that used to run when the evidence set was accepted is gone, so
-  // reopening Findings never starts the model by itself.
+
   const analysedEvidenceIds = useMemo(
     () => new Set([...activeFindings.map((finding) => finding.evidenceId), ...completedIds]),
     [activeFindings, completedIds],
@@ -181,12 +139,10 @@ export default function InspectionFindingsPage() {
     [activeEvidenceItems],
   );
   const analysingEvidenceIds = useMemo(() => new Set(analysingIds), [analysingIds]);
-  const analysingFileNames = activeEvidenceItems
-    .filter((item) => analysingEvidenceIds.has(item.id))
-    .map((item) => item.fileName);
 
-  const severityFor = (findingId: string): FindingSeverity =>
-    severities[findingId] ?? 'MEDIUM';
+  const severityFor = (finding: Finding): FindingSeverity =>
+    severities[finding.id] ?? finding.severity;
+
   const groupedFindings = useMemo(() => {
     const groups = new Map<
       string,
@@ -206,6 +162,42 @@ export default function InspectionFindingsPage() {
     }
     return [...groups.values()];
   }, [activeFindings, activeEvidenceItems]);
+
+  const startEditingCandidate = (finding: Finding) => {
+    setEditingCandidateId(finding.id);
+    setRevisedDefectLabels((prev) => ({ ...prev, [finding.id]: finding.defectLabel }));
+    setSeverities((prev) => ({ ...prev, [finding.id]: finding.severity }));
+    setRevisedTechnicalNotes((prev) => ({
+      ...prev,
+      [finding.id]: finding.technicalNotes ?? '',
+    }));
+    setRevisedRecommendedActions((prev) => ({
+      ...prev,
+      [finding.id]: finding.recommendedAction ?? '',
+    }));
+  };
+
+  const saveCandidateCorrection = (finding: Finding) => {
+    const defectLabel = (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim();
+    const technicalNotes = (revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '').trim();
+    const recommendedAction = (
+      revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? ''
+    ).trim();
+
+    updateFinding.mutate(
+      {
+        findingId: finding.id,
+        input: {
+          evidenceId: finding.evidenceId ?? '',
+          defectLabel,
+          severity: severityFor(finding),
+          technicalNotes: technicalNotes || 'Corrected by assigned Inspector',
+          recommendedAction: recommendedAction || undefined,
+        },
+      },
+      { onSuccess: () => setEditingCandidateId(null) },
+    );
+  };
 
   const submitManualFinding = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -234,766 +226,352 @@ export default function InspectionFindingsPage() {
   if (isReviewer && !isInspector) {
     return (
       <OrganizationFindingsOverview
-        findings={findings.data ?? []}
+        findings={(findings.data ?? []).filter((finding) => !finding.isDeleted)}
         inspectionId={inspectionId}
       />
     );
   }
 
   return (
-    <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-          <AutoAwesomeOutlined color="primary" />
-          <Typography variant="h6">{t('Advisory detection')}</Typography>
-        </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Detection runs only when you ask for it. Analyse the images you want, or all of them at
-          once, and re-analyse an image after a detector change — that replaces its unreviewed
-          suggestions and keeps the ones you already decided. Every suggestion remains a candidate
-          until the Inspector confirms, modifies or rejects it; the manual path stays open.
-        </Typography>
-        {!hasActiveEvidence ? (
-          <Alert severity="info">{t('Upload current captures before running advisory detection.')}</Alert>
-        ) : (
-          <Stack spacing={1}>
-            {!isInspector && (
-              <Alert severity="info">{t('Only the assigned Inspector can run advisory detection.')}</Alert>
-            )}
-            {isAnalysisPending ? (
-              <Alert
-                severity="info"
-                icon={<AiMotionFigure name="advisoryScan" size={28} alt={t('Advisory detection in progress')} />}
-                sx={{ alignItems: 'center' }}
+    <Stack spacing={3}>
+      {/* Page Header / Action Bar */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          bgcolor: '#ffffff',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        }}
+      >
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2}
+          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '12px',
+                bgcolor: 'rgba(13, 148, 136, 0.1)',
+                color: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <AutoAwesomeOutlined sx={{ fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+                {t('Defect Analysis & Findings')}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#64748b', mt: 0.25 }}>
+                {t('Run AI detection per image or batch-analyze all captures. Review, adjust, and confirm defects.')}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            {isInspector && analysisUnlocked && (
+              <Button
+                variant="contained"
+                startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
+                disabled={isAnalysisPending || analysableImageIds.length === 0}
+                onClick={() => void analyzeMany(analysableImageIds)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  boxShadow: 'none',
+                  px: 2,
+                  '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
+                }}
               >
-                {analysingFileNames.length > 1
-                  ? `Analysing ${analysingFileNames.length} images in parallel…`
-                  : `Analysing ${analysingFileNames[0] ?? 'the evidence set'}…`}
+                {isAnalysisPending
+                  ? t('Analyzing…')
+                  : `${t('Analyze all images')} (${analysableImageIds.length})`}
+              </Button>
+            )}
+            {isInspector && (
+              <Button
+                variant="outlined"
+                color={showRemovedFindings ? 'primary' : 'inherit'}
+                onClick={() => setShowRemovedFindings((current) => !current)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  bgcolor: showRemovedFindings ? 'action.hover' : 'transparent',
+                }}
+              >
+                {showRemovedFindings
+                  ? t('Hide removed')
+                  : `${t('Audit log / Removed')} (${removedFindings.data?.length ?? 0})`}
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+
+        {isInspector && isAnalysisPending && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
+            {t('Advisory detection is running. Each image card shows real-time analysis status.')}
+          </Alert>
+        )}
+        {isInspector && isAnalysisError && (
+          <Alert severity="warning" sx={{ mt: 2, borderRadius: '10px' }}>
+            {getErrorMessage(
+              analysisError,
+              'AI analysis is unavailable; existing evidence remains available.',
+            )}
+          </Alert>
+        )}
+        {isInspector && analysableImageIds.length === 0 && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
+            {t('Upload current image captures before running advisory detection.')}
+          </Alert>
+        )}
+      </Paper>
+
+      {findings.isLoading ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '16px' }}>
+          <Typography color="text.secondary">{t('Loading findings…')}</Typography>
+        </Paper>
+      ) : findings.isError ? (
+        <Alert
+          severity="error"
+          sx={{ borderRadius: '12px' }}
+          action={
+            <Button color="inherit" onClick={() => void findings.refetch()}>
+              {t('Retry')}
+            </Button>
+          }
+        >
+          {t('Could not load findings.')}
+        </Alert>
+      ) : (
+        <Stack spacing={3}>
+          {groupedFindings.map((group) => {
+            const isAnalysing = analysingEvidenceIds.has(group.evidenceId);
+            const isAnalysed = analysedEvidenceIds.has(group.evidenceId);
+            const isNoDetection = noDetectionEvidenceIds.has(group.evidenceId);
+
+            return (
+              <EvidenceCaptureGroup
+                key={group.evidenceId}
+                inspectionId={inspectionId}
+                evidenceId={group.evidenceId}
+                evidence={group.evidence}
+                findings={group.findings}
+                isInspector={isInspector}
+                analysisUnlocked={analysisUnlocked}
+                isAnalysing={isAnalysing}
+                isAnalysed={isAnalysed}
+                isNoDetection={isNoDetection}
+                onAnalyze={(id, replace) => void analyzeMany([id], { replace })}
+                locationDraft={locationDrafts[group.evidenceId] ?? group.evidence?.locationDescription ?? ''}
+                onLocationChange={(val) =>
+                  setLocationDrafts((prev) => ({ ...prev, [group.evidenceId]: val }))
+                }
+                onLocationBlur={() => {
+                  if (group.evidence) {
+                    const value =
+                      locationDrafts[group.evidenceId] ?? group.evidence.locationDescription ?? '';
+                    if (value !== (group.evidence.locationDescription ?? '')) {
+                      updateEvidenceLocation.mutate(
+                        { evidenceId: group.evidenceId, locationDescription: value },
+                        {
+                          onError: (err) =>
+                            setLocationErrors((prev) => ({
+                              ...prev,
+                              [group.evidenceId]: getErrorMessage(
+                                err,
+                                'Evidence location was not saved.',
+                              ),
+                            })),
+                        },
+                      );
+                    }
+                  }
+                }}
+                locationError={locationErrors[group.evidenceId]}
+                severityFor={severityFor}
+                onSeverityChange={(fid, sev) =>
+                  setSeverities((prev) => ({ ...prev, [fid]: sev }))
+                }
+                editingCandidateId={editingCandidateId}
+                onStartEdit={startEditingCandidate}
+                onCancelEdit={() => setEditingCandidateId(null)}
+                onSaveCorrection={saveCandidateCorrection}
+                revisedDefectLabels={revisedDefectLabels}
+                onDefectLabelChange={(fid, val) =>
+                  setRevisedDefectLabels((prev) => ({ ...prev, [fid]: val }))
+                }
+                revisedTechnicalNotes={revisedTechnicalNotes}
+                onTechnicalNotesChange={(fid, val) =>
+                  setRevisedTechnicalNotes((prev) => ({ ...prev, [fid]: val }))
+                }
+                revisedRecommendedActions={revisedRecommendedActions}
+                onRecommendedActionsChange={(fid, val) =>
+                  setRevisedRecommendedActions((prev) => ({ ...prev, [fid]: val }))
+                }
+                onConfirmFinding={(finding) =>
+                  confirmFinding.mutate({
+                    findingId: finding.id,
+                    input: {
+                      severity: severityFor(finding),
+                      technicalNotes: finding.technicalNotes ?? 'Confirmed by assigned Inspector',
+                    },
+                  })
+                }
+                onDeleteFinding={(fid) => deleteFinding.mutate(fid)}
+                isConfirmPending={confirmFinding.isPending}
+                isDeletePending={deleteFinding.isPending}
+                isUpdatePending={updateFinding.isPending}
+                updateError={updateFinding.error}
+                isReportLocked={isReportLocked}
+                manualFindingOpen={manualFindingEvidenceId === group.evidenceId}
+                onOpenManualFinding={() => setManualFindingEvidenceId(group.evidenceId)}
+                onCloseManualFinding={() => setManualFindingEvidenceId(null)}
+                onSubmitManualFinding={(e) => {
+                  submitManualFinding(e);
+                  setManualFindingEvidenceId(null);
+                }}
+                isCreateManualPending={createManualFinding.isPending}
+                createManualError={createManualFinding.error}
+              />
+            );
+          })}
+
+          {confirmFinding.isError && (
+            <Alert severity="error" sx={{ borderRadius: '12px' }}>
+              {getErrorMessage(confirmFinding.error, 'The finding was not confirmed.')}
+            </Alert>
+          )}
+        </Stack>
+      )}
+
+      {/* Audit Log / Removed Findings */}
+      {isInspector && showRemovedFindings && (
+        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px' }}>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t('Audit Log / Removed Findings')}
+            </Typography>
+            {removedFindings.data?.length ? (
+              <Stack spacing={1}>
+                {removedFindings.data.map((finding) => (
+                  <Paper key={finding.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
+                      <Chip size="small" label={finding.severity} />
+                      <Chip
+                        size="small"
+                        color={finding.status === 'CONFIRMED' ? 'success' : 'default'}
+                        label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {t('Removed')}
+                      </Typography>
+                      <Box sx={{ flexGrow: 1 }} />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={restoreFinding.isPending}
+                        onClick={() => restoreFinding.mutate(finding.id)}
+                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                      >
+                        {t('Restore')}
+                      </Button>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                {t('No finding has been removed.')}
               </Alert>
-            ) : null}
-            {isInspector && isAnalysisError && (
-              <Alert severity="warning">
+            )}
+            {restoreFinding.isError && (
+              <Alert severity="error">
+                {getErrorMessage(restoreFinding.error, 'The finding was not restored.')}
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Confirmation & Stage Gate */}
+      {isInspector && (
+        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px' }}>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {t('Findings Confirmation Gate')}
+            </Typography>
+            {workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
+              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                {t('Findings are confirmed. Reopen this stage only if you need to change the reviewed set.')}
+                <Button
+                  size="small"
+                  sx={{ ml: 1, textTransform: 'none', fontWeight: 600 }}
+                  disabled={reopenFindings.isPending}
+                  onClick={() => reopenFindings.mutate()}
+                >
+                  {t('Reopen Findings')}
+                </Button>
+              </Alert>
+            )}
+            <Typography variant="body2" color="text.secondary">
+              {pendingFindings > 0
+                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision.`
+                : reviewedItemCount > 0
+                  ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
+                  : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
+            </Typography>
+            {noFindings && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={noFindingsAcknowledged}
+                  onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
+                />
+                <Typography variant="body2">
+                  {t('No finding was observed within the scope covered by these images.')}
+                </Typography>
+              </label>
+            )}
+            <Button
+              variant="contained"
+              disabled={!canConfirm}
+              onClick={() =>
+                confirmFindings.mutate(noFindings, {
+                  onSuccess: () => navigate('../report'),
+                })
+              }
+              sx={{ alignSelf: 'flex-start', borderRadius: '10px', textTransform: 'none', px: 2.5 }}
+            >
+              {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
+            </Button>
+            {confirmFindings.isError && (
+              <Alert severity="error" sx={{ borderRadius: '10px' }}>
                 {getErrorMessage(
-                  analysisError,
-                  'AI analysis is unavailable; existing evidence remains available.',
+                  confirmFindings.error,
+                  'Findings were not confirmed. Resolve any pending candidates and try again.',
                 )}
               </Alert>
             )}
-            {isInspector && analysisUnlocked && (
-              <Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AutoAwesomeOutlined />}
-                  disabled={isAnalysisPending || analysableImageIds.length === 0}
-                  onClick={() => void analyzeMany(analysableImageIds)}
-                >
-                  {isAnalysisPending
-                    ? 'Analysing…'
-                    : `Analyse ${analysableImageIds.length} image(s)`}
-                </Button>
-              </Box>
-            )}
-            {activeEvidenceItems
-              .filter((item) => item.contentType.startsWith('image/'))
-              .map((item) => {
-                const done = analysedEvidenceIds.has(item.id);
-                const isAnalysing = analysingEvidenceIds.has(item.id);
-                return (
-                  <Stack
-                    key={item.id}
-                    direction="row"
-                    spacing={1}
-                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
-                      {isAnalysing && (
-                        <AiMotionFigure name="advisoryLens" size={22} alt={`Analysing ${item.fileName}`} />
-                      )}
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {item.fileName}
-                      </Typography>
-                      {done && !isAnalysing && (
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          color="success"
-                          icon={<AiMotionFigure name="advisoryPulse" size={14} />}
-                          label={
-                            noDetectionEvidenceIds.has(item.id)
-                              ? 'No defects detected'
-                              : 'Detection complete'
-                          }
-                        />
-                      )}
-                    </Stack>
-                    {isInspector && analysisUnlocked && (
-                      <Button
-                        size="small"
-                        startIcon={isAnalysing ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-                        disabled={isAnalysing}
-                        onClick={() => void analyzeMany([item.id], { replace: done })}
-                      >
-                        {isAnalysing ? 'Analysing…' : done ? 'Analyze again' : 'Analyze'}
-                      </Button>
-                    )}
-                  </Stack>
-                );
-              })}
           </Stack>
-        )}
-      </Paper>
-
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-          <ReportProblemOutlined color="primary" />
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            {t('Findings')}
-          </Typography>
-        </Stack>
-        {findings.isLoading ? (
-          <Typography color="text.secondary">{t('Loading findings…')}</Typography>
-        ) : findings.isError ? (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" onClick={() => void findings.refetch()}>
-                {t('Retry')}
-              </Button>
-            }
-          >
-            {t('Could not load findings.')}
-          </Alert>
-        ) : (
-          <Stack spacing={2.5}>
-            {groupedFindings.map((group) => (
-                <Paper
-                  key={group.evidenceId}
-                  variant="outlined"
-                  sx={{
-                    p: { xs: 1.75, sm: 2.25 },
-                    borderRadius: '12px',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    spacing={1.25}
-                    sx={{
-                      alignItems: 'center',
-                       mb: 2,
-                      pb: 1.25,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                      {group.evidence?.fileName ?? `Evidence ${group.evidenceId.slice(0, 8)}…`}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      color={group.findings.length === 0 ? 'default' : 'primary'}
-                      variant="outlined"
-                      label={
-                        group.findings.length === 0
-                          ? 'No detected defects'
-                          : `${group.findings.length} ${group.findings.length === 1 ? 'finding' : 'findings'}`
-                      }
-                    />
-                    {group.evidence && isInspector && (
-                      <TextField
-                        size="small"
-                        label={t('Location for this evidence')}
-                        value={locationDrafts[group.evidenceId] ?? group.evidence.locationDescription ?? ''}
-                        onChange={(event) =>
-                          setLocationDrafts((previous) => ({
-                            ...previous,
-                            [group.evidenceId]: event.target.value,
-                          }))
-                        }
-                        onBlur={() => {
-                          if (group.evidence) {
-                            const value = locationDrafts[group.evidenceId] ?? group.evidence.locationDescription ?? '';
-                            if (value !== (group.evidence.locationDescription ?? '')) {
-                              updateEvidenceLocation.mutate(
-                                { evidenceId: group.evidenceId, locationDescription: value },
-                                { onError: (error) => setLocationErrors((previous) => ({ ...previous, [group.evidenceId]: getErrorMessage(error, 'Evidence location was not saved.') })) },
-                              );
-                            }
-                          }
-                        }}
-                        helperText={locationErrors[group.evidenceId] ?? 'Shared by all findings linked to this image. This describes the asset area, not the pixel box.'}
-                        error={Boolean(locationErrors[group.evidenceId])}
-                        slotProps={{ htmlInput: { maxLength: 1000 } }}
-                        sx={{ minWidth: 260, flexGrow: 1 }}
-                      />
-                    )}
-                  </Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch checked={showBoundingBoxes} onChange={(_event, checked) => setShowBoundingBoxes(checked)} />
-                      }
-                      label={t('Show detected regions')}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {t('Boxes are model-localized image regions, not asset locations.')}
-                    </Typography>
-                  </Stack>
-
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', md: '360px 1fr' },
-                      gap: 2.5,
-                      alignItems: 'start',
-                    }}
-                  >
-                    <Box sx={{ position: { md: 'sticky' }, top: 16 }}>
-                      <CandidatePhoto
-                        inspectionId={inspectionId}
-                        evidence={group.evidence}
-                        findings={group.findings}
-                        showBoundingBoxes={showBoundingBoxes}
-                        highlightedCandidateId={hoveredCandidateId}
-                      />
-                    </Box>
-
-                    <Stack spacing={1.5}>
-                            {group.findings.map((finding) => {
-                        const box = parseBoundingBox(finding.boundingBox ?? undefined);
-                        const confirmed = finding.status === 'CONFIRMED';
-                        return (
-                          <Box
-                            key={finding.id}
-                            onMouseEnter={() => setHoveredCandidateId(finding.id)}
-                            onMouseLeave={() => setHoveredCandidateId(null)}
-                            onFocus={() => setHoveredCandidateId(finding.id)}
-                            onBlur={() => setHoveredCandidateId(null)}
-                          >
-                          <Card variant="outlined" sx={{ borderRadius: '8px', borderColor: hoveredCandidateId === finding.id ? 'primary.main' : 'divider' }}>
-                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                              <Stack spacing={1}>
-                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                                  <Chip size="small" label={finding.findingCode} />
-                                  <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
-                                  {finding.confidence !== null && (
-                                    <Chip
-                                      size="small"
-                                      label={`${Math.round(finding.confidence * 100)}% confidence`}
-                                    />
-                                  )}
-                                  <Chip
-                                    size="small"
-                                    color={confirmed ? 'success' : 'warning'}
-                                    label={confirmed ? 'Confirmed' : 'Awaiting review'}
-                                  />
-                                  {box && (
-                                    <Chip
-                                      size="small"
-                                      variant="outlined"
-                                      label={`Region: [${Math.round(box.xMin * 100)}%, ${Math.round(box.yMin * 100)}%] → [${Math.round(box.xMax * 100)}%, ${Math.round(box.yMax * 100)}%]`}
-                                      sx={{ fontFamily: 'monospace', fontSize: '11px' }}
-                                    />
-                                  )}
-                                </Stack>
-                                <Typography variant="body2">{finding.technicalNotes}</Typography>
-                                {finding.recommendedAction && (
-                                  <Typography variant="body2">
-                                    <strong>Recommended action:</strong> {finding.recommendedAction}
-                                  </Typography>
-                                )}
-                                {finding.modelName && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    {finding.modelName}
-                                  </Typography>
-                                )}
-                                {!confirmed && isInspector && (
-                                  <Stack spacing={1}>
-                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                                      <TextField
-                                        select
-                                        size="small"
-                                        label={`Severity for ${finding.defectLabel}`}
-                                        value={severityFor(finding.id)}
-                                        onChange={(event) =>
-                                          setSeverities((prev) => ({
-                                            ...prev,
-                                            [finding.id]: event.target.value as FindingSeverity,
-                                          }))
-                                        }
-                                        sx={{ minWidth: 140 }}
-                                      >
-                                        {SEVERITIES.map((level) => (
-                                          <MenuItem key={level} value={level}>
-                                            {level}
-                                          </MenuItem>
-                                        ))}
-                                      </TextField>
-                                    </Stack>
-                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                                      <Button
-                                        size="small"
-                                        variant="contained"
-                                        disabled={confirmFinding.isPending}
-                                        onClick={() =>
-                                          confirmFinding.mutate({
-                                            findingId: finding.id,
-                                            input: {
-                                              severity: severityFor(finding.id),
-                                              technicalNotes: finding.technicalNotes ?? 'Confirmed by assigned Inspector',
-                                            },
-                                          })
-                                        }
-                                      >
-                                        {t('Confirm')}
-                                      </Button>
-                                      <Button
-                                        size="small"
-                                        variant="text"
-                                        onClick={() => {
-                                          if (editingCandidateId === finding.id) {
-                                            setEditingCandidateId(null);
-                                          } else {
-                                            setEditingCandidateId(finding.id);
-                                            setRevisedDefectLabels((prev) => ({
-                                              ...prev,
-                                              [finding.id]: finding.defectLabel,
-                                            }));
-                                            setSeverities((prev) => ({
-                                              ...prev,
-                                              [finding.id]: finding.severity,
-                                            }));
-                                            setRevisedTechnicalNotes((prev) => ({
-                                              ...prev,
-                                              [finding.id]: finding.technicalNotes ?? '',
-                                            }));
-                                            setRevisedRecommendedActions((prev) => ({
-                                              ...prev,
-                                              [finding.id]: finding.recommendedAction ?? '',
-                                            }));
-                                          }
-                                        }}
-                                      >
-                                        {editingCandidateId === finding.id ? t('Cancel edit') : t('Edit / Change defect')}
-                                      </Button>
-                                      <Button
-                                        size="small"
-                                        color="error"
-                                        disabled={deleteFinding.isPending}
-                                        onClick={() =>
-                                          deleteFinding.mutate(finding.id)
-                                        }
-                                      >
-                                        {t('Remove')}
-                                      </Button>
-                                    </Stack>
-                                  </Stack>
-                                )}
-                                {confirmed && (() => {
-                                  const isLocked = isReportLocked;
-                                  const isEditing = editingCandidateId === finding.id;
-                                  return (
-                                    <Stack spacing={1}>
-                                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                                        <Chip size="small" color="success" label={t('Inspector confirmed')} />
-                                        {isLocked ? (
-                                          <Chip size="small" color="success" label={t('Included in report')} />
-                                        ) : isReportLocked ? (
-                                          <Chip size="small" color="default" label={t('Locked by submitted report')} />
-                                        ) : null}
-                                        {isInspector && !isLocked && (
-                                          <Button
-                                            size="small"
-                                            variant="text"
-                                            onClick={() => {
-                                              if (isEditing) {
-                                                setEditingCandidateId(null);
-                                              } else {
-                                                setEditingCandidateId(finding.id);
-                                                setRevisedDefectLabels((prev) => ({
-                                                  ...prev,
-                                                  [finding.id]: finding.defectLabel,
-                                                }));
-                                                setSeverities((prev) => ({
-                                                  ...prev,
-                                                  [finding.id]: finding.severity,
-                                                }));
-                                                setRevisedTechnicalNotes((prev) => ({
-                                                  ...prev,
-                                                  [finding.id]: finding.technicalNotes ?? '',
-                                                }));
-                                                setRevisedRecommendedActions((prev) => ({
-                                                  ...prev,
-                                                  [finding.id]: finding.recommendedAction ?? '',
-                                                }));
-                                              }
-                                            }}
-                                          >
-                                            {isEditing ? 'Cancel edit' : 'Edit / Change defect'}
-                                          </Button>
-                                        )}
-                                      </Stack>
-
-                                      {isInspector && !isLocked && (
-                                        <Button
-                                          size="small"
-                                          color="error"
-                                          disabled={deleteFinding.isPending}
-                                          onClick={() =>
-                                            deleteFinding.mutate(finding.id)
-                                          }
-                                        >
-                                          {t('Remove finding')}
-                                        </Button>
-                                      )}
-
-                                      {isInspector && (
-                                        <Typography variant="caption" color="text.secondary">
-                                          {t('Inspector-confirmed. Organization Manager reviews the complete submitted report.')}
-                                        </Typography>
-                                      )}
-                                    </Stack>
-                                  );
-                                })()}
-
-                                {editingCandidateId === finding.id && isInspector && !isReportLocked && (
-                                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1, bgcolor: 'action.hover' }}>
-                                    <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
-                                      {t('Correct Inspector finding details:')}
-                                    </Typography>
-                                    <Stack spacing={1}>
-                                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                                        <TextField
-                                          size="small"
-                                          label={t('Defect label')}
-                                          value={revisedDefectLabels[finding.id] ?? finding.defectLabel}
-                                          onChange={(event) =>
-                                            setRevisedDefectLabels((prev) => ({
-                                              ...prev,
-                                              [finding.id]: event.target.value,
-                                            }))
-                                          }
-                                          slotProps={{ htmlInput: { maxLength: 160 } }}
-                                          sx={{ flexGrow: 1 }}
-                                        />
-                                        <TextField
-                                          select
-                                          size="small"
-                                          label={t('Severity')}
-                                          value={severityFor(finding.id)}
-                                          onChange={(event) =>
-                                            setSeverities((prev) => ({
-                                              ...prev,
-                                              [finding.id]: event.target.value as FindingSeverity,
-                                            }))
-                                          }
-                                          sx={{ minWidth: 140 }}
-                                        >
-                                          {SEVERITIES.map((level) => (
-                                            <MenuItem key={level} value={level}>
-                                              {level}
-                                            </MenuItem>
-                                          ))}
-                                        </TextField>
-                                      </Stack>
-                                      <TextField
-                                        size="small"
-                                        label={t('Technical notes')}
-                                        multiline
-                                        minRows={2}
-                                        value={revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? ''}
-                                        onChange={(event) =>
-                                          setRevisedTechnicalNotes((prev) => ({
-                                            ...prev,
-                                            [finding.id]: event.target.value,
-                                          }))
-                                        }
-                                        slotProps={{ htmlInput: { maxLength: 4000 } }}
-                                        required
-                                      />
-                                      <TextField
-                                        size="small"
-                                        label={t('Recommended action')}
-                                        multiline
-                                        minRows={2}
-                                        value={revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? ''}
-                                        onChange={(event) =>
-                                          setRevisedRecommendedActions((prev) => ({
-                                            ...prev,
-                                            [finding.id]: event.target.value,
-                                          }))
-                                        }
-                                        slotProps={{ htmlInput: { maxLength: 4000 } }}
-                                      />
-                                      <Stack direction="row" spacing={1}>
-                                        <Button
-                                          size="small"
-                                          variant="contained"
-                                          disabled={updateFinding.isPending}
-                                          onClick={() => {
-                                            const defectLabel = (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim();
-                                            const technicalNotes = (revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '').trim();
-                                            const recommendedAction = (revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? '').trim();
-                                            updateFinding.mutate({
-                                              findingId: finding.id,
-                                              input: {
-                                                evidenceId: finding.evidenceId ?? '',
-                                                defectLabel,
-                                                severity: severityFor(finding.id),
-                                                technicalNotes: technicalNotes || 'Corrected by assigned Inspector',
-                                                recommendedAction: recommendedAction || undefined,
-                                              },
-                                            });
-                                            setEditingCandidateId(null);
-                                          }}
-                                        >
-                                          {t('Save correction')}
-                                        </Button>
-                                        <Button
-                                          size="small"
-                                          onClick={() => setEditingCandidateId(null)}
-                                        >
-                                          {t('Cancel')}
-                                        </Button>
-                                      </Stack>
-                                      {updateFinding.isError && (
-                                        <Alert severity="error">
-                                          {getErrorMessage(updateFinding.error, 'The correction was not saved.')}
-                                        </Alert>
-                                      )}
-                                    </Stack>
-                                  </Paper>
-                                )}
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                          </Box>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                  {isInspector && group.evidence ? (
-                    <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                      {manualFindingEvidenceId === group.evidenceId ? (
-                        <Box
-                          component="form"
-                          onSubmit={(event) => {
-                            submitManualFinding(event);
-                            setManualFindingEvidenceId(null);
-                          }}
-                          sx={{
-                            display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                            gap: 1.5,
-                            p: 2,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: '8px',
-                            bgcolor: 'action.hover',
-                          }}
-                        >
-                          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gridColumn: '1 / -1' }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {t('Add manual finding for')} {group.evidence.fileName}
-                            </Typography>
-                            <Button size="small" onClick={() => setManualFindingEvidenceId(null)}>
-                              {t('Cancel')}
-                            </Button>
-                          </Stack>
-                          <input type="hidden" name="evidenceId" value={group.evidenceId} />
-                          <TextField name="defectLabel" label={t('Defect label')} required size="small" slotProps={{ htmlInput: { maxLength: 160 } }} />
-                          <TextField select name="severity" label={t('Severity')} defaultValue="MEDIUM" size="small">
-                            {SEVERITIES.map((level) => (
-                              <MenuItem key={level} value={level}>{level}</MenuItem>
-                            ))}
-                          </TextField>
-
-                          <TextField
-                            name="technicalNotes"
-                            label={t('Technical notes')}
-                            required
-                            multiline
-                            minRows={2}
-                            size="small"
-                            sx={{ gridColumn: '1 / -1' }}
-                            slotProps={{ htmlInput: { maxLength: 4000 } }}
-                          />
-                          <TextField
-                            name="recommendedAction"
-                            label={t('Recommended action')}
-                            multiline
-                            minRows={2}
-                            size="small"
-                            sx={{ gridColumn: '1 / -1' }}
-                            slotProps={{ htmlInput: { maxLength: 4000 } }}
-                          />
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            size="small"
-                            disabled={createManualFinding.isPending}
-                            sx={{ justifySelf: 'start' }}
-                          >
-                            {createManualFinding.isPending ? 'Saving finding…' : 'Save manual finding'}
-                          </Button>
-                          {createManualFinding.isError && (
-                            <Alert severity="error" sx={{ mt: 1, gridColumn: '1 / -1' }}>
-                              {getErrorMessage(createManualFinding.error, 'Manual finding was not saved.')}
-                            </Alert>
-                          )}
-                        </Box>
-                      ) : (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setManualFindingEvidenceId(group.evidenceId)}
-                          sx={{ alignSelf: 'flex-start' }}
-                        >
-                          {t('+ Add manual finding for')} {group.evidence.fileName}
-                        </Button>
-                      )}
-                    </Box>
-                  ) : null}
-                </Paper>
-              ))}
-            {confirmFinding.isError && (
-              <Alert severity="error">
-                {getErrorMessage(confirmFinding.error, 'The finding was not confirmed.')}
-              </Alert>
-            )}
-          </Stack>
-        )}
-
-        {isInspector && (
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={1.25}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, flexGrow: 1 }}>
-                  {t('Removed findings')}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="text"
-                  onClick={() => setShowRemovedFindings((current) => !current)}
-                >
-                  {showRemovedFindings ? 'Hide removed' : 'Show removed'}
-                </Button>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                A removed finding is hidden from the working set but stays in the record, so it can
-                be brought back if it was removed by mistake.
-              </Typography>
-              {showRemovedFindings ? (
-                removedFindings.data?.length ? (
-                  <Stack spacing={1}>
-                    {removedFindings.data.map((finding) => (
-                      <Paper key={finding.id} variant="outlined" sx={{ p: 1.5 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
-                          <Chip size="small" label={finding.severity} />
-                          <Chip
-                            size="small"
-                            color={finding.status === 'CONFIRMED' ? 'success' : 'default'}
-                            label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
-                          />
-                          {finding.isDeleted && (
-                            <Typography variant="caption" color="text.secondary">
-                              Removed
-                            </Typography>
-                          )}
-                          <Box sx={{ flexGrow: 1 }} />
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            disabled={restoreFinding.isPending}
-                            onClick={() => restoreFinding.mutate(finding.id)}
-                          >
-                            {t('Restore')}
-                          </Button>
-                        </Stack>
-                      </Paper>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Alert severity="info">{t('No finding has been removed.')}</Alert>
-                )
-              ) : null}
-              {restoreFinding.isError && (
-                <Alert severity="error">
-                  {getErrorMessage(restoreFinding.error, 'The finding was not restored.')}
-                </Alert>
-              )}
-            </Stack>
-          </Paper>
-        )}
-
-        {isInspector && (
-          <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-            <Stack spacing={1.25}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Findings review')}
-              </Typography>
-              {workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
-                <Alert severity="info">
-                  {t('Findings are confirmed. Reopen this stage only if you need to change the reviewed set.')}
-                  <Button
-                    size="small"
-                    sx={{ ml: 1, textTransform: 'none' }}
-                    disabled={reopenFindings.isPending}
-                    onClick={() => reopenFindings.mutate()}
-                  >
-                    {t('Reopen Findings')}
-                  </Button>
-                </Alert>
-              )}
-              <Typography variant="body2" color="text.secondary">
-                {pendingFindings > 0
-                  ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision.`
-                  : reviewedItemCount > 0
-                    ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
-                    : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
-              </Typography>
-              {noFindings && (
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={noFindingsAcknowledged}
-                    onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
-                  />
-                  <Typography variant="body2">
-                    {t('No finding was observed within the scope covered by these images.')}
-                  </Typography>
-                </label>
-              )}
-              <Button
-                variant="contained"
-                disabled={!canConfirm}
-                onClick={() =>
-                  confirmFindings.mutate(noFindings, {
-                    onSuccess: () => navigate('../report'),
-                  })
-                }
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
-              </Button>
-              {confirmFindings.isError && (
-                <Alert severity="error">
-                  {getErrorMessage(
-                    confirmFindings.error,
-                    'Findings were not confirmed. Resolve any pending candidates and try again.',
-                  )}
-                </Alert>
-              )}
-            </Stack>
-          </Paper>
-        )}
-      </Paper>
+        </Paper>
+      )}
 
       <InspectorFindingRegister
-        findings={(findings.data ?? []).filter((finding) => finding.modelName == null)}
+        findings={(findings.data ?? []).filter((finding) => finding.modelName == null && !finding.isDeleted)}
         evidence={evidence.data ?? []}
         isEditable={isInspector && !isReportLocked}
         isPending={updateFinding.isPending || deleteFinding.isPending}
@@ -1001,7 +579,6 @@ export default function InspectionFindingsPage() {
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
         onDelete={(findingId) => deleteFinding.mutate(findingId)}
       />
-
     </Stack>
   );
 }
@@ -1043,14 +620,14 @@ function InspectorFindingRegister({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
       <Stack spacing={1.5}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>{t('Inspector findings')}</Typography>
         <Typography variant="body2" color="text.secondary">
           {t('While the report is not submitted, correct or remove a finding. Removing it keeps an audit record; retired evidence remains preserved.')}
         </Typography>
         {findings.map((finding) => (
-          <Paper key={finding.id} variant="outlined" sx={{ p: 1.75 }}>
+          <Paper key={finding.id} variant="outlined" sx={{ p: 1.75, borderRadius: '12px' }}>
             {editingId === finding.id ? (
               <Box component="form" onSubmit={(event) => submitEdit(event, finding)} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
                 <TextField select name="evidenceId" label={t('Evidence')} size="small" defaultValue={finding.evidenceId ?? ''} required>
@@ -1093,11 +670,6 @@ function InspectorFindingRegister({
   );
 }
 
-/**
- * The defect photo behind one candidate, resolved from the evidence list by
- * `evidenceId`. Non-image captures have no inline preview; a missing entry
- * renders nothing rather than a broken image.
- */
 function OrganizationFindingsOverview({
   findings,
   inspectionId,
@@ -1126,7 +698,7 @@ function OrganizationFindingsOverview({
         <Chip label={`${pendingFindings.length} awaiting Inspector review`} color={pendingFindings.length ? 'warning' : 'default'} variant="outlined" />
         {severitySummary.map(({ severity, count }) => <Chip key={severity} label={`${severity}: ${count}`} size="small" />)}
       </Stack>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
         <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Inspector findings')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Only findings the Inspector confirmed are presented as official report findings. The rest
@@ -1137,7 +709,7 @@ function OrganizationFindingsOverview({
         ) : (
           <Stack spacing={1.5}>
             {officialFindings.map((finding) => (
-              <Paper key={finding.id} variant="outlined" sx={{ p: 1.75 }}>
+              <Paper key={finding.id} variant="outlined" sx={{ p: 1.75, borderRadius: '12px' }}>
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
@@ -1157,14 +729,14 @@ function OrganizationFindingsOverview({
         )}
       </Paper>
       {pendingFindings.length > 0 && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Awaiting Inspector review')}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
             {t('These are not official findings. The assigned Inspector confirms or removes them.')}
           </Typography>
           <Stack spacing={1}>
             {pendingFindings.map((finding) => (
-              <Paper key={finding.id} variant="outlined" sx={{ p: 1.5 }}>
+              <Paper key={finding.id} variant="outlined" sx={{ p: 1.5, borderRadius: '12px' }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
                   {finding.confidence !== null && (
@@ -1183,83 +755,5 @@ function OrganizationFindingsOverview({
         </Paper>
       )}
     </Stack>
-  );
-}
-
-function CandidatePhoto({
-  inspectionId,
-  evidence,
-  findings,
-  showBoundingBoxes,
-  highlightedCandidateId,
-}: {
-  inspectionId: string;
-  evidence: EvidenceItem | undefined;
-  findings: Finding[];
-  showBoundingBoxes: boolean;
-  highlightedCandidateId: string | null;
-}) {
-  const { t } = useLocale();
-  if (!evidence || !evidence.contentType.startsWith('image/')) return null;
-  return (
-    <Box
-      sx={{
-        borderRadius: '10px',
-        border: '1px solid',
-                      borderColor: 'divider',
-        overflow: 'hidden',
-        p: 1.25,
-        bgcolor: 'background.default',
-      }}
-    >
-      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
-        {t('Defect photo capture ·')} {evidence.fileName}
-      </Typography>
-      <Box sx={{ position: 'relative', width: '100%', lineHeight: 0 }}>
-        <AuthenticatedImage
-          src={inspectionApi.evidenceContentUrl(inspectionId, evidence.id)}
-          alt={`Inspection evidence ${evidence.fileName}`}
-          maxHeight={420}
-          sx={{ borderRadius: '6px', width: '100%' }}
-        />
-        {showBoundingBoxes && findings.map((finding, index) => {
-          const box = parseBoundingBox(finding.boundingBox ?? undefined);
-          if (!box) return null;
-          const active = highlightedCandidateId === finding.id;
-          const color = ['#d32f2f', '#1976d2', '#2e7d32', '#ed6c02'][index % 4];
-          return (
-            <Box
-              key={finding.id}
-              aria-label={`${finding.defectLabel}, ${Math.round((finding.confidence ?? 0) * 100)} percent confidence`}
-              sx={{
-                position: 'absolute',
-                left: `${box.xMin * 100}%`,
-                top: `${box.yMin * 100}%`,
-                width: `${(box.xMax - box.xMin) * 100}%`,
-                height: `${(box.yMax - box.yMin) * 100}%`,
-                border: `2px solid ${color}`,
-                boxShadow: active ? `0 0 0 3px ${color}66` : 'none',
-                pointerEvents: 'none',
-                zIndex: 2,
-                '&::before': {
-                  content: `"${finding.defectLabel} · ${Math.round((finding.confidence ?? 0) * 100)}%"`,
-                  position: 'absolute',
-                  top: -22,
-                  left: -2,
-                  px: 0.5,
-                  py: 0.25,
-                  color: '#fff',
-                  bgcolor: color,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1.2,
-                },
-              }}
-            />
-          );
-        })}
-      </Box>
-    </Box>
   );
 }
