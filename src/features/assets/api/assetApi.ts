@@ -108,6 +108,8 @@ export const assetApi = {
   update: (id: string, input: UpdateAssetInput) =>
     api.put<Asset>(`/assets/${id}`, input).then((r) => r.data),
 
+  retire: (id: string) => api.post<Asset>(`/assets/${id}/retire`).then((r) => r.data),
+
   review: (id: string, input: AssetReviewInput) =>
     api.post<AssetReviewResponse>(`/assets/${id}/review`, input).then((r) => r.data),
 };

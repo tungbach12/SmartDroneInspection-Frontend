@@ -49,20 +49,8 @@ export function useCreateAsset() {
       void queryClient.invalidateQueries({ queryKey: assetKeys.all });
       showToast('Asset created successfully');
     },
-  });
-}
-
-export function useReassignAssetPair() {
-  const queryClient = useQueryClient();
-  const showToast = useToastStore((s) => s.showToast);
-
-  return useMutation({
-    mutationFn: ({ assetId, input }: { assetId: string; input: ReassignPairInput }) =>
-      assetApi.reassignPair(assetId, input),
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
-      void queryClient.invalidateQueries({ queryKey: assetKeys.pair(variables.assetId) });
-      showToast('Asset pair reassigned successfully');
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to create asset', 'error');
     },
   });
 }
@@ -74,14 +62,46 @@ export function useReviewAsset() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: AssetReviewInput }) =>
       assetApi.review(id, input),
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: assetKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ['proposals', variables.id] });
-      showToast(
-        variables.input.action === 'APPROVE'
-          ? `Approved — ${data.proposalCount} proposal(s) generated`
-          : 'Asset rejected',
-      );
+      showToast('Asset reviewed successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to review asset', 'error');
+    },
+  });
+}
+
+export function useReassignAssetPair() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: ({ assetId, input }: { assetId: string; input: ReassignPairInput }) =>
+      assetApi.reassignPair(assetId, input),
+    onSuccess: (_, { assetId }) => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.pair(assetId) });
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      showToast('Asset pair reassigned successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to reassign asset pair', 'error');
+    },
+  });
+}
+
+export function useRetireAsset() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: (assetId: string) => assetApi.retire(assetId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      showToast('Asset retired and contract archived successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to retire asset', 'error');
     },
   });
 }

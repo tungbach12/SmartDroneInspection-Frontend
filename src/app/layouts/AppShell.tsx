@@ -24,7 +24,6 @@ import {
   OutlinedInput,
   Stack,
   Toolbar,
-  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -66,6 +65,12 @@ import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LocaleToggle } from '@/shared/i18n/LocaleToggle';
+import { useQueryClient } from '@tanstack/react-query';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
+import {
+  clearNotificationCache,
+  useNotificationSessionSync,
+} from '@/features/notifications/hooks/useNotifications';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
@@ -91,6 +96,8 @@ export function AppShell({ portal }: AppShellProps) {
   const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  useNotificationSessionSync();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const [navVisible, setNavVisible] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -113,6 +120,7 @@ export function AppShell({ portal }: AppShellProps) {
     try {
       await logoutCurrentSession();
       clearSession();
+      clearNotificationCache(queryClient);
       showToast('You have been signed out.', 'success');
       setAccountMenuAnchor(null);
       navigate('/login', { replace: true });
@@ -310,18 +318,7 @@ export function AppShell({ portal }: AppShellProps) {
               }}
             />
           )}
-          <Tooltip title={signingOut ? 'Signing out…' : 'Sign out'}>
-            <span>
-              <IconButton
-                aria-label={t('Sign out')}
-                onClick={signOut}
-                disabled={signingOut}
-                sx={{ mr: 1, color: 'text.secondary' }}
-              >
-                <LogoutRounded fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
+          <NotificationBell portal={portal} />
           <LocaleToggle />
           <ColorModeToggle />
         </Toolbar>

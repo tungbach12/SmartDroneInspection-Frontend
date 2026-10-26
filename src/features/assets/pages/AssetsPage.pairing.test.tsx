@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+import { recurringScheduleApi } from '@/features/inspections/api/recurringScheduleApi';
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -19,6 +21,7 @@ vi.mock('@/features/auth/store/authStore', () => ({
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
 }));
 
 const mockCreateAsset = vi.fn();
@@ -78,6 +81,7 @@ vi.mock('../hooks/useAssets', () => ({
     isError: false,
     error: null,
   }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({
@@ -126,10 +130,17 @@ describe('AssetsPage operational pairing', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
     roles.current = ['ORG_MANAGER'];
+    vi.spyOn(inspectionApi, 'list').mockResolvedValue({
+      items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0,
+    });
+    vi.spyOn(recurringScheduleApi, 'list').mockResolvedValue({
+      items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0,
+    });
   });
 
   it('displays the assigned operational pair in the asset details drawer', async () => {

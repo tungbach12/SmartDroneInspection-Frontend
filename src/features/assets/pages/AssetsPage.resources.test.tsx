@@ -1,17 +1,30 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+function renderWithClient(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 const roles = vi.hoisted(() => ({ current: ['ORG_MANAGER'] as string[] }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) => selector({ roles: roles.current }),
 }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
+}));
 vi.mock('../hooks/useAssets', () => ({
   useAssets: () => ({ data: { items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0 }, isLoading: false }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useAssetPair: () => ({ data: null, isLoading: false }),
   useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));
 vi.mock('../hooks/useAssetDocuments', () => ({
@@ -43,7 +56,7 @@ describe('AssetsPage resource tabs', () => {
 
   it('exposes the Drones and Permits tabs to ORG_MANAGER', () => {
     roles.current = ['ORG_MANAGER'];
-    render(<AssetsPage />);
+    renderWithClient(<AssetsPage />);
     expect(screen.getByRole('tab', { name: 'Assets' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Drones' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Permits' })).toBeTruthy();
@@ -54,7 +67,7 @@ describe('AssetsPage resource tabs', () => {
 
   it('does not expose resource tabs to ADMIN', () => {
     roles.current = ['ADMIN'];
-    render(<AssetsPage />);
+    renderWithClient(<AssetsPage />);
     expect(screen.queryByRole('tab', { name: 'Assets' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Drones' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Permits' })).toBeNull();

@@ -30,7 +30,10 @@ vi.mock('@/features/auth/store/authStore', async (importOriginal) => {
   };
 });
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
+}));
 
 vi.mock('../hooks/useAssets', () => ({
   useAssets: () => ({
@@ -59,6 +62,7 @@ vi.mock('../hooks/useAssets', () => ({
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useAssetPair: () => ({ data: null, isLoading: false }),
   useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));
@@ -116,8 +120,17 @@ const serverTransport = ((config: InternalAxiosRequestConfig) => {
     );
   }
 
+  let data: unknown;
+  if (url === '/assets/a1/documents') {
+    data = [DOCUMENT];
+  } else if (url === '/inspections' || url === '/inspection-schedules') {
+    data = { items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 };
+  } else {
+    throw new Error(`Unexpected request: ${url}`);
+  }
+
   return Promise.resolve<AxiosResponse>({
-    data: { success: true, message: 'Success', data: [DOCUMENT] },
+    data: { success: true, message: 'Success', data },
     status: 200,
     statusText: 'OK',
     headers: {},
