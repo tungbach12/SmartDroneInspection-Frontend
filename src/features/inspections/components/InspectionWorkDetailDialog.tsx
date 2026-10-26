@@ -1,0 +1,486 @@
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  IconButton,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import { useInspection } from '../hooks/useInspections';
+import { StatusChip } from '@/shared/ui/StatusChip';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { getSectionPath, PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
+import type { InspectionStatus } from '../api/inspectionApi';
+
+export interface InspectionWorkDetailDialogProps {
+  open: boolean;
+  inspectionId: string | null;
+  onClose: () => void;
+}
+
+function parseJsonOrString(raw: string | null | undefined): string | string[] | null {
+  if (!raw || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item));
+    if (typeof parsed === 'object' && parsed !== null) {
+      return Object.entries(parsed)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+    }
+    return String(parsed);
+  } catch {
+    return raw;
+  }
+}
+
+export function InspectionWorkDetailDialog({
+  open,
+  inspectionId,
+  onClose,
+}: InspectionWorkDetailDialogProps) {
+  const { t, formatDateTime, formatDate } = useLocale();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const portal = (location.pathname.split('/').filter(Boolean)[0] ?? PORTAL_IDS[0]) as PortalId;
+  const inspectionQuery = useInspection(inspectionId, open && Boolean(inspectionId));
+  const inspection = inspectionQuery.data;
+
+  const navigateToInspectionRoute = (subpath = '') => {
+    onClose();
+    const base = `${getSectionPath(portal, 'inspections')}/${inspectionId}`;
+    const destination = subpath ? `${base}/${subpath}` : base;
+    navigate(destination);
+  };
+
+  const getWorkflowGuidance = (status: InspectionStatus) => {
+    switch (status) {
+      case 'ASSIGNED':
+        return {
+          tip: t('This inspection is assigned to you. Prepare the component shot-list and verify flight permits before flight.'),
+          actionLabel: t('Prepare mission shot-list'),
+          subpath: 'preparation',
+        };
+      case 'PREPARING':
+        return {
+          tip: t('Preparation is in progress. Complete target component shot-list and submit for flight readiness review.'),
+          actionLabel: t('Continue preparation'),
+          subpath: 'preparation',
+        };
+      case 'READY_FOR_FLIGHT':
+        return {
+          tip: t('Flight readiness approved. You are cleared to start the on-site field flight session.'),
+          actionLabel: t('Start field session'),
+          subpath: 'field-session',
+        };
+      case 'IN_PROGRESS':
+        return {
+          tip: t('Field session is actively in progress. Record pre-flight checklist notes or complete the flight session.'),
+          actionLabel: t('Go to field session'),
+          subpath: 'field-session',
+        };
+      case 'FIELD_COMPLETED':
+        return {
+          tip: t('Field flight completed. Upload captured drone evidence, review AI detections, and confirm findings.'),
+          actionLabel: t('Review evidence & findings'),
+          subpath: 'evidence',
+        };
+      case 'REPORT_DRAFT':
+        return {
+          tip: t('Findings confirmed. Draft report narrative and submit for independent review.'),
+          actionLabel: t('View report draft'),
+          subpath: 'report',
+        };
+      case 'REPORT_PUBLISHED':
+      case 'COMPLETED':
+        return {
+          tip: t('Inspection report is officially published.'),
+          actionLabel: t('View published report'),
+          subpath: 'report',
+        };
+      case 'REPAIR_PENDING':
+        return {
+          tip: t('Critical defects forwarded to maintenance engineering team.'),
+          actionLabel: t('View report & findings'),
+          subpath: 'report',
+        };
+      default:
+        return {
+          tip: `${t('Inspection is in status')}: ${status}`,
+          actionLabel: t('Open inspection details'),
+          subpath: '',
+        };
+    }
+  };
+
+  const componentScopeItems = parseJsonOrString(inspection?.componentScope);
+  const scopeDescription = parseJsonOrString(inspection?.scope);
+  const criteriaDescription = parseJsonOrString(inspection?.acceptanceCriteria);
+  const guidance = inspection ? getWorkflowGuidance(inspection.status) : null;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      aria-labelledby="inspection-work-detail-title"
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: '16px',
+            overflow: 'hidden',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.16)',
+          },
+        },
+      }}
+    >
+      <DialogTitle
+        id="inspection-work-detail-title"
+        sx={{
+          p: 2.5,
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', overflow: 'hidden' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 40,
+              height: 40,
+              borderRadius: '10px',
+              bgcolor: 'rgba(55, 88, 249, 0.1)',
+              color: 'primary.main',
+              flexShrink: 0,
+            }}
+          >
+            <CalendarMonthOutlinedIcon fontSize="small" />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.125rem', lineHeight: 1.3 }} noWrap>
+              {inspection?.objective || t('Inspection work details')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              {t('Inspection ID')}: <span style={{ fontFamily: 'monospace' }}>{inspectionId?.slice(0, 13)}…</span>
+            </Typography>
+          </Box>
+        </Stack>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          {inspection && <StatusChip status={inspection.status} />}
+          <IconButton onClick={onClose} size="small" aria-label={t('Close')}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3, bgcolor: '#f8fafc' }}>
+        {inspectionQuery.isLoading ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
+            <CircularProgress size={36} />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              {t('Loading inspection details…')}
+            </Typography>
+          </Box>
+        ) : inspectionQuery.isError ? (
+          <Alert severity="error" sx={{ my: 2 }}>
+            {t('Could not load inspection details. Please try again.')}
+          </Alert>
+        ) : !inspection ? (
+          <Alert severity="info" sx={{ my: 2 }}>
+            {t('Inspection not found.')}
+          </Alert>
+        ) : (
+          <Stack spacing={2.5}>
+            {/* Workflow Action Guidance Banner */}
+            {guidance && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: '12px',
+                  bgcolor: '#ffffff',
+                  border: '1px solid',
+                  borderColor: '#e2e8f0',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { sm: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {t('Current mission stage')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#1e293b', mt: 0.5 }}>
+                    {guidance.tip}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  endIcon={<ArrowForwardRoundedIcon />}
+                  onClick={() => navigateToInspectionRoute(guidance.subpath)}
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    boxShadow: 'none',
+                  }}
+                >
+                  {guidance.actionLabel}
+                </Button>
+              </Paper>
+            )}
+
+            {/* General Time & Location Card */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: '12px',
+                bgcolor: '#ffffff',
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarMonthOutlinedIcon fontSize="small" color="primary" />
+                {t('Planned work schedule')}
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Planned Start')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    {inspection.plannedStartAt ? formatDateTime(new Date(inspection.plannedStartAt)) : t('Not scheduled')}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Planned End')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    {inspection.plannedEndAt ? formatDateTime(new Date(inspection.plannedEndAt)) : t('Not specified')}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Asset & Target Infrastructure */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: '12px',
+                bgcolor: '#ffffff',
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocationOnOutlinedIcon fontSize="small" color="primary" />
+                {t('Infrastructure Asset')}
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Asset Name')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    {inspection.assetName || `${t('Asset')} #${inspection.assetId.slice(0, 8)}`}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Asset Location')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#334155' }}>
+                    {inspection.locationText || t('No specific location coordinates recorded')}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Assigned Drone & Flight Authorization */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: '12px',
+                bgcolor: '#ffffff',
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FlightOutlinedIcon fontSize="small" color="primary" />
+                {t('Equipment & Flight Permits')}
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Assigned Drone')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    {inspection.droneSerialNumber
+                      ? `${inspection.droneSerialNumber} ${inspection.droneModel ? `(${inspection.droneModel})` : ''}`
+                      : t('Unassigned Drone')}
+                  </Typography>
+                  {inspection.droneServiceability && (
+                    <Chip
+                      label={inspection.droneServiceability}
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        height: 20,
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        bgcolor: inspection.droneServiceability === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        color: inspection.droneServiceability === 'ACTIVE' ? 'success.dark' : 'error.dark',
+                      }}
+                    />
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Regulatory Flight Permit')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                    {inspection.flightPermitReference || t('Awaiting Permit Link')}
+                  </Typography>
+                  {inspection.flightPermitAuthority && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {t('Issuer')}: {inspection.flightPermitAuthority}
+                    </Typography>
+                  )}
+                  {inspection.flightPermitValidFrom && inspection.flightPermitValidUntil && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {t('Valid')}: {formatDate(new Date(inspection.flightPermitValidFrom))} — {formatDate(new Date(inspection.flightPermitValidUntil))}
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Mission Work Items, Components & Standards */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: '12px',
+                bgcolor: '#ffffff',
+                border: '1px solid',
+                borderColor: '#e2e8f0',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AssignmentOutlinedIcon fontSize="small" color="primary" />
+                {t('Mission tasks & specifications')}
+              </Typography>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    {t('Target components to inspect')}
+                  </Typography>
+                  {Array.isArray(componentScopeItems) && componentScopeItems.length > 0 ? (
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 0.75 }}>
+                      {componentScopeItems.map((comp, idx) => (
+                        <Chip
+                          key={idx}
+                          label={comp}
+                          size="small"
+                          icon={<TaskAltOutlinedIcon fontSize="small" />}
+                          sx={{ bgcolor: '#f1f5f9', fontWeight: 500 }}
+                        />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
+                      {typeof componentScopeItems === 'string'
+                        ? componentScopeItems
+                        : t('Standard full physical inspection covering all accessible structures')}
+                    </Typography>
+                  )}
+                </Box>
+
+                {scopeDescription && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      {t('Method / General Scope')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
+                      {Array.isArray(scopeDescription) ? scopeDescription.join(', ') : scopeDescription}
+                    </Typography>
+                  </Box>
+                )}
+
+                {criteriaDescription && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      {t('Acceptance Criteria')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
+                      {Array.isArray(criteriaDescription) ? criteriaDescription.join(', ') : criteriaDescription}
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            </Paper>
+          </Stack>
+        )}
+      </DialogContent>
+
+      <DialogActions
+        sx={{
+          p: 2.5,
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600 }}>
+          {t('Close')}
+        </Button>
+        <Button
+          variant="outlined"
+          endIcon={<OpenInNewRoundedIcon />}
+          onClick={() => navigateToInspectionRoute()}
+          disabled={!inspection}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+        >
+          {t('Open full inspection workspace')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+﻿import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,10 +55,55 @@ vi.mock('../hooks/useInspections', async () => {
       mocks.useReportsArgs = args;
       return mocks.reportsQuery;
     },
+    useInspection: () => ({ data: undefined, isLoading: false, isError: false }),
     useAssignmentInbox: () => mocks.assignmentInboxQuery,
     useRespondToAssignment: () => mocks.respondToAssignment,
   };
 });
+
+vi.mock('../hooks/useRecurringSchedules', () => ({
+  useRecurringSchedules: () => ({
+    data: {
+      items: [
+        {
+          id: 'sched-1',
+          objective: 'Weekly Bridge Inspection',
+          assetName: 'Bridge Alpha',
+          status: 'ACTIVE',
+          unit: 'WEEK',
+          interval: 1,
+          timezone: 'Asia/Ho_Chi_Minh',
+          durationSeconds: 7200,
+          reminderDays: 3,
+          totalGeneratedOccurrences: 1,
+          totalBlockedOccurrences: 0,
+        },
+      ],
+      page: 1,
+      pageSize: 10,
+      totalCount: 1,
+      totalPages: 1,
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useRecurringSchedule: () => ({ data: null, isLoading: false, error: null }),
+  usePauseRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useResumeRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useEndRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetryScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
+  useSkipScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
+
+vi.mock('@/features/assets/hooks/useAssets', () => ({
+  useAssets: () => ({
+    data: { items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 },
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
 
 import InspectionsPage from './InspectionsPage';
 
@@ -257,6 +302,7 @@ describe('InspectionsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Report review queue' })).toBeTruthy();
     expect(screen.getByText(/administrator's decision is report-level/i)).toBeTruthy();
+
     // The queue counts the phases the administrator is actually asked to decide.
     expect(screen.getByRole('group', { name: 'Readiness reviews due on this page: 0' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
@@ -333,5 +379,30 @@ describe('InspectionsPage', () => {
     expect(mocks.useReportsArgs?.[1]).toBe(true);
     expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
+  });
+
+  it('allows an organization manager to switch to the recurring schedules view', async () => {
+    signInAs(['ORG_MANAGER']);
+    renderPage('/client/inspections');
+
+    const schedulesBtn = await screen.findByRole('button', { name: 'Recurring schedules' });
+    expect(schedulesBtn).toBeTruthy();
+
+    fireEvent.click(schedulesBtn);
+
+    expect(await screen.findByText('Weekly Bridge Inspection')).toBeTruthy();
+  });
+
+  it('allows switching to the schedule calendar view and renders the calendar', async () => {
+    renderPage('/operations/inspections');
+
+    const calendarBtn = await screen.findByRole('button', { name: 'Schedule calendar' });
+    expect(calendarBtn).toBeTruthy();
+
+    fireEvent.click(calendarBtn);
+
+    expect(await screen.findByRole('button', { name: 'Month' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Week' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Agenda' })).toBeTruthy();
   });
 });

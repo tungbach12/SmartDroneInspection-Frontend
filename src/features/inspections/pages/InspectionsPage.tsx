@@ -26,11 +26,14 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { MetricCard } from '@/shared/ui/MetricCard';
 import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
+import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
+import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
+import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
 import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-type InspectionsView = 'all' | 'reports';
+type InspectionsView = 'all' | 'reports' | 'schedules' | 'calendar';
 
 const EMPTY_ITEMS: never[] = [];
 
@@ -57,11 +60,19 @@ export default function InspectionsPage() {
     roles.includes('ADMIN');
   const isOrgAdmin = roles.includes('ORG_MANAGER');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
+  const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const view: InspectionsView = searchParams.get('view') === 'reports' ? 'reports' : 'all';
+  const view: InspectionsView =
+    searchParams.get('view') === 'reports'
+      ? 'reports'
+      : searchParams.get('view') === 'schedules'
+        ? 'schedules'
+        : searchParams.get('view') === 'calendar'
+          ? 'calendar'
+          : 'all';
 
   const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
   // The report queue is server-paged from /with-reports so its rows, total and pages stay
@@ -110,6 +121,10 @@ export default function InspectionsPage() {
     setPage(1);
     if (next === 'reports') {
       setSearchParams({ view: 'reports' }, { replace: true });
+    } else if (next === 'schedules') {
+      setSearchParams({ view: 'schedules' }, { replace: true });
+    } else if (next === 'calendar') {
+      setSearchParams({ view: 'calendar' }, { replace: true });
     } else {
       searchParams.delete('view');
       setSearchParams(searchParams, { replace: true });
@@ -140,59 +155,77 @@ export default function InspectionsPage() {
   return (
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
-        title={isOrganizationAdmin ? (view === 'reports' ? 'Report review queue' : 'Organization inspections') : 'Inspections'}
-        subtitle={
+        title={
           isOrganizationAdmin
             ? view === 'reports'
-              ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
-              : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
-            : 'Review field evidence, record findings, and prepare inspection reports'
+              ? 'Report review queue'
+              : view === 'schedules'
+                ? t('Recurring inspection schedules')
+                : view === 'calendar'
+                  ? t('Schedule calendar')
+                  : 'Organization inspections'
+            : view === 'calendar'
+              ? t('Schedule calendar')
+              : 'Inspections'
+        }
+        subtitle={
+          view === 'calendar'
+            ? t('Track scheduled inspection missions, view calendar timeline, and inspect task details.')
+            : isOrganizationAdmin
+              ? view === 'reports'
+                ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
+                : view === 'schedules'
+                  ? t('Automate periodic asset inspections, monitor occurrence generation, and resolve blocked dispatches.')
+                  : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
+              : 'Review field evidence, record findings, and prepare inspection reports'
         }
         actions={newInspectionButton}
       />
 
       {/* Inspector workload metrics are distinct from the Organization Manager report queue. */}
-      {!isOrganizationAdmin && <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-          gap: 2.5,
-          mb: 3,
-        }}
-      >
-        <MetricCard
-          label={isOrganizationAdmin ? (view === 'reports' ? 'Reports in queue' : 'Organization inspections') : 'Total Inspections'}
-          value={inspections.isLoading ? '…' : formatNumber(totalCount)}
-          change={isOrganizationAdmin ? 'Current view' : 'Operational'}
-          positive
-          subtext={isOrganizationAdmin ? (view === 'reports' ? 'across all pages' : 'across your organization') : 'scoped to your assignment'}
-          iconType="plane"
-        />
-        <MetricCard
-          label={t('In Progress')}
-          value={inspections.isLoading ? '…' : formatNumber(inProgressCount)}
-          change={t('Operational')}
-          positive
-          subtext="active inspections"
-          iconType="clock"
-        />
-        <MetricCard
-          label={t('Repair Pending')}
-          value={inspections.isLoading ? '…' : formatNumber(repairPendingCount)}
-          change={repairPendingCount > 0 ? 'Follow-up' : 'Clear'}
-          positive={repairPendingCount === 0}
-          subtext="requires maintenance"
-          iconType="alert"
-        />
-        <MetricCard
-          label={t('Completed')}
-          value={inspections.isLoading ? '…' : formatNumber(completedCount)}
-          change={t('Published')}
-          positive
-          subtext="immutable records"
-          iconType="check-circle"
-        />
-      </Box>}
+      {!isOrganizationAdmin && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 2.5,
+            mb: 3,
+          }}
+        >
+          <MetricCard
+            label={isOrganizationAdmin ? (view === 'reports' ? 'Reports in queue' : 'Organization inspections') : 'Total Inspections'}
+            value={inspections.isLoading ? '…' : formatNumber(totalCount)}
+            change={isOrganizationAdmin ? 'Current view' : 'Operational'}
+            positive
+            subtext={isOrganizationAdmin ? (view === 'reports' ? 'across all pages' : 'across your organization') : 'scoped to your assignment'}
+            iconType="plane"
+          />
+          <MetricCard
+            label={t('In Progress')}
+            value={inspections.isLoading ? '…' : formatNumber(inProgressCount)}
+            change={t('Operational')}
+            positive
+            subtext="active inspections"
+            iconType="clock"
+          />
+          <MetricCard
+            label={t('Repair Pending')}
+            value={inspections.isLoading ? '…' : formatNumber(repairPendingCount)}
+            change={repairPendingCount > 0 ? 'Follow-up' : 'Clear'}
+            positive={repairPendingCount === 0}
+            subtext="requires maintenance"
+            iconType="alert"
+          />
+          <MetricCard
+            label={t('Completed')}
+            value={inspections.isLoading ? '…' : formatNumber(completedCount)}
+            change={t('Published')}
+            positive
+            subtext="immutable records"
+            iconType="check-circle"
+          />
+        </Box>
+      )}
 
       {/* Assignment response is an Inspector action, not part of the organization review queue. */}
       {roles.includes('INSPECTOR') && (
@@ -215,20 +248,22 @@ export default function InspectionsPage() {
               and the corrective outcome is recorded after publication.
             </Alert>
           )}
-          {isOrganizationAdmin && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Paper variant="outlined" role="group" aria-label={`Readiness reviews due on this page: ${readinessDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <RateReviewOutlined color={readinessDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">{t('Readiness review · this page')}</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
-            </Paper>
-            <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">{t('Report review · this page')}</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
-            </Paper>
-            <Paper variant="outlined" role="group" aria-label={`Corrective outcomes due on this page: ${correctiveDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <FactCheckOutlined color={correctiveDueCount ? 'warning' : 'disabled'} />
-              <Box><Typography variant="caption" color="text.secondary">{t('Corrective outcome · this page')}</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
-            </Paper>
-          </Stack>}
+          {isOrganizationAdmin && view !== 'schedules' && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Paper variant="outlined" role="group" aria-label={`Readiness reviews due on this page: ${readinessDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+                <RateReviewOutlined color={readinessDueCount ? 'warning' : 'disabled'} />
+                <Box><Typography variant="caption" color="text.secondary">{t('Readiness review · this page')}</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
+              </Paper>
+              <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+                <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
+                <Box><Typography variant="caption" color="text.secondary">{t('Report review · this page')}</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
+              </Paper>
+              <Paper variant="outlined" role="group" aria-label={`Corrective outcomes due on this page: ${correctiveDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
+                <FactCheckOutlined color={correctiveDueCount ? 'warning' : 'disabled'} />
+                <Box><Typography variant="caption" color="text.secondary">{t('Corrective outcome · this page')}</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
+              </Paper>
+            </Stack>
+          )}
           <Stack
             direction="row"
             spacing={2}
@@ -249,70 +284,83 @@ export default function InspectionsPage() {
               size="small"
             >
               <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
+              <ToggleButton value="calendar">{t('Schedule calendar')}</ToggleButton>
               <ToggleButton value="reports">{isOrganizationAdmin ? 'Review queue' : 'With report'}</ToggleButton>
+              {isOrganizationAdmin && (
+                <ToggleButton value="schedules">{t('Recurring schedules')}</ToggleButton>
+              )}
             </ToggleButtonGroup>
 
-            <TextField
-              select
-              size="small"
-              label={t('Status filter')}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ minWidth: 180 }}
-            >
-              <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-              <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
-              <MenuItem value="PREPARING">{t('Preparing')}</MenuItem>
-              <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
-              <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
-              <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
-              <MenuItem value="REPORT_DRAFT">{t('Report Draft')}</MenuItem>
-              <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
-              <MenuItem value="REPAIR_PENDING">{t('Repair Pending')}</MenuItem>
-              <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
-              <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
-            </TextField>
+            {view !== 'schedules' && view !== 'calendar' && (
+              <TextField
+                select
+                size="small"
+                label={t('Status filter')}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+                <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
+                <MenuItem value="PREPARING">{t('Preparing')}</MenuItem>
+                <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
+                <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
+                <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
+                <MenuItem value="REPORT_DRAFT">{t('Report Draft')}</MenuItem>
+                <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
+                <MenuItem value="REPAIR_PENDING">{t('Repair Pending')}</MenuItem>
+                <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
+                <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
+              </TextField>
+            )}
           </Stack>
-          <QueryState
-            isLoading={inspections.isLoading}
-            error={inspections.error}
-            isEmpty={displayedItems.length === 0}
-            onRetry={() => void inspections.refetch()}
-            loadingLabel={t('Loading inspections…')}
-            empty={
-              <EmptyState
-                title={t('No inspections available')}
-                description={
-                  statusFilter !== 'ALL'
-                    ? `No inspections found with status "${statusFilter}".`
-                    : 'Inspections you can see will appear here.'
-                }
-              />
-            }
-          >
-            <InspectionListTable
-              title={
-                isOrganizationAdmin
-                  ? view === 'reports'
-                    ? 'Reports requiring organization action'
-                    : 'Organization inspections'
-                  : 'Inspection records'
+
+          {view === 'schedules' ? (
+            <RecurringSchedulesPanel onOpenCreateDialog={() => setCreateInspectionOpen(true)} />
+          ) : view === 'calendar' ? (
+            <InspectorScheduleCalendar onSelectInspection={(id) => setSelectedWorkDetailId(id)} />
+          ) : (
+            <QueryState
+              isLoading={inspections.isLoading}
+              error={inspections.error}
+              isEmpty={displayedItems.length === 0}
+              onRetry={() => void inspections.refetch()}
+              loadingLabel={t('Loading inspections…')}
+              empty={
+                <EmptyState
+                  title={t('No inspections available')}
+                  description={
+                    statusFilter !== 'ALL'
+                      ? `No inspections found with status "${statusFilter}".`
+                      : 'Inspections you can see will appear here.'
+                  }
+                />
               }
-              rows={displayedItems}
-              page={page}
-              pageSize={pageSize}
-              totalCount={inspections.data?.totalCount ?? 0}
-              totalPages={inspections.data?.totalPages ?? 0}
-              onPageChange={setPage}
-              onPageSizeChange={(next) => {
-                setPageSize(next);
-                setPage(1);
-              }}
-              onOpen={openInspection}
-              showReportColumn={view === 'reports' || isOrganizationAdmin}
-              reviewerMode={isOrganizationAdmin && view === 'reports'}
-            />
-          </QueryState>
+            >
+              <InspectionListTable
+                title={
+                  isOrganizationAdmin
+                    ? view === 'reports'
+                      ? 'Reports requiring organization action'
+                      : 'Organization inspections'
+                    : 'Inspection records'
+                }
+                rows={displayedItems}
+                page={page}
+                pageSize={pageSize}
+                totalCount={inspections.data?.totalCount ?? 0}
+                totalPages={inspections.data?.totalPages ?? 0}
+                onPageChange={setPage}
+                onPageSizeChange={(next) => {
+                  setPageSize(next);
+                  setPage(1);
+                }}
+                onOpen={openInspection}
+                showReportColumn={view === 'reports' || isOrganizationAdmin}
+                reviewerMode={isOrganizationAdmin && view === 'reports'}
+              />
+            </QueryState>
+          )}
         </Stack>
       )}
 
@@ -320,6 +368,12 @@ export default function InspectionsPage() {
         open={createInspectionOpen}
         onClose={() => setCreateInspectionOpen(false)}
         onSuccess={(id) => openInspection(id)}
+      />
+
+      <InspectionWorkDetailDialog
+        open={Boolean(selectedWorkDetailId)}
+        inspectionId={selectedWorkDetailId}
+        onClose={() => setSelectedWorkDetailId(null)}
       />
     </Box>
   );
