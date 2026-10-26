@@ -475,6 +475,8 @@ export function useConfirmFindings(inspectionId: string | null) {
       showToast('Findings confirmed and locked for the report stage.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
       client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
     },
