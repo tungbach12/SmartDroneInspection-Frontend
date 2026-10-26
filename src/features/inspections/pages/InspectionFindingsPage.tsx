@@ -421,6 +421,34 @@ export default function InspectionFindingsPage() {
           )}
         </Stack>
 
+        {isInspector && workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
+          <Alert
+            severity="info"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                variant="outlined"
+                disabled={reopenFindings.isPending}
+                onClick={() => reopenFindings.mutate()}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  bgcolor: '#ffffff',
+                }}
+              >
+                {reopenFindings.isPending ? t('Reopening…') : t('Reopen Findings')}
+              </Button>
+            }
+            sx={{ mt: 2, borderRadius: '12px', alignItems: 'center' }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {t('Findings are confirmed and locked for report drafting. Reopen this stage if you need to modify findings.')}
+            </Typography>
+          </Alert>
+        )}
+
         {isInspector && isAnalysisPending && (
           <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
             {t('Advisory detection is running. Each image card shows real-time analysis status.')}
@@ -792,19 +820,6 @@ export default function InspectionFindingsPage() {
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t('Findings Confirmation Gate')}
             </Typography>
-            {workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
-              <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                {t('Findings are confirmed. Reopen this stage only if you need to change the reviewed set.')}
-                <Button
-                  size="small"
-                  sx={{ ml: 1, textTransform: 'none', fontWeight: 600 }}
-                  disabled={reopenFindings.isPending}
-                  onClick={() => reopenFindings.mutate()}
-                >
-                  {t('Reopen Findings')}
-                </Button>
-              </Alert>
-            )}
             <Typography variant="body2" color="text.secondary">
               {pendingFindings > 0
                 ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision.`
