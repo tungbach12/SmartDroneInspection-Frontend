@@ -1126,4 +1126,13 @@ export const viCatalog: Record<string, string> = {
   "Findings confirmed. Draft report narrative and submit for independent review.": "Đã xác nhận lỗi. Hãy soạn dự thảo báo cáo và gửi duyệt độc lập.",
   "Inspection report is officially published.": "Báo cáo kiểm tra đã được phát hành chính thức.",
   "Critical defects forwarded to maintenance engineering team.": "Các lỗi nghiêm trọng đã được chuyển tiếp sang đội ngũ kỹ thuật bảo trì.",
+  "Inspection history": "Lịch sử kiểm tra",
+  "missions": "đợt",
+  "No inspection history recorded for this asset yet.": "Chưa có lịch sử kiểm tra nào cho tài sản này.",
+  "Complete & Archive Asset": "Đóng hợp đồng & Lưu trữ công trình",
+  "Complete & Archive Contract": "Xác nhận đóng hợp đồng & lưu trữ công trình",
+  "Are you sure you want to complete work and archive this asset? The asset will be set to RETIRED. All historical inspections, reports, and evidence will remain safely preserved in the history section.": "Bạn có chắc chắn muốn hoàn thành hợp đồng và lưu trữ công trình này? Trạng thái công trình sẽ chuyển thành RETIRED. Toàn bộ lịch sử kiểm tra, báo cáo và hồ sơ kỹ thuật sẽ được lưu trữ an toàn để tra cứu.",
+  "Confirm Archive": "Xác nhận lưu trữ",
+  "Archiving…": "Đang lưu trữ…",
+  "This asset has been completed and archived. Inspection history and documents remain available for audit and reference.": "Công trình này đã hoàn thành hợp đồng và được lưu trữ. Toàn bộ hồ sơ tài liệu và lịch sử các đợt kiểm tra vẫn được lưu trữ để tra cứu và kiểm toán.",
 };

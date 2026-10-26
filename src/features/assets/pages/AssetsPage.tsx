@@ -40,13 +40,16 @@ import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
-import { useAssets, useCreateAsset, useAssetPair, useReassignAssetPair } from '../hooks/useAssets';
+import { useAssets, useCreateAsset, useAssetPair, useReassignAssetPair, useRetireAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
 import { useDroneSelection } from '../hooks/useDrones';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
 import { useRecurringSchedules } from '@/features/inspections/hooks/useRecurringSchedules';
 import { RecurringScheduleDetailDialog } from '@/features/inspections/components/RecurringScheduleDetailDialog';
+import { useInspections } from '@/features/inspections/hooks/useInspections';
+import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { FlightPermitPanel } from './FlightPermitPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -83,6 +86,7 @@ export function AssetsPage() {
   const [inspectionAssetId, setInspectionAssetId] = useState<string | null>(null);
   const [recurringAssetId, setRecurringAssetId] = useState<string | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -331,6 +335,7 @@ export function AssetsPage() {
         onNewInspection={(id) => setInspectionAssetId(id)}
         onNewRecurringSchedule={(id) => setRecurringAssetId(id)}
         onSelectSchedule={(id) => setSelectedScheduleId(id)}
+        onSelectInspection={(id) => setSelectedInspectionId(id)}
       />
       <CreateInspectionDialog
         open={Boolean(inspectionAssetId)}
@@ -349,6 +354,11 @@ export function AssetsPage() {
         open={Boolean(selectedScheduleId)}
         scheduleId={selectedScheduleId}
         onClose={() => setSelectedScheduleId(null)}
+      />
+      <InspectionWorkDetailDialog
+        open={Boolean(selectedInspectionId)}
+        inspectionId={selectedInspectionId}
+        onClose={() => setSelectedInspectionId(null)}
       />
       </>}
       {isClient && resourceTab === 1 && <DroneInventoryPanel />}
@@ -705,6 +715,7 @@ function AssetRecurringSchedulesSection({
   const { t } = useLocale();
   const schedulesQuery = useRecurringSchedules({ assetId });
   const schedules = schedulesQuery.data?.items ?? [];
+  const hasActiveSchedule = schedules.some((s) => s.status === 'ACTIVE');
 
   return (
     <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
@@ -717,15 +728,25 @@ function AssetRecurringSchedulesSection({
           {t('Recurring inspection schedules')}
         </Typography>
         {isClient && (
-          <Button
-            size="small"
-            variant="text"
-            startIcon={<Add sx={{ fontSize: 14 }} />}
-            onClick={() => onNewRecurringSchedule?.(assetId)}
-            sx={{ textTransform: 'none', fontSize: '12px', fontWeight: 600 }}
-          >
-            {t('Add schedule')}
-          </Button>
+          hasActiveSchedule ? (
+            <Chip
+              size="small"
+              label={t('Active schedule running')}
+              color="success"
+              variant="outlined"
+              sx={{ fontSize: '11px', height: 22, fontWeight: 600 }}
+            />
+          ) : (
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<Add sx={{ fontSize: 14 }} />}
+              onClick={() => onNewRecurringSchedule?.(assetId)}
+              sx={{ textTransform: 'none', fontSize: '12px', fontWeight: 600 }}
+            >
+              {t('Add schedule')}
+            </Button>
+          )
         )}
       </Stack>
 
@@ -803,22 +824,99 @@ function AssetRecurringSchedulesSection({
   );
 }
 
+function AssetInspectionHistorySection({
+  assetId,
+  onSelectInspection,
+}: {
+  assetId: string;
+  onSelectInspection?: (id: string) => void;
+}) {
+  const { t, formatDate } = useLocale();
+  const inspectionsQuery = useInspections({ page: 1, pageSize: 100 });
+  const assetInspections = (inspectionsQuery.data?.items ?? []).filter(
+    (insp) => insp.assetId === assetId,
+  );
+
+  return (
+    <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
+        <Typography
+          variant="subtitle2"
+          sx={{ fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.75 }}
+        >
+          <HistoryRoundedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+          {t('Inspection history')}
+        </Typography>
+        <Chip
+          size="small"
+          label={`${assetInspections.length} ${t('missions')}`}
+          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+        />
+      </Stack>
+
+      {inspectionsQuery.isLoading ? (
+        <CircularProgress size={18} sx={{ my: 1 }} />
+      ) : assetInspections.length > 0 ? (
+        <Stack spacing={1}>
+          {assetInspections.map((insp) => (
+            <Paper
+              key={insp.id}
+              variant="outlined"
+              sx={{
+                p: 1.25,
+                borderRadius: '8px',
+                bgcolor: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 120ms ease',
+                '&:hover': { borderColor: 'primary.main', bgcolor: '#fcfdfe' },
+              }}
+              onClick={() => onSelectInspection?.(insp.id)}
+            >
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }} noWrap>
+                    {insp.objective}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                    {formatDate(new Date(insp.plannedStartAt ?? insp.createdAt))}
+                  </Typography>
+                </Box>
+                <StatusChip status={insp.status} />
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
+      ) : (
+        <Box sx={{ py: 1, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+            {t('No inspection history recorded for this asset yet.')}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 function AssetDetailDrawer({
   asset,
   onClose,
   onNewInspection,
   onNewRecurringSchedule,
   onSelectSchedule,
+  onSelectInspection,
 }: {
   asset: Asset | null;
   onClose: () => void;
   onNewInspection?: (assetId: string) => void;
   onNewRecurringSchedule?: (assetId: string) => void;
   onSelectSchedule?: (scheduleId: string) => void;
+  onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('ORG_MANAGER');
+  const retireMutation = useRetireAsset();
+  const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);
   const documents = useAssetDocuments(asset?.id ?? '');
   const upload = useUploadDocument(asset?.id ?? '');
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
@@ -850,6 +948,16 @@ function AssetDetailDrawer({
       urls.clear();
     };
   }, []);
+
+  const handleConfirmRetire = () => {
+    if (!asset) return;
+    retireMutation.mutate(asset.id, {
+      onSuccess: () => {
+        setConfirmRetireOpen(false);
+        onClose();
+      },
+    });
+  };
 
   const uploadAllowed = asset?.status === 'ACTIVE' || asset?.status === 'INACTIVE';
   const downloadDenied = isPermissionDenied(downloadError) || isPermissionDenied(documents.error);
@@ -900,46 +1008,73 @@ function AssetDetailDrawer({
           {asset?.code} · {formatLocation(asset?.locationText ?? null)}
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
+        {asset?.status === 'RETIRED' && (
+          <Alert severity="info" sx={{ my: 1.5, borderRadius: 1.5, fontSize: '0.8125rem' }}>
+            {t(
+              'This asset has been completed and archived. Inspection history and documents remain available for audit and reference.',
+            )}
+          </Alert>
+        )}
         {isClient && asset?.status === 'ACTIVE' && (
-          <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 1 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={() => {
-                if (asset) onNewInspection?.(asset.id);
-                onClose();
-              }}
-              sx={{
-                bgcolor: '#3758f9',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'none',
-                boxShadow: 'none',
-                '&:hover': { bgcolor: '#2b45cb' },
-              }}
-            >
-              {t('New inspection')}
-            </Button>
+          <>
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 1 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => {
+                  if (asset) onNewInspection?.(asset.id);
+                  onClose();
+                }}
+                sx={{
+                  bgcolor: '#3758f9',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  '&:hover': { bgcolor: '#2b45cb' },
+                }}
+              >
+                {t('New inspection')}
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<EventRepeatIcon sx={{ fontSize: 16 }} />}
+                onClick={() => {
+                  if (asset) onNewRecurringSchedule?.(asset.id);
+                  onClose();
+                }}
+                sx={{
+                  borderColor: '#3758f9',
+                  color: '#3758f9',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)', borderColor: '#2b45cb' },
+                }}
+              >
+                {t('Recurring schedule')}
+              </Button>
+            </Stack>
             <Button
               variant="outlined"
+              color="error"
               fullWidth
-              startIcon={<EventRepeatIcon sx={{ fontSize: 16 }} />}
-              onClick={() => {
-                if (asset) onNewRecurringSchedule?.(asset.id);
-                onClose();
-              }}
+              size="small"
+              onClick={() => setConfirmRetireOpen(true)}
               sx={{
-                borderColor: '#3758f9',
-                color: '#3758f9',
+                mb: 1.5,
                 fontSize: '12px',
                 fontWeight: 600,
                 textTransform: 'none',
-                '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)', borderColor: '#2b45cb' },
+                borderColor: '#fca5a5',
+                color: '#dc2626',
+                '&:hover': { bgcolor: '#fef2f2', borderColor: '#ef4444' },
               }}
             >
-              {t('Recurring schedule')}
+              {t('Complete & Archive Asset')}
             </Button>
-          </Stack>
+          </>
         )}
         {asset && <OperationalPairSection assetId={asset.id} isClient={isClient} />}
         {asset && (
@@ -951,6 +1086,15 @@ function AssetDetailDrawer({
               onClose();
             }}
             onSelectSchedule={(id) => onSelectSchedule?.(id)}
+          />
+        )}
+        {asset && (
+          <AssetInspectionHistorySection
+            assetId={asset.id}
+            onSelectInspection={(id) => {
+              onSelectInspection?.(id);
+              onClose();
+            }}
           />
         )}
         <Divider sx={{ my: 2 }} />
@@ -1059,6 +1203,38 @@ function AssetDetailDrawer({
           </Typography>
         )}
       </Box>
+
+      <Dialog
+        open={confirmRetireOpen}
+        onClose={() => setConfirmRetireOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t('Complete & Archive Contract')}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: '#475569', mt: 1 }}>
+            {t(
+              'Are you sure you want to complete work and archive this asset? The asset will be set to RETIRED. All historical inspections, reports, and evidence will remain safely preserved in the history section.',
+            )}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmRetireOpen(false)} disabled={retireMutation.isPending}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmRetire}
+            disabled={retireMutation.isPending}
+            sx={{ fontWeight: 600 }}
+          >
+            {retireMutation.isPending ? t('Archiving…') : t('Confirm Archive')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Drawer>
   );
 }

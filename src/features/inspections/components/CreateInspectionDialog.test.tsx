@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateInspection = vi.fn();
 const mockCreateRecurringSchedule = vi.fn();
+let mockActiveSchedules: { id: string; assetId: string; status: string; objective: string }[] = [];
 
 vi.mock('../hooks/useInspections', () => ({
   useCreateInspection: () => ({
@@ -19,6 +20,12 @@ vi.mock('../hooks/useRecurringSchedules', () => ({
   useCreateRecurringSchedule: () => ({
     mutate: mockCreateRecurringSchedule,
     isPending: false,
+    isError: false,
+    error: null,
+  }),
+  useRecurringSchedules: () => ({
+    data: { items: mockActiveSchedules, total: mockActiveSchedules.length },
+    isLoading: false,
     isError: false,
     error: null,
   }),
@@ -112,6 +119,7 @@ describe('CreateInspectionDialog', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    mockActiveSchedules = [];
   });
 
   it('renders default operational pair when asset is preselected', async () => {
@@ -328,5 +336,32 @@ describe('CreateInspectionDialog', () => {
         expect.anything(),
       );
     });
+  });
+
+  it('disables submit and shows warning alert when asset already has an active recurring schedule', () => {
+    mockActiveSchedules = [
+      {
+        id: 'sched-existing',
+        assetId: 'asset-1',
+        status: 'ACTIVE',
+        objective: 'Existing active schedule',
+      },
+    ];
+
+    renderWithClient(
+      <CreateInspectionDialog
+        open={true}
+        onClose={vi.fn()}
+        preselectedAssetId="asset-1"
+        initialScheduleMode="RECURRING"
+      />,
+    );
+
+    expect(
+      screen.getByText(/This asset already has an active recurring inspection schedule/i),
+    ).toBeTruthy();
+
+    const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
+    expect(submitBtn).toHaveProperty('disabled', true);
   });
 });

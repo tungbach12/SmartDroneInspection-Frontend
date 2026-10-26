@@ -23,10 +23,21 @@ import { useAssets, useAssetPair } from '@/features/assets/hooks/useAssets';
 import { useDroneSelection } from '@/features/assets/hooks/useDrones';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { useCreateInspection } from '../hooks/useInspections';
-import { useCreateRecurringSchedule } from '../hooks/useRecurringSchedules';
+import { useCreateRecurringSchedule, useRecurringSchedules } from '../hooks/useRecurringSchedules';
 import type { RecurrenceUnit } from '../api/recurringScheduleApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+function ensureJsonString(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {
+    return JSON.stringify(trimmed);
+  }
+}
 
 export interface CreateInspectionDialogProps {
   open: boolean;
@@ -85,6 +96,7 @@ function InspectionForm({
   const droneSelectionQuery = useDroneSelection();
   const createInspection = useCreateInspection();
   const createRecurringSchedule = useCreateRecurringSchedule();
+  const recurringSchedulesQuery = useRecurringSchedules({ assetId: assetId || undefined, status: 'ACTIVE' });
 
   const activeAssets = (assetsQuery.data?.items ?? []).filter((a) => a.status === 'ACTIVE');
   const inspectors = (workforceQuery.data ?? []).filter(
@@ -93,6 +105,10 @@ function InspectionForm({
   const drones = (droneSelectionQuery.data ?? []).filter((d) => d.serviceability !== 'RETIRED');
 
   const defaultPair = assetPairQuery.data;
+  const activeSchedules = (recurringSchedulesQuery.data?.items ?? []).filter(
+    (s) => s.status === 'ACTIVE' && (!assetId || s.assetId === assetId),
+  );
+  const hasActiveRecurringSchedule = scheduleMode === 'RECURRING' && activeSchedules.length > 0;
 
   const handleToggleOverride = (checked: boolean) => {
     setOverridePair(checked);
@@ -127,9 +143,9 @@ function InspectionForm({
         {
           assetId,
           objective: objective.trim(),
-          scope: scope.trim() || null,
-          componentScope: componentScope.trim() || null,
-          acceptanceCriteria: acceptanceCriteria.trim() || null,
+          scope: ensureJsonString(scope),
+          componentScope: ensureJsonString(componentScope),
+          acceptanceCriteria: ensureJsonString(acceptanceCriteria),
           plannedStartAt: plannedStartAt ? new Date(plannedStartAt).toISOString() : null,
           plannedEndAt: plannedEndAt ? new Date(plannedEndAt).toISOString() : null,
           inspectorId: overridePair && overrideInspectorId ? overrideInspectorId : null,
@@ -152,9 +168,9 @@ function InspectionForm({
         {
           assetId,
           objective: objective.trim(),
-          scope: scope.trim() || null,
-          componentScope: componentScope.trim() || null,
-          acceptanceCriteria: acceptanceCriteria.trim() || null,
+          scope: ensureJsonString(scope),
+          componentScope: ensureJsonString(componentScope),
+          acceptanceCriteria: ensureJsonString(acceptanceCriteria),
           anchor: formattedAnchor,
           timezone: timezone.trim() || defaultTimezone,
           unit,
@@ -192,6 +208,14 @@ function InspectionForm({
                 .includes('schedule conflict')
                 ? 'Schedule conflict: The assigned inspector or drone is already committed to another active inspection during this planned window. Please select different dates or reassign a different inspector or drone.'
                 : getErrorMessage(currentError, 'Could not create the inspection.')}
+            </Alert>
+          )}
+
+          {hasActiveRecurringSchedule && (
+            <Alert severity="warning">
+              {t(
+                'This asset already has an active recurring inspection schedule. End the existing schedule before creating a new one.',
+              )}
             </Alert>
           )}
 
@@ -491,6 +515,7 @@ function InspectionForm({
             isPending ||
             !assetId ||
             !objective.trim() ||
+            hasActiveRecurringSchedule ||
             (scheduleMode === 'RECURRING' && !anchor)
           }
         >

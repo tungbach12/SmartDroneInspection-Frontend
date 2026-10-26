@@ -19,6 +19,7 @@ vi.mock('@/features/auth/store/authStore', () => ({
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
 }));
 
 const mockRecurringSchedule = {
@@ -120,6 +121,7 @@ vi.mock('../hooks/useAssets', () => ({
     isLoading: false,
   }),
   useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({
@@ -129,6 +131,47 @@ vi.mock('../hooks/useCatalog', () => ({
 vi.mock('../hooks/useAssetDocuments', () => ({
   useAssetDocuments: () => ({ data: [], isLoading: false, error: null }),
   useUploadDocument: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+}));
+
+const mockInspection = {
+  id: 'insp-history-1',
+  organizationId: 'org-1',
+  assetId: 'asset-1',
+  inspectorId: 'user-inspector',
+  objective: 'Past Annual Visual Check',
+  status: 'COMPLETED',
+  plannedStartAt: '2026-10-15T08:00:00Z',
+  plannedEndAt: '2026-10-15T10:00:00Z',
+  createdAt: '2026-10-10T00:00:00Z',
+  updatedAt: '2026-10-15T10:00:00Z',
+  reportId: 'rep-1',
+  reportStatus: 'PUBLISHED',
+  reportVersionNo: 1,
+  pendingAction: 'NONE',
+};
+
+vi.mock('@/features/inspections/hooks/useInspections', () => ({
+  useInspections: () => ({
+    data: {
+      items: [mockInspection],
+      totalCount: 1,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+    },
+    isLoading: false,
+    error: null,
+  }),
+  useInspection: () => ({
+    data: null,
+    isLoading: false,
+  }),
+  useCreateInspection: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
 }));
 
 import { AssetsPage } from './AssetsPage';
@@ -173,5 +216,31 @@ describe('AssetsPage recurring schedules integration', () => {
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getAllByText(/Bi-weekly Cable Stay Vibration Check/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders asset inspection history in AssetDetailDrawer', async () => {
+    renderWithClient(<AssetsPage />);
+
+    const assetRow = await screen.findByText('Main Cable Bridge');
+    fireEvent.click(assetRow);
+
+    expect(await screen.findByText(/Inspection history/i)).toBeTruthy();
+    expect(screen.getByText('Past Annual Visual Check')).toBeTruthy();
+    expect(screen.getByText('COMPLETED')).toBeTruthy();
+  });
+
+  it('allows ORG_MANAGER to click "Complete & Archive Asset" and open confirmation dialog', async () => {
+    renderWithClient(<AssetsPage />);
+
+    const assetRow = await screen.findByText('Main Cable Bridge');
+    fireEvent.click(assetRow);
+
+    const retireBtn = await screen.findByRole('button', { name: /Complete & Archive Asset/i });
+    expect(retireBtn).toBeTruthy();
+
+    fireEvent.click(retireBtn);
+
+    expect(await screen.findByText(/Complete & Archive Contract/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Confirm Archive/i })).toBeTruthy();
   });
 });

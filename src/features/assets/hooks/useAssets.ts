@@ -89,3 +89,19 @@ export function useReassignAssetPair() {
     },
   });
 }
+
+export function useRetireAsset() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: (assetId: string) => assetApi.retire(assetId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      showToast('Asset retired and contract archived successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to retire asset', 'error');
+    },
+  });
+}

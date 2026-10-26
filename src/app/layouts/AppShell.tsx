@@ -24,7 +24,6 @@ import {
   OutlinedInput,
   Stack,
   Toolbar,
-  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -320,18 +319,6 @@ export function AppShell({ portal }: AppShellProps) {
             />
           )}
           <NotificationBell portal={portal} />
-          <Tooltip title={signingOut ? 'Signing out…' : 'Sign out'}>
-            <span>
-              <IconButton
-                aria-label={t('Sign out')}
-                onClick={signOut}
-                disabled={signingOut}
-                sx={{ mr: 1, color: 'text.secondary' }}
-              >
-                <LogoutRounded fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
           <LocaleToggle />
           <ColorModeToggle />
         </Toolbar>
