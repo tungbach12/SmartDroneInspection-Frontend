@@ -542,7 +542,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                       size="small"
                                       color="error"
                                       variant="outlined"
-                                      label={t('Removed / Audit log')}
+                                      label={t('Removed')}
                                       sx={{ fontWeight: 700 }}
                                     />
                                     <Chip size="small" label={finding.severity} />
