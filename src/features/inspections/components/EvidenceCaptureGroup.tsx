@@ -81,6 +81,8 @@ export interface EvidenceCaptureGroupProps {
   onRecommendedActionsChange: (findingId: string, val: string) => void;
   onConfirmFinding: (finding: Finding) => void;
   onDeleteFinding: (findingId: string) => void;
+  onRestoreFinding?: (findingId: string) => void;
+  isRestorePending?: boolean;
   isConfirmPending: boolean;
   isDeletePending: boolean;
   isUpdatePending: boolean;
@@ -528,7 +530,38 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                             )}
 
                             {/* Card Footer Actions */}
-                            {!confirmed && props.isInspector && (
+                            {finding.isDeleted ? (
+                              <Box sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
+                                <Stack
+                                  direction="row"
+                                  spacing={1}
+                                  sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+                                >
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                    <Chip
+                                      size="small"
+                                      color="error"
+                                      variant="outlined"
+                                      label={t('Removed / Audit log')}
+                                      sx={{ fontWeight: 700 }}
+                                    />
+                                    <Chip size="small" label={finding.severity} />
+                                  </Stack>
+                                  {props.isInspector && props.onRestoreFinding && (
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                      disabled={props.isRestorePending}
+                                      onClick={() => props.onRestoreFinding?.(finding.id)}
+                                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                                    >
+                                      {t('Restore Finding')}
+                                    </Button>
+                                  )}
+                                </Stack>
+                              </Box>
+                            ) : !confirmed && props.isInspector ? (
                               <Box sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
                                 <Stack
                                   direction={{ xs: 'column', sm: 'row' }}
@@ -595,9 +628,9 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                   </Stack>
                                 </Stack>
                               </Box>
-                            )}
+                            ) : null}
 
-                            {confirmed && (
+                            {confirmed && !finding.isDeleted && (
                               <Box sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
                                 <Stack
                                   direction="row"

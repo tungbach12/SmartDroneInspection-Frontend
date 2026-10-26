@@ -140,6 +140,18 @@ export interface InspectionWorkflowState {
  * tombstone: `isDeleted` says the finding was removed, and the status still says whether it had
  * been confirmed.
  */
+export interface FindingPage {
+  items: Finding[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  activeCount: number;
+  removedCount: number;
+  pendingCount: number;
+  confirmedCount: number;
+}
+
 export interface Finding {
   id: string;
   inspectionId: string;
@@ -386,6 +398,22 @@ export const inspectionApi = {
   listFindings: (inspectionId: string) =>
     api
       .get<Finding[]>(`/inspections/${inspectionId}/findings`)
+      .then((response) => response.data),
+
+  queryFindings: (
+    inspectionId: string,
+    filters: {
+      status?: 'ACTIVE' | 'PENDING' | 'CONFIRMED' | 'REMOVED' | 'ALL';
+      severity?: FindingSeverity;
+      source?: 'ALL' | 'AI' | 'MANUAL';
+      defectQuery?: string;
+      evidenceQuery?: string;
+      page?: number;
+      pageSize?: number;
+    },
+  ) =>
+    api
+      .get<FindingPage>(`/inspections/${inspectionId}/findings/query`, { params: filters })
       .then((response) => response.data),
 
   /** The findings the Inspector removed, for the caller that asks to see them. */
