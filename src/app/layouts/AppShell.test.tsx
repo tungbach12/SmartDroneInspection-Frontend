@@ -96,8 +96,9 @@ describe('AppShell with NotificationBell integration', () => {
       wrapper: createWrapper(queryClient),
     });
 
-    const signOutBtn = screen.getByRole('button', { name: /sign out/i });
-    fireEvent.click(signOutBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide sidebar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspector One inspector@example.com' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /sign out/i }));
 
     await waitFor(() => {
       expect(logoutCurrentSession).toHaveBeenCalled();

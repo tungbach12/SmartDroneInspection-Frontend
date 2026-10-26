@@ -1,6 +1,10 @@
 import { AxiosError } from 'axios';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+import { recurringScheduleApi } from '@/features/inspections/api/recurringScheduleApi';
 import type { AssetDocument } from '../api/documentApi';
 
 function problemError(status: number, detail: string, code: string): AxiosError {
@@ -47,6 +51,7 @@ vi.mock('@/features/auth/store/authStore', () => ({
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
 }));
 
 vi.mock('../api/documentApi', async (importOriginal) => {
@@ -102,6 +107,7 @@ vi.mock('../hooks/useAssets', () => ({
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useAssetPair: () => ({ data: null, isLoading: false }),
   useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({
@@ -110,11 +116,27 @@ vi.mock('../hooks/useCatalog', () => ({
 
 import { AssetsPage } from './AssetsPage';
 
+function renderWithClient(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('AssetsPage document streaming contract', () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(inspectionApi, 'list').mockResolvedValue({
+      items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0,
+    });
+    vi.spyOn(recurringScheduleApi, 'list').mockResolvedValue({
+      items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0,
+    });
     documents = [storedDocument];
     documentsState = { isLoading: false, error: null };
     uploadState = { isError: false, error: null };
@@ -130,7 +152,7 @@ describe('AssetsPage document streaming contract', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockReturnValue();
 
     try {
-      render(<AssetsPage />);
+      renderWithClient(<AssetsPage />);
       (await screen.findByText('North bridge')).click();
       const open = await screen.findByRole('button', { name: /Open/ });
       open.click();
@@ -145,7 +167,7 @@ describe('AssetsPage document streaming contract', () => {
   });
 
   it('does not render an unauthenticated content href for a document', async () => {
-    render(<AssetsPage />);
+    renderWithClient(<AssetsPage />);
     (await screen.findByText('North bridge')).click();
 
     const open = await screen.findByRole('button', { name: /Open/ });
@@ -159,7 +181,7 @@ describe('AssetsPage document streaming contract', () => {
       error: problemError(403, 'No organization scope', 'FORBIDDEN'),
     };
 
-    render(<AssetsPage />);
+    renderWithClient(<AssetsPage />);
     (await screen.findByText('North bridge')).click();
 
     const alert = await screen.findByTestId('document-access-denied');
@@ -174,7 +196,7 @@ describe('AssetsPage document streaming contract', () => {
       error: problemError(403, 'No organization scope', 'FORBIDDEN'),
     };
 
-    render(<AssetsPage />);
+    renderWithClient(<AssetsPage />);
     (await screen.findByText('North bridge')).click();
     await screen.findByTestId('document-access-denied');
 
@@ -204,7 +226,7 @@ describe('AssetsPage document streaming contract', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockReturnValue();
 
     try {
-      render(<AssetsPage />);
+      renderWithClient(<AssetsPage />);
       (await screen.findByText('North bridge')).click();
       const open = await screen.findByRole('button', { name: /Open/ });
       open.click();
@@ -236,7 +258,7 @@ describe('AssetsPage document streaming contract', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockReturnValue();
 
     try {
-      const { unmount } = render(<AssetsPage />);
+      const { unmount } = renderWithClient(<AssetsPage />);
       (await screen.findByText('North bridge')).click();
       const open = await screen.findByRole('button', { name: /Open/ });
       open.click();
@@ -268,7 +290,7 @@ describe('AssetsPage document streaming contract', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockReturnValue();
 
     try {
-      const { unmount } = render(<AssetsPage />);
+      const { unmount } = renderWithClient(<AssetsPage />);
       (await screen.findByText('North bridge')).click();
       const open = await screen.findByRole('button', { name: /Open/ });
       open.click();
