@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { droneApi, droneKeys } from '../api/droneApi';
-import { useCreateDrone, useDrones, useUploadDroneDocument } from './useDrones';
+import { useCreateDrone, useDrones } from './useDrones';
 
 vi.mock('../api/droneApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/droneApi')>();
@@ -13,7 +13,6 @@ vi.mock('../api/droneApi', async (importOriginal) => {
       ...actual.droneApi,
       list: vi.fn(),
       create: vi.fn(),
-      uploadDocument: vi.fn(),
     },
   };
 });
@@ -44,26 +43,6 @@ describe('useDrones', () => {
 
     await waitFor(() => expect(result.current.data).toEqual(drones));
     expect(client.getQueryData(droneKeys.list())).toEqual(drones);
-  });
-
-  it('does not retain an uploaded file in mutation variables after success', async () => {
-    vi.mocked(droneApi.uploadDocument).mockResolvedValue({ id: 'document-1' } as never);
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const { result } = renderHook(() => useUploadDroneDocument('drone-1'), {
-      wrapper: createWrapper(client),
-    });
-    const file = new File(['synthetic payload'], 'document.pdf', { type: 'application/pdf' });
-
-    result.current.mutate({ file, documentType: 'AIRWORTHINESS' });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(vi.mocked(droneApi.uploadDocument)).toHaveBeenCalledWith('drone-1', {
-      documentType: 'AIRWORTHINESS',
-      file,
-    });
-    const variables = client.getMutationCache().getAll().at(-1)?.state.variables;
-    expect(variables).toEqual({ documentType: 'AIRWORTHINESS' });
-    expect(variables).not.toHaveProperty('file');
   });
 
   it('invalidates drone lists after creating a drone', async () => {

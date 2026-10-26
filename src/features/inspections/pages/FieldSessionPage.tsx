@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import UploadFile from '@mui/icons-material/UploadFile';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -23,7 +24,9 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import {
   useFieldSessionOutcome,
   useFieldSessions,
+  useInspection,
   useStartFieldSession,
+  useUploadFlightPermit,
 } from '../hooks/useInspections';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -38,10 +41,14 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 export default function FieldSessionPage() {
   const { formatDateTime, t } = useLocale();
   const { inspectionId = '' } = useParams();
+  const inspectionQuery = useInspection(inspectionId);
+  const inspection = inspectionQuery.data;
   const sessions = useFieldSessions(inspectionId);
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
+  const uploadPermit = useUploadFlightPermit(inspectionId);
 
+  const [permitFile, setPermitFile] = useState<File | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [preFlightNote, setPreFlightNote] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
@@ -54,6 +61,9 @@ export default function FieldSessionPage() {
   const openSession = items.find(
     (session) => session.status === 'IN_PROGRESS' || session.status === 'PLANNED',
   );
+
+  const isAssigned = inspection?.status === 'ASSIGNED';
+  const canStart = !isAssigned;
 
   return (
     <Stack spacing={2}>
@@ -78,6 +88,91 @@ export default function FieldSessionPage() {
         subtitle={t('Record the on-site work: the pre-flight checklist, the session itself, and why it stopped.')}
       />
 
+      {isAssigned && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: '16px',
+            bgcolor: '#fffbeb',
+            borderColor: '#fde68a',
+          }}
+        >
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <FlightTakeoffRounded sx={{ color: '#d97706' }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
+                {t('Flight Permit Required')}
+              </Typography>
+            </Stack>
+            <Typography variant="body2" sx={{ color: '#78350f' }}>
+              {t('Upload an approved flight permit to authorize field flight operations. Uploading unlocks session startup and moves inspection to Ready for Flight.')}
+            </Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadFile />}
+                sx={{ bgcolor: '#fff' }}
+              >
+                {permitFile ? permitFile.name : t('Choose permit file')}
+                <input
+                  type="file"
+                  hidden
+                  accept=".pdf,image/png,image/jpeg,image/webp"
+                  onChange={(e) => setPermitFile(e.target.files?.[0] ?? null)}
+                />
+              </Button>
+              <LoadingButton
+                variant="contained"
+                disabled={!permitFile}
+                loading={uploadPermit.isPending}
+                onClick={() => {
+                  if (permitFile) {
+                    uploadPermit.mutate(permitFile, {
+                      onSuccess: () => setPermitFile(null),
+                    });
+                  }
+                }}
+              >
+                {t('Upload flight permit')}
+              </LoadingButton>
+            </Stack>
+            <MutationProblemAlert
+              error={uploadPermit.error}
+              isError={uploadPermit.isError}
+              fallbackMessage={t('Could not upload flight permit.')}
+            />
+          </Stack>
+        </Paper>
+      )}
+
+      {inspection?.flightPermitFileName && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.5,
+            borderRadius: '12px',
+            bgcolor: '#f0fdf4',
+            borderColor: '#bbf7d0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: '#166534', fontWeight: 600 }}>
+            📜 {t('Active Flight Permit:')} {inspection.flightPermitFileName}
+          </Typography>
+          {inspection.flightPermitUploadedAt && (
+            <Typography variant="caption" sx={{ color: '#15803d' }}>
+              {t('Uploaded')} {formatDateTime(new Date(inspection.flightPermitUploadedAt))}
+            </Typography>
+          )}
+        </Paper>
+      )}
+
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
         <Stack spacing={2}>
           <Stack
@@ -101,10 +196,14 @@ export default function FieldSessionPage() {
               size="small"
               variant="contained"
               loading={startSession.isPending}
-              disabled={Boolean(openSession)}
+              disabled={Boolean(openSession) || !canStart}
               onClick={() => setStartOpen(true)}
             >
-              {openSession ? 'Session already open' : 'Start session'}
+              {openSession
+                ? 'Session already open'
+                : !canStart
+                  ? 'Flight permit required'
+                  : 'Start session'}
             </LoadingButton>
           </Stack>
 

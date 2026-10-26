@@ -12,7 +12,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { FactCheckOutlined, RateReviewOutlined, TaskAltOutlined } from '@mui/icons-material';
+import { FactCheckOutlined, TaskAltOutlined } from '@mui/icons-material';
 import Add from '@mui/icons-material/Add';
 import {
   getSectionPath,
@@ -29,7 +29,6 @@ import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
-import AssignmentInboxPanel from './AssignmentInboxPanel';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -89,11 +88,9 @@ export default function InspectionsPage() {
     // The reviewer opens the phase the row is actually waiting in, rather than a fixed tab.
     const row = visibleItems.find((item) => item.id === inspectionId);
     const target =
-      row?.pendingAction === 'READINESS_REVIEW'
-        ? 'preparation'
-        : row?.pendingAction === 'CORRECTIVE_DISPOSITION'
-          ? 'corrective'
-          : 'review';
+      row?.pendingAction === 'CORRECTIVE_DISPOSITION'
+        ? 'corrective'
+        : 'review';
     navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${target}`);
   };
 
@@ -106,14 +103,13 @@ export default function InspectionsPage() {
   }, [visibleItems, statusFilter]);
   const totalCount = inspections.data?.totalCount ?? visibleItems.length;
   const inProgressCount = items.filter((item) =>
-    ['PREPARING', 'READY_FOR_FLIGHT', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(item.status),
+    ['READY_FOR_FLIGHT', 'IN_PROGRESS', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(item.status),
   ).length;
   const repairPendingCount = items.filter((item) => item.status === 'REPAIR_PENDING').length;
   const completedCount = items.filter((item) => item.status === 'COMPLETED').length;
 
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
-  const readinessDueCount = items.filter((item) => item.pendingAction === 'READINESS_REVIEW').length;
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
   const correctiveDueCount = items.filter((item) => item.pendingAction === 'CORRECTIVE_DISPOSITION').length;
 
@@ -227,13 +223,6 @@ export default function InspectionsPage() {
         </Box>
       )}
 
-      {/* Assignment response is an Inspector action, not part of the organization review queue. */}
-      {roles.includes('INSPECTOR') && (
-        <Box sx={{ mb: 2.5 }}>
-          <AssignmentInboxPanel />
-        </Box>
-      )}
-
       {!canBrowse ? (
         <Alert severity="info">
           The inspection list is available to Inspectors, organization manageristrators, and platform
@@ -250,10 +239,6 @@ export default function InspectionsPage() {
           )}
           {isOrganizationAdmin && view !== 'schedules' && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <Paper variant="outlined" role="group" aria-label={`Readiness reviews due on this page: ${readinessDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-                <RateReviewOutlined color={readinessDueCount ? 'warning' : 'disabled'} />
-                <Box><Typography variant="caption" color="text.secondary">{t('Readiness review · this page')}</Typography><Typography variant="h6">{readinessDueCount}</Typography></Box>
-              </Paper>
               <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
                 <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
                 <Box><Typography variant="caption" color="text.secondary">{t('Report review · this page')}</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
@@ -302,7 +287,6 @@ export default function InspectionsPage() {
               >
                 <MenuItem value="ALL">{t('All statuses')}</MenuItem>
                 <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
-                <MenuItem value="PREPARING">{t('Preparing')}</MenuItem>
                 <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
                 <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
                 <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>

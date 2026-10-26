@@ -31,6 +31,10 @@ interface ApiUser {
   actorZone: string;
   organizationId: string | null;
   visionFallbackEnabled?: boolean;
+  pilotLicenseNumber?: string;
+  pilotLicenseClass?: string;
+  pilotLicenseExpiresAt?: string;
+  pilotLicenseFileKey?: string;
 }
 
 interface ApiAuthFlow {
@@ -83,6 +87,22 @@ function parseUser(value: unknown): AuthUser {
       typeof user.visionFallbackEnabled === 'boolean'
         ? user.visionFallbackEnabled
         : true,
+    pilotLicenseNumber:
+      typeof user.pilotLicenseNumber === 'string'
+        ? user.pilotLicenseNumber
+        : undefined,
+    pilotLicenseClass:
+      typeof user.pilotLicenseClass === 'string'
+        ? user.pilotLicenseClass
+        : undefined,
+    pilotLicenseExpiresAt:
+      typeof user.pilotLicenseExpiresAt === 'string'
+        ? user.pilotLicenseExpiresAt
+        : undefined,
+    pilotLicenseFileKey:
+      typeof user.pilotLicenseFileKey === 'string'
+        ? user.pilotLicenseFileKey
+        : undefined,
   };
 }
 
@@ -173,6 +193,18 @@ export async function updateVisionFallbackPreference(visionFallbackEnabled: bool
   const { data } = await api.put<AuthUser>('/auth/me/ai-fallback-preference', {
     visionFallbackEnabled,
   });
+  return parseUser(data);
+}
+
+export interface UpdatePilotLicenseInput {
+  pilotLicenseNumber: string;
+  pilotLicenseClass?: string | undefined;
+  pilotLicenseExpiresAt?: string | undefined;
+  pilotLicenseFileKey?: string | undefined;
+}
+
+export async function updatePilotLicense(input: UpdatePilotLicenseInput): Promise<AuthUser> {
+  const { data } = await api.put<AuthUser>('/auth/me/pilot-license', input);
   return parseUser(data);
 }
 

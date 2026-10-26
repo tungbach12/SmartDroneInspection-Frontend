@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
       {
         id: 'session-1',
         inspectionId: 'inspection-1',
-        preparationId: 'prep-1',
         status: 'FIELD_COMPLETED',
         preFlightChecklistNote: 'Drone identified; bridge accessible',
         startedAt: '2026-10-08T08:00:00Z',
@@ -203,7 +202,7 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 
-  it('links back to the shot-list in MF2 without requiring an evidence-quality decision', () => {
+  it('links back to the checkpoints in field session without requiring an evidence-quality decision', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -212,7 +211,7 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('link', { name: /shot-list in preparation/i })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /checkpoints in field session/i })).toBeTruthy();
     expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 

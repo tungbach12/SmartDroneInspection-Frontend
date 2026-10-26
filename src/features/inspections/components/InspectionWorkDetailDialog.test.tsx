@@ -19,22 +19,16 @@ const mockInspectionData: InspectionDetail = {
   assetId: 'asset-999',
   assetName: 'Thu Thiem Bridge No. 2',
   locationText: '10.7769° N, 106.7009° E',
-  assetPairAssignmentId: 'pair-123',
   inspectorId: 'user-inspector-1',
   inspectorName: 'Bob Inspector',
   droneId: 'drone-777',
   droneSerialNumber: 'DJI-MATRICE-300-RTK',
   droneModel: 'Matrice 300 RTK',
   droneServiceability: 'ACTIVE',
-  flightPermitReference: 'PERMIT-MND-2026-088',
-  flightPermitAuthority: 'Department of Operations - MND',
-  flightPermitValidFrom: '2026-10-01T00:00:00Z',
-  flightPermitValidUntil: '2026-12-31T23:59:59Z',
-  flightPermitStatus: 'READY',
-  objective: 'Structural cable tension and corrosion visual inspection',
-  scope: '{"method": "high-res-rgb", "distance": "5m"}',
-  componentScope: '["Cable Stay 1", "Pylon North", "Deck Joint East"]',
-  acceptanceCriteria: '{"minGSD": "0.5mm/px", "coverage": "100%"}',
+  flightPermitFileKey: 'permits/permit-mnd-2026-088.pdf',
+  flightPermitFileName: 'PERMIT-MND-2026-088.pdf',
+  flightPermitUploadedAt: '2026-10-20T09:30:00Z',
+  inspectionItems: ['Cable Stay 1', 'Pylon North', 'Deck Joint East'],
   plannedStartAt: '2026-11-05T09:00:00Z',
   plannedEndAt: '2026-11-05T12:00:00Z',
   status: 'READY_FOR_FLIGHT',
@@ -88,20 +82,19 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    // Objective & Status
-    expect(screen.getByText('Structural cable tension and corrosion visual inspection')).toBeTruthy();
+    // Header & Status
+    expect(screen.getAllByText('Thu Thiem Bridge No. 2').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('READY_FOR_FLIGHT')).toBeTruthy();
 
     // Asset & Location
-    expect(screen.getByText('Thu Thiem Bridge No. 2')).toBeTruthy();
     expect(screen.getByText('10.7769° N, 106.7009° E')).toBeTruthy();
 
     // Drone & Permit
     expect(screen.getByText(/DJI-MATRICE-300-RTK/)).toBeTruthy();
-    expect(screen.getByText('PERMIT-MND-2026-088')).toBeTruthy();
-    expect(screen.getByText(/Department of Operations - MND/)).toBeTruthy();
+    expect(screen.getByText('PERMIT-MND-2026-088.pdf')).toBeTruthy();
+    expect(screen.getByText(/Uploaded/i)).toBeTruthy();
 
-    // Components shot-list chips
+    // Inspection checkpoints
     expect(screen.getByText('Cable Stay 1')).toBeTruthy();
     expect(screen.getByText('Pylon North')).toBeTruthy();
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
@@ -128,7 +121,7 @@ describe('InspectionWorkDetailDialog', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
   });
 
-  it('navigates to preparation when inspection status is ASSIGNED', () => {
+  it('navigates to field-session when inspection status is ASSIGNED', () => {
     mockUseInspection.mockReturnValue({
       data: {
         ...mockInspectionData,
@@ -147,10 +140,10 @@ describe('InspectionWorkDetailDialog', () => {
     );
 
     expect(screen.getByText(/This inspection is assigned to you/i)).toBeTruthy();
-    const actionButton = screen.getByRole('button', { name: /Prepare mission shot-list/i });
+    const actionButton = screen.getByRole('button', { name: /Open field session/i });
     fireEvent.click(actionButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/preparation');
+    expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
   });
 
   it('navigates to full inspection view when footer button is clicked', () => {

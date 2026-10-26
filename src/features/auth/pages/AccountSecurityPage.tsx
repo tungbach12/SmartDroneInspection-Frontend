@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { getAuthErrorMessage, changePassword, logoutAllSessions, updateVisionFallbackPreference } from '../api/authApi';
+import { getAuthErrorMessage, changePassword, logoutAllSessions, updateVisionFallbackPreference, updatePilotLicense } from '../api/authApi';
 import {
   passwordChangeSchema,
   type PasswordChangeFormValues,
@@ -40,6 +40,15 @@ export default function AccountSecurityPage() {
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [preferencePending, setPreferencePending] = useState(false);
   const visionFallbackEnabled = user?.visionFallbackEnabled ?? true;
+
+  const [licenseNumber, setLicenseNumber] = useState(user?.pilotLicenseNumber ?? '');
+  const [licenseClass, setLicenseClass] = useState(user?.pilotLicenseClass ?? '');
+  const [licenseExpiresAt, setLicenseExpiresAt] = useState(
+    user?.pilotLicenseExpiresAt ? user.pilotLicenseExpiresAt.split('T')[0] : '',
+  );
+  const [licensePending, setLicensePending] = useState(false);
+  const [licenseError, setLicenseError] = useState<string | null>(null);
+  const [licenseSuccess, setLicenseSuccess] = useState<string | null>(null);
 
   const form = useForm<PasswordChangeFormValues>({
     resolver: zodResolver(passwordChangeSchema),
@@ -161,6 +170,88 @@ export default function AccountSecurityPage() {
             </Stack>
           </Stack>
         </Box>
+
+        {user?.roles.includes('INSPECTOR') && (
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 3,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setLicenseError(null);
+                setLicenseSuccess(null);
+                setLicensePending(true);
+                try {
+                  const updated = await updatePilotLicense({
+                    pilotLicenseNumber: licenseNumber.trim(),
+                    pilotLicenseClass: licenseClass.trim() || undefined,
+                    pilotLicenseExpiresAt: licenseExpiresAt ? new Date(licenseExpiresAt).toISOString() : undefined,
+                  });
+                  useAuthStore.getState().setUser(updated);
+                  setLicenseSuccess(t('Pilot license updated successfully.'));
+                } catch (error) {
+                  setLicenseError(getAuthErrorMessage(error));
+                } finally {
+                  setLicensePending(false);
+                }
+              }}
+            >
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {t('Pilot license self-declaration')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {t('Self-declare your remote pilot license details required to perform drone inspections.')}
+                  </Typography>
+                </Box>
+                {licenseError && <Alert severity="error">{licenseError}</Alert>}
+                {licenseSuccess && <Alert severity="success">{licenseSuccess}</Alert>}
+                <TextField
+                  label={t('License number')}
+                  required
+                  size="small"
+                  value={licenseNumber}
+                  onChange={(e) => setLicenseNumber(e.target.value)}
+                  placeholder="e.g. RPL-VN-2026-0042"
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    label={t('License class')}
+                    size="small"
+                    fullWidth
+                    value={licenseClass}
+                    onChange={(e) => setLicenseClass(e.target.value)}
+                    placeholder="e.g. CLASS_3 / Commercial"
+                  />
+                  <TextField
+                    type="date"
+                    label={t('Expiry date')}
+                    size="small"
+                    fullWidth
+                    value={licenseExpiresAt}
+                    onChange={(e) => setLicenseExpiresAt(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                </Stack>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={licensePending || !licenseNumber.trim()}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  {licensePending ? t('Saving…') : t('Save pilot license')}
+                </Button>
+              </Stack>
+            </form>
+          </Box>
+        )}
 
         {user?.roles.includes('INSPECTOR') && (
           <Box

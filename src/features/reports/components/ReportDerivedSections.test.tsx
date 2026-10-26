@@ -32,19 +32,9 @@ const version: InspectionReportVersion = {
     assetLocation: 'District 1',
     assetCategory: 'Bridge',
     assignedDrone: { serialNumber: 'DR-17', manufacturer: 'SurveyCo', model: 'S2' },
-    preparation: {
-      version: 2,
-      status: 'READY',
-      shotList: 'North span, east face',
-      evidenceTypes: 'Visual photographs',
-      accessConstraints: 'Pedestrian access only',
-      safetyObservations: 'No standing water',
-      readinessDecision: 'APPROVED',
-      readinessDecisionAt: '2026-01-02T09:00:00Z',
-      readinessReason: null,
-      permitDocumentReferences: null,
-      submittedAt: '2026-01-02T08:00:00Z',
-    },
+    flightPermitFileName: 'PERMIT-2026-NORTH.pdf',
+    flightPermitUploadedAt: '2026-01-02T08:00:00Z',
+    inspectionItems: ['North span', 'East face', 'Pier 1'],
     fieldSessions: [
       {
         id: 'session-1',
@@ -142,7 +132,8 @@ describe('ReportDerivedSections source context', () => {
     expect(container.textContent).toContain('Northwind Infrastructure');
     expect(container.textContent).toContain('North span bridge');
     expect(container.textContent).toContain('BR-014');
-    expect(container.textContent).toContain('North span, east face');
+    expect(container.textContent).toContain('PERMIT-2026-NORTH.pdf');
+    expect(container.textContent).toContain('North span, East face, Pier 1');
     expect(container.textContent).toContain('Drone identified; bridge accessible');
     expect(container.textContent).toContain('Professional qualification was not independently validated.');
   });

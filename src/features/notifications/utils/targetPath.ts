@@ -10,7 +10,6 @@ const ALLOWED_INSPECTION_SUBROUTES = new Set([
   'evidence',
   'findings',
   'report',
-  'preparation',
   'field-session',
   'review',
   'corrective',
@@ -73,14 +72,15 @@ export function resolveSafeNotificationRoute(
       return null;
     }
     if (subroute) {
-      if (!ALLOWED_INSPECTION_SUBROUTES.has(subroute)) {
+      const normalizedSubroute = subroute === 'preparation' ? 'field-session' : subroute;
+      if (!ALLOWED_INSPECTION_SUBROUTES.has(normalizedSubroute)) {
         return null;
       }
       // Review and corrective are restricted to client portal ORG_MANAGER
-      if ((subroute === 'review' || subroute === 'corrective') && targetPortal !== 'client') {
+      if ((normalizedSubroute === 'review' || normalizedSubroute === 'corrective') && targetPortal !== 'client') {
         return `/${targetPortal}/inspections/${inspectionId}`;
       }
-      return `/${targetPortal}/inspections/${inspectionId}/${subroute}`;
+      return `/${targetPortal}/inspections/${inspectionId}/${normalizedSubroute}`;
     }
     return `/${targetPortal}/inspections/${inspectionId}`;
   }

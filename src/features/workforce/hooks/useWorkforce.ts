@@ -4,9 +4,7 @@ import { useToastStore } from '@/shared/ui/Toast';
 import {
   workforceApi,
   workforceKeys,
-  type CreateWorkforceCredentialInput,
   type ProvisionWorkforceUserInput,
-  type ReviewWorkforceCredentialInput,
   type UpdateWorkforceUserRolesInput,
   type UpdateWorkforceUserStatusInput,
 } from '../api/workforceApi';
@@ -16,39 +14,6 @@ export function useWorkforceUsers(enabled = true) {
     queryKey: workforceKeys.users(),
     queryFn: () => workforceApi.listUsers(),
     enabled,
-  });
-}
-
-export function useWorkforceCredentials() {
-  return useQuery({
-    queryKey: workforceKeys.credentials(),
-    queryFn: () => workforceApi.listCredentials(),
-  });
-}
-
-export function useCreateWorkforceCredential() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: CreateWorkforceCredentialInput) => workforceApi.createCredential(input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: workforceKeys.credentials() });
-    },
-  });
-}
-
-export function useReviewWorkforceCredential() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      id,
-      decision,
-      reason,
-    }: ReviewWorkforceCredentialInput & { id: string }) =>
-      workforceApi.reviewCredential(id, { decision, reason }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: workforceKeys.credentials() });
-      void queryClient.invalidateQueries({ queryKey: workforceKeys.users() });
-    },
   });
 }
 

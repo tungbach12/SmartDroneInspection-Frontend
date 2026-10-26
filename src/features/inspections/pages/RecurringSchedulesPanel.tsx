@@ -180,7 +180,7 @@ export function RecurringSchedulesPanel({ onOpenCreateDialog }: RecurringSchedul
             <TableHead sx={{ bgcolor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>{t('Target Asset')}</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>{t('Objective & Recurrence')}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{t('Recurrence')}</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>{t('Assigned Pair')}</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>{t('Next Due')}</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>{t('Status')}</TableCell>
@@ -205,10 +205,10 @@ export function RecurringSchedulesPanel({ onOpenCreateDialog }: RecurringSchedul
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {schedule.objective}
+                      {t('Every')} {schedule.interval} {schedule.unit.toLowerCase()}(s)
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {t('Every')} {schedule.interval} {schedule.unit.toLowerCase()}(s) · {schedule.timezone}
+                      {schedule.timezone}
                     </Typography>
                   </TableCell>
                   <TableCell>

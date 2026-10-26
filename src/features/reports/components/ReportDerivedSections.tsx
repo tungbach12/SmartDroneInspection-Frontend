@@ -118,21 +118,15 @@ export function ReportDerivedSections({
 
       {context && (
         <ReadOnlySection
-          title={t('Inspection preparation and recorded session context')}
+          title={t('Inspection context and recorded field sessions')}
           accountable={t('Inspector · Organization Manager reviewer')}
-          description={t('Source records from inspection preparation, readiness review and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
+          description={t('Source records from flight permit authorization, inspection items and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
         >
           <Box>
             <Field label={t('Assigned Drone')} value={[context.assignedDrone?.manufacturer, context.assignedDrone?.model, context.assignedDrone?.serialNumber].filter(Boolean).join(' · ')} />
-            <Field label={t('Preparation version / status')} value={context.preparation ? `v${context.preparation.version} · ${context.preparation.status}` : null} />
-            <Field label={t('Planned shot list')} value={context.preparation?.shotList} />
-            <Field label={t('Evidence types requested')} value={context.preparation?.evidenceTypes} />
-            <Field label={t('Access constraints')} value={context.preparation?.accessConstraints} />
-            <Field label={t('Safety observations')} value={context.preparation?.safetyObservations} />
-            <Field label={t('Permit document references')} value={context.preparation?.permitDocumentReferences} />
-            <Field label={t('Readiness decision')} value={context.preparation?.readinessDecision} />
-            <Field label={t('Readiness decision time')} value={formatDateTime(context.preparation?.readinessDecisionAt, formatDateTimeValue, t('Not supplied'))} />
-            <Field label={t('Readiness reason')} value={context.preparation?.readinessReason} />
+            <Field label={t('Flight permit')} value={context.flightPermitFileName} />
+            <Field label={t('Flight permit uploaded')} value={formatDateTime(context.flightPermitUploadedAt, formatDateTimeValue, t('Not supplied'))} />
+            <Field label={t('Inspection items')} value={context.inspectionItems?.join(', ')} />
             <Field label={t('Findings confirmation')} value={formatDateTime(context.findingsConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
             {context.fieldSessions.map((session) => (
               <Box key={session.id} sx={{ mt: 1, p: 1.5, border: '1px solid #e4e7ec', borderRadius: '8px' }}>

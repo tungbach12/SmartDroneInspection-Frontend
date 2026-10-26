@@ -164,6 +164,34 @@ describe('InspectorScheduleCalendar', () => {
     expect(handleSelect).toHaveBeenCalledWith('insp-001');
   });
 
+  it('falls back to inspection id label when backend list items omit objective', () => {
+    const first = mockItems[0]!;
+    const { objective: _omitted, ...withoutObjective } = first;
+    mockUseInspections.mockReturnValue({
+      data: {
+        items: [withoutObjective],
+        totalCount: 1,
+        page: 1,
+        pageSize: 100,
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const handleSelect = vi.fn();
+    render(
+      <InspectorScheduleCalendar
+        onSelectInspection={handleSelect}
+        initialDate={initialDate}
+      />,
+    );
+
+    const chip = screen.getByText('Inspection #insp-001');
+    fireEvent.click(chip);
+    expect(handleSelect).toHaveBeenCalledWith('insp-001');
+  });
+
   it('navigates previous and next months when arrow buttons are clicked', () => {
     render(
       <InspectorScheduleCalendar

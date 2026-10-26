@@ -35,22 +35,6 @@ export interface InspectionWorkDetailDialogProps {
   onClose: () => void;
 }
 
-function parseJsonOrString(raw: string | null | undefined): string | string[] | null {
-  if (!raw || !raw.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.map((item) => String(item));
-    if (typeof parsed === 'object' && parsed !== null) {
-      return Object.entries(parsed)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(', ');
-    }
-    return String(parsed);
-  } catch {
-    return raw;
-  }
-}
-
 export function InspectionWorkDetailDialog({
   open,
   inspectionId,
@@ -75,15 +59,9 @@ export function InspectionWorkDetailDialog({
     switch (status) {
       case 'ASSIGNED':
         return {
-          tip: t('This inspection is assigned to you. Prepare the component shot-list and verify flight permits before flight.'),
-          actionLabel: t('Prepare mission shot-list'),
-          subpath: 'preparation',
-        };
-      case 'PREPARING':
-        return {
-          tip: t('Preparation is in progress. Complete target component shot-list and submit for flight readiness review.'),
-          actionLabel: t('Continue preparation'),
-          subpath: 'preparation',
+          tip: t('This inspection is assigned to you. Upload the regulatory flight permit in the field session to unlock flight readiness.'),
+          actionLabel: t('Open field session'),
+          subpath: 'field-session',
         };
       case 'READY_FOR_FLIGHT':
         return {
@@ -131,9 +109,7 @@ export function InspectionWorkDetailDialog({
     }
   };
 
-  const componentScopeItems = parseJsonOrString(inspection?.componentScope);
-  const scopeDescription = parseJsonOrString(inspection?.scope);
-  const criteriaDescription = parseJsonOrString(inspection?.acceptanceCriteria);
+  const inspectionItems = inspection?.inspectionItems ?? [];
   const guidance = inspection ? getWorkflowGuidance(inspection.status) : null;
 
   return (
@@ -184,7 +160,7 @@ export function InspectionWorkDetailDialog({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.125rem', lineHeight: 1.3 }} noWrap>
-              {inspection?.objective || t('Inspection work details')}
+              {inspection?.assetName || t('Inspection work details')}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
               {t('Inspection ID')}: <span style={{ fontFamily: 'monospace' }}>{inspectionId?.slice(0, 13)}…</span>
@@ -375,16 +351,11 @@ export function InspectionWorkDetailDialog({
                     {t('Regulatory Flight Permit')}
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
-                    {inspection.flightPermitReference || t('Awaiting Permit Link')}
+                    {inspection.flightPermitFileName || t('Awaiting Permit Upload')}
                   </Typography>
-                  {inspection.flightPermitAuthority && (
+                  {inspection.flightPermitUploadedAt && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {t('Issuer')}: {inspection.flightPermitAuthority}
-                    </Typography>
-                  )}
-                  {inspection.flightPermitValidFrom && inspection.flightPermitValidUntil && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {t('Valid')}: {formatDate(new Date(inspection.flightPermitValidFrom))} — {formatDate(new Date(inspection.flightPermitValidUntil))}
+                      {t('Uploaded')}: {formatDate(new Date(inspection.flightPermitUploadedAt))}
                     </Typography>
                   )}
                 </Grid>
@@ -411,9 +382,9 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                     {t('Target components to inspect')}
                   </Typography>
-                  {Array.isArray(componentScopeItems) && componentScopeItems.length > 0 ? (
+                  {inspectionItems.length > 0 ? (
                     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 0.75 }}>
-                      {componentScopeItems.map((comp, idx) => (
+                      {inspectionItems.map((comp, idx) => (
                         <Chip
                           key={idx}
                           label={comp}
@@ -425,34 +396,10 @@ export function InspectionWorkDetailDialog({
                     </Stack>
                   ) : (
                     <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
-                      {typeof componentScopeItems === 'string'
-                        ? componentScopeItems
-                        : t('Standard full physical inspection covering all accessible structures')}
+                      {t('Standard full physical inspection covering all accessible structures')}
                     </Typography>
                   )}
                 </Box>
-
-                {scopeDescription && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                      {t('Method / General Scope')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
-                      {Array.isArray(scopeDescription) ? scopeDescription.join(', ') : scopeDescription}
-                    </Typography>
-                  </Box>
-                )}
-
-                {criteriaDescription && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                      {t('Acceptance Criteria')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
-                      {Array.isArray(criteriaDescription) ? criteriaDescription.join(', ') : criteriaDescription}
-                    </Typography>
-                  </Box>
-                )}
               </Stack>
             </Paper>
           </Stack>

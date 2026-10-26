@@ -8,10 +8,6 @@ export type OccurrenceStatus = 'GENERATED' | 'BLOCKED' | 'SKIPPED';
 
 export interface CreateRecurringScheduleInput {
   assetId: string;
-  objective: string;
-  scope?: string | null | undefined;
-  componentScope?: string | null | undefined;
-  acceptanceCriteria?: string | null | undefined;
   anchor: string;
   timezone: string;
   unit: RecurrenceUnit;
@@ -36,10 +32,6 @@ export interface RecurringSchedule {
   droneId: string;
   droneSerialNumber: string | null;
   droneModel: string | null;
-  objective: string;
-  scope: string | null;
-  componentScope: string | null;
-  acceptanceCriteria: string | null;
   anchor: string;
   timezone: string;
   unit: RecurrenceUnit;

@@ -60,8 +60,6 @@ function getStatusColors(status: InspectionStatus): {
   switch (status) {
     case 'ASSIGNED':
       return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', badge: '#3b82f6' };
-    case 'PREPARING':
-      return { bg: '#fffbeb', color: '#b45309', border: '#fde68a', badge: '#f59e0b' };
     case 'READY_FOR_FLIGHT':
       return { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', badge: '#10b981' };
     case 'IN_PROGRESS':
@@ -319,7 +317,6 @@ export function InspectorScheduleCalendar({
           >
             <MenuItem value="ALL">{t('All statuses')}</MenuItem>
             <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
-            <MenuItem value="PREPARING">{t('Preparing')}</MenuItem>
             <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
             <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
             <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
@@ -455,10 +452,11 @@ export function InspectorScheduleCalendar({
                     {dayItems.slice(0, 3).map((item) => {
                       const colors = getStatusColors(item.status);
                       const timeStr = formatTime(item.plannedStartAt);
+                      const label = item.objective || `${t('Inspection')} #${item.id.slice(0, 8)}`;
                       return (
                         <Tooltip
                           key={item.id}
-                          title={`${item.objective} (${t(item.status)})`}
+                          title={`${label} (${t(item.status)})`}
                           arrow
                           placement="top"
                         >
@@ -497,7 +495,7 @@ export function InspectorScheduleCalendar({
                               }}
                             />
                             {timeStr && <span>{timeStr}</span>}
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.objective}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
                           </Box>
                         </Tooltip>
                       );
@@ -640,7 +638,7 @@ export function InspectorScheduleCalendar({
                                 lineHeight: 1.3,
                               }}
                             >
-                              {item.objective}
+                              {item.objective || `${t('Inspection')} #${item.id.slice(0, 8)}`}
                             </Typography>
                             <Box sx={{ mt: 1 }}>
                               <StatusChip status={item.status} size="small" />
@@ -724,7 +722,7 @@ export function InspectorScheduleCalendar({
                         )}
                         <Box>
                           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                            {item.objective}
+                            {item.objective || `${t('Inspection')} #${item.id.slice(0, 8)}`}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {item.plannedStartAt ? formatDateTime(new Date(item.plannedStartAt)) : t('No time')}
@@ -802,7 +800,7 @@ export function InspectorScheduleCalendar({
                   }}
                 >
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {item.objective}
+                    {item.objective || `${t('Inspection')} #${item.id.slice(0, 8)}`}
                   </Typography>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <StatusChip status={item.status} size="small" />

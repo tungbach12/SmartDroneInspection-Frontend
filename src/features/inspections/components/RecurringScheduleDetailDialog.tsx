@@ -121,7 +121,9 @@ export function RecurringScheduleDetailDialog({
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
             <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
-              {schedule?.objective || t('Recurring Schedule Details')}
+              {schedule?.assetName
+                ? `${schedule.assetName} — ${t('Recurring Schedule Details')}`
+                : t('Recurring Schedule Details')}
             </Typography>
             {schedule && (
               <Chip

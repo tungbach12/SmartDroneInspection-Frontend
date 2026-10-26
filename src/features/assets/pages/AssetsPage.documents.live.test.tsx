@@ -30,10 +30,7 @@ vi.mock('@/features/auth/store/authStore', async (importOriginal) => {
   };
 });
 
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
-  useLocation: () => ({ pathname: '/client/assets' }),
-}));
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useLocation: () => ({ pathname: '/client/assets' }) }));
 
 vi.mock('../hooks/useAssets', () => ({
   useAssets: () => ({
@@ -60,12 +57,27 @@ vi.mock('../hooks/useAssets', () => ({
     isLoading: false,
   }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useAssetPair: () => ({ data: null, isLoading: false }),
-  useReassignAssetPair: () => ({ mutate: vi.fn(), isPending: false }),
-  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetireAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));
+
+vi.mock('@/features/inspections/hooks/useRecurringSchedules', () => ({
+  useRecurringSchedules: () => ({ data: { items: [], totalCount: 0, page: 1, pageSize: 50, totalPages: 1 }, isLoading: false, error: null }),
+  useRecurringSchedule: () => ({ data: null, isLoading: false, error: null }),
+  useCreateRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  usePauseRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useResumeRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useEndRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
+  useRetryScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
+  useSkipScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/features/inspections/hooks/useInspections', () => ({
+  useInspections: () => ({ data: { items: [], totalCount: 0, page: 1, pageSize: 100, totalPages: 1 }, isLoading: false, error: null }),
+  useInspection: () => ({ data: null, isLoading: false, isError: false }),
+  useCreateInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}));
 
 import { AssetsPage } from './AssetsPage';
 
@@ -120,17 +132,8 @@ const serverTransport = ((config: InternalAxiosRequestConfig) => {
     );
   }
 
-  let data: unknown;
-  if (url === '/assets/a1/documents') {
-    data = [DOCUMENT];
-  } else if (url === '/inspections' || url === '/inspection-schedules') {
-    data = { items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 };
-  } else {
-    throw new Error(`Unexpected request: ${url}`);
-  }
-
   return Promise.resolve<AxiosResponse>({
-    data: { success: true, message: 'Success', data },
+    data: { success: true, message: 'Success', data: [DOCUMENT] },
     status: 200,
     statusText: 'OK',
     headers: {},

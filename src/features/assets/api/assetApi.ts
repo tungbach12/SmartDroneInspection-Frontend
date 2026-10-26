@@ -1,17 +1,5 @@
 import { api } from '@/shared/api/client';
 
-export interface AssetDefaultPair {
-  pairAssignmentId: string;
-  inspectorUserId: string;
-  inspectorName: string | null;
-  droneId: string;
-  droneSerialNumber: string | null;
-  droneModel: string | null;
-  status: string;
-  validFrom: string;
-  validUntil: string | null;
-}
-
 export interface Asset {
   id: string;
   code: string;
@@ -23,7 +11,7 @@ export interface Asset {
   status: 'PENDING_REVIEW' | 'ACTIVE' | 'INACTIVE' | 'REJECTED' | 'RETIRED';
   categoryId: string;
   createdAt: string;
-  defaultPair?: AssetDefaultPair | null;
+  inspectionItems: string[];
 }
 
 export interface AssetListFilters {
@@ -41,8 +29,7 @@ export interface CreateAssetInput {
   latitude?: number | null;
   longitude?: number | null;
   ownershipInformation?: string | null;
-  defaultInspectorId?: string | null;
-  defaultDroneId?: string | null;
+  inspectionItems?: string[];
 }
 
 export interface UpdateAssetInput {
@@ -52,12 +39,7 @@ export interface UpdateAssetInput {
   latitude?: number | null;
   longitude?: number | null;
   ownershipInformation?: string | null;
-}
-
-export interface ReassignPairInput {
-  inspectorId: string;
-  droneId: string;
-  reason?: string | undefined;
+  inspectionItems?: string[];
 }
 
 export interface AssetPage {
@@ -85,7 +67,6 @@ export const assetKeys = {
   list: (filters: AssetListFilters) => [...assetKeys.lists(), filters] as const,
   pendingReview: () => [...assetKeys.all, 'pending-review'] as const,
   detail: (id: string) => [...assetKeys.all, 'detail', id] as const,
-  pair: (assetId: string) => [...assetKeys.all, 'pair', assetId] as const,
 };
 
 export const assetApi = {
@@ -96,12 +77,6 @@ export const assetApi = {
     api.get<AssetPage>('/assets/pending-review', { params: filters }).then((r) => r.data),
 
   getById: (id: string) => api.get<Asset>(`/assets/${id}`).then((r) => r.data),
-
-  getActivePair: (assetId: string) =>
-    api.get<AssetDefaultPair>(`/assets/${assetId}/pair`).then((r) => r.data),
-
-  reassignPair: (assetId: string, input: ReassignPairInput) =>
-    api.put<AssetDefaultPair>(`/assets/${assetId}/pair`, input).then((r) => r.data),
 
   create: (input: CreateAssetInput) => api.post<Asset>('/assets', input).then((r) => r.data),
 

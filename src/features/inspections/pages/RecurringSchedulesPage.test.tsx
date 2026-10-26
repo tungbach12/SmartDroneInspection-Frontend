@@ -24,10 +24,6 @@ const mockSchedulesData = {
       droneId: 'drone-1',
       droneSerialNumber: 'DJI-999',
       droneModel: 'Matrice 350',
-      objective: 'Bi-weekly thermal panel inspection',
-      scope: 'Thermal',
-      componentScope: 'String 1-10',
-      acceptanceCriteria: 'None',
       anchor: '2026-11-01T09:00:00',
       timezone: 'Asia/Ho_Chi_Minh',
       unit: 'WEEK' as const,
@@ -56,10 +52,6 @@ const mockSchedulesData = {
       droneId: 'drone-2',
       droneSerialNumber: 'DJI-888',
       droneModel: 'Mavic 3T',
-      objective: 'Monthly blade leading edge inspection',
-      scope: 'Visual',
-      componentScope: 'Blades',
-      acceptanceCriteria: 'None',
       anchor: '2026-11-05T09:00:00',
       timezone: 'Asia/Ho_Chi_Minh',
       unit: 'MONTH' as const,
@@ -136,10 +128,6 @@ vi.mock('@/features/assets/hooks/useAssets', () => ({
     data: { items: [] },
     isLoading: false,
   }),
-  useAssetPair: () => ({
-    data: null,
-    isLoading: false,
-  }),
 }));
 
 vi.mock('@/features/assets/hooks/useDrones', () => ({
@@ -179,9 +167,9 @@ describe('RecurringSchedulesPage', () => {
 
     expect(await screen.findByText('Recurring Inspection Schedules')).toBeTruthy();
     expect(screen.getByText('Solar Farm B')).toBeTruthy();
-    expect(screen.getByText('Bi-weekly thermal panel inspection')).toBeTruthy();
+    expect(screen.getByText(/Every 2 week\(s\)/i)).toBeTruthy();
     expect(screen.getByText('Wind Turbine C')).toBeTruthy();
-    expect(screen.getByText('Monthly blade leading edge inspection')).toBeTruthy();
+    expect(screen.getByText(/Every 1 month\(s\)/i)).toBeTruthy();
 
     expect(screen.getByText('ACTIVE')).toBeTruthy();
     expect(screen.getByText('PAUSED')).toBeTruthy();

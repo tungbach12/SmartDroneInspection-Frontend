@@ -9,32 +9,21 @@ import {
 import {
   inspectionApi,
   type Finding,
-  type ApproveReadinessInput,
   type CreateInspectionInput,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
-  type PreparationInput,
-  type ReturnReadinessInput,
   type ReviewFindingInput,
   type ReportSectionsInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
-  myCredentials: () => [...inspectionKeys.all, 'my-credentials'] as const,
-  readinessSources: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'readiness-sources'] as const,
   all: ['inspections'] as const,
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
     [...inspectionKeys.all, 'list-with-reports', filters] as const,
-  preparations: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'preparations'] as const,
   fieldSessions: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'field-sessions'] as const,
-  compliance: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'compliance'] as const,
-  assignments: () => [...inspectionKeys.all, 'assignments'] as const,
   evidence: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'evidence'] as const,
   evidenceQuery: (inspectionId: string, filters: EvidenceQueryFilters) =>
@@ -88,35 +77,18 @@ export function useCreateInspection() {
   });
 }
 
-/** MF2-01: pairings an administrator opened for this Inspector that are still unanswered. */
-export function useAssignmentInbox(enabled = true) {
-  return useQuery({
-    queryKey: inspectionKeys.assignments(),
-    queryFn: inspectionApi.listMyAssignments,
-    enabled,
-  });
-}
-
-/**
- * MF2-02: recording the answer to a pairing.
- *
- * <p>A decline suspends the pairing, so the inbox is refetched afterwards rather than patched: the
- * answered row must leave the list the server decides it belongs to.
- */
-export function useRespondToAssignment() {
+export function useUploadFlightPermit(inspectionId: string | null) {
   const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: ({
-      assignmentId,
-      response,
-      rejectionReason,
-    }: {
-      assignmentId: string;
-      response: 'ACCEPTED' | 'REJECTED';
-      /** Optional, but may be sent as undefined; the server treats blank as absent. */
-      rejectionReason?: string | undefined;
-    }) => inspectionApi.respondToAssignment(assignmentId, response, rejectionReason),
-    onSuccess: () => client.invalidateQueries({ queryKey: inspectionKeys.assignments() }),
+    mutationFn: (file: File) => inspectionApi.uploadFlightPermit(inspectionId!, file),
+    onSuccess: () => {
+      showToast('Flight permit uploaded successfully');
+      if (!inspectionId) return;
+      void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+      void client.invalidateQueries({ queryKey: inspectionKeys.all });
+    },
+    onError: (error) => showToast(getErrorMessage(error, 'Could not upload flight permit.'), 'error'),
   });
 }
 
@@ -157,142 +129,11 @@ export function useRemovedFindings(inspectionId: string | null) {
   });
 }
 
-export function useMyCredentials(enabled = true) {
-  return useQuery({
-    queryKey: inspectionKeys.myCredentials(),
-    queryFn: inspectionApi.myCredentials,
-    enabled,
-  });
-}
-
-export function useReadinessSources(inspectionId: string | null) {
-  return useQuery({
-    queryKey: inspectionKeys.readinessSources(inspectionId ?? ''),
-    queryFn: () => inspectionApi.readinessSources(inspectionId!),
-    enabled: Boolean(inspectionId),
-  });
-}
-
-/**
- * A decision invalidates the preparation, the compliance gate and the source lists the reviewer was
- * looking at, so all of them are refreshed. Leaving the gate stale would let a reviewer approve
- * against blockers the decision itself has changed.
- */
-export function useApproveReadiness() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      inspectionId,
-      preparationId,
-      input,
-    }: {
-      inspectionId: string;
-      preparationId: string;
-      input: ApproveReadinessInput;
-    }) => inspectionApi.approveReadiness(inspectionId, preparationId, input),
-    onSuccess: (_result, { inspectionId }) => {
-      invalidateReadiness(client, inspectionId);
-    },
-  });
-}
-
-export function useReturnReadiness() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      inspectionId,
-      preparationId,
-      input,
-    }: {
-      inspectionId: string;
-      preparationId: string;
-      input: ReturnReadinessInput;
-    }) => inspectionApi.returnReadiness(inspectionId, preparationId, input),
-    onSuccess: (_result, { inspectionId }) => {
-      invalidateReadiness(client, inspectionId);
-    },
-  });
-}
-
-function invalidateReadiness(client: ReturnType<typeof useQueryClient>, inspectionId: string) {
-  client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
-  client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
-  client.invalidateQueries({ queryKey: inspectionKeys.readinessSources(inspectionId) });
-  client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
-}
-
-/**
- * MF2-09 to MF2-12: the assigned Inspector's field sessions for this inspection.
- *
- * <p>The route is Inspector-only, so a reviewer must not request it; the caller passes whether the
- * current user may read it.
- */
 export function useFieldSessions(inspectionId: string | null, enabled = true) {
   return useQuery({
     queryKey: fieldSessionKeys.forInspection(inspectionId ?? ''),
     queryFn: () => fieldSessionApi.list(inspectionId!),
     enabled: Boolean(inspectionId) && enabled,
-  });
-}
-
-export function useInspectionPreparations(inspectionId: string | null) {
-  return useQuery({
-    queryKey: inspectionKeys.preparations(inspectionId ?? ''),
-    queryFn: () => inspectionApi.listPreparations(inspectionId!),
-    enabled: Boolean(inspectionId),
-  });
-}
-
-export function useComplianceGate(inspectionId: string | null) {
-  return useQuery({
-    queryKey: inspectionKeys.compliance(inspectionId ?? ''),
-    queryFn: () => inspectionApi.complianceGate(inspectionId!),
-    enabled: Boolean(inspectionId),
-  });
-}
-
-/**
- * Saving a draft also refreshes the compliance gate: the gate reads the permit references recorded
- * on the same preparation, so a stale gate after a save would tell the reviewer the wrong thing.
- */
-export function usePrepareShotList() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ inspectionId, input }: { inspectionId: string; input: PreparationInput }) =>
-      inspectionApi.prepareShotList(inspectionId, input),
-    onSuccess: (_result, { inspectionId }) => {
-      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
-    },
-  });
-}
-
-export function useSubmitPreparation() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      inspectionId,
-      preparationId,
-      acknowledgment,
-    }: {
-      inspectionId: string;
-      preparationId: string;
-      acknowledgment: string;
-    }) => inspectionApi.submitPreparation(inspectionId, preparationId, acknowledgment),
-    onSuccess: (_result, { inspectionId }) => {
-      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
-    },
-  });
-}
-
-export function useLinkPermitReferences() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ inspectionId, permitIds }: { inspectionId: string; permitIds: string[] }) =>
-      inspectionApi.linkPermitReferences(inspectionId, permitIds),
-    onSuccess: (_result, { inspectionId }) => {
-      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
-    },
   });
 }
 
@@ -565,27 +406,6 @@ export function useDeleteFinding(inspectionId: string | null) {
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
     onError: (error) => showToast(getErrorMessage(error, 'The finding was not removed.'), 'error'),
-  });
-}
-
-export function useRequestAdditionalSession(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (reason: string) => inspectionApi.requestAdditionalSession(inspectionId!, reason),
-    onSuccess: () => {
-      showToast('Additional field work requested. Update preparation and wait for readiness review.');
-      if (!inspectionId) return;
-      client.invalidateQueries({ queryKey: inspectionKeys.preparations(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
-      client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.compliance(inspectionId) });
-      client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
-      client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
-    },
-    onError: (error) =>
-      showToast(getErrorMessage(error, 'The additional session was not requested.'), 'error'),
   });
 }
 

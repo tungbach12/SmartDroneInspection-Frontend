@@ -22,19 +22,6 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
-  assignmentInboxQuery: {
-    data: [] as unknown[] | undefined,
-    isLoading: false,
-    isError: false,
-    error: null as Error | null,
-    refetch: vi.fn(),
-  },
-  respondToAssignment: {
-    mutate: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null as Error | null,
-  },
   useInspectionsArgs: undefined as unknown[] | undefined,
   useReportsArgs: undefined as unknown[] | undefined,
 }));
@@ -56,8 +43,6 @@ vi.mock('../hooks/useInspections', async () => {
       return mocks.reportsQuery;
     },
     useInspection: () => ({ data: undefined, isLoading: false, isError: false }),
-    useAssignmentInbox: () => mocks.assignmentInboxQuery,
-    useRespondToAssignment: () => mocks.respondToAssignment,
   };
 });
 
@@ -193,6 +178,26 @@ describe('InspectionsPage', () => {
     expect(screen.queryByLabelText('Inspection ID')).toBeNull();
   });
 
+  it('falls back to inspection id label when backend list item omits objective', async () => {
+    const { objective: _omitted, ...withoutObjective } = listedInspection();
+    mocks.listQuery = {
+      data: {
+        items: [withoutObjective],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage();
+
+    expect(await screen.findByRole('row', { name: /Inspection #inspecti/ })).toBeTruthy();
+  });
+
   it('opens the inspection route when a row is chosen, where the MF3 workflow lives', async () => {
     renderPage();
 
@@ -304,7 +309,6 @@ describe('InspectionsPage', () => {
     expect(screen.getByText(/administrator's decision is report-level/i)).toBeTruthy();
 
     // The queue counts the phases the administrator is actually asked to decide.
-    expect(screen.getByRole('group', { name: 'Readiness reviews due on this page: 0' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Corrective outcomes due on this page: 1' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
@@ -323,7 +327,7 @@ describe('InspectionsPage', () => {
     mocks.reportsQuery = {
       data: {
         items: [
-          { ...listedInspection(), id: 'readiness-1', objective: 'Approve readiness', reportId: null, reportStatus: null, reportVersionNo: null, pendingAction: 'READINESS_REVIEW' },
+          { ...listedInspection(), id: 'corr-1', objective: 'Corrective outcome', reportId: 'report-1', reportStatus: 'PUBLISHED', reportVersionNo: 1, pendingAction: 'CORRECTIVE_DISPOSITION' },
         ],
         page: 1,
         pageSize: 10,
@@ -337,10 +341,10 @@ describe('InspectionsPage', () => {
 
     renderPage('/client/inspections?view=reports');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Review readiness' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Record corrective outcome' }));
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
-      '/client/inspections/readiness-1/preparation',
+      '/client/inspections/corr-1/corrective',
     );
   });
 

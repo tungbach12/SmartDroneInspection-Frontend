@@ -17,15 +17,15 @@ describe('inspectionApi MF3 simplified contracts', () => {
     expect(form.has('source')).toBe(false);
   });
 
-  it('requests another field session through the MF2 preparation action', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { id: 'preparation-2' } } as never);
+  it('uploads flight permit through the flight-permit endpoint', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { id: 'inspection-1', status: 'READY_FOR_FLIGHT' } } as never);
+    const file = new File(['permit'], 'permit.pdf', { type: 'application/pdf' });
 
-    await inspectionApi.requestAdditionalSession('inspection-1', 'East face was not covered');
+    await inspectionApi.uploadFlightPermit('inspection-1', file);
 
-    expect(post).toHaveBeenCalledWith(
-      '/inspections/inspection-1/field-sessions/additional-session',
-      { reason: 'East face was not covered' },
-    );
+    const [url, form] = post.mock.calls[0]!;
+    expect(url).toBe('/inspections/inspection-1/flight-permit');
+    expect((form as FormData).get('file')).toBe(file);
   });
 });
 

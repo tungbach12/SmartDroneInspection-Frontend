@@ -3,8 +3,6 @@ import { api } from '@/shared/api/client';
 export type DroneServiceability =
   'ACTIVE' | 'MAINTENANCE' | 'SUSPENDED' | 'RETIRED';
 export type DroneOwnershipType = 'OWNED' | 'LEASED';
-export type DroneDocumentStatus =
-  'PENDING_REVIEW' | 'ACTIVE' | 'EXPIRED' | 'REJECTED' | 'REVOKED';
 
 export interface Drone {
   id: string;
@@ -16,6 +14,9 @@ export interface Drone {
   ownershipType?: DroneOwnershipType;
   leaseId?: string | null;
   leaseExpiresAt?: string | null;
+  registrationNumber?: string | null;
+  registrationFileKey?: string | null;
+  registrationExpiresAt?: string | null;
   lastMaintenanceAt: string | null;
   nextMaintenanceAt: string | null;
   notes: string | null;
@@ -34,34 +35,18 @@ export interface CreateDroneInput {
   serialNumber: string;
   model?: string | null;
   manufacturer?: string | null;
+  registrationNumber?: string | null;
+  registrationFileKey?: string | null;
+  registrationExpiresAt?: string | null;
   /** JSON-serialized metadata as required by the current backend request DTO. */
   payloadMetadata?: string | null;
   notes?: string | null;
 }
 
-export interface DroneDocument {
-  id: string;
-  droneId: string;
-  documentType: string;
-  issuer: string | null;
-  documentReference: string | null;
-  validFrom: string | null;
-  validUntil: string | null;
-  status: DroneDocumentStatus;
-  checksumSha256: string;
-  uploadedByUserId: string;
-  reviewedByUserId: string | null;
-  reviewedAt: string | null;
-  createdAt: string;
-}
-
-export interface UploadDroneDocumentInput {
-  file: File;
-  documentType: string;
-  issuer?: string;
-  documentReference?: string;
-  validFrom?: string;
-  validUntil?: string;
+export interface UpdateDroneRegistrationInput {
+  registrationNumber: string;
+  registrationFileKey?: string | null;
+  registrationExpiresAt?: string | null;
 }
 
 export const droneKeys = {
@@ -70,7 +55,6 @@ export const droneKeys = {
   list: () => [...droneKeys.lists()] as const,
   selection: () => [...droneKeys.all, 'selection'] as const,
   detail: (id: string) => [...droneKeys.all, 'detail', id] as const,
-  documents: (id: string) => [...droneKeys.all, id, 'documents'] as const,
 };
 
 export const droneApi = {
@@ -84,38 +68,12 @@ export const droneApi = {
   create: (input: CreateDroneInput) =>
     api.post<Drone>('/drones', input).then((r) => r.data),
 
+  updateRegistration: (id: string, input: UpdateDroneRegistrationInput) =>
+    api.put<Drone>(`/drones/${id}/registration`, input).then((r) => r.data),
+
   updateServiceability: (
     id: string,
     input: { serviceability: DroneServiceability },
   ) =>
     api.patch<Drone>(`/drones/${id}/serviceability`, input).then((r) => r.data),
-
-  listDocuments: (id: string) =>
-    api.get<DroneDocument[]>(`/drones/${id}/documents`).then((r) => r.data),
-
-  uploadDocument: (id: string, input: UploadDroneDocumentInput) => {
-    const form = new FormData();
-    form.append('file', input.file);
-    form.append('documentType', input.documentType);
-    if (input.issuer) form.append('issuer', input.issuer);
-    if (input.documentReference)
-      form.append('documentReference', input.documentReference);
-    if (input.validFrom) form.append('validFrom', input.validFrom);
-    if (input.validUntil) form.append('validUntil', input.validUntil);
-    return api
-      .post<DroneDocument>(`/drones/${id}/documents`, form)
-      .then((r) => r.data);
-  },
-
-  updateDocumentStatus: (
-    droneId: string,
-    documentId: string,
-    input: { status: DroneDocumentStatus },
-  ) =>
-    api
-      .patch<DroneDocument>(
-        `/drones/${droneId}/documents/${documentId}/status`,
-        input,
-      )
-      .then((r) => r.data),
 };

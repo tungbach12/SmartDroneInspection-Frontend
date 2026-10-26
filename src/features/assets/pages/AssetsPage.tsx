@@ -3,7 +3,7 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   Typography,
   Tab,
   Tabs,
-  Chip,
+  CircularProgress,
   Paper,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
@@ -40,10 +40,8 @@ import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
-import { useAssets, useCreateAsset, useAssetPair, useReassignAssetPair, useRetireAsset } from '../hooks/useAssets';
+import { useAssets, useCreateAsset, useRetireAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
-import { useDroneSelection } from '../hooks/useDrones';
-import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
 import { useRecurringSchedules } from '@/features/inspections/hooks/useRecurringSchedules';
 import { RecurringScheduleDetailDialog } from '@/features/inspections/components/RecurringScheduleDetailDialog';
@@ -51,7 +49,6 @@ import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
-import { FlightPermitPanel } from './FlightPermitPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
@@ -121,30 +118,6 @@ export function AssetsPage() {
           {formatLocation(asset.locationText)}
         </Typography>
       ),
-    },
-    {
-      id: 'defaultPair',
-      label: 'Assigned Pair',
-      width: 200,
-      render: (asset) => {
-        if (!asset.defaultPair) {
-          return (
-            <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              {t('Unassigned')}
-            </Typography>
-          );
-        }
-        return (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>
-              👤 {asset.defaultPair.inspectorName ?? 'Inspector'}
-            </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-              🛸 {asset.defaultPair.droneSerialNumber ?? 'Drone'}
-            </Typography>
-          </Box>
-        );
-      },
     },
     {
       id: 'status',
@@ -284,7 +257,6 @@ export function AssetsPage() {
         <Tabs value={resourceTab} onChange={(_event, value: number) => setResourceTab(value)} aria-label={t('Asset resources')}>
           <Tab label={t('Assets')} />
           <Tab label={t('Drones')} />
-          <Tab label={t('Permits')} />
         </Tabs>
       )}
       {(!isClient || resourceTab === 0) && <>
@@ -362,7 +334,6 @@ export function AssetsPage() {
       />
       </>}
       {isClient && resourceTab === 1 && <DroneInventoryPanel />}
-      {isClient && resourceTab === 2 && <FlightPermitPanel />}
     </Box>
   );
 }
@@ -379,8 +350,7 @@ interface CreateAssetDialogProps {
     description: string | null;
     categoryId: string;
     locationText: string;
-    defaultInspectorId?: string | null;
-    defaultDroneId?: string | null;
+    inspectionItems: string[];
   }) => void;
 }
 
@@ -397,28 +367,23 @@ function CreateAssetDialogForm({
   const [categoryId, setCategoryId] = useState('');
   const [locationText, setLocationText] = useState('');
   const [description, setDescription] = useState('');
-  const [defaultInspectorId, setDefaultInspectorId] = useState('');
-  const [defaultDroneId, setDefaultDroneId] = useState('');
+  const [inspectionItemsText, setInspectionItemsText] = useState('');
 
   const activeCategories = categories.filter((category) => category.active);
-  const workforceQuery = useWorkforceUsers?.() ?? { data: [] };
-  const droneSelectionQuery = useDroneSelection?.() ?? { data: [] };
-
-  const inspectors = (workforceQuery?.data ?? []).filter(
-    (u) => Array.isArray(u?.roles) && u.roles.includes('INSPECTOR') && u.status === 'ACTIVE',
-  );
-  const drones = (droneSelectionQuery?.data ?? []).filter((d) => d?.serviceability !== 'RETIRED');
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    const items = inspectionItemsText
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     onSubmit({
       code,
       name,
       categoryId,
       locationText,
       description: description || null,
-      defaultInspectorId: defaultInspectorId || null,
-      defaultDroneId: defaultDroneId || null,
+      inspectionItems: items,
     });
   };
 
@@ -479,37 +444,14 @@ function CreateAssetDialogForm({
             onChange={(e) => setDescription(e.target.value)}
           />
           <TextField
-            select
-            label={t('Default Inspector (optional)')}
-            value={defaultInspectorId}
-            onChange={(e) => setDefaultInspectorId(e.target.value)}
-            helperText={t('Default operational inspector paired with this asset')}
-          >
-            <MenuItem value="">
-              <em>{t('None')}</em>
-            </MenuItem>
-            {inspectors.map((inspector) => (
-              <MenuItem key={inspector.userId} value={inspector.userId}>
-                {inspector.fullName} ({inspector.email})
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            label={t('Default Drone (optional)')}
-            value={defaultDroneId}
-            onChange={(e) => setDefaultDroneId(e.target.value)}
-            helperText={t('Default operational drone paired with this asset')}
-          >
-            <MenuItem value="">
-              <em>{t('None')}</em>
-            </MenuItem>
-            {drones.map((drone) => (
-              <MenuItem key={drone.id} value={drone.id}>
-                {drone.serialNumber} {drone.model ? `(${drone.model})` : ''} - {drone.serviceability}
-              </MenuItem>
-            ))}
-          </TextField>
+            label={t('Inspection Items / Checkpoints')}
+            multiline
+            rows={3}
+            value={inspectionItemsText}
+            onChange={(e) => setInspectionItemsText(e.target.value)}
+            placeholder={t('e.g. Mố cầu M1, Trụ P1, Dầm chính, Khe co giãn')}
+            helperText={t('List components or checkpoints to inspect (separated by comma or newline)')}
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -532,170 +474,23 @@ function CreateAssetDialog(props: CreateAssetDialogProps) {
   );
 }
 
-function ReassignPairDialog({
-  open,
-  onClose,
-  assetId,
-  currentInspectorId,
-  currentDroneId,
-}: {
-  open: boolean;
-  onClose: () => void;
-  assetId: string;
-  currentInspectorId?: string | null | undefined;
-  currentDroneId?: string | null | undefined;
-}) {
+function InspectionItemsSection({ items }: { items: string[] }) {
   const { t } = useLocale();
-  const reassignMutation = useReassignAssetPair?.() ?? {
-    mutate: () => {},
-    isPending: false,
-    isError: false,
-    error: null,
-  };
-  const workforceQuery = useWorkforceUsers?.() ?? { data: [] };
-  const droneSelectionQuery = useDroneSelection?.() ?? { data: [] };
-
-  const [inspectorId, setInspectorId] = useState(currentInspectorId ?? '');
-  const [droneId, setDroneId] = useState(currentDroneId ?? '');
-  const [reason, setReason] = useState('');
-
-  const inspectors = (workforceQuery?.data ?? []).filter(
-    (u) => Array.isArray(u?.roles) && u.roles.includes('INSPECTOR') && u.status === 'ACTIVE',
-  );
-  const drones = (droneSelectionQuery?.data ?? []).filter((d) => d?.serviceability !== 'RETIRED');
-
-  const handleReassign = (e: FormEvent) => {
-    e.preventDefault();
-    if (!inspectorId || !droneId) return;
-    reassignMutation.mutate(
-      { assetId, input: { inspectorId, droneId, reason: reason.trim() || undefined } },
-      {
-        onSuccess: () => {
-          onClose();
-          setReason('');
-        },
-      },
-    );
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <form onSubmit={handleReassign}>
-        <DialogTitle sx={{ fontWeight: 700 }}>{t('Reassign Operational Pair')}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {reassignMutation.isError && (
-              <Alert severity="error">
-                {getErrorMessage(reassignMutation.error, 'Reassignment failed.')}
-              </Alert>
-            )}
-            <TextField
-              select
-              label={t('Inspector')}
-              required
-              value={inspectorId}
-              onChange={(e) => setInspectorId(e.target.value)}
-            >
-              {inspectors.map((ins) => (
-                <MenuItem key={ins.userId} value={ins.userId}>
-                  {ins.fullName} ({ins.email})
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Drone"
-              required
-              value={droneId}
-              onChange={(e) => setDroneId(e.target.value)}
-            >
-              {drones.map((d) => (
-                <MenuItem key={d.id} value={d.id}>
-                  {d.serialNumber} {d.model ? `(${d.model})` : ''} - {d.serviceability}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label={t('Reassignment Reason')}
-              required
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder={t('e.g. Schedule adjustment or maintenance')}
-            />
-            <Typography variant="caption" color="text.secondary">
-              {t('The asset must be active before inspection scheduling.')}
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={onClose} disabled={reassignMutation.isPending}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={reassignMutation.isPending || !inspectorId || !droneId || !reason.trim()}
-          >
-            {reassignMutation.isPending ? 'Saving…' : 'Confirm Reassignment'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  );
-}
-
-function OperationalPairSection({ assetId, isClient }: { assetId: string; isClient: boolean }) {
-  const { formatDate, t } = useLocale();
-  const pairQuery = useAssetPair?.(assetId) ?? { data: undefined, isLoading: false };
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const pair = pairQuery.data;
-
   return (
     <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
-      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155' }}>
-          {t('Operational Pair')}
-        </Typography>
-        {isClient && (
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => setDialogOpen(true)}
-            sx={{ textTransform: 'none', fontSize: '12px' }}
-          >
-            {t('Reassign')}
-          </Button>
-        )}
-      </Stack>
-
-      {pairQuery.isLoading ? (
-        <CircularProgress size={18} />
-      ) : pair ? (
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary">
-            <strong>{t('Inspector:')}</strong> {pair.inspectorName ?? pair.inspectorUserId}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            <strong>Drone:</strong> {pair.droneSerialNumber} {pair.droneModel ? `(${pair.droneModel})` : ''}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {t('Status:')} {pair.status} {t('· Since:')} {formatDate(new Date(pair.validFrom))}
-          </Typography>
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155', mb: 1 }}>
+        {t('Inspection Checkpoints')}
+      </Typography>
+      {items && items.length > 0 ? (
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+          {items.map((item, idx) => (
+            <Chip key={idx} label={item} size="small" variant="outlined" />
+          ))}
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary">
-          {t('No default pair currently assigned.')}
+          {t('No inspection checkpoints defined for this asset.')}
         </Typography>
-      )}
-
-      {dialogOpen && (
-        <ReassignPairDialog
-          open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
-          assetId={assetId}
-          currentInspectorId={pair?.inspectorUserId}
-          currentDroneId={pair?.droneId}
-        />
       )}
     </Box>
   );
@@ -771,10 +566,11 @@ function AssetRecurringSchedulesSection({
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }} noWrap>
-                    {schedule.objective}
+                    {t('Every')} {schedule.interval} {t(schedule.unit)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                    {t('Every')} {schedule.interval} {t(schedule.unit)} · {schedule.inspectorName ?? t('Assigned Inspector')}
+                    {schedule.inspectorName ?? t('Assigned Inspector')}
+                    {schedule.droneSerialNumber ? ` · ${schedule.droneSerialNumber}` : ''}
                   </Typography>
                 </Box>
                 <Chip
@@ -875,7 +671,7 @@ function AssetInspectionHistorySection({
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }} noWrap>
-                    {insp.objective}
+                    {t('Inspection')} #{insp.id.slice(0, 8)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
                     {formatDate(new Date(insp.plannedStartAt ?? insp.createdAt))}
@@ -1076,7 +872,7 @@ function AssetDetailDrawer({
             </Button>
           </>
         )}
-        {asset && <OperationalPairSection assetId={asset.id} isClient={isClient} />}
+        {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
         {asset && (
           <AssetRecurringSchedulesSection
             assetId={asset.id}
