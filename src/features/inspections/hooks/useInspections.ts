@@ -9,6 +9,7 @@ import {
 import {
   inspectionApi,
   type Finding,
+  type FindingSeverity,
   type CreateInspectionInput,
   type InspectionListFilters,
   type ManualDraftInput,
@@ -32,6 +33,8 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'removed-findings'] as const,
   findings: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'findings'] as const,
+  findingsQuery: (inspectionId: string, filters: Record<string, unknown>) =>
+    [...inspectionKeys.all, inspectionId, 'findings-query', filters] as const,
   workflowState: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'workflow-state'] as const,
   reportVersions: (inspectionId: string) =>
@@ -423,6 +426,27 @@ export function useInspectionFindings(inspectionId: string | null) {
     queryKey: inspectionKeys.findings(inspectionId ?? ''),
     queryFn: () => inspectionApi.listFindings(inspectionId!),
     enabled: Boolean(inspectionId),
+  });
+}
+
+export function useInspectionFindingsQuery(
+  inspectionId: string | null,
+  filters: {
+    status?: 'ACTIVE' | 'PENDING' | 'CONFIRMED' | 'REMOVED' | 'ALL';
+    severity?: FindingSeverity;
+    source?: 'ALL' | 'AI' | 'MANUAL';
+    defectQuery?: string;
+    evidenceQuery?: string;
+    page?: number;
+    pageSize?: number;
+  },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: inspectionKeys.findingsQuery(inspectionId ?? '', filters),
+    queryFn: () => inspectionApi.queryFindings(inspectionId!, filters),
+    enabled: Boolean(inspectionId) && enabled,
+    placeholderData: (previous) => previous,
   });
 }
 

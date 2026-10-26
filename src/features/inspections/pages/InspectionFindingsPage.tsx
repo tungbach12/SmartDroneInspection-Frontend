@@ -4,13 +4,20 @@ import {
   Box,
   Button,
   Chip,
+  FormControlLabel,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
+  Switch,
+  TablePagination,
   TextField,
   Typography,
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import SearchRounded from '@mui/icons-material/SearchRounded';
+import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -86,6 +93,18 @@ export default function InspectionFindingsPage() {
     ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
   );
 
+  // Filter & Search states
+  const [evidenceQuery, setEvidenceQuery] = useState('');
+  const [defectQuery, setDefectQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'PENDING' | 'CONFIRMED' | 'REMOVED' | 'ALL'>('ACTIVE');
+  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'AI' | 'MANUAL'>('ALL');
+  const [onlyWithDefects, setOnlyWithDefects] = useState(false);
+
+  // Pagination states (capture-level)
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+
   const [severities, setSeverities] = useState<Record<string, FindingSeverity>>({});
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [locationErrors, setLocationErrors] = useState<Record<string, string>>({});
@@ -95,16 +114,26 @@ export default function InspectionFindingsPage() {
   const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
-  const [showRemovedFindings, setShowRemovedFindings] = useState(false);
+
+  // Combine active findings + soft-deleted findings when filter warrants it
+  const allFindingsRaw = useMemo(() => {
+    const active = findings.data ?? [];
+    const removed = (removedFindings.data ?? []).filter((f) => f.isDeleted);
+    const set = new Map<string, Finding>();
+    for (const f of active) set.set(f.id, f);
+    for (const f of removed) set.set(f.id, f);
+    return Array.from(set.values());
+  }, [findings.data, removedFindings.data]);
 
   const activeFindings = useMemo(
     () =>
-      (findings.data ?? []).filter(
+      allFindingsRaw.filter(
         (finding) =>
           !finding.isDeleted && finding.evidenceId && activeEvidenceIds.has(finding.evidenceId),
       ),
-    [activeEvidenceIds, findings.data],
+    [activeEvidenceIds, allFindingsRaw],
   );
+
   const pendingFindings = activeFindings.filter((finding) => finding.status === 'PENDING').length;
   const reviewedItemCount = activeFindings.length;
   const noFindings = activeFindings.length === 0;
@@ -143,25 +172,115 @@ export default function InspectionFindingsPage() {
   const severityFor = (finding: Finding): FindingSeverity =>
     severities[finding.id] ?? finding.severity;
 
-  const groupedFindings = useMemo(() => {
-    const groups = new Map<
-      string,
-      {
-        evidenceId: string;
-        evidence?: EvidenceItem | undefined;
-        findings: Finding[];
-      }
-    >();
+  // Multi-tier Hierarchical Filter
+  const filteredCaptureGroups = useMemo(() => {
+    const cleanDefect = defectQuery.trim().toLowerCase();
+    const cleanEvidence = evidenceQuery.trim().toLowerCase();
+
+    // 1. Filter findings according to finding-level criteria
+    const matchingFindingsByEvidence = new Map<string, Finding[]>();
     for (const item of activeEvidenceItems) {
-      groups.set(item.id, { evidenceId: item.id, evidence: item, findings: [] });
+      matchingFindingsByEvidence.set(item.id, []);
     }
-    for (const finding of activeFindings) {
-      if (!finding.evidenceId) continue;
-      const group = groups.get(finding.evidenceId);
-      if (group) group.findings.push(finding);
+
+    for (const f of allFindingsRaw) {
+      if (!f.evidenceId || !activeEvidenceIds.has(f.evidenceId)) continue;
+
+      // Status Filter
+      if (statusFilter === 'ACTIVE' && f.isDeleted) continue;
+      if (statusFilter === 'PENDING' && (f.isDeleted || f.status !== 'PENDING')) continue;
+      if (statusFilter === 'CONFIRMED' && (f.isDeleted || f.status !== 'CONFIRMED')) continue;
+      if (statusFilter === 'REMOVED' && !f.isDeleted) continue;
+
+      // Severity Filter
+      if (severityFilter !== 'ALL' && f.severity !== severityFilter) continue;
+
+      // Source Filter
+      if (sourceFilter === 'AI' && f.modelName == null) continue;
+      if (sourceFilter === 'MANUAL' && f.modelName != null) continue;
+
+      // Defect Text Search
+      if (cleanDefect) {
+        const match =
+          f.defectLabel.toLowerCase().includes(cleanDefect) ||
+          f.findingCode.toLowerCase().includes(cleanDefect) ||
+          (f.technicalNotes && f.technicalNotes.toLowerCase().includes(cleanDefect)) ||
+          (f.recommendedAction && f.recommendedAction.toLowerCase().includes(cleanDefect)) ||
+          (f.modelName && f.modelName.toLowerCase().includes(cleanDefect));
+        if (!match) continue;
+      }
+
+      const list = matchingFindingsByEvidence.get(f.evidenceId);
+      if (list) list.push(f);
     }
-    return [...groups.values()];
-  }, [activeFindings, activeEvidenceItems]);
+
+    // 2. Filter evidence items according to evidence criteria and defect existence
+    const result: Array<{ evidenceId: string; evidence: EvidenceItem; findings: Finding[] }> = [];
+
+    for (const item of activeEvidenceItems) {
+      const groupFindings = matchingFindingsByEvidence.get(item.id) ?? [];
+
+      // Evidence Query match
+      if (cleanEvidence) {
+        const matchesFile = item.fileName.toLowerCase().includes(cleanEvidence);
+        const matchesLocation =
+          item.locationDescription && item.locationDescription.toLowerCase().includes(cleanEvidence);
+        if (!matchesFile && !matchesLocation) continue;
+      }
+
+      // If user typed defect query or filtered strictly for defects, only show captures containing matching defects
+      if (cleanDefect && groupFindings.length === 0) continue;
+      if (statusFilter === 'REMOVED' && groupFindings.length === 0) continue;
+      if (onlyWithDefects && groupFindings.length === 0) continue;
+
+      result.push({
+        evidenceId: item.id,
+        evidence: item,
+        findings: groupFindings,
+      });
+    }
+
+    return result;
+  }, [
+    activeEvidenceItems,
+    allFindingsRaw,
+    activeEvidenceIds,
+    defectQuery,
+    evidenceQuery,
+    statusFilter,
+    severityFilter,
+    sourceFilter,
+    onlyWithDefects,
+  ]);
+
+  const totalMatchingCaptures = filteredCaptureGroups.length;
+  const totalMatchingFindings = useMemo(
+    () => filteredCaptureGroups.reduce((acc, g) => acc + g.findings.length, 0),
+    [filteredCaptureGroups],
+  );
+
+  const paginatedCaptureGroups = useMemo(() => {
+    const from = page * pageSize;
+    return filteredCaptureGroups.slice(from, from + pageSize);
+  }, [filteredCaptureGroups, page, pageSize]);
+
+  const hasActiveFilters =
+    Boolean(evidenceQuery) ||
+    Boolean(defectQuery) ||
+    statusFilter !== 'ACTIVE' ||
+    severityFilter !== 'ALL' ||
+    sourceFilter !== 'ALL' ||
+    onlyWithDefects;
+
+  const resetFilters = () => {
+    setEvidenceQuery('');
+    setDefectQuery('');
+    setStatusFilter('ACTIVE');
+    setSeverityFilter('ALL');
+    setSourceFilter('ALL');
+    setOnlyWithDefects(false);
+    setPage(0);
+  };
 
   const startEditingCandidate = (finding: Finding) => {
     setEditingCandidateId(finding.id);
@@ -233,8 +352,8 @@ export default function InspectionFindingsPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      {/* Page Header / Action Bar */}
+    <Stack spacing={2.5}>
+      {/* 1. Page Header with Clean Single-Row Actions */}
       <Paper
         elevation={0}
         sx={{
@@ -246,9 +365,9 @@ export default function InspectionFindingsPage() {
         }}
       >
         <Stack
-          direction={{ xs: 'column', md: 'row' }}
+          direction={{ xs: 'column', sm: 'row' }}
           spacing={2}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+          sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <Box
@@ -271,52 +390,35 @@ export default function InspectionFindingsPage() {
                 {t('Defect Analysis & Findings')}
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b', mt: 0.25 }}>
-                {t('Run AI detection per image or batch-analyze all captures. Review, adjust, and confirm defects.')}
+                {t('Run AI detection per image or across all captures. Review, adjust, and confirm defects.')}
               </Typography>
             </Box>
           </Stack>
 
-          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            {isInspector && analysisUnlocked && (
-              <Button
-                variant="contained"
-                startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-                disabled={isAnalysisPending || analysableImageIds.length === 0}
-                onClick={() => void analyzeMany(analysableImageIds)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: '10px',
-                  boxShadow: 'none',
-                  px: 2,
-                  '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
-                }}
-              >
-                {isAnalysisPending
-                  ? t('Analyzing…')
-                  : `${t('Analyze all images')} (${analysableImageIds.length})`}
-              </Button>
-            )}
-            {isInspector && (
-              <Button
-                variant="outlined"
-                color={showRemovedFindings ? 'primary' : 'inherit'}
-                onClick={() => setShowRemovedFindings((current) => !current)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: '10px',
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  bgcolor: showRemovedFindings ? 'action.hover' : 'transparent',
-                }}
-              >
-                {showRemovedFindings
-                  ? t('Hide removed')
-                  : `${t('Audit log / Removed')} (${removedFindings.data?.length ?? 0})`}
-              </Button>
-            )}
-          </Stack>
+          {isInspector && analysisUnlocked && (
+            <Button
+              variant="contained"
+              startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
+              disabled={isAnalysisPending || analysableImageIds.length === 0}
+              onClick={() => void analyzeMany(analysableImageIds)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '10px',
+                boxShadow: 'none',
+                px: 2.25,
+                py: 1,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                alignSelf: { xs: 'stretch', sm: 'auto' },
+                '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
+              }}
+            >
+              {isAnalysisPending
+                ? t('Analyzing…')
+                : `${t('Analyze all images')} (${analysableImageIds.length})`}
+            </Button>
+          )}
         </Stack>
 
         {isInspector && isAnalysisPending && (
@@ -339,6 +441,174 @@ export default function InspectionFindingsPage() {
         )}
       </Paper>
 
+      {/* 2. Advanced Search & Filter Toolbar */}
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 2, sm: 2.25 },
+          borderRadius: '16px',
+          bgcolor: '#ffffff',
+          borderColor: '#e2e8f0',
+        }}
+      >
+        <Stack spacing={2}>
+          {/* Row 1: Dual Search Bars */}
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder={t('Search photos or asset location (e.g. shot-01, Pier T1)...')}
+              value={evidenceQuery}
+              onChange={(e) => {
+                setEvidenceQuery(e.target.value);
+                setPage(0);
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <ImageOutlined sx={{ fontSize: 20, color: '#64748b' }} />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '10px', bgcolor: '#fbfcfd' },
+                },
+              }}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              placeholder={t('Search defects, codes, or notes (e.g. F-1, crack, spall)...')}
+              value={defectQuery}
+              onChange={(e) => {
+                setDefectQuery(e.target.value);
+                setPage(0);
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRounded sx={{ fontSize: 20, color: '#64748b' }} />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '10px', bgcolor: '#fbfcfd' },
+                },
+              }}
+            />
+          </Stack>
+
+          {/* Row 2: Filter Selectors & Toggles */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.25}
+            sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap', gap: 1 }}
+          >
+            <TextField
+              select
+              size="small"
+              label={t('Finding status')}
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as typeof statusFilter);
+                setPage(0);
+              }}
+              sx={{ minWidth: 165 }}
+              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
+            >
+              <MenuItem value="ACTIVE">{t('Active only (default)')}</MenuItem>
+              <MenuItem value="PENDING">{t('Awaiting review')}</MenuItem>
+              <MenuItem value="CONFIRMED">{t('Confirmed only')}</MenuItem>
+              <MenuItem value="REMOVED">{t('Audit log / Removed')}</MenuItem>
+              <MenuItem value="ALL">{t('All findings (incl. removed)')}</MenuItem>
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label={t('Severity')}
+              value={severityFilter}
+              onChange={(e) => {
+                setSeverityFilter(e.target.value);
+                setPage(0);
+              }}
+              sx={{ minWidth: 140 }}
+              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
+            >
+              <MenuItem value="ALL">{t('All Severities')}</MenuItem>
+              {SEVERITIES.map((sev) => (
+                <MenuItem key={sev} value={sev}>{sev}</MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              size="small"
+              label={t('Detection source')}
+              value={sourceFilter}
+              onChange={(e) => {
+                setSourceFilter(e.target.value as typeof sourceFilter);
+                setPage(0);
+              }}
+              sx={{ minWidth: 150 }}
+              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
+            >
+              <MenuItem value="ALL">{t('All Sources')}</MenuItem>
+              <MenuItem value="AI">{t('AI Detection')}</MenuItem>
+              <MenuItem value="MANUAL">{t('Manual Entry')}</MenuItem>
+            </TextField>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={onlyWithDefects}
+                  onChange={(e) => {
+                    setOnlyWithDefects(e.target.checked);
+                    setPage(0);
+                  }}
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+                  {t('Only photos with defects')}
+                </Typography>
+              }
+            />
+
+            {hasActiveFilters && (
+              <Button
+                size="small"
+                startIcon={<RestartAltRounded />}
+                onClick={resetFilters}
+                sx={{ textTransform: 'none', color: '#64748b', ml: 'auto' }}
+              >
+                {t('Reset filters')}
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {/* 3. Result Metric Bar */}
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>
+          {t('Showing')} {totalMatchingCaptures} {t('capture(s)')} · {totalMatchingFindings}{' '}
+          {t('defect finding(s)')}
+        </Typography>
+        {statusFilter === 'REMOVED' && (
+          <Chip
+            size="small"
+            color="error"
+            variant="outlined"
+            label={t('Viewing Audit Log / Removed Findings')}
+            sx={{ fontWeight: 600 }}
+          />
+        )}
+      </Stack>
+
+      {/* 4. Hierarchical Capture List */}
       {findings.isLoading ? (
         <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '16px' }}>
           <Typography color="text.secondary">{t('Loading findings…')}</Typography>
@@ -355,9 +625,36 @@ export default function InspectionFindingsPage() {
         >
           {t('Could not load findings.')}
         </Alert>
+      ) : paginatedCaptureGroups.length === 0 ? (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 5,
+            textAlign: 'center',
+            borderRadius: '16px',
+            bgcolor: '#ffffff',
+            borderColor: '#e2e8f0',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#334155' }}>
+            {hasActiveFilters
+              ? t('No photos or defects match your current search and filters.')
+              : t('No evidence captures available for defect analysis.')}
+          </Typography>
+          {hasActiveFilters && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={resetFilters}
+              sx={{ mt: 1.5, borderRadius: '8px', textTransform: 'none' }}
+            >
+              {t('Clear all filters')}
+            </Button>
+          )}
+        </Paper>
       ) : (
         <Stack spacing={3}>
-          {groupedFindings.map((group) => {
+          {paginatedCaptureGroups.map((group) => {
             const isAnalysing = analysingEvidenceIds.has(group.evidenceId);
             const isAnalysed = analysedEvidenceIds.has(group.evidenceId);
             const isNoDetection = noDetectionEvidenceIds.has(group.evidenceId);
@@ -431,6 +728,8 @@ export default function InspectionFindingsPage() {
                   })
                 }
                 onDeleteFinding={(fid) => deleteFinding.mutate(fid)}
+                onRestoreFinding={(fid) => restoreFinding.mutate(fid)}
+                isRestorePending={restoreFinding.isPending}
                 isConfirmPending={confirmFinding.isPending}
                 isDeletePending={deleteFinding.isPending}
                 isUpdatePending={updateFinding.isPending}
@@ -454,60 +753,39 @@ export default function InspectionFindingsPage() {
               {getErrorMessage(confirmFinding.error, 'The finding was not confirmed.')}
             </Alert>
           )}
+
+          {/* 5. Capture-Level Pagination Controls */}
+          {totalMatchingCaptures > 0 && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 0.5,
+                borderRadius: '12px',
+                bgcolor: '#ffffff',
+                borderColor: '#e2e8f0',
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <TablePagination
+                component="div"
+                count={totalMatchingCaptures}
+                page={page}
+                onPageChange={(_e, newPage) => setPage(newPage)}
+                rowsPerPage={pageSize}
+                onRowsPerPageChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setPage(0);
+                }}
+                rowsPerPageOptions={[5, 10, 25]}
+                labelRowsPerPage={t('Photos per page:')}
+              />
+            </Paper>
+          )}
         </Stack>
       )}
 
-      {/* Audit Log / Removed Findings */}
-      {isInspector && showRemovedFindings && (
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px' }}>
-          <Stack spacing={1.5}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('Audit Log / Removed Findings')}
-            </Typography>
-            {removedFindings.data?.length ? (
-              <Stack spacing={1}>
-                {removedFindings.data.map((finding) => (
-                  <Paper key={finding.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
-                      <Chip size="small" label={finding.severity} />
-                      <Chip
-                        size="small"
-                        color={finding.status === 'CONFIRMED' ? 'success' : 'default'}
-                        label={finding.status === 'CONFIRMED' ? 'Was confirmed' : 'Was never confirmed'}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {t('Removed')}
-                      </Typography>
-                      <Box sx={{ flexGrow: 1 }} />
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={restoreFinding.isPending}
-                        onClick={() => restoreFinding.mutate(finding.id)}
-                        sx={{ borderRadius: '8px', textTransform: 'none' }}
-                      >
-                        {t('Restore')}
-                      </Button>
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-            ) : (
-              <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                {t('No finding has been removed.')}
-              </Alert>
-            )}
-            {restoreFinding.isError && (
-              <Alert severity="error">
-                {getErrorMessage(restoreFinding.error, 'The finding was not restored.')}
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
-      )}
-
-      {/* Confirmation & Stage Gate */}
+      {/* 6. Findings Confirmation Gate */}
       {isInspector && (
         <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px' }}>
           <Stack spacing={1.5}>
@@ -570,6 +848,7 @@ export default function InspectionFindingsPage() {
         </Paper>
       )}
 
+      {/* 7. Manual Inspector Findings Register */}
       <InspectorFindingRegister
         findings={(findings.data ?? []).filter((finding) => finding.modelName == null && !finding.isDeleted)}
         evidence={evidence.data ?? []}
