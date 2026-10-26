@@ -18,7 +18,6 @@ export type FieldSessionStatus =
 export interface FieldSession {
   id: string;
   inspectionId: string;
-  preparationId: string | null;
   status: FieldSessionStatus;
   preFlightChecklistNote: string | null;
   startedAt: string | null;

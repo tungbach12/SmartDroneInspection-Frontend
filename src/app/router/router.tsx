@@ -68,9 +68,7 @@ const InspectionFindingsPage = lazy(
 const InspectionDraftPage = lazy(
   () => import('@/features/inspections/pages/InspectionDraftPage'),
 );
-const InspectionPreparationPage = lazy(
-  () => import('@/features/inspections/pages/InspectionPreparationPage'),
-);
+
 const FieldSessionPage = lazy(
   () => import('@/features/inspections/pages/FieldSessionPage'),
 );
@@ -215,7 +213,6 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
-          { path: 'preparation', element: <InspectionPreparationPage /> },
           { path: 'field-session', element: <FieldSessionPage /> },
         ],
       },

@@ -78,6 +78,7 @@ const STATUS_MAP: Record<string, StatusVariant> = {
 
   scheduled: 'info',
   assigned: 'info',
+  ready_for_flight: 'info',
   planned: 'info',
   work_completed: 'info',
 

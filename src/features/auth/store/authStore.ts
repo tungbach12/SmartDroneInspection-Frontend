@@ -22,6 +22,10 @@ export interface AuthUser {
   actorZone: ActorZone;
   organizationId: string | null;
   visionFallbackEnabled?: boolean;
+  pilotLicenseNumber?: string | undefined;
+  pilotLicenseClass?: string | undefined;
+  pilotLicenseExpiresAt?: string | undefined;
+  pilotLicenseFileKey?: string | undefined;
 }
 
 interface AuthSession {
@@ -42,6 +46,7 @@ interface AuthState {
   setSession: (session: AuthSession) => void;
   setAccessToken: (accessToken: string) => void;
   setStatus: (status: AuthStatus) => void;
+  setUser: (user: AuthUser) => void;
   clearSession: () => void;
 }
 
@@ -69,6 +74,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     }),
   setAccessToken: (accessToken) => set({ accessToken }),
   setStatus: (status) => set({ status }),
+  setUser: (user) =>
+    set({
+      user,
+      userId: user.id,
+      userName: user.fullName,
+      email: user.email,
+      roles: user.roles,
+      actorZone: user.actorZone,
+      organizationId: user.organizationId,
+    }),
   clearSession: () =>
     set({
       status: 'anonymous',

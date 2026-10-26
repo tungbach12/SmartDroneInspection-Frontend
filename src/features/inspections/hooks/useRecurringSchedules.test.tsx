@@ -93,7 +93,6 @@ describe('useRecurringSchedules hooks', () => {
 
     result.current.mutate({
       assetId: 'asset-1',
-      objective: 'Weekly inspection',
       anchor: '2026-11-01T09:00:00',
       timezone: 'Asia/Ho_Chi_Minh',
       unit: 'WEEK',

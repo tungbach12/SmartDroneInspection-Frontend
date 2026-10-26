@@ -29,6 +29,12 @@ describe('resolveSafeNotificationRoute', () => {
     expect(route).toBe('/operations/inspections/insp-100/evidence');
   });
 
+  it('migrates legacy preparation notifications to the self-service field session', () => {
+    expect(
+      resolveSafeNotificationRoute('/inspections/insp-100/preparation', 'operations', ['INSPECTOR']),
+    ).toBe('/operations/inspections/insp-100/field-session');
+  });
+
   it('translates maintenance paths when user has maintenance section access', () => {
     const route = resolveSafeNotificationRoute(
       '/maintenance/work-orders/wo-42',

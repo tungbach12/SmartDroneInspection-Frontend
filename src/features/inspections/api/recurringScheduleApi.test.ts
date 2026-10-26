@@ -23,7 +23,6 @@ describe('recurringScheduleApi', () => {
       id: 'sched-1',
       organizationId: 'org-1',
       assetId: 'asset-1',
-      objective: 'Weekly structural survey',
       anchor: '2026-11-01T09:00:00',
       timezone: 'Asia/Ho_Chi_Minh',
       unit: 'WEEK',
@@ -37,7 +36,6 @@ describe('recurringScheduleApi', () => {
 
     const input: CreateRecurringScheduleInput = {
       assetId: 'asset-1',
-      objective: 'Weekly structural survey',
       anchor: '2026-11-01T09:00:00',
       timezone: 'Asia/Ho_Chi_Minh',
       unit: 'WEEK',

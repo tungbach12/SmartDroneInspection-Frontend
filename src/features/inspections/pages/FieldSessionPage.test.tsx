@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   postpone: vi.fn(),
   abort: vi.fn(),
+  getById: vi.fn(),
+  uploadFlightPermit: vi.fn(),
 }));
 
 vi.mock('../api/fieldSessionApi', async (importOriginal) => {
@@ -26,12 +28,23 @@ vi.mock('../api/fieldSessionApi', async (importOriginal) => {
   };
 });
 
+vi.mock('../api/inspectionApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/inspectionApi')>();
+  return {
+    ...actual,
+    inspectionApi: {
+      ...actual.inspectionApi,
+      getById: mocks.getById,
+      uploadFlightPermit: mocks.uploadFlightPermit,
+    },
+  };
+});
+
 import FieldSessionPage from './FieldSessionPage';
 
 const SESSION = {
   id: 'session-1',
   inspectionId: 'inspection-1',
-  preparationId: 'prep-1',
   status: 'IN_PROGRESS' as const,
   preFlightChecklistNote: 'Checked assigned drone M350, site access clear.',
   startedAt: '2026-10-20T02:00:00Z',
@@ -39,6 +52,14 @@ const SESSION = {
   postponementReason: null,
   abortReason: null,
   outcomeNotes: null,
+};
+
+const INSPECTION = {
+  id: 'inspection-1',
+  status: 'READY_FOR_FLIGHT',
+  flightPermitFileName: 'permit-license.pdf',
+  flightPermitUploadedAt: '2026-10-20T01:00:00Z',
+  inspectionItems: ['Mố cầu', 'Dầm chính'],
 };
 
 function renderWithClient() {
@@ -63,6 +84,7 @@ function renderWithClient() {
 describe('FieldSessionPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getById.mockResolvedValue(INSPECTION);
     mocks.list.mockResolvedValue([SESSION]);
     mocks.start.mockResolvedValue(SESSION);
     mocks.complete.mockResolvedValue({
@@ -78,10 +100,26 @@ describe('FieldSessionPage', () => {
     cleanup();
   });
 
-  it('lists the sessions with their status', async () => {
+  it('lists the sessions with their status and active flight permit', async () => {
     renderWithClient();
 
     expect(await screen.findByText('IN_PROGRESS')).toBeTruthy();
+    expect(await screen.findByText(/permit-license\.pdf/)).toBeTruthy();
+  });
+
+  it('shows card to upload flight permit when inspection status is ASSIGNED', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'ASSIGNED',
+      flightPermitFileName: null,
+    });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient();
+
+    expect(await screen.findByText('Flight Permit Required')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Flight permit required' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Flight permit required' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('requires the inspector own pre-flight note before starting a session', async () => {

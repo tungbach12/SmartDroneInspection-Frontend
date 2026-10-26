@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateInspection = vi.fn();
 const mockCreateRecurringSchedule = vi.fn();
-let mockActiveSchedules: { id: string; assetId: string; status: string; objective: string }[] = [];
+let mockActiveSchedules: { id: string; assetId: string; status: string }[] = [];
 
 vi.mock('../hooks/useInspections', () => ({
   useCreateInspection: () => ({
@@ -43,23 +43,6 @@ vi.mock('@/features/assets/hooks/useAssets', () => ({
         },
       ],
     },
-    isLoading: false,
-  }),
-  useAssetPair: (id: string | null) => ({
-    data:
-      id === 'asset-1'
-        ? {
-            pairAssignmentId: 'pair-1',
-            inspectorUserId: 'insp-1',
-            inspectorName: 'Inspector Alice',
-            droneId: 'drone-1',
-            droneSerialNumber: 'DJI-001',
-            droneModel: 'Matrice 300',
-            status: 'ACTIVE',
-            validFrom: '2026-10-01T00:00:00Z',
-            validUntil: null,
-          }
-        : null,
     isLoading: false,
   }),
 }));
@@ -122,7 +105,7 @@ describe('CreateInspectionDialog', () => {
     mockActiveSchedules = [];
   });
 
-  it('renders default operational pair when asset is preselected', async () => {
+  it('renders direct inspector and drone select dropdowns', async () => {
     renderWithClient(
       <CreateInspectionDialog
         open={true}
@@ -132,12 +115,12 @@ describe('CreateInspectionDialog', () => {
     );
 
     expect(await screen.findByText('New Inspection')).toBeTruthy();
-    expect(screen.getByText('Default Operational Pair')).toBeTruthy();
-    expect(screen.getByText(/Inspector Alice/)).toBeTruthy();
-    expect(screen.getByText(/DJI-001/)).toBeTruthy();
+    expect(screen.getByLabelText(/Inspector/)).toBeTruthy();
+    expect(screen.getByLabelText(/Drone/)).toBeTruthy();
+    expect(screen.queryByText('Default Operational Pair')).toBeNull();
   });
 
-  it('submits inspection with inherited default pair', async () => {
+  it('submits inspection with selected inspector and drone', async () => {
     mockCreateInspection.mockImplementation((_payload, { onSuccess }) => {
       onSuccess?.({ id: 'insp-new-1' });
     });
@@ -154,65 +137,37 @@ describe('CreateInspectionDialog', () => {
       />,
     );
 
-    const objectiveInput = screen.getByLabelText(/Inspection Objective/);
-    fireEvent.change(objectiveInput, { target: { value: 'Annual structural check' } });
+    fireEvent.mouseDown(screen.getByLabelText(/Inspector/));
+    fireEvent.click(await screen.findByRole('option', { name: /Inspector Alice/ }));
+
+    fireEvent.mouseDown(screen.getByLabelText(/Drone/));
+    fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
+
+    fireEvent.change(screen.getByLabelText(/Planned Start/), {
+      target: { value: '2026-11-01T08:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/Planned End/), {
+      target: { value: '2026-11-01T17:00' },
+    });
 
     const submitBtn = screen.getByRole('button', { name: 'Create & Dispatch' });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(mockCreateInspection).toHaveBeenCalledWith(
-        expect.objectContaining({
+        {
           assetId: 'asset-1',
-          objective: 'Annual structural check',
-          inspectorId: null,
-          droneId: null,
-        }),
+          inspectorId: 'insp-1',
+          droneId: 'drone-1',
+          plannedStartAt: expect.any(String),
+          plannedEndAt: expect.any(String),
+        },
         expect.anything(),
       );
     });
 
     expect(handleSuccess).toHaveBeenCalledWith('insp-new-1');
     expect(handleClose).toHaveBeenCalled();
-  });
-
-  it('allows overriding the pair with a specific inspector, drone, and reason', async () => {
-    mockCreateInspection.mockImplementation((_payload, { onSuccess }) => {
-      onSuccess?.({ id: 'insp-new-2' });
-    });
-
-    renderWithClient(
-      <CreateInspectionDialog
-        open={true}
-        onClose={vi.fn()}
-        preselectedAssetId="asset-1"
-      />,
-    );
-
-    const objectiveInput = screen.getByLabelText(/Inspection Objective/);
-    fireEvent.change(objectiveInput, { target: { value: 'Thermal defect survey' } });
-
-    const overrideCheckbox = screen.getByLabelText(/Reassign Inspector or Drone/);
-    fireEvent.click(overrideCheckbox);
-
-    expect(await screen.findByText('SPECIFIC MISSION ASSIGNMENT')).toBeTruthy();
-
-    const reasonInput = screen.getByLabelText(/Reassignment Reason/);
-    fireEvent.change(reasonInput, { target: { value: 'Primary drone undergoing service' } });
-
-    const submitBtn = screen.getByRole('button', { name: 'Create & Dispatch' });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(mockCreateInspection).toHaveBeenCalledWith(
-        expect.objectContaining({
-          assetId: 'asset-1',
-          objective: 'Thermal defect survey',
-          reassignmentReason: 'Primary drone undergoing service',
-        }),
-        expect.anything(),
-      );
-    });
   });
 
   it('switches to recurring schedule and shows recurrence options', async () => {
@@ -238,7 +193,7 @@ describe('CreateInspectionDialog', () => {
     expect(screen.getByRole('button', { name: /Create Schedule/i })).toBeTruthy();
   });
 
-  it('submits recurring schedule with anchor, interval, frequency, and reminder days', async () => {
+  it('submits recurring schedule with direct inspector and drone, anchor, interval, frequency, and reminder days', async () => {
     mockCreateRecurringSchedule.mockImplementation((_payload, { onSuccess }) => {
       onSuccess?.({ id: 'sched-101' });
     });
@@ -258,8 +213,11 @@ describe('CreateInspectionDialog', () => {
     const recurringRadio = screen.getByLabelText(/Recurring schedule/i);
     fireEvent.click(recurringRadio);
 
-    const objectiveInput = screen.getByLabelText(/Inspection Objective/);
-    fireEvent.change(objectiveInput, { target: { value: 'Monthly drone flyover' } });
+    fireEvent.mouseDown(screen.getByLabelText(/Inspector/));
+    fireEvent.click(await screen.findByRole('option', { name: /Inspector Alice/ }));
+
+    fireEvent.mouseDown(screen.getByLabelText(/Drone/));
+    fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
 
     const anchorInput = screen.getByLabelText(/First Window Start/i);
     fireEvent.change(anchorInput, { target: { value: '2026-11-01T08:00' } });
@@ -280,13 +238,12 @@ describe('CreateInspectionDialog', () => {
       expect(mockCreateRecurringSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           assetId: 'asset-1',
-          objective: 'Monthly drone flyover',
           anchor: '2026-11-01T08:00:00',
           interval: 2,
           reminderDays: 5,
           durationSeconds: 7200,
-          inspectorId: null,
-          droneId: null,
+          inspectorId: 'insp-1',
+          droneId: 'drone-1',
         }),
         expect.anything(),
       );
@@ -296,7 +253,7 @@ describe('CreateInspectionDialog', () => {
     expect(handleClose).toHaveBeenCalled();
   });
 
-  it('submits recurring schedule with overridden inspector and drone', async () => {
+  it('submits recurring schedule with selected inspector and drone', async () => {
     mockCreateRecurringSchedule.mockImplementation((_payload, { onSuccess }) => {
       onSuccess?.({ id: 'sched-102' });
     });
@@ -312,14 +269,14 @@ describe('CreateInspectionDialog', () => {
     const recurringRadio = screen.getByLabelText(/Recurring schedule/i);
     fireEvent.click(recurringRadio);
 
-    const objectiveInput = screen.getByLabelText(/Inspection Objective/);
-    fireEvent.change(objectiveInput, { target: { value: 'Quarterly substation review' } });
+    fireEvent.mouseDown(screen.getByLabelText(/Inspector/));
+    fireEvent.click(await screen.findByRole('option', { name: /Inspector Bob/ }));
+
+    fireEvent.mouseDown(screen.getByLabelText(/Drone/));
+    fireEvent.click(await screen.findByRole('option', { name: /DJI-002/ }));
 
     const anchorInput = screen.getByLabelText(/First Window Start/i);
     fireEvent.change(anchorInput, { target: { value: '2026-12-01T09:00' } });
-
-    const overrideCheckbox = screen.getByLabelText(/Reassign Inspector or Drone/);
-    fireEvent.click(overrideCheckbox);
 
     const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
     fireEvent.click(submitBtn);
@@ -328,10 +285,9 @@ describe('CreateInspectionDialog', () => {
       expect(mockCreateRecurringSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           assetId: 'asset-1',
-          objective: 'Quarterly substation review',
           anchor: '2026-12-01T09:00:00',
-          inspectorId: 'insp-1',
-          droneId: 'drone-1',
+          inspectorId: 'insp-2',
+          droneId: 'drone-2',
         }),
         expect.anything(),
       );
@@ -344,7 +300,6 @@ describe('CreateInspectionDialog', () => {
         id: 'sched-existing',
         assetId: 'asset-1',
         status: 'ACTIVE',
-        objective: 'Existing active schedule',
       },
     ];
 

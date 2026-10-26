@@ -221,11 +221,11 @@ export default function InspectionEvidencePage() {
         </Typography>
         <Button
           component={RouterLink}
-          to="../preparation"
+          to="../field-session"
           variant="text"
           sx={{ alignSelf: 'flex-start' }}
         >
-          {t('Review the shot-list in preparation')}
+          {t('Review checkpoints in field session')}
         </Button>
       </Paper>
 

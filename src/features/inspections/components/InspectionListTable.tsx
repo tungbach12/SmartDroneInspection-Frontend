@@ -24,7 +24,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  * and an inspection that needs nothing from the administrator says so instead of implying a task.
  */
 const PENDING_ACTION_LABEL: Record<PendingAction, string> = {
-  READINESS_REVIEW: 'Readiness review due',
   REPORT_REVIEW: 'Report review due',
   CORRECTIVE_DISPOSITION: 'Corrective outcome due',
   NONE: 'Nothing waiting for you',
@@ -255,7 +254,7 @@ export function InspectionListTable({
                           maxWidth: 500,
                         }}
                       >
-                        {row.objective}
+                        {row.objective || `${t('Inspection')} #${row.id.slice(0, 8)}`}
                       </Typography>
                       {reviewerMode && (
                         <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
@@ -388,17 +387,15 @@ export function InspectionListTable({
                         }}
                       >
                         {reviewerMode
-                          ? row.pendingAction === 'READINESS_REVIEW'
-                            ? 'Review readiness'
-                            : row.pendingAction === 'REPORT_REVIEW'
-                              ? 'Review submission'
-                              : row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                                ? 'Record corrective outcome'
-                                : row.reportStatus === 'APPROVED'
-                                  ? 'Publish report'
-                                  : row.reportStatus === 'RETURNED'
-                                    ? 'Read returned report'
-                                    : 'Open report'
+                          ? row.pendingAction === 'REPORT_REVIEW'
+                            ? 'Review submission'
+                            : row.pendingAction === 'CORRECTIVE_DISPOSITION'
+                              ? 'Record corrective outcome'
+                              : row.reportStatus === 'APPROVED'
+                                ? 'Publish report'
+                                : row.reportStatus === 'RETURNED'
+                                  ? 'Read returned report'
+                                  : 'Open report'
                           : 'Open'}
                       </Button>
                     </TableCell>

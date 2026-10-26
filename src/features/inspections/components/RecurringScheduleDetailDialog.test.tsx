@@ -24,10 +24,6 @@ const mockScheduleData: RecurringScheduleDetail = {
   droneId: 'drone-1',
   droneSerialNumber: 'DJI-001',
   droneModel: 'Matrice 300',
-  objective: 'Bi-weekly Crack Survey',
-  scope: 'Visual and Thermal',
-  componentScope: 'Pier 1-4',
-  acceptanceCriteria: 'Coverage 100%',
   anchor: '2026-11-01T09:00:00',
   timezone: 'Asia/Ho_Chi_Minh',
   unit: 'WEEK',
@@ -130,8 +126,8 @@ describe('RecurringScheduleDetailDialog', () => {
       />,
     );
 
-    expect(await screen.findByText('Bi-weekly Crack Survey')).toBeTruthy();
-    expect(screen.getByText(/Bridge Alpha/)).toBeTruthy();
+    expect(await screen.findByText(/Bridge Alpha — Recurring Schedule Details/i)).toBeTruthy();
+    expect(screen.getByText(/Bridge Alpha \(North Sector\)/)).toBeTruthy();
     expect(screen.getByText(/Inspector Alice/)).toBeTruthy();
     expect(screen.getByText(/DJI-001/)).toBeTruthy();
     expect(screen.getByText(/Schedule conflict with inspection INSP-99/)).toBeTruthy();

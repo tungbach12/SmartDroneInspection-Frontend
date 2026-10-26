@@ -10,7 +10,7 @@ import {
   useConfirmFindings,
   useCreateManualFinding,
   useDeleteFinding,
-  useRequestAdditionalSession,
+  useUploadFlightPermit,
   useRetireEvidence,
   useConfirmFinding,
   useSubmitReportVersion,
@@ -32,7 +32,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       createManualFinding: vi.fn(),
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
-      requestAdditionalSession: vi.fn(),
+      uploadFlightPermit: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
     },
@@ -212,13 +212,12 @@ function buildCases(): MutationCase[] {
       successMessage: 'Finding removed from the confirmed set.',
     },
     {
-      name: 'additional session request',
-      apiMock: vi.mocked(inspectionApi.requestAdditionalSession),
-      render: (client) => renderMutation(client, () => useRequestAdditionalSession('inspection-1')),
+      name: 'flight permit upload',
+      apiMock: vi.mocked(inspectionApi.uploadFlightPermit),
+      render: (client) => renderMutation(client, () => useUploadFlightPermit('inspection-1')),
       run: (runner) =>
-        (runner.mutateAsync as (reason: string) => Promise<unknown>)('east face not captured'),
-      successMessage:
-        'Additional field work requested. Update preparation and wait for readiness review.',
+        (runner.mutateAsync as (file: File) => Promise<unknown>)(new File(['test'], 'permit.pdf')),
+      successMessage: 'Flight permit uploaded successfully',
     },
     {
       name: 'findings confirmation',

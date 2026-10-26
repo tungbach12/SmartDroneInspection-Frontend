@@ -19,7 +19,6 @@ describe('Organization Manager MF3 reviewer routes', () => {
     ['/client/inspections/inspection-1/report', 'report'],
     ['/client/inspections/inspection-1/evidence', 'evidence'],
     ['/client/inspections/inspection-1/findings', 'findings'],
-    ['/client/inspections/inspection-1/preparation', 'preparation'],
   ])('matches reviewer workspace route %s', (path, expected) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path ?? 'index').toBe(expected);

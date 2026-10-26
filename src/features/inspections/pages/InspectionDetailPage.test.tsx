@@ -13,13 +13,6 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
-  preparationsQuery: {
-    data: [] as { id: string }[] | undefined,
-    isLoading: false,
-    isError: false,
-    error: null as Error | null,
-    refetch: vi.fn(),
-  },
   versionsQuery: {
     data: [] as { id: string; status: string }[] | undefined,
     isLoading: false,
@@ -31,7 +24,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../hooks/useInspections', () => ({
   useInspection: () => mocks.inspectionQuery,
-  useInspectionPreparations: () => mocks.preparationsQuery,
   useReportVersions: () => mocks.versionsQuery,
 }));
 
@@ -67,13 +59,6 @@ function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
 beforeEach(() => {
   navigateMock.mockClear();
   signInAs('INSPECTOR');
-  mocks.preparationsQuery = {
-    data: [],
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  };
   mocks.versionsQuery = {
     data: [],
     isLoading: false,
@@ -126,7 +111,8 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByRole('tab', { name: 'Evidence' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Findings' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Report draft' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Preparation' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Field session' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Preparation' })).toBeNull();
   });
 
   it('links each stage to its nested route', () => {
@@ -141,8 +127,8 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByRole('tab', { name: 'Report draft' }).getAttribute('href')).toContain(
       'report',
     );
-    expect(screen.getByRole('tab', { name: 'Preparation' }).getAttribute('href')).toContain(
-      'preparation',
+    expect(screen.getByRole('tab', { name: 'Field session' }).getAttribute('href')).toContain(
+      'field-session',
     );
   });
 

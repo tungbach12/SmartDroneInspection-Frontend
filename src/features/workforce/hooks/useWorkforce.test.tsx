@@ -5,10 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useToastStore } from '@/shared/ui/Toast';
 import { workforceApi, workforceKeys, type WorkforceUser } from '../api/workforceApi';
 import {
-  useCreateWorkforceCredential,
   useProvisionWorkforceUser,
-  useReviewWorkforceCredential,
-  useWorkforceCredentials,
   useUpdateWorkforceUserRoles,
   useUpdateWorkforceUserStatus,
   useWorkforceUsers,
@@ -23,9 +20,6 @@ vi.mock('../api/workforceApi', async (importOriginal) => {
       provisionUser: vi.fn(),
       updateUserStatus: vi.fn(),
       updateUserRoles: vi.fn(),
-      listCredentials: vi.fn(),
-      createCredential: vi.fn(),
-      reviewCredential: vi.fn(),
     },
   };
 });
@@ -58,46 +52,6 @@ describe('useWorkforce hooks', () => {
     vi.clearAllMocks();
     useToastStore.setState({ open: false, message: '', severity: 'success' });
     client = makeClient();
-  });
-
-  it('lists credentials under the workforce credentials query key', async () => {
-    const credential = { id: 'cred-1', userId: MEMBER.userId, organizationId: MEMBER.organizationId, credentialType: 'PILOT_LICENSE', issuer: null, credentialReference: null, issuedAt: null, expiresAt: null, status: 'PENDING_REVIEW', evidenceId: null, verifiedByUserId: null, verifiedAt: null, verificationReason: null, createdAt: '', updatedAt: '' } as const;
-    vi.mocked(workforceApi.listCredentials).mockResolvedValue([credential]);
-
-    const { result } = renderHook(() => useWorkforceCredentials(), { wrapper: wrapper(client) });
-
-    await waitFor(() => expect(result.current.data).toEqual([credential]));
-    expect(client.getQueryData(workforceKeys.credentials())).toEqual([credential]);
-  });
-
-  it('invalidates credentials and users after a successful review', async () => {
-    const credential = { id: 'cred-1', userId: MEMBER.userId, organizationId: MEMBER.organizationId, credentialType: 'PILOT_LICENSE', issuer: null, credentialReference: null, issuedAt: null, expiresAt: null, status: 'ACTIVE', evidenceId: null, verifiedByUserId: null, verifiedAt: null, verificationReason: null, createdAt: '', updatedAt: '' } as const;
-    client.setQueryData(workforceKeys.credentials(), [credential]);
-    client.setQueryData(workforceKeys.users(), [MEMBER]);
-    vi.mocked(workforceApi.reviewCredential).mockResolvedValue(credential as never);
-    const { result } = renderHook(() => useReviewWorkforceCredential(), { wrapper: wrapper(client) });
-
-    await act(async () => {
-      await result.current.mutateAsync({ id: 'cred-1', decision: 'APPROVE', reason: 'Verified internally' });
-    });
-
-    await waitFor(() => {
-      expect(client.getQueryState(workforceKeys.credentials())?.isInvalidated).toBe(true);
-      expect(client.getQueryState(workforceKeys.users())?.isInvalidated).toBe(true);
-    });
-  });
-
-  it('does not swallow a failed credential creation', async () => {
-    const failure = new Error('Credential type is not allowed.');
-    vi.mocked(workforceApi.createCredential).mockRejectedValue(failure);
-    const { result } = renderHook(() => useCreateWorkforceCredential(), { wrapper: wrapper(client) });
-
-    await act(async () => {
-      await result.current.mutateAsync({ userId: MEMBER.userId, credentialType: 'PILOT_LICENSE' }).catch(() => undefined);
-    });
-
-    await waitFor(() => expect(result.current.error).toBe(failure));
-    expect(result.current.isSuccess).toBe(false);
   });
 
   it('lists members under the workforce users query key', async () => {

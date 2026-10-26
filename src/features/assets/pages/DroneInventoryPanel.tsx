@@ -1,5 +1,5 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { Add, DescriptionOutlined } from '@mui/icons-material';
+import { useState, type FormEvent } from 'react';
+import { Add } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Drawer,
   MenuItem,
   Stack,
@@ -22,20 +23,12 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import type {
-  Drone,
-  DroneDocument,
-  DroneDocumentStatus,
-  DroneServiceability,
-} from '../api/droneApi';
+import type { Drone, DroneServiceability } from '../api/droneApi';
 import {
   useCreateDrone,
   useDrone,
-  useDroneDocuments,
   useDrones,
-  useUpdateDroneDocumentStatus,
   useUpdateDroneServiceability,
-  useUploadDroneDocument,
 } from '../hooks/useDrones';
 
 const SERVICEABILITY_VALUES: DroneServiceability[] = [
@@ -44,15 +37,6 @@ const SERVICEABILITY_VALUES: DroneServiceability[] = [
   'SUSPENDED',
   'RETIRED',
 ];
-const DOCUMENT_STATUSES: DroneDocumentStatus[] = [
-  'PENDING_REVIEW',
-  'ACTIVE',
-  'EXPIRED',
-  'REJECTED',
-  'REVOKED',
-];
-const ALLOWED_DOCUMENT_TYPES =
-  'image/png,image/jpeg,image/webp,application/pdf';
 
 export function DroneInventoryPanel() {
   const { formatDate, t } = useLocale();
@@ -84,6 +68,11 @@ export function DroneInventoryPanel() {
       id: 'manufacturer',
       label: 'Manufacturer',
       render: (drone) => drone.manufacturer || '—',
+    },
+    {
+      id: 'registration',
+      label: 'Registration',
+      render: (drone) => drone.registrationNumber || '—',
     },
     {
       id: 'ownership',
@@ -182,7 +171,7 @@ export function DroneInventoryPanel() {
         empty={
           <EmptyState
             title={t('No drones registered')}
-            description={t('Register an organization drone to keep its serviceability and documents together.')}
+            description={t('Register an organization drone to track its serviceability and registration.')}
             action={registerButton}
           />
         }
@@ -241,6 +230,8 @@ function CreateDroneDialog({
     serialNumber: string;
     model?: string;
     manufacturer?: string;
+    registrationNumber?: string;
+    registrationExpiresAt?: string;
     payloadMetadata?: string;
     notes?: string;
   }) => void;
@@ -249,6 +240,8 @@ function CreateDroneDialog({
   const [serialNumber, setSerialNumber] = useState('');
   const [model, setModel] = useState('');
   const [manufacturer, setManufacturer] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
+  const [registrationExpiresAt, setRegistrationExpiresAt] = useState('');
   const [cameraModel, setCameraModel] = useState('');
   const [sensorResolution, setSensorResolution] = useState('');
   const [thermalSupport, setThermalSupport] = useState(false);
@@ -268,6 +261,8 @@ function CreateDroneDialog({
       serialNumber: serialNumber.trim(),
       ...(model.trim() ? { model: model.trim() } : {}),
       ...(manufacturer.trim() ? { manufacturer: manufacturer.trim() } : {}),
+      ...(registrationNumber.trim() ? { registrationNumber: registrationNumber.trim() } : {}),
+      ...(registrationExpiresAt ? { registrationExpiresAt: new Date(registrationExpiresAt).toISOString() } : {}),
       ...(metadata ? { payloadMetadata: metadata } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
     });
@@ -296,6 +291,26 @@ function CreateDroneDialog({
               value={manufacturer}
               onChange={(event) => setManufacturer(event.target.value)}
             />
+            <Typography variant="caption" sx={{ fontWeight: 600, color: '#475467', mt: 1 }}>
+              Registration & Licensing
+            </Typography>
+            <Stack direction="row" spacing={1.5}>
+              <TextField
+                fullWidth
+                label="Registration number"
+                placeholder="e.g. VN-UAV-00123"
+                value={registrationNumber}
+                onChange={(event) => setRegistrationNumber(event.target.value)}
+              />
+              <TextField
+                fullWidth
+                type="datetime-local"
+                label="Registration expiry"
+                value={registrationExpiresAt}
+                onChange={(event) => setRegistrationExpiresAt(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Stack>
             <Typography variant="caption" sx={{ fontWeight: 600, color: '#475467', mt: 1 }}>
               Payload & Camera Equipment
             </Typography>
@@ -359,91 +374,13 @@ function DroneDetailDrawer({
   const { formatDate, t } = useLocale();
   const isOpen = Boolean(droneId);
   const drone = useDrone(droneId ?? '', isOpen);
-  const documents = useDroneDocuments(droneId ?? '', isOpen);
   const updateServiceability = useUpdateDroneServiceability();
-  const upload = useUploadDroneDocument(droneId ?? '');
-  const updateDocumentStatus = useUpdateDroneDocumentStatus(droneId ?? '');
-  const [file, setFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [documentType, setDocumentType] = useState('AIRWORTHINESS');
-  const [issuer, setIssuer] = useState('');
-  const [documentReference, setDocumentReference] = useState('');
-  const [validFrom, setValidFrom] = useState('');
-  const [validUntil, setValidUntil] = useState('');
-
-  const clearSelectedFile = () => {
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const close = () => {
-    clearSelectedFile();
-    onClose();
-  };
-
-  const documentColumns: DataTableColumn<DroneDocument>[] = [
-    {
-      id: 'type',
-      label: 'Document',
-      render: (document) => document.documentType,
-    },
-    {
-      id: 'issuer',
-      label: 'Issuer / reference',
-      render: (document) =>
-        [document.issuer, document.documentReference]
-          .filter(Boolean)
-          .join(' · ') || '—',
-    },
-    {
-      id: 'validUntil',
-      label: 'Valid until',
-      render: (document) =>
-        document.validUntil
-          ? formatDate(new Date(document.validUntil))
-          : '—',
-    },
-    {
-      id: 'status',
-      label: 'Recorded status',
-      render: (document) => <StatusChip status={document.status} />,
-    },
-    {
-      id: 'review',
-      label: 'Internal status',
-      render: (document) =>
-        canManage && document.status !== 'REVOKED' ? (
-          <TextField
-            select
-            size="small"
-            label={`Document status for ${document.documentType}`}
-            value={document.status}
-            onChange={(event) =>
-              updateDocumentStatus.mutate({
-                documentId: document.id,
-                status: event.target.value as DroneDocumentStatus,
-              })
-            }
-          >
-            {DOCUMENT_STATUSES.map((status) => (
-              <MenuItem key={status} value={status}>
-                {status}
-              </MenuItem>
-            ))}
-          </TextField>
-        ) : null,
-    },
-  ];
-
-  const onChooseFile = (nextFile: File | null) => {
-    setFile(nextFile);
-  };
 
   return (
-    <Drawer anchor="right" open={Boolean(droneId)} onClose={close}>
+    <Drawer anchor="right" open={Boolean(droneId)} onClose={onClose}>
       <Box
         sx={{
-          width: { xs: '100vw', sm: 640 },
+          width: { xs: '100vw', sm: 480 },
           maxWidth: '100vw',
           p: { xs: 2, sm: 3 },
         }}
@@ -460,165 +397,84 @@ function DroneDetailDrawer({
             {getErrorMessage(drone.error, 'Could not load drone details.')}
           </Alert>
         ) : drone.data ? (
-          <>
-            <Typography variant="h6">{drone.data.serialNumber}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {drone.data.manufacturer || '—'} · {drone.data.model || '—'}
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              {t('Serviceability:')} {drone.data.serviceability}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Serviceability is not flight clearance or a permit/readiness
-              determination.
-            </Typography>
-            {canManage && (
-              <TextField
-                select
-                fullWidth
-                sx={{ mt: 2 }}
-                label={t('Serviceability')}
-                value={drone.data.serviceability}
-                disabled={updateServiceability.isPending}
-                onChange={(event) =>
-                  updateServiceability.mutate({
-                    id: drone.data!.id,
-                    serviceability: event.target.value as DroneServiceability,
-                  })
-                }
-              >
-                {SERVICEABILITY_VALUES.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-            {updateServiceability.isError && (
-              <Alert severity="error" sx={{ mt: 1 }}>
-                {getErrorMessage(
-                  updateServiceability.error,
-                  'Could not update serviceability.',
-                )}
-              </Alert>
-            )}
-            <Typography variant="subtitle1" sx={{ mt: 3 }}>
-              {t('Drone documents')}
-            </Typography>
-            <QueryState
-              isLoading={documents.isLoading}
-              error={documents.error}
-              onRetry={() => void documents.refetch()}
-              loadingLabel={t('Loading drone documents…')}
-              isEmpty={Boolean(documents.data && documents.data.length === 0)}
-              empty={
-                <EmptyState
-                  title={t('No drone documents')}
-                  description={t('Upload a record such as an airworthiness or maintenance document.')}
-                />
-              }
-            >
-              <DataTable
-                columns={documentColumns}
-                rows={documents.data ?? []}
-                rowKey={(document) => document.id}
-              />
-            </QueryState>
-            {updateDocumentStatus.isError && (
-              <Alert severity="error">
-                {getErrorMessage(
-                  updateDocumentStatus.error,
-                  'Could not update the document status.',
-                )}
-              </Alert>
-            )}
-            {canManage && (
-              <Stack spacing={1.5} sx={{ mt: 2 }}>
-                <Typography variant="subtitle2">
-                  {t('Add a document record')}
-                </Typography>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="h6">{drone.data.serialNumber}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {drone.data.manufacturer || '—'} · {drone.data.model || '—'}
+              </Typography>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t('Registration Information')}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                <strong>{t('Registration number:')}</strong> {drone.data.registrationNumber || '—'}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                <strong>{t('Expires at:')}</strong>{' '}
+                {drone.data.registrationExpiresAt
+                  ? formatDate(new Date(drone.data.registrationExpiresAt))
+                  : '—'}
+              </Typography>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="body2">
+                {t('Serviceability:')} {drone.data.serviceability}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Serviceability describes maintenance state and is not flight clearance.
+              </Typography>
+              {canManage && (
                 <TextField
-                  label={t('Document type')}
-                  value={documentType}
-                  onChange={(event) => setDocumentType(event.target.value)}
-                />
-                <TextField
-                  label={t('Issuer')}
-                  value={issuer}
-                  onChange={(event) => setIssuer(event.target.value)}
-                />
-                <TextField
-                  label={t('Document reference')}
-                  value={documentReference}
-                  onChange={(event) => setDocumentReference(event.target.value)}
-                />
-                <TextField
-                  type="datetime-local"
-                  label={t('Valid from')}
-                  value={validFrom}
-                  onChange={(event) => setValidFrom(event.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  type="datetime-local"
-                  label={t('Valid until')}
-                  value={validUntil}
-                  onChange={(event) => setValidUntil(event.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<DescriptionOutlined />}
+                  select
+                  fullWidth
+                  sx={{ mt: 2 }}
+                  label={t('Serviceability')}
+                  value={drone.data.serviceability}
+                  disabled={updateServiceability.isPending}
+                  onChange={(event) =>
+                    updateServiceability.mutate({
+                      id: drone.data!.id,
+                      serviceability: event.target.value as DroneServiceability,
+                    })
+                  }
                 >
-                  {file?.name ?? 'Choose document file'}
-                  <input
-                    ref={fileInputRef}
-                    hidden
-                    type="file"
-                    accept={ALLOWED_DOCUMENT_TYPES}
-                    onChange={(event) =>
-                      onChooseFile(event.target.files?.[0] ?? null)
-                    }
-                  />
-                </Button>
-                {upload.isError && (
-                  <Alert severity="error">
-                    {getErrorMessage(
-                      upload.error,
-                      'Upload failed. Check the file type and size, then try again.',
-                    )}
-                  </Alert>
-                )}
-                <Button
-                  variant="contained"
-                  disabled={!file || upload.isPending}
-                  onClick={() => {
-                    if (!file || !droneId) return;
-                    upload.mutate(
-                      {
-                        file,
-                        documentType,
-                        ...(issuer.trim() ? { issuer: issuer.trim() } : {}),
-                        ...(documentReference.trim()
-                          ? { documentReference: documentReference.trim() }
-                          : {}),
-                        ...(validFrom
-                          ? { validFrom: new Date(validFrom).toISOString() }
-                          : {}),
-                        ...(validUntil
-                          ? { validUntil: new Date(validUntil).toISOString() }
-                          : {}),
-                      },
-                      { onSuccess: clearSelectedFile },
-                    );
-                  }}
-                >
-                  {t('Upload document')}
-                </Button>
-              </Stack>
+                  {SERVICEABILITY_VALUES.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {updateServiceability.isError && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  {getErrorMessage(
+                    updateServiceability.error,
+                    'Could not update serviceability.',
+                  )}
+                </Alert>
+              )}
+            </Box>
+
+            {drone.data.notes && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2">{t('Notes')}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {drone.data.notes}
+                  </Typography>
+                </Box>
+              </>
             )}
-          </>
+          </Stack>
         ) : null}
       </Box>
     </Drawer>
