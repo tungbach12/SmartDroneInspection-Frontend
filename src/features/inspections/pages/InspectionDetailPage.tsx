@@ -39,6 +39,15 @@ interface WorkflowStep {
 const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
+    value: 'field-session',
+    label: 'Field session',
+    title: 'Field Session',
+    sublabel: 'Flight & Permits',
+    to: 'field-session',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
     value: 'evidence',
     label: 'Evidence',
     title: 'Evidence Intake',
@@ -47,7 +56,7 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     icon: CloudUploadOutlined,
   },
   {
-    step: 2,
+    step: 3,
     value: 'findings',
     label: 'Findings',
     title: 'Defect Analysis',
@@ -56,22 +65,13 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     icon: AutoAwesomeOutlined,
   },
   {
-    step: 3,
+    step: 4,
     value: 'report',
     label: 'Report draft',
     title: 'Report Synthesis',
     sublabel: 'Draft & Publish',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
-  },
-  {
-    step: 4,
-    value: 'field-session',
-    label: 'Field session',
-    title: 'Field Session',
-    sublabel: 'Flight & Permits',
-    to: 'field-session',
-    icon: FlightTakeoffRounded,
   },
 ] as const;
 
@@ -203,27 +203,32 @@ export default function InspectionDetailPage() {
         />
 
         {inspection && (
-          <>
+          <Paper
+            elevation={0}
+            sx={{
+              mt: 2,
+              p: 2.5,
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              bgcolor: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }}
+          >
             <Box
               sx={{
-                mt: 2,
-                p: 2,
-                bgcolor: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' },
-                gap: 2,
+                gap: 2.5,
               }}
             >
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Infrastructure Asset')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
                   📍 {inspection.assetName ?? 'Asset'}
                 </Typography>
               </Box>
@@ -231,11 +236,11 @@ export default function InspectionDetailPage() {
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Assigned Inspector')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
                   👤 {inspection.inspectorName ?? inspection.inspectorId}
                 </Typography>
               </Box>
@@ -243,16 +248,16 @@ export default function InspectionDetailPage() {
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Assigned Drone')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mt: 0.25 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
                   🛸 {inspection.droneSerialNumber ?? 'Unassigned'}{' '}
                   {inspection.droneModel ? `(${inspection.droneModel})` : ''}
                 </Typography>
                 {inspection.droneServiceability && (
-                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.25 }}>
                     {t('Status:')} {inspection.droneServiceability}
                   </Typography>
                 )}
@@ -261,16 +266,16 @@ export default function InspectionDetailPage() {
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}
+                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
-                  {t('Flight Permit (Pháp lý bay)')}
+                  {t('Flight Permit')}
                 </Typography>
                 <Typography
                   variant="body2"
                   sx={{
-                    fontWeight: 600,
+                    fontWeight: 700,
                     color: inspection.flightPermitFileName ? '#0f172a' : '#d97706',
-                    mt: 0.25,
+                    mt: 0.5,
                   }}
                 >
                   📜{' '}
@@ -279,47 +284,41 @@ export default function InspectionDetailPage() {
                     : 'Awaiting Permit Upload'}
                 </Typography>
                 {inspection.flightPermitUploadedAt && (
-                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.25 }}>
                     Uploaded {formatDate(new Date(inspection.flightPermitUploadedAt))}
                   </Typography>
                 )}
               </Box>
             </Box>
 
-            <Box
-              sx={{
-                mt: 1.5,
-                p: 2,
-                bgcolor: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  color: '#64748b',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  display: 'block',
-                  mb: 0.75,
-                }}
-              >
-                {t('Inspection Checkpoints')}
-              </Typography>
-              {inspection.inspectionItems && inspection.inspectionItems.length > 0 ? (
+            {inspection.inspectionItems && inspection.inspectionItems.length > 0 && (
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#64748b',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    display: 'block',
+                    mb: 1,
+                  }}
+                >
+                  {t('Asset Checkpoints')}
+                </Typography>
                 <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
                   {inspection.inspectionItems.map((item, idx) => (
-                    <Chip key={idx} label={item} size="small" variant="outlined" />
+                    <Chip
+                      key={idx}
+                      label={item}
+                      size="small"
+                      sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155', fontWeight: 500 }}
+                    />
                   ))}
                 </Stack>
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  {t('No inspection checkpoints defined for this asset.')}
-                </Typography>
-              )}
-            </Box>
-          </>
+              </Box>
+            )}
+          </Paper>
         )}
 
         {/* Centered Modern Animated 1-4 Step Navigator */}
@@ -335,6 +334,7 @@ export default function InspectionDetailPage() {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            overflow: 'visible',
           }}
         >
           <Tabs
@@ -344,11 +344,16 @@ export default function InspectionDetailPage() {
             sx={{
               width: '100%',
               minHeight: 'auto',
+              overflow: 'visible',
+              '& .MuiTabs-scroller': {
+                overflow: 'visible !important',
+              },
               '& .MuiTabs-flexContainer': {
                 justifyContent: 'center',
                 alignItems: 'center',
                 flexWrap: { xs: 'wrap', sm: 'nowrap' },
                 gap: { xs: 0.5, sm: 1, md: 1.5 },
+                overflow: 'visible',
               },
               '& .MuiTabs-indicator': {
                 display: 'none',
@@ -464,14 +469,13 @@ export default function InspectionDetailPage() {
                       px: { xs: 1.25, sm: 1.75 },
                       py: 0.75,
                       textTransform: 'none',
-                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                       border: '1.5px solid',
                       borderColor: isActive ? 'primary.main' : 'transparent',
                       bgcolor: isActive ? 'rgba(13, 148, 136, 0.08)' : 'transparent',
+                      overflow: 'visible',
                       '&:hover': {
                         bgcolor: isActive ? 'rgba(13, 148, 136, 0.12)' : '#f8fafc',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.04)',
+                        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
                       },
                     }}
                   />

@@ -223,7 +223,7 @@ describe('InspectionFindingsPage', () => {
 
     expect(screen.queryByRole('button', { name: 'Analyze' })).toBeNull();
     expect(
-      screen.getByText(/Upload current captures before running advisory detection/),
+      screen.getByText(/Upload current image captures before running advisory detection/),
     ).toBeTruthy();
   });
 
@@ -283,7 +283,7 @@ describe('InspectionFindingsPage', () => {
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
 
     // One request over the images only; the PDF is not analysed.
-    fireEvent.click(screen.getByRole('button', { name: /Analyse 1 image\(s\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Analyze all images \(1\)/ }));
     await waitFor(() => expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1']));
   });
 
@@ -303,7 +303,7 @@ describe('InspectionFindingsPage', () => {
 
     // MF3-05: the images are analysed together, not one image after another, so each result can
     // reach the Findings list as it arrives instead of waiting for the slowest image.
-    fireEvent.click(screen.getByRole('button', { name: /Analyse 3 image\(s\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Analyze all images \(3\)/ }));
     await waitFor(() =>
       expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith([
         'evidence-1',
@@ -319,7 +319,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     // Idle must be still: the motion is a signal that a request is running, not decoration.
-    await screen.findByRole('heading', { name: 'Advisory detection' });
+    await screen.findByRole('heading', { name: 'Findings' });
     expect(screen.queryByRole('img', { name: 'Advisory detection in progress' })).toBeNull();
   });
 
@@ -346,7 +346,7 @@ describe('InspectionFindingsPage', () => {
     };
     reopened.rerender(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Advisory detection' });
+    await screen.findByRole('heading', { name: 'Findings' });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
@@ -402,7 +402,7 @@ describe('InspectionFindingsPage', () => {
     mocks.analyze.noDetectionIds = ['evidence-1'];
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(screen.getByText('No defects detected')).toBeTruthy();
+    expect(screen.getByText('Detection complete')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Analyze again' })).toBeTruthy();
   });
 
@@ -412,7 +412,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByText('No defects detected')).toBeNull();
-    expect(screen.getByText('No detected defects')).toBeTruthy();
+    expect(screen.getByText('No findings yet')).toBeTruthy();
   });
 
   it('does not auto-analyze after findings confirmation moved the inspection forward', async () => {
@@ -525,7 +525,7 @@ describe('InspectionFindingsPage', () => {
     const sharedLocation = screen.getByLabelText(/Location for this evidence/);
     fireEvent.change(sharedLocation, { target: { value: 'Girder G4, east face' } });
     fireEvent.blur(sharedLocation);
-    fireEvent.mouseDown(screen.getByLabelText(/Severity for/));
+    fireEvent.mouseDown(screen.getByLabelText('Severity'));
     fireEvent.click(screen.getByRole('option', { name: 'HIGH' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -748,6 +748,7 @@ describe('InspectionFindingsPage', () => {
     const editBtn = screen.getByRole('button', { name: 'Edit / Change defect' });
     fireEvent.click(editBtn);
 
+    expect(screen.queryByText('Correct Inspector finding details:')).toBeNull();
     expect(screen.queryByLabelText('Evidence location')).toBeNull();
     fireEvent.change(screen.getByLabelText('Defect label'), { target: { value: 'Coating blistering' } });
     fireEvent.change(screen.getByLabelText(/Technical notes/), { target: { value: 'Updated technical notes' } });
@@ -763,6 +764,7 @@ describe('InspectionFindingsPage', () => {
           recommendedAction: 'Apply protective epoxy coating',
         }),
       }),
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 });

@@ -402,6 +402,7 @@ export function useDeleteFinding(inspectionId: string | null) {
       showToast('Finding removed from the confirmed set.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.removedFindings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
