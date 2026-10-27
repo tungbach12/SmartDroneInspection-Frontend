@@ -103,7 +103,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
               mb: 0.5,
             }}
           >
-            {title}
+            {t(title)}
           </Typography>
           <Typography
             sx={{
@@ -111,7 +111,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
               fontSize: '14px',
             }}
           >
-            {subtitle}
+            {t(subtitle)}
           </Typography>
         </Box>
 
@@ -150,7 +150,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                     bgcolor: 'transparent',
                   }}
                 >
-                  {h}
+                  {t(h)}
                 </TableCell>
               ))}
             </TableRow>
@@ -171,16 +171,16 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                   }}
                 >
                   <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
-                    {row.col1}
+                    {t(row.col1)}
                   </TableCell>
                   <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
-                    {row.col2}
+                    {t(row.col2)}
                   </TableCell>
                   <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
-                    {row.col3}
+                    {t(row.col3)}
                   </TableCell>
                   <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
-                    {row.col4}
+                    {t(row.col4)}
                   </TableCell>
                   <TableCell align="right" sx={{ px: 2.5, py: 1.75, borderBottom: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
@@ -243,7 +243,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
               '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
             }}
           >
-            {viewAllText || 'View all'}
+            {t(viewAllText || 'View all')}
           </Button>
         </Box>
       )}

@@ -109,7 +109,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               mb: 0.5,
             }}
           >
-            {headerLabel}
+            {t(headerLabel)}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <Typography
@@ -122,7 +122,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 lineHeight: 1,
               }}
             >
-              {headlineValue}
+              {t(headlineValue)}
             </Typography>
             <Box
               component="span"
@@ -138,7 +138,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 color: 'success.main',
               }}
             >
-              {trendBadge}
+              {t(trendBadge)}
             </Box>
           </Box>
         </Box>
@@ -197,7 +197,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   fontFamily={theme.typography.fontFamily}
                   fontWeight="400"
                 >
-                  {tick}
+                  {t(tick)}
                 </text>
               </g>
             );
@@ -270,7 +270,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 fontFamily={theme.typography.fontFamily}
                 fontWeight="400"
               >
-                {m}
+                {t(m)}
               </text>
             );
           })}
@@ -313,15 +313,15 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
             }}
           >
             <Typography sx={{ fontWeight: 600, fontSize: '11px', mb: 0.5 }}>
-              {months[hoverIndex]} {t('Performance')}
+              {t(months[hoverIndex] ?? '')} {t('Performance')}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series1Color }} />
-              <span>{series1Name}: {(series1Data[hoverIndex] == null ? undefined : formatNumber(series1Data[hoverIndex]))}</span>
+              <span>{t(series1Name)}: {(series1Data[hoverIndex] == null ? undefined : formatNumber(series1Data[hoverIndex]))}</span>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
               <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series2Color }} />
-              <span>{series2Name}: {(series2Data[hoverIndex] == null ? undefined : formatNumber(series2Data[hoverIndex]))}</span>
+              <span>{t(series2Name)}: {(series2Data[hoverIndex] == null ? undefined : formatNumber(series2Data[hoverIndex]))}</span>
             </Box>
           </Box>
         )}

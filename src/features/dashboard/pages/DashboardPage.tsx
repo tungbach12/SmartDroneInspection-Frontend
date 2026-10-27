@@ -507,10 +507,10 @@ export default function DashboardPage() {
                   >
                     <Box sx={{ minWidth: 0, flex: 1, ml: 0.5 }}>
                       <Typography sx={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
-                        {label}
+                        {t(label)}
                       </Typography>
                       <Typography sx={{ fontSize: '11px', color: 'text.secondary', lineHeight: 1.2, mt: 0.25 }}>
-                        {description}
+                        {t(description)}
                       </Typography>
                     </Box>
                   </Button>
