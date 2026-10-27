@@ -50,6 +50,7 @@ import { InspectionWorkDetailDialog } from '@/features/inspections/components/In
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -93,35 +94,35 @@ export function AssetsPage() {
   const columns: DataTableColumn<Asset>[] = [
     {
       id: 'code',
-      label: 'Code',
+      label: t('Code'),
       width: 160,
       render: (asset) => (
-        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8125rem', color: '#101828' }}>
+        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8125rem', color: 'text.primary' }}>
           {asset.code}
         </Typography>
       ),
     },
     {
       id: 'name',
-      label: 'Asset Name',
+      label: t('Asset Name'),
       render: (asset) => (
-        <Typography sx={{ fontWeight: 600, color: '#101828', fontSize: '0.875rem' }}>
+        <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
           {asset.name}
         </Typography>
       ),
     },
     {
       id: 'location',
-      label: 'Location',
+      label: t('Location'),
       render: (asset) => (
-        <Typography sx={{ color: '#475467', fontSize: '0.875rem' }}>
+        <Typography sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
           {formatLocation(asset.locationText)}
         </Typography>
       ),
     },
     {
       id: 'status',
-      label: 'Status',
+      label: t('Status'),
       width: 160,
       render: (asset) => <StatusChip status={asset.status} />,
     },
@@ -350,6 +351,8 @@ interface CreateAssetDialogProps {
     description: string | null;
     categoryId: string;
     locationText: string;
+    latitude: number | null;
+    longitude: number | null;
     inspectionItems: string[];
   }) => void;
 }
@@ -366,10 +369,14 @@ function CreateAssetDialogForm({
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [locationText, setLocationText] = useState('');
+  const [latitudeText, setLatitudeText] = useState('10.7789');
+  const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
   const [inspectionItemsText, setInspectionItemsText] = useState('');
 
   const activeCategories = categories.filter((category) => category.active);
+  const parsedLat = latitudeText.trim() !== '' && !Number.isNaN(Number(latitudeText)) ? Number(latitudeText) : null;
+  const parsedLon = longitudeText.trim() !== '' && !Number.isNaN(Number(longitudeText)) ? Number(longitudeText) : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -382,6 +389,8 @@ function CreateAssetDialogForm({
       name,
       categoryId,
       locationText,
+      latitude: parsedLat,
+      longitude: parsedLon,
       description: description || null,
       inspectionItems: items,
     });
@@ -436,6 +445,33 @@ function CreateAssetDialogForm({
             placeholder={t('e.g. Km 12+300, Highway 1A')}
             helperText={t('Physical description or GPS coordinates')}
           />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              label="Vĩ độ (Latitude)"
+              value={latitudeText}
+              onChange={(e) => setLatitudeText(e.target.value)}
+              placeholder="10.7789"
+              fullWidth
+            />
+            <TextField
+              label="Kinh độ (Longitude)"
+              value={longitudeText}
+              onChange={(e) => setLongitudeText(e.target.value)}
+              placeholder="106.7082"
+              fullWidth
+            />
+          </Stack>
+          <AirspaceNoFlyMap
+            assetName={name || 'Công trình mới'}
+            locationText={locationText}
+            latitude={parsedLat}
+            longitude={parsedLon}
+            compact
+            onSelectCoordinates={(lat, lon) => {
+              setLatitudeText(String(lat));
+              setLongitudeText(String(lon));
+            }}
+          />
           <TextField
             label={t('Description')}
             multiline
@@ -468,7 +504,7 @@ function CreateAssetDialogForm({
 
 function CreateAssetDialog(props: CreateAssetDialogProps) {
   return (
-    <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="sm">
+    <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="md">
       {props.open ? <CreateAssetDialogForm {...props} /> : null}
     </Dialog>
   );
@@ -477,8 +513,8 @@ function CreateAssetDialog(props: CreateAssetDialogProps) {
 function InspectionItemsSection({ items }: { items: string[] }) {
   const { t } = useLocale();
   return (
-    <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#334155', mb: 1 }}>
+    <Box sx={{ my: 1.5, p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
         {t('Inspection Checkpoints')}
       </Typography>
       {items && items.length > 0 ? (
@@ -513,11 +549,11 @@ function AssetRecurringSchedulesSection({
   const hasActiveSchedule = schedules.some((s) => s.status === 'ACTIVE');
 
   return (
-    <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+    <Box sx={{ my: 1.5, p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography
           variant="subtitle2"
-          sx={{ fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.75 }}
+          sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 0.75 }}
         >
           <EventRepeatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
           {t('Recurring inspection schedules')}
@@ -556,16 +592,16 @@ function AssetRecurringSchedulesSection({
               sx={{
                 p: 1.25,
                 borderRadius: '8px',
-                bgcolor: '#ffffff',
+                bgcolor: 'background.paper',
                 cursor: 'pointer',
                 transition: 'all 120ms ease',
-                '&:hover': { borderColor: 'primary.main', bgcolor: '#fcfdfe' },
+                '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
               }}
               onClick={() => onSelectSchedule?.(schedule.id)}
             >
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }} noWrap>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
                     {t('Every')} {schedule.interval} {t(schedule.unit)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
@@ -588,9 +624,9 @@ function AssetRecurringSchedulesSection({
                           : 'rgba(148, 163, 184, 0.1)',
                     color:
                       schedule.status === 'ACTIVE'
-                        ? 'success.dark'
+                        ? 'success.main'
                         : schedule.status === 'PAUSED'
-                          ? 'warning.dark'
+                          ? 'warning.main'
                           : 'text.secondary',
                   }}
                 />
@@ -634,11 +670,11 @@ function AssetInspectionHistorySection({
   );
 
   return (
-    <Box sx={{ my: 1.5, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+    <Box sx={{ my: 1.5, p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.25 }}>
         <Typography
           variant="subtitle2"
-          sx={{ fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: 0.75 }}
+          sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 0.75 }}
         >
           <HistoryRoundedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
           {t('Inspection history')}
@@ -661,16 +697,16 @@ function AssetInspectionHistorySection({
               sx={{
                 p: 1.25,
                 borderRadius: '8px',
-                bgcolor: '#ffffff',
+                bgcolor: 'background.paper',
                 cursor: 'pointer',
                 transition: 'all 120ms ease',
-                '&:hover': { borderColor: 'primary.main', bgcolor: '#fcfdfe' },
+                '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
               }}
               onClick={() => onSelectInspection?.(insp.id)}
             >
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }} noWrap>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
                     {t('Inspection')} #{insp.id.slice(0, 8)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
@@ -791,7 +827,7 @@ function AssetDetailDrawer({
 
   return (
     <Drawer anchor="right" open={Boolean(asset)} onClose={onClose}>
-      <Box sx={{ width: { xs: '100vw', sm: 420 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ width: { xs: '100vw', sm: 540 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {asset?.name}
@@ -873,6 +909,17 @@ function AssetDetailDrawer({
           </>
         )}
         {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
+        {asset && (
+          <Box sx={{ my: 1.5 }}>
+            <AirspaceNoFlyMap
+              assetName={asset.name}
+              locationText={asset.locationText}
+              latitude={asset.latitude}
+              longitude={asset.longitude}
+              compact
+            />
+          </Box>
+        )}
         {asset && (
           <AssetRecurringSchedulesSection
             assetId={asset.id}
