@@ -1,4 +1,4 @@
-/* Clean workspace styling aligned with the Lytic design system reference */
+/* Clean workspace styling aligned with light and dark enterprise color schemes */
 
 .workspace-page > header {
   position: relative;
@@ -7,29 +7,27 @@
   border: 0;
 }
 
-/* Removed the heavy green stripe (.workspace-page > header::after) */
-
 .workspace-page > header h1 {
   font-size: clamp(1.6rem, 2.2vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.035em;
-  color: #101828;
+  color: var(--mui-palette-text-primary, #101828);
 }
 
 .workspace-page > header p {
   margin-top: 4px;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #667085;
+  color: var(--mui-palette-text-secondary, #667085);
 }
 
 /* Card and Paper containers */
 .workspace-page .MuiCard-root,
 .workspace-page .MuiPaper-root.MuiPaper-outlined {
   overflow: hidden;
-  border: 1px solid #eaecf0;
+  border: 1px solid var(--mui-palette-divider, #eaecf0);
   border-radius: 16px;
-  background-color: #ffffff;
+  background-color: var(--mui-palette-background-paper, #ffffff);
   box-shadow: 0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03);
 }
 
@@ -41,30 +39,30 @@
   padding-bottom: 24px;
 }
 
-/* Modern Lytic Table styling */
+/* Modern Table styling */
 .workspace-page .MuiTable-root {
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .workspace-page .MuiTableHead-root .MuiTableCell-root {
-  background-color: #fafbfc;
-  color: #667085;
+  background-color: var(--mui-palette-background-default, #fafbfc);
+  color: var(--mui-palette-text-secondary, #667085);
   font-size: 0.725rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
   padding: 12px 20px;
-  border-bottom: 1px solid #eaecf0;
+  border-bottom: 1px solid var(--mui-palette-divider, #eaecf0);
   border-top: 0;
 }
 
 .workspace-page .MuiTableBody-root .MuiTableCell-root {
   padding: 16px 20px;
   font-size: 0.875rem;
-  color: #344054;
-  border-bottom: 1px solid #f2f4f7;
+  color: var(--mui-palette-text-primary, #344054);
+  border-bottom: 1px solid var(--mui-palette-divider, #f2f4f7);
 }
 
 .workspace-page .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root {
@@ -72,27 +70,27 @@
 }
 
 .workspace-page .MuiTableRow-hover:hover {
-  background-color: #f9fafb !important;
+  background-color: var(--mui-palette-action-hover, #f9fafb) !important;
 }
 
 /* Clean Input & Controls */
 .workspace-page .MuiOutlinedInput-root {
   border-radius: 10px;
-  background-color: #ffffff;
+  background-color: var(--mui-palette-background-paper, #ffffff);
   font-size: 0.875rem;
   transition: all 0.15s ease;
 }
 
 .workspace-page .MuiOutlinedInput-notchedOutline {
-  border-color: #d0d5dd;
+  border-color: var(--mui-palette-divider, #d0d5dd);
 }
 
 .workspace-page .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: #98a2b3;
+  border-color: var(--mui-palette-text-secondary, #98a2b3);
 }
 
 .workspace-page .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #3758f9;
+  border-color: var(--mui-palette-primary-main, #3758f9);
   border-width: 1.5px;
 }
 
@@ -109,18 +107,19 @@
 }
 
 .workspace-page .MuiButton-containedPrimary {
-  background-color: #3758f9;
+  background-color: var(--mui-palette-primary-main, #3758f9);
+  color: #ffffff;
 }
 
 .workspace-page .MuiButton-containedPrimary:hover {
-  background-color: #2b45cb;
+  background-color: var(--mui-palette-primary-dark, #2b45cb);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
 .workspace-page .MuiTablePagination-root {
-  color: #667085;
+  color: var(--mui-palette-text-secondary, #667085);
   font-size: 0.875rem;
-  border-top: 1px solid #eaecf0;
+  border-top: 1px solid var(--mui-palette-divider, #eaecf0);
 }
 
 @media (max-width: 600px) {

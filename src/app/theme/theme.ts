@@ -2,6 +2,9 @@ import { createTheme } from '@mui/material/styles';
 import { layoutTokens, paletteTokens, statusTokens } from './tokens';
 
 export const theme = createTheme({
+  cssVariables: {
+    colorSchemeSelector: 'data',
+  },
   colorSchemes: {
     light: {
       palette: {
@@ -35,16 +38,16 @@ export const theme = createTheme({
     dark: {
       palette: {
         primary: {
-          main: '#8B85FF',
-          light: '#B7B3FF',
-          dark: '#6A63F1',
-          contrastText: '#030712',
+          main: '#818CF8',
+          light: '#A5B4FC',
+          dark: '#6366F1',
+          contrastText: '#FFFFFF',
         },
         secondary: {
-          main: '#B7B3FF',
-          light: '#D9D7FF',
-          dark: '#8B85FF',
-          contrastText: '#030712',
+          main: '#94A3B8',
+          light: '#CBD5E1',
+          dark: '#64748B',
+          contrastText: '#0F172A',
         },
         background: {
           default: paletteTokens.darkCanvas,
@@ -54,18 +57,18 @@ export const theme = createTheme({
           primary: paletteTokens.darkText,
           secondary: paletteTokens.darkMuted,
         },
-        divider: '#1F2937',
+        divider: '#1E293B',
         success: { main: statusTokens.success.dark },
         warning: { main: statusTokens.warning.dark },
         error: { main: statusTokens.error.dark },
         info: { main: statusTokens.info.dark },
         action: {
-          active: '#9CA3AF',
-          hover: 'rgba(156, 163, 175, 0.08)',
-          selected: 'rgba(139, 133, 255, 0.14)',
-          disabled: 'rgba(205, 205, 208, 0.32)',
-          disabledBackground: 'rgba(156, 163, 175, 0.12)',
-          focus: 'rgba(139, 133, 255, 0.2)',
+          active: '#CBD5E1',
+          hover: 'rgba(148, 163, 184, 0.08)',
+          selected: 'rgba(129, 140, 248, 0.16)',
+          disabled: 'rgba(148, 163, 184, 0.35)',
+          disabledBackground: 'rgba(148, 163, 184, 0.12)',
+          focus: 'rgba(129, 140, 248, 0.24)',
         },
       },
     },

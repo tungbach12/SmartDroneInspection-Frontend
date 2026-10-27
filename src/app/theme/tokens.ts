@@ -8,12 +8,13 @@ export const paletteTokens = {
   teal: '#5750F1',
   tealSoft: '#EEF2FF',
   amber: '#A96012',
-  // Lytic dark reference: cool slate canvas with near-black chrome and panels.
-  darkCanvas: '#111827',
-  darkSurface: '#030712',
-  darkRaised: '#1F2937',
-  darkText: '#CDCDD0',
-  darkMuted: '#9CA3AF',
+  // Enterprise dark reference (Linear / GitHub Primer / Stripe dark slate hierarchy):
+  // Deep carbon canvas (#0B0F17) with elevated slate cards (#111827) and crisp #F1F5F9 text.
+  darkCanvas: '#0B0F17',
+  darkSurface: '#111827',
+  darkRaised: '#1E293B',
+  darkText: '#F1F5F9',
+  darkMuted: '#94A3B8',
 } as const;
 
 export const layoutTokens = {

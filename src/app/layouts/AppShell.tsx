@@ -187,13 +187,13 @@ export function AppShell({ portal }: AppShellProps) {
                   mb: 0.25,
                   px: 1.25,
                   borderRadius: 1.5,
-                  color: selected ? 'primary.dark' : 'text.secondary',
+                  color: selected ? 'primary.main' : 'text.secondary',
                   '& .MuiListItemIcon-root': { minWidth: 34, color: 'inherit' },
                   '&.Mui-selected': {
-                    bgcolor: 'rgba(10, 150, 138, .10)',
-                    boxShadow: 'inset 3px 0 #0A968A',
-                    color: 'primary.dark',
-                    '&:hover': { bgcolor: 'rgba(10, 150, 138, .14)' },
+                    bgcolor: 'action.selected',
+                    boxShadow: 'inset 3px 0 var(--mui-palette-primary-main)',
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: 'action.selected' },
                   },
                   '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
                 }}
@@ -266,7 +266,7 @@ export function AppShell({ portal }: AppShellProps) {
               '&:hover': { bgcolor: 'action.hover', color: 'error.main' },
             }}
           >
-            {signingOut ? 'Signing out…' : 'Sign out'}
+            {signingOut ? t('Signing out…') : t('Sign out')}
           </Button>
         </Stack>
       </Box>
@@ -305,7 +305,7 @@ export function AppShell({ portal }: AppShellProps) {
           </Typography>
           {roles.length > 0 && (
             <Chip
-              label={roles[0]}
+              label={t(roles[0] ?? '')}
               size="small"
               sx={{
                 mr: 1.25,
@@ -313,8 +313,8 @@ export function AppShell({ portal }: AppShellProps) {
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '.04em',
-                bgcolor: 'rgba(10, 150, 138, .12)',
-                color: 'primary.dark',
+                bgcolor: 'action.selected',
+                color: 'primary.main',
               }}
             />
           )}
