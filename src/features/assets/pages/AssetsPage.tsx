@@ -28,6 +28,10 @@ import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
+import PlaceRounded from '@mui/icons-material/PlaceRounded';
+import GppBadRounded from '@mui/icons-material/GppBadRounded';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
+import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
@@ -365,6 +369,7 @@ function CreateAssetDialogForm({
   onSubmit,
 }: CreateAssetDialogProps) {
   const { t } = useLocale();
+  const isDark = useIsDarkMode();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -378,8 +383,15 @@ function CreateAssetDialogForm({
   const parsedLat = latitudeText.trim() !== '' && !Number.isNaN(Number(latitudeText)) ? Number(latitudeText) : null;
   const parsedLon = longitudeText.trim() !== '' && !Number.isNaN(Number(longitudeText)) ? Number(longitudeText) : null;
 
+  const airspaceEval =
+    parsedLat != null && parsedLon != null ? evaluateAirspace(parsedLat, parsedLon) : null;
+  const isNoFlyZone = airspaceEval?.classification === 'NO_FLY_ZONE';
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (isNoFlyZone) {
+      return;
+    }
     const items = inspectionItemsText
       .split(/[\n,]+/)
       .map((s) => s.trim())
@@ -445,33 +457,89 @@ function CreateAssetDialogForm({
             placeholder={t('e.g. Km 12+300, Highway 1A')}
             helperText={t('Physical description or GPS coordinates')}
           />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Vĩ độ (Latitude)"
-              value={latitudeText}
-              onChange={(e) => setLatitudeText(e.target.value)}
-              placeholder="10.7789"
-              fullWidth
-            />
-            <TextField
-              label="Kinh độ (Longitude)"
-              value={longitudeText}
-              onChange={(e) => setLongitudeText(e.target.value)}
-              placeholder="106.7082"
-              fullWidth
-            />
-          </Stack>
+          <Box
+            sx={{
+              p: 1.75,
+              borderRadius: '12px',
+              bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : '#f8fafc',
+              border: '1px solid',
+              borderColor: isNoFlyZone ? 'error.main' : 'divider',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
+              <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {t('Tọa độ vị trí công trình')}
+              </Typography>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label={t('Vĩ độ (Latitude)')}
+                value={latitudeText}
+                onChange={(e) => setLatitudeText(e.target.value)}
+                placeholder="10.7805"
+                fullWidth
+                autoComplete="off"
+                error={isNoFlyZone}
+                slotProps={{
+                  htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
+                }}
+                helperText={t('VD: 10.7805 (Cầu Ba Son)')}
+              />
+              <TextField
+                label={t('Kinh độ (Longitude)')}
+                value={longitudeText}
+                onChange={(e) => setLongitudeText(e.target.value)}
+                placeholder="106.7108"
+                fullWidth
+                autoComplete="off"
+                error={isNoFlyZone}
+                slotProps={{
+                  htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
+                }}
+                helperText={t('VD: 106.7108 (Cầu Ba Son)')}
+              />
+            </Stack>
+
+            {isNoFlyZone && (
+              <Alert
+                severity="error"
+                icon={<GppBadRounded sx={{ fontSize: 20 }} />}
+                sx={{
+                  mt: 1.5,
+                  borderRadius: '10px',
+                  border: '1px solid',
+                  borderColor: 'error.main',
+                  py: 0.5,
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>
+                  {t('Vị trí công trình nằm trong VÙNG CẤM BAY (NO-FLY ZONE)!')}
+                </Typography>
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.primary' }}>
+                  {t(
+                    'Không thể tạo mới tài sản tại tọa độ cấm bay quân sự / hàng không tuyệt đối theo Quyết định 18/2020/QĐ-TTg. Vui lòng chọn vị trí ở vùng an toàn (ngoài vùng cấm bay) để tiếp tục tạo công trình.',
+                  )}
+                </Typography>
+              </Alert>
+            )}
+          </Box>
+
           <AirspaceNoFlyMap
             assetName={name || 'Công trình mới'}
             locationText={locationText}
             latitude={parsedLat}
             longitude={parsedLon}
             compact
-            onSelectCoordinates={(lat, lon) => {
+            onSelectCoordinates={(lat, lon, placeName) => {
               setLatitudeText(String(lat));
               setLongitudeText(String(lon));
+              if (placeName && (!locationText || locationText === 'Công trình mới')) {
+                setLocationText(placeName);
+              }
             }}
           />
+
           <TextField
             label={t('Description')}
             multiline
@@ -494,7 +562,12 @@ function CreateAssetDialogForm({
         <Button onClick={onClose} disabled={pending}>
           {t('Cancel')}
         </Button>
-        <Button type="submit" variant="contained" disabled={pending}>
+        <Button
+          type="submit"
+          variant="contained"
+          color={isNoFlyZone ? 'error' : 'primary'}
+          disabled={pending || isNoFlyZone}
+        >
           {pending ? 'Creating…' : 'Create Asset'}
         </Button>
       </DialogActions>

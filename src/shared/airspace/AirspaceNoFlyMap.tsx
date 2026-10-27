@@ -4,10 +4,13 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
+  ClickAwayListener,
   Divider,
   IconButton,
   Paper,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -20,12 +23,14 @@ import RadarRounded from '@mui/icons-material/RadarRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import GppBadRounded from '@mui/icons-material/GppBadRounded';
 import VerifiedUserRounded from '@mui/icons-material/VerifiedUserRounded';
-import CenterFocusStrongRounded from '@mui/icons-material/CenterFocusStrongRounded';
 import PersonPinCircleRounded from '@mui/icons-material/PersonPinCircleRounded';
 import EditLocationAltRounded from '@mui/icons-material/EditLocationAltRounded';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
+import ClearRounded from '@mui/icons-material/ClearRounded';
+import PlaceRounded from '@mui/icons-material/PlaceRounded';
 import {
   CAMBAY_PORTAL_URL,
   VIETNAM_AIRSPACE_ZONES,
@@ -33,7 +38,9 @@ import {
   extractCoordinates,
   findSafeTakeoffPoint,
   haversineDistanceMeters,
+  searchVietnamLandmarks,
   type AirspaceZone,
+  type LandmarkLocation,
 } from './airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -42,7 +49,7 @@ export interface AirspaceNoFlyMapProps {
   locationText?: string | null | undefined;
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
-  onSelectCoordinates?: ((latitude: number, longitude: number) => void) | undefined;
+  onSelectCoordinates?: ((latitude: number, longitude: number, placeName?: string) => void) | undefined;
   compact?: boolean | undefined;
 }
 
@@ -132,7 +139,6 @@ export function AirspaceNoFlyMap({
   const targetStorageKey = `sdi-airspace-target:${
     assetName?.trim() || (typeof window !== 'undefined' ? window.location.pathname : 'default')
   }`;
-
   const [zoom, setZoom] = useState<number>(compact ? 13 : 15);
   const [viewOffset, setViewOffset] = useState<{ lat: number; lon: number } | null>(null);
   const [isTargetLocked, setIsTargetLocked] = useState<boolean>(false);
@@ -142,9 +148,76 @@ export function AirspaceNoFlyMap({
   );
   const [draftTarget, setDraftTarget] = useState<{ lat: number; lon: number } | null>(null);
 
+  // Search Address / Landmark State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<LandmarkLocation[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
+
   useEffect(() => {
     setCustomTarget(readSavedTarget(targetStorageKey));
   }, [targetStorageKey]);
+
+  // Debounced search logic for landmarks and addresses
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    const localMatches = searchVietnamLandmarks(q);
+    setSearchResults(localMatches);
+
+    if (q.length >= 3) {
+      setIsSearching(true);
+      const controller = new AbortController();
+      const timer = setTimeout(async () => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              q,
+            )}&countrycodes=vn&limit=6&addressdetails=1`,
+            {
+              headers: { 'Accept-Language': 'vi,en' },
+              signal: controller.signal,
+            },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const onlineResults: LandmarkLocation[] = data.map((item: { display_name: string; lat: string; lon: string }) => ({
+              name: item.display_name.split(',')[0]?.trim() || item.display_name,
+              category: 'ĐỊA DANH' as const,
+              latitude: Number(Number(item.lat).toFixed(6)),
+              longitude: Number(Number(item.lon).toFixed(6)),
+              region: item.display_name,
+            }));
+            setSearchResults((prev) => {
+              const names = new Set(prev.map((p) => p.name.toLowerCase()));
+              const combined = [...prev];
+              for (const o of onlineResults) {
+                if (!names.has(o.name.toLowerCase())) {
+                  combined.push(o);
+                }
+              }
+              return combined.slice(0, 8);
+            });
+          }
+        } catch {
+          // ignore network or abort errors
+        } finally {
+          setIsSearching(false);
+        }
+      }, 350);
+
+      return () => {
+        clearTimeout(timer);
+        controller.abort();
+      };
+    }
+  }, [searchQuery]);
+
   const [zoneFilter, setZoneFilter] = useState<'ALL' | 'NO_FLY_ZONE' | 'RESTRICTED_ZONE'>('ALL');
   const [selectedZoneCode, setSelectedZoneCode] = useState<string | null>(null);
   const [pilotLocation, setPilotLocation] = useState<{
@@ -157,6 +230,7 @@ export function AirspaceNoFlyMap({
   const savedLon = customTarget ? customTarget.lon : baseLon;
   const activeLat = isAdjustingTarget && draftTarget ? draftTarget.lat : savedLat;
   const activeLon = isAdjustingTarget && draftTarget ? draftTarget.lon : savedLon;
+
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragRef = useRef<{
@@ -228,12 +302,6 @@ export function AirspaceNoFlyMap({
       lon: Number(((activeLon + safePoint.lon) / 2).toFixed(6)),
     });
     setZoom(15);
-  };
-
-  const handleCenterOnTarget = () => {
-    setViewOffset(null);
-    setZoom(16);
-    setIsTargetLocked(true);
   };
 
   const centerWorldX = lonToWorldX(centerLon, zoom);
@@ -343,6 +411,28 @@ export function AirspaceNoFlyMap({
     if (onSelectCoordinates) {
       setViewOffset({ lat: pickedLat, lon: pickedLon });
       onSelectCoordinates(pickedLat, pickedLon);
+    }
+  };
+
+  const handleSelectLocation = (loc: { name: string; latitude: number; longitude: number }) => {
+    setViewOffset(null);
+    setCustomTarget({ lat: loc.latitude, lon: loc.longitude });
+    setDraftTarget({ lat: loc.latitude, lon: loc.longitude });
+    setZoom(16);
+    setIsTargetLocked(true);
+    setSearchFeedback(`Đã chọn: ${loc.name}`);
+    setShowSearchDropdown(false);
+    setSearchQuery(loc.name);
+    try {
+      window.localStorage.setItem(
+        targetStorageKey,
+        JSON.stringify({ lat: loc.latitude, lon: loc.longitude }),
+      );
+    } catch {
+      // ignore storage errors
+    }
+    if (onSelectCoordinates) {
+      onSelectCoordinates(loc.latitude, loc.longitude, loc.name);
     }
   };
 
@@ -525,6 +615,146 @@ export function AirspaceNoFlyMap({
           </Typography>
         </Alert>
 
+        {/* Address & Landmark Search Bar */}
+        <Box sx={{ position: 'relative' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <ClickAwayListener onClickAway={() => setShowSearchDropdown(false)}>
+              <Box sx={{ position: 'relative', flex: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 0.5,
+                    px: 1.25,
+                    borderRadius: '10px',
+                    bgcolor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#ffffff',
+                    border: '1px solid',
+                    borderColor: showSearchDropdown ? 'primary.main' : 'divider',
+                    boxShadow: showSearchDropdown ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {isSearching ? (
+                    <CircularProgress size={16} sx={{ color: 'primary.main', flexShrink: 0 }} />
+                  ) : (
+                    <SearchRounded sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+                  )}
+                  <TextField
+                    variant="standard"
+                    fullWidth
+                    value={searchQuery}
+                    placeholder="Tìm kiếm công trình, địa chỉ (VD: Cầu Phú Mỹ, Cầu Ba Son, Cảng Cát Lái, Landmark 81...)"
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowSearchDropdown(true);
+                    }}
+                    onFocus={() => {
+                      if (searchQuery.trim()) setShowSearchDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchResults.length > 0) {
+                        e.preventDefault();
+                        handleSelectLocation(searchResults[0]!);
+                      }
+                    }}
+                    slotProps={{
+                      input: {
+                        disableUnderline: true,
+                        sx: { fontSize: '0.8125rem', color: 'text.primary' },
+                      },
+                      htmlInput: {
+                        autoComplete: 'off',
+                        spellCheck: false,
+                        'data-lpignore': 'true',
+                      },
+                    }}
+                  />
+                  {searchQuery && (
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchResults([]);
+                        setShowSearchDropdown(false);
+                      }}
+                      sx={{ p: 0.25 }}
+                    >
+                      <ClearRounded sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {/* Search Autocomplete Suggestions Dropdown */}
+                {showSearchDropdown && searchResults.length > 0 && (
+                  <Paper
+                    elevation={8}
+                    sx={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      mt: 0.75,
+                      zIndex: 50,
+                      maxHeight: 280,
+                      overflowY: 'auto',
+                      borderRadius: '10px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    {searchResults.map((item, idx) => (
+                      <Box
+                        key={`${item.name}-${idx}`}
+                        onClick={() => handleSelectLocation(item)}
+                        sx={{
+                          p: 1.25,
+                          px: 1.5,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 1.5,
+                          borderBottom: idx < searchResults.length - 1 ? '1px solid' : 'none',
+                          borderColor: 'divider',
+                          '&:hover': { bgcolor: 'action.hover' },
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <PlaceRounded sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.84rem' }} noWrap>
+                              {item.name}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={item.category}
+                              sx={{ height: 18, fontSize: '9.5px', fontWeight: 700 }}
+                            />
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }} noWrap>
+                            {item.region}
+                          </Typography>
+                        </Box>
+                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, flexShrink: 0, fontSize: '11px' }}>
+                          {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Paper>
+                )}
+              </Box>
+            </ClickAwayListener>
+          </Stack>
+
+          {searchFeedback && (
+            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, mt: 0.5, display: 'block' }}>
+              ✓ {searchFeedback}
+            </Typography>
+          )}
+        </Box>
+
         {/* Unified Single-Row Control Bar */}
         <Box
           sx={{
@@ -674,41 +904,6 @@ export function AirspaceNoFlyMap({
               }}
             >
               Giả lập điểm đứng cất cánh
-            </Button>
-
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<CenterFocusStrongRounded sx={{ fontSize: 15 }} />}
-              onClick={handleCenterOnTarget}
-              sx={{
-                height: 28,
-                px: 1.15,
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                borderRadius: '8px',
-                borderColor: isTargetLocked && viewOffset === null ? '#7c3aed' : 'divider',
-                bgcolor:
-                  isTargetLocked && viewOffset === null
-                    ? isDark
-                      ? 'rgba(124, 58, 237, 0.22)'
-                      : '#f3e8ff'
-                    : 'background.paper',
-                color:
-                  isTargetLocked && viewOffset === null
-                    ? isDark
-                      ? '#c4b5fd'
-                      : '#6d28d9'
-                    : 'text.primary',
-                '&:hover': {
-                  borderColor: 'text.secondary',
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
-              Tâm công trình
             </Button>
 
             {!isAdjustingTarget ? (
@@ -926,7 +1121,9 @@ export function AirspaceNoFlyMap({
               return (
                 <g
                   key={zone.code}
-                  style={{ cursor: isAdjustingTarget ? 'crosshair' : 'pointer' }}
+                  style={{
+                    cursor: isAdjustingTarget ? 'crosshair' : 'pointer',
+                  }}
                   onClick={() => {
                     if (!isAdjustingTarget && !onSelectCoordinates) {
                       setSelectedZoneCode(zone.code);

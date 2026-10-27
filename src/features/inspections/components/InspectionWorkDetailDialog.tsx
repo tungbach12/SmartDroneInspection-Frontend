@@ -28,6 +28,7 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getSectionPath, PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
 import type { InspectionStatus } from '../api/inspectionApi';
+import { formatLocation } from '@/shared/airspace/airspaceZones';
 
 export interface InspectionWorkDetailDialogProps {
   open: boolean;
@@ -300,7 +301,7 @@ export function InspectionWorkDetailDialog({
                     {t('Asset Location')}
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#334155' }}>
-                    {inspection.locationText || t('No specific location coordinates recorded')}
+                    {formatLocation(inspection.locationText) || t('No specific location coordinates recorded')}
                   </Typography>
                 </Grid>
               </Grid>

@@ -39,6 +39,7 @@ import {
 } from '../hooks/useRecurringSchedules';
 import type { ScheduleOccurrence } from '../api/recurringScheduleApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { formatLocation } from '@/shared/airspace/airspaceZones';
 
 export interface RecurringScheduleDetailDialogProps {
   open: boolean;
@@ -197,7 +198,7 @@ export function RecurringScheduleDetailDialog({
               </Box>
 
               {/* Schedule Info Grid */}
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#f8fafc' }}>
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default', borderColor: 'divider' }}>
                 <Box
                   sx={{
                     display: 'grid',
@@ -209,9 +210,9 @@ export function RecurringScheduleDetailDialog({
                     <Typography variant="caption" color="text.secondary">
                       {t('Target Asset')}
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                       {schedule.assetName || schedule.assetId}
-                      {schedule.assetLocationText ? ` (${schedule.assetLocationText})` : ''}
+                      {schedule.assetLocationText ? ` (${formatLocation(schedule.assetLocationText)})` : ''}
                     </Typography>
                   </Box>
 
@@ -281,7 +282,7 @@ export function RecurringScheduleDetailDialog({
                 ) : (
                   <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
-                      <TableHead sx={{ bgcolor: '#f1f5f9' }}>
+                      <TableHead sx={{ bgcolor: 'action.hover' }}>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 600 }}>#</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>{t('Planned Window')}</TableCell>

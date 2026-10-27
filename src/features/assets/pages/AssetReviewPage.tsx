@@ -19,6 +19,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { usePendingReviewAssets, useReviewAsset } from '../hooks/useAssets';
 import { useProposals, useReviewProposal } from '../hooks/useProposals';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { formatLocation } from '@/shared/airspace/airspaceZones';
 
 export default function AssetReviewPage() {
   const { t } = useLocale();
@@ -58,7 +59,7 @@ export default function AssetReviewPage() {
                   </Typography>
                   <StatusChip status={asset.status} />
                 </Stack>
-                <Typography color="text.secondary">{asset.locationText}</Typography>
+                <Typography color="text.secondary">{formatLocation(asset.locationText)}</Typography>
                 <TextField
                   fullWidth
                   size="small"

@@ -257,6 +257,37 @@ export function extractCoordinates(
 }
 
 /**
+ * Formats a location string which might be a JSON object like:
+ * {"label": "Hẻm 40 Đường Hàng Tre", "latitude": 10.847804, "longitude": 106.812573}
+ * or a plain text string into a clean, human-readable address.
+ */
+export function formatLocation(locationText?: string | null | undefined): string {
+  if (!locationText || !locationText.trim()) return '—';
+  const trimmed = locationText.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.label === 'string' && parsed.label.trim()) {
+          return parsed.label.trim();
+        }
+        if (typeof parsed.address === 'string' && parsed.address.trim()) {
+          return parsed.address.trim();
+        }
+        const lat = parsed.latitude ?? parsed.lat;
+        const lon = parsed.longitude ?? parsed.lon ?? parsed.lng;
+        if (lat != null && lon != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lon))) {
+          return `${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
+        }
+      }
+    } catch {
+      // not valid JSON, treat as plain string
+    }
+  }
+  return trimmed;
+}
+
+/**
  * Automatically finds an optimal take-off point around the target asset that is OUTSIDE all
  * prohibited NO_FLY_ZONE circles (with a safety margin), preferring close VLOS distances.
  */
@@ -323,5 +354,114 @@ export function findSafeTakeoffPoint(
     lon: Number((targetLon + 0.0022).toFixed(6)),
     distanceMeters: 280,
   };
+}
+
+export interface LatLonPoint {
+  lat: number;
+  lon: number;
+}
+
+export interface PolygonMetrics {
+  pointCount: number;
+  perimeterMeters: number;
+  areaSquareMeters: number;
+  areaHectares: number;
+}
+
+/**
+ * Calculates geodesic perimeter and enclosed surface area for a set of perimeter boundary points.
+ */
+export function calculatePolygonPerimeterAndArea(points: LatLonPoint[]): PolygonMetrics {
+  if (points.length < 3) {
+    return {
+      pointCount: points.length,
+      perimeterMeters: 0,
+      areaSquareMeters: 0,
+      areaHectares: 0,
+    };
+  }
+
+  // 1. Calculate Perimeter using Haversine
+  let perimeterMeters = 0;
+  for (let i = 0; i < points.length; i++) {
+    const nextIdx = (i + 1) % points.length;
+    const p1 = points[i];
+    const p2 = points[nextIdx];
+    if (p1 && p2) {
+      perimeterMeters += haversineDistanceMeters(p1.lat, p1.lon, p2.lat, p2.lon);
+    }
+  }
+
+  // 2. Calculate Area using Planar projection relative to centroid (Shoelace)
+  const centroidLat = points.reduce((acc, p) => acc + p.lat, 0) / points.length;
+  const centroidLon = points.reduce((acc, p) => acc + p.lon, 0) / points.length;
+  const cosLat = Math.cos((centroidLat * Math.PI) / 180);
+  const R = 6371000; // Earth mean radius in meters
+
+  const xyMeters = points.map((p) => ({
+    x: (((p.lon - centroidLon) * Math.PI) / 180) * R * cosLat,
+    y: (((p.lat - centroidLat) * Math.PI) / 180) * R,
+  }));
+
+  let shoelaceSum = 0;
+  for (let i = 0; i < xyMeters.length; i++) {
+    const j = (i + 1) % xyMeters.length;
+    const p1 = xyMeters[i];
+    const p2 = xyMeters[j];
+    if (p1 && p2) {
+      shoelaceSum += p1.x * p2.y - p2.x * p1.y;
+    }
+  }
+  const areaSquareMeters = Math.abs(shoelaceSum) / 2;
+  const areaHectares = areaSquareMeters / 10000;
+
+  return {
+    pointCount: points.length,
+    perimeterMeters: Math.round(perimeterMeters),
+    areaSquareMeters: Math.round(areaSquareMeters),
+    areaHectares: Number(areaHectares.toFixed(2)),
+  };
+}
+
+export interface LandmarkLocation {
+  name: string;
+  category: 'CẦU' | 'CÔNG TRÌNH' | 'NĂNG LƯỢNG' | 'CẢNG' | 'ĐỊA DANH';
+  latitude: number;
+  longitude: number;
+  region: string;
+}
+
+export const POPULAR_VIETNAM_LANDMARKS: LandmarkLocation[] = [
+  { name: 'Cầu Ba Son (Cầu Thủ Thiêm 2)', category: 'CẦU', latitude: 10.7805, longitude: 106.7108, region: 'Quận 1 / TP. Thủ Đức, TP.HCM' },
+  { name: 'Cầu Phú Mỹ', category: 'CẦU', latitude: 10.7492, longitude: 106.7456, region: 'Quận 7 / TP. Thủ Đức, TP.HCM' },
+  { name: 'Cầu Sài Gòn', category: 'CẦU', latitude: 10.7997, longitude: 106.7214, region: 'Bình Thạnh / TP. Thủ Đức, TP.HCM' },
+  { name: 'Cầu Thủ Thiêm 1', category: 'CẦU', latitude: 10.7876, longitude: 106.7175, region: 'Bình Thạnh / TP. Thủ Đức, TP.HCM' },
+  { name: 'Cầu Đồng Nai', category: 'CẦU', latitude: 10.8920, longitude: 106.8402, region: 'TP. Biên Hòa, Đồng Nai' },
+  { name: 'Cầu Cần Thơ', category: 'CẦU', latitude: 10.0333, longitude: 105.8167, region: 'TP. Cần Thơ / Vĩnh Long' },
+  { name: 'Cầu Rồng Đà Nẵng', category: 'CẦU', latitude: 16.0610, longitude: 108.2270, region: 'Hải Châu / Sơn Trà, TP. Đà Nẵng' },
+  { name: 'Cầu Thuận Phước', category: 'CẦU', latitude: 16.0964, longitude: 108.2231, region: 'Hải Châu / Sơn Trà, TP. Đà Nẵng' },
+  { name: 'Cầu Nhật Tân (Hà Nội)', category: 'CẦU', latitude: 21.0945, longitude: 105.8189, region: 'Tây Hồ / Đông Anh, Hà Nội' },
+  { name: 'Cầu Long Biên (Hà Nội)', category: 'CẦU', latitude: 21.0425, longitude: 105.8569, region: 'Hoàn Kiếm / Long Biên, Hà Nội' },
+  { name: 'Nhà máy Điện Hiệp Phước', category: 'NĂNG LƯỢNG', latitude: 10.6350, longitude: 106.7450, region: 'Huyện Nhà Bè, TP.HCM' },
+  { name: 'Trụ điện 500kV Cát Lái', category: 'NĂNG LƯỢNG', latitude: 10.7615, longitude: 106.7754, region: 'TP. Thủ Đức, TP.HCM' },
+  { name: 'Nhà máy Nhiệt điện Duyên Hải', category: 'NĂNG LƯỢNG', latitude: 9.6050, longitude: 106.5200, region: 'Trà Vinh' },
+  { name: 'Cảng Cát Lái', category: 'CẢNG', latitude: 10.7620, longitude: 106.7890, region: 'TP. Thủ Đức, TP.HCM' },
+  { name: 'Cảng Hiệp Phước', category: 'CẢNG', latitude: 10.6450, longitude: 106.7580, region: 'Nhà Bè, TP.HCM' },
+  { name: 'Tòa nhà Landmark 81', category: 'CÔNG TRÌNH', latitude: 10.7950, longitude: 106.7218, region: 'Bình Thạnh, TP.HCM' },
+  { name: 'Tòa nhà Bitexco Financial Tower', category: 'CÔNG TRÌNH', latitude: 10.7715, longitude: 106.7044, region: 'Quận 1, TP.HCM' },
+  { name: 'Dinh Độc Lập / Trung tâm Quận 1', category: 'ĐỊA DANH', latitude: 10.7769, longitude: 106.6953, region: 'Quận 1, TP.HCM' },
+  { name: 'Hồ Hoàn Kiếm / Trung tâm Hà Nội', category: 'ĐỊA DANH', latitude: 21.0285, longitude: 105.8542, region: 'Hoàn Kiếm, Hà Nội' },
+  { name: 'Khu Công Nghệ Cao TP.HCM (SHTP)', category: 'CÔNG TRÌNH', latitude: 10.8544, longitude: 106.7925, region: 'TP. Thủ Đức, TP.HCM' },
+];
+
+export function searchVietnamLandmarks(query: string): LandmarkLocation[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return POPULAR_VIETNAM_LANDMARKS.filter(
+    (item) =>
+      item.name.toLowerCase().includes(q) ||
+      item.region.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q),
+  );
 }
 

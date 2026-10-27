@@ -1,7 +1,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AirspaceNoFlyMap } from './AirspaceNoFlyMap';
-import { evaluateAirspace, extractCoordinates } from './airspaceZones';
+import {
+  calculatePolygonPerimeterAndArea,
+  evaluateAirspace,
+  extractCoordinates,
+  formatLocation,
+  searchVietnamLandmarks,
+} from './airspaceZones';
 
 afterEach(() => {
   cleanup();
@@ -141,7 +147,7 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('automatically places simulated take-off point outside NO_FLY_ZONE and zooms to target when clicking Tâm công trình', () => {
+  it('automatically places simulated take-off point outside NO_FLY_ZONE and evaluates take-off point airspace', () => {
     render(
       <AirspaceNoFlyMap
         assetName="Cầu Thủ Thiêm 2 (Cầu Ba Son)"
@@ -155,11 +161,6 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
 
     // Should NOT be in Vùng Cấm Bay Tuyệt Đối; should report an eligible take-off point outside No-Fly Zone
     expect(screen.getByText(/Điểm đứng cất cánh hợp lệ \(Ngoài vùng cấm bay đỏ\)/i)).toBeTruthy();
-
-    const centerTargetBtn = screen.getByRole('button', { name: /Tâm công trình/i });
-    fireEvent.click(centerTargetBtn);
-
-    expect(screen.getByText(/Zoom 16x/i)).toBeTruthy();
   });
 
   it('allows clicking multiple points freely in target adjustment mode and saves only when clicking Xác nhận mục tiêu', () => {
@@ -199,5 +200,91 @@ describe('airspaceZones & AirspaceNoFlyMap', () => {
     fireEvent.click(resetBtn);
 
     expect(screen.queryByText(/Đã điều chỉnh điểm mục tiêu/i)).toBeNull();
+  });
+
+  it('calculates polygon perimeter and area correctly using geodesic metrics', () => {
+    const triangle = [
+      { lat: 10.7805, lon: 106.7108 },
+      { lat: 10.7825, lon: 106.7108 },
+      { lat: 10.7825, lon: 106.7138 },
+    ];
+    const metrics = calculatePolygonPerimeterAndArea(triangle);
+    expect(metrics.pointCount).toBe(3);
+    expect(metrics.perimeterMeters).toBeGreaterThan(500);
+    expect(metrics.areaSquareMeters).toBeGreaterThan(10000);
+    expect(metrics.areaHectares).toBeGreaterThan(1);
+
+    expect(calculatePolygonPerimeterAndArea([]).perimeterMeters).toBe(0);
+    expect(calculatePolygonPerimeterAndArea([{ lat: 10, lon: 10 }]).areaSquareMeters).toBe(0);
+  });
+
+  it('searches popular Vietnam landmarks and matches infrastructure locations', () => {
+    const baSon = searchVietnamLandmarks('Ba Son');
+    expect(baSon.length).toBeGreaterThan(0);
+    expect(baSon[0]?.name).toContain('Cầu Ba Son');
+    expect(baSon[0]?.latitude).toBe(10.7805);
+
+    const phuMy = searchVietnamLandmarks('Phú Mỹ');
+    expect(phuMy.length).toBeGreaterThan(0);
+    expect(phuMy[0]?.name).toContain('Cầu Phú Mỹ');
+
+    expect(searchVietnamLandmarks('khongtonlocationxyz').length).toBe(0);
+  });
+
+  it('searches address on map, flies to location, and updates coordinates', () => {
+    const onSelect = vi.fn();
+    render(
+      <AirspaceNoFlyMap
+        assetName="New Asset"
+        latitude={10.7805}
+        longitude={106.7108}
+        onSelectCoordinates={onSelect}
+      />,
+    );
+
+    const searchInput = screen.getByPlaceholderText(/Tìm kiếm công trình, địa chỉ/i);
+    fireEvent.change(searchInput, { target: { value: 'Cầu Phú Mỹ' } });
+
+    // Click on the autocomplete suggestion
+    const suggestions = screen.getAllByText('Cầu Phú Mỹ');
+    fireEvent.click(suggestions[0]!);
+
+    expect(onSelect).toHaveBeenCalledWith(10.7492, 106.7456, 'Cầu Phú Mỹ');
+    expect(screen.getByText(/Đã chọn: Cầu Phú Mỹ/i)).toBeTruthy();
+  });
+
+  it('renders clean search bar and updates coordinates on landmark selection without extra chips', () => {
+    const onSelect = vi.fn();
+    render(
+      <AirspaceNoFlyMap
+        assetName="Clean Map"
+        latitude={10.7805}
+        longitude={106.7108}
+        onSelectCoordinates={onSelect}
+      />,
+    );
+
+    // Verify search input is present and ready
+    const searchInput = screen.getByPlaceholderText(/Tìm kiếm công trình, địa chỉ/i);
+    expect(searchInput).toBeTruthy();
+
+    // Verify no quick chips next to search bar
+    expect(screen.queryByRole('button', { name: /Khoanh vùng \(Polygon\)/i })).toBeNull();
+  });
+
+  it('formats JSON location strings into clean human-readable text', () => {
+    expect(
+      formatLocation('{"label": "Hẻm 40 Đường Hàng Tre", "latitude": 10.847804, "longitude": 106.812573}'),
+    ).toBe('Hẻm 40 Đường Hàng Tre');
+
+    expect(
+      formatLocation('{"address": "Quận 1 - TP. Thủ Đức, TP.HCM", "latitude": 10.7805, "longitude": 106.7108}'),
+    ).toBe('Quận 1 - TP. Thủ Đức, TP.HCM');
+
+    expect(formatLocation('{"latitude": 10.7805, "longitude": 106.7108}')).toBe('10.7805, 106.7108');
+
+    expect(formatLocation('Plain location text')).toBe('Plain location text');
+    expect(formatLocation(null)).toBe('—');
+    expect(formatLocation('')).toBe('—');
   });
 });
