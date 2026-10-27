@@ -61,7 +61,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
             fontWeight: 600,
           }}
         >
-          {title}
+          {t(title)}
         </Typography>
 
         <IconButton
@@ -91,7 +91,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
           <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ch.color }} />
             <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
-              {ch.name}
+              {t(ch.name)}
             </Typography>
           </Box>
         ))}
@@ -172,7 +172,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   fontFamily={theme.typography.fontFamily}
                   fontWeight="400"
                 >
-                  {cat}
+                  {t(cat)}
                 </text>
 
                 {/* Hover Hit Box */}

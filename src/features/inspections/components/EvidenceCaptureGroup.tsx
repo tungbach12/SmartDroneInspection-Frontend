@@ -109,8 +109,8 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
       variant="outlined"
       sx={{
         borderRadius: '16px',
-        borderColor: '#e2e8f0',
-        bgcolor: '#ffffff',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
         boxShadow: '0 2px 8px -2px rgba(15, 23, 42, 0.05)',
         overflow: 'hidden',
       }}
@@ -119,8 +119,9 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
       <Box
         sx={{
           p: 2,
-          bgcolor: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0',
+          bgcolor: 'background.default',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
           alignItems: { xs: 'flex-start', md: 'center' },
@@ -129,7 +130,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: '#0f172a' }}>
+          <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'text.primary' }}>
             📸 {props.evidence?.fileName ?? `Evidence ${props.evidenceId.slice(0, 8)}…`}
           </Typography>
           <Chip
@@ -174,7 +175,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                 borderRadius: '8px',
                 fontWeight: 600,
                 fontSize: '0.8125rem',
-                bgcolor: '#ffffff',
+                bgcolor: 'background.paper',
               }}
             >
               {props.isAnalysing
@@ -210,7 +211,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               error={Boolean(props.locationError)}
               slotProps={{
                 htmlInput: { maxLength: 1000 },
-                input: { sx: { borderRadius: '8px', bgcolor: props.isReportLocked ? '#f8fafc' : '#fbfcfd' } },
+                input: { sx: { borderRadius: '8px', bgcolor: 'background.default' } },
               }}
             />
           </Box>
@@ -321,13 +322,13 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   textAlign: 'center',
                   borderRadius: '12px',
                   borderStyle: 'dashed',
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'background.default',
                 }}
               >
-                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                   {t('No defects identified on this capture.')}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 0.5 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
                   {t('Click "Analyze image" above for AI assistance, or add a manual finding below.')}
                 </Typography>
               </Paper>
@@ -342,7 +343,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                     key={finding.id}
                     onMouseEnter={() => setHoveredCandidateId(finding.id)}
                     onMouseLeave={() => setHoveredCandidateId(null)}
-                    onFocus={() => setHoveredCandidateId(finding.id)}
+                    onFocus={() => setHoveredCandidateId(null)}
                     onBlur={() => setHoveredCandidateId(null)}
                   >
                     <Card
@@ -353,8 +354,8 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                           ? 'primary.main'
                           : hoveredCandidateId === finding.id
                             ? 'primary.light'
-                            : '#e2e8f0',
-                        bgcolor: isEditing ? '#f8fafc' : '#ffffff',
+                            : 'divider',
+                        bgcolor: isEditing ? 'background.default' : 'background.paper',
                         boxShadow:
                           hoveredCandidateId === finding.id
                             ? '0 4px 12px rgba(15, 23, 42, 0.08)'
@@ -376,7 +377,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                               <Button
                                 size="small"
                                 onClick={props.onCancelEdit}
-                                sx={{ textTransform: 'none', color: '#64748b' }}
+                                sx={{ textTransform: 'none', color: 'text.secondary' }}
                               >
                                 {t('Cancel')}
                               </Button>
@@ -390,7 +391,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 onChange={(e) => props.onDefectLabelChange(finding.id, e.target.value)}
                                 slotProps={{
                                   htmlInput: { maxLength: 160 },
-                                  input: { sx: { borderRadius: '8px', bgcolor: '#fff' } },
+                                  input: { sx: { borderRadius: '8px', bgcolor: 'background.paper' } },
                                 }}
                                 sx={{ flexGrow: 1 }}
                               />
@@ -489,16 +490,16 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                               <Chip
                                 size="small"
                                 label={finding.findingCode}
-                                sx={{ fontWeight: 700, bgcolor: '#f1f5f9', color: '#334155' }}
+                                sx={{ fontWeight: 700, bgcolor: 'action.hover', color: 'text.primary' }}
                               />
-                              <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: '#0f172a' }}>
+                              <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'text.primary' }}>
                                 {finding.defectLabel}
                               </Typography>
                               {finding.confidence !== null && (
                                 <Chip
                                   size="small"
                                   label={`${Math.round(finding.confidence * 100)}% confidence`}
-                                  sx={{ fontSize: '11px', color: '#475569' }}
+                                  sx={{ fontSize: '11px', color: 'text.secondary' }}
                                 />
                               )}
                               <Chip
@@ -512,29 +513,29 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                   size="small"
                                   variant="outlined"
                                   label={`[${Math.round(box.xMin * 100)}%, ${Math.round(box.yMin * 100)}%] → [${Math.round(box.xMax * 100)}%, ${Math.round(box.yMax * 100)}%]`}
-                                  sx={{ fontFamily: 'monospace', fontSize: '10px', color: '#64748b' }}
+                                  sx={{ fontFamily: 'monospace', fontSize: '10px', color: 'text.secondary' }}
                                 />
                               )}
                             </Stack>
 
-                            <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.5 }}>
+                            <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.5 }}>
                               {finding.technicalNotes}
                             </Typography>
                             {finding.recommendedAction && (
-                              <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.8125rem' }}>
-                                <strong style={{ color: '#0f172a' }}>{t('Recommended action:')}</strong>{' '}
+                              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+                                <strong>{t('Recommended action:')}</strong>{' '}
                                 {finding.recommendedAction}
                               </Typography>
                             )}
                             {finding.modelName && (
-                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                                Detected via {finding.modelName}
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                {t('Detected via')} {finding.modelName}
                               </Typography>
                             )}
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (
-                              <Box sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
+                              <Box sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
                                 <Stack
                                   direction="row"
                                   spacing={1}
@@ -710,9 +711,10 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
                   gap: 1.5,
                   p: 2,
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   borderRadius: '12px',
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'background.default',
                 }}
               >
                 <Stack

@@ -28,13 +28,14 @@ const queryClient = new QueryClient({
 
 function ColorModeBridge({ children }: PropsWithChildren) {
   const { mode, setMode } = useColorScheme();
+  const resolvedMode = mode === 'dark' ? 'dark' : 'light';
 
   const toggle = () => {
-    setMode(mode === 'dark' ? 'light' : 'dark');
+    setMode(resolvedMode === 'dark' ? 'light' : 'dark');
   };
 
   return (
-    <ColorModeContext.Provider value={{ toggle }}>
+    <ColorModeContext.Provider value={{ mode: resolvedMode, toggle }}>
       {children}
     </ColorModeContext.Provider>
   );

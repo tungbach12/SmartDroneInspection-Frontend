@@ -273,7 +273,9 @@ export interface InspectionDetail {
   organizationId: string;
   assetId: string;
   assetName: string | null;
-  locationText?: string | null;
+  locationText?: string | null | undefined;
+  assetLatitude?: number | null | undefined;
+  assetLongitude?: number | null | undefined;
   inspectorId: string;
   inspectorName: string | null;
   droneId: string | null;

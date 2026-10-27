@@ -64,8 +64,9 @@ export function DataTable<T>({
       variant="outlined"
       sx={{
         overflow: 'hidden',
-        bgcolor: '#ffffff',
-        border: '1px solid #eaecf0',
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: '16px',
         boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03)',
       }}
@@ -80,11 +81,12 @@ export function DataTable<T>({
             py: 2.25,
             flexWrap: 'wrap',
             gap: 2,
-            borderBottom: '1px solid #eaecf0',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
         >
           {title ? (
-            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#101828' }}>
+            <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'text.primary' }}>
               {title}
             </Typography>
           ) : (
@@ -106,7 +108,7 @@ export function DataTable<T>({
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon fontSize="small" sx={{ color: '#667085' }} />
+                        <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                       </InputAdornment>
                     ),
                   },
@@ -116,9 +118,9 @@ export function DataTable<T>({
                   '& .MuiOutlinedInput-root': {
                     height: 40,
                     borderRadius: '10px',
-                    bgcolor: '#ffffff',
+                    bgcolor: 'background.paper',
                     fontSize: '14px',
-                    borderColor: '#d0d5dd',
+                    borderColor: 'divider',
                   },
                 }}
               />
@@ -138,15 +140,16 @@ export function DataTable<T>({
                   width={column.width}
                   align={column.align}
                   sx={{
-                    bgcolor: '#fafbfc',
-                    color: '#475467',
+                    bgcolor: 'background.default',
+                    color: 'text.secondary',
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase',
                     py: 1.5,
                     px: 2.5,
-                    borderBottom: '1px solid #eaecf0',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                   }}
                 >
                   {column.label}
@@ -187,7 +190,7 @@ export function DataTable<T>({
                     cursor: onRowClick ? 'pointer' : 'default',
                     transition: 'background-color 0.15s ease',
                     '&:hover': {
-                      bgcolor: '#f9fafb !important',
+                      bgcolor: 'action.hover !important',
                     },
                   }}
                 >
@@ -199,8 +202,9 @@ export function DataTable<T>({
                         py: 2,
                         px: 2.5,
                         fontSize: '0.875rem',
-                        color: '#344054',
-                        borderBottom: '1px solid #f2f4f7',
+                        color: 'text.primary',
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
                       }}
                     >
                       {column.render(row)}
@@ -225,12 +229,13 @@ export function DataTable<T>({
         }}
         rowsPerPageOptions={[5, 10, 25]}
         sx={{
-          borderTop: '1px solid #eaecf0',
-          color: '#667085',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          color: 'text.secondary',
           px: 2,
           '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
             fontSize: '0.875rem',
-            color: '#667085',
+            color: 'text.secondary',
           },
         }}
       />

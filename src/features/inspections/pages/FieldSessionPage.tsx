@@ -13,6 +13,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import UploadFile from '@mui/icons-material/UploadFile';
@@ -30,6 +31,7 @@ import {
 } from '../hooks/useInspections';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
 
 /**
  * MF2-09 to MF2-12: the Inspector's field session for one inspection.
@@ -40,6 +42,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  */
 export default function FieldSessionPage() {
   const { formatDateTime, t } = useLocale();
+  const isDark = useIsDarkMode();
   const { inspectionId = '' } = useParams();
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
@@ -88,24 +91,31 @@ export default function FieldSessionPage() {
         subtitle={t('Record the on-site work: the pre-flight checklist, the session itself, and why it stopped.')}
       />
 
+      <AirspaceNoFlyMap
+        assetName={inspection?.assetName}
+        locationText={inspection?.locationText}
+        latitude={inspection?.assetLatitude}
+        longitude={inspection?.assetLongitude}
+      />
+
       {isAssigned && (
         <Paper
           variant="outlined"
           sx={{
             p: { xs: 2, sm: 2.5 },
             borderRadius: '16px',
-            bgcolor: '#fffbeb',
-            borderColor: '#fde68a',
+            bgcolor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fffbeb',
+            borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde68a',
           }}
         >
           <Stack spacing={1.5}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <FlightTakeoffRounded sx={{ color: '#d97706' }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#92400e' }}>
+              <FlightTakeoffRounded sx={{ color: isDark ? '#fbbf24' : '#d97706' }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: isDark ? '#fde68a' : '#92400e' }}>
                 {t('Flight Permit Required')}
               </Typography>
             </Stack>
-            <Typography variant="body2" sx={{ color: '#78350f' }}>
+            <Typography variant="body2" sx={{ color: isDark ? '#fef3c7' : '#78350f' }}>
               {t('Upload an approved flight permit to authorize field flight operations. Uploading unlocks session startup and moves inspection to Ready for Flight.')}
             </Typography>
             <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
@@ -113,7 +123,7 @@ export default function FieldSessionPage() {
                 variant="outlined"
                 component="label"
                 startIcon={<UploadFile />}
-                sx={{ bgcolor: '#fff' }}
+                sx={{ bgcolor: 'background.paper' }}
               >
                 {permitFile ? permitFile.name : t('Choose permit file')}
                 <input
@@ -153,8 +163,8 @@ export default function FieldSessionPage() {
           sx={{
             p: 1.5,
             borderRadius: '12px',
-            bgcolor: '#f0fdf4',
-            borderColor: '#bbf7d0',
+            bgcolor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#f0fdf4',
+            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#bbf7d0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -162,11 +172,11 @@ export default function FieldSessionPage() {
             gap: 1,
           }}
         >
-          <Typography variant="body2" sx={{ color: '#166534', fontWeight: 600 }}>
-            📜 {t('Active Flight Permit:')} {inspection.flightPermitFileName}
+          <Typography variant="body2" sx={{ color: isDark ? '#6ee7b7' : '#166534', fontWeight: 600 }}>
+            {t('Active Flight Permit:')} {inspection.flightPermitFileName}
           </Typography>
           {inspection.flightPermitUploadedAt && (
-            <Typography variant="caption" sx={{ color: '#15803d' }}>
+            <Typography variant="caption" sx={{ color: isDark ? '#a7f3d0' : '#15803d' }}>
               {t('Uploaded')} {formatDateTime(new Date(inspection.flightPermitUploadedAt))}
             </Typography>
           )}
@@ -183,12 +193,11 @@ export default function FieldSessionPage() {
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
               <FlightTakeoffRounded color="primary" />
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {t('Sessions')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  A session starts only after the pre-flight checklist is recorded and readiness
-                  holds.
+                  {t('A session starts only after the pre-flight checklist is recorded and readiness holds.')}
                 </Typography>
               </Box>
             </Stack>
@@ -200,10 +209,10 @@ export default function FieldSessionPage() {
               onClick={() => setStartOpen(true)}
             >
               {openSession
-                ? 'Session already open'
+                ? t('Session already open')
                 : !canStart
-                  ? 'Flight permit required'
-                  : 'Start session'}
+                  ? t('Flight permit required')
+                  : t('Start session')}
             </LoadingButton>
           </Stack>
 
@@ -238,7 +247,7 @@ export default function FieldSessionPage() {
               {items.map((session) => (
                 <Box
                   key={session.id}
-                  sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 1.5 }}
+                  sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
                 >
                   <Stack
                     direction="row"
@@ -246,13 +255,13 @@ export default function FieldSessionPage() {
                     sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                   >
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {session.startedAt
-                          ? `Started ${formatDateTime(new Date(session.startedAt))}`
-                          : 'Not started'}
+                          ? `${t('Started')} ${formatDateTime(new Date(session.startedAt))}`
+                          : t('Not started')}
                       </Typography>
                       {session.endedAt ? (
-                        <Typography variant="caption" sx={{ color: '#667085' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {t('Ended')} {formatDateTime(new Date(session.endedAt))}
                         </Typography>
                       ) : null}
@@ -261,17 +270,17 @@ export default function FieldSessionPage() {
                   </Stack>
 
                   {session.postponementReason ? (
-                    <Typography variant="caption" sx={{ color: '#b54708', display: 'block', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 0.5 }}>
                       {t('Postponed:')} {session.postponementReason}
                     </Typography>
                   ) : null}
                   {session.abortReason ? (
-                    <Typography variant="caption" sx={{ color: '#b42318', display: 'block', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'error.main', display: 'block', mt: 0.5 }}>
                       {t('Aborted:')} {session.abortReason}
                     </Typography>
                   ) : null}
                   {session.status === 'FIELD_COMPLETED' && session.outcomeNotes ? (
-                    <Typography variant="caption" sx={{ color: '#027a48', display: 'block', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'success.main', display: 'block', mt: 0.5 }}>
                       {t('Outcome notes:')} {session.outcomeNotes}
                     </Typography>
                   ) : null}
@@ -318,9 +327,7 @@ export default function FieldSessionPage() {
           ) : null}
 
           <Alert severity="info">
-            Starting a session records the software's agreement that the paperwork and the
-            pre-flight checklist were in order. It does not arm the aircraft, and the recorded start
-            time is not hardware flight time.
+            {t("Starting a session records the software's agreement that the paperwork and the pre-flight checklist were in order. It does not arm the aircraft, and the recorded start time is not hardware flight time.")}
           </Alert>
         </Stack>
       </Paper>
@@ -355,8 +362,7 @@ export default function FieldSessionPage() {
                 helperText={t('Record what you checked on site: the assigned drone, its condition, the site access and the weather.')}
               />
               <Alert severity="warning">
-                This note is your own record of the check. It is stored with the session and read by
-                the reviewer.
+                {t('This note is your own record of the check. It is stored with the session and read by the reviewer.')}
               </Alert>
             </Stack>
           </DialogContent>
@@ -394,10 +400,10 @@ export default function FieldSessionPage() {
         >
           <DialogTitle sx={{ fontWeight: 700 }}>
             {outcomeTarget?.kind === 'abort'
-              ? 'Abort the session'
+              ? t('Abort the session')
               : outcomeTarget?.kind === 'complete'
-                ? 'Complete the session'
-                : 'Postpone the session'}
+                ? t('Complete the session')
+                : t('Postpone the session')}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
@@ -415,10 +421,10 @@ export default function FieldSessionPage() {
                 onChange={(event) => setOutcomeReason(event.target.value)}
                 helperText={
                   outcomeTarget?.kind === 'abort'
-                    ? 'Why this session cannot continue and will not resume under this record.'
+                    ? t('Why this session cannot continue and will not resume under this record.')
                     : outcomeTarget?.kind === 'complete'
-                      ? 'Summarize the on-site coverage and any field observations recorded during this session.'
-                      : 'Why the work stopped for now. The inspection stays startable.'
+                      ? t('Summarize the on-site coverage and any field observations recorded during this session.')
+                      : t('Why the work stopped for now. The inspection stays startable.')
                 }
               />
             </Stack>
@@ -438,10 +444,10 @@ export default function FieldSessionPage() {
               disabled={!outcomeReason.trim()}
             >
               {outcomeTarget?.kind === 'abort'
-                ? 'Abort session'
+                ? t('Abort session')
                 : outcomeTarget?.kind === 'complete'
-                  ? 'Complete session'
-                  : 'Postpone session'}
+                  ? t('Complete session')
+                  : t('Postpone session')}
             </Button>
           </DialogActions>
         </form>

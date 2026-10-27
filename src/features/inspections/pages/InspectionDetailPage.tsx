@@ -9,6 +9,7 @@ import {
   Tabs,
   Typography,
 } from '@mui/material';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
@@ -104,6 +105,7 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
 
 export default function InspectionDetailPage() {
   const { formatDate, t } = useLocale();
+  const isDark = useIsDarkMode();
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -203,15 +205,15 @@ export default function InspectionDetailPage() {
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          {isOrganizationAdmin ? 'Back to review queue' : 'Back to list'}
+          {isOrganizationAdmin ? t('Back to review queue') : t('Back to list')}
         </Button>
 
         <PageHeader
-          title={isOrganizationAdmin ? 'Inspection review' : 'Inspection Detail'}
+          title={isOrganizationAdmin ? t('Inspection review') : t('Inspection Detail')}
           subtitle={
             isOrganizationAdmin
-              ? `Inspection ID: ${inspectionId} · Report review and corrective disposition`
-              : `Inspection ID: ${inspectionId} · Field evidence, verified findings and reports`
+              ? `${t('Inspection ID:')} ${inspectionId} · ${t('Report review and corrective disposition')}`
+              : `${t('Inspection ID:')} ${inspectionId} · ${t('Field evidence, verified findings and reports')}`
           }
         />
 
@@ -222,9 +224,10 @@ export default function InspectionDetailPage() {
               mt: 2,
               p: 2.5,
               borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              bgcolor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
             }}
           >
             <Box
@@ -237,41 +240,41 @@ export default function InspectionDetailPage() {
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Infrastructure Asset')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
-                  📍 {inspection.assetName ?? 'Asset'}
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                  {inspection.assetName ?? t('Asset')}
                 </Typography>
               </Box>
 
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Assigned Inspector')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
-                  👤 {inspection.inspectorName ?? inspection.inspectorId}
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                  {inspection.inspectorName ?? inspection.inspectorId}
                 </Typography>
               </Box>
 
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Assigned Drone')}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
-                  🛸 {inspection.droneSerialNumber ?? 'Unassigned'}{' '}
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                  {inspection.droneSerialNumber ?? t('Unassigned')}{' '}
                   {inspection.droneModel ? `(${inspection.droneModel})` : ''}
                 </Typography>
                 {inspection.droneServiceability && (
-                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.25 }}>
-                    {t('Status:')} {inspection.droneServiceability}
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                    {t('Status:')} {t(inspection.droneServiceability)}
                   </Typography>
                 )}
               </Box>
@@ -279,7 +282,7 @@ export default function InspectionDetailPage() {
               <Box>
                 <Typography
                   variant="caption"
-                  sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                 >
                   {t('Flight Permit')}
                 </Typography>
@@ -287,29 +290,28 @@ export default function InspectionDetailPage() {
                   variant="body2"
                   sx={{
                     fontWeight: 700,
-                    color: inspection.flightPermitFileName ? '#0f172a' : '#d97706',
+                    color: inspection.flightPermitFileName ? 'text.primary' : 'warning.main',
                     mt: 0.5,
                   }}
                 >
-                  📜{' '}
                   {inspection.flightPermitFileName
                     ? inspection.flightPermitFileName
-                    : 'Awaiting Permit Upload'}
+                    : t('Awaiting Permit Upload')}
                 </Typography>
                 {inspection.flightPermitUploadedAt && (
-                  <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.25 }}>
-                    Uploaded {formatDate(new Date(inspection.flightPermitUploadedAt))}
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                    {t('Uploaded')} {formatDate(new Date(inspection.flightPermitUploadedAt))}
                   </Typography>
                 )}
               </Box>
             </Box>
 
             {inspection.inspectionItems && inspection.inspectionItems.length > 0 && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
+              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Typography
                   variant="caption"
                   sx={{
-                    color: '#64748b',
+                    color: 'text.secondary',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.04em',
@@ -325,7 +327,13 @@ export default function InspectionDetailPage() {
                       key={idx}
                       label={item}
                       size="small"
-                      sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155', fontWeight: 500 }}
+                      sx={{
+                        bgcolor: isDark ? 'rgba(148, 163, 184, 0.12)' : '#f8fafc',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        color: 'text.primary',
+                        fontWeight: 500,
+                      }}
                     />
                   ))}
                 </Stack>
@@ -340,10 +348,11 @@ export default function InspectionDetailPage() {
           sx={{
             mt: 3,
             p: { xs: 1.5, sm: 2 },
-            bgcolor: '#ffffff',
+            bgcolor: 'background.paper',
             borderRadius: '16px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 4px 20px -4px rgba(15, 23, 42, 0.06)',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: isDark ? 'none' : '0 4px 20px -4px rgba(15, 23, 42, 0.06)',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -400,33 +409,37 @@ export default function InspectionDetailPage() {
                       >
                         <Box
                           sx={{
-                            width: 32,
-                            height: 32,
+                            width: 34,
+                            height: 34,
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '0.8125rem',
+                            fontSize: '0.84rem',
                             fontWeight: 800,
                             flexShrink: 0,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            ...(isCompleted
+                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                            ...(isActive
                               ? {
-                                  bgcolor: '#ecfdf5',
-                                  color: '#059669',
-                                  border: '1.5px solid #10b981',
+                                  bgcolor: 'primary.main',
+                                  color: '#ffffff',
+                                  boxShadow: isDark
+                                    ? '0 0 0 3px rgba(129, 140, 248, 0.35)'
+                                    : '0 0 0 3px rgba(87, 80, 241, 0.22)',
+                                  transform: 'scale(1.06)',
                                 }
-                              : isActive
+                              : isCompleted
                                 ? {
-                                    bgcolor: 'primary.main',
+                                    bgcolor: isDark ? '#059669' : '#10b981',
                                     color: '#ffffff',
-                                    boxShadow: '0 0 0 3px rgba(13, 148, 136, 0.25)',
-                                    transform: 'scale(1.06)',
+                                    border: '1.5px solid',
+                                    borderColor: isDark ? '#34d399' : '#059669',
                                   }
                                 : {
-                                    bgcolor: '#f1f5f9',
-                                    color: '#64748b',
-                                    border: '1.5px solid #cbd5e1',
+                                    bgcolor: isDark ? '#1e293b' : '#e2e8f0',
+                                    color: isDark ? '#e2e8f0' : '#1e293b',
+                                    border: '1.5px solid',
+                                    borderColor: isDark ? '#475569' : '#94a3b8',
                                   }),
                           }}
                         >
@@ -437,11 +450,21 @@ export default function InspectionDetailPage() {
                             variant="caption"
                             sx={{
                               display: 'block',
-                              fontSize: '10px',
-                              fontWeight: 700,
+                              fontSize: '10.5px',
+                              fontWeight: 800,
                               textTransform: 'uppercase',
                               letterSpacing: '0.06em',
-                              color: isActive ? 'primary.main' : isCompleted ? '#059669' : '#94a3b8',
+                              color: isActive
+                                ? isDark
+                                  ? '#a5b4fc'
+                                  : '#4338ca'
+                                : isCompleted
+                                  ? isDark
+                                    ? '#34d399'
+                                    : '#047857'
+                                  : isDark
+                                    ? '#cbd5e1'
+                                    : '#475569',
                               lineHeight: 1.2,
                               transition: 'color 0.25s ease',
                             }}
@@ -451,9 +474,15 @@ export default function InspectionDetailPage() {
                           <Typography
                             variant="body2"
                             sx={{
-                              fontWeight: isActive ? 700 : 600,
-                              color: isActive ? '#0f172a' : '#475569',
-                              fontSize: '0.875rem',
+                              fontWeight: 700,
+                              color: isActive
+                                ? isDark
+                                  ? '#ffffff'
+                                  : '#0f172a'
+                                : isDark
+                                  ? '#f1f5f9'
+                                  : '#1e293b',
+                              fontSize: '0.9rem',
                               lineHeight: 1.3,
                               whiteSpace: 'nowrap',
                               transition: 'color 0.25s ease',
@@ -465,9 +494,16 @@ export default function InspectionDetailPage() {
                             variant="caption"
                             sx={{
                               display: { xs: 'none', md: 'block' },
-                              color: '#94a3b8',
-                              fontSize: '11px',
-                              lineHeight: 1.1,
+                              color: isActive
+                                ? isDark
+                                  ? '#cbd5e1'
+                                  : '#334155'
+                                : isDark
+                                  ? '#94a3b8'
+                                  : '#475569',
+                              fontWeight: 500,
+                              fontSize: '11.5px',
+                              lineHeight: 1.15,
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -477,18 +513,36 @@ export default function InspectionDetailPage() {
                       </Stack>
                     }
                     sx={{
-                      minHeight: 52,
+                      opacity: '1 !important',
+                      minHeight: 56,
                       borderRadius: '12px',
-                      px: { xs: 1.25, sm: 1.75 },
-                      py: 0.75,
+                      px: { xs: 1.5, sm: 2 },
+                      py: 0.85,
                       textTransform: 'none',
-                      border: '1.5px solid',
-                      borderColor: isActive ? 'primary.main' : 'transparent',
-                      bgcolor: isActive ? 'rgba(13, 148, 136, 0.08)' : 'transparent',
+                      border: isActive ? '2px solid' : '1.5px solid',
+                      borderColor: isActive
+                        ? 'primary.main'
+                        : isCompleted
+                          ? isDark
+                            ? 'rgba(16, 185, 129, 0.35)'
+                            : 'rgba(16, 185, 129, 0.32)'
+                          : 'transparent',
+                      bgcolor: isActive
+                        ? isDark
+                          ? 'rgba(99, 102, 241, 0.18)'
+                          : 'rgba(87, 80, 241, 0.08)'
+                        : isCompleted
+                          ? isDark
+                            ? 'rgba(16, 185, 129, 0.08)'
+                            : 'rgba(16, 185, 129, 0.05)'
+                          : 'transparent',
                       overflow: 'visible',
                       '&:hover': {
-                        bgcolor: isActive ? 'rgba(13, 148, 136, 0.12)' : '#f8fafc',
-                        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
+                        bgcolor: isActive
+                          ? isDark
+                            ? 'rgba(99, 102, 241, 0.24)'
+                            : 'rgba(87, 80, 241, 0.12)'
+                          : 'action.hover',
                       },
                     }}
                   />

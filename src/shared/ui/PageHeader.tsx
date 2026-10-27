@@ -26,7 +26,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           sx={{
             fontSize: { xs: '1.5rem', sm: '1.875rem' },
             fontWeight: 700,
-            color: '#101828',
+            color: 'text.primary',
             letterSpacing: '-0.025em',
             lineHeight: 1.25,
             mb: subtitle ? 0.5 : 0,
@@ -38,7 +38,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           <Typography
             variant="body2"
             sx={{
-              color: '#667085',
+              color: 'text.secondary',
               fontSize: '0.875rem',
               maxWidth: 680,
               lineHeight: 1.5,

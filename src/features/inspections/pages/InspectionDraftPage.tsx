@@ -135,8 +135,7 @@ export default function InspectionDraftPage() {
     <Stack spacing={2.5}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          Organization Manager review actions are available on the Review report tab. This stage is
-          retained for read-only status and version history.
+          {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 
@@ -146,7 +145,8 @@ export default function InspectionDraftPage() {
           sx={{
             p: { xs: 2, sm: 2.5 },
             borderRadius: '16px',
-            borderColor: '#e2e8f0',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
           }}
         >
           <Stack
@@ -155,7 +155,7 @@ export default function InspectionDraftPage() {
             sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
           >
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                 {versionList.length > 0 ? t('Create new report version') : t('Create report draft')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
@@ -185,7 +185,7 @@ export default function InspectionDraftPage() {
                 onClick={() => createDraft.mutate()}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                {createDraft.isPending ? 'Compiling report…' : 'Generate report draft'}
+                {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
               </Button>
 
               <Button
@@ -207,7 +207,7 @@ export default function InspectionDraftPage() {
                 onClick={() => authorManualDraft.mutate({})}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                {authorManualDraft.isPending ? 'Creating draft…' : 'Create manual draft'}
+                {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
               </Button>
             </Stack>
           </Stack>
@@ -267,11 +267,12 @@ export default function InspectionDraftPage() {
           sx={{
             p: { xs: 2.5, sm: 3 },
             borderRadius: '16px',
-            borderColor: '#e2e8f0',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
             textAlign: 'center',
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('No report version yet')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -288,12 +289,12 @@ export default function InspectionDraftPage() {
               sx={{
                 p: 2,
                 borderRadius: '14px',
-                borderColor: '#e2e8f0',
-                bgcolor: '#ffffff',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
               }}
             >
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="body2" sx={{ color: '#475467', fontWeight: 700 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
                   {t('Report versions:')}
                 </Typography>
                 {versionList.map((version) => {
@@ -320,8 +321,8 @@ export default function InspectionDraftPage() {
                 sx={{
                   p: { xs: 2, sm: 2.5 },
                   borderRadius: '16px',
-                  borderColor: '#e2e8f0',
-                  bgcolor: '#ffffff',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
                 }}
               >
                 <Stack spacing={1.75}>
@@ -331,7 +332,7 @@ export default function InspectionDraftPage() {
                     sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}
                   >
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                         {t('Version')} {openVersion.versionNo}
                       </Typography>
                       <Chip
@@ -358,7 +359,7 @@ export default function InspectionDraftPage() {
                               onClick={() => verify.mutate(openVersion.id)}
                               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                             >
-                              {verify.isPending ? 'Verifying…' : 'Verify as author'}
+                              {verify.isPending ? t('Verifying…') : t('Verify as author')}
                             </Button>
                           )}
 
@@ -370,7 +371,7 @@ export default function InspectionDraftPage() {
                             onClick={() => submit.mutate(openVersion.id)}
                             sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                           >
-                            {submit.isPending ? 'Submitting…' : 'Submit for review'}
+                            {submit.isPending ? t('Submitting…') : t('Submit for review')}
                           </Button>
                         )}
 
@@ -382,7 +383,7 @@ export default function InspectionDraftPage() {
                             onClick={() => withdraw.mutate({ versionId: openVersion.id })}
                             sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                           >
-                            {withdraw.isPending ? 'Withdrawing…' : 'Withdraw submission and revise'}
+                            {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
                           </Button>
                         )}
                       </Stack>
@@ -399,8 +400,8 @@ export default function InspectionDraftPage() {
                     }
                     sx={{ borderRadius: '10px' }}
                   >
-                    {NEXT_STEP[openVersion.status] ?? openVersion.status}
-                    {openVersion.returnReason ? ` — Reason: ${openVersion.returnReason}` : ''}
+                    {t(NEXT_STEP[openVersion.status] ?? openVersion.status)}
+                    {openVersion.returnReason ? ` — ${t('Reason:')} ${openVersion.returnReason}` : ''}
                   </Alert>
 
                   {verify.isError && (
