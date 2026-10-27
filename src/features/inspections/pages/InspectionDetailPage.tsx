@@ -24,7 +24,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useInspection,
   useInspectionEvidence,
-  useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
 } from '../hooks/useInspections';
@@ -116,20 +115,8 @@ export default function InspectionDetailPage() {
   const inspection = inspectionQuery.data;
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
-  const findingsQuery = useInspectionFindings(inspectionId);
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
-  const hasConfirmedFindings = Boolean(
-    findingsQuery.data?.some((f) => f.status === 'CONFIRMED' && !f.isDeleted),
-  );
-  const findingsConfirmedInWorkflow = Boolean(
-    workflowQuery.data?.findingsConfirmedAt ||
-    workflowQuery.data?.status === 'REPORT_DRAFT' ||
-    workflowQuery.data?.status === 'REPORT_PUBLISHED' ||
-    workflowQuery.data?.status === 'REPAIR_PENDING' ||
-    workflowQuery.data?.status === 'COMPLETED',
-  );
-
   const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
@@ -166,6 +153,9 @@ export default function InspectionDetailPage() {
     }
 
     const status = workflowQuery.data?.status ?? inspection?.status ?? '';
+    const hasCurrentFindingsConfirmation =
+      Boolean(workflowQuery.data?.findingsConfirmedAt) &&
+      ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'field-session':
         return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
@@ -178,9 +168,8 @@ export default function InspectionDetailPage() {
         );
       case 'findings':
         return (
-          findingsConfirmedInWorkflow ||
-          hasConfirmedFindings ||
-          ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          hasCurrentFindingsConfirmation ||
+          ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
         );
       case 'report':
         return (

@@ -303,6 +303,8 @@ export function useAnalyzeEvidence(inspectionId: string | null) {
       } else if (totalCandidates > 0) {
         showToast(`Analysis completed; ${totalCandidates} candidate(s) found.`, 'success');
       }
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
     },
     [client, inspectionId],
   );
@@ -459,6 +461,11 @@ export function useReopenFindings(inspectionId: string | null) {
       showToast('Findings reopened for revision.');
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.removedFindings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
     onError: (error) => showToast(getErrorMessage(error, 'Findings were not reopened.'), 'error'),
@@ -602,6 +609,10 @@ export function useReviewReportVersion(inspectionId: string | null) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report review was not recorded.'), 'error'),
@@ -620,7 +631,11 @@ export function useWithdrawReportVersion(inspectionId: string | null) {
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+      client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
     },
     onError: (error) => showToast(getErrorMessage(error, 'The submission was not withdrawn.'), 'error'),
   });

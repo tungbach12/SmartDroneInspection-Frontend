@@ -38,7 +38,6 @@ import {
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
-  useReopenFindings,
   useUpdateEvidenceLocation,
   useReportVersions,
   useConfirmFinding,
@@ -76,10 +75,10 @@ export default function InspectionFindingsPage() {
   const deleteFinding = useDeleteFinding(inspectionId);
   const workflow = useInspectionWorkflowState(inspectionId);
   const confirmFindings = useConfirmFindings(inspectionId);
-  const reopenFindings = useReopenFindings(inspectionId);
   const reportVersions = useReportVersions(inspectionId);
   const updateEvidenceLocation = useUpdateEvidenceLocation(inspectionId);
   const reportVersionsList = reportVersions.data ?? [];
+  const latestReportVersion = reportVersionsList[0] ?? null;
 
   const activeEvidenceItems = useMemo(
     () => (evidence.data ?? []).filter((item) => !item.isDeleted),
@@ -89,13 +88,12 @@ export default function InspectionFindingsPage() {
     () => new Set(activeEvidenceItems.map((item) => item.id)),
     [activeEvidenceItems],
   );
-  const isReportLocked = reportVersionsList.some((version) =>
-    ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
+  const isReportLocked = Boolean(
+    latestReportVersion &&
+      ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(latestReportVersion.status),
   );
-  const isDraftLocked = workflow.data?.status === 'REPORT_DRAFT';
   const isFindingsLocked =
     isReportLocked ||
-    isDraftLocked ||
     ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
 
   // Filter & Search states
@@ -143,12 +141,14 @@ export default function InspectionFindingsPage() {
   const reviewedItemCount = activeFindings.length;
   const noFindings = activeFindings.length === 0;
   const hasActiveEvidence = activeEvidenceItems.length > 0;
-  const analysisUnlocked = workflow.data?.status === 'FIELD_COMPLETED';
+  const isReturnedRevision = latestReportVersion?.status === 'RETURNED';
+  const analysisUnlocked =
+    ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !isFindingsLocked;
 
   const canConfirm =
     isInspector &&
     hasActiveEvidence &&
-    workflow.data?.status === 'FIELD_COMPLETED' &&
+    ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') &&
     !findings.isLoading &&
     !workflow.isLoading &&
     !findings.isError &&
@@ -426,31 +426,28 @@ export default function InspectionFindingsPage() {
           )}
         </Stack>
 
-        {isInspector && workflow.data?.status === 'REPORT_DRAFT' && workflow.data.findingsSnapshotHash && (
-          <Alert
-            severity="info"
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                variant="outlined"
-                disabled={reopenFindings.isPending}
-                onClick={() => reopenFindings.mutate()}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  bgcolor: '#ffffff',
-                }}
-              >
-                {reopenFindings.isPending ? t('Reopening…') : t('Reopen Findings')}
-              </Button>
-            }
-            sx={{ mt: 2, borderRadius: '12px', alignItems: 'center' }}
-          >
+        {isInspector && isFindingsLocked && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t('Findings are confirmed and locked for report drafting. Reopen this stage if you need to modify findings.')}
+              {latestReportVersion?.status === 'SUBMITTED'
+                ? t(
+                    'Findings are locked while the report is submitted for review. Withdraw the submission in Step 4 if you need to make changes.',
+                  )
+                : t(
+                    'This inspection report has been approved or published. Findings are read-only.',
+                  )}
             </Typography>
+          </Alert>
+        )}
+
+        {isInspector && isReturnedRevision && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
+            {t('This report was returned for revision. Evidence and findings are editable; update the requested content, then verify and resubmit the report.')}
+          </Alert>
+        )}
+        {isInspector && workflow.data?.status === 'REPORT_DRAFT' && latestReportVersion && !isReturnedRevision && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
+            {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
           </Alert>
         )}
 

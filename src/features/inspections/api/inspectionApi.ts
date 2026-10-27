@@ -20,7 +20,7 @@ export type FindingSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type FindingDecision = 'CONFIRMED' | 'MODIFIED' | 'REJECTED';
 
 
-export interface InspectionReportVersion {
+export interface InspectionReport {
   id: string;
   inspectionReportId: string;
   versionNo: number;
@@ -480,7 +480,7 @@ export const inspectionApi = {
   // MF3-07 to MF3-11 report workflow.
   generateDraft: (inspectionId: string) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/draft`,
         undefined,
         { timeout: 110_000 },
@@ -496,7 +496,7 @@ export const inspectionApi = {
     input: ManualDraftInput,
   ) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/draft/manual`,
         input,
       )
@@ -504,21 +504,21 @@ export const inspectionApi = {
 
   verifyVersion: (inspectionId: string, versionId: string) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/verify`,
       )
       .then((response) => response.data),
 
   submitVersion: (inspectionId: string, versionId: string) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/submit`,
       )
       .then((response) => response.data),
 
   withdrawVersion: (inspectionId: string, versionId: string, reason?: string) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/withdraw`,
         reason ? { reason } : {},
       )
@@ -531,7 +531,7 @@ export const inspectionApi = {
     reason?: string,
   ) =>
     api
-      .post<InspectionReportVersion>(
+      .post<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/review`,
         null,
         { params: { approve, reason } },
@@ -555,14 +555,14 @@ export const inspectionApi = {
 
   listVersions: (inspectionId: string) =>
     api
-      .get<InspectionReportVersion[]>(
+      .get<InspectionReport[]>(
         `/inspections/${inspectionId}/report/versions`,
       )
       .then((response) => response.data),
 
   getVersion: (inspectionId: string, versionId: string) =>
     api
-      .get<InspectionReportVersion>(
+      .get<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}`,
       )
       .then((response) => response.data),
@@ -577,7 +577,7 @@ export const inspectionApi = {
     sections: ReportSectionsInput,
   ) =>
     api
-      .put<InspectionReportVersion>(
+      .put<InspectionReport>(
         `/inspections/${inspectionId}/report/versions/${versionId}/sections`,
         sections,
       )

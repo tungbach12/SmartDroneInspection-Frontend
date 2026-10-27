@@ -145,6 +145,33 @@ describe('InspectionEvidencePage', () => {
     useAuthStore.getState().clearSession();
   });
 
+  it('keeps evidence editable during report drafting and locks it while submitted', () => {
+    mocks.workflowQuery = { data: { status: 'REPORT_DRAFT' }, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.evidenceQuery = {
+      data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: null, latestRetiredAt: null },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    const { rerender } = renderWithRouter(<InspectionEvidencePage />);
+    expect(screen.getByRole('button', { name: 'Choose evidence files' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retire from current evidence set' })).toBeTruthy();
+    expect(screen.queryByText(/Reopen Findings/)).toBeNull();
+
+    mocks.versions = {
+      data: [{ id: 'version-1', versionNo: 1, status: 'SUBMITTED' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = { data: { status: 'REPORT_DRAFT' }, isLoading: false, error: null, refetch: vi.fn() };
+    rerender(<InspectionEvidencePage />);
+    expect(screen.queryByRole('button', { name: 'Choose evidence files' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retire from current evidence set' })).toBeNull();
+    expect(screen.getByRole('alert').textContent).toContain('Withdraw the submission if it has not been reviewed');
+  });
+
   it('gives Organization Manager a read-only evidence register instead of Inspector intake controls', () => {
     signInAs('ORG_MANAGER');
     mocks.evidenceQuery = {

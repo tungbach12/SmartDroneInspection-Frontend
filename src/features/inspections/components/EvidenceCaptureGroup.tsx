@@ -203,7 +203,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               onBlur={props.onLocationBlur}
               helperText={
                 props.isReportLocked
-                  ? t('Location description is locked while drafting or reviewing report.')
+                  ? t('Location description is locked while the report is submitted or after publication.')
                   : props.locationError ??
                     t('Applies as the contextual inspection zone for all defects identified on this photo.')
               }
