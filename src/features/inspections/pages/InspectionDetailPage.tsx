@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -118,6 +119,14 @@ export default function InspectionDetailPage() {
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
 
+  const [checklistConfirmed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`inspection_checklist_confirmed_${inspectionId}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
   const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
   const hasPublishedVersion = Boolean(
@@ -160,8 +169,9 @@ export default function InspectionDetailPage() {
       ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'field-session':
-        return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-          status,
+        return (
+          checklistConfirmed ||
+          ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
         );
       case 'evidence':
         return (
@@ -184,7 +194,7 @@ export default function InspectionDetailPage() {
   };
 
   return (
-    <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 1040, mx: 'auto' }}>
+    <Box className="workspace-page workspace-page--inspections" sx={{ width: '100%', maxWidth: '100%', mx: 'auto' }}>
       <Box sx={{ mb: 3 }}>
         <Button
           startIcon={<ArrowBackRounded />}

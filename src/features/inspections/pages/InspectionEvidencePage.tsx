@@ -90,8 +90,17 @@ export default function InspectionEvidencePage() {
   ).at(-1)?.id;
   const canEditEvidence =
     isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
-  const canUploadEvidence =
+  const [checklistConfirmed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`inspection_checklist_confirmed_${inspectionId}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const rawCanUploadEvidence =
     isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
+  const canUploadEvidence = rawCanUploadEvidence || (isInspector && checklistConfirmed && !evidenceLocked);
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??

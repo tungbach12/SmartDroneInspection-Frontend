@@ -43,7 +43,7 @@ import FlightRounded from '@mui/icons-material/FlightRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
-import SecurityRounded from '@mui/icons-material/SecurityRounded';
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import {
   canAccessSection,
   getAvailablePortals,
@@ -85,6 +85,7 @@ const NAV_ITEMS = [
   { section: 'subscriptions', icon: <CardMembershipRounded /> },
   { section: 'drone-leasing', icon: <FlightRounded /> },
   { section: 'platform-users', icon: <ManageAccountsIcon /> },
+  { section: 'settings', icon: <SettingsOutlined /> },
 ] as const;
 
 interface AppShellProps {
@@ -369,9 +370,9 @@ export function AppShell({ portal }: AppShellProps) {
         onClose={() => setAccountMenuAnchor(null)}
         slotProps={{ paper: { sx: { minWidth: 250, mt: 1, borderRadius: 1.5 } } }}
       >
-        <MenuItem component={RouterLink} to={`${PORTAL_CONFIG[portal].path}/account/security`} onClick={() => { setAccountMenuAnchor(null); setMobileOpen(false); }}>
-          <ListItemIcon><SecurityRounded fontSize="small" /></ListItemIcon>
-          {t('Account security')}
+        <MenuItem component={RouterLink} to={`${PORTAL_CONFIG[portal].path}/settings`} onClick={() => { setAccountMenuAnchor(null); setMobileOpen(false); }}>
+          <ListItemIcon><SettingsOutlined fontSize="small" /></ListItemIcon>
+          {t('Settings')}
         </MenuItem>
         <MenuItem onClick={signOut} disabled={signingOut}>
           <ListItemIcon><LogoutRounded fontSize="small" /></ListItemIcon>

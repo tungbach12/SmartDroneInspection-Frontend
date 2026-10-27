@@ -1,18 +1,24 @@
 import { useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
@@ -43,6 +49,7 @@ import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
 export default function FieldSessionPage() {
   const { formatDateTime, t } = useLocale();
   const isDark = useIsDarkMode();
+  const navigate = useNavigate();
   const { inspectionId = '' } = useParams();
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
@@ -59,6 +66,53 @@ export default function FieldSessionPage() {
     kind: 'postpone' | 'abort' | 'complete';
   } | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
+
+  // Checklist verification state
+  const rawItems = inspection?.inspectionItems ?? [];
+  const checklistItems = rawItems.length > 0 ? rawItems : [
+    'Kiểm tra tình trạng thân vỏ & cánh quạt Drone',
+    'Kiểm tra dung lượng Pin & hệ thống truyền tín hiệu',
+    'Kiểm tra không phận & bán kính an toàn khu vực bay',
+    'Khảo sát các điểm xung yếu của công trình theo kế hoạch'
+  ];
+
+  const storageKey = `inspection_checked_items_${inspectionId}`;
+  const confirmedKey = `inspection_checklist_confirmed_${inspectionId}`;
+
+  const [checkedMap, setCheckedMap] = useState<Record<number, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [checklistConfirmed, setChecklistConfirmed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(confirmedKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const allItemsChecked = checklistItems.every((_, idx) => Boolean(checkedMap[idx]));
+
+  const toggleCheckItem = (idx: number) => {
+    const next = { ...checkedMap, [idx]: !checkedMap[idx] };
+    setCheckedMap(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {}
+  };
+
+  const handleConfirmAndProceed = () => {
+    try {
+      localStorage.setItem(confirmedKey, 'true');
+    } catch {}
+    setChecklistConfirmed(true);
+    navigate('../evidence');
+  };
 
   const items = sessions.data ?? [];
   const openSession = items.find(
@@ -241,6 +295,137 @@ export default function FieldSessionPage() {
           >
             {null}
           </QueryState>
+
+          {/* Dedicated Interactive Checkpoints / Checklist Section */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: '14px',
+              bgcolor: isDark ? 'rgba(30, 41, 59, 0.4)' : '#f8fafc',
+              borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0',
+            }}
+          >
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+                  <PlaylistAddCheckRounded color="primary" sx={{ fontSize: 28 }} />
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {t('Asset Inspection Checkpoints & Pre-Flight Checklist')}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Inspectors must verify and mark all structural checkpoints before completing Step 1 and proceeding to Step 2 (Evidence Intake).')}
+                    </Typography>
+                  </Box>
+                </Stack>
+                {checklistConfirmed ? (
+                  <Chip
+                    icon={<CheckCircleRounded />}
+                    label={t('Checklist Confirmed & Verified')}
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 700 }}
+                  />
+                ) : (
+                  <Chip
+                    label={`${Object.values(checkedMap).filter(Boolean).length} / ${checklistItems.length} ${t('Checked')}`}
+                    color={allItemsChecked ? 'primary' : 'default'}
+                    variant="outlined"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                {checklistItems.map((item, idx) => {
+                  const isChecked = Boolean(checkedMap[idx]);
+                  return (
+                    <Box
+                      key={idx}
+                      onClick={() => !checklistConfirmed && toggleCheckItem(idx)}
+                      sx={{
+                        p: 1.25,
+                        px: 1.5,
+                        borderRadius: 1.5,
+                        border: '1px solid',
+                        borderColor: isChecked
+                          ? isDark ? 'rgba(16, 185, 129, 0.4)' : '#86efac'
+                          : 'divider',
+                        bgcolor: isChecked
+                          ? isDark ? 'rgba(16, 185, 129, 0.1)' : '#f0fdf4'
+                          : 'background.paper',
+                        cursor: checklistConfirmed ? 'default' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: checklistConfirmed ? undefined : isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9',
+                        },
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                        <Checkbox
+                          checked={isChecked}
+                          disabled={checklistConfirmed}
+                          onChange={() => toggleCheckItem(idx)}
+                          color="success"
+                          sx={{ p: 0.5 }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: isChecked ? 600 : 500,
+                            color: isChecked ? (isDark ? '#6ee7b7' : '#166534') : 'text.primary',
+                            textDecoration: isChecked && checklistConfirmed ? 'none' : 'none',
+                          }}
+                        >
+                          {idx + 1}. {item}
+                        </Typography>
+                      </Stack>
+                      <Chip
+                        label={isChecked ? t('Verified') : t('Pending')}
+                        size="small"
+                        color={isChecked ? 'success' : 'default'}
+                        variant={isChecked ? 'filled' : 'outlined'}
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                      />
+                    </Box>
+                  );
+                })}
+              </Stack>
+
+              <Box sx={{ pt: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+                {!checklistConfirmed ? (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="medium"
+                    endIcon={<ArrowForwardRounded />}
+                    disabled={!allItemsChecked}
+                    onClick={handleConfirmAndProceed}
+                    sx={{ fontWeight: 700, px: 2.5 }}
+                  >
+                    {t('Confirm Checklist Done & Proceed to Step 2 (Upload Evidence)')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="medium"
+                    endIcon={<ArrowForwardRounded />}
+                    onClick={() => navigate('../evidence')}
+                    sx={{ fontWeight: 700 }}
+                  >
+                    {t('Go to Step 2 (Upload Evidence)')}
+                  </Button>
+                )}
+              </Box>
+            </Stack>
+          </Paper>
 
           {items.length > 0 ? (
             <Stack spacing={1.5}>

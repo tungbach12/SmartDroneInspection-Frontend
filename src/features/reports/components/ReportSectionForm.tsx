@@ -110,12 +110,12 @@ function Section({
     <Box component="section" sx={{ mb: 3 }}>
       <Box sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
-          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#101828' }}>
+          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary' }}>
             {title}
           </Typography>
           <Chip size="small" label={accountable} sx={{ height: 18, fontSize: '10px', fontWeight: 700 }} />
         </Stack>
-        <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>{description}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{description}</Typography>
       </Box>
       {children}
     </Box>
@@ -170,7 +170,7 @@ export function ReportSectionField({
       <Section {...details}>
         <Stack spacing={1.5}>
           <Box>
-            <Typography variant="caption" sx={{ color: '#475467', fontWeight: 700 }}>{t('Overall condition')}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>{t('Overall condition')}</Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
               {CONDITIONS.map((option) => (
                 <Chip

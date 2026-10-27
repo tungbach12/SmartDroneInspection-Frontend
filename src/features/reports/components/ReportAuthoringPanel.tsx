@@ -168,14 +168,20 @@ export function ReportAuthoringPanel({
   return (
     <Paper
       variant="outlined"
-      sx={{ p: { xs: 2, sm: 3 }, borderRadius: '16px', border: '1px solid #eaecf0', bgcolor: '#ffffff' }}
+      sx={{
+        p: { xs: 2, sm: 3 },
+        borderRadius: '16px',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
     >
       <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <Box sx={{ flex: 1, minWidth: 240 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828' }}>
+          <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
             {t('Report sections')}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
             Sections marked with the author are yours to write. The rest are read from the reviewed
             records.
           </Typography>

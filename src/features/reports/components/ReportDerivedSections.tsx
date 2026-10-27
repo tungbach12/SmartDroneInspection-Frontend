@@ -45,12 +45,12 @@ function ReadOnlySection({
     <Box component="section" sx={{ mb: 3.5 }}>
       <Box sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
-          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#101828' }}>
+          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary' }}>
             {title}
           </Typography>
           <Chip size="small" label={accountable} sx={{ height: 18, fontSize: '10px', fontWeight: 700 }} />
         </Stack>
-        <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.8125rem' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
           {description}
         </Typography>
       </Box>
@@ -62,10 +62,10 @@ function ReadOnlySection({
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   const { t } = useLocale();
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: { xs: 0.25, sm: 1.5 }, py: 0.75, borderBottom: '1px solid #f2f4f7' }}>
-      <Typography variant="body2" sx={{ color: '#475467', fontWeight: 600, fontSize: '0.8125rem' }}>{label}</Typography>
-      <Typography variant="body2" sx={{ color: '#101828', fontSize: '0.8125rem', wordBreak: 'break-word' }}>
-        {value?.trim() ? value : <Box component="span" sx={{ color: '#98a2b3', fontStyle: 'italic' }}>{t('Not supplied')}</Box>}
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '200px 1fr' }, gap: { xs: 0.25, sm: 1.5 }, py: 0.75, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.8125rem' }}>{label}</Typography>
+      <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.8125rem', wordBreak: 'break-word' }}>
+        {value?.trim() ? value : <Box component="span" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>{t('Not supplied')}</Box>}
       </Typography>
     </Box>
   );
