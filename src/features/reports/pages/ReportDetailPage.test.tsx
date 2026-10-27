@@ -182,12 +182,10 @@ describe('ReportDetailPage MF3 gates', () => {
       'Identification',
       'Executive summary',
       'Limitations and omissions',
-      'Purpose, scope and criteria',
       'Method, equipment and conditions',
       'Evidence register',
       'Confirmed findings',
       'Conclusions and recommendations',
-      'Appendices',
       'Approval and revisions',
     ]);
   });

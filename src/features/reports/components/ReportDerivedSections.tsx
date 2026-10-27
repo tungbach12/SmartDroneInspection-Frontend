@@ -15,7 +15,6 @@ export interface ReportDerivedSectionsProps {
   inspectionId: string;
   executiveSummary?: React.ReactNode;
   limitations?: React.ReactNode;
-  purposeScope?: React.ReactNode;
   method?: React.ReactNode;
   conclusions?: React.ReactNode;
 }
@@ -79,7 +78,6 @@ export function ReportDerivedSections({
   inspectionId,
   executiveSummary,
   limitations,
-  purposeScope,
   method,
   conclusions,
 }: ReportDerivedSectionsProps) {
@@ -92,20 +90,17 @@ export function ReportDerivedSections({
       <ReadOnlySection
         title={t('Identification')}
         accountable={t('Inspector · Organization Manager')}
-        description={t('Report and inspection identifiers, version, asset and approval records.')}
+        description={t('Report reference, version status, asset details and approval timestamps.')}
       >
         <Box>
           <Field label={t('Report reference')} value={`SDI-RPT-${version.id.slice(0, 8).toUpperCase()}-V${version.versionNo}`} />
           <Field label={t('Version / status')} value={`v${version.versionNo} · ${version.status}`} />
-          <Field label={t('Inspection ID')} value={inspectionId} />
           <Field label={t('Organization')} value={context?.organizationName} />
           <Field label={t('Asset')} value={context?.assetName} />
           <Field label={t('Asset code')} value={context?.assetCode} />
           <Field label={t('Asset location')} value={context?.assetLocation} />
           <Field label={t('Asset category')} value={context?.assetCategory} />
-          <Field label={t('Author')} value={version.authorUserId} />
           <Field label={t('Submitted')} value={formatDateTime(version.submittedAt, formatDateTimeValue, t('Not supplied'))} />
-          <Field label={t('Reviewer')} value={version.reviewerUserId} />
           <Field label={t('Review decision')} value={formatDateTime(version.reviewedAt, formatDateTimeValue, t('Not supplied'))} />
           <Field label={t('Published')} value={formatDateTime(version.publishedAt, formatDateTimeValue, t('Not supplied'))} />
         </Box>
@@ -113,20 +108,16 @@ export function ReportDerivedSections({
 
       {executiveSummary}
       {limitations}
-      {purposeScope}
       {method}
 
       {context && (
         <ReadOnlySection
           title={t('Inspection context and recorded field sessions')}
           accountable={t('Inspector · Organization Manager reviewer')}
-          description={t('Source records from flight permit authorization, inspection items and recorded field sessions. These records do not certify flight, permits or professional qualifications.')}
+          description={t('Assigned equipment, findings confirmation and recorded field sessions.')}
         >
           <Box>
             <Field label={t('Assigned Drone')} value={[context.assignedDrone?.manufacturer, context.assignedDrone?.model, context.assignedDrone?.serialNumber].filter(Boolean).join(' · ')} />
-            <Field label={t('Flight permit')} value={context.flightPermitFileName} />
-            <Field label={t('Flight permit uploaded')} value={formatDateTime(context.flightPermitUploadedAt, formatDateTimeValue, t('Not supplied'))} />
-            <Field label={t('Inspection items')} value={context.inspectionItems?.join(', ')} />
             <Field label={t('Findings confirmation')} value={formatDateTime(context.findingsConfirmedAt, formatDateTimeValue, t('Not supplied'))} />
             {context.fieldSessions.map((session) => (
               <Box key={session.id} sx={{ mt: 1, p: 1.5, border: '1px solid #e4e7ec', borderRadius: '8px' }}>
@@ -134,13 +125,15 @@ export function ReportDerivedSections({
                 <Field label={t('Started')} value={formatDateTime(session.startedAt, formatDateTimeValue, t('Not supplied'))} />
                 <Field label={t('Ended')} value={formatDateTime(session.endedAt, formatDateTimeValue, t('Not supplied'))} />
                 <Field label={t('Pre-flight checklist note')} value={session.preFlightChecklistNote} />
-                <Field label={t('Postponement reason')} value={session.postponementReason} />
-                <Field label={t('Abort reason')} value={session.abortReason} />
+                {session.postponementReason && (
+                  <Field label={t('Postponement reason')} value={session.postponementReason} />
+                )}
+                {session.abortReason && (
+                  <Field label={t('Abort reason')} value={session.abortReason} />
+                )}
                 <Field label={t('Outcome notes')} value={session.outcomeNotes} />
-                <Field label={t('Assigned Drone reference')} value={[session.droneManufacturer, session.droneModel, session.droneSerialNumber].filter(Boolean).join(' · ')} />
               </Box>
             ))}
-            <Field label={t('Reviewer qualification disclosure')} value={context.reviewerQualificationDisclosure} />
           </Box>
         </ReadOnlySection>
       )}
@@ -162,7 +155,6 @@ export function ReportDerivedSections({
                     <AuthenticatedImage src={inspectionApi.evidenceContentUrl(inspectionId, item.id)} alt={item.fileName} maxHeight={240} sx={{ borderRadius: '8px', border: '1px solid #eaecf0' }} />
                   )}
                   <Box sx={{ mt: 1 }}>
-                    <Field label={t('Evidence ID')} value={item.id} />
                     <Field label={t('File')} value={item.fileName} />
                     <Field label={t('Capture time')} value={formatDateTime(item.captureTime, formatDateTimeValue, t('Not supplied'))} />
                     <Field label={t('Asset location')} value={item.locationDescription} />
@@ -215,14 +207,6 @@ export function ReportDerivedSections({
       </ReadOnlySection>
 
       {conclusions}
-
-      <ReadOnlySection title={t('Appendices')} accountable={t('Inspector · SYSTEM compiles')} description={t('Evidence index and source-linked inspection context are shown above.')}>
-        <Typography variant="body2" sx={{ color: '#475467', fontSize: '0.8125rem' }}>
-        title={t('Evidence register')}
-        accountable={t('Inspector · SYSTEM indexes')}
-        description={t('Evidence linked to this report version, with capture time, GPS when available, and its shared asset location.')}
-        </Typography>
-      </ReadOnlySection>
 
       <ReadOnlySection title={t('Approval and revisions')} accountable={t('Organization Manager · SYSTEM records')} description={t('Who approved this version and when. A correction is issued as a new linked version; a published version is never altered.')}>
         <Box>
