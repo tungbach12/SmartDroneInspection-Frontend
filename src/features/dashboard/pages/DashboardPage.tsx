@@ -20,6 +20,7 @@ import { LyticStackedBarChart } from '../components/LyticStackedBarChart';
 import { LyticQueueTable } from '../components/LyticQueueTable';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { formatLocation } from '@/shared/airspace/airspaceZones';
 
 interface FocusArea {
   label: string;
@@ -284,7 +285,7 @@ export default function DashboardPage() {
   const tableRows = canReadAssets && assetList.length > 0
     ? assetList.slice(0, 4).map((a) => ({
         col1: a.name,
-        col2: a.locationText || 'River district',
+        col2: formatLocation(a.locationText) || 'River district',
         col3: a.code,
         col4: a.status === 'ACTIVE' ? 'Active' : 'Pending Review',
         col5: '3.2%',
