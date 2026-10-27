@@ -55,8 +55,7 @@ export default function InspectionDraftPage() {
     <Stack spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          Organization Manager review actions are available on the Review report tab. This stage is
-          retained for read-only status and version history.
+          {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 
@@ -65,9 +64,7 @@ export default function InspectionDraftPage() {
           {t('Create report draft')}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          MF3-07 proposes a value for each authored report section from the authorized sources.
-          This step only creates the version; you verify and edit the sections on the report
-          document.
+          {t('MF3-07 proposes a value for each authored report section from the authorized sources. This step only creates the version; you verify and edit the sections on the report document.')}
         </Typography>
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
           {isPublished ? (
@@ -97,7 +94,7 @@ export default function InspectionDraftPage() {
             onClick={() => createDraft.mutate()}
             sx={{ alignSelf: 'flex-start' }}
           >
-            {createDraft.isPending ? 'Compiling report…' : 'Generate report draft'}
+            {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
           </Button>
           {createDraft.isPending && <DraftProgressTracker />}
           {createDraft.isSuccess && (
@@ -119,9 +116,7 @@ export default function InspectionDraftPage() {
             {t('Start a draft without the model')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Creates an empty structured report version without calling the drafting model. Author
-            each report section once on the report document; the choice of manual drafting is kept as
-            provenance and is not repeated as an inspection limitation.
+            {t('Creates an empty structured report version without calling the drafting model. Author each report section once on the report document; the choice of manual drafting is kept as provenance and is not repeated as an inspection limitation.')}
           </Typography>
           <Button
             variant="outlined"
@@ -132,7 +127,7 @@ export default function InspectionDraftPage() {
             }}
             sx={{ alignSelf: 'flex-start' }}
           >
-            {authorManualDraft.isPending ? 'Creating draft…' : 'Create manual draft'}
+            {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
           </Button>
           {authorManualDraft.isError && (
             <Alert severity="error">
@@ -143,11 +138,11 @@ export default function InspectionDraftPage() {
       </Paper>}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">{isInspector ? 'Report document' : 'Report versions'}</Typography>
+        <Typography variant="h6">{isInspector ? t('Report document') : t('Report versions')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {hasVersion
-            ? `${(versions.data ?? []).length} version(s) available.`
-            : 'No report has been authored for this inspection yet.'}
+            ? `${(versions.data ?? []).length} ${t('version(s) available.')}`
+            : t('No report has been authored for this inspection yet.')}
         </Typography>
         {hasVersion ? (
           <Button

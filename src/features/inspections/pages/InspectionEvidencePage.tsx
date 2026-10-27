@@ -235,11 +235,9 @@ export default function InspectionEvidencePage() {
       )}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">Evidence coverage</Typography>
+        <Typography variant="h6">{t('Evidence coverage')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          The Inspector records what the evidence covers and any limitations in the authored report.
-          This register preserves active and retired captures; it does not issue an evidence-quality
-          decision.
+          {t('The Inspector records what the evidence covers and any limitations in the authored report. This register preserves active and retired captures; it does not issue an evidence-quality decision.')}
         </Typography>
         <Button
           component={RouterLink}

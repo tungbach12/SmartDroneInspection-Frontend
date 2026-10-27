@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
@@ -29,6 +30,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   subtext,
   iconType,
 }) => {
+  const { t } = useLocale();
   const renderIcon = () => {
     const iconProps = { sx: { fontSize: 20 } };
     switch (iconType) {
@@ -93,7 +95,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     <Box
       component="div"
       role="group"
-      aria-label={`${label}: ${value}`}
+      aria-label={`${t(label)}: ${value}`}
       sx={{
         backgroundColor: 'background.paper',
         border: '1px solid',
@@ -135,7 +137,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             lineHeight: 1.3,
           }}
         >
-          {label}
+          {t(label)}
         </Typography>
       </Box>
 
@@ -151,7 +153,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           mb: 1.5,
         }}
       >
-        {value}
+        {t(value)}
       </Typography>
 
       {/* Bottom: trend pill & subtext */}
@@ -175,7 +177,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               flexShrink: 0,
             }}
           >
-            {change}
+            {t(change)}
           </Box>
         )}
 
@@ -190,7 +192,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               textOverflow: 'ellipsis',
             }}
           >
-            {subtext}
+            {t(subtext)}
           </Typography>
         )}
       </Box>

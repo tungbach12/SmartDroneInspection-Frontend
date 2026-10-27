@@ -364,8 +364,9 @@ export default function InspectionFindingsPage() {
         sx={{
           p: { xs: 2, sm: 2.5 },
           borderRadius: '16px',
-          border: '1px solid #e2e8f0',
-          bgcolor: '#ffffff',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
         }}
       >
@@ -380,7 +381,7 @@ export default function InspectionFindingsPage() {
                 width: 44,
                 height: 44,
                 borderRadius: '12px',
-                bgcolor: 'rgba(13, 148, 136, 0.1)',
+                bgcolor: 'action.selected',
                 color: 'primary.main',
                 display: 'flex',
                 alignItems: 'center',
@@ -391,10 +392,10 @@ export default function InspectionFindingsPage() {
               <AutoAwesomeOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
                 {t('Defect Analysis & Findings')}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#64748b', mt: 0.25 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
                 {t('Run AI detection per image or across all captures. Review, adjust, and confirm defects.')}
               </Typography>
             </Box>
@@ -477,8 +478,8 @@ export default function InspectionFindingsPage() {
         sx={{
           p: { xs: 2, sm: 2.25 },
           borderRadius: '16px',
-          bgcolor: '#ffffff',
-          borderColor: '#e2e8f0',
+          bgcolor: 'background.paper',
+          borderColor: 'divider',
         }}
       >
         <Stack spacing={2}>
@@ -662,11 +663,11 @@ export default function InspectionFindingsPage() {
             p: 5,
             textAlign: 'center',
             borderRadius: '16px',
-            bgcolor: '#ffffff',
-            borderColor: '#e2e8f0',
+            bgcolor: 'background.paper',
+            borderColor: 'divider',
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#334155' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {hasActiveFilters
               ? t('No photos or defects match your current search and filters.')
               : t('No evidence captures available for defect analysis.')}
@@ -791,8 +792,8 @@ export default function InspectionFindingsPage() {
               sx={{
                 p: 0.5,
                 borderRadius: '12px',
-                bgcolor: '#ffffff',
-                borderColor: '#e2e8f0',
+                bgcolor: 'background.paper',
+                borderColor: 'divider',
                 display: 'flex',
                 justifyContent: 'flex-end',
               }}
