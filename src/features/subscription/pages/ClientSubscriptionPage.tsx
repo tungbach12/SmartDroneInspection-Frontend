@@ -49,8 +49,10 @@ import {
 } from '../hooks/useSubscriptions';
 import type { BillingPeriodMonths, Subscription } from '../api/subscriptionApi';
 import { redirectToPayPalApproval } from '../utils/paypalRedirect';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 
 export default function ClientSubscriptionPage() {
+  const isDark = useIsDarkMode();
   const { data, isLoading, isError, error, refetch } = useCurrentSubscription();
   const createMutation = useCreateSubscription();
   const createPayPalOrderMutation = useCreatePayPalOrder();
@@ -237,7 +239,7 @@ export default function ClientSubscriptionPage() {
     : null;
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, sm: 3 } }}>
+    <Box className="workspace-page workspace-page--subscriptions" sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, sm: 3 } }}>
       <PageHeader
         title="Enterprise Subscription"
         subtitle="Review subscription terms, submit a duration and price proposal, then settle through hosted PayPal approval or reconciled corporate wire transfer."
@@ -257,9 +259,10 @@ export default function ClientSubscriptionPage() {
               sx={{
                 p: 3,
                 borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                bgcolor: '#ffffff',
-                boxShadow: '0 1px 3px rgba(16, 24, 40, 0.05)',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(16, 24, 40, 0.05)',
               }}
             >
               <Stack
@@ -273,14 +276,14 @@ export default function ClientSubscriptionPage() {
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <CardMembershipRounded sx={{ color: '#0A968A', fontSize: 28 }} />
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
                       SmartDroneInspection Enterprise
                     </Typography>
                     <StatusChip status={current?.status ?? 'EXPIRED'} />
                   </Stack>
 
                   {isActive && current && (
-                    <Typography variant="body2" sx={{ color: '#475467' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       Active coverage from{' '}
                       <strong>
                         {current.startsAt ? new Date(current.startsAt).toLocaleDateString() : 'N/A'}
@@ -331,8 +334,8 @@ export default function ClientSubscriptionPage() {
                         borderRadius: '8px',
                         textTransform: 'none',
                         fontWeight: 600,
-                        borderColor: '#cbd5e1',
-                        color: '#334155',
+                        borderColor: 'divider',
+                        color: 'text.primary',
                       }}
                     >
                       View Electronic Contract
@@ -364,14 +367,15 @@ export default function ClientSubscriptionPage() {
                 sx={{
                   p: 3,
                   borderRadius: '16px',
-                  border: '1px solid #e2e8f0',
-                  bgcolor: '#ffffff',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: '#0f172a' }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
                   Select Subscription Period & Commercial Terms
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#475467', mb: 3 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
                   Choose a standard term or specify a custom contract duration with negotiated corporate pricing.
                 </Typography>
 
@@ -385,8 +389,12 @@ export default function ClientSubscriptionPage() {
                           sx={{
                             borderRadius: '12px',
                             borderWidth: isSelected ? '2px' : '1px',
-                            borderColor: isSelected ? '#0A968A' : '#e2e8f0',
-                            bgcolor: isSelected ? 'rgba(10, 150, 138, 0.04)' : '#ffffff',
+                            borderColor: isSelected ? '#0A968A' : 'divider',
+                            bgcolor: isSelected
+                              ? isDark
+                                ? 'rgba(10, 150, 138, 0.16)'
+                                : 'rgba(10, 150, 138, 0.04)'
+                              : 'background.paper',
                             transition: 'all 0.15s ease',
                             height: '100%',
                           }}
@@ -400,7 +408,7 @@ export default function ClientSubscriptionPage() {
                           >
                             <Stack spacing={1}>
                               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                                   {tier.billingPeriodMonths === 1
                                     ? '1 Month'
                                     : tier.billingPeriodMonths === 6
@@ -417,14 +425,14 @@ export default function ClientSubscriptionPage() {
                                 )}
                               </Stack>
 
-                              <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
                                 ${tier.monthlyPriceUsd.toLocaleString()}
-                                <Typography component="span" variant="caption" sx={{ color: '#64748b' }}>
+                                <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
                                   /mo
                                 </Typography>
                               </Typography>
 
-                              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                                 Total: ${tier.totalPriceUsd.toLocaleString()} USD
                               </Typography>
                             </Stack>
@@ -441,8 +449,12 @@ export default function ClientSubscriptionPage() {
                       sx={{
                         borderRadius: '12px',
                         borderWidth: isCustomPeriod ? '2px' : '1px',
-                        borderColor: isCustomPeriod ? '#0A968A' : '#e2e8f0',
-                        bgcolor: isCustomPeriod ? 'rgba(10, 150, 138, 0.04)' : '#ffffff',
+                        borderColor: isCustomPeriod ? '#0A968A' : 'divider',
+                        bgcolor: isCustomPeriod
+                          ? isDark
+                            ? 'rgba(10, 150, 138, 0.16)'
+                            : 'rgba(10, 150, 138, 0.04)'
+                          : 'background.paper',
                         transition: 'all 0.15s ease',
                         height: '100%',
                       }}
@@ -453,7 +465,7 @@ export default function ClientSubscriptionPage() {
                       >
                         <Stack spacing={1}>
                           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                               Custom & Deal
                             </Typography>
                             <Chip
@@ -469,7 +481,7 @@ export default function ClientSubscriptionPage() {
                             Flexible
                           </Typography>
 
-                          <Typography variant="caption" sx={{ color: '#64748b' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Tùy chọn số tháng & đề xuất giá
                           </Typography>
                         </Stack>
@@ -485,14 +497,15 @@ export default function ClientSubscriptionPage() {
                     sx={{
                       p: 2.5,
                       borderRadius: '12px',
-                      bgcolor: '#f8fafc',
-                      border: '1px solid #e2e8f0',
+                      bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : '#f8fafc',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       mb: 3,
                     }}
                   >
                     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
                       <TuneRounded sx={{ color: '#0A968A' }} />
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                         Custom Duration & Commercial Deal Proposal
                       </Typography>
                     </Stack>
@@ -511,13 +524,13 @@ export default function ClientSubscriptionPage() {
                       </Grid>
 
                       <Grid size={{ xs: 12, sm: 8 }}>
-                        <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                        <Box sx={{ p: 1.5, bgcolor: isDark ? 'rgba(15, 23, 42, 0.6)' : '#ffffff', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                             STANDARD ESTIMATE FOR {customMonths} MONTHS
                           </Typography>
-                          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                             ${customStandardTotal.toLocaleString()} USD
-                            <Typography component="span" variant="body2" sx={{ color: '#64748b', ml: 1 }}>
+                            <Typography component="span" variant="body2" sx={{ color: 'text.secondary', ml: 1 }}>
                               (${customRateInfo.monthly.toLocaleString()} / month)
                             </Typography>
                           </Typography>
@@ -537,7 +550,7 @@ export default function ClientSubscriptionPage() {
                         />
                       }
                       label={
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           Propose Custom Budget / Request Commercial Discount (Deal giá thỏa thuận)
                         </Typography>
                       }
@@ -575,7 +588,7 @@ export default function ClientSubscriptionPage() {
                     startIcon={<GavelRounded />}
                     endIcon={termsExpanded ? <ExpandLessRounded /> : <ExpandMoreRounded />}
                     onClick={() => setTermsExpanded(!termsExpanded)}
-                    sx={{ textTransform: 'none', color: '#475467', fontWeight: 600, mb: 1 }}
+                    sx={{ textTransform: 'none', color: 'text.secondary', fontWeight: 600, mb: 1 }}
                   >
                     Enterprise Terms of Service (Version {data.termsPreview.version})
                   </Button>
@@ -586,7 +599,8 @@ export default function ClientSubscriptionPage() {
                       sx={{
                         p: 2.5,
                         borderRadius: '10px',
-                        bgcolor: '#f8fafc',
+                        bgcolor: isDark ? 'rgba(15, 23, 42, 0.6)' : '#f8fafc',
+                        borderColor: 'divider',
                         maxHeight: 280,
                         overflowY: 'auto',
                         mb: 2,
@@ -595,10 +609,10 @@ export default function ClientSubscriptionPage() {
                       <Stack spacing={2}>
                         {data.termsPreview.clauses.map((clause) => (
                           <Box key={clause.id}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                               {clause.title}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#475467', mt: 0.25 }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
                               {clause.text}
                             </Typography>
                           </Box>
@@ -616,7 +630,7 @@ export default function ClientSubscriptionPage() {
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#0f172a' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                         I confirm that I am an authorized representative of my organization and agree to the
                         Enterprise Terms of Service (Version {data.termsPreview.version}).
                       </Typography>
@@ -651,21 +665,22 @@ export default function ClientSubscriptionPage() {
               sx={{
                 p: 3,
                 borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                bgcolor: '#ffffff',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
               }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
                 Payment & Entitlement Activation
               </Typography>
-              <Typography variant="body2" sx={{ color: '#475467', mb: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                 Complete payment to activate or extend your enterprise workspace entitlement.
               </Typography>
 
               <Tabs
                 value={paymentTab}
                 onChange={(_, val) => setPaymentTab(val)}
-                sx={{ borderBottom: '1px solid #e2e8f0', mb: 3 }}
+                sx={{ borderBottom: '1px solid', borderColor: 'divider', mb: 3 }}
               >
                 <Tab
                   icon={<PaymentRounded />}
@@ -684,15 +699,15 @@ export default function ClientSubscriptionPage() {
               </Tabs>
 
               {paymentTab === 'PAYPAL' && (
-                <Box sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <Box sx={{ p: 2.5, bgcolor: isDark ? 'rgba(15, 23, 42, 0.6)' : '#f8fafc', borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
                   <Stack spacing={2}>
                     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                       <PaymentRounded sx={{ color: '#0070BA', fontSize: 28 }} />
                       <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           PayPal Orders v2 Hosted Approval
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           PayPal hosts payer approval. The server captures the order and verifies the settled amount before activating the subscription.
                         </Typography>
                       </Box>
@@ -744,7 +759,7 @@ export default function ClientSubscriptionPage() {
                         </LoadingButton>
                       </Stack>
                     ) : (
-                      <Typography variant="body2" sx={{ color: '#64748b' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                         Your subscription is currently {current?.status}. Request a new term above to initiate checkout.
                       </Typography>
                     )}
@@ -754,34 +769,34 @@ export default function ClientSubscriptionPage() {
 
               {paymentTab === 'WIRE' && (
                 <Stack spacing={2}>
-                  <Typography variant="body2" sx={{ color: '#475467' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {data.paymentInstructions.instructions}
                   </Typography>
 
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                      <Box sx={{ p: 2, bgcolor: isDark ? 'rgba(15, 23, 42, 0.6)' : '#f8fafc', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                           BENEFICIARY BANK
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
                           {data.paymentInstructions.bankName}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
                           SWIFT / BIC: <code>{data.paymentInstructions.swiftBic}</code>
                         </Typography>
                       </Box>
                     </Grid>
 
                     <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                      <Box sx={{ p: 2, bgcolor: isDark ? 'rgba(15, 23, 42, 0.6)' : '#f8fafc', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                           BENEFICIARY ACCOUNT
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
                           {data.paymentInstructions.accountName}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
                           Account: <code>{data.paymentInstructions.accountNumber}</code>
                         </Typography>
                       </Box>
@@ -791,7 +806,7 @@ export default function ClientSubscriptionPage() {
                   <Box
                     sx={{
                       p: 2,
-                      bgcolor: '#f8fafc',
+                      bgcolor: isDark ? 'rgba(10, 150, 138, 0.12)' : '#f0fdfa',
                       borderRadius: '8px',
                       border: '1px dashed #0A968A',
                       display: 'flex',
@@ -803,7 +818,7 @@ export default function ClientSubscriptionPage() {
                       <Typography variant="caption" sx={{ color: '#0A968A', fontWeight: 700, display: 'block' }}>
                         REQUIRED PAYMENT REFERENCE CODE (NỘI DUNG CHUYỂN KHOẢN)
                       </Typography>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', mt: 0.25 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', mt: 0.25 }}>
                         {data.paymentInstructions.referenceCode}
                       </Typography>
                     </Box>
@@ -827,13 +842,14 @@ export default function ClientSubscriptionPage() {
                 sx={{
                   p: 3,
                   borderRadius: '16px',
-                  border: '1px solid #e2e8f0',
-                  bgcolor: '#ffffff',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
                 }}
               >
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
                   <ReceiptRounded sx={{ color: '#0070BA', fontSize: 24 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
                     Payment Transactions & Settlement Receipts
                   </Typography>
                 </Stack>
@@ -863,7 +879,7 @@ export default function ClientSubscriptionPage() {
                             sx={{ fontWeight: 700, fontSize: '0.75rem' }}
                           />
                         </Stack>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           PayPal Order ID: <code>{tx.paypalOrderId}</code>
                           {tx.paypalCaptureId && (
                             <> · Capture ID: <code>{tx.paypalCaptureId}</code></>
@@ -872,7 +888,7 @@ export default function ClientSubscriptionPage() {
                         </Typography>
                       </Box>
                       {tx.payerEmail && (
-                        <Typography variant="caption" sx={{ color: '#475467' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           Payer: {tx.payerEmail}
                         </Typography>
                       )}
@@ -889,13 +905,15 @@ export default function ClientSubscriptionPage() {
                 sx={{
                   p: 3,
                   borderRadius: '16px',
-                  border: '1px solid #e2e8f0',
-                  bgcolor: '#ffffff',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(16, 24, 40, 0.05)',
                 }}
               >
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
-                  <HistoryRounded sx={{ color: '#475467', fontSize: 24 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                  <HistoryRounded sx={{ color: isDark ? 'text.secondary' : '#475467', fontSize: 24 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
                     Subscription History
                   </Typography>
                 </Stack>
@@ -915,7 +933,7 @@ export default function ClientSubscriptionPage() {
                     >
                       <Box>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                             {item.planCode} · {item.billingPeriodMonths} Months
                             {item.agreedAmountUsd && (
                               <Typography component="span" variant="body2" sx={{ color: '#0A968A', ml: 1, fontWeight: 700 }}>
@@ -925,7 +943,7 @@ export default function ClientSubscriptionPage() {
                           </Typography>
                           <StatusChip status={item.status} />
                         </Stack>
-                        <Typography variant="caption" sx={{ color: '#64748b' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           Created: {new Date(item.createdAt).toLocaleDateString()}
                           {item.startsAt && item.endsAt && (
                             <span>
@@ -938,11 +956,11 @@ export default function ClientSubscriptionPage() {
 
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         {item.externalReference ? (
-                          <Typography variant="caption" sx={{ color: '#475467' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             Ref: <code>{item.externalReference}</code>
                           </Typography>
                         ) : (
-                          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                             Pending payment reference
                           </Typography>
                         )}

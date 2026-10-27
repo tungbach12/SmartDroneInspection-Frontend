@@ -32,6 +32,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useToastStore } from '@/shared/ui/Toast';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import {
   useAvailableLeasableDrones,
   useCaptureDroneLeasePayPalOrder,
@@ -42,6 +43,7 @@ import {
 import type { PlatformDrone } from '../api/droneLeaseApi';
 
 export default function ClientDroneLeasingPage() {
+  const isDark = useIsDarkMode();
   const showToast = useToastStore((s) => s.showToast);
   const availableQuery = useAvailableLeasableDrones();
   const leasesQuery = useOrganizationDroneLeases();
@@ -183,7 +185,7 @@ export default function ClientDroneLeasingPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1300, mx: 'auto', p: { xs: 2, sm: 3 } }}>
+    <Box className="workspace-page workspace-page--leasing" sx={{ maxWidth: 1300, mx: 'auto', p: { xs: 2, sm: 3 } }}>
       <PageHeader
         title="B2B Drone Leasing"
         subtitle="Lease serial-numbered inspection drones from the platform pool. Provisioned drones automatically appear in your organization's fleet inventory while the lease is active."
@@ -193,15 +195,22 @@ export default function ClientDroneLeasingPage() {
         {/* Section 1: Available Platform Drones for Lease */}
         <Paper
           elevation={0}
-          sx={{ p: 3, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}
+          sx={{
+            p: 3,
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(16, 24, 40, 0.05)',
+          }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1 }}>
             <FlightRounded sx={{ color: '#0A968A', fontSize: 26 }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
               Available Platform Drones for Lease
             </Typography>
           </Stack>
-          <Typography variant="body2" sx={{ color: '#475467', mb: 2.5 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
             Select an available platform drone to request a 1–60 month corporate lease contract.
           </Typography>
 
@@ -241,7 +250,7 @@ export default function ClientDroneLeasingPage() {
                 <MenuItem value="1200">Up to $1,200/mo</MenuItem>
               </TextField>
 
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Showing {availableDrones.length} drone{availableDrones.length === 1 ? '' : 's'}
               </Typography>
             </Stack>
@@ -267,7 +276,9 @@ export default function ClientDroneLeasingPage() {
                     variant="outlined"
                     sx={{
                       borderRadius: '12px',
-                      borderColor: '#e2e8f0',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
                       height: '100%',
                       display: 'flex',
                       flexDirection: 'column',
@@ -279,13 +290,13 @@ export default function ClientDroneLeasingPage() {
                         direction="row"
                         sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
                       >
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           {drone.serialNumber}
                         </Typography>
                         <StatusChip status={drone.status} />
                       </Stack>
 
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {drone.manufacturer ? `${drone.manufacturer} · ` : ''}
                         {drone.model}
                       </Typography>
@@ -298,14 +309,14 @@ export default function ClientDroneLeasingPage() {
                         <Typography
                           component="span"
                           variant="caption"
-                          sx={{ color: '#64748b', ml: 0.5 }}
+                          sx={{ color: 'text.secondary', ml: 0.5 }}
                         >
                           USD / month
                         </Typography>
                       </Typography>
 
                       {drone.notes && (
-                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                           {drone.notes}
                         </Typography>
                       )}
@@ -350,11 +361,18 @@ export default function ClientDroneLeasingPage() {
         {/* Section 2: Organization Lease Contracts */}
         <Paper
           elevation={0}
-          sx={{ p: 3, borderRadius: '16px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}
+          sx={{
+            p: 3,
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: isDark ? '0 1px 3px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(16, 24, 40, 0.05)',
+          }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1 }}>
             <HandshakeRounded sx={{ color: '#0A968A', fontSize: 26 }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
               Organization Lease Contracts
             </Typography>
           </Stack>
@@ -394,7 +412,7 @@ export default function ClientDroneLeasingPage() {
                     >
                       <Stack spacing={0.5}>
                         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                             {serial} · {modelName}
                           </Typography>
                           <StatusChip status={lease.status} />
@@ -404,7 +422,7 @@ export default function ClientDroneLeasingPage() {
                             variant="outlined"
                           />
                         </Stack>
-                        <Typography variant="body2" sx={{ color: '#475467' }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                           Contract Total:{' '}
                           <strong>${Number(lease.agreedAmountUsd).toLocaleString()} USD</strong>
                           {lease.startsAt && lease.endsAt && (
@@ -429,7 +447,7 @@ export default function ClientDroneLeasingPage() {
                             sx={{
                               px: 1.5,
                               py: 0.75,
-                              bgcolor: '#f8fafc',
+                              bgcolor: isDark ? 'rgba(10, 150, 138, 0.12)' : '#f0fdfa',
                               border: '1px dashed #0A968A',
                               borderRadius: '8px',
                               display: 'flex',
@@ -438,7 +456,7 @@ export default function ClientDroneLeasingPage() {
                             }}
                           >
                             <AccountBalanceRounded sx={{ fontSize: 18, color: '#0A968A' }} />
-                            <Typography variant="caption" sx={{ color: '#0f172a' }}>
+                            <Typography variant="caption" sx={{ color: 'text.primary' }}>
                               Wire Ref: <strong>{wireRef}</strong>
                             </Typography>
                           </Box>
