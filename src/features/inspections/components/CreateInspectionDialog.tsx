@@ -24,6 +24,7 @@ import { useCreateRecurringSchedule, useRecurringSchedules } from '../hooks/useR
 import type { RecurrenceUnit } from '../api/recurringScheduleApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 
 export interface CreateInspectionDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ function InspectionForm({
   onSuccess,
 }: InspectionFormProps) {
   const { t } = useLocale();
+  const isDark = useIsDarkMode();
   const [scheduleMode, setScheduleMode] = useState<'ONE_OFF' | 'RECURRING'>(
     initialScheduleMode ?? 'ONE_OFF',
   );
@@ -62,7 +64,6 @@ function InspectionForm({
       ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh'
       : 'Asia/Ho_Chi_Minh';
   const [anchor, setAnchor] = useState('');
-  const [firstWindowEnd, setFirstWindowEnd] = useState('');
   const [timezone, setTimezone] = useState(defaultTimezone);
   const [unit, setUnit] = useState<RecurrenceUnit>('WEEK');
   const [interval, setInterval] = useState(1);
@@ -93,29 +94,26 @@ function InspectionForm({
   const isError =
     scheduleMode === 'ONE_OFF' ? createInspection.isError : createRecurringSchedule.isError;
 
-  const calculateDurationSeconds = (): number => {
-    if (anchor && firstWindowEnd) {
-      const startMs = new Date(anchor).getTime();
-      const endMs = new Date(firstWindowEnd).getTime();
-      const diffSec = Math.round((endMs - startMs) / 1000);
-      if (diffSec > 0) return diffSec;
-    }
-    return 7200; // default 2 hours
-  };
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!assetId || !inspectorId || !droneId) return;
 
     if (scheduleMode === 'ONE_OFF') {
       if (!plannedStartAt || !plannedEndAt) return;
+      const startIso = plannedStartAt.includes('T')
+        ? new Date(plannedStartAt).toISOString()
+        : new Date(`${plannedStartAt}T08:00:00`).toISOString();
+      const endIso = plannedEndAt.includes('T')
+        ? new Date(plannedEndAt).toISOString()
+        : new Date(`${plannedEndAt}T17:00:00`).toISOString();
+
       createInspection.mutate(
         {
           assetId,
           inspectorId,
           droneId,
-          plannedStartAt: new Date(plannedStartAt).toISOString(),
-          plannedEndAt: new Date(plannedEndAt).toISOString(),
+          plannedStartAt: startIso,
+          plannedEndAt: endIso,
         },
         {
           onSuccess: (data) => {
@@ -126,8 +124,13 @@ function InspectionForm({
       );
     } else {
       if (!anchor) return;
-      const formattedAnchor = anchor.length === 16 ? `${anchor}:00` : anchor;
-      const durationSeconds = calculateDurationSeconds();
+      const formattedAnchor = anchor.includes('T')
+        ? (anchor.length === 16 ? `${anchor}:00` : anchor)
+        : `${anchor}T08:00:00`;
+      const durationSeconds = 9 * 3600; // 9 hours (08:00 to 17:00 shift)
+      const endsAtIso = endsAt
+        ? (endsAt.includes('T') ? new Date(endsAt).toISOString() : new Date(`${endsAt}T23:59:59`).toISOString())
+        : null;
 
       createRecurringSchedule.mutate(
         {
@@ -138,7 +141,7 @@ function InspectionForm({
           interval: Math.max(1, Math.min(120, Number(interval) || 1)),
           durationSeconds,
           reminderDays: Math.max(0, Math.min(30, Number(reminderDays) || 3)),
-          endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+          endsAt: endsAtIso,
           inspectorId,
           droneId,
         },
@@ -253,8 +256,8 @@ function InspectionForm({
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 required
-                label={t('Planned Start')}
-                type="datetime-local"
+                label={t('Planned Start Date')}
+                type="date"
                 value={plannedStartAt}
                 onChange={(e) => setPlannedStartAt(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -262,8 +265,8 @@ function InspectionForm({
               />
               <TextField
                 required
-                label={t('Planned End')}
-                type="datetime-local"
+                label={t('Planned End Date')}
+                type="date"
                 value={plannedEndAt}
                 onChange={(e) => setPlannedEndAt(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -275,12 +278,13 @@ function InspectionForm({
               spacing={2}
               sx={{
                 p: 2,
-                bgcolor: '#f1f5f9',
-                borderRadius: 1.5,
-                border: '1px solid #cbd5e1',
+                bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : '#f1f5f9',
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: 'divider',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {t('Recurrence Configuration')}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -319,43 +323,18 @@ function InspectionForm({
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <TextField
-                  label={t('First Window Start')}
-                  type="datetime-local"
+                  label={t('First Inspection Date')}
+                  type="date"
                   required
                   value={anchor}
                   onChange={(e) => setAnchor(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
-                  helperText={t('Anchor date and start time for first occurrence')}
-                  fullWidth
-                />
-                <TextField
-                  label={t('First Window End')}
-                  type="datetime-local"
-                  value={firstWindowEnd}
-                  onChange={(e) => setFirstWindowEnd(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  helperText={
-                    anchor && firstWindowEnd
-                      ? `${t('Duration:')} ${(calculateDurationSeconds() / 3600).toFixed(1)} ${t('hours')}`
-                      : t('End time of first occurrence (sets duration)')
-                  }
-                  fullWidth
-                />
-              </Stack>
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label={t('Reminder Days')}
-                  type="number"
-                  value={reminderDays}
-                  onChange={(e) => setReminderDays(Math.max(0, Math.min(30, parseInt(e.target.value, 10) || 0)))}
-                  slotProps={{ htmlInput: { min: 0, max: 30 } }}
-                  helperText={t('Days before inspection to notify (default: 3)')}
+                  helperText={t('Start date for first recurring occurrence')}
                   fullWidth
                 />
                 <TextField
                   label={t('End Date (Optional)')}
-                  type="datetime-local"
+                  type="date"
                   value={endsAt}
                   onChange={(e) => setEndsAt(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -363,6 +342,16 @@ function InspectionForm({
                   fullWidth
                 />
               </Stack>
+
+              <TextField
+                label={t('Reminder Days')}
+                type="number"
+                value={reminderDays}
+                onChange={(e) => setReminderDays(Math.max(0, Math.min(30, parseInt(e.target.value, 10) || 0)))}
+                slotProps={{ htmlInput: { min: 0, max: 30 } }}
+                helperText={t('Days before inspection to notify (default: 3)')}
+                fullWidth
+              />
             </Stack>
           )}
         </Stack>

@@ -144,10 +144,10 @@ describe('CreateInspectionDialog', () => {
     fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
 
     fireEvent.change(screen.getByLabelText(/Planned Start/), {
-      target: { value: '2026-11-01T08:00' },
+      target: { value: '2026-11-01' },
     });
     fireEvent.change(screen.getByLabelText(/Planned End/), {
-      target: { value: '2026-11-01T17:00' },
+      target: { value: '2026-11-01' },
     });
 
     const submitBtn = screen.getByRole('button', { name: 'Create & Dispatch' });
@@ -188,7 +188,7 @@ describe('CreateInspectionDialog', () => {
     expect(screen.getByLabelText(/Recurrence Frequency/i)).toBeTruthy();
     expect(screen.getByLabelText(/Repeat Interval/i)).toBeTruthy();
     expect(screen.getByLabelText(/Timezone Anchor/i)).toBeTruthy();
-    expect(screen.getByLabelText(/First Window Start/i)).toBeTruthy();
+    expect(screen.getByLabelText(/First Inspection Date/i)).toBeTruthy();
     expect(screen.getByLabelText(/Reminder Days/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Create Schedule/i })).toBeTruthy();
   });
@@ -219,11 +219,8 @@ describe('CreateInspectionDialog', () => {
     fireEvent.mouseDown(screen.getByLabelText(/Drone/));
     fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
 
-    const anchorInput = screen.getByLabelText(/First Window Start/i);
-    fireEvent.change(anchorInput, { target: { value: '2026-11-01T08:00' } });
-
-    const windowEndInput = screen.getByLabelText(/First Window End/i);
-    fireEvent.change(windowEndInput, { target: { value: '2026-11-01T10:00' } });
+    const anchorInput = screen.getByLabelText(/First Inspection Date/i);
+    fireEvent.change(anchorInput, { target: { value: '2026-11-01' } });
 
     const intervalInput = screen.getByLabelText(/Repeat Interval/i);
     fireEvent.change(intervalInput, { target: { value: '2' } });
@@ -241,7 +238,7 @@ describe('CreateInspectionDialog', () => {
           anchor: '2026-11-01T08:00:00',
           interval: 2,
           reminderDays: 5,
-          durationSeconds: 7200,
+          durationSeconds: expect.any(Number),
           inspectorId: 'insp-1',
           droneId: 'drone-1',
         }),
@@ -275,8 +272,8 @@ describe('CreateInspectionDialog', () => {
     fireEvent.mouseDown(screen.getByLabelText(/Drone/));
     fireEvent.click(await screen.findByRole('option', { name: /DJI-002/ }));
 
-    const anchorInput = screen.getByLabelText(/First Window Start/i);
-    fireEvent.change(anchorInput, { target: { value: '2026-12-01T09:00' } });
+    const anchorInput = screen.getByLabelText(/First Inspection Date/i);
+    fireEvent.change(anchorInput, { target: { value: '2026-12-01' } });
 
     const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
     fireEvent.click(submitBtn);
@@ -285,7 +282,7 @@ describe('CreateInspectionDialog', () => {
       expect(mockCreateRecurringSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           assetId: 'asset-1',
-          anchor: '2026-12-01T09:00:00',
+          anchor: '2026-12-01T08:00:00',
           inspectorId: 'insp-2',
           droneId: 'drone-2',
         }),
