@@ -1,7 +1,7 @@
 import { Box, Chip, Stack, TextField, Typography } from '@mui/material';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type {
-  InspectionReportVersion,
+  InspectionReport,
   ReportOverallCondition,
 } from '@/features/inspections/api/inspectionApi';
 
@@ -33,7 +33,7 @@ export const EMPTY_SECTION_VALUES: ReportSectionValues = {
   omissionDisclosure: '',
 };
 
-export function sectionValuesFrom(version: InspectionReportVersion | null): ReportSectionValues {
+export function sectionValuesFrom(version: InspectionReport | null): ReportSectionValues {
   const stored = version?.sections;
   return {
     executiveSummary: stored?.executiveSummary ?? '',

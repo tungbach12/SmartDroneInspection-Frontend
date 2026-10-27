@@ -147,6 +147,11 @@ describe('ReportDetailPage MF3 gates', () => {
     vi.clearAllMocks();
     mockedApi.listFindings.mockResolvedValue([]);
     mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'REPORT_DRAFT',
+      findingsConfirmedAt: '2026-10-01T08:00:00Z',
+      findingsSnapshotHash: 'abc123',
+    });
     setRole(['ORG_MANAGER']);
   });
 
@@ -231,6 +236,25 @@ describe('ReportDetailPage MF3 gates', () => {
         'Revisit the evidence and findings.',
       ),
     );
+  });
+
+  it('requires a fresh draft when a returned report has changed sources', async () => {
+    setRole(['INSPECTOR']);
+    mockedApi.listVersions.mockResolvedValue([version({ status: 'RETURNED', authorUserId: 'user-1' })]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'FIELD_COMPLETED',
+      findingsConfirmedAt: null,
+      findingsSnapshotHash: null,
+    });
+    mockedApi.listFindings.mockResolvedValue([finding({ status: 'CONFIRMED' })]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText(/This report was returned after source changes/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Review findings and create a fresh version' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Verify as author' })).toBeNull();
+    expect((screen.getByRole('button', { name: 'Save sections' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('lets the Inspector withdraw a submitted report before report-level reviewer action', async () => {

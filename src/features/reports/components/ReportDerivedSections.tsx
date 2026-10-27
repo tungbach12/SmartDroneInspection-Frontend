@@ -1,7 +1,7 @@
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import type {
   EvidenceItem,
-  InspectionReportVersion,
+  InspectionReport,
   Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
@@ -9,7 +9,7 @@ import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface ReportDerivedSectionsProps {
-  version: InspectionReportVersion;
+  version: InspectionReport;
   findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;

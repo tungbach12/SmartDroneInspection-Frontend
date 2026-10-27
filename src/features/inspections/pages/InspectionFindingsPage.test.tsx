@@ -319,7 +319,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     // Idle must be still: the motion is a signal that a request is running, not decoration.
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
     expect(screen.queryByRole('img', { name: 'Advisory detection in progress' })).toBeNull();
   });
 
@@ -346,7 +346,7 @@ describe('InspectionFindingsPage', () => {
     };
     reopened.rerender(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
@@ -374,7 +374,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionFindingsPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Analyze' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Analyze image' }));
 
     await waitFor(() =>
       expect(mocks.analyze.analyzeMany).toHaveBeenCalledWith(['evidence-1'], { replace: false }),
@@ -388,9 +388,8 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(await screen.findByRole('img', { name: 'Advisory detection in progress' })).toBeTruthy();
-    // Which image is in flight is real information, not a guessed stage.
-    expect(screen.getByText('Analysing span.png…')).toBeTruthy();
+    expect(await screen.findByRole('img', { name: 'Analysing span.png' })).toBeTruthy();
+    expect(screen.getByText(/Advisory detection is running/)).toBeTruthy();
     expect(
       screen.getByRole('img', { name: 'Analysing span.png' }).getAttribute('src'),
     ).toContain('/images/ai-motion/');
@@ -402,7 +401,6 @@ describe('InspectionFindingsPage', () => {
     mocks.analyze.noDetectionIds = ['evidence-1'];
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(screen.getByText('Detection complete')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Analyze again' })).toBeTruthy();
   });
 
@@ -415,9 +413,33 @@ describe('InspectionFindingsPage', () => {
     expect(screen.getByText('No findings yet')).toBeTruthy();
   });
 
+  it('keeps findings editable and analysis available during report drafting', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.workflowQuery = {
+      data: {
+        status: 'REPORT_DRAFT',
+        findingsConfirmedAt: '2026-10-08T09:00:00Z',
+        findingsSnapshotHash: 'abcdef1234567890',
+      },
+      isLoading: false,
+      error: null,
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('DRAFT')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(await screen.findByRole('button', { name: /Analyze all images/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
+    expect(screen.getByText(/remain editable while authoring the report/)).toBeTruthy();
+  });
+
   it('does not auto-analyze after findings confirmation moved the inspection forward', async () => {
-    // MF3: confirmation advances the inspection to the Report step, where analysis is locked. A
-    // page loaded in that state must not fire analysis the backend would refuse with 409.
+    // A report draft allows explicit user-requested detection, but loading it does not auto-analyze.
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = {
       data: {
@@ -431,8 +453,10 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /Analyze all images/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
   });
 
 
@@ -495,6 +519,41 @@ describe('InspectionFindingsPage', () => {
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
+  it('allows editing confirmed findings during REPORT_DRAFT and blocks them while submitted', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [{ ...undecidedFinding(), status: 'CONFIRMED' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-08T09:00:00Z', findingsSnapshotHash: 'hash' },
+      isLoading: false,
+      error: null,
+    };
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('DRAFT')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    const { rerender } = renderWithRouter(<InspectionFindingsPage />);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(screen.getByLabelText('Asset location description for this photo').hasAttribute('disabled')).toBe(false);
+
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('SUBMITTED')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    rerender(<InspectionFindingsPage />);
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.getByLabelText('Asset location description for this photo').hasAttribute('disabled')).toBe(true);
+  });
+
   it('allows confirming a candidate without location prose', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
@@ -522,10 +581,10 @@ describe('InspectionFindingsPage', () => {
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionFindingsPage />);
-    const sharedLocation = screen.getByLabelText(/Location for this evidence/);
+    const sharedLocation = screen.getByLabelText('Asset location description for this photo');
     fireEvent.change(sharedLocation, { target: { value: 'Girder G4, east face' } });
     fireEvent.blur(sharedLocation);
-    fireEvent.mouseDown(screen.getByLabelText('Severity'));
+    fireEvent.mouseDown(screen.getAllByLabelText('Severity')[1]!);
     fireEvent.click(screen.getByRole('option', { name: 'HIGH' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -586,7 +645,7 @@ describe('InspectionFindingsPage', () => {
     );
     expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
     expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
-    expect(screen.getByText('advisor')).toBeTruthy();
+    expect(screen.getByText(/Detected via advisor/)).toBeTruthy();
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();

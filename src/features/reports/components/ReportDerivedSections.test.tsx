@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   EvidenceItem,
-  InspectionReportVersion,
+  InspectionReport,
   Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { ReportDerivedSections } from './ReportDerivedSections';
@@ -11,7 +11,7 @@ vi.mock('@/shared/ui/AuthenticatedImage', () => ({
   AuthenticatedImage: () => <div />,
 }));
 
-const version: InspectionReportVersion = {
+const version: InspectionReport = {
   id: 'version-1',
   inspectionReportId: 'report-1',
   versionNo: 1,

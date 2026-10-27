@@ -20,10 +20,22 @@ const mocks = vi.hoisted(() => ({
     error: null as Error | null,
     refetch: vi.fn(),
   },
+  workflowQuery: {
+    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    isLoading: false,
+    isError: false,
+    error: null as Error | null,
+    refetch: vi.fn(),
+  },
+  evidenceQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  findingsQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
   useInspection: () => mocks.inspectionQuery,
+  useInspectionWorkflowState: () => mocks.workflowQuery,
+  useInspectionEvidence: () => mocks.evidenceQuery,
+  useInspectionFindings: () => mocks.findingsQuery,
   useReportVersions: () => mocks.versionsQuery,
 }));
 
@@ -66,6 +78,15 @@ beforeEach(() => {
     error: null,
     refetch: vi.fn(),
   };
+  mocks.workflowQuery = {
+    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null, findingsSnapshotHash: null },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  };
+  mocks.evidenceQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
+  mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
 });
 
 afterEach(() => {
@@ -103,6 +124,36 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByRole('tab', { name: 'Report review' }).getAttribute('href')).toContain('review');
     screen.getByRole('button', { name: 'Back to review queue' }).click();
     expect(navigateMock).toHaveBeenCalledWith('/client/inspections?view=reports');
+  });
+
+  it('shows Findings as complete only while its confirmation is current', () => {
+    mocks.inspectionQuery = {
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'REPORT_DRAFT' },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: null, findingsSnapshotHash: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    const { rerender } = render(<InspectionDetailPage />);
+    expect(screen.getByRole('tab', { name: 'Findings' }).textContent).toContain('3');
+
+    mocks.workflowQuery = {
+      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-27T08:00:00Z', findingsSnapshotHash: 'current-hash' },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    rerender(<InspectionDetailPage />);
+    expect(screen.getByRole('tab', { name: 'Findings' }).querySelector('svg')).not.toBeNull();
   });
 
   it('renders one tab per workspace stage', () => {

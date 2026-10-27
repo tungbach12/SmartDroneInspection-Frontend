@@ -21,7 +21,7 @@ import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import SaveRounded from '@mui/icons-material/SaveRounded';
 import type {
   EvidenceItem,
-  InspectionReportVersion,
+  InspectionReport,
   Finding,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
@@ -36,7 +36,7 @@ import {
 } from './ReportSectionForm';
 
 export interface ReportAuthoringPanelProps {
-  version: InspectionReportVersion;
+  version: InspectionReport;
   findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;

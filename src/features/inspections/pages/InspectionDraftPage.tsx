@@ -46,6 +46,8 @@ export default function InspectionDraftPage() {
   const isPublished = ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
     workflow.data?.status ?? '',
   );
+  const needsFreshDraft =
+    versions.data?.[0]?.status === 'RETURNED' && workflow.data?.status === 'REPORT_DRAFT';
   const hasVersion = (versions.data ?? []).length > 0;
   const reportDocumentPath = `${getSectionPath(portal, 'reports')}/${inspectionId}`;
 
@@ -70,6 +72,10 @@ export default function InspectionDraftPage() {
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
           {isPublished ? (
             <Alert severity="success">{t('The report has been published. This version is immutable.')}</Alert>
+          ) : needsFreshDraft ? (
+            <Alert severity="info">
+              {t('This report was returned for revision. Confirm the current findings and create a fresh version before resubmitting.')}
+            </Alert>
           ) : !findingsConfirmed ? (
             <Alert
               severity="info"
@@ -84,7 +90,7 @@ export default function InspectionDraftPage() {
           ) : null}
           <Button
             variant="contained"
-            disabled={!isInspector || isPublished || createDraft.isPending || !findingsConfirmed}
+            disabled={!isInspector || isPublished || needsFreshDraft || createDraft.isPending || !findingsConfirmed}
             startIcon={
               createDraft.isPending ? <AiMotionFigure name="draftBurst" size={22} /> : undefined
             }
@@ -119,7 +125,7 @@ export default function InspectionDraftPage() {
           </Typography>
           <Button
             variant="outlined"
-            disabled={!isInspector || isPublished || !findingsConfirmed || authorManualDraft.isPending}
+            disabled={!isInspector || isPublished || needsFreshDraft || !findingsConfirmed || authorManualDraft.isPending}
             startIcon={authorManualDraft.isPending ? <AiMotionFigure name="draftRibbon" size={20} /> : undefined}
             onClick={() => {
               authorManualDraft.mutate({});

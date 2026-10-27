@@ -93,6 +93,16 @@ export default function ReportDetailPage() {
   );
   const canEditReturnedText =
     canAuthor && isAuthor && openVersion?.status === 'RETURNED';
+  const currentFindingsConfirmationAt =
+    workflowState.data?.findingsConfirmedAt ?? openVersion?.reportContext?.findingsConfirmedAt;
+  const sourcesNeedFreshDraft = Boolean(
+    canEditReturnedText &&
+      ((inspectionStatus === 'FIELD_COMPLETED' &&
+        workflowState.data?.findingsConfirmedAt == null) ||
+        (currentFindingsConfirmationAt &&
+          new Date(currentFindingsConfirmationAt).getTime() >
+            new Date(openVersion.createdAt).getTime())),
+  );
 
   const saveSections = useSaveReportSections(inspectionId);
 
@@ -253,21 +263,37 @@ export default function ReportDetailPage() {
 
                   <Stack spacing={2}>
                     {/* Author verification step */}
-                    {canAuthor && isAuthor && (openVersion.status === 'DRAFT' || canEditReturnedText) && (
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                    {sourcesNeedFreshDraft && (
+                      <Stack spacing={1.25}>
+                        <Alert severity="info">
+                          {t('This report was returned after source changes. Confirm the updated findings and create a fresh report version before resubmitting.')}
+                        </Alert>
                         <Button
-                          variant="contained"
-                          disabled={verify.isPending}
-                          onClick={() => verify.mutate(openVersion.id)}
-                          sx={{ borderRadius: '8px', px: 2.5 }}
+                          variant="outlined"
+                          component={RouterLink}
+                          to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`}
+                          sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
                         >
-                          {verify.isPending ? 'Verifying…' : 'Verify as author'}
+                          {t('Review findings and create a fresh version')}
                         </Button>
-                        <Typography variant="caption" sx={{ color: '#667085' }}>
-                          {t('Attest that you surveyed the site and the narrative is complete.')}
-                        </Typography>
                       </Stack>
                     )}
+                    {canAuthor && isAuthor && !sourcesNeedFreshDraft &&
+                      (openVersion.status === 'DRAFT' || canEditReturnedText) && (
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                          <Button
+                            variant="contained"
+                            disabled={verify.isPending}
+                            onClick={() => verify.mutate(openVersion.id)}
+                            sx={{ borderRadius: '8px', px: 2.5 }}
+                          >
+                            {verify.isPending ? 'Verifying…' : 'Verify as author'}
+                          </Button>
+                          <Typography variant="caption" sx={{ color: '#667085' }}>
+                            {t('Attest that you surveyed the site and the narrative is complete.')}
+                          </Typography>
+                        </Stack>
+                      )}
 
                     {/* Author submit step */}
                     {canAuthor && isAuthor && openVersion.status === 'AUTHOR_VERIFIED' && (

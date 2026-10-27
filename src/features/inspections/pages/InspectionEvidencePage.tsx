@@ -24,7 +24,6 @@ import {
   useRetireEvidence,
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
-  useReopenFindings,
 } from '../hooks/useInspections';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -67,7 +66,6 @@ export default function InspectionEvidencePage() {
   const upload = useUploadInspectionEvidence(inspectionId);
   const retire = useRetireEvidence(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
-  const reopenFindings = useReopenFindings(inspectionId);
 
   const [queue, setQueue] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -82,16 +80,18 @@ export default function InspectionEvidencePage() {
   const retiredCount = evidence.data?.retiredCount ?? 0;
   const currentEvidenceItems = displayedEvidenceItems.filter((item) => !item.isDeleted);
   const currentVersion = versions.data?.[0] ?? null;
-  const isDraftLocked = workflow.data?.status === 'REPORT_DRAFT';
-  const isSubmittedOrFinalLocked = Boolean(
-    currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status),
-  );
-  const evidenceLocked = isDraftLocked || isSubmittedOrFinalLocked;
+  const evidenceLocked =
+    Boolean(
+      currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status),
+    ) || ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+  const isReturnedRevision = currentVersion?.status === 'RETURNED';
   const completedFieldSessionId = sessionHistory.data?.filter(
     (session) => session.status === 'FIELD_COMPLETED',
   ).at(-1)?.id;
-  const canEditEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED' && !evidenceLocked;
-  const canUploadEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED' && !evidenceLocked;
+  const canEditEvidence =
+    isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
+  const canUploadEvidence =
+    isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
@@ -165,37 +165,6 @@ export default function InspectionEvidencePage() {
             {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
           </Typography>
 
-          {isDraftLocked && (
-            <Alert
-              severity="warning"
-              action={
-                <Button
-                  color="inherit"
-                  size="small"
-                  variant="outlined"
-                  disabled={reopenFindings.isPending}
-                  onClick={() => reopenFindings.mutate()}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    bgcolor: '#ffffff',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {reopenFindings.isPending ? t('Reopening…') : t('Reopen Findings to Upload')}
-                </Button>
-              }
-              sx={{ mb: 2, borderRadius: '12px', alignItems: 'center' }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {t(
-                  'Findings have already been confirmed for report drafting. To upload new captures, reopen the findings stage first.',
-                )}
-              </Typography>
-            </Alert>
-          )}
-
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
             {canUploadEvidence && (
               <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
@@ -215,12 +184,8 @@ export default function InspectionEvidencePage() {
                 />
               </Button>
             )}
-            <Typography variant="body2" sx={{ flexGrow: 1, color: isDraftLocked ? 'text.secondary' : undefined }}>
-              {isDraftLocked
-                ? t('Upload locked while drafting report')
-                : queue.length === 0
-                  ? t('No files staged')
-                  : `${queue.length} ${t('file(s) staged')}`}
+            <Typography variant="body2" sx={{ flexGrow: 1 }}>
+              {queue.length === 0 ? t('No files staged') : `${queue.length} ${t('file(s) staged')}`}
             </Typography>
             <Button
               variant="contained"
@@ -230,11 +195,16 @@ export default function InspectionEvidencePage() {
               {uploading ? t('Uploading…') : t('Upload staged files')}
             </Button>
           </Stack>
-          {isSubmittedOrFinalLocked && (
+          {evidenceLocked && (
             <Alert severity="info" sx={{ mt: 1 }}>
               {t(
-                'Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.',
+                'Evidence is locked while the report is submitted or after publication. Withdraw the submission if it has not been reviewed, or ask the reviewer to return it before making changes.',
               )}
+            </Alert>
+          )}
+          {isReturnedRevision && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              {t('This report was returned for revision. Update evidence as requested, then verify and resubmit the report.')}
             </Alert>
           )}
         {queue.length > 0 && canEditEvidence && (
