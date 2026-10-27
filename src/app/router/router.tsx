@@ -124,6 +124,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   subscriptions: <SubscriptionsSectionRoute />,
   'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
+  settings: <AccountSecurityPage />,
 };
 
 function InspectionWorkspaceIndexRedirect() {
@@ -226,7 +227,15 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
       },
       {
         path: 'account/security',
-        element: <AccountSecurityPage />,
+        element: <Navigate to="../settings" replace />,
+      },
+      {
+        path: 'settings',
+        element: (
+          <RequireAuth roles={getSectionRoles(portal, 'settings')}>
+            <AccountSecurityPage />
+          </RequireAuth>
+        ),
       },
     ],
   };

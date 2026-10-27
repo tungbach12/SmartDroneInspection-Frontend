@@ -547,15 +547,50 @@ function CreateAssetDialogForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <TextField
-            label={t('Inspection Items / Checkpoints')}
-            multiline
-            rows={3}
-            value={inspectionItemsText}
-            onChange={(e) => setInspectionItemsText(e.target.value)}
-            placeholder={t('e.g. Mố cầu M1, Trụ P1, Dầm chính, Khe co giãn')}
-            helperText={t('List components or checkpoints to inspect (separated by comma or newline)')}
-          />
+          <Box sx={{ p: 2, bgcolor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#f8fafc', borderRadius: 2, border: '1px solid', borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0' }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {t('Inspection Items / Checkpoints')}
+              </Typography>
+              <Chip label={t('Checklist')} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.72rem', fontWeight: 600 }} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+              {t('Define specific structural components, bridge piers, or equipment checkpoints that the drone inspector must examine and confirm during field inspection.')}
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              value={inspectionItemsText}
+              onChange={(e) => setInspectionItemsText(e.target.value)}
+              placeholder={t('e.g. Mố cầu M1, Trụ P1, Dầm chính, Khe co giãn, Cáp văng số 01-08')}
+              helperText={t('List components or checkpoints to inspect (separated by comma or newline)')}
+              sx={{ bgcolor: 'background.paper' }}
+            />
+            {inspectionItemsText.trim() && (
+              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
+                  {t('Preview Checkpoints for Inspector:')}
+                </Typography>
+                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+                  {inspectionItemsText
+                    .split(/[\n,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((item, idx) => (
+                      <Chip
+                        key={idx}
+                        label={`${idx + 1}. ${item}`}
+                        size="small"
+                        color="info"
+                        variant="outlined"
+                        sx={{ fontWeight: 500 }}
+                      />
+                    ))}
+                </Stack>
+              </Box>
+            )}
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

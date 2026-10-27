@@ -29,6 +29,7 @@ export const SECTION_IDS = [
   'subscriptions',
   'drone-leasing',
   'platform-users',
+  'settings',
 ] as const;
 
 export type SectionId = (typeof SECTION_IDS)[number];
@@ -45,6 +46,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   subscriptions: 'Subscriptions',
   'drone-leasing': 'Drone leasing',
   'platform-users': 'Platform accounts',
+  settings: 'Settings',
 };
 
 /**
@@ -69,6 +71,7 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   subscriptions: 'Gói thuê bao',
   'drone-leasing': 'Thuê thiết bị bay',
   'platform-users': 'Tài khoản nền tảng',
+  settings: 'Cài đặt',
 };
 
 export function getPortalLabel(portal: PortalId, locale: Locale): string {
@@ -89,7 +92,7 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
   }
   const section = segments.at(-1);
   if (section === 'security') {
-    return locale === 'vi' ? 'Bảo mật tài khoản' : 'Account security';
+    return locale === 'vi' ? 'Cài đặt' : 'Settings';
   }
   if (section && section in SECTION_LABELS) {
     return section === 'dashboard'
@@ -114,6 +117,7 @@ const SECTION_ROLE_ACCESS = {
     'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
+    settings: ['ADMIN', 'PLATFORM_MANAGER'],
   },
   client: {
     dashboard: ['ORG_MANAGER'],
@@ -130,6 +134,7 @@ const SECTION_ROLE_ACCESS = {
     'drone-leasing': ['ORG_MANAGER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
+    settings: ['ORG_MANAGER'],
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -143,6 +148,7 @@ const SECTION_ROLE_ACCESS = {
     subscriptions: [],
     'drone-leasing': [],
     'platform-users': [],
+    settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
   },
 } as const satisfies Record<
   PortalId,
