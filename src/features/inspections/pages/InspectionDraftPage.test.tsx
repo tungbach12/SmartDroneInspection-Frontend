@@ -11,12 +11,56 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   workflowQuery: {
-    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    data: {
+      status: 'FIELD_COMPLETED' as string,
+      findingsConfirmedAt: null as string | null,
+      findingsSnapshotHash: null as string | null,
+    },
     isLoading: false,
     error: null as Error | null,
   },
-  createDraft: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  findingsQuery: {
+    data: [] as unknown[],
+    isLoading: false,
+    error: null as Error | null,
+  },
+  evidenceQuery: {
+    data: [] as unknown[],
+    isLoading: false,
+    error: null as Error | null,
+  },
+  createDraft: {
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null as Error | null,
+  },
   authorManualDraft: {
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null as Error | null,
+  },
+  saveSections: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null as Error | null,
+  },
+  verifyVersion: {
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null as Error | null,
+  },
+  submitVersion: {
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null as Error | null,
+  },
+  withdrawVersion: {
     mutate: vi.fn(),
     isPending: false,
     isError: false,
@@ -27,8 +71,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../hooks/useInspections', () => ({
   useInspectionWorkflowState: () => mocks.workflowQuery,
   useReportVersions: () => mocks.versionsQuery,
+  useInspectionFindings: () => mocks.findingsQuery,
+  useInspectionEvidence: () => mocks.evidenceQuery,
   useGenerateReportDraft: () => mocks.createDraft,
   useAuthorManualDraft: () => mocks.authorManualDraft,
+  useSaveReportSections: () => mocks.saveSections,
+  useVerifyReportVersion: () => mocks.verifyVersion,
+  useSubmitReportVersion: () => mocks.submitVersion,
+  useWithdrawReportVersion: () => mocks.withdrawVersion,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -60,10 +110,21 @@ describe('InspectionDraftPage', () => {
     cleanup();
     signInAs('INSPECTOR');
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
-    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
+    mocks.workflowQuery = {
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null },
+      isLoading: false,
+      error: null,
+    };
+    mocks.findingsQuery = { data: [], isLoading: false, error: null };
+    mocks.evidenceQuery = { data: [], isLoading: false, error: null };
     mocks.createDraft.mutate.mockReset();
     mocks.createDraft.isPending = false;
+    mocks.createDraft.isSuccess = false;
     mocks.authorManualDraft.mutate.mockReset();
+    mocks.saveSections.mutateAsync.mockReset();
+    mocks.verifyVersion.mutate.mockReset();
+    mocks.submitVersion.mutate.mockReset();
+    mocks.withdrawVersion.mutate.mockReset();
   });
 
   afterEach(() => {
@@ -90,7 +151,11 @@ describe('InspectionDraftPage', () => {
 
   it('generates a draft once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      data: {
+        status: 'REPORT_DRAFT',
+        findingsConfirmedAt: '2026-10-14T12:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
       isLoading: false,
       error: null,
     };
@@ -114,14 +179,12 @@ describe('InspectionDraftPage', () => {
     mocks.createDraft.isPending = true;
     renderWithRouter(<InspectionDraftPage />);
 
-    // Playful, but still indeterminate: the endpoint reports no intermediate stages.
     const figures = screen.getAllByRole('img', { name: 'Report drafting in progress' });
     expect(figures.length).toBeGreaterThan(0);
     for (const figure of figures) {
       expect(figure.getAttribute('src')).toContain('/images/ai-motion/');
     }
 
-    // Scope the no-estimate check to the wait state, so unrelated page copy cannot make it noisy.
     const waitState = screen.getByText('Generating report draft').closest('.MuiCard-root');
     expect(waitState?.textContent ?? '').not.toMatch(/\d+\s*%|%|\b\d+\s*(s|sec|seconds|min|minutes)\b/i);
   });
@@ -132,26 +195,94 @@ describe('InspectionDraftPage', () => {
     expect(screen.queryByRole('img', { name: 'Report drafting in progress' })).toBeNull();
   });
 
-  it('keeps the report link disabled until a version exists', () => {
+  it('shows the empty report state until a version exists', () => {
     renderWithRouter(<InspectionDraftPage />);
 
-    expect(
-      (screen.getByRole('button', { name: 'Open the report document' }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+    expect(screen.getByText('No report version yet')).toBeTruthy();
   });
 
-  it('opens the report document once a version exists', () => {
+  it('renders the 4 simplified report sections and author verification actions in-place once a version exists', () => {
+    mocks.workflowQuery = {
+      data: {
+        status: 'REPORT_DRAFT',
+        findingsConfirmedAt: '2026-10-14T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
+      isLoading: false,
+      error: null,
+    };
     mocks.versionsQuery = {
-      data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'DRAFT' }],
+      data: [
+        {
+          id: 'version-1',
+          inspectionReportId: 'inspection-1',
+          versionNo: 1,
+          status: 'DRAFT',
+          authorUserId: 'inspector-1',
+          createdAt: '2026-10-14T12:00:00Z',
+          sections: {
+            executiveSummary: 'Main span inspected.',
+            methodEquipmentConditions: 'Visual drone survey.',
+            omissionDisclosure: 'None.',
+            conclusionsRecommendations: 'Monitor hairline crack.',
+            overallCondition: 'GOOD',
+          },
+        },
+      ],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    const link = screen.getByRole('link', { name: 'Open the report document' });
-    expect(link.getAttribute('href')).toContain('inspection-1');
+    expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
+    expect(screen.getByLabelText('Method, equipment and conditions text')).toBeTruthy();
+    expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
+    expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
+
+    // Legacy fields must be completely removed
+    expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
+    expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
+
+    // In-place Verify as author action
+    fireEvent.click(screen.getByRole('button', { name: 'Verify as author' }));
+    expect(mocks.verifyVersion.mutate).toHaveBeenCalledWith('version-1');
+  });
+
+  it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {
+    mocks.workflowQuery = {
+      data: {
+        status: 'REPORT_DRAFT',
+        findingsConfirmedAt: '2026-10-14T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
+      isLoading: false,
+      error: null,
+    };
+    mocks.versionsQuery = {
+      data: [
+        {
+          id: 'version-1',
+          inspectionReportId: 'inspection-1',
+          versionNo: 1,
+          status: 'SUBMITTED',
+          authorUserId: 'inspector-1',
+          reviewerUserId: null,
+          reviewedAt: null,
+          createdAt: '2026-10-14T12:00:00Z',
+          sections: {},
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionDraftPage />);
+
+    const withdrawBtn = screen.getByRole('button', { name: 'Withdraw submission and revise' });
+    fireEvent.click(withdrawBtn);
+    expect(mocks.withdrawVersion.mutate).toHaveBeenCalledWith({ versionId: 'version-1' });
   });
 
   it('does not ask an already published inspection to confirm findings again', () => {
@@ -165,7 +296,17 @@ describe('InspectionDraftPage', () => {
       error: null,
     };
     mocks.versionsQuery = {
-      data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'PUBLISHED' }],
+      data: [
+        {
+          id: 'version-1',
+          inspectionReportId: 'inspection-1',
+          versionNo: 1,
+          status: 'PUBLISHED',
+          authorUserId: 'inspector-1',
+          createdAt: '2026-10-15T10:00:00Z',
+          sections: {},
+        },
+      ],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -179,26 +320,43 @@ describe('InspectionDraftPage', () => {
     expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('shows the reviewer version list without Inspector draft controls', () => {
+  it('shows the reviewer read-only report view without Inspector draft controls', () => {
     signInAs('ORG_MANAGER');
     mocks.versionsQuery = {
-      data: [{ id: 'version-1', inspectionId: 'inspection-1', versionNo: 1, status: 'SUBMITTED' }],
+      data: [
+        {
+          id: 'version-1',
+          inspectionReportId: 'inspection-1',
+          versionNo: 1,
+          status: 'SUBMITTED',
+          authorUserId: 'inspector-1',
+          createdAt: '2026-10-14T12:00:00Z',
+          sections: {},
+        },
+      ],
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionDraftPage />, { route: '/client/inspections/inspection-1/report' });
 
-    expect(screen.getByText('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Report versions' })).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.',
+      ),
+    ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Generate report draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create manual draft' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Open the report document' }).getAttribute('href')).toContain('/client/reports/inspection-1');
+    expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
   });
 
   it('creates an empty manual structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-14T12:00:00Z', findingsSnapshotHash: 'abc123' },
+      data: {
+        status: 'REPORT_DRAFT',
+        findingsConfirmedAt: '2026-10-14T12:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
       isLoading: false,
       error: null,
     };

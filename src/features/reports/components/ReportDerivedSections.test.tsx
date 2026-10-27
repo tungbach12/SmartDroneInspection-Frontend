@@ -32,9 +32,6 @@ const version: InspectionReport = {
     assetLocation: 'District 1',
     assetCategory: 'Bridge',
     assignedDrone: { serialNumber: 'DR-17', manufacturer: 'SurveyCo', model: 'S2' },
-    flightPermitFileName: 'PERMIT-2026-NORTH.pdf',
-    flightPermitUploadedAt: '2026-01-02T08:00:00Z',
-    inspectionItems: ['North span', 'East face', 'Pier 1'],
     fieldSessions: [
       {
         id: 'session-1',
@@ -50,7 +47,7 @@ const version: InspectionReport = {
         droneModel: 'S2',
       },
     ],
-    reviewerQualificationDisclosure: 'Professional qualification was not independently validated.',
+    reviewerQualificationDisclosure: null,
     findingsConfirmedAt: '2026-01-02T11:00:00Z',
   },
 };
@@ -119,7 +116,7 @@ function renderConfirmedFindings(findings: Finding[]) {
 }
 
 describe('ReportDerivedSections source context', () => {
-  it('shows source-backed organization, asset, preparation and session details', () => {
+  it('shows source-backed organization, asset, drone and session details without legacy fields or raw UUIDs', () => {
     const { container } = render(
       <ReportDerivedSections
         version={version}
@@ -132,10 +129,10 @@ describe('ReportDerivedSections source context', () => {
     expect(container.textContent).toContain('Northwind Infrastructure');
     expect(container.textContent).toContain('North span bridge');
     expect(container.textContent).toContain('BR-014');
-    expect(container.textContent).toContain('PERMIT-2026-NORTH.pdf');
-    expect(container.textContent).toContain('North span, East face, Pier 1');
+    expect(container.textContent).toContain('SurveyCo · S2 · DR-17');
     expect(container.textContent).toContain('Drone identified; bridge accessible');
-    expect(container.textContent).toContain('Professional qualification was not independently validated.');
+    expect(container.textContent).not.toContain('author-1');
+    expect(container.textContent).not.toContain('title={t(');
   });
 });
 

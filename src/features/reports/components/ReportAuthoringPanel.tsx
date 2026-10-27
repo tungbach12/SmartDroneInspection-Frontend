@@ -235,7 +235,6 @@ export function ReportAuthoringPanel({
         inspectionId={inspectionId}
         executiveSummary={<ReportSectionField section="executiveSummary" sections={sections} onChange={change} disabled={!canEdit} />}
         limitations={<ReportSectionField section="omissionDisclosure" sections={sections} onChange={change} disabled={!canEdit} />}
-        purposeScope={<ReportSectionField section="purposeScopeCriteria" sections={sections} onChange={change} disabled={!canEdit} />}
         method={<ReportSectionField section="methodEquipmentConditions" sections={sections} onChange={change} disabled={!canEdit} />}
         conclusions={<ReportSectionField section="conclusionsRecommendations" sections={sections} onChange={change} disabled={!canEdit} />}
       />

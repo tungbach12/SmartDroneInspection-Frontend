@@ -57,7 +57,6 @@ const MAX_DISCLOSURE = 2_000;
 
 export type AuthoredReportSection =
   | 'executiveSummary'
-  | 'purposeScopeCriteria'
   | 'methodEquipmentConditions'
   | 'omissionDisclosure'
   | 'conclusionsRecommendations';
@@ -77,13 +76,6 @@ const SECTION_DETAILS: Record<AuthoredReportSection, SectionDetails> = {
     description: 'Observed condition, important confirmed findings, priority actions and overall condition. Do not state whole-asset safety.',
     maxLength: MAX_SECTION,
     rows: 5,
-  },
-  purposeScopeCriteria: {
-    title: 'Purpose, scope and criteria',
-    accountable: 'SYSTEM records · Inspector may annotate',
-    description: 'Objective, scope, components, criteria and planned shot-list are composed from inspection records. Planned items are not proof of observed coverage.',
-    maxLength: MAX_SECTION,
-    rows: 4,
   },
   methodEquipmentConditions: {
     title: 'Method, equipment and conditions',
@@ -173,29 +165,6 @@ export function ReportSectionField({
 }) {
   const { t } = useLocale();
   const details = SECTION_DETAILS[section];
-  if (section === 'purposeScopeCriteria') {
-    return (
-      <Section {...details}>
-        <Stack spacing={1.5}>
-          <Box
-            aria-label={t('Purpose scope and criteria from inspection records')}
-            sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'action.hover', whiteSpace: 'pre-line' }}
-          >
-            <Typography variant="body2">{sections.purposeScopeCriteria || 'Inspection objective, scope, components, criteria and planned shot-list are not supplied.'}</Typography>
-          </Box>
-          <SectionField
-            label={t('Inspector coverage assessment (optional)')}
-            value={sections.inspectorCoverageAssessment}
-            onChange={(value) => onChange('inspectorCoverageAssessment', value)}
-            disabled={disabled}
-            maxLength={MAX_SECTION}
-            rows={3}
-          />
-        </Stack>
-      </Section>
-    );
-  }
-
   if (section === 'executiveSummary') {
     return (
       <Section {...details}>
@@ -249,7 +218,6 @@ export function ReportSectionForm(props: ReportSectionFormProps) {
         />
       )}
       <ReportSectionField section="executiveSummary" {...props} />
-      <ReportSectionField section="purposeScopeCriteria" {...props} />
       <ReportSectionField section="methodEquipmentConditions" {...props} />
       <ReportSectionField section="omissionDisclosure" {...props} />
       <ReportSectionField section="conclusionsRecommendations" {...props} />
