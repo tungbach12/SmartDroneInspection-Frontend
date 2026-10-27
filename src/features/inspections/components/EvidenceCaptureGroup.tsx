@@ -195,19 +195,22 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
             <TextField
               size="small"
               fullWidth
+              disabled={props.isReportLocked}
               label={t('Asset location description for this photo')}
               placeholder={t('e.g., Main span Pier T1, downstream face, 12m elevation')}
               value={props.locationDraft}
               onChange={(e) => props.onLocationChange(e.target.value)}
               onBlur={props.onLocationBlur}
               helperText={
-                props.locationError ??
-                t('Applies as the contextual inspection zone for all defects identified on this photo.')
+                props.isReportLocked
+                  ? t('Location description is locked while drafting or reviewing report.')
+                  : props.locationError ??
+                    t('Applies as the contextual inspection zone for all defects identified on this photo.')
               }
               error={Boolean(props.locationError)}
               slotProps={{
                 htmlInput: { maxLength: 1000 },
-                input: { sx: { borderRadius: '8px', bgcolor: '#fbfcfd' } },
+                input: { sx: { borderRadius: '8px', bgcolor: props.isReportLocked ? '#f8fafc' : '#fbfcfd' } },
               }}
             />
           </Box>
@@ -547,7 +550,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                     />
                                     <Chip size="small" label={finding.severity} />
                                   </Stack>
-                                  {props.isInspector && props.onRestoreFinding && (
+                                  {props.isInspector && !props.isReportLocked && props.onRestoreFinding && (
                                     <Button
                                       size="small"
                                       variant="outlined"
@@ -561,7 +564,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                   )}
                                 </Stack>
                               </Box>
-                            ) : !confirmed && props.isInspector ? (
+                            ) : !confirmed && props.isInspector && !props.isReportLocked ? (
                               <Box sx={{ pt: 1, borderTop: '1px solid #f1f5f9' }}>
                                 <Stack
                                   direction={{ xs: 'column', sm: 'row' }}
@@ -696,7 +699,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
         </Box>
 
         {/* Manual Finding Trigger */}
-        {props.isInspector && props.evidence ? (
+        {props.isInspector && !props.isReportLocked && props.evidence ? (
           <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid #f1f5f9' }}>
             {props.manualFindingOpen ? (
               <Box

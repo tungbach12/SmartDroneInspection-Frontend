@@ -24,6 +24,7 @@ import {
   useRetireEvidence,
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
+  useReopenFindings,
 } from '../hooks/useInspections';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -66,6 +67,7 @@ export default function InspectionEvidencePage() {
   const upload = useUploadInspectionEvidence(inspectionId);
   const retire = useRetireEvidence(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
+  const reopenFindings = useReopenFindings(inspectionId);
 
   const [queue, setQueue] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -80,12 +82,16 @@ export default function InspectionEvidencePage() {
   const retiredCount = evidence.data?.retiredCount ?? 0;
   const currentEvidenceItems = displayedEvidenceItems.filter((item) => !item.isDeleted);
   const currentVersion = versions.data?.[0] ?? null;
-  const evidenceLocked = Boolean(currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status));
+  const isDraftLocked = workflow.data?.status === 'REPORT_DRAFT';
+  const isSubmittedOrFinalLocked = Boolean(
+    currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status),
+  );
+  const evidenceLocked = isDraftLocked || isSubmittedOrFinalLocked;
   const completedFieldSessionId = sessionHistory.data?.filter(
     (session) => session.status === 'FIELD_COMPLETED',
   ).at(-1)?.id;
   const canEditEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED' && !evidenceLocked;
-  const canUploadEvidence = isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
+  const canUploadEvidence = isInspector && workflow.data?.status === 'FIELD_COMPLETED' && !evidenceLocked;
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
@@ -152,40 +158,85 @@ export default function InspectionEvidencePage() {
         </Alert>
       )}
 
-      {isInspector && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">{t('Evidence intake')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
-        </Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-          {canUploadEvidence && <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
-            {t('Choose evidence files')}
-            <input
-              hidden
-              type="file"
-              multiple
-              accept="image/png,image/jpeg,image/webp,image/tiff,video/mp4,application/pdf"
-              onChange={(event) => {
-                const chosen = Array.from(event.target.files ?? []);
-                if (chosen.length > 0) {
-                  setQueue((prev) => [...prev, ...chosen]);
-                }
-                event.target.value = '';
-              }}
-            />
-          </Button>}
-          <Typography variant="body2" sx={{ flexGrow: 1 }}>
-            {queue.length === 0 ? 'No files staged' : `${queue.length} file(s) staged`}
+      {isInspector && (
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Typography variant="h6">{t('Evidence intake')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
           </Typography>
-          <Button
-            variant="contained"
-            disabled={!canUploadEvidence || queue.length === 0 || uploading}
-            onClick={() => void uploadQueue()}
-          >
-            {uploading ? 'Uploading…' : 'Upload staged files'}
-          </Button>
-        </Stack>
-        {evidenceLocked && <Alert severity="info" sx={{ mt: 1 }}>{t('Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.')}</Alert>}
+
+          {isDraftLocked && (
+            <Alert
+              severity="warning"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  variant="outlined"
+                  disabled={reopenFindings.isPending}
+                  onClick={() => reopenFindings.mutate()}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    bgcolor: '#ffffff',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {reopenFindings.isPending ? t('Reopening…') : t('Reopen Findings to Upload')}
+                </Button>
+              }
+              sx={{ mb: 2, borderRadius: '12px', alignItems: 'center' }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {t(
+                  'Findings have already been confirmed for report drafting. To upload new captures, reopen the findings stage first.',
+                )}
+              </Typography>
+            </Alert>
+          )}
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
+            {canUploadEvidence && (
+              <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
+                {t('Choose evidence files')}
+                <input
+                  hidden
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp,image/tiff,video/mp4,application/pdf"
+                  onChange={(event) => {
+                    const chosen = Array.from(event.target.files ?? []);
+                    if (chosen.length > 0) {
+                      setQueue((prev) => [...prev, ...chosen]);
+                    }
+                    event.target.value = '';
+                  }}
+                />
+              </Button>
+            )}
+            <Typography variant="body2" sx={{ flexGrow: 1, color: isDraftLocked ? 'text.secondary' : undefined }}>
+              {isDraftLocked
+                ? t('Upload locked while drafting report')
+                : queue.length === 0
+                  ? t('No files staged')
+                  : `${queue.length} ${t('file(s) staged')}`}
+            </Typography>
+            <Button
+              variant="contained"
+              disabled={!canUploadEvidence || queue.length === 0 || uploading}
+              onClick={() => void uploadQueue()}
+            >
+              {uploading ? t('Uploading…') : t('Upload staged files')}
+            </Button>
+          </Stack>
+          {isSubmittedOrFinalLocked && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              {t(
+                'Evidence is locked while the report is submitted or after publication. If the reviewer returns the report, you can correct the evidence set.',
+              )}
+            </Alert>
+          )}
         {queue.length > 0 && canEditEvidence && (
           <Stack spacing={1} sx={{ mt: 2 }}>
             {queue.map((file) => (
@@ -210,7 +261,8 @@ export default function InspectionEvidencePage() {
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
           {t('Uploaded captures are the source for advisory detection and the report. Analysis runs only when you ask for it, on the Findings step.')}
         </Typography>
-      </Paper>}
+      </Paper>
+      )}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Typography variant="h6">Evidence coverage</Typography>

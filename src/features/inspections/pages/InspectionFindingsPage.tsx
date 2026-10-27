@@ -92,6 +92,11 @@ export default function InspectionFindingsPage() {
   const isReportLocked = reportVersionsList.some((version) =>
     ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(version.status),
   );
+  const isDraftLocked = workflow.data?.status === 'REPORT_DRAFT';
+  const isFindingsLocked =
+    isReportLocked ||
+    isDraftLocked ||
+    ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
 
   // Filter & Search states
   const [evidenceQuery, setEvidenceQuery] = useState('');
@@ -143,6 +148,7 @@ export default function InspectionFindingsPage() {
   const canConfirm =
     isInspector &&
     hasActiveEvidence &&
+    workflow.data?.status === 'FIELD_COMPLETED' &&
     !findings.isLoading &&
     !workflow.isLoading &&
     !findings.isError &&
@@ -152,8 +158,7 @@ export default function InspectionFindingsPage() {
     !confirmFinding.isPending &&
     !createManualFinding.isPending &&
     !confirmFindings.isPending &&
-    !isReportLocked &&
-    !['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+    !isFindingsLocked;
 
   const analysedEvidenceIds = useMemo(
     () => new Set([...activeFindings.map((finding) => finding.evidenceId), ...completedIds]),
@@ -762,7 +767,7 @@ export default function InspectionFindingsPage() {
                 isDeletePending={deleteFinding.isPending}
                 isUpdatePending={updateFinding.isPending}
                 updateError={updateFinding.error}
-                isReportLocked={isReportLocked}
+                isReportLocked={isFindingsLocked}
                 manualFindingOpen={manualFindingEvidenceId === group.evidenceId}
                 onOpenManualFinding={() => setManualFindingEvidenceId(group.evidenceId)}
                 onCloseManualFinding={() => setManualFindingEvidenceId(null)}
@@ -867,7 +872,7 @@ export default function InspectionFindingsPage() {
       <InspectorFindingRegister
         findings={(findings.data ?? []).filter((finding) => finding.modelName == null && !finding.isDeleted)}
         evidence={evidence.data ?? []}
-        isEditable={isInspector && !isReportLocked}
+        isEditable={isInspector && !isFindingsLocked}
         isPending={updateFinding.isPending || deleteFinding.isPending}
         error={updateFinding.error ?? deleteFinding.error}
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
