@@ -85,7 +85,7 @@ export default function InspectionsPage() {
 
   const openInspection = (inspectionId: string) => {
     const row = visibleItems.find((item) => item.id === inspectionId);
-    if (isReviewer && view === 'reports') {
+    if (isReviewer && (view === 'reports' || portal === 'admin')) {
       const target =
         row?.pendingAction === 'CORRECTIVE_DISPOSITION'
           ? 'corrective'

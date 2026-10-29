@@ -129,12 +129,18 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
-  return <Navigate to={roles.includes('ORG_MANAGER') ? 'review' : 'field-session'} replace />;
+  const isReviewer = roles.some((r) =>
+    ['PLATFORM_MANAGER', 'MANAGER', 'ADMIN', 'ORG_MANAGER'].includes(r),
+  );
+  return <Navigate to={isReviewer ? 'review' : 'field-session'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
-  return roles.includes('ORG_MANAGER')
+  const isReviewer = roles.some((r) =>
+    ['PLATFORM_MANAGER', 'MANAGER', 'ADMIN', 'ORG_MANAGER'].includes(r),
+  );
+  return isReviewer
     ? <Navigate to="../review" replace />
     : <InspectionDraftPage />;
 }
