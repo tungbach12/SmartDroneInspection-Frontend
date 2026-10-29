@@ -4,7 +4,12 @@ import {
   postWithBrowserCsrf,
   withBrowserRefreshLock,
 } from '@/shared/api/client';
-import { isRole, type ActorZone, type AuthUser, type Role } from '../store/authStore';
+import {
+  normalizeRole,
+  type ActorZone,
+  type AuthUser,
+  type Role,
+} from '../store/authStore';
 
 export type AuthStep = 'AUTHENTICATED' | 'PASSWORD_CHANGE_REQUIRED';
 
@@ -79,7 +84,7 @@ function parseUser(value: unknown): AuthUser {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
-    roles: user.roles.filter(isRole) as Role[],
+    roles: user.roles.map(normalizeRole).filter((r): r is Role => r !== null),
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,

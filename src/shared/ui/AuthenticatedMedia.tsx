@@ -34,6 +34,10 @@ export function AuthenticatedMedia({
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
+    setLoading(true);
+    setError(false);
+    setBlobUrl(null);
+
     const apiBaseUrl = api.defaults.baseURL?.replace(/\/+$/, '') ?? '/api/v1';
     const requestPath = src.startsWith(apiBaseUrl) ? src.slice(apiBaseUrl.length) : src;
     const requestUrl = requestPath.startsWith('/') ? requestPath : `/${requestPath}`;
