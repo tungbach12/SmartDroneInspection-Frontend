@@ -306,7 +306,13 @@ export function AppShell({ portal }: AppShellProps) {
           </Typography>
           {roles.length > 0 && (
             <Chip
-              label={t(roles[0] ?? '')}
+              label={
+                roles[0] === 'ORG_MANAGER'
+                  ? 'CUSTOMER'
+                  : roles[0] === 'PLATFORM_MANAGER'
+                    ? 'MANAGER'
+                    : roles[0]
+              }
               size="small"
               sx={{
                 mr: 1.25,

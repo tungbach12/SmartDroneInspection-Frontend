@@ -18,6 +18,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { inspectionApi } from '../api/inspectionApi';
 import {
   useInspectionEvidenceQuery,
@@ -556,47 +557,19 @@ export default function InspectionEvidencePage() {
 
                       {canEditEvidence && (!selectedEvidence.isDeleted || hasBatchSelection) && (
                         <Box sx={{ flexShrink: 0 }}>
-                          {!showDeleteConfirm ? (
-                            <Button
-                              size="small"
-                              color="error"
-                              variant="outlined"
-                              startIcon={<DeleteOutlineRounded fontSize="small" />}
-                              disabled={retire.isPending || bulkRetire.isPending}
-                              onClick={() => {
-                                if (hasBatchSelection) {
-                                  setShowDeleteConfirm(true);
-                                } else {
-                                  retire.mutate(selectedEvidence.id);
-                                }
-                              }}
-                              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                            >
-                              {retire.isPending || bulkRetire.isPending
-                                ? t('Deleting…')
-                                : deleteButtonLabel}
-                            </Button>
-                          ) : (
-                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="error"
-                                disabled={bulkRetire.isPending}
-                                onClick={handleDeleteAction}
-                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                              >
-                                {bulkRetire.isPending ? t('Deleting…') : t('Confirm delete')}
-                              </Button>
-                              <Button
-                                size="small"
-                                onClick={() => setShowDeleteConfirm(false)}
-                                sx={{ textTransform: 'none' }}
-                              >
-                                {t('Cancel')}
-                              </Button>
-                            </Stack>
-                          )}
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            startIcon={<DeleteOutlineRounded fontSize="small" />}
+                            disabled={retire.isPending || bulkRetire.isPending}
+                            onClick={() => setShowDeleteConfirm(true)}
+                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                          >
+                            {retire.isPending || bulkRetire.isPending
+                              ? t('Deleting…')
+                              : deleteButtonLabel}
+                          </Button>
                         </Box>
                       )}
                     </Stack>
@@ -640,6 +613,26 @@ export default function InspectionEvidencePage() {
           />
         </QueryState>
       </Paper>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={hasBatchSelection ? t('Confirm Batch Deletion') : t('Confirm Evidence Deletion')}
+        message={
+          hasBatchSelection
+            ? t(
+                `Are you sure you want to delete ${selectedBatchIds.length} selected evidence capture(s)? Deleted captures will be excluded from the report set, but preserved for audit.`,
+              )
+            : t(
+                `Are you sure you want to delete evidence "${selectedEvidence?.fileName ?? ''}"? It will be marked as deleted and excluded from report generation while preserving historical audit records.`,
+              )
+        }
+        severity="danger"
+        confirmLabel={t('Confirm delete')}
+        cancelLabel={t('Cancel')}
+        loading={retire.isPending || bulkRetire.isPending}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAction}
+      />
     </Stack>
   );
 }

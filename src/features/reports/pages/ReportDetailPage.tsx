@@ -151,10 +151,17 @@ export default function ReportDetailPage() {
             mb: 0.5,
           }}
         >
-          {canReview && !canAuthor ? 'Organization Manager · Report review' : 'Inspection Report'}
+          {portal === 'admin'
+            ? t('Platform Manager · Report review')
+            : portal === 'client'
+              ? t('Customer · Inspection Report')
+              : t('Inspection Report')}
         </Typography>
         <Typography variant="body2" sx={{ color: '#667085', fontSize: '0.875rem' }}>
-          {t('Inspection ID:')} {inspectionId} · {canReview && !canAuthor ? 'Review the submitted report, record a decision, and publish approved versions.' : 'Verified and versioned inspection findings'}
+          {t('Inspection ID:')} {inspectionId} ·{' '}
+          {portal === 'admin'
+            ? t('Review the submitted report, record a decision, and publish approved versions.')
+            : t('Official published inspection deliverable and verified defect records.')}
         </Typography>
       </Box>
 
