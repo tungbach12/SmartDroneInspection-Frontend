@@ -111,8 +111,8 @@ export default function InspectionDetailPage() {
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
   const isOrganizationAdmin =
-    (roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/')) ||
-    ((roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER')) &&
+    (roles.includes('CUSTOMER') && location.pathname.startsWith('/client/')) ||
+    ((roles.includes('ADMIN') || roles.includes('MANAGER')) &&
       location.pathname.startsWith('/admin/'));
   const steps = isOrganizationAdmin ? REVIEWER_STEPS : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';

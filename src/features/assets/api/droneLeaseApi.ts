@@ -159,7 +159,7 @@ export const droneLeaseApi = {
     return response.data;
   },
 
-  // Customer (ORG_MANAGER) endpoints
+  // Customer (CUSTOMER) endpoints
   listAvailableDrones: async (): Promise<PlatformDrone[]> => {
     const response = await api.get<PlatformDrone[]>('/drone-leases/available-drones');
     return response.data;

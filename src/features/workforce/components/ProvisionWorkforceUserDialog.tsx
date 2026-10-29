@@ -39,7 +39,7 @@ interface ProvisionWorkforceUserDialogProps {
 /**
  * Collects the fields needed to create one workforce member.
  *
- * The organization is not a field: the server scopes the new account to the authenticated ORG_MANAGER,
+ * The organization is not a field: the server scopes the new account to the authenticated CUSTOMER,
  * so offering one here would suggest a capability the client does not have. Role choices are limited
  * to the two grantable workforce roles rather than to the whole platform role vocabulary.
  */

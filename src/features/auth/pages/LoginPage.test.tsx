@@ -25,8 +25,8 @@ function LocationProbe() {
 
 const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER_ORGANIZATION' }[] = [
   { role: 'ADMIN', path: '/admin/dashboard', actorZone: 'PLATFORM' },
-  { role: 'PLATFORM_MANAGER', path: '/admin/dashboard', actorZone: 'PLATFORM' },
-  { role: 'ORG_MANAGER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
+  { role: 'MANAGER', path: '/admin/dashboard', actorZone: 'PLATFORM' },
+  { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'MAINTENANCE_ENGINEER', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
 ];
@@ -81,9 +81,9 @@ describe('role-aware sign-in flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await screen.findByText(
-      role === 'ADMIN' || role === 'PLATFORM_MANAGER'
+      role === 'ADMIN' || role === 'MANAGER'
         ? 'Admin dashboard'
-        : role === 'ORG_MANAGER'
+        : role === 'CUSTOMER'
           ? 'Client dashboard'
           : 'Operations dashboard',
     );

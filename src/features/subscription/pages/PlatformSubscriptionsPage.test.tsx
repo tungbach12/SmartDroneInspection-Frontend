@@ -94,7 +94,7 @@ describe('PlatformSubscriptionsPage', () => {
         id: 'pm-platform',
         email: 'pm@platform.test',
         fullName: 'Platform Manager',
-        roles: ['PLATFORM_MANAGER'],
+        roles: ['MANAGER'],
         actorZone: 'PLATFORM',
         organizationId: null,
       },

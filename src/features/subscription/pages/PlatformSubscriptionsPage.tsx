@@ -38,9 +38,9 @@ const STATUS_FILTERS = ['ALL', 'PENDING', 'ACTIVE', 'PAST_DUE', 'EXPIRED', 'CANC
 
 export default function PlatformSubscriptionsPage() {
   const roles = useAuthStore((s) => s.roles);
-  const isReadOnlyAdmin = roles.includes('ADMIN') && !roles.includes('PLATFORM_MANAGER');
+  const isReadOnlyAdmin = roles.includes('ADMIN') && !roles.includes('MANAGER');
   const canConfirmPayment =
-    roles.includes('PLATFORM_MANAGER') || (!roles.includes('ADMIN') && roles.length === 0);
+    roles.includes('MANAGER') || (!roles.includes('ADMIN') && roles.length === 0);
 
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [activeTermsDialogSub, setActiveTermsDialogSub] = useState<Subscription | null>(null);
