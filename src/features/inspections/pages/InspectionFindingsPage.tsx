@@ -28,6 +28,7 @@ import type {
   ManualFindingInput,
 } from '../api/inspectionApi';
 import { AiMotionFigure } from '../components/AiMotionFigure';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useAnalyzeEvidence,
@@ -127,6 +128,7 @@ export default function InspectionFindingsPage() {
   const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
   const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
+  const [findingToDeleteId, setFindingToDeleteId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
 
   // Combine active findings + soft-deleted findings when filter warrants it
@@ -783,7 +785,7 @@ export default function InspectionFindingsPage() {
                     },
                   })
                 }
-                onDeleteFinding={(fid) => deleteFinding.mutate(fid)}
+                onDeleteFinding={(fid) => setFindingToDeleteId(fid)}
                 onRestoreFinding={(fid) => restoreFinding.mutate(fid)}
                 isRestorePending={restoreFinding.isPending}
                 isConfirmPending={confirmFinding.isPending}
@@ -899,7 +901,27 @@ export default function InspectionFindingsPage() {
         isPending={updateFinding.isPending || deleteFinding.isPending}
         error={updateFinding.error ?? deleteFinding.error}
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
-        onDelete={(findingId) => deleteFinding.mutate(findingId)}
+        onDelete={(findingId) => setFindingToDeleteId(findingId)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(findingToDeleteId)}
+        title={t('Confirm Remove Finding')}
+        message={t(
+          'Are you sure you want to remove this defect finding? It will be excluded from the report set, but an audit record will be preserved.',
+        )}
+        severity="danger"
+        confirmLabel={t('Remove finding')}
+        cancelLabel={t('Cancel')}
+        loading={deleteFinding.isPending}
+        onCancel={() => setFindingToDeleteId(null)}
+        onConfirm={() => {
+          if (findingToDeleteId) {
+            deleteFinding.mutate(findingToDeleteId, {
+              onSettled: () => setFindingToDeleteId(null),
+            });
+          }
+        }}
       />
     </Stack>
   );

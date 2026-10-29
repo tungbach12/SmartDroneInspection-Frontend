@@ -22,6 +22,7 @@ import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -1304,6 +1305,8 @@ function ReportTab({
   const transition = useWorkOrderTransition(workOrder.id);
 
   const [content, setContent] = useState('');
+  const [confirmSubmitReportOpen, setConfirmSubmitReportOpen] = useState(false);
+  const [submittingVersionNo, setSubmittingVersionNo] = useState<number | null>(null);
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
@@ -1364,7 +1367,10 @@ function ReportTab({
                     variant="contained"
                     disabled={workOrder.status !== 'WORK_COMPLETED'}
                     loading={submitReport.isPending && submitReport.variables === version.versionNo}
-                    onClick={() => submitReport.mutate(version.versionNo)}
+                    onClick={() => {
+                      setSubmittingVersionNo(version.versionNo);
+                      setConfirmSubmitReportOpen(true);
+                    }}
                   >
                     {t('Submit for acceptance')}
                   </LoadingButton>
@@ -1463,6 +1469,26 @@ function ReportTab({
           </Stack>
         </Box>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmSubmitReportOpen}
+        title={t('Confirm Completion Report Submission')}
+        message={t(
+          'Are you sure you want to submit this completion report for acceptance? The report and maintenance records will be locked while awaiting independent reviewer decision.',
+        )}
+        confirmLabel={t('Confirm & Submit')}
+        cancelLabel={t('Cancel')}
+        loading={submitReport.isPending}
+        confirmColor="primary"
+        onCancel={() => setConfirmSubmitReportOpen(false)}
+        onConfirm={() => {
+          if (submittingVersionNo != null) {
+            submitReport.mutate(submittingVersionNo, {
+              onSuccess: () => setConfirmSubmitReportOpen(false),
+            });
+          }
+        }}
+      />
     </Paper>
   );
 }

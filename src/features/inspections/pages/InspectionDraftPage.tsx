@@ -28,6 +28,7 @@ import {
   useWithdrawReportVersion,
   useReinspectionVerifications,
 } from '../hooks/useInspections';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
@@ -35,11 +36,11 @@ import type { ReportSectionValues } from '@/features/reports/components/ReportSe
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  DRAFT: 'Edit the report sections below, then click Verify as author when ready.',
-  AUTHOR_VERIFIED: 'Author-verified. Submit the report for Organization Manager review.',
-  SUBMITTED: 'Submitted for Organization Manager review. Report sections and sources are locked while awaiting review.',
-  RETURNED: 'Returned for revision. Update the sections and re-verify, or create a new version if findings changed.',
-  APPROVED: 'Approved by the Organization Manager and awaiting immutable PDF publication.',
+  DRAFT: 'Review and edit the report sections below, then click Submit when ready.',
+  AUTHOR_VERIFIED: 'Report verified. Submit the report for Platform Manager review.',
+  SUBMITTED: 'Submitted for Platform Manager review. Report sections and sources are locked while awaiting review.',
+  RETURNED: 'Returned for revision. Update the sections and submit again.',
+  APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This report version and its PDF are immutable.',
   SUPERSEDED: 'Superseded by a newer published version.',
 };
@@ -68,6 +69,7 @@ export default function InspectionDraftPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
 
   const versionList = versions.data ?? [];
   const openVersion =
@@ -203,23 +205,12 @@ export default function InspectionDraftPage() {
 
               {isInspector && (
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {openVersion && isAuthor && !sourcesChangedAfterVersion && (openVersion.status === 'DRAFT' || canEditReturnedText) && (
+                  {openVersion && isAuthor && !sourcesChangedAfterVersion && (openVersion.status === 'DRAFT' || openVersion.status === 'AUTHOR_VERIFIED' || canEditReturnedText) && (
                     <Button
                       variant="contained"
-                      disabled={verify.isPending}
-                      onClick={() => verify.mutate(openVersion.id)}
-                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                      {verify.isPending ? t('Verifying…') : t('Verify as author')}
-                    </Button>
-                  )}
-
-                  {openVersion && isAuthor && !sourcesChangedAfterVersion && openVersion.status === 'AUTHOR_VERIFIED' && (
-                    <Button
-                      variant="contained"
-                      color="success"
+                      color="primary"
                       disabled={submit.isPending}
-                      onClick={() => submit.mutate(openVersion.id)}
+                      onClick={() => setConfirmSubmitOpen(true)}
                       sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                     >
                       {submit.isPending ? t('Submitting…') : t('Submit for review')}
@@ -416,6 +407,48 @@ export default function InspectionDraftPage() {
           />
         )
       )}
+
+      <ConfirmDialog
+        open={confirmSubmitOpen}
+        onClose={() => setConfirmSubmitOpen(false)}
+        title={t('Confirm Report Submission')}
+        cancelLabel={t('Cancel')}
+        confirmLabel={t('Confirm and Submit')}
+        loading={submit.isPending}
+        maxWidth="sm"
+        onCancel={() => setConfirmSubmitOpen(false)}
+        onConfirm={() => {
+          if (openVersion) {
+            submit.mutate(openVersion.id, {
+              onSuccess: () => setConfirmSubmitOpen(false),
+            });
+          }
+        }}
+      >
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Alert severity="info" sx={{ borderRadius: '8px' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              {t('Inspector Professional Accountability')}
+            </Typography>
+            <Typography variant="body2">
+              {t(
+                'As the inspecting author, by submitting this report you certify that all observations, technical assessments, defect classifications, and field evidence have been thoroughly reviewed and verified in accordance with technical standards.',
+              )}
+            </Typography>
+          </Alert>
+
+          <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              {t('Audit & Review Notice')}
+            </Typography>
+            <Typography variant="body2">
+              {t(
+                'Upon submission, this report version, along with all associated evidence and findings, will be locked from further edits while awaiting Platform Manager review. Changes can only be made if the report is returned with requested revisions.',
+              )}
+            </Typography>
+          </Alert>
+        </Stack>
+      </ConfirmDialog>
     </Stack>
   );
 }
