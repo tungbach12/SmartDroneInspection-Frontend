@@ -26,6 +26,7 @@ import {
   useSubmitReportVersion,
   useVerifyReportVersion,
   useWithdrawReportVersion,
+  useReinspectionVerifications,
 } from '../hooks/useInspections';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { AiMotionFigure } from '../components/AiMotionFigure';
@@ -57,6 +58,7 @@ export default function InspectionDraftPage() {
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
+  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
 
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
@@ -132,14 +134,14 @@ export default function InspectionDraftPage() {
   };
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 
-      {isInspector && (
+      {(isInspector || openVersion) && (
         <Paper
           variant="outlined"
           sx={{
@@ -149,70 +151,142 @@ export default function InspectionDraftPage() {
             bgcolor: 'background.paper',
           }}
         >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {versionList.length > 0 ? t('Create new report version') : t('Create report draft')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                {t(
-                  'Generate an AI-assisted draft from your confirmed findings and field records, or start a blank structured draft.',
+          <Stack spacing={1.5}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Create report draft')}
+                  </Typography>
+                  {openVersion && (
+                    <Chip
+                      size="small"
+                      label={openVersion.status}
+                      color={
+                        openVersion.status === 'PUBLISHED' || openVersion.status === 'APPROVED'
+                          ? 'success'
+                          : openVersion.status === 'RETURNED'
+                            ? 'warning'
+                            : 'primary'
+                      }
+                      sx={{ fontWeight: 700 }}
+                    />
+                  )}
+                  {versionList.length > 1 &&
+                    versionList.map((version) => {
+                      const isSelected = openVersion?.id === version.id;
+                      return (
+                        <Chip
+                          key={version.id}
+                          size="small"
+                          label={`v${version.versionNo} · ${version.status}`}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                          color={isSelected ? 'primary' : 'default'}
+                          onClick={() => setOpenVersionId(version.id)}
+                          sx={{ cursor: 'pointer', fontWeight: 600, borderRadius: '8px' }}
+                        />
+                      );
+                    })}
+                </Stack>
+                {!openVersion && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                    {t(
+                      'Generate an AI-assisted draft from your confirmed findings and field records, or start a blank structured draft.',
+                    )}
+                  </Typography>
                 )}
-              </Typography>
-            </Box>
+              </Box>
 
-            <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap', gap: 1 }}>
-              <Button
-                variant="contained"
-                disabled={
-                  !isInspector ||
-                  isPublished ||
-                  isLockedInReview ||
-                  createDraft.isPending ||
-                  !findingsConfirmed
-                }
-                startIcon={
-                  createDraft.isPending ? (
-                    <AiMotionFigure name="draftBurst" size={20} />
-                  ) : (
-                    <AutoAwesomeOutlined fontSize="small" />
-                  )
-                }
-                onClick={() => createDraft.mutate()}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
-              </Button>
+              {isInspector && (
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {openVersion && isAuthor && !sourcesChangedAfterVersion && (openVersion.status === 'DRAFT' || canEditReturnedText) && (
+                    <Button
+                      variant="contained"
+                      disabled={verify.isPending}
+                      onClick={() => verify.mutate(openVersion.id)}
+                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {verify.isPending ? t('Verifying…') : t('Verify as author')}
+                    </Button>
+                  )}
 
-              <Button
-                variant="outlined"
-                disabled={
-                  !isInspector ||
-                  isPublished ||
-                  isLockedInReview ||
-                  !findingsConfirmed ||
-                  authorManualDraft.isPending
-                }
-                startIcon={
-                  authorManualDraft.isPending ? (
-                    <AiMotionFigure name="draftRibbon" size={18} />
-                  ) : (
-                    <EditNoteRounded fontSize="small" />
-                  )
-                }
-                onClick={() => authorManualDraft.mutate({})}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
-              </Button>
+                  {openVersion && isAuthor && !sourcesChangedAfterVersion && openVersion.status === 'AUTHOR_VERIFIED' && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      disabled={submit.isPending}
+                      onClick={() => submit.mutate(openVersion.id)}
+                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {submit.isPending ? t('Submitting…') : t('Submit for review')}
+                    </Button>
+                  )}
+
+                  {canWithdrawSubmission && openVersion && (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      disabled={withdraw.isPending}
+                      onClick={() => withdraw.mutate({ versionId: openVersion.id })}
+                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
+                    </Button>
+                  )}
+
+                  <Button
+                    variant={openVersion && !sourcesChangedAfterVersion ? 'outlined' : 'contained'}
+                    size={openVersion ? 'small' : 'medium'}
+                    disabled={
+                      !isInspector ||
+                      isPublished ||
+                      isLockedInReview ||
+                      createDraft.isPending ||
+                      !findingsConfirmed
+                    }
+                    startIcon={
+                      createDraft.isPending ? (
+                        <AiMotionFigure name="draftBurst" size={20} />
+                      ) : (
+                        <AutoAwesomeOutlined fontSize="small" />
+                      )
+                    }
+                    onClick={() => createDraft.mutate()}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    size={openVersion ? 'small' : 'medium'}
+                    disabled={
+                      !isInspector ||
+                      isPublished ||
+                      isLockedInReview ||
+                      !findingsConfirmed ||
+                      authorManualDraft.isPending
+                    }
+                    startIcon={
+                      authorManualDraft.isPending ? (
+                        <AiMotionFigure name="draftRibbon" size={18} />
+                      ) : (
+                        <EditNoteRounded fontSize="small" />
+                      )
+                    }
+                    onClick={() => authorManualDraft.mutate({})}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
+                  </Button>
+                </Stack>
+              )}
             </Stack>
-          </Stack>
 
-          <Stack spacing={1.5} sx={{ mt: 1.5 }}>
             {isPublished ? (
               <Alert severity="success" sx={{ borderRadius: '10px' }}>
                 {t('The report has been published. This version is immutable.')}
@@ -232,12 +306,26 @@ export default function InspectionDraftPage() {
                 )}
               </Alert>
             ) : sourcesChangedAfterVersion ? (
-              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 {t(
                   'Findings were reconfirmed after Version ' +
                     (openVersion?.versionNo ?? 1) +
                     ' was created. Generate a new draft version above to include your latest changes.',
                 )}
+              </Alert>
+            ) : openVersion ? (
+              <Alert
+                severity={
+                  openVersion.status === 'PUBLISHED'
+                    ? 'success'
+                    : openVersion.status === 'RETURNED'
+                      ? 'warning'
+                      : 'info'
+                }
+                sx={{ borderRadius: '10px' }}
+              >
+                {t(NEXT_STEP[openVersion.status] ?? openVersion.status)}
+                {openVersion.returnReason ? ` — ${t('Reason:')} ${openVersion.returnReason}` : ''}
               </Alert>
             ) : null}
 
@@ -256,6 +344,39 @@ export default function InspectionDraftPage() {
               <Alert severity="error" sx={{ borderRadius: '10px' }}>
                 {getErrorMessage(authorManualDraft.error, 'The structured draft was not saved.')}
               </Alert>
+            )}
+            {verify.isError && (
+              <MutationProblemAlert
+                error={verify.error}
+                isError
+                fallbackMessage={
+                  isConflict(verify.error)
+                    ? t(
+                        'The server refused this verification. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
+                      )
+                    : t('Could not verify this report draft.')
+                }
+              />
+            )}
+            {submit.isError && (
+              <MutationProblemAlert
+                error={submit.error}
+                isError
+                fallbackMessage={
+                  isConflict(submit.error)
+                    ? t(
+                        'The server refused this submission. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
+                      )
+                    : t('Could not submit this report draft.')
+                }
+              />
+            )}
+            {withdraw.isError && (
+              <MutationProblemAlert
+                error={withdraw.error}
+                isError
+                fallbackMessage={t('Could not withdraw this submission.')}
+              />
             )}
           </Stack>
         </Paper>
@@ -282,176 +403,18 @@ export default function InspectionDraftPage() {
           </Typography>
         </Paper>
       ) : (
-        <>
-          {versionList.length > 1 && (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                borderRadius: '14px',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-              }}
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-                  {t('Report versions:')}
-                </Typography>
-                {versionList.map((version) => {
-                  const isSelected = openVersion?.id === version.id;
-                  return (
-                    <Chip
-                      key={version.id}
-                      label={`v${version.versionNo} · ${version.status}`}
-                      variant={isSelected ? 'filled' : 'outlined'}
-                      color={isSelected ? 'primary' : 'default'}
-                      onClick={() => setOpenVersionId(version.id)}
-                      sx={{ cursor: 'pointer', fontWeight: 600, borderRadius: '8px' }}
-                    />
-                  );
-                })}
-              </Stack>
-            </Paper>
-          )}
-
-          {openVersion && (
-            <>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: { xs: 2, sm: 2.5 },
-                  borderRadius: '16px',
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Stack spacing={1.75}>
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={1.5}
-                    sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                        {t('Version')} {openVersion.versionNo}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={openVersion.status}
-                        color={
-                          openVersion.status === 'PUBLISHED' || openVersion.status === 'APPROVED'
-                            ? 'success'
-                            : openVersion.status === 'RETURNED'
-                              ? 'warning'
-                              : 'primary'
-                        }
-                        sx={{ fontWeight: 700 }}
-                      />
-                    </Stack>
-
-                    {isInspector && isAuthor && (
-                      <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                        {!sourcesChangedAfterVersion &&
-                          (openVersion.status === 'DRAFT' || canEditReturnedText) && (
-                            <Button
-                              variant="contained"
-                              disabled={verify.isPending}
-                              onClick={() => verify.mutate(openVersion.id)}
-                              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                            >
-                              {verify.isPending ? t('Verifying…') : t('Verify as author')}
-                            </Button>
-                          )}
-
-                        {!sourcesChangedAfterVersion && openVersion.status === 'AUTHOR_VERIFIED' && (
-                          <Button
-                            variant="contained"
-                            color="success"
-                            disabled={submit.isPending}
-                            onClick={() => submit.mutate(openVersion.id)}
-                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                          >
-                            {submit.isPending ? t('Submitting…') : t('Submit for review')}
-                          </Button>
-                        )}
-
-                        {canWithdrawSubmission && (
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            disabled={withdraw.isPending}
-                            onClick={() => withdraw.mutate({ versionId: openVersion.id })}
-                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                          >
-                            {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
-                          </Button>
-                        )}
-                      </Stack>
-                    )}
-                  </Stack>
-
-                  <Alert
-                    severity={
-                      openVersion.status === 'PUBLISHED'
-                        ? 'success'
-                        : openVersion.status === 'RETURNED'
-                          ? 'warning'
-                          : 'info'
-                    }
-                    sx={{ borderRadius: '10px' }}
-                  >
-                    {t(NEXT_STEP[openVersion.status] ?? openVersion.status)}
-                    {openVersion.returnReason ? ` — ${t('Reason:')} ${openVersion.returnReason}` : ''}
-                  </Alert>
-
-                  {verify.isError && (
-                    <MutationProblemAlert
-                      error={verify.error}
-                      isError
-                      fallbackMessage={
-                        isConflict(verify.error)
-                          ? t(
-                              'The server refused this verification. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
-                            )
-                          : t('Could not verify this report draft.')
-                      }
-                    />
-                  )}
-                  {submit.isError && (
-                    <MutationProblemAlert
-                      error={submit.error}
-                      isError
-                      fallbackMessage={
-                        isConflict(submit.error)
-                          ? t(
-                              'The server refused this submission. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
-                            )
-                          : t('Could not submit this report draft.')
-                      }
-                    />
-                  )}
-                  {withdraw.isError && (
-                    <MutationProblemAlert
-                      error={withdraw.error}
-                      isError
-                      fallbackMessage={t('Could not withdraw this submission.')}
-                    />
-                  )}
-                </Stack>
-              </Paper>
-
-              <ReportAuthoringPanel
-                key={openVersion.id}
-                version={openVersion}
-                findings={findings.data ?? []}
-                evidenceList={(evidence.data ?? []).filter((item) => !item.isDeleted)}
-                inspectionId={inspectionId}
-                canEdit={canEditOpenVersion}
-                onSaveSections={handleSaveSections}
-              />
-            </>
-          )}
-        </>
+        openVersion && (
+          <ReportAuthoringPanel
+            key={openVersion.id}
+            version={openVersion}
+            findings={findings.data ?? []}
+            evidenceList={(evidence.data ?? []).filter((item) => !item.isDeleted)}
+            inspectionId={inspectionId}
+            canEdit={canEditOpenVersion}
+            onSaveSections={handleSaveSections}
+            reinspectionVerifications={reinspectionVerifications.data}
+          />
+        )
       )}
     </Stack>
   );

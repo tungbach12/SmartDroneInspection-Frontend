@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -113,19 +112,11 @@ export default function InspectionDetailPage() {
   const roles = useAuthStore((state) => state.roles);
   const isOrganizationAdmin = roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/');
   const steps = isOrganizationAdmin ? REVIEWER_STEPS : INSPECTOR_STEPS;
-  const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
+  const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
-
-  const [checklistConfirmed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(`inspection_checklist_confirmed_${inspectionId}`) === 'true';
-    } catch {
-      return false;
-    }
-  });
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
   const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
@@ -147,7 +138,7 @@ export default function InspectionDetailPage() {
       ? reviewerSourceRoutes.includes(current)
         ? 'review'
         : visibleSteps[0]?.value ?? 'review'
-      : 'evidence';
+      : 'field-session';
 
   const isStepCompleted = (stepValue: string): boolean => {
     if (isOrganizationAdmin) {
@@ -169,10 +160,7 @@ export default function InspectionDetailPage() {
       ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'field-session':
-        return (
-          checklistConfirmed ||
-          ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
-        );
+        return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
       case 'evidence':
         return (
           activeEvidenceCount > 0 ||
@@ -220,135 +208,87 @@ export default function InspectionDetailPage() {
 
         <PageHeader
           title={isOrganizationAdmin ? t('Inspection review') : t('Inspection Detail')}
-          subtitle={
-            isOrganizationAdmin
-              ? `${t('Inspection ID:')} ${inspectionId} · ${t('Report review and corrective disposition')}`
-              : `${t('Inspection ID:')} ${inspectionId} · ${t('Field evidence, verified findings and reports')}`
-          }
         />
 
         {inspection && (
           <Paper
             elevation={0}
             sx={{
-              mt: 2,
-              p: 2.5,
-              borderRadius: '16px',
+              mt: 1.5,
+              px: 2,
+              py: 1.25,
+              borderRadius: '12px',
               border: '1px solid',
               borderColor: 'divider',
               bgcolor: 'background.paper',
-              boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
             }}
           >
-            <Box
+            <Stack
+              direction="row"
+              spacing={2}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' },
-                gap: 2.5,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                rowGap: 0.75,
               }}
             >
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  {t('Infrastructure Asset')}
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.75 }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {inspection.assetName ?? inspection.id}
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
-                  {inspection.assetName ?? t('Asset')}
-                </Typography>
-              </Box>
 
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  {t('Assigned Inspector')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
-                  {inspection.inspectorName ?? inspection.inspectorId}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  {t('Assigned Drone')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
-                  {inspection.droneSerialNumber ?? t('Unassigned')}{' '}
-                  {inspection.droneModel ? `(${inspection.droneModel})` : ''}
-                </Typography>
-                {inspection.droneServiceability && (
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                    {t('Status:')} {t(inspection.droneServiceability)}
-                  </Typography>
+                {inspection.inspectionType === 'RE_INSPECTION' && (
+                  <Chip
+                    size="small"
+                    color="secondary"
+                    variant="filled"
+                    label={t('Re-inspection')}
+                    sx={{
+                      height: 20,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      bgcolor: 'secondary.main',
+                      color: 'common.white',
+                    }}
+                  />
                 )}
-              </Box>
 
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  {t('Flight Permit')}
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('Drone')}:{' '}
+                  <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                    {inspection.droneSerialNumber ?? t('Unassigned')}
+                    {inspection.droneModel ? ` (${inspection.droneModel})` : ''}
+                  </Box>
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 700,
-                    color: inspection.flightPermitFileName ? 'text.primary' : 'warning.main',
-                    mt: 0.5,
-                  }}
-                >
-                  {inspection.flightPermitFileName
-                    ? inspection.flightPermitFileName
-                    : t('Awaiting Permit Upload')}
-                </Typography>
-                {inspection.flightPermitUploadedAt && (
-                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                    {t('Uploaded')} {formatDate(new Date(inspection.flightPermitUploadedAt))}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
+              </Stack>
 
-            {inspection.inspectionItems && inspection.inspectionItems.length > 0 && (
-              <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: 'text.secondary',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    display: 'block',
-                    mb: 1,
-                  }}
-                >
-                  {t('Asset Checkpoints')}
-                </Typography>
-                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                  {inspection.inspectionItems.map((item, idx) => (
-                    <Chip
-                      key={idx}
-                      label={item}
-                      size="small"
-                      sx={{
-                        bgcolor: isDark ? 'rgba(148, 163, 184, 0.12)' : '#f8fafc',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        color: 'text.primary',
-                        fontWeight: 500,
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-            )}
+              <Chip
+                size="small"
+                color={inspection.flightPermitFileName ? 'success' : 'warning'}
+                variant="outlined"
+                title={
+                  inspection.flightPermitFileName
+                    ? `${inspection.flightPermitFileName}${
+                        inspection.flightPermitUploadedAt
+                          ? ` · ${formatDate(new Date(inspection.flightPermitUploadedAt))}`
+                          : ''
+                      }`
+                    : undefined
+                }
+                label={
+                  inspection.flightPermitFileName
+                    ? t('Permit on file')
+                    : t('Awaiting Permit Upload')
+                }
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+              />
+            </Stack>
           </Paper>
         )}
 

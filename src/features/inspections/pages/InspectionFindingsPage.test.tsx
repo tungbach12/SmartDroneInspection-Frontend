@@ -75,7 +75,26 @@ vi.mock('../hooks/useInspections', () => ({
   useUpdateFinding: () => mocks.updateFinding,
   useDeleteFinding: () => mocks.deleteFinding,
   useUpdateEvidenceLocation: () => mocks.updateLocation,
+  useInspection: () => ({ data: { inspectionType: 'INITIAL' } }),
+  useReinspectionVerifications: () => ({ data: [] }),
+  useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
 }));
+
+vi.mock('@/shared/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/api/client')>();
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      get: vi.fn().mockImplementation((url, config) => {
+        if (config?.responseType === 'blob') {
+          return Promise.resolve({ data: new Blob(['fake-img'], { type: 'image/png' }) });
+        }
+        return actual.api.get(url, config);
+      }),
+    },
+  };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -435,7 +454,7 @@ describe('InspectionFindingsPage', () => {
 
     expect(await screen.findByRole('button', { name: /Analyze all images/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
-    expect(screen.getByText(/remain editable while authoring the report/)).toBeTruthy();
+    expect(await screen.findByText(/remain editable while authoring the report/)).toBeTruthy();
   });
 
   it('does not auto-analyze after findings confirmation moved the inspection forward', async () => {
@@ -645,7 +664,6 @@ describe('InspectionFindingsPage', () => {
     );
     expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
     expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
-    expect(screen.getByText(/Detected via advisor/)).toBeTruthy();
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();

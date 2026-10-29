@@ -1723,6 +1723,59 @@ function CostsTab({
           </Stack>
         ) : null}
 
+        {workOrder.reinspectionId && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'secondary.main',
+              borderRadius: '12px',
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Chip
+                    label={t('Re-inspection completed')}
+                    color="secondary"
+                    size="small"
+                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                  />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {t('Target flight verification on file')}
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  {t(
+                    'The flight crew verified the repaired defect in the field. Review the published re-inspection report before deciding final acceptance.',
+                  )}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                startIcon={<PictureAsPdfOutlined />}
+                onClick={() =>
+                  window.open(
+                    `/operations/inspections/${workOrder.reinspectionId}/report`,
+                    '_blank',
+                  )
+                }
+                sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+              >
+                {t('View Re-inspection Report')}
+              </Button>
+            </Stack>
+          </Box>
+        )}
+
         {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>

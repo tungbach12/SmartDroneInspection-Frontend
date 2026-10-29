@@ -129,7 +129,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
-  return <Navigate to={roles.includes('ORG_MANAGER') ? 'review' : 'evidence'} replace />;
+  return <Navigate to={roles.includes('ORG_MANAGER') ? 'review' : 'field-session'} replace />;
 }
 
 function InspectionReportStage() {

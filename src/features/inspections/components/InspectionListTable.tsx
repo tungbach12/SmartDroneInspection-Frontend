@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Chip,
   Paper,
   Stack,
   Table,
@@ -245,17 +246,27 @@ export function InspectionListTable({
                         borderColor: 'divider',
                       }}
                     >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 600,
-                          color: 'text.primary',
-                          lineHeight: 1.4,
-                          maxWidth: 500,
-                        }}
-                      >
-                        {row.objective || `${t('Inspection')} #${row.id.slice(0, 8)}`}
-                      </Typography>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            color: 'text.primary',
+                            lineHeight: 1.4,
+                            maxWidth: 500,
+                          }}
+                        >
+                          {row.objective || `${t('Inspection')} #${row.id.slice(0, 8)}`}
+                        </Typography>
+                        {row.inspectionType === 'RE_INSPECTION' && (
+                          <Chip
+                            size="small"
+                            color="secondary"
+                            label={t('Re-inspection')}
+                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }}
+                          />
+                        )}
+                      </Stack>
                       {reviewerMode && (
                         <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
                           {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…

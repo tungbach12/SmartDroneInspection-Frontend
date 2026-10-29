@@ -79,6 +79,7 @@ vi.mock('../hooks/useInspections', () => ({
   useVerifyReportVersion: () => mocks.verifyVersion,
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
+  useReinspectionVerifications: () => ({ data: [] }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -236,12 +237,12 @@ describe('InspectionDraftPage', () => {
     renderWithRouter(<InspectionDraftPage />);
 
     expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
-    expect(screen.getByLabelText('Method, equipment and conditions text')).toBeTruthy();
     expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
     expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
 
     // Legacy fields must be completely removed
     expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
+    expect(screen.queryByText('Method, equipment and conditions')).toBeNull();
     expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
 
     // In-place Verify as author action

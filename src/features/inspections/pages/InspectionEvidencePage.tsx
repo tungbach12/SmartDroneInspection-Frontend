@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -13,6 +13,9 @@ import {
   TablePagination,
   Typography,
 } from '@mui/material';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
+import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { inspectionApi } from '../api/inspectionApi';
@@ -36,13 +39,7 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-/**
- * MF3-01/02 evidence intake, one stage of the inspection workspace.
- *
- * Bulk upload is a client-side sequential loop: POST /evidence takes one file per call, so each
- * queued file is sent in order. A failed file stays in the queue with its error and does not
- * remove or block the others.
- */
+
 export default function InspectionEvidencePage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams();
@@ -72,7 +69,7 @@ export default function InspectionEvidencePage() {
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
-  const [showBulkRetireForm, setShowBulkRetireForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const displayedEvidenceItems = evidence.data?.items ?? [];
   const totalEvidenceCount = evidence.data?.totalCount ?? 0;
@@ -85,40 +82,42 @@ export default function InspectionEvidencePage() {
       currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status),
     ) || ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
   const isReturnedRevision = currentVersion?.status === 'RETURNED';
-  const completedFieldSessionId = sessionHistory.data?.filter(
-    (session) => session.status === 'FIELD_COMPLETED',
-  ).at(-1)?.id;
+  const completedFieldSessionId = sessionHistory.data
+    ?.filter((session) => session.status === 'FIELD_COMPLETED')
+    .at(-1)?.id;
+  const hasCompletedFieldSession = Boolean(completedFieldSessionId);
   const canEditEvidence =
-    isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
-  const [checklistConfirmed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(`inspection_checklist_confirmed_${inspectionId}`) === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const rawCanUploadEvidence =
-    isInspector && ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !evidenceLocked;
-  const canUploadEvidence = rawCanUploadEvidence || (isInspector && checklistConfirmed && !evidenceLocked);
+    isInspector &&
+    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') ||
+      hasCompletedFieldSession) &&
+    !evidenceLocked;
+  const canUploadEvidence =
+    isInspector &&
+    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') ||
+      hasCompletedFieldSession) &&
+    !evidenceLocked;
   const selectedEvidence =
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
     null;
+
   const updateStatus = (value: EvidenceQueryFilters['status']) => {
     setFilterMode(value);
     setPage(1);
     setSelectedBatchIds([]);
+    setShowDeleteConfirm(false);
   };
   const updateMediaType = (value: EvidenceQueryFilters['mediaType']) => {
     setFileTypeFilter(value);
     setPage(1);
     setSelectedBatchIds([]);
+    setShowDeleteConfirm(false);
   };
   const updateSearch = (value: string) => {
     setSearchQuery(value);
     setPage(1);
     setSelectedBatchIds([]);
+    setShowDeleteConfirm(false);
   };
 
   const removeFromQueue = (name: string) => {
@@ -134,7 +133,6 @@ export default function InspectionEvidencePage() {
   const uploadQueue = async () => {
     if (uploading || queue.length === 0) return;
     setUploading(true);
-    // Sequential so the server sees one file per call and a failure cannot lose the rest.
     for (const file of [...queue]) {
       try {
         await upload.mutateAsync({
@@ -158,6 +156,29 @@ export default function InspectionEvidencePage() {
     setUploading(false);
   };
 
+  const allPageActiveSelected =
+    currentEvidenceItems.length > 0 && selectedBatchIds.length === currentEvidenceItems.length;
+
+  const hasBatchSelection = selectedBatchIds.length > 0;
+  const deleteButtonLabel = allPageActiveSelected
+    ? `${t('Delete all')} (${currentEvidenceItems.length})`
+    : hasBatchSelection
+      ? `${t('Delete selected')} (${selectedBatchIds.length})`
+      : t('Delete evidence');
+
+  const handleDeleteAction = async () => {
+    if (hasBatchSelection) {
+      const targets =
+        selectedBatchIds.length > 0 ? selectedBatchIds : currentEvidenceItems.map((e) => e.id);
+      await bulkRetire.mutateAsync(targets);
+      setSelectedBatchIds([]);
+      setShowDeleteConfirm(false);
+    } else if (selectedEvidence && !selectedEvidence.isDeleted) {
+      retire.mutate(selectedEvidence.id);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   return (
     <Stack spacing={2}>
       {!isInspector && (
@@ -168,110 +189,136 @@ export default function InspectionEvidencePage() {
       )}
 
       {isInspector && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-          <Typography variant="h6">{t('Evidence intake')}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            {t('MF3-01/02 intake. Choose one or more captures; each file uploads with its own call.')}
-          </Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2, sm: 2.25 },
+            borderRadius: '14px',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}
+          >
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {t('Evidence intake')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {queue.length === 0
+                  ? t('Select inspection photos, videos, or documents to upload.')
+                  : `${queue.length} ${t('file(s) staged')}`}
+              </Typography>
+            </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: 'center' }}>
-            {canUploadEvidence && (
-              <Button component="label" variant="outlined" aria-label={t('Choose evidence files')}>
-                {t('Choose evidence files')}
-                <input
-                  hidden
-                  type="file"
-                  multiple
-                  accept="image/png,image/jpeg,image/webp,image/tiff,video/mp4,application/pdf"
-                  onChange={(event) => {
-                    const chosen = Array.from(event.target.files ?? []);
-                    if (chosen.length > 0) {
-                      setQueue((prev) => [...prev, ...chosen]);
-                    }
-                    event.target.value = '';
-                  }}
-                />
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              {canUploadEvidence && (
+                <Button
+                  component="label"
+                  variant="outlined"
+                  size="small"
+                  startIcon={<CloudUploadOutlined fontSize="small" />}
+                  aria-label={t('Choose evidence files')}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('Choose evidence files')}
+                  <input
+                    hidden
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/tiff,video/mp4,application/pdf"
+                    onChange={(event) => {
+                      const chosen = Array.from(event.target.files ?? []);
+                      if (chosen.length > 0) {
+                        setQueue((prev) => [...prev, ...chosen]);
+                      }
+                      event.target.value = '';
+                    }}
+                  />
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                size="small"
+                disabled={!canUploadEvidence || queue.length === 0 || uploading}
+                onClick={() => void uploadQueue()}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              >
+                {uploading ? t('Uploading…') : t('Upload staged files')}
               </Button>
-            )}
-            <Typography variant="body2" sx={{ flexGrow: 1 }}>
-              {queue.length === 0 ? t('No files staged') : `${queue.length} ${t('file(s) staged')}`}
-            </Typography>
-            <Button
-              variant="contained"
-              disabled={!canUploadEvidence || queue.length === 0 || uploading}
-              onClick={() => void uploadQueue()}
-            >
-              {uploading ? t('Uploading…') : t('Upload staged files')}
-            </Button>
+            </Stack>
           </Stack>
+
           {evidenceLocked && (
-            <Alert severity="info" sx={{ mt: 1 }}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
               {t(
                 'Evidence is locked while the report is submitted or after publication. Withdraw the submission if it has not been reviewed, or ask the reviewer to return it before making changes.',
               )}
             </Alert>
           )}
           {isReturnedRevision && (
-            <Alert severity="info" sx={{ mt: 1 }}>
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
               {t('This report was returned for revision. Update evidence as requested, then verify and resubmit the report.')}
             </Alert>
           )}
-        {queue.length > 0 && canEditEvidence && (
-          <Stack spacing={1} sx={{ mt: 2 }}>
-            {queue.map((file) => (
-              <Box key={file.name}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
-                    {file.name}
-                  </Typography>
-                  <Button size="small" onClick={() => removeFromQueue(file.name)}>
-                    {t('Remove')}
-                  </Button>
-                </Stack>
-                {fileErrors[file.name] && (
-                  <Alert severity="error" sx={{ mt: 0.5 }}>
-                    {fileErrors[file.name]}
-                  </Alert>
-                )}
-              </Box>
-            ))}
-          </Stack>
-        )}
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-          {t('Uploaded captures are the source for advisory detection and the report. Analysis runs only when you ask for it, on the Findings step.')}
-        </Typography>
-      </Paper>
+
+          {queue.length > 0 && canEditEvidence && (
+            <Stack spacing={0.75} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+              {queue.map((file) => (
+                <Box key={file.name}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <InsertDriveFileOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                      {file.name}
+                    </Typography>
+                    <Button size="small" color="error" onClick={() => removeFromQueue(file.name)}>
+                      {t('Remove')}
+                    </Button>
+                  </Stack>
+                  {fileErrors[file.name] && (
+                    <Alert severity="error" sx={{ mt: 0.5 }}>
+                      {fileErrors[file.name]}
+                    </Alert>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Paper>
       )}
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6">{t('Evidence coverage')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {t('The Inspector records what the evidence covers and any limitations in the authored report. This register preserves active and retired captures; it does not issue an evidence-quality decision.')}
-        </Typography>
-        <Button
-          component={RouterLink}
-          to="../field-session"
-          variant="text"
-          sx={{ alignSelf: 'flex-start' }}
-        >
-          {t('Review checkpoints in field session')}
-        </Button>
-      </Paper>
-
-      {/* The stored captures and their provenance. Intake happens above, so this card only reads. */}
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: '14px',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
         <Stack
-          direction={{ xs: 'column', md: 'row' }}
+          direction={{ xs: 'column', lg: 'row' }}
           spacing={1.5}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', mb: 2 }}
+          sx={{ alignItems: { lg: 'center' }, justifyContent: 'space-between', mb: 2 }}
         >
           <Box>
-            <Typography variant="h6">{t('Evidence register')}</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {t('Evidence register')}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              {t('Showing')} {displayedEvidenceItems.length} {t('of')} {totalEvidenceCount} {t('matching captures')}
+              {t('Showing')} {displayedEvidenceItems.length} {t('of')} {totalEvidenceCount}{' '}
+              {t('matching captures')}
             </Typography>
           </Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: { sm: 'min(100%, 620px)' } }}>
+
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ minWidth: { sm: 'min(100%, 580px)' } }}
+          >
             <TextField
               size="small"
               label={t('Search evidence')}
@@ -285,7 +332,7 @@ export default function InspectionEvidencePage() {
               label={t('File type')}
               value={fileTypeFilter}
               onChange={(event) => updateMediaType(event.target.value as typeof fileTypeFilter)}
-              sx={{ minWidth: 150 }}
+              sx={{ minWidth: 140 }}
             >
               <MenuItem value="ALL">{t('All types')}</MenuItem>
               <MenuItem value="IMAGE">{t('Images')}</MenuItem>
@@ -298,93 +345,23 @@ export default function InspectionEvidencePage() {
               label={t('Evidence status')}
               value={filterMode}
               onChange={(event) => updateStatus(event.target.value as typeof filterMode)}
-              sx={{ minWidth: 170 }}
+              sx={{ minWidth: 165 }}
             >
-              <MenuItem value="ACTIVE">{t('Active only (')}{activeCount})</MenuItem>
-              <MenuItem value="RETIRED">{t('Retired audit (')}{retiredCount})</MenuItem>
-              <MenuItem value="ALL">{t('All evidence (')}{activeCount + retiredCount})</MenuItem>
+              <MenuItem value="ACTIVE">
+                {t('Active only (')}
+                {activeCount})
+              </MenuItem>
+              <MenuItem value="RETIRED">
+                {t('Deleted (')}
+                {retiredCount})
+              </MenuItem>
+              <MenuItem value="ALL">
+                {t('All evidence (')}
+                {activeCount + retiredCount})
+              </MenuItem>
             </TextField>
           </Stack>
         </Stack>
-
-        {canEditEvidence && activeCount > 0 && (
-          <Paper variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: 'background.default', borderRadius: '10px' }}>
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      if (selectedBatchIds.length === currentEvidenceItems.length) {
-                        setSelectedBatchIds([]);
-                      } else {
-                        setSelectedBatchIds(currentEvidenceItems.map((e) => e.id));
-                      }
-                    }}
-                  >
-                    {selectedBatchIds.length === currentEvidenceItems.length ? 'Deselect all' : `Select all active on this page (${currentEvidenceItems.length})`}
-                  </Button>
-                  {selectedBatchIds.length > 0 && (
-                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                      {selectedBatchIds.length} {t('capture(s) selected')}
-                    </Typography>
-                  )}
-                </Stack>
-                <Button
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                  onClick={() => setShowBulkRetireForm((prev) => !prev)}
-                >
-                  {showBulkRetireForm
-                    ? 'Cancel bulk retire'
-                    : selectedBatchIds.length > 0
-                      ? `Bulk retire selected (${selectedBatchIds.length})`
-                      : `Bulk retire all active (${activeCount})`}
-                </Button>
-              </Stack>
-
-              {showBulkRetireForm && (
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: '8px' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    {t('Retire')} {selectedBatchIds.length > 0 ? selectedBatchIds.length : activeCount} {t('capture(s)')}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                    {t('Original files remain preserved for audit. Remove or re-link any findings citing these captures first.')}
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="contained"
-                        color="warning"
-                        disabled={bulkRetire.isPending}
-                        onClick={async () => {
-                          const targets =
-                            selectedBatchIds.length > 0
-                              ? selectedBatchIds
-                              : currentEvidenceItems.map((e) => e.id);
-                          await bulkRetire.mutateAsync(targets);
-                          setSelectedBatchIds([]);
-                          setShowBulkRetireForm(false);
-                        }}
-                      >
-                        {bulkRetire.isPending ? 'Retiring captures…' : 'Confirm bulk retire'}
-                      </Button>
-                      <Button size="small" onClick={() => setShowBulkRetireForm(false)}>
-                        {t('Cancel')}
-                      </Button>
-                    </Stack>
-                    {bulkRetire.isError && (
-                      <Alert severity="error">
-                        {getErrorMessage(bulkRetire.error, 'Bulk retirement was not completed.')}
-                      </Alert>
-                    )}
-                  </Stack>
-                </Paper>
-              )}
-            </Stack>
-          </Paper>
-        )}
 
         <QueryState
           isLoading={evidence.isLoading}
@@ -401,110 +378,246 @@ export default function InspectionEvidencePage() {
           {displayedEvidenceItems.length === 0 && totalEvidenceCount > 0 ? (
             <EmptyState
               title={t('No evidence matches these filters')}
-              description={t('Change the search text or filters to see other captures. Retired captures are available under Evidence status.')}
+              description={t('Change the search text or filters to see other captures.')}
             />
           ) : (
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 320px) minmax(0, 1fr)' },
-                gap: 2.5,
+                gridTemplateColumns: { xs: '1fr', md: 'minmax(260px, 340px) minmax(0, 1fr)' },
+                gap: 2,
+                alignItems: 'start',
               }}
             >
+              {/* Left Column: Evidence File List */}
               <Stack spacing={1}>
-              {displayedEvidenceItems.map((item) => {
-                const isSelected = item.id === selectedEvidence?.id;
-                const isChecked = selectedBatchIds.includes(item.id);
-                return (
-                  <Paper
-                    key={item.id}
-                    variant="outlined"
-                    sx={{
-                      p: 1.75,
-                      cursor: 'pointer',
-                      borderRadius: '10px',
-                      border: '1px solid',
-                      borderColor: isSelected ? 'primary.main' : 'divider',
-                      bgcolor: isSelected ? 'primary.light' : 'background.paper',
-                    }}
-                    onClick={() => setSelectedEvidenceId(item.id)}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      {canEditEvidence && !item.isDeleted && (
-                        <Checkbox
-                          size="small"
-                          checked={isChecked}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            setSelectedBatchIds((prev) =>
-                              e.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
-                            );
-                          }}
-                          sx={{ p: 0.25 }}
-                        />
-                      )}
-                      <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}>
-                            {item.fileName}
+                {displayedEvidenceItems.map((item) => {
+                  const isSelected = item.id === selectedEvidence?.id;
+                  const isChecked = selectedBatchIds.includes(item.id);
+                  return (
+                    <Paper
+                      key={item.id}
+                      variant="outlined"
+                      sx={{
+                        px: 1.5,
+                        py: 1.25,
+                        cursor: 'pointer',
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: isSelected ? 'primary.main' : 'divider',
+                        bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                        transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                      }}
+                      onClick={() => setSelectedEvidenceId(item.id)}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                        {canEditEvidence && !item.isDeleted && (
+                          <Checkbox
+                            size="small"
+                            checked={isChecked}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              setSelectedBatchIds((prev) =>
+                                e.target.checked
+                                  ? [...prev, item.id]
+                                  : prev.filter((id) => id !== item.id),
+                              );
+                            }}
+                            sx={{ p: 0.25 }}
+                          />
+                        )}
+                        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: isSelected ? 700 : 600,
+                                color: 'text.primary',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={item.fileName}
+                            >
+                              {item.fileName}
+                            </Typography>
+                            {item.isDeleted && (
+                              <Chip size="small" color="error" variant="outlined" label={t('Deleted')} sx={{ height: 20, fontSize: '0.7rem' }} />
+                            )}
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}
+                          >
+                            {item.contentType} · {formatBytes(item.sizeBytes)}
                           </Typography>
-                          {item.isDeleted && <Chip size="small" color="warning" label={t('Retired')} />}
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                          {item.contentType} · {formatBytes(item.sizeBytes)}
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+
+                {/* Select All Button relocated below the file list */}
+                {canEditEvidence && currentEvidenceItems.length > 0 && (
+                  <Box sx={{ pt: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        if (allPageActiveSelected) {
+                          setSelectedBatchIds([]);
+                        } else {
+                          setSelectedBatchIds(currentEvidenceItems.map((e) => e.id));
+                        }
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem' }}
+                    >
+                      {allPageActiveSelected
+                        ? t('Deselect all')
+                        : `${t('Select all')} (${currentEvidenceItems.length})`}
+                    </Button>
+                    {hasBatchSelection && (
+                      <Chip
+                        size="small"
+                        label={`${selectedBatchIds.length} ${t('selected')}`}
+                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                      />
+                    )}
+                  </Box>
+                )}
+              </Stack>
+
+              {/* Right Column: Preview Card (Image on top, Details & Delete below) */}
+              {selectedEvidence && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: '12px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <Stack spacing={2}>
+                    {/* Top: Image Preview */}
+                    {selectedEvidence.contentType.startsWith('image/') ? (
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: '10px',
+                          bgcolor: 'action.hover',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <AuthenticatedImage
+                          src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
+                          alt={selectedEvidence.fileName}
+                          maxHeight={460}
+                          sx={{ borderRadius: '8px' }}
+                        />
+                      </Box>
+                    ) : (
+                      <Alert severity="info">
+                        {selectedEvidence.contentType} {t('has no inline preview.')}
+                      </Alert>
+                    )}
+
+                    {/* Bottom: Info Bar & Actions switched below image */}
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1.5}
+                      sx={{
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        justifyContent: 'space-between',
+                        pt: 1.5,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontWeight: 700, color: 'text.primary', wordBreak: 'break-word' }}
+                        >
+                          {selectedEvidence.fileName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedEvidence.contentType} · {formatBytes(selectedEvidence.sizeBytes)}
+                          {selectedEvidence.captureTime ? ` · ${t('Captured')} ${selectedEvidence.captureTime}` : ''}
                         </Typography>
                       </Box>
-                    </Stack>
-                  </Paper>
-                );
-              })}
-            </Stack>
 
-            {selectedEvidence && (
-              <Paper
-                variant="outlined"
-                sx={{ p: 2.5, borderRadius: '12px', border: '1px solid',
-                      borderColor: 'divider', bgcolor: 'background.default' }}
-              >
-                <Stack spacing={2}>
-                  {selectedEvidence.contentType.startsWith('image/') ? (
-                    <AuthenticatedImage
-                      src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
-                      alt={selectedEvidence.fileName}
-                      maxHeight={460}
-                      sx={{ border: '1px solid',
-                      borderColor: 'divider', borderRadius: '8px', bgcolor: 'background.paper' }}
-                    />
-                  ) : (
-                    <Alert severity="info">
-                      {selectedEvidence.contentType} {t('has no inline preview.')}
-                    </Alert>
-                  )}
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                      {t('Captured')} {selectedEvidence.captureTime ?? 'time not recorded'}
-                    </Typography>
-                    {selectedEvidence.isDeleted ? (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        {t('Retired from the current evidence set. The original bytes remain available for audit.')}
+                      {canEditEvidence && (!selectedEvidence.isDeleted || hasBatchSelection) && (
+                        <Box sx={{ flexShrink: 0 }}>
+                          {!showDeleteConfirm ? (
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              startIcon={<DeleteOutlineRounded fontSize="small" />}
+                              disabled={retire.isPending || bulkRetire.isPending}
+                              onClick={() => {
+                                if (hasBatchSelection) {
+                                  setShowDeleteConfirm(true);
+                                } else {
+                                  retire.mutate(selectedEvidence.id);
+                                }
+                              }}
+                              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                            >
+                              {retire.isPending || bulkRetire.isPending
+                                ? t('Deleting…')
+                                : deleteButtonLabel}
+                            </Button>
+                          ) : (
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="error"
+                                disabled={bulkRetire.isPending}
+                                onClick={handleDeleteAction}
+                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                              >
+                                {bulkRetire.isPending ? t('Deleting…') : t('Confirm delete')}
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => setShowDeleteConfirm(false)}
+                                sx={{ textTransform: 'none' }}
+                              >
+                                {t('Cancel')}
+                              </Button>
+                            </Stack>
+                          )}
+                        </Box>
+                      )}
+                    </Stack>
+
+                    {selectedEvidence.isDeleted && (
+                      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                        {t('Deleted from the active evidence set. The original bytes remain available for audit.')}
                       </Alert>
-                    ) : canEditEvidence ? (
-                      <Stack spacing={1} sx={{ mt: 1.5 }}>
-                        <Button
-                          color="warning"
-                          variant="outlined"
-                          disabled={retire.isPending}
-                          onClick={() => retire.mutate(selectedEvidence.id)}
-                          sx={{ alignSelf: 'flex-start' }}
-                        >
-                          {retire.isPending ? 'Retiring capture…' : 'Retire from current evidence set'}
-                        </Button>
-                        {retire.isError && <Alert severity="error">{getErrorMessage(retire.error, 'The capture was not retired.')}</Alert>}
-                      </Stack>
-                    ) : null}
-                  </Box>
-                </Stack>
-              </Paper>
+                    )}
+
+                    {retire.isError && (
+                      <Alert severity="error">
+                        {getErrorMessage(retire.error, 'The capture was not deleted.')}
+                      </Alert>
+                    )}
+
+                    {bulkRetire.isError && (
+                      <Alert severity="error">
+                        {getErrorMessage(bulkRetire.error, 'Bulk delete was not completed.')}
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
               )}
             </Box>
           )}

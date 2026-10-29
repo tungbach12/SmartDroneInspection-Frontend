@@ -527,11 +527,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 {finding.recommendedAction}
                               </Typography>
                             )}
-                            {finding.modelName && (
-                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                {t('Detected via')} {finding.modelName}
-                              </Typography>
-                            )}
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (

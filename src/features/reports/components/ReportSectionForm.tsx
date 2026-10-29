@@ -57,13 +57,11 @@ const MAX_DISCLOSURE = 2_000;
 
 export type AuthoredReportSection =
   | 'executiveSummary'
-  | 'methodEquipmentConditions'
   | 'omissionDisclosure'
   | 'conclusionsRecommendations';
 
 interface SectionDetails {
   title: string;
-  accountable: string;
   description: string;
   maxLength: number;
   rows: number;
@@ -72,49 +70,35 @@ interface SectionDetails {
 const SECTION_DETAILS: Record<AuthoredReportSection, SectionDetails> = {
   executiveSummary: {
     title: 'Executive summary',
-    accountable: 'Inspector · approved with report',
-    description: 'Observed condition, important confirmed findings, priority actions and overall condition. Do not state whole-asset safety.',
-    maxLength: MAX_SECTION,
-    rows: 5,
-  },
-  methodEquipmentConditions: {
-    title: 'Method, equipment and conditions',
-    accountable: 'Inspector',
-    description: 'Record the method actually used, equipment and site conditions. Planned dates or assigned equipment are not evidence of field activity.',
+    description: 'Observed asset condition, key confirmed findings, and priority actions.',
     maxLength: MAX_SECTION,
     rows: 4,
   },
   omissionDisclosure: {
     title: 'Limitations and omissions',
-    accountable: 'Inspector',
-    description: 'Anything not observed, not supplied or not verified. In the delivered report this disclosure appears within Executive summary.',
+    description: 'Areas or conditions that were not observed, supplied, or verified during inspection.',
     maxLength: MAX_DISCLOSURE,
     rows: 3,
   },
   conclusionsRecommendations: {
     title: 'Conclusions and recommendations',
-    accountable: 'Inspector · approved with report',
-    description: 'Point-in-time conclusions within observed scope, next actions and specialist checks required.',
+    description: 'Conclusions within the inspected scope and recommended follow-up or maintenance actions.',
     maxLength: MAX_SECTION,
-    rows: 4,
+    rows: 3,
   },
 };
 
 function Section({
   title,
-  accountable,
   description,
   children,
 }: SectionDetails & { children: React.ReactNode }) {
   return (
-    <Box component="section" sx={{ mb: 3 }}>
+    <Box component="section" sx={{ mb: 2.5 }}>
       <Box sx={{ mb: 1 }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
-          <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary' }}>
-            {title}
-          </Typography>
-          <Chip size="small" label={accountable} sx={{ height: 18, fontSize: '10px', fontWeight: 700 }} />
-        </Stack>
+        <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary', mb: 0.25 }}>
+          {title}
+        </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{description}</Typography>
       </Box>
       {children}
@@ -218,7 +202,6 @@ export function ReportSectionForm(props: ReportSectionFormProps) {
         />
       )}
       <ReportSectionField section="executiveSummary" {...props} />
-      <ReportSectionField section="methodEquipmentConditions" {...props} />
       <ReportSectionField section="omissionDisclosure" {...props} />
       <ReportSectionField section="conclusionsRecommendations" {...props} />
     </Stack>

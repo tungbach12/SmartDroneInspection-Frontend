@@ -41,6 +41,8 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
   reportVersion: (inspectionId: string, versionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-version', versionId] as const,
+  reinspectionVerifications: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'reinspection-verifications'] as const,
 };
 
 export function useInspections(filters: InspectionListFilters, enabled = true) {
@@ -747,6 +749,44 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
             ? 'Session postponed'
             : 'Session aborted',
       );
+    },
+  });
+}
+
+export function useReinspectionVerifications(inspectionId: string | null | undefined) {
+  return useQuery({
+    queryKey: inspectionKeys.reinspectionVerifications(inspectionId ?? ''),
+    queryFn: () => inspectionApi.getReinspectionVerifications(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+export function useUpdateReinspectionVerification(inspectionId: string | null | undefined) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({
+      verificationId,
+      payload,
+    }: {
+      verificationId: string;
+      payload: import('../api/inspectionApi').UpdateDefectVerificationPayload;
+    }) =>
+      inspectionApi.updateReinspectionVerification(
+        inspectionId!,
+        verificationId,
+        payload,
+      ),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.reinspectionVerifications(inspectionId),
+        });
+      }
+      showToast('Cập nhật xác minh lỗi thành công');
+    },
+    onError: (err) => {
+      showToast(getErrorMessage(err, 'Không thể cập nhật xác minh lỗi'), 'error');
     },
   });
 }

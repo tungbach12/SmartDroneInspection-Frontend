@@ -82,7 +82,7 @@ export default function InspectionsPage() {
 
   const openInspection = (inspectionId: string) => {
     if (!isOrganizationAdmin) {
-      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}`);
+      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/field-session`);
       return;
     }
     // The reviewer opens the phase the row is actually waiting in, rather than a fixed tab.
