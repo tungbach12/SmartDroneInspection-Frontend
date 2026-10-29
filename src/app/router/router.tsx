@@ -188,12 +188,12 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         ),
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
-          ...(portal === 'client'
+          ...(portal === 'client' || portal === 'admin'
             ? [
                 {
                   path: 'review',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER']}>
+                    <RequireAuth roles={['ORG_MANAGER', 'ADMIN', 'PLATFORM_MANAGER']}>
                       <OrganizationReportReviewPage />
                     </RequireAuth>
                   ),
@@ -204,7 +204,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                   // as "editing the report".
                   path: 'corrective',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER']}>
+                    <RequireAuth roles={['ORG_MANAGER', 'ADMIN', 'PLATFORM_MANAGER']}>
                       <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),

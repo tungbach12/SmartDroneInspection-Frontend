@@ -28,7 +28,7 @@ import {
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
 } from '../hooks/useInspections';
-import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
@@ -503,8 +503,9 @@ export default function InspectionEvidencePage() {
                   }}
                 >
                   <Stack spacing={2}>
-                    {/* Top: Image Preview */}
-                    {selectedEvidence.contentType.startsWith('image/') ? (
+                    {/* Top: Media Preview (Photo or Video) */}
+                    {selectedEvidence.contentType.startsWith('image/') ||
+                    selectedEvidence.contentType.startsWith('video/') ? (
                       <Box
                         sx={{
                           p: 1.5,
@@ -514,9 +515,10 @@ export default function InspectionEvidencePage() {
                           borderColor: 'divider',
                         }}
                       >
-                        <AuthenticatedImage
+                        <AuthenticatedMedia
                           src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
                           alt={selectedEvidence.fileName}
+                          contentType={selectedEvidence.contentType}
                           maxHeight={460}
                           sx={{ borderRadius: '8px' }}
                         />

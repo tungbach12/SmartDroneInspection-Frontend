@@ -110,7 +110,10 @@ export default function InspectionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin = roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/');
+  const isOrganizationAdmin =
+    (roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/')) ||
+    ((roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER')) &&
+      location.pathname.startsWith('/admin/'));
   const steps = isOrganizationAdmin ? REVIEWER_STEPS : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const inspectionQuery = useInspection(inspectionId);
@@ -188,7 +191,8 @@ export default function InspectionDetailPage() {
           startIcon={<ArrowBackRounded />}
           onClick={() => {
             if (isOrganizationAdmin) {
-              navigate(`${getSectionPath('client', 'inspections')}?view=reports`);
+              const portal = location.pathname.startsWith('/admin') ? 'admin' : 'client';
+              navigate(`${getSectionPath(portal, 'inspections')}?view=reports`);
               return;
             }
             navigate(-1);

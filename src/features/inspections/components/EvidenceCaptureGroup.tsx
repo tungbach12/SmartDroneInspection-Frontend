@@ -17,7 +17,7 @@ import {
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { inspectionApi } from '../api/inspectionApi';
 import type { EvidenceItem, Finding, FindingSeverity } from '../api/inspectionApi';
@@ -246,9 +246,10 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   {t('Defect photo capture ·')} {props.evidence.fileName}
                 </Typography>
                 <Box sx={{ position: 'relative', width: '100%', lineHeight: 0 }}>
-                  <AuthenticatedImage
+                  <AuthenticatedMedia
                     src={inspectionApi.evidenceContentUrl(props.inspectionId, props.evidence.id)}
                     alt={`Inspection evidence ${props.evidence.fileName}`}
+                    contentType={props.evidence.contentType}
                     maxHeight={420}
                     sx={{ borderRadius: '6px', width: '100%' }}
                   />
@@ -291,25 +292,54 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                       );
                     })}
                 </Box>
+
+                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        size="small"
+                        checked={showBoundingBoxes}
+                        onChange={(_e, checked) => setShowBoundingBoxes(checked)}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: '#475569' }}>
+                        {t('Show detected regions')}
+                      </Typography>
+                    }
+                  />
+                </Box>
               </Box>
             )}
 
-            <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    size="small"
-                    checked={showBoundingBoxes}
-                    onChange={(_e, checked) => setShowBoundingBoxes(checked)}
+            {props.evidence && !isImage && props.evidence.contentType.startsWith('video/') && (
+              <Box
+                sx={{
+                  borderRadius: '10px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                  p: 1.25,
+                  bgcolor: 'background.default',
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}
+                >
+                  {t('Flight video recording ·')} {props.evidence.fileName}
+                </Typography>
+                <Box sx={{ width: '100%', lineHeight: 0 }}>
+                  <AuthenticatedMedia
+                    src={inspectionApi.evidenceContentUrl(props.inspectionId, props.evidence.id)}
+                    alt={`Inspection evidence ${props.evidence.fileName}`}
+                    contentType={props.evidence.contentType}
+                    maxHeight={420}
+                    sx={{ borderRadius: '6px', width: '100%' }}
                   />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: '#475569' }}>
-                    {t('Show detected regions')}
-                  </Typography>
-                }
-              />
-            </Box>
+                </Box>
+              </Box>
+            )}
           </Box>
 
           {/* Right Column: Findings Cards */}
