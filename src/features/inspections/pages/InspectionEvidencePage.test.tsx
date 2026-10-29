@@ -112,13 +112,13 @@ function imageEvidence() {
   }; 
 }
 
-function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'CUSTOMER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
+      fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -173,7 +173,7 @@ describe('InspectionEvidencePage', () => {
   });
 
   it('gives Organization Manager a read-only evidence register instead of Inspector intake controls', () => {
-    signInAs('ORG_MANAGER');
+    signInAs('CUSTOMER');
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,

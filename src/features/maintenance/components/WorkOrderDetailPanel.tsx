@@ -52,8 +52,12 @@ import {
   useWorkLogs,
   useWorkOrderTransition,
   useMaintenanceReportVersions,
+  useReinspectionRequests,
+  useRequestReinspection,
+  useDecideReinspection,
 } from '../hooks/useMaintenance';
-import { maintenanceApi, type CostLineKind, type WorkOrder } from '../api/maintenanceApi';
+import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+import { maintenanceApi, type CostLineKind, type ReinspectionRequest, type WorkOrder } from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface WorkOrderDetailPanelProps {
@@ -63,7 +67,7 @@ interface WorkOrderDetailPanelProps {
   onOpenInspection?: (() => void) | undefined;
 }
 
-type DetailTab = 'overview' | 'execution' | 'estimate' | 'changes' | 'report' | 'costs';
+type DetailTab = 'overview' | 'execution' | 'estimate' | 'changes' | 'report' | 'reinspection' | 'costs';
 
 const TABS: { value: DetailTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -71,6 +75,7 @@ const TABS: { value: DetailTab; label: string }[] = [
   { value: 'estimate', label: 'Estimate' },
   { value: 'changes', label: 'Changes' },
   { value: 'report', label: 'Completion report' },
+  { value: 'reinspection', label: 'Re-inspection' },
   { value: 'costs', label: 'Costs & acceptance' },
 ];
 
@@ -139,6 +144,9 @@ export function WorkOrderDetailPanel({
       {tab === 'report' ? (
         <ReportTab workOrder={workOrder} isOrgAdmin={isOrgAdmin} />
       ) : null}
+      {tab === 'reinspection' ? (
+        <ReinspectionTab workOrder={workOrder} isOrgAdmin={isOrgAdmin} />
+      ) : null}
       {tab === 'costs' ? (
         <CostsTab workOrder={workOrder} isOrgAdmin={isOrgAdmin} />
       ) : null}
@@ -181,6 +189,7 @@ function OverviewTab({
       case 'resume-after-rework':
         return (
           workOrder.status !== 'REWORK_REQUIRED' &&
+          workOrder.status !== 'REPAIR_SUPPLEMENT_REQUIRED' &&
           workOrder.status !== 'REINSPECTION_REQUIRED'
         );
       default:
@@ -345,10 +354,10 @@ function AssignTeamDialog({
 
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
-      (member) => member.roles.includes('ORG_MANAGER') && member.status === 'ACTIVE',
+      (member) => member.roles.includes('CUSTOMER') && member.status === 'ACTIVE',
     );
     if (list.length > 0) return list;
-    if (currentUser?.roles.includes('ORG_MANAGER')) {
+    if (currentUser?.roles.includes('CUSTOMER')) {
       return [
         {
           userId: currentUser.id,
@@ -1366,7 +1375,7 @@ function ReportTab({
                     loading={submitReport.isPending && submitReport.variables === version.versionNo}
                     onClick={() => submitReport.mutate(version.versionNo)}
                   >
-                    {t('Submit for acceptance')}
+                    {t('Submit to customer')}
                   </LoadingButton>
                 ) : null}
                 <Button
@@ -1467,6 +1476,184 @@ function ReportTab({
   );
 }
 
+function ReinspectionTab({
+  workOrder,
+  isOrgAdmin,
+}: {
+  workOrder: WorkOrder;
+  isOrgAdmin: boolean;
+}) {
+  const { formatDateTime, t } = useLocale();
+  const reports = useMaintenanceReportVersions(workOrder.id);
+  const requests = useReinspectionRequests(workOrder.id);
+  const requestReinspection = useRequestReinspection(workOrder.id);
+  const decideReinspection = useDecideReinspection(workOrder.id);
+
+  const [versionNo, setVersionNo] = useState<number>(1);
+  const [note, setNote] = useState('');
+  const [decision, setDecision] = useState<'ACCEPTED' | 'REPAIR_REQUIRED'>('ACCEPTED');
+  const [decisionNote, setDecisionNote] = useState('');
+
+  const reportItems = reports.data ?? [];
+  const requestItems = requests.data ?? [];
+  const downloadPublishedReport = async (request: ReinspectionRequest) => {
+    if (!request.inspectionId || !request.inspectionReportId) return;
+    const blob = await inspectionApi.downloadReport(request.inspectionId, request.inspectionReportId);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  return (
+    <Stack spacing={2.5}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
+          {t('Customer reinspection requests')}
+        </Typography>
+
+        <QueryState
+          isLoading={requests.isLoading}
+          error={requests.error}
+          onRetry={() => void requests.refetch()}
+          isEmpty={requestItems.length === 0}
+          empty={t('No reinspection requests submitted yet.')}
+        >
+          {requestItems.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t('No reinspection requests submitted yet.')}
+            </Typography>
+          ) : (
+            <Stack spacing={1.5}>
+              {requestItems.map((r: any) => (
+                <Box key={r.id} sx={{ p: 1.5, border: '1px solid #eaecf0', borderRadius: 1.5 }}>
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {t('Request')} #{r.id.slice(0, 8)} · {r.status}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDateTime(new Date(r.requestedAt))}
+                    </Typography>
+                  </Stack>
+                  {r.inspectionId ? (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#475467' }}>
+                      {t('Linked inspection')}: {r.inspectionId}
+                    </Typography>
+                  ) : null}
+                  {r.inspectionReportId ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      sx={{ mt: 1 }}
+                      onClick={() => void downloadPublishedReport(r as ReinspectionRequest)}
+                    >
+                      {t('View published re-inspection report')}
+                    </Button>
+                  ) : null}
+                  {r.note ? (
+                    <Typography variant="body2" sx={{ mt: 0.5, color: '#344054' }}>
+                      {r.note}
+                    </Typography>
+                  ) : null}
+
+                  {isOrgAdmin && r.status === 'INSPECTION_PUBLISHED' ? (
+                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#f8fafc', borderRadius: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                        {t('Decision on published reinspection')}
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <TextField
+                          select
+                          size="small"
+                          value={decision}
+                          onChange={(e) => setDecision(e.target.value as any)}
+                        >
+                          <MenuItem value="ACCEPTED">{t('Accept repair')}</MenuItem>
+                          <MenuItem value="REPAIR_REQUIRED">{t('Return to repair/supplement')}</MenuItem>
+                        </TextField>
+                        <TextField
+                          size="small"
+                          placeholder={t('Reason or acceptance note')}
+                          value={decisionNote}
+                          onChange={(e) => setDecisionNote(e.target.value)}
+                        />
+                        <LoadingButton
+                          size="small"
+                          variant="contained"
+                          loading={decideReinspection.isPending}
+                          disabled={decision === 'REPAIR_REQUIRED' && !decisionNote.trim()}
+                          onClick={() =>
+                            decideReinspection.mutate({
+                              requestId: r.id,
+                              input: {
+                                decision,
+                                ...(decisionNote.trim() ? { note: decisionNote.trim() } : {}),
+                              },
+                            })
+                          }
+                        >
+                          {t('Submit decision')}
+                        </LoadingButton>
+                      </Stack>
+                    </Box>
+                  ) : null}
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </QueryState>
+
+        {isOrgAdmin && (workOrder.status === 'AWAITING_CUSTOMER_ACCEPTANCE' || workOrder.status === 'REPAIR_SUPPLEMENT_REQUIRED') ? (
+          <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+              {t('Forward Maintenance Report for reinspection')}
+            </Typography>
+            <Stack spacing={1.5}>
+              <TextField
+                select
+                size="small"
+                label={t('Maintenance Report version')}
+                value={versionNo}
+                onChange={(e) => setVersionNo(Number(e.target.value))}
+              >
+                {reportItems.map((v: any) => (
+                  <MenuItem key={v.versionNo} value={v.versionNo}>
+                    v{v.versionNo} ({v.status})
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                size="small"
+                label={t('Request note')}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <MutationProblemAlert
+                error={requestReinspection.error}
+                isError={requestReinspection.isError}
+                fallbackMessage={t('Could not forward reinspection request.')}
+              />
+              <LoadingButton
+                size="small"
+                variant="contained"
+                loading={requestReinspection.isPending}
+                onClick={() =>
+                  requestReinspection.mutate({
+                    maintenanceReportVersionNo: versionNo,
+                    findingIds: [workOrder.sourceFindingId],
+                    ...(note.trim() ? { note: note.trim() } : {}),
+                  })
+                }
+              >
+                {t('Forward to platform manager')}
+              </LoadingButton>
+            </Stack>
+          </Box>
+        ) : null}
+      </Paper>
+    </Stack>
+  );
+}
+
 function CostsTab({
   workOrder,
   isOrgAdmin,
@@ -1484,9 +1671,7 @@ function CostsTab({
   const close = useCloseWorkOrder(workOrder.id);
   const tasks = useTasks(workOrder.id);
 
-  const [decision, setDecision] = useState<'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED'>(
-    'ACCEPTED',
-  );
+  const [decision] = useState<'ACCEPTED'>('ACCEPTED');
   const [comments, setComments] = useState('');
   const [checklist, setChecklist] = useState('');
   const [testResult, setTestResult] = useState('');
@@ -1723,23 +1908,19 @@ function CostsTab({
           </Stack>
         ) : null}
 
-        {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' ? (
+        {isOrgAdmin && (workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' || workOrder.status === 'AWAITING_CUSTOMER_ACCEPTANCE') ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-              {t('Record the acceptance decision')}
+              {t('Customer acceptance')}
             </Typography>
             <Stack spacing={1.5}>
               <TextField
                 select
                 label={t('Decision')}
-                value={decision}
-                onChange={(e) =>
-                  setDecision(e.target.value as typeof decision)
-                }
+                value="ACCEPTED"
+                onChange={() => undefined}
               >
                 <MenuItem value="ACCEPTED">{t('Accepted')}</MenuItem>
-                <MenuItem value="REWORK_REQUIRED">{t('Return for rework')}</MenuItem>
-                <MenuItem value="REINSPECTION_REQUIRED">{t('Request re-inspection')}</MenuItem>
               </TextField>
               <TextField
                 label={t('Technical comments')}
@@ -1750,7 +1931,7 @@ function CostsTab({
                 onChange={(e) => setComments(e.target.value)}
                 helperText={
                   requiresDecisionComments
-                    ? t('Required when returning for rework or requesting re-inspection.')
+                    ? t('Required when returning for repair/supplement.')
                     : undefined
                 }
               />
@@ -1777,7 +1958,7 @@ function CostsTab({
                 onClick={() =>
                   recordAcceptance.mutate(
                     {
-                      decision,
+                      decision: 'ACCEPTED',
                       technicalComments: comments.trim() || null,
                       acceptanceChecklist: checklist.trim() || null,
                       testResult: testResult.trim() || null,
@@ -1794,8 +1975,8 @@ function CostsTab({
               >
                 {t('Record decision')}
               </LoadingButton>
-              <Alert severity="warning">
-                {t('Only the designated independent reviewer can record this. The engineer who did the work cannot accept it.')}
+              <Alert severity="info">
+                {t('Customer records acceptance. If reinspection is required, forward the Maintenance Report using the request flow.')}
               </Alert>
             </Stack>
           </Box>

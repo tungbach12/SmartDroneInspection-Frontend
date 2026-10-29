@@ -3,7 +3,7 @@ import { api } from '@/shared/api/client';
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a qualified ORG_MANAGER reviewer who is not the author decides.
+ * and a qualified CUSTOMER reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'

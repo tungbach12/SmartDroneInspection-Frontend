@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 export const ROLE_CODES = [
   'ADMIN',
-  'PLATFORM_MANAGER',
-  'ORG_MANAGER',
+  'MANAGER',
+  'CUSTOMER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;

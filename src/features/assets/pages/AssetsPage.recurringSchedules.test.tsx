@@ -10,7 +10,7 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-const roles = vi.hoisted(() => ({ current: ['ORG_MANAGER'] as string[] }));
+const roles = vi.hoisted(() => ({ current: ['CUSTOMER'] as string[] }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) =>
@@ -158,7 +158,7 @@ import { AssetsPage } from './AssetsPage';
 
 describe('AssetsPage recurring schedules integration', () => {
   beforeEach(() => {
-    roles.current = ['ORG_MANAGER'];
+    roles.current = ['CUSTOMER'];
   });
 
   afterEach(() => {
@@ -213,7 +213,7 @@ describe('AssetsPage recurring schedules integration', () => {
     expect(screen.getByText('COMPLETED')).toBeTruthy();
   });
 
-  it('allows ORG_MANAGER to click "Complete & Archive Asset" and open confirmation dialog', async () => {
+  it('allows CUSTOMER to click "Complete & Archive Asset" and open confirmation dialog', async () => {
     renderWithClient(<AssetsPage />);
 
     const assetRow = await screen.findByText('Main Cable Bridge');

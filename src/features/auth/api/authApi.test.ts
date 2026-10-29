@@ -25,7 +25,7 @@ const user = {
   id: 'user-1',
   email: 'org-manager@example.com',
   fullName: 'Organization Manager',
-  roles: ['ORG_MANAGER'],
+  roles: ['CUSTOMER'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
   visionFallbackEnabled: true,
@@ -72,8 +72,8 @@ describe('browser auth API', () => {
           ...user,
           roles: [
             'ADMIN',
-            'PLATFORM_MANAGER',
-            'ORG_MANAGER',
+            'MANAGER',
+            'CUSTOMER',
             'INSPECTOR',
             'MAINTENANCE_ENGINEER',
             'UNKNOWN_ROLE',
@@ -86,8 +86,8 @@ describe('browser auth API', () => {
 
     expect(result.user.roles).toEqual([
       'ADMIN',
-      'PLATFORM_MANAGER',
-      'ORG_MANAGER',
+      'MANAGER',
+      'CUSTOMER',
       'INSPECTOR',
       'MAINTENANCE_ENGINEER',
     ]);
@@ -160,7 +160,7 @@ describe('browser auth API', () => {
         organizationId: 'org-1',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
-        user: { ...user, roles: ['ORG_MANAGER', 'UNKNOWN_ROLE'] },
+        user: { ...user, roles: ['CUSTOMER', 'UNKNOWN_ROLE'] },
       },
     });
 
@@ -180,7 +180,7 @@ describe('browser auth API', () => {
       password: 'a much longer secure password',
     });
     expect(result.organizationCode).toBe('EXAMPLE');
-    expect(result.user.roles).toEqual(['ORG_MANAGER']);
+    expect(result.user.roles).toEqual(['CUSTOMER']);
   });
 
   it('uses CSRF-protected browser endpoints for one-device and all-device logout', async () => {

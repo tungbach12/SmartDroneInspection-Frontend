@@ -40,6 +40,10 @@ const OPEN_STATUSES: WorkOrderStatus[] = [
   'SUBMITTED_FOR_ACCEPTANCE',
   'REWORK_REQUIRED',
   'REINSPECTION_REQUIRED',
+  'AWAITING_REINSPECTION',
+  'REINSPECTION_IN_PROGRESS',
+  'AWAITING_CUSTOMER_ACCEPTANCE',
+  'REPAIR_SUPPLEMENT_REQUIRED',
 ];
 
 const STATUS_LABELS: Record<WorkOrderStatus, string> = {
@@ -55,6 +59,10 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
   CLOSED: 'Closed',
   REWORK_REQUIRED: 'Rework required',
   REINSPECTION_REQUIRED: 'Re-inspection required',
+  AWAITING_REINSPECTION: 'Awaiting re-inspection',
+  REINSPECTION_IN_PROGRESS: 'Re-inspection in progress',
+  AWAITING_CUSTOMER_ACCEPTANCE: 'Awaiting customer acceptance',
+  REPAIR_SUPPLEMENT_REQUIRED: 'Repair supplement required',
 };
 
 /**
@@ -62,14 +70,14 @@ const STATUS_LABELS: Record<WorkOrderStatus, string> = {
  *
  * The list is the discovery path. A row opens the work order, where the team, tasks, estimate,
  * execution records, change requests, completion report, acceptance and cost reconciliation each
- * live in their own panel. The role decides which of those actions appear: an ORG_MANAGER approves
+ * live in their own panel. The role decides which of those actions appear: an CUSTOMER approves
  * scope, budget and acceptance, while a MAINTENANCE_ENGINEER records the work itself.
  */
 export default function MaintenancePage() {
   const { formatDate, formatNumber, t } = useLocale();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
-  const isOrgAdmin = roles.includes('ORG_MANAGER');
+  const isOrgAdmin = roles.includes('CUSTOMER');
   const workOrders = useWorkOrders(0, 50);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

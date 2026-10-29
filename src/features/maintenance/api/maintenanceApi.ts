@@ -20,7 +20,11 @@ export type WorkOrderStatus =
   | 'COST_RECONCILED'
   | 'CLOSED'
   | 'REWORK_REQUIRED'
-  | 'REINSPECTION_REQUIRED';
+  | 'REINSPECTION_REQUIRED'
+  | 'AWAITING_REINSPECTION'
+  | 'REINSPECTION_IN_PROGRESS'
+  | 'AWAITING_CUSTOMER_ACCEPTANCE'
+  | 'REPAIR_SUPPLEMENT_REQUIRED';
 
 export type MaintenancePriority = 'LOW' | 'NORMAL' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
 
@@ -65,7 +69,29 @@ export type ReportVersionStatus =
   | 'REJECTED'
   | 'SUPERSEDED';
 
-export type AcceptanceDecisionKind = 'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED';
+export type AcceptanceDecisionKind = 'ACCEPTED';
+
+export interface ReinspectionRequest {
+  id: string;
+  workOrderId: string;
+  maintenanceReportVersionId: string;
+  maintenanceReportVersionNo: number;
+  organizationId: string;
+  requestedByUserId: string;
+  findingIds: string[];
+  note: string | null;
+  status: 'REQUESTED' | 'ASSIGNED' | 'INSPECTION_PUBLISHED' | 'ACCEPTED' | 'RETURNED' | 'CANCELLED';
+  managerUserId: string | null;
+  inspectorUserId: string | null;
+  droneId: string | null;
+  inspectionId: string | null;
+  inspectionReportId: string | null;
+  customerDecision: 'ACCEPTED' | 'REPAIR_REQUIRED' | null;
+  customerDecisionNote: string | null;
+  requestedAt: string;
+  assignedAt: string | null;
+  decidedAt: string | null;
+}
 
 export type CostLineKind =
   | 'LABOR'
@@ -308,7 +334,7 @@ export interface ChangeDecisionInput {
 }
 
 export interface RecordAcceptanceInput {
-  decision: AcceptanceDecisionKind;
+  decision: 'ACCEPTED';
   technicalComments?: string | null;
   acceptanceChecklist?: string | null;
   testResult?: string | null;
@@ -545,4 +571,37 @@ export const maintenanceApi = {
 
   suggestScope: (input: SuggestScopeInput) =>
     api.post<SuggestScopeResponse>('/maintenance/suggest-scope', input).then((r) => r.data),
+
+  requestReinspection: (
+    workOrderId: string,
+    input: { maintenanceReportVersionNo: number; findingIds: string[]; note?: string },
+  ) =>
+    api
+      .post<ReinspectionRequest>(`/maintenance/work-orders/${workOrderId}/reinspection-requests`, input)
+      .then((r) => r.data),
+
+  listCustomerReinspectionRequests: (workOrderId: string) =>
+    api
+      .get<ReinspectionRequest[]>(`/maintenance/work-orders/${workOrderId}/reinspection-requests`)
+      .then((r) => r.data),
+
+  listManagerReinspectionQueue: () =>
+    api.get<ReinspectionRequest[]>('/maintenance/manager/reinspection-requests').then((r) => r.data),
+
+  assignReinspection: (
+    requestId: string,
+    input: { inspectorUserId: string; droneId: string; plannedStartAt: string; plannedEndAt: string },
+  ) =>
+    api
+      .post<ReinspectionRequest>(`/maintenance/manager/reinspection-requests/${requestId}/assign`, input)
+      .then((r) => r.data),
+
+  decideReinspection: (
+    workOrderId: string,
+    requestId: string,
+    input: { decision: 'ACCEPTED' | 'REPAIR_REQUIRED'; note?: string },
+  ) =>
+    api
+      .post<ReinspectionRequest>(`/maintenance/work-orders/${workOrderId}/reinspection-requests/${requestId}/decision`, input)
+      .then((r) => r.data),
 };

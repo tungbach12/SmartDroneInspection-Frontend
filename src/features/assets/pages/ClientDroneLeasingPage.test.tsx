@@ -119,7 +119,7 @@ describe('ClientDroneLeasingPage', () => {
         id: 'org-manager-1',
         email: 'manager@acme.test',
         fullName: 'Organization Manager',
-        roles: ['ORG_MANAGER'],
+        roles: ['CUSTOMER'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
       },

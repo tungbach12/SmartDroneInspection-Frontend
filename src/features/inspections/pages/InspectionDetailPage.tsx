@@ -111,7 +111,7 @@ export default function InspectionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin = roles.includes('ORG_MANAGER') && location.pathname.startsWith('/client/');
+  const isOrganizationAdmin = roles.includes('CUSTOMER') && location.pathname.startsWith('/client/');
   const steps = isOrganizationAdmin ? REVIEWER_STEPS : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'evidence';
   const inspectionQuery = useInspection(inspectionId);

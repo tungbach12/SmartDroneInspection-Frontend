@@ -402,4 +402,67 @@ export function useSuggestWorkOrderScope() {
   });
 }
 
+export function useReinspectionRequests(workOrderId: string) {
+  return useQuery({
+    queryKey: ['maintenance', 'work-orders', workOrderId, 'reinspection-requests'],
+    queryFn: () => maintenanceApi.listCustomerReinspectionRequests(workOrderId),
+  });
+}
+
+export function useManagerReinspectionQueue() {
+  return useQuery({
+    queryKey: ['maintenance', 'manager', 'reinspection-requests'],
+    queryFn: () => maintenanceApi.listManagerReinspectionQueue(),
+  });
+}
+
+export function useRequestReinspection(workOrderId: string) {
+  const invalidate = useWorkOrderInvalidation(workOrderId);
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (input: { maintenanceReportVersionNo: number; findingIds: string[]; note?: string }) =>
+      maintenanceApi.requestReinspection(workOrderId, input),
+    onSuccess: () => {
+      invalidate();
+      showToast('Re-inspection request submitted to platform manager');
+    },
+  });
+}
+
+export function useAssignReinspection() {
+  const showToast = useToastStore((s) => s.showToast);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      input,
+    }: {
+      requestId: string;
+      input: { inspectorUserId: string; droneId: string; plannedStartAt: string; plannedEndAt: string };
+    }) => maintenanceApi.assignReinspection(requestId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance', 'manager', 'reinspection-requests'] });
+      showToast('Re-inspection mission assigned');
+    },
+  });
+}
+
+export function useDecideReinspection(workOrderId: string) {
+  const invalidate = useWorkOrderInvalidation(workOrderId);
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      input,
+    }: {
+      requestId: string;
+      input: { decision: 'ACCEPTED' | 'REPAIR_REQUIRED'; note?: string };
+    }) => maintenanceApi.decideReinspection(workOrderId, requestId, input),
+    onSuccess: () => {
+      invalidate();
+      showToast('Re-inspection result decision recorded');
+    },
+  });
+}
+
 export type { ChangeDecisionInput };

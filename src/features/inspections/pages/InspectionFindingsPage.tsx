@@ -54,7 +54,7 @@ export default function InspectionFindingsPage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const isReviewer = roles.includes('ORG_MANAGER');
+  const isReviewer = roles.includes('CUSTOMER');
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);

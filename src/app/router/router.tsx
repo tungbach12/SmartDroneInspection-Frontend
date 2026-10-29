@@ -129,12 +129,12 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
-  return <Navigate to={roles.includes('ORG_MANAGER') ? 'review' : 'evidence'} replace />;
+  return <Navigate to={roles.includes('CUSTOMER') ? 'review' : 'evidence'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
-  return roles.includes('ORG_MANAGER')
+  return roles.includes('CUSTOMER')
     ? <Navigate to="../review" replace />
     : <InspectionDraftPage />;
 }
@@ -193,7 +193,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                 {
                   path: 'review',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER']}>
+                    <RequireAuth roles={['CUSTOMER']}>
                       <OrganizationReportReviewPage />
                     </RequireAuth>
                   ),
@@ -204,7 +204,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                   // as "editing the report".
                   path: 'corrective',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER']}>
+                    <RequireAuth roles={['CUSTOMER']}>
                       <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),

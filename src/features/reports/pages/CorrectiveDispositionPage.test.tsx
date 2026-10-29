@@ -106,7 +106,7 @@ function finding(overrides: Partial<Finding>): Finding {
 describe('CorrectiveDispositionPage', () => {
   beforeEach(() => {
     cleanup();
-    setRole(['ORG_MANAGER']);
+    setRole(['CUSTOMER']);
     mockedApi.listVersions.mockResolvedValue([version()] as never);
     mockedApi.listFindings.mockResolvedValue([] as never);
     mockedApi.workflowState.mockResolvedValue({

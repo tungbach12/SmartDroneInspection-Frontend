@@ -10,8 +10,8 @@ import { api } from '@/shared/api/client';
 
 export type PlatformUserRole =
   | 'ADMIN'
-  | 'PLATFORM_MANAGER'
-  | 'ORG_MANAGER'
+  | 'MANAGER'
+  | 'CUSTOMER'
   | 'INSPECTOR'
   | 'MAINTENANCE_ENGINEER';
 

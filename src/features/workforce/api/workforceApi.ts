@@ -3,8 +3,8 @@ import { api } from '@/shared/api/client';
 /**
  * The roles an organization manager may grant to a workforce member.
  *
- * ADMIN and ORG_MANAGER are absent on purpose: those accounts are administrator-managed, so an
- * ORG_MANAGER cannot create or promote another privileged account. The backend remains the
+ * ADMIN and CUSTOMER are absent on purpose: those accounts are administrator-managed, so an
+ * CUSTOMER cannot create or promote another privileged account. The backend remains the
  * enforcement boundary — this list only keeps the UI from offering a request it knows is refused.
  */
 export const GRANTABLE_WORKFORCE_ROLES = [
@@ -42,7 +42,7 @@ export interface ProvisionedWorkforceUser {
 
 /**
  * The organization is never a request field on any of these operations: the backend derives the
- * tenant from the authenticated ORG_MANAGER, and a client-supplied scope could only ever widen it.
+ * tenant from the authenticated CUSTOMER, and a client-supplied scope could only ever widen it.
  */
 export interface ProvisionWorkforceUserInput {
   email: string;

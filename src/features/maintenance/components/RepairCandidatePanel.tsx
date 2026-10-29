@@ -60,10 +60,10 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const currentUser = useAuthStore((state) => state.user);
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
-      (member) => member.roles.includes('ORG_MANAGER') && member.status === 'ACTIVE',
+      (member) => member.roles.includes('CUSTOMER') && member.status === 'ACTIVE',
     );
     if (list.length > 0) return list;
-    if (currentUser?.roles.includes('ORG_MANAGER')) {
+    if (currentUser?.roles.includes('CUSTOMER')) {
       return [
         {
           userId: currentUser.id,

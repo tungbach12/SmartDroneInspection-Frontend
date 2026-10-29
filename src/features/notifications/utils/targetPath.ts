@@ -76,7 +76,7 @@ export function resolveSafeNotificationRoute(
       if (!ALLOWED_INSPECTION_SUBROUTES.has(normalizedSubroute)) {
         return null;
       }
-      // Review and corrective are restricted to client portal ORG_MANAGER
+      // Review and corrective are restricted to client portal CUSTOMER
       if ((normalizedSubroute === 'review' || normalizedSubroute === 'corrective') && targetPortal !== 'client') {
         return `/${targetPortal}/inspections/${inspectionId}`;
       }

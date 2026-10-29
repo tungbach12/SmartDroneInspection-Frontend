@@ -37,8 +37,8 @@ const ZONE_LABELS: Record<string, string> = {
 
 const ROLE_LABELS: Record<PlatformUserRole, string> = {
   ADMIN: 'Platform admin',
-  PLATFORM_MANAGER: 'Platform manager',
-  ORG_MANAGER: 'Organization manager',
+  MANAGER: 'Platform manager',
+  CUSTOMER: 'Organization manager',
   INSPECTOR: 'Inspector',
   MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
@@ -48,7 +48,7 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
  *
  * The platform manages the administrator-managed accounts: platform admins, platform managers, and
  * the Organization Manager of each customer workspace. An organization's own workforce is
- * administered by that organization's ORG_MANAGER, so the Inspector and Engineer rows here show
+ * administered by that organization's CUSTOMER, so the Inspector and Engineer rows here show
  * the accounts the platform controls rather than a full workforce roster.
  */
 export default function PlatformUsersPage() {
@@ -272,7 +272,7 @@ export default function PlatformUsersPage() {
                   if (nextZone === 'PLATFORM') {
                     setRoles(['ADMIN']);
                   } else {
-                    setRoles(['ORG_MANAGER']);
+                    setRoles(['CUSTOMER']);
                   }
                 }}
               >
@@ -282,14 +282,14 @@ export default function PlatformUsersPage() {
               <TextField
                 select
                 label={t('Role')}
-                value={roles[0] ?? (actorZone === 'PLATFORM' ? 'ADMIN' : 'ORG_MANAGER')}
+                value={roles[0] ?? (actorZone === 'PLATFORM' ? 'ADMIN' : 'CUSTOMER')}
                 onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
                 helperText={t('The platform manages administrator-managed accounts only.')}
               >
                 {(
                   actorZone === 'PLATFORM'
-                    ? (['ADMIN', 'PLATFORM_MANAGER'] as PlatformUserRole[])
-                    : (['ORG_MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
+                    ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
+                    : (['CUSTOMER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
                 ).map((role) => (
                   <MenuItem key={role} value={role}>
                     {ROLE_LABELS[role]}

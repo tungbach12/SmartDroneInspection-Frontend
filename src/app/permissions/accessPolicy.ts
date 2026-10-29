@@ -2,8 +2,8 @@ import type { Role } from '@/features/auth/store/authStore';
 import type { Locale } from '@/shared/i18n/LocaleProvider';
 
 export const PORTAL_ROLE_ACCESS = {
-  admin: ['ADMIN', 'PLATFORM_MANAGER'],
-  client: ['ORG_MANAGER'],
+  admin: ['ADMIN', 'MANAGER'],
+  client: ['CUSTOMER'],
   operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
 } as const satisfies Record<string, readonly Role[]>;
 
@@ -104,37 +104,37 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
 
 const SECTION_ROLE_ACCESS = {
   admin: {
-    dashboard: ['ADMIN', 'PLATFORM_MANAGER'],
-    assets: ['ADMIN', 'PLATFORM_MANAGER'],
+    dashboard: ['ADMIN', 'MANAGER'],
+    assets: ['ADMIN', 'MANAGER'],
     'asset-catalog': ['ADMIN'],
     'asset-review': [],
-    inspections: ['ADMIN', 'PLATFORM_MANAGER'],
-    reports: ['ADMIN', 'PLATFORM_MANAGER'],
+    inspections: ['ADMIN', 'MANAGER'],
+    reports: ['ADMIN', 'MANAGER'],
     maintenance: ['ADMIN'],
     // Workforce is a customer-organization function; the platform workspace does not expose it.
     workforce: [],
-    subscriptions: ['ADMIN', 'PLATFORM_MANAGER'],
-    'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
+    subscriptions: ['ADMIN', 'MANAGER'],
+    'drone-leasing': ['ADMIN', 'MANAGER'],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
-    settings: ['ADMIN', 'PLATFORM_MANAGER'],
+    settings: ['ADMIN', 'MANAGER'],
   },
   client: {
-    dashboard: ['ORG_MANAGER'],
-    assets: ['ORG_MANAGER'],
+    dashboard: ['CUSTOMER'],
+    assets: ['CUSTOMER'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['ORG_MANAGER'],
-    reports: ['ORG_MANAGER'],
-    maintenance: ['ORG_MANAGER'],
-    // MF1 workforce management is an ORG_MANAGER customer function. ADMIN, INSPECTOR and
+    inspections: ['CUSTOMER'],
+    reports: ['CUSTOMER'],
+    maintenance: ['CUSTOMER'],
+    // MF1 workforce management is an CUSTOMER customer function. ADMIN, INSPECTOR and
     // MAINTENANCE_ENGINEER are deliberately absent rather than granted read-only access.
-    workforce: ['ORG_MANAGER'],
-    subscriptions: ['ORG_MANAGER'],
-    'drone-leasing': ['ORG_MANAGER'],
+    workforce: ['CUSTOMER'],
+    subscriptions: ['CUSTOMER'],
+    'drone-leasing': ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
-    settings: ['ORG_MANAGER'],
+    settings: ['CUSTOMER'],
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
