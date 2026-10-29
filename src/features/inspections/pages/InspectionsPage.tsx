@@ -99,6 +99,9 @@ export default function InspectionsPage() {
   const items = visibleItems;
   const displayedItems = useMemo(() => {
     if (statusFilter === 'ALL') return visibleItems;
+    if (statusFilter === 'RE_INSPECTION') {
+      return visibleItems.filter((item) => item.inspectionType === 'RE_INSPECTION');
+    }
     return visibleItems.filter((item) => item.status === statusFilter);
   }, [visibleItems, statusFilter]);
   const totalCount = inspections.data?.totalCount ?? visibleItems.length;
@@ -286,6 +289,7 @@ export default function InspectionsPage() {
                 sx={{ minWidth: 180 }}
               >
                 <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+                <MenuItem value="RE_INSPECTION">{t('Re-inspections only')}</MenuItem>
                 <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
                 <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
                 <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>

@@ -248,13 +248,28 @@ export default function InspectionDetailPage() {
                     size="small"
                     color="secondary"
                     variant="filled"
-                    label={t('Re-inspection')}
+                    label={
+                      inspection.workOrderId
+                        ? `${t('Re-inspection')} · WO #${inspection.workOrderId.slice(0, 8)}`
+                        : t('Re-inspection')
+                    }
+                    onClick={
+                      inspection.workOrderId
+                        ? () => navigate('/operations/maintenance')
+                        : undefined
+                    }
+                    title={
+                      inspection.workOrderId
+                        ? t('Linked to Maintenance Work Order. Click to view.')
+                        : undefined
+                    }
                     sx={{
                       height: 20,
                       fontSize: '0.7rem',
                       fontWeight: 700,
                       bgcolor: 'secondary.main',
                       color: 'common.white',
+                      cursor: inspection.workOrderId ? 'pointer' : 'default',
                     }}
                   />
                 )}

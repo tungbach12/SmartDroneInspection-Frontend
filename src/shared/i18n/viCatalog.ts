@@ -11,6 +11,8 @@ export const viCatalog: Record<string, string> = {
   ". The PDF is immutable; record corrective outcomes before handing findings to MF4.": ". Tệp PDF không thể chỉnh sửa; hãy ghi nhận kết quả khắc phục trước khi chuyển phát hiện cho MF4.",
   ". The original bytes remain available for audit.": ". Các byte gốc vẫn được lưu để kiểm tra.",
   ":": ":",
+  "Re-inspections only": "Chỉ xem bay lại",
+  "Linked to Maintenance Work Order. Click to view.": "Liên kết với Lệnh công việc bảo trì. Bấm để xem.",
   "Re-inspection completed": "Đã hoàn thành bay lại",
   "Target flight verification on file": "Có báo cáo kiểm chứng thực địa",
   "The flight crew verified the repaired defect in the field. Review the published re-inspection report before deciding final acceptance.": "Đội bay đã kiểm tra thực địa lỗi sau sửa chữa. Hãy xem báo cáo bay lại đã xuất bản trước khi đưa ra quyết định nghiệm thu cuối cùng.",
