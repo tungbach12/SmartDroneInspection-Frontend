@@ -98,8 +98,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     }),
 }));
 
+export function normalizeRole(role: string): Role | null {
+  if (role === 'MANAGER' || role === 'PLATFORM_MANAGER') return 'PLATFORM_MANAGER';
+  if (role === 'CUSTOMER' || role === 'ORG_MANAGER') return 'ORG_MANAGER';
+  if (ROLE_CODES.includes(role as Role)) return role as Role;
+  return null;
+}
+
 export function isRole(value: unknown): value is Role {
-  return typeof value === 'string' && ROLE_CODES.includes(value as Role);
+  return typeof value === 'string' && normalizeRole(value) !== null;
 }
 
 export function useHasRole(): (roles: readonly Role[]) => boolean {

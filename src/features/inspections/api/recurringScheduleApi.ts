@@ -25,6 +25,7 @@ export interface RecurringSchedule {
   assetId: string;
   assetName: string | null;
   assetLocationText: string | null;
+  objective?: string | null;
   createdByUserId: string;
   createdByName: string | null;
   inspectorId: string;

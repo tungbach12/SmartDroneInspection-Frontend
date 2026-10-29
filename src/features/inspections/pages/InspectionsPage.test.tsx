@@ -198,25 +198,25 @@ describe('InspectionsPage', () => {
     expect(await screen.findByRole('row', { name: /Inspection #inspecti/ })).toBeTruthy();
   });
 
-  it('opens the inspection route when a row is chosen, where the MF3 workflow lives', async () => {
+  it('opens an inspection at Step 1 when a row is chosen', async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('row', { name: /Inspect the main span/ }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
-      '/operations/inspections/inspection-1',
+      '/operations/inspections/inspection-1/field-session',
     );
   });
 
-  it('opens the same route from the row action as from the row body', async () => {
+  it('opens an inspection at Step 1 from the row action', async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
-      '/operations/inspections/inspection-1',
+      '/operations/inspections/inspection-1/field-session',
     );
   });
 

@@ -1,31 +1,24 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
-import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import UploadFile from '@mui/icons-material/UploadFile';
+import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
-import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import {
@@ -37,19 +30,10 @@ import {
 } from '../hooks/useInspections';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
 
-/**
- * MF2-09 to MF2-12: the Inspector's field session for one inspection.
- *
- * Starting a session records that the software agreed the paperwork and the pre-flight checklist
- * were in order. It does not arm the aircraft and the startedAt instant is the software's session
- * start, not hardware flight time.
- */
+/** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage() {
   const { formatDateTime, t } = useLocale();
-  const isDark = useIsDarkMode();
-  const navigate = useNavigate();
   const { inspectionId = '' } = useParams();
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
@@ -67,455 +51,281 @@ export default function FieldSessionPage() {
   } | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
 
-  // Checklist verification state
-  const rawItems = inspection?.inspectionItems ?? [];
-  const checklistItems = rawItems.length > 0 ? rawItems : [
-    'Kiểm tra tình trạng thân vỏ & cánh quạt Drone',
-    'Kiểm tra dung lượng Pin & hệ thống truyền tín hiệu',
-    'Kiểm tra không phận & bán kính an toàn khu vực bay',
-    'Khảo sát các điểm xung yếu của công trình theo kế hoạch'
-  ];
-
-  const storageKey = `inspection_checked_items_${inspectionId}`;
-  const confirmedKey = `inspection_checklist_confirmed_${inspectionId}`;
-
-  const [checkedMap, setCheckedMap] = useState<Record<number, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const [checklistConfirmed, setChecklistConfirmed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(confirmedKey) === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const allItemsChecked = checklistItems.every((_, idx) => Boolean(checkedMap[idx]));
-
-  const toggleCheckItem = (idx: number) => {
-    const next = { ...checkedMap, [idx]: !checkedMap[idx] };
-    setCheckedMap(next);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
-  };
-
-  const handleConfirmAndProceed = () => {
-    try {
-      localStorage.setItem(confirmedKey, 'true');
-    } catch {}
-    setChecklistConfirmed(true);
-    navigate('../evidence');
-  };
-
   const items = sessions.data ?? [];
   const openSession = items.find(
     (session) => session.status === 'IN_PROGRESS' || session.status === 'PLANNED',
   );
+  const latestSession = items.at(-1);
+  const hasPermit = Boolean(inspection?.flightPermitFileName);
+  const canStart =
+    !openSession &&
+    hasPermit &&
+    ['READY_FOR_FLIGHT', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
+      inspection?.status ?? '',
+    );
+  const canContinueToEvidence =
+    !openSession &&
+    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(inspection?.status ?? '') ||
+      latestSession?.status === 'FIELD_COMPLETED');
+  const canStartAnother =
+    canStart &&
+    latestSession?.status === 'FIELD_COMPLETED' &&
+    inspection?.status === 'FIELD_COMPLETED';
 
-  const isAssigned = inspection?.status === 'ASSIGNED';
-  const canStart = !isAssigned;
+  const openOutcomeDialog = (
+    session: FieldSession,
+    kind: 'postpone' | 'abort' | 'complete',
+  ) => {
+    setOutcomeReason('');
+    setOutcomeTarget({ session, kind });
+  };
 
   return (
-    <Stack spacing={2}>
-      <Button
-        component={RouterLink}
-        to=".."
-        startIcon={<ArrowBackRounded />}
-        sx={{
-          alignSelf: 'flex-start',
-          color: 'text.secondary',
-          fontWeight: 500,
-          fontSize: '0.875rem',
-          textTransform: 'none',
-          borderRadius: '8px',
-        }}
-      >
-        {t('Back to inspection')}
-      </Button>
-
-      <PageHeader
-        title={t('Field session')}
-        subtitle={t('Record the on-site work: the pre-flight checklist, the session itself, and why it stopped.')}
-      />
-
-      <AirspaceNoFlyMap
-        assetName={inspection?.assetName}
-        locationText={inspection?.locationText}
-        latitude={inspection?.assetLatitude}
-        longitude={inspection?.assetLongitude}
-      />
-
-      {isAssigned && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: '16px',
-            bgcolor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#fffbeb',
-            borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#fde68a',
-          }}
-        >
-          <Stack spacing={1.5}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <FlightTakeoffRounded sx={{ color: isDark ? '#fbbf24' : '#d97706' }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: isDark ? '#fde68a' : '#92400e' }}>
-                {t('Flight Permit Required')}
-              </Typography>
-            </Stack>
-            <Typography variant="body2" sx={{ color: isDark ? '#fef3c7' : '#78350f' }}>
-              {t('Upload an approved flight permit to authorize field flight operations. Uploading unlocks session startup and moves inspection to Ready for Flight.')}
+    <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 960, mx: 'auto' }}>
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+          <FlightTakeoffRounded color="primary" />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {t('On-site session')}
             </Typography>
-            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<UploadFile />}
-                sx={{ bgcolor: 'background.paper' }}
-              >
-                {permitFile ? permitFile.name : t('Choose permit file')}
-                <input
-                  type="file"
-                  hidden
-                  accept=".pdf,image/png,image/jpeg,image/webp"
-                  onChange={(e) => setPermitFile(e.target.files?.[0] ?? null)}
+            <Typography variant="body2" color="text.secondary">
+              {inspection?.assetName ?? t('Field session')}
+            </Typography>
+          </Box>
+        </Stack>
+
+        <QueryState
+          isLoading={inspectionQuery.isLoading}
+          error={inspectionQuery.error}
+          onRetry={() => void inspectionQuery.refetch()}
+          loadingLabel={t('Loading inspection…')}
+        >
+          {inspection && !hasPermit && inspection.status === 'ASSIGNED' ? (
+            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    {t('Flight permit')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t(
+                      'Upload the mission flight document. This records the file only; it does not verify validity or grant permission to fly.',
+                    )}
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<UploadFileRounded />}
+                    sx={{ alignSelf: { sm: 'flex-start' }, maxWidth: '100%' }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
+                      {permitFile?.name ?? t('Choose permit file')}
+                    </Box>
+                    <input
+                      aria-label={t('Choose permit file')}
+                      type="file"
+                      hidden
+                      accept=".pdf,image/png,image/jpeg,image/webp"
+                      onChange={(event) => setPermitFile(event.target.files?.[0] ?? null)}
+                    />
+                  </Button>
+                  <LoadingButton
+                    variant="contained"
+                    disabled={!permitFile}
+                    loading={uploadPermit.isPending}
+                    onClick={() => {
+                      if (!permitFile) return;
+                      uploadPermit.mutate(permitFile, {
+                        onSuccess: () => setPermitFile(null),
+                      });
+                    }}
+                  >
+                    {t('Upload flight permit')}
+                  </LoadingButton>
+                </Stack>
+                <MutationProblemAlert
+                  error={uploadPermit.error}
+                  isError={uploadPermit.isError}
+                  fallbackMessage={t('Could not upload flight permit.')}
                 />
-              </Button>
-              <LoadingButton
-                variant="contained"
-                disabled={!permitFile}
-                loading={uploadPermit.isPending}
-                onClick={() => {
-                  if (permitFile) {
-                    uploadPermit.mutate(permitFile, {
-                      onSuccess: () => setPermitFile(null),
-                    });
-                  }
-                }}
-              >
-                {t('Upload flight permit')}
-              </LoadingButton>
-            </Stack>
-            <MutationProblemAlert
-              error={uploadPermit.error}
-              isError={uploadPermit.isError}
-              fallbackMessage={t('Could not upload flight permit.')}
-            />
-          </Stack>
-        </Paper>
-      )}
-
-      {inspection?.flightPermitFileName && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 1.5,
-            borderRadius: '12px',
-            bgcolor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#f0fdf4',
-            borderColor: isDark ? 'rgba(16, 185, 129, 0.35)' : '#bbf7d0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
-          <Typography variant="body2" sx={{ color: isDark ? '#6ee7b7' : '#166534', fontWeight: 600 }}>
-            {t('Active Flight Permit:')} {inspection.flightPermitFileName}
-          </Typography>
-          {inspection.flightPermitUploadedAt && (
-            <Typography variant="caption" sx={{ color: isDark ? '#a7f3d0' : '#15803d' }}>
-              {t('Uploaded')} {formatDateTime(new Date(inspection.flightPermitUploadedAt))}
-            </Typography>
-          )}
-        </Paper>
-      )}
-
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
-        <Stack spacing={2}>
-          <Stack
-            direction="row"
-            spacing={1.5}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <FlightTakeoffRounded color="primary" />
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {t('Sessions')}
+              </Stack>
+            </Paper>
+          ) : inspection && hasPermit ? (
+            <Paper
+              variant="outlined"
+              sx={{ p: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1.25 }}
+            >
+              <CheckCircleRounded color="success" />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                  {t('Flight document recorded')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('A session starts only after the pre-flight checklist is recorded and readiness holds.')}
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {inspection.flightPermitFileName}
+                  {inspection.flightPermitUploadedAt
+                    ? ` · ${formatDateTime(new Date(inspection.flightPermitUploadedAt))}`
+                    : ''}
                 </Typography>
               </Box>
-            </Stack>
-            <LoadingButton
-              size="small"
-              variant="contained"
-              loading={startSession.isPending}
-              disabled={Boolean(openSession) || !canStart}
-              onClick={() => setStartOpen(true)}
-            >
-              {openSession
-                ? t('Session already open')
-                : !canStart
-                  ? t('Flight permit required')
-                  : t('Start session')}
-            </LoadingButton>
-          </Stack>
+              <Chip size="small" label={t('On file')} color="success" variant="outlined" />
+            </Paper>
+          ) : inspection && inspection.status !== 'ASSIGNED' && !hasPermit ? (
+            <Alert severity="warning" sx={{ borderRadius: 2 }}>
+              {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
+            </Alert>
+          ) : null}
+        </QueryState>
 
-          <MutationProblemAlert
-            error={startSession.error}
-            isError={startSession.isError}
-            fallbackMessage={t('Could not start the field session.')}
-          />
-          <MutationProblemAlert
-            error={outcome.error}
-            isError={outcome.isError}
-            fallbackMessage={t('Could not record the session outcome.')}
-          />
-
-          <QueryState
-            isLoading={sessions.isLoading}
-            error={sessions.error}
-            onRetry={() => void sessions.refetch()}
-            isEmpty={items.length === 0}
-            loadingLabel={t('Loading field sessions…')}
-            empty={
-              <Typography variant="body2" color="text.secondary">
-                {t('No field session yet. Complete the pre-flight checklist on site, then start one.')}
-              </Typography>
-            }
-          >
-            {null}
-          </QueryState>
-
-          {/* Dedicated Interactive Checkpoints / Checklist Section */}
-          <Paper
-            variant="outlined"
-            sx={{
-              p: { xs: 2, sm: 2.5 },
-              borderRadius: '14px',
-              bgcolor: isDark ? 'rgba(30, 41, 59, 0.4)' : '#f8fafc',
-              borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0',
-            }}
-          >
-            <Stack spacing={2}>
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-                  <PlaylistAddCheckRounded color="primary" sx={{ fontSize: 28 }} />
+        <QueryState
+          isLoading={sessions.isLoading}
+          error={sessions.error}
+          onRetry={() => void sessions.refetch()}
+          loadingLabel={t('Loading field sessions…')}
+        >
+          {inspection && (
+            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+              <Stack spacing={2}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+                >
                   <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                      {t('Asset Inspection Checkpoints & Pre-Flight Checklist')}
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      {openSession
+                        ? t('Session in progress')
+                        : canContinueToEvidence
+                          ? t('Field session complete')
+                          : t('No active session')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('Inspectors must verify and mark all structural checkpoints before completing Step 1 and proceeding to Step 2 (Evidence Intake).')}
+                    <Typography variant="body2" color="text.secondary">
+                      {openSession?.startedAt
+                        ? `${t('Started')} ${formatDateTime(new Date(openSession.startedAt))}`
+                        : canContinueToEvidence
+                          ? latestSession?.outcomeNotes ?? t('The latest field session is complete.')
+                          : !hasPermit
+                            ? t('Record the mission flight document before starting the session.')
+                            : t('Enter the required on-site pre-flight note to start this session.')}
                     </Typography>
                   </Box>
-                </Stack>
-                {checklistConfirmed ? (
-                  <Chip
-                    icon={<CheckCircleRounded />}
-                    label={t('Checklist Confirmed & Verified')}
-                    color="success"
-                    variant="filled"
-                    sx={{ fontWeight: 700 }}
-                  />
-                ) : (
-                  <Chip
-                    label={`${Object.values(checkedMap).filter(Boolean).length} / ${checklistItems.length} ${t('Checked')}`}
-                    color={allItemsChecked ? 'primary' : 'default'}
-                    variant="outlined"
-                    sx={{ fontWeight: 600 }}
-                  />
-                )}
-              </Stack>
 
-              <Divider />
-
-              <Stack spacing={1}>
-                {checklistItems.map((item, idx) => {
-                  const isChecked = Boolean(checkedMap[idx]);
-                  return (
-                    <Box
-                      key={idx}
-                      onClick={() => !checklistConfirmed && toggleCheckItem(idx)}
-                      sx={{
-                        p: 1.25,
-                        px: 1.5,
-                        borderRadius: 1.5,
-                        border: '1px solid',
-                        borderColor: isChecked
-                          ? isDark ? 'rgba(16, 185, 129, 0.4)' : '#86efac'
-                          : 'divider',
-                        bgcolor: isChecked
-                          ? isDark ? 'rgba(16, 185, 129, 0.1)' : '#f0fdf4'
-                          : 'background.paper',
-                        cursor: checklistConfirmed ? 'default' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          bgcolor: checklistConfirmed ? undefined : isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9',
-                        },
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                        <Checkbox
-                          checked={isChecked}
-                          disabled={checklistConfirmed}
-                          onChange={() => toggleCheckItem(idx)}
-                          color="success"
-                          sx={{ p: 0.5 }}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: isChecked ? 600 : 500,
-                            color: isChecked ? (isDark ? '#6ee7b7' : '#166534') : 'text.primary',
-                            textDecoration: isChecked && checklistConfirmed ? 'none' : 'none',
-                          }}
-                        >
-                          {idx + 1}. {item}
-                        </Typography>
-                      </Stack>
-                      <Chip
-                        label={isChecked ? t('Verified') : t('Pending')}
-                        size="small"
-                        color={isChecked ? 'success' : 'default'}
-                        variant={isChecked ? 'filled' : 'outlined'}
-                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-                      />
-                    </Box>
-                  );
-                })}
-              </Stack>
-
-              <Box sx={{ pt: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
-                {!checklistConfirmed ? (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="medium"
-                    endIcon={<ArrowForwardRounded />}
-                    disabled={!allItemsChecked}
-                    onClick={handleConfirmAndProceed}
-                    sx={{ fontWeight: 700, px: 2.5 }}
-                  >
-                    {t('Confirm Checklist Done & Proceed to Step 2 (Upload Evidence)')}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="medium"
-                    endIcon={<ArrowForwardRounded />}
-                    onClick={() => navigate('../evidence')}
-                    sx={{ fontWeight: 700 }}
-                  >
-                    {t('Go to Step 2 (Upload Evidence)')}
-                  </Button>
-                )}
-              </Box>
-            </Stack>
-          </Paper>
-
-          {items.length > 0 ? (
-            <Stack spacing={1.5}>
-              {items.map((session) => (
-                <Box
-                  key={session.id}
-                  sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
-                >
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-                  >
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                        {session.startedAt
-                          ? `${t('Started')} ${formatDateTime(new Date(session.startedAt))}`
-                          : t('Not started')}
-                      </Typography>
-                      {session.endedAt ? (
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {t('Ended')} {formatDateTime(new Date(session.endedAt))}
-                        </Typography>
-                      ) : null}
-                    </Box>
-                    <StatusChip status={session.status} />
-                  </Stack>
-
-                  {session.postponementReason ? (
-                    <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 0.5 }}>
-                      {t('Postponed:')} {session.postponementReason}
-                    </Typography>
-                  ) : null}
-                  {session.abortReason ? (
-                    <Typography variant="caption" sx={{ color: 'error.main', display: 'block', mt: 0.5 }}>
-                      {t('Aborted:')} {session.abortReason}
-                    </Typography>
-                  ) : null}
-                  {session.status === 'FIELD_COMPLETED' && session.outcomeNotes ? (
-                    <Typography variant="caption" sx={{ color: 'success.main', display: 'block', mt: 0.5 }}>
-                      {t('Outcome notes:')} {session.outcomeNotes}
-                    </Typography>
-                  ) : null}
-
-                  {session.status === 'IN_PROGRESS' ? (
-                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  {openSession ? (
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                       <Button
-                        size="small"
                         variant="contained"
                         color="success"
-                        onClick={() => {
-                          setOutcomeReason('');
-                          setOutcomeTarget({ session, kind: 'complete' });
-                        }}
+                        onClick={() => openOutcomeDialog(openSession, 'complete')}
                       >
                         {t('Complete session')}
                       </Button>
                       <Button
-                        size="small"
                         variant="outlined"
-                        onClick={() => {
-                          setOutcomeReason('');
-                          setOutcomeTarget({ session, kind: 'postpone' });
-                        }}
+                        onClick={() => openOutcomeDialog(openSession, 'postpone')}
                       >
                         {t('Postpone')}
                       </Button>
                       <Button
-                        size="small"
                         variant="outlined"
                         color="error"
-                        onClick={() => {
-                          setOutcomeReason('');
-                          setOutcomeTarget({ session, kind: 'abort' });
-                        }}
+                        onClick={() => openOutcomeDialog(openSession, 'abort')}
                       >
                         {t('Abort')}
                       </Button>
                     </Stack>
-                  ) : null}
-                </Box>
+                  ) : canContinueToEvidence ? (
+                    <Stack direction="row" spacing={1}>
+                      {canStartAnother && (
+                        <Button variant="outlined" onClick={() => setStartOpen(true)}>
+                          {t('Start another session')}
+                        </Button>
+                      )}
+                      <Button component={RouterLink} to="../evidence" variant="contained">
+                        {t('Continue to evidence')}
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <LoadingButton
+                      variant="contained"
+                      loading={startSession.isPending}
+                      disabled={!canStart}
+                      onClick={() => setStartOpen(true)}
+                    >
+                      {t('Start session')}
+                    </LoadingButton>
+                  )}
+                </Stack>
+
+                {openSession?.preFlightChecklistNote && (
+                  <Box sx={{ pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Pre-flight note')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {openSession.preFlightChecklistNote}
+                    </Typography>
+                  </Box>
+                )}
+
+                <MutationProblemAlert
+                  error={startSession.error}
+                  isError={startSession.isError}
+                  fallbackMessage={t('Could not start the field session.')}
+                />
+                <MutationProblemAlert
+                  error={outcome.error}
+                  isError={outcome.isError}
+                  fallbackMessage={t('Could not record the session outcome.')}
+                />
+              </Stack>
+            </Paper>
+          )}
+        </QueryState>
+
+        {items.length > 1 && (
+          <Box component="details" sx={{ '& > summary': { cursor: 'pointer', color: 'text.secondary' } }}>
+            <Typography component="summary" variant="body2">
+              {t('Session history')} · {items.length}
+            </Typography>
+            <Stack spacing={1} sx={{ pt: 1.5 }}>
+              {items.slice(0, -1).reverse().map((session) => (
+                <Paper key={session.id} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {session.startedAt
+                          ? formatDateTime(new Date(session.startedAt))
+                          : t('Session record')}
+                      </Typography>
+                      <StatusChip status={session.status} />
+                    </Stack>
+                    {session.postponementReason && (
+                      <Typography variant="body2" color="warning.main">
+                        {t('Postponed:')} {session.postponementReason}
+                      </Typography>
+                    )}
+                    {session.abortReason && (
+                      <Typography variant="body2" color="error.main">
+                        {t('Aborted:')} {session.abortReason}
+                      </Typography>
+                    )}
+                    {session.outcomeNotes && (
+                      <Typography variant="body2" color="text.secondary">
+                        {session.outcomeNotes}
+                      </Typography>
+                    )}
+                  </Stack>
+                </Paper>
               ))}
             </Stack>
-          ) : null}
-
-          <Alert severity="info">
-            {t("Starting a session records the software's agreement that the paperwork and the pre-flight checklist were in order. It does not arm the aircraft, and the recorded start time is not hardware flight time.")}
-          </Alert>
-        </Stack>
-      </Paper>
+          </Box>
+        )}
+      </Stack>
 
       <Dialog open={startOpen} onClose={() => setStartOpen(false)} fullWidth maxWidth="sm">
         <form
@@ -529,37 +339,38 @@ export default function FieldSessionPage() {
             });
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>{t('Start the field session')}</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Start a field session')}</DialogTitle>
           <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
+            <Stack spacing={1.5} sx={{ mt: 1 }}>
+              <TextField
+                label={t('Pre-flight note')}
+                required
+                multiline
+                minRows={3}
+                value={preFlightNote}
+                onChange={(event) => setPreFlightNote(event.target.value)}
+                helperText={t('Describe the checks you completed at the site. This note is stored with the session.')}
+              />
+              <Alert severity="info">
+                {t('Starting records the Inspector’s session in software. It does not arm the aircraft or grant flight authorization.')}
+              </Alert>
               <MutationProblemAlert
                 error={startSession.error}
                 isError={startSession.isError}
                 fallbackMessage={t('Could not start the field session.')}
               />
-              <TextField
-                label={t('Pre-flight checklist note')}
-                required
-                multiline
-                minRows={4}
-                value={preFlightNote}
-                onChange={(event) => setPreFlightNote(event.target.value)}
-                helperText={t('Record what you checked on site: the assigned drone, its condition, the site access and the weather.')}
-              />
-              <Alert severity="warning">
-                {t('This note is your own record of the check. It is stored with the session and read by the reviewer.')}
-              </Alert>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setStartOpen(false)}>{t('Cancel')}</Button>
-            <Button
+            <LoadingButton
               type="submit"
               variant="contained"
+              loading={startSession.isPending}
               disabled={!preFlightNote.trim()}
             >
               {t('Start session')}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </form>
       </Dialog>
@@ -567,7 +378,8 @@ export default function FieldSessionPage() {
       <Dialog
         open={Boolean(outcomeTarget)}
         onClose={() => setOutcomeTarget(null)}
-        fullWidth maxWidth="sm"
+        fullWidth
+        maxWidth="sm"
       >
         <form
           onSubmit={(event) => {
@@ -585,58 +397,53 @@ export default function FieldSessionPage() {
         >
           <DialogTitle sx={{ fontWeight: 700 }}>
             {outcomeTarget?.kind === 'abort'
-              ? t('Abort the session')
+              ? t('Stop the session')
               : outcomeTarget?.kind === 'complete'
                 ? t('Complete the session')
                 : t('Postpone the session')}
           </DialogTitle>
           <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <MutationProblemAlert
-                error={outcome.error}
-                isError={outcome.isError}
-                fallbackMessage={t('Could not record the session outcome.')}
-              />
+            <Stack spacing={1.5} sx={{ mt: 1 }}>
               <TextField
-                label={outcomeTarget?.kind === 'complete' ? t('Outcome notes') : t('Reason')}
+                label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Reason')}
                 required
                 multiline
                 minRows={3}
                 value={outcomeReason}
                 onChange={(event) => setOutcomeReason(event.target.value)}
                 helperText={
-                  outcomeTarget?.kind === 'abort'
-                    ? t('Why this session cannot continue and will not resume under this record.')
-                    : outcomeTarget?.kind === 'complete'
-                      ? t('Summarize the on-site coverage and any field observations recorded during this session.')
-                      : t('Why the work stopped for now. The inspection stays startable.')
+                  outcomeTarget?.kind === 'complete'
+                    ? t('Summarize the work completed at the site.')
+                    : outcomeTarget?.kind === 'abort'
+                      ? t('Explain why this session cannot continue.')
+                      : t('Explain why work must pause. The inspection can be started again later.')
                 }
+              />
+              <MutationProblemAlert
+                error={outcome.error}
+                isError={outcome.isError}
+                fallbackMessage={t('Could not record the session outcome.')}
               />
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOutcomeTarget(null)}>{t('Cancel')}</Button>
-            <Button
+            <LoadingButton
               type="submit"
               variant="contained"
-              color={
-                outcomeTarget?.kind === 'abort'
-                  ? 'error'
-                  : outcomeTarget?.kind === 'complete'
-                    ? 'success'
-                    : 'primary'
-              }
+              color={outcomeTarget?.kind === 'abort' ? 'error' : outcomeTarget?.kind === 'complete' ? 'success' : 'primary'}
+              loading={outcome.isPending}
               disabled={!outcomeReason.trim()}
             >
               {outcomeTarget?.kind === 'abort'
-                ? t('Abort session')
+                ? t('Stop session')
                 : outcomeTarget?.kind === 'complete'
                   ? t('Complete session')
                   : t('Postpone session')}
-            </Button>
+            </LoadingButton>
           </DialogActions>
         </form>
       </Dialog>
-    </Stack>
+    </Box>
   );
 }

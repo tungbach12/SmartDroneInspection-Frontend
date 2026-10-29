@@ -236,6 +236,8 @@ export interface InspectionListItem {
   reportId: string | null;
   reportStatus: ReportStatus | null;
   reportVersionNo: number | null;
+  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
+  workOrderId?: string | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *
@@ -289,6 +291,10 @@ export interface InspectionDetail {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   status: InspectionStatus;
+  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
+  workOrderId?: string | null;
+  sourceInspectionId?: string | null;
+  sourceReportVersionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -301,6 +307,30 @@ export type FieldSessionStatus =
   | 'ABORTED';
 
 /** One field session of an inspection, as MF2-09 to MF2-12 record it. */
+export interface ReinspectionVerificationItem {
+  id: string;
+  reinspectionId: string;
+  sourceFindingId: string;
+  sourceFindingCode?: string | null;
+  sourceDefectLabel?: string | null;
+  sourceSeverity?: string | null;
+  sourceTechnicalNotes?: string | null;
+  sourceEvidenceId?: string | null;
+  sourceEvidenceFileKey?: string | null;
+  newEvidenceId?: string | null;
+  newEvidenceFileKey?: string | null;
+  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
+  inspectorNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateDefectVerificationPayload {
+  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
+  newEvidenceId?: string | null;
+  inspectorNotes?: string | null;
+}
+
 export interface FieldSession {
   id: string;
   inspectionId: string;
@@ -600,6 +630,25 @@ export const inspectionApi = {
       .get<Blob>(
         `/inspections/${inspectionId}/report/versions/${versionId}/document`,
         { responseType: 'blob' },
+      )
+      .then((response) => response.data),
+
+  getReinspectionVerifications: (inspectionId: string) =>
+    api
+      .get<ReinspectionVerificationItem[]>(
+        `/inspections/${inspectionId}/reinspection-verifications`,
+      )
+      .then((response) => response.data),
+
+  updateReinspectionVerification: (
+    inspectionId: string,
+    verificationId: string,
+    payload: UpdateDefectVerificationPayload,
+  ) =>
+    api
+      .put<ReinspectionVerificationItem>(
+        `/inspections/${inspectionId}/reinspection-verifications/${verificationId}`,
+        payload,
       )
       .then((response) => response.data),
 };

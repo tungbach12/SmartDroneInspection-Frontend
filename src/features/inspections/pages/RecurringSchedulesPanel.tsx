@@ -195,8 +195,13 @@ export function RecurringSchedulesPanel({ onOpenCreateDialog }: RecurringSchedul
                 <TableRow key={schedule.id} hover>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {schedule.assetName || schedule.assetId}
+                      {schedule.objective || schedule.assetName || schedule.assetId}
                     </Typography>
+                    {schedule.assetName && schedule.objective && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {schedule.assetName}
+                      </Typography>
+                    )}
                     {schedule.assetLocationText && (
                       <Typography variant="caption" color="text.secondary">
                         {schedule.assetLocationText}

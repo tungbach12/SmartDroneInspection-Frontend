@@ -43,8 +43,12 @@ import {
   useConfirmFinding,
   useRemovedFindings,
   useRestoreFinding,
+  useInspection,
+  useReinspectionVerifications,
+  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
 import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
+import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -55,6 +59,13 @@ export default function InspectionFindingsPage() {
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
   const isReviewer = roles.includes('ORG_MANAGER');
+
+  const inspectionQuery = useInspection(inspectionId);
+  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
+  const reinspectionVerifications = useReinspectionVerifications(
+    isReinspection ? inspectionId : null,
+  );
+  const updateVerificationMutation = useUpdateReinspectionVerification(inspectionId);
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -358,6 +369,20 @@ export default function InspectionFindingsPage() {
 
   return (
     <Stack spacing={2.5}>
+      {/* Re-inspection Target Defect Verifications */}
+      {isReinspection && (
+        <ReinspectionVerificationSection
+          inspectionId={inspectionId}
+          sourceInspectionId={inspectionQuery.data?.sourceInspectionId}
+          items={reinspectionVerifications.data ?? []}
+          evidenceList={activeEvidenceItems}
+          onUpdate={(verificationId, payload) =>
+            updateVerificationMutation.mutateAsync({ verificationId, payload })
+          }
+          readOnly={!isInspector || isFindingsLocked}
+        />
+      )}
+
       {/* 1. Page Header with Clean Single-Row Actions */}
       <Paper
         elevation={0}

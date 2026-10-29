@@ -29,6 +29,7 @@ import {
   useInspectionEvidence,
   useSaveReportSections,
   useInspectionWorkflowState,
+  useReinspectionVerifications,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
@@ -65,6 +66,7 @@ export default function ReportDetailPage() {
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
+  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const workflowState = useInspectionWorkflowState(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
@@ -494,6 +496,7 @@ export default function ReportDetailPage() {
                 inspectionId={inspectionId}
                 canEdit={canAuthor && (openVersion.status === 'DRAFT' || canEditReturnedText)}
                 onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
+                reinspectionVerifications={reinspectionVerifications.data}
               />
             </>
           )}

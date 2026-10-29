@@ -156,7 +156,7 @@ describe('InspectionEvidencePage', () => {
 
     const { rerender } = renderWithRouter(<InspectionEvidencePage />);
     expect(screen.getByRole('button', { name: 'Choose evidence files' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Retire from current evidence set' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete evidence' })).toBeTruthy();
     expect(screen.queryByText(/Reopen Findings/)).toBeNull();
 
     mocks.versions = {
@@ -168,7 +168,7 @@ describe('InspectionEvidencePage', () => {
     mocks.workflowQuery = { data: { status: 'REPORT_DRAFT' }, isLoading: false, error: null, refetch: vi.fn() };
     rerender(<InspectionEvidencePage />);
     expect(screen.queryByRole('button', { name: 'Choose evidence files' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Retire from current evidence set' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete evidence' })).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Withdraw the submission if it has not been reviewed');
   });
 
@@ -182,8 +182,6 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('heading', { name: 'Evidence coverage' })).toBeTruthy();
-    expect(screen.getByText(/does not issue an evidence-quality decision/i)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Evidence intake' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
     expect(screen.queryByLabelText(/shot-list comparison/i)).toBeNull();
@@ -229,7 +227,7 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 
-  it('links back to the checkpoints in field session without requiring an evidence-quality decision', () => {
+  it('omits the redundant evidence coverage card and checkpoints link', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -238,7 +236,8 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('link', { name: /checkpoints in field session/i })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Evidence coverage' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /checkpoints in field session/i })).toBeNull();
     expect(screen.queryByLabelText(/why is another field session needed/i)).toBeNull();
   });
 
@@ -257,11 +256,11 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByText('span.png')).toBeTruthy();
+    expect(screen.getAllByText('span.png').length).toBeGreaterThan(0);
     expect(screen.queryByText('retired-span.png')).toBeNull();
 
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Evidence status' }));
-    fireEvent.click(screen.getByRole('option', { name: /Retired audit \(1\)/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Deleted \(1\)/ }));
     expect(mocks.queryEvidence).toHaveBeenCalledWith(
       'inspection-1',
       expect.objectContaining({ status: 'RETIRED', page: 1 }),
@@ -300,9 +299,9 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.queryByText('Retired')).toBeNull();
+    expect(screen.queryByText('Deleted')).toBeNull();
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Evidence status' }));
-    fireEvent.click(screen.getByRole('option', { name: /Retired audit \(1\)/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Deleted \(1\)/ }));
 
     expect(mocks.queryEvidence).toHaveBeenCalledWith(
       'inspection-1',
@@ -312,16 +311,16 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
   });
 
-  it('offers a soft-retire action while the report is editable', () => {
+  it('offers a delete action while the report is editable', () => {
     mocks.evidenceQuery = { data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null }, isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionEvidencePage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retire from current evidence set' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete evidence' }));
 
     expect(mocks.retire.mutate).toHaveBeenCalledWith('evidence-1');
   });
 
-  it('allows bulk retiring active captures without a UI-only reason', async () => {
+  it('allows bulk deleting active captures without a UI-only reason', async () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence(), { ...imageEvidence(), id: 'evidence-2', fileName: 'span2.png' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 1, activeCount: 2, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
       isLoading: false,
@@ -330,8 +329,9 @@ describe('InspectionEvidencePage', () => {
     };
     renderWithRouter(<InspectionEvidencePage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Bulk retire all active/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm bulk retire' }));
+    fireEvent.click(screen.getByRole('button', { name: /Select all/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete all/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
 
     expect(mocks.bulkRetire.mutateAsync).toHaveBeenCalledWith(['evidence-1', 'evidence-2']);
   });
@@ -378,6 +378,13 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByRole('button', { name: 'Additional session needed' })).toBeNull();
   });
 
+  it('allows uploading evidence when a completed field session exists even if workflow status is READY_FOR_FLIGHT', () => {
+    mocks.workflowQuery = { data: { status: 'READY_FOR_FLIGHT' }, isLoading: false, error: null, refetch: vi.fn() };
+    renderWithRouter(<InspectionEvidencePage />);
+
+    expect(screen.getByRole('button', { name: 'Choose evidence files' })).toBeTruthy();
+  });
+
   it('renders the stored evidence register without non-persisted checksum/source fields', () => {
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null },
@@ -389,7 +396,7 @@ describe('InspectionEvidencePage', () => {
 
     expect(screen.getByText('Evidence register')).toBeTruthy();
     expect(screen.getByText('Showing 1 of 1 matching captures')).toBeTruthy();
-    expect(screen.getByText('span.png')).toBeTruthy();
+    expect(screen.getAllByText('span.png').length).toBeGreaterThan(0);
     expect(screen.queryByText(/abcdef1234567890/)).toBeNull();
     expect(screen.queryByText(/WEB_UPLOAD/)).toBeNull();
     // AuthenticatedImage renders the stored content endpoint on its image element.

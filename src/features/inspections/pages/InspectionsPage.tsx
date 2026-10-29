@@ -53,9 +53,12 @@ export default function InspectionsPage() {
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
   const isOrganizationAdmin = roles.includes('ORG_MANAGER');
+  const isPlatformManager = roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER');
+  const isReviewer = isOrganizationAdmin || isPlatformManager;
   const canBrowse =
     roles.includes('INSPECTOR') ||
     roles.includes('ORG_MANAGER') ||
+    roles.includes('PLATFORM_MANAGER') ||
     roles.includes('ADMIN');
   const isOrgAdmin = roles.includes('ORG_MANAGER');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
@@ -81,17 +84,16 @@ export default function InspectionsPage() {
   const inspections = view === 'reports' ? reportInspections : allInspections;
 
   const openInspection = (inspectionId: string) => {
-    if (!isOrganizationAdmin) {
-      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}`);
+    const row = visibleItems.find((item) => item.id === inspectionId);
+    if (isReviewer && view === 'reports') {
+      const target =
+        row?.pendingAction === 'CORRECTIVE_DISPOSITION'
+          ? 'corrective'
+          : 'review';
+      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
       return;
     }
-    // The reviewer opens the phase the row is actually waiting in, rather than a fixed tab.
-    const row = visibleItems.find((item) => item.id === inspectionId);
-    const target =
-      row?.pendingAction === 'CORRECTIVE_DISPOSITION'
-        ? 'corrective'
-        : 'review';
-    navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${target}`);
+    navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/field-session`);
   };
 
   // Metrics calculation
@@ -99,6 +101,9 @@ export default function InspectionsPage() {
   const items = visibleItems;
   const displayedItems = useMemo(() => {
     if (statusFilter === 'ALL') return visibleItems;
+    if (statusFilter === 'RE_INSPECTION') {
+      return visibleItems.filter((item) => item.inspectionType === 'RE_INSPECTION');
+    }
     return visibleItems.filter((item) => item.status === statusFilter);
   }, [visibleItems, statusFilter]);
   const totalCount = inspections.data?.totalCount ?? visibleItems.length;
@@ -286,6 +291,7 @@ export default function InspectionsPage() {
                 sx={{ minWidth: 180 }}
               >
                 <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+                <MenuItem value="RE_INSPECTION">{t('Re-inspections only')}</MenuItem>
                 <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
                 <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
                 <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
