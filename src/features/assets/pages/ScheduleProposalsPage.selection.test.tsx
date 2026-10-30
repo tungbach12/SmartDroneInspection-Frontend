@@ -78,7 +78,7 @@ describe('ScheduleProposalsPage selection outcomes', () => {
   });
 
   it('offers Select only on an approved row, which is the only status the organization-manager list returns', () => {
-    // listForOrgAdmin filters on MANAGER_APPROVED, so an ORG_MANAGER caller receives only that status.
+    // listForOrgAdmin filters on MANAGER_APPROVED, so an CUSTOMER caller receives only that status.
     // Every row is therefore offered the action, and the gate never hides one.
     proposals = [baseProposal, { ...baseProposal, id: 'p2', frequencyInterval: 6 }];
 

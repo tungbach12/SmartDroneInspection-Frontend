@@ -36,11 +36,11 @@ const PLATFORM_ADMIN = {
   organizationId: null,
 };
 
-const ORG_MANAGER = {
+const CUSTOMER = {
   id: 'org-manager-1',
   email: 'org.manager@example.test',
   fullName: 'Organization Manager',
-  roles: ['ORG_MANAGER'],
+  roles: ['CUSTOMER'],
   actorZone: 'CUSTOMER_ORGANIZATION',
   organizationId: 'org-1',
 };
@@ -59,16 +59,16 @@ function renderWithClient() {
 describe('PlatformUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.list.mockResolvedValue([PLATFORM_ADMIN, ORG_MANAGER]);
+    mocks.list.mockResolvedValue([PLATFORM_ADMIN, CUSTOMER]);
     mocks.create.mockResolvedValue({
       user: { ...PLATFORM_ADMIN, id: 'new-1', email: 'new.admin@example.test' },
       temporaryPassword: 'Temp-Password-123',
     });
     mocks.resetPassword.mockResolvedValue({
-      user: ORG_MANAGER,
+      user: CUSTOMER,
       temporaryPassword: 'Reset-Password-456',
     });
-    mocks.updateStatus.mockResolvedValue(ORG_MANAGER);
+    mocks.updateStatus.mockResolvedValue(CUSTOMER);
   });
 
   afterEach(() => {
@@ -82,7 +82,7 @@ describe('PlatformUsersPage', () => {
     expect(screen.getByText('org.manager@example.test')).toBeTruthy();
     expect(screen.getByText('Customer organization')).toBeTruthy();
     expect(screen.getAllByText('ADMIN').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('ORG_MANAGER').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CUSTOMER').length).toBeGreaterThan(0);
   });
 
   it('shows the one-time temporary password after creating an account', async () => {
@@ -121,7 +121,7 @@ describe('PlatformUsersPage', () => {
         fullName: 'Platform Manager User',
         actorZone: 'PLATFORM',
         organizationId: null,
-        roles: ['PLATFORM_MANAGER'],
+        roles: ['MANAGER'],
       }),
     );
   });
@@ -151,6 +151,6 @@ describe('PlatformUsersPage', () => {
       }),
     );
     const [calledUserId] = mocks.updateStatus.mock.calls[0] as [string];
-    expect([PLATFORM_ADMIN.id, ORG_MANAGER.id]).toContain(calledUserId);
+    expect([PLATFORM_ADMIN.id, CUSTOMER.id]).toContain(calledUserId);
   });
 });

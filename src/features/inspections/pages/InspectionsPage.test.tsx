@@ -1,4 +1,4 @@
-﻿import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -285,7 +285,7 @@ describe('InspectionsPage', () => {
   });
 
   it('presents an Organization Manager review queue with status-specific next actions', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.reportsQuery = {
       data: {
         items: [
@@ -323,7 +323,7 @@ describe('InspectionsPage', () => {
   });
 
   it('opens the phase a row is waiting in, rather than a fixed tab', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.reportsQuery = {
       data: {
         items: [
@@ -371,7 +371,7 @@ describe('InspectionsPage', () => {
       refetch: vi.fn(),
     };
 
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     renderPage('/client/inspections?view=reports');
 
     expect(mocks.useReportsArgs?.[1]).toBe(true);
@@ -380,10 +380,10 @@ describe('InspectionsPage', () => {
   });
 
   it('renders recurring schedules when the schedules view is active via query param', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     renderPage('/client/inspections?view=schedules');
 
-    expect(await screen.findByText('Weekly Bridge Inspection')).toBeTruthy();
+    expect(await screen.findByText('Bridge Alpha')).toBeTruthy();
   });
 
   it('does not show view-switch buttons because navigation is driven by direct sidebar destinations', async () => {

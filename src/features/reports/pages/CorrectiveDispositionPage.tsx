@@ -44,7 +44,7 @@ export default function CorrectiveDispositionPage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const roles = useAuthStore((state) => state.roles);
-  const canReview = roles.includes('ORG_MANAGER');
+  const canReview = roles.includes('CUSTOMER');
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);

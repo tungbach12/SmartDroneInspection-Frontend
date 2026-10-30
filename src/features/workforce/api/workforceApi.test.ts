@@ -54,7 +54,7 @@ describe('workforceApi', () => {
       roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
     });
 
-    // The backend derives the tenant from the authenticated ORG_MANAGER, so the organization is never
+    // The backend derives the tenant from the authenticated CUSTOMER, so the organization is never
     // a request field — sending one would be a scope the client has no authority to widen.
     const body = vi.mocked(api.post).mock.calls[0]![1] as Record<string, unknown>;
     expect(body).not.toHaveProperty('organizationId');
@@ -95,10 +95,10 @@ describe('workforceApi', () => {
 
 describe('grantable workforce roles', () => {
   it('offers only the two workforce roles an organization manager may grant', () => {
-    // ADMIN and ORG_MANAGER are deliberately absent: they are administrator-managed accounts, not
+    // ADMIN and CUSTOMER are deliberately absent: they are administrator-managed accounts, not
     // workforce members an organization manager can provision.
     expect([...GRANTABLE_WORKFORCE_ROLES]).toEqual(['INSPECTOR', 'MAINTENANCE_ENGINEER']);
     expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('ADMIN');
-    expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('ORG_MANAGER');
+    expect(GRANTABLE_WORKFORCE_ROLES).not.toContain('CUSTOMER');
   });
 });

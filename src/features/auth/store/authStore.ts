@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 export const ROLE_CODES = [
   'ADMIN',
-  'PLATFORM_MANAGER',
-  'ORG_MANAGER',
+  'MANAGER',
+  'CUSTOMER',
   'INSPECTOR',
   'MAINTENANCE_ENGINEER',
 ] as const;
@@ -11,7 +11,11 @@ export const ROLE_CODES = [
 export const KNOWN_ROLES = ROLE_CODES;
 
 export type Role = (typeof ROLE_CODES)[number];
-export type ActorZone = 'PLATFORM' | 'CUSTOMER_ORGANIZATION';
+export type ActorZone =
+  | 'PLATFORM'
+  | 'CUSTOMER_ORGANIZATION'
+  | 'INSPECTOR_PARTNER'
+  | 'PROSPECT_CUSTOMER';
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
 export interface AuthUser {
@@ -99,8 +103,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 
 export function normalizeRole(role: string): Role | null {
-  if (role === 'MANAGER' || role === 'PLATFORM_MANAGER') return 'PLATFORM_MANAGER';
-  if (role === 'CUSTOMER' || role === 'ORG_MANAGER') return 'ORG_MANAGER';
+  if (role === 'PLATFORM_MANAGER') return 'MANAGER';
+  if (role === 'ORG_MANAGER') return 'CUSTOMER';
   if (ROLE_CODES.includes(role as Role)) return role as Role;
   return null;
 }

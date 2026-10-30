@@ -92,13 +92,13 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionDraftPage from './InspectionDraftPage';
 
-function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'CUSTOMER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
+      fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -323,7 +323,7 @@ describe('InspectionDraftPage', () => {
   });
 
   it('shows the reviewer read-only report view without Inspector draft controls', () => {
-    signInAs('ORG_MANAGER');
+    signInAs('CUSTOMER');
     mocks.versionsQuery = {
       data: [
         {

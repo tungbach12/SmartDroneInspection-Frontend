@@ -152,7 +152,7 @@ describe('ReportDetailPage MF3 gates', () => {
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
       findingsSnapshotHash: 'abc123',
     });
-    setRole(['ORG_MANAGER']);
+    setRole(['CUSTOMER']);
   });
 
   it('allows the Organization Manager to approve the report without per-finding decisions', async () => {
@@ -474,7 +474,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('returns to the reports queue on the inspections list', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
 
-    setRole(['ORG_MANAGER']);
+    setRole(['CUSTOMER']);
     renderPage('/client/reports/inspection-1');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Back to review queue' }));

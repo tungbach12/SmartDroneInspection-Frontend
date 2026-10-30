@@ -49,15 +49,15 @@ export default function InspectionsPage() {
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin = roles.includes('ORG_MANAGER');
-  const isPlatformManager = roles.includes('ADMIN') || roles.includes('PLATFORM_MANAGER');
+  const isOrganizationAdmin = roles.includes('CUSTOMER');
+  const isPlatformManager = roles.includes('ADMIN') || roles.includes('MANAGER');
   const isReviewer = isOrganizationAdmin || isPlatformManager;
   const canBrowse =
     roles.includes('INSPECTOR') ||
-    roles.includes('ORG_MANAGER') ||
-    roles.includes('PLATFORM_MANAGER') ||
+    roles.includes('CUSTOMER') ||
+    roles.includes('MANAGER') ||
     roles.includes('ADMIN');
-  const isOrgAdmin = roles.includes('ORG_MANAGER');
+  const isOrgAdmin = roles.includes('CUSTOMER');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');

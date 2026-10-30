@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const roles = vi.hoisted(() => ({ current: ['ORG_MANAGER'] as string[] }));
+const roles = vi.hoisted(() => ({ current: ['CUSTOMER'] as string[] }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) => selector({ roles: roles.current }),
@@ -44,11 +44,11 @@ import { AssetsPage } from './AssetsPage';
 describe('AssetsPage resource tabs', () => {
   afterEach(() => {
     cleanup();
-    roles.current = ['ORG_MANAGER'];
+    roles.current = ['CUSTOMER'];
   });
 
-  it('exposes the Drones tab to ORG_MANAGER and does not include Permits tab', () => {
-    roles.current = ['ORG_MANAGER'];
+  it('exposes the Drones tab to CUSTOMER and does not include Permits tab', () => {
+    roles.current = ['CUSTOMER'];
     render(<AssetsPage />);
     expect(screen.getByRole('tab', { name: 'Assets' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Drones' })).toBeTruthy();

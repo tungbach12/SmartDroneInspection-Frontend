@@ -54,13 +54,13 @@ function LocationProbe() {
   return <div data-testid="route-path">{location.pathname}</div>;
 }
 
-function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'CUSTOMER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
+      fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -110,7 +110,7 @@ describe('InspectionDetailPage', () => {
   });
 
   it('renders an Organization Manager review workspace first and returns to the review queue', () => {
-    signInAs('ORG_MANAGER');
+    signInAs('CUSTOMER');
     render(<><InspectionDetailPage /><LocationProbe /></>, { route: '/client/inspections/inspection-1' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
