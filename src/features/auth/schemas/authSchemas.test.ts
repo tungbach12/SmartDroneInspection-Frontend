@@ -95,7 +95,7 @@ describe('authentication form validation', () => {
       pilotLicenseNumber: 'VN-LIC-12345',
       pilotLicenseClass: 'CLASS_A',
       pilotLicenseExpiresAt: '2027-12-31',
-      pilotLicenseFileKey: 'licenses/license.pdf',
+      pilotLicenseFile: new File(['%PDF-1.7'], 'license.pdf', { type: 'application/pdf' }),
     };
 
     expect(partnerApplicationSchema.safeParse(validPartner).success).toBe(true);

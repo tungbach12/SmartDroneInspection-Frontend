@@ -29,6 +29,9 @@ export default function Mf1ReviewPage() {
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [reviewNote, setReviewNote] = useState('');
   const [partnerContractFileKey, setPartnerContractFileKey] = useState('');
+  const [evidenceUrls, setEvidenceUrls] = useState<Array<{ label: string; url: string }>>([]);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceFailed, setEvidenceFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const queryClient = useQueryClient();
@@ -48,7 +51,42 @@ export default function Mf1ReviewPage() {
     setSelected(null);
     setReviewNote('');
     setPartnerContractFileKey('');
+    evidenceUrls.forEach(({ url }) => URL.revokeObjectURL(url));
+    setEvidenceUrls([]);
+    setEvidenceLoading(false);
+    setEvidenceFailed(false);
     setError(null);
+  };
+
+  const openReview = async (item: ReviewItem) => {
+    evidenceUrls.forEach(({ url }) => URL.revokeObjectURL(url));
+    setEvidenceUrls([]);
+    setSelected(item);
+    setAction('approve');
+    setError(null);
+    setEvidenceFailed(false);
+    setEvidenceLoading(true);
+    try {
+      const documents = panel === 'Inspector partners'
+        ? [{ label: 'Pilot license', load: () => mf1ReviewApi.partnerLicenseDocument(item.id) }]
+        : panel === 'Drone registrations'
+          ? (['REGISTRATION', 'OWNERSHIP', 'INSPECTION'] as const).map((type) => ({
+              label: type === 'REGISTRATION' ? 'Registration document' : type === 'OWNERSHIP' ? 'Ownership document' : 'Inspection evidence',
+              load: () => mf1ReviewApi.droneEvidence(item.id, type),
+            }))
+          : [];
+      if (documents.length === 0) {
+        setEvidenceLoading(false);
+        return;
+      }
+      const loaded = await Promise.all(documents.map(async ({ label, load }) => ({ label, blob: await load() })));
+      setEvidenceUrls(loaded.map(({ label, blob }) => ({ label, url: URL.createObjectURL(blob) })));
+    } catch {
+      setEvidenceFailed(true);
+      setError('Evidence documents could not be loaded. Refresh the queue and try again.');
+    } finally {
+      setEvidenceLoading(false);
+    }
   };
 
   const review = async () => {
@@ -109,7 +147,7 @@ export default function Mf1ReviewPage() {
                     {panel === 'Customer airspace' ? `${(item as ProspectiveCustomerReview).assetName} · ${(item as ProspectiveCustomerReview).airspaceClassification}` : panel === 'Inspector partners' ? `${(item as InspectorPartnerApplication).email} · license ${(item as InspectorPartnerApplication).pilotLicenseNumber}` : `${(item as DroneRegistrationApplication).model ?? 'Drone'} · ${(item as DroneRegistrationApplication).registrationNumber}`}
                   </Typography>
                 </Box>
-                <Button variant="outlined" onClick={() => { setSelected(item); setAction('approve'); setError(null); }}>Review</Button>
+                <Button variant="outlined" onClick={() => void openReview(item)}>Review</Button>
               </Box>
             ))}
           </Stack>
@@ -121,6 +159,13 @@ export default function Mf1ReviewPage() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {selected && <Alert severity="info">{panel === 'Customer airspace' ? `${(selected as ProspectiveCustomerReview).organizationName} · ${(selected as ProspectiveCustomerReview).assetName} · ${(selected as ProspectiveCustomerReview).airspaceClassification}` : panel === 'Inspector partners' ? `${(selected as InspectorPartnerApplication).fullName} · ${(selected as InspectorPartnerApplication).pilotLicenseNumber} · expires ${(selected as InspectorPartnerApplication).pilotLicenseExpiresAt}` : `${(selected as DroneRegistrationApplication).serialNumber} · ${(selected as DroneRegistrationApplication).registrationNumber}`}</Alert>}
+            {evidenceLoading && <Typography>Loading evidence documents…</Typography>}
+            {evidenceUrls.map(({ label, url }) => (
+              <Box key={url} sx={{ display: 'grid', gap: 0.5 }}>
+                <Typography variant="subtitle2">{label}</Typography>
+                <Box component="iframe" src={url} title={label} sx={{ width: '100%', height: 320, border: 1, borderColor: 'divider', borderRadius: 1 }} />
+              </Box>
+            ))}
             {panel === 'Inspector partners' && action === 'approve' && <TextField label="Verified partner contract file key" value={partnerContractFileKey} onChange={(event) => setPartnerContractFileKey(event.target.value)} required fullWidth />}
             {panel !== 'Drone registrations' && action === 'approve' && <TextField label="Review note" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required={panel === 'Customer airspace'} multiline minRows={2} fullWidth />}
             {action === 'reject' && <TextField label="Rejection reason" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} required multiline minRows={3} fullWidth />}
@@ -133,7 +178,7 @@ export default function Mf1ReviewPage() {
           </TextField>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button onClick={closeDialog} disabled={pending}>Cancel</Button>
-            <Button variant={action === 'reject' ? 'contained' : 'contained'} color={action === 'reject' ? 'error' : 'primary'} onClick={() => void review()} disabled={pending}>{pending ? 'Saving…' : action === 'reject' ? 'Reject' : 'Approve'}</Button>
+            <Button variant={action === 'reject' ? 'contained' : 'contained'} color={action === 'reject' ? 'error' : 'primary'} onClick={() => void review()} disabled={pending || evidenceLoading || (action === 'approve' && panel !== 'Customer airspace' && evidenceFailed)}>{pending ? 'Saving…' : action === 'reject' ? 'Reject' : 'Approve'}</Button>
           </Box>
         </DialogActions>
       </Dialog>

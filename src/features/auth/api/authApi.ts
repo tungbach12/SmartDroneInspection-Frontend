@@ -256,6 +256,19 @@ export interface InspectorPartnerApplicationResponse {
   fullName: string;
 }
 
+export async function uploadPartnerLicense(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post<{ fileKey: string }>(
+    '/inspector-partner-applications/license-document',
+    formData,
+  );
+  if (!data || typeof data.fileKey !== 'string' || !data.fileKey) {
+    throw new Error('The server did not return a license document reference.');
+  }
+  return data.fileKey;
+}
+
 export async function submitPartnerApplication(
   input: InspectorPartnerApplicationInput,
 ): Promise<InspectorPartnerApplicationResponse> {

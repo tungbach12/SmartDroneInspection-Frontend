@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/shared/api/client', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
 
 import { api } from '@/shared/api/client';
-import { mf1DroneApi } from './mf1DroneApi';
+import { mf1DroneApi, uploadDroneEvidence } from './mf1DroneApi';
 
 describe('inspector drone registration API', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -15,6 +15,14 @@ describe('inspector drone registration API', () => {
       registrationExpiresAt: '2027-12-31T00:00:00Z', ownershipFileKey: 'owner/file', inspectionFileKey: 'inspection/file',
     });
     expect(api.post).toHaveBeenCalledWith('/drone-registration-applications', expect.not.objectContaining({ organizationId: expect.anything() }));
+  });
+
+  it('uploads drone evidence with a typed evidence category and returns the server key', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { success: true, data: { fileKey: 'drone-registration-applications/inspector/evidence/OWNERSHIP/uuid.pdf' } } });
+    const file = new File(['%PDF-1.7'], 'ownership.pdf', { type: 'application/pdf' });
+
+    await expect(uploadDroneEvidence(file, 'OWNERSHIP')).resolves.toContain('/evidence/OWNERSHIP/');
+    expect(api.post).toHaveBeenCalledWith('/drone-registration-applications/evidence', expect.any(FormData), { params: { type: 'OWNERSHIP' } });
   });
 
   it('loads only the current inspector applications and approved drones', async () => {

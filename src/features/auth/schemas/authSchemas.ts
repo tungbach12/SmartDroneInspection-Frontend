@@ -83,7 +83,11 @@ export const partnerApplicationSchema = z.object({
     .max(64, 'License number must be 64 characters or fewer.'),
   pilotLicenseClass: z.string().trim().min(1, 'Pilot license class is required.').max(64),
   pilotLicenseExpiresAt: z.string().trim().min(1, 'License expiry date is required.'),
-  pilotLicenseFileKey: z.string().trim().min(1, 'Pilot license document is required.').max(1000),
+  pilotLicenseFile: z
+    .custom<File | undefined>((value) => value === undefined || value instanceof File)
+    .refine((file) => file instanceof File && file.size > 0, 'Pilot license document is required.')
+    .refine((file) => !file || file.size <= 10 * 1024 * 1024, 'File must be 10 MB or smaller.')
+    .refine((file) => !file || ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type), 'Use a PDF, PNG, JPEG or WebP file.'),
 });
 
 export const passwordSetupSchema = z

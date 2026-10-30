@@ -24,6 +24,16 @@ describe('MF1 admin review API', () => {
     );
   });
 
+  it('loads partner license and drone evidence only through admin review endpoints', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: new Blob(['%PDF-1.7']) });
+
+    await mf1ReviewApi.partnerLicenseDocument('partner-1');
+    await mf1ReviewApi.droneEvidence('drone-1', 'OWNERSHIP');
+
+    expect(api.get).toHaveBeenNthCalledWith(1, '/inspector-partner-applications/partner-1/license-document', { responseType: 'blob' });
+    expect(api.get).toHaveBeenNthCalledWith(2, '/drone-registration-applications/drone-1/evidence/OWNERSHIP', { responseType: 'blob' });
+  });
+
   it('sends a verified contract key when approving an inspector partner', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: 'partner-1' } } });
     await mf1ReviewApi.approvePartner('partner-1', 'contracts/partner-1.pdf', 'Contract verified');

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { mf1DroneApi, type DroneRegistrationInput } from '../api/mf1DroneApi';
+import { mf1DroneApi, uploadDroneEvidence, type DroneEvidenceType, type DroneRegistrationInput } from '../api/mf1DroneApi';
 import { PageHeader } from '@/shared/ui/PageHeader';
 
 const emptyForm: DroneRegistrationInput = {
@@ -11,14 +11,33 @@ const emptyForm: DroneRegistrationInput = {
 
 export default function InspectorDroneRegistrationPage() {
   const [form, setForm] = useState(emptyForm);
+  const [files, setFiles] = useState<Record<DroneEvidenceType, File | null>>({ REGISTRATION: null, OWNERSHIP: null, INSPECTION: null });
   const [message, setMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const applications = useQuery({ queryKey: ['inspector-drone-applications'], queryFn: mf1DroneApi.mine });
   const drones = useQuery({ queryKey: ['inspector-drones'], queryFn: mf1DroneApi.drones });
   const submit = useMutation({
-    mutationFn: mf1DroneApi.submit,
+    mutationFn: async (input: DroneRegistrationInput) => {
+      const upload = async (type: DroneEvidenceType) => {
+        const file = files[type];
+        if (!file) throw new Error(`Missing ${type.toLowerCase()} evidence.`);
+        return uploadDroneEvidence(file, type);
+      };
+      const [registrationFileKey, ownershipFileKey, inspectionFileKey] = await Promise.all([
+        upload('REGISTRATION'),
+        upload('OWNERSHIP'),
+        upload('INSPECTION'),
+      ]);
+      return mf1DroneApi.submit({
+        ...input,
+        registrationFileKey,
+        ownershipFileKey,
+        inspectionFileKey,
+      });
+    },
     onSuccess: async () => {
       setForm(emptyForm);
+      setFiles({ REGISTRATION: null, OWNERSHIP: null, INSPECTION: null });
       setMessage('Drone registration submitted for administrator review.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['inspector-drone-applications'] }),
@@ -48,11 +67,23 @@ export default function InspectorDroneRegistrationPage() {
             <TextField required label="Registration number" value={form.registrationNumber} onChange={update('registrationNumber')} />
             <TextField required type="date" label="Registration expiry" value={form.registrationExpiresAt} onChange={update('registrationExpiresAt')} slotProps={{ inputLabel: { shrink: true } }} />
           </Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Evidence file keys</Typography>
-          <TextField required label="Registration document file key" value={form.registrationFileKey} onChange={update('registrationFileKey')} />
-          <TextField required label="Ownership document file key" value={form.ownershipFileKey} onChange={update('ownershipFileKey')} />
-          <TextField required label="Inspection evidence file key" value={form.inspectionFileKey} onChange={update('inspectionFileKey')} />
-          <Typography variant="body2" color="text.secondary">File upload is not available in this release. Enter evidence file keys from an approved storage workflow.</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Drone evidence documents</Typography>
+          {([
+            ['REGISTRATION', 'Registration document'],
+            ['OWNERSHIP', 'Ownership document'],
+            ['INSPECTION', 'Inspection evidence'],
+          ] as const).map(([type, label]) => (
+            <Button key={type} component="label" variant="outlined" sx={{ justifyContent: 'flex-start' }}>
+              {files[type]?.name ?? `Upload ${label.toLowerCase()}`}
+              <input
+                hidden
+                type="file"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
+                onChange={(event) => setFiles((current) => ({ ...current, [type]: event.target.files?.[0] ?? null }))}
+              />
+            </Button>
+          ))}
+          <Typography variant="body2" color="text.secondary">PDF, PNG, JPEG or WebP · maximum 10 MB per document</Typography>
           {submit.isError && <Alert severity="error">The application could not be submitted. Check the evidence and try again.</Alert>}
           {message && <Alert severity="success" role="status">{message}</Alert>}
           <Button type="submit" variant="contained" disabled={submit.isPending || !form.registrationExpiresAt}>{submit.isPending ? 'Submitting…' : 'Submit drone for review'}</Button>

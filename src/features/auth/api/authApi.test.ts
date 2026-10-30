@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const transport = vi.hoisted(() => ({
   postWithBrowserCsrf: vi.fn(),
+  apiPost: vi.fn(),
 }));
 
 vi.mock('@/shared/api/client', () => ({
+  api: { post: transport.apiPost },
   postWithBrowserCsrf: transport.postWithBrowserCsrf,
   withBrowserRefreshLock: (operation: () => Promise<unknown>) => operation(),
 }));
@@ -20,6 +22,7 @@ import {
   registerOrganization,
   restoreBrowserSession,
   submitPartnerApplication,
+  uploadPartnerLicense,
 } from './authApi';
 
 
@@ -49,6 +52,7 @@ const authenticatedFlow = {
 describe('browser auth API', () => {
   beforeEach(() => {
     transport.postWithBrowserCsrf.mockReset();
+    transport.apiPost.mockReset();
   });
 
   it('does not expose retired provider onboarding or team APIs', () => {
@@ -358,5 +362,13 @@ describe('browser auth API', () => {
     });
     expect(response.id).toBe('app-999');
     expect(response.status).toBe('SUBMITTED');
+  });
+
+  it('uploads partner license and returns server-generated file key', async () => {
+    transport.apiPost.mockResolvedValue({ data: { fileKey: 'inspector-partner-applications/licenses/00000000-0000-0000-0000-000000000000.pdf' } });
+    const file = new File(['%PDF-1.7'], 'license.pdf', { type: 'application/pdf' });
+
+    await expect(uploadPartnerLicense(file)).resolves.toContain('/licenses/');
+    expect(transport.apiPost).toHaveBeenCalledWith('/inspector-partner-applications/license-document', expect.any(FormData));
   });
 });

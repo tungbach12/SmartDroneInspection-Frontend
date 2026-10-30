@@ -59,6 +59,10 @@ export interface DroneRegistrationApplication {
 }
 
 export const mf1ReviewApi = {
+  partnerLicenseDocument: (id: string) =>
+    api.get<Blob>(`/inspector-partner-applications/${id}/license-document`, { responseType: 'blob' }).then((response) => response.data),
+  droneEvidence: (id: string, type: 'REGISTRATION' | 'OWNERSHIP' | 'INSPECTION') =>
+    api.get<Blob>(`/drone-registration-applications/${id}/evidence/${type}`, { responseType: 'blob' }).then((response) => response.data),
   pendingCustomers: () =>
     api.get<ProspectiveCustomerReview[] | { data: ProspectiveCustomerReview[] }>('/platform/customer-airspace-reviews/pending').then(unwrap),
   approveCustomer: (id: string, reviewNote: string) =>
