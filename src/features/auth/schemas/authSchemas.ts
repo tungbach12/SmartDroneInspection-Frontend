@@ -64,32 +64,6 @@ export const organizationRegistrationSchema = z
     message: 'Passwords do not match.',
   });
 
-export const partnerApplicationSchema = z.object({
-  email: emailField,
-  fullName: z
-    .string()
-    .trim()
-    .min(1, 'Enter your full name.')
-    .max(200, 'Name must be 200 characters or fewer.'),
-  phone: z
-    .string()
-    .trim()
-    .min(1, 'Phone number is required.')
-    .max(32, 'Phone number must be 32 characters or fewer.'),
-  pilotLicenseNumber: z
-    .string()
-    .trim()
-    .min(1, 'Pilot license number is required.')
-    .max(64, 'License number must be 64 characters or fewer.'),
-  pilotLicenseClass: z.string().trim().min(1, 'Pilot license class is required.').max(64),
-  pilotLicenseExpiresAt: z.string().trim().min(1, 'License expiry date is required.'),
-  pilotLicenseFile: z
-    .custom<File | undefined>((value) => value === undefined || value instanceof File)
-    .refine((file) => file instanceof File && file.size > 0, 'Pilot license document is required.')
-    .refine((file) => !file || file.size <= 10 * 1024 * 1024, 'File must be 10 MB or smaller.')
-    .refine((file) => !file || ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type), 'Use a PDF, PNG, JPEG or WebP file.'),
-});
-
 export const passwordSetupSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter the temporary password.'),
@@ -122,9 +96,6 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 export type FirstAssetFormValues = z.infer<typeof firstAssetSchema>;
 export type OrganizationRegistrationFormValues = z.infer<
   typeof organizationRegistrationSchema
->;
-export type PartnerApplicationFormValues = z.infer<
-  typeof partnerApplicationSchema
 >;
 export type PasswordSetupFormValues = z.infer<typeof passwordSetupSchema>;
 export type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;

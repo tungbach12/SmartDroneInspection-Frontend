@@ -31,6 +31,11 @@ describe('Organization Manager MF3 reviewer routes', () => {
 });
 
 describe('MF1 guarded onboarding routes', () => {
+  it('does not expose public Inspector Partner self-registration', () => {
+    const matches = matchRoutes(router.routes, '/inspector-partner-application');
+    expect(matches?.at(-1)?.route.path).toBe('*');
+  });
+
   it.each([
     ['/admin/onboarding-reviews', 'onboarding-reviews'],
     ['/operations/inspector-drones', 'inspector-drones'],

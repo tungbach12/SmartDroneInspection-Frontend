@@ -239,46 +239,6 @@ export async function evaluateAirspace(
   return data;
 }
 
-export interface InspectorPartnerApplicationInput {
-  email: string;
-  fullName: string;
-  phone?: string;
-  pilotLicenseNumber: string;
-  pilotLicenseClass: string;
-  pilotLicenseExpiresAt: string;
-  pilotLicenseFileKey: string;
-}
-
-export interface InspectorPartnerApplicationResponse {
-  id: string;
-  status: string;
-  email: string;
-  fullName: string;
-}
-
-export async function uploadPartnerLicense(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const { data } = await api.post<{ data: { fileKey: string } }>(
-    '/inspector-partner-applications/license-document',
-    formData,
-  );
-  if (!data?.data || typeof data.data.fileKey !== 'string' || !data.data.fileKey) {
-    throw new Error('The server did not return a license document reference.');
-  }
-  return data.data.fileKey;
-}
-
-export async function submitPartnerApplication(
-  input: InspectorPartnerApplicationInput,
-): Promise<InspectorPartnerApplicationResponse> {
-  const { data } = await postWithBrowserCsrf<InspectorPartnerApplicationResponse>(
-    '/inspector-partner-applications',
-    input,
-  );
-  return data;
-}
-
 
 export async function logoutCurrentSession(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout');

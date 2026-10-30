@@ -34,9 +34,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
-const InspectorPartnerApplicationPage = lazy(
-  () => import('@/features/auth/pages/InspectorPartnerApplicationPage'),
-);
 const AccountSecurityPage = lazy(
   () => import('@/features/auth/pages/AccountSecurityPage'),
 );
@@ -291,14 +288,6 @@ export const router = createBrowserRouter([
         element: (
           <PublicOnly>
             <RegisterPage />
-          </PublicOnly>
-        ),
-      },
-      {
-        path: 'inspector-partner-application',
-        element: (
-          <PublicOnly>
-            <InspectorPartnerApplicationPage />
           </PublicOnly>
         ),
       },
