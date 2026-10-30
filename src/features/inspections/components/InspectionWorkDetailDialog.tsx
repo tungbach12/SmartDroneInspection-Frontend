@@ -88,6 +88,12 @@ export function InspectionWorkDetailDialog({
           actionLabel: t('View report draft'),
           subpath: 'report',
         };
+      case 'UNDER_REVIEW':
+        return {
+          tip: t('Report submitted. Awaiting reviewer approval and publication.'),
+          actionLabel: t('View submitted report'),
+          subpath: 'report',
+        };
       case 'REPORT_PUBLISHED':
       case 'COMPLETED':
         return {

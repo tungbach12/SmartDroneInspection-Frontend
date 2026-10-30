@@ -5,35 +5,36 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const services = [
   {
     number: '01',
-    title: 'Fly to hard-to-reach spots',
+    title: 'Inspect hard-to-reach areas',
     description:
-      'Drones easily fly up to high roofs, towers, and areas where people cannot safely climb.',
+      'Check roofs, high walls, bridge underdecks, and tall towers safely without stopping your daily operations.',
     Icon: FlightTakeoffIcon,
   },
   {
     number: '02',
-    title: 'Spot cracks and damage',
+    title: 'Find damage early with AI',
     description:
-      'Automatically highlights cracks, spalling, or rust so you never miss a damaged spot.',
+      'Detect cracks, concrete leaks, and rust early before small defects turn into expensive structural failures.',
     Icon: AutoAwesomeIcon,
   },
   {
     number: '03',
-    title: 'Organized photo records',
+    title: 'Centralized asset records',
     description:
-      'All inspection photos and damage locations are organized neatly by building for easy review.',
+      'Access your inspection history, high-res photos, and official engineering reports online anytime, in one secure portal.',
     Icon: AccountTreeIcon,
   },
   {
     number: '04',
-    title: 'Clear next steps',
+    title: 'Direct handoff to maintenance',
     description:
-      'From identified flaws to repair action, helping you decide what to fix quickly and correctly.',
+      'Approve repair estimates, assign maintenance work orders, and verify results with a follow-up flight.',
     Icon: TaskAltIcon,
   },
 ];
@@ -146,6 +147,8 @@ export default function LandingPage() {
           <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
             <Button
               size="small"
+              aria-label={t('Language')}
+              title={locale === 'en' ? 'Tiếng Việt' : 'English'}
               onClick={() => {
                 const next = locale === 'en' ? 'vi' : 'en';
                 setLocale(next);
@@ -154,15 +157,20 @@ export default function LandingPage() {
               sx={{
                 minWidth: 'auto',
                 px: 1.25,
-                py: 0.5,
-                color: 'rgba(255,255,255,.65)',
+                py: 0.6,
+                color: 'rgba(255,255,255,.75)',
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: '.06em',
                 borderRadius: '6px',
-                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.06)' },
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.6,
+                transition: 'color .15s ease, background-color .15s ease',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.08)' },
               }}
             >
+              <LanguageRounded sx={{ fontSize: 16 }} />
               {locale === 'en' ? 'VI' : 'EN'}
             </Button>
             <Link
@@ -262,7 +270,7 @@ export default function LandingPage() {
               lineHeight: 1.7,
             }}
           >
-            {t('No risky climbing. No expensive scaffolding. Drones fly directly to hard-to-reach roofs, towers, and bridges—capturing close-up photos so you know exactly what needs fixing.')}
+            {t('Inspect your roofs, bridges, and tall structures without dangerous climbing or costly scaffolding. Receive detailed photo reports and clear repair steps in days, not weeks.')}
           </Typography>
           <Stack direction="row" spacing={3} sx={{ alignItems: 'center', mt: 3.5, flexWrap: 'wrap', rowGap: 2 }}>
             <Box component="a" href="/register" sx={actionSx}>
@@ -468,7 +476,7 @@ export default function LandingPage() {
                 {t('Technology brings it into view. People decide what it means.')}
               </Typography>
               <Typography sx={{ mt: 3, maxWidth: 510, color: 'rgba(255,255,255,.7)', fontSize: 14, lineHeight: 1.8 }}>
-                {t('Instead of risking lives on ladders or guessing from the ground, drones give you a clear, front-row view of your structure. AI highlights the issues, and experienced inspectors help you make the right call.')}
+                {t('Stop guessing damage from the ground or waiting weeks for scaffolding. Get crystal-clear aerial photos of your entire asset, reviewed by certified experts, so you only pay for the repairs you actually need.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5, alignSelf: 'flex-start' }}>
                 {t('See how the platform works')} <NorthEastIcon sx={{ fontSize: 16 }} />

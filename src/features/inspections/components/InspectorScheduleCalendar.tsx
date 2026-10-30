@@ -68,6 +68,8 @@ function getStatusColors(status: InspectionStatus): {
       return { bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4', badge: '#14b8a6' };
     case 'REPORT_DRAFT':
       return { bg: '#f8fafc', color: '#475569', border: '#cbd5e1', badge: '#64748b' };
+    case 'UNDER_REVIEW':
+      return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', badge: '#3b82f6' };
     case 'REPORT_PUBLISHED':
     case 'COMPLETED':
       return { bg: '#ecfdf5', color: '#065f46', border: '#6ee7b7', badge: '#059669' };
@@ -98,6 +100,14 @@ export function InspectorScheduleCalendar({
   // Filter items by status if selected
   const filteredItems = useMemo(() => {
     if (statusFilter === 'ALL') return allItems;
+    if (statusFilter === 'UNDER_REVIEW') {
+      return allItems.filter(
+        (item) => item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+      );
+    }
+    if (statusFilter === 'REPORT_PUBLISHED') {
+      return allItems.filter((item) => item.status === 'REPORT_PUBLISHED' || item.status === 'COMPLETED');
+    }
     return allItems.filter((item) => item.status === statusFilter);
   }, [allItems, statusFilter]);
 
@@ -320,8 +330,9 @@ export function InspectorScheduleCalendar({
             <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
             <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
             <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
-            <MenuItem value="REPORT_DRAFT">{t('Report Draft')}</MenuItem>
-            <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
+            <MenuItem value="UNDER_REVIEW">{t('Under Review')}</MenuItem>
+            <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
+            <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
           </TextField>
 
           <ButtonGroup size="small" variant="outlined" aria-label={t('Calendar view mode')}>

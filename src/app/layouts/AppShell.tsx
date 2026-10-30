@@ -34,6 +34,7 @@ import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import BuildIcon from '@mui/icons-material/Build';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
@@ -78,6 +79,7 @@ const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <DashboardIcon /> },
   { section: 'contracts', icon: <AssignmentIcon /> },
+  { section: 'schedule', icon: <CalendarMonthOutlinedIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <ApartmentIcon /> },
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'asset-review', icon: <FactCheckIcon /> },
@@ -113,8 +115,12 @@ export function AppShell({ portal }: AppShellProps) {
   const clearSession = useAuthStore((state) => state.clearSession);
   const showToast = useToastStore((state) => state.showToast);
   const visibleNavigation = NAV_ITEMS.filter(({ section }) =>
-    canAccessSection(portal, section, roles) &&
-    getSectionLabel(section, locale).toLowerCase().includes(search.trim().toLowerCase()),
+    section === 'schedule'
+      ? portal === 'operations' &&
+        roles.includes('INSPECTOR') &&
+        t('Inspection Schedule').toLowerCase().includes(search.trim().toLowerCase())
+      : canAccessSection(portal, section, roles) &&
+        getSectionLabel(section, locale).toLowerCase().includes(search.trim().toLowerCase()),
   );
   const availablePortals = getAvailablePortals(roles);
 
@@ -175,9 +181,20 @@ export function AppShell({ portal }: AppShellProps) {
           {getPortalLabel(portal, locale)}
         </Typography>
         <List component="nav" aria-label={`${getPortalLabel(portal, locale)} navigation`} sx={{ px: 1.25, py: 0 }}>
-          {visibleNavigation.map(({ section, icon }) => {
-            const path = getSectionPath(portal, section);
-            const selected = location.pathname === path;
+          {visibleNavigation.map((item) => {
+            const { section, icon } = item;
+            const path = section === 'schedule'
+              ? '/operations/inspections?view=calendar'
+              : getSectionPath(portal, section as Exclude<typeof section, 'schedule'>);
+            const isCalendarView =
+              location.pathname.startsWith('/operations/inspections') &&
+              new URLSearchParams(location.search).get('view') === 'calendar';
+            const selected =
+              section === 'schedule'
+                ? isCalendarView
+                : section === 'inspections'
+                  ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) && !isCalendarView
+                  : location.pathname === path;
             return (
               <ListItemButton
                 key={section}
@@ -194,7 +211,6 @@ export function AppShell({ portal }: AppShellProps) {
                   '& .MuiListItemIcon-root': { minWidth: 34, color: 'inherit' },
                   '&.Mui-selected': {
                     bgcolor: 'action.selected',
-                    boxShadow: 'inset 3px 0 var(--mui-palette-primary-main)',
                     color: 'primary.main',
                     '&:hover': { bgcolor: 'action.selected' },
                   },
@@ -203,7 +219,7 @@ export function AppShell({ portal }: AppShellProps) {
               >
                 <ListItemIcon>{icon}</ListItemIcon>
                 <ListItemText
-                  primary={getSectionLabel(section, locale)}
+                  primary={section === 'schedule' ? t('Inspection Schedule') : getSectionLabel(section, locale)}
                   slotProps={{ primary: { variant: 'body2', sx: { fontWeight: selected ? 650 : 500 } } }}
                 />
               </ListItemButton>

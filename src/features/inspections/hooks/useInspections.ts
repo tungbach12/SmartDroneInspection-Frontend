@@ -686,6 +686,37 @@ export function usePublishReportVersion(inspectionId: string | null) {
   });
 }
 
+export function useAcceptReportVersion(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (versionId: string) =>
+      inspectionApi.acceptReport(inspectionId!, versionId),
+    onSuccess: () => {
+      showToast('Report accepted. Payment is now due via PayOS VietQR or corporate bank transfer.');
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      }
+    },
+    onError: (error) => showToast(getErrorMessage(error, 'Report acceptance failed.'), 'error'),
+  });
+}
+
+export function useCreateInspectionPayOSLink(inspectionId: string | null) {
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.createPayOSPaymentLink(inspectionId!),
+    onSuccess: (data) => {
+      if (data?.checkoutUrl) {
+        window.location.assign(data.checkoutUrl);
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not create PayOS payment link.'), 'error'),
+  });
+}
+
 /**
  * MF2-10: starting a session.
  *

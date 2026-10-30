@@ -88,6 +88,7 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   preparing: 'warning',
   field_completed: 'warning',
   report_draft: 'warning',
+  under_review: 'info',
 
   returned: 'error',
   rework_required: 'error',
