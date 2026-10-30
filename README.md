@@ -1,4 +1,23 @@
-# React + TypeScript + Vite
+# SmartDroneInspection Frontend
+
+The React SPA runs independently from the backend. During development, use Vite's local server and `/api` proxy:
+
+```bash
+npm ci --legacy-peer-deps
+npm run dev
+```
+
+For a containerized deployment, start the backend Compose project first so it creates the shared external Docker network, then start this repository's frontend Compose project:
+
+```bash
+cp .env.example .env
+# Optional: set DOCKER_NETWORK_NAME and WEB_PORT in .env to match the deployment.
+docker compose up -d --build
+```
+
+Frontend deploys replace only the Nginx container; they do not rebuild or restart the backend. The backend and frontend Compose projects share `backend_smartdroneinspection-network` so Nginx can proxy `/api/` to the backend service. The frontend Compose project must not be started before the backend creates that network. For a migration from the former shared Compose deployment, the frontend workflow removes only the existing fixed-name web container after its replacement image builds, then starts the independent project.
+
+For local checks, run `npm test`, `npm run lint`, and `npm run build`.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

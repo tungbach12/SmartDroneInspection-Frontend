@@ -1,5 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -18,6 +21,7 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -106,7 +110,7 @@ export default function InspectionFindingsPage() {
   );
   const isFindingsLocked =
     isReportLocked ||
-    ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+    ['UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
 
   // Filter & Search states
   const [evidenceQuery, setEvidenceQuery] = useState('');
@@ -369,22 +373,8 @@ export default function InspectionFindingsPage() {
     );
   }
 
-  return (
+  const defectDiscoveryWorkspace = (
     <Stack spacing={2.5}>
-      {/* Re-inspection Target Defect Verifications */}
-      {isReinspection && (
-        <ReinspectionVerificationSection
-          inspectionId={inspectionId}
-          sourceInspectionId={inspectionQuery.data?.sourceInspectionId}
-          items={reinspectionVerifications.data ?? []}
-          evidenceList={activeEvidenceItems}
-          onUpdate={(verificationId, payload) =>
-            updateVerificationMutation.mutateAsync({ verificationId, payload })
-          }
-          readOnly={!isInspector || isFindingsLocked}
-        />
-      )}
-
       {/* 1. Page Header with Clean Single-Row Actions */}
       <Paper
         elevation={0}
@@ -903,6 +893,57 @@ export default function InspectionFindingsPage() {
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
         onDelete={(findingId) => setFindingToDeleteId(findingId)}
       />
+    </Stack>
+  );
+
+  return (
+    <Stack spacing={2.5}>
+      {/* Re-inspection Target Defect Verifications */}
+      {isReinspection && (
+        <ReinspectionVerificationSection
+          inspectionId={inspectionId}
+          sourceInspectionId={inspectionQuery.data?.sourceInspectionId}
+          items={reinspectionVerifications.data ?? []}
+          evidenceList={activeEvidenceItems}
+          onUpdate={(verificationId, payload) =>
+            updateVerificationMutation.mutateAsync({ verificationId, payload })
+          }
+          readOnly={!isInspector || isFindingsLocked}
+        />
+      )}
+
+      {/* When Re-inspection: wrap general defect discovery in an optional collapsed Accordion */}
+      {isReinspection ? (
+        <Accordion
+          variant="outlined"
+          sx={{
+            borderRadius: '16px !important',
+            borderColor: 'divider',
+            '&:before': { display: 'none' },
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            overflow: 'hidden',
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <AutoAwesomeOutlined color="action" />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
+                  {t('Additional New Defect Scanning (Optional)')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Only needed if fresh captures revealed unexpected defects outside the repair scope')}
+                </Typography>
+              </Box>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
+            {defectDiscoveryWorkspace}
+          </AccordionDetails>
+        </Accordion>
+      ) : (
+        defectDiscoveryWorkspace
+      )}
 
       <ConfirmDialog
         open={Boolean(findingToDeleteId)}

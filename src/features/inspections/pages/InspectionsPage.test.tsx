@@ -348,7 +348,7 @@ describe('InspectionsPage', () => {
     );
   });
 
-  it('filters to inspections with a report when the report view is chosen', async () => {
+  it('filters to inspections with a report when the report view is active via query param', async () => {
     mocks.reportsQuery = {
       data: {
         items: [
@@ -371,39 +371,30 @@ describe('InspectionsPage', () => {
       refetch: vi.fn(),
     };
 
-    renderPage();
-    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
-    // The all-view collection is active before the toggle.
-    expect(mocks.useInspectionsArgs?.[1]).toBe(true);
-    expect(mocks.useReportsArgs?.[1]).toBe(false);
+    signInAs(['CUSTOMER']);
+    renderPage('/client/inspections?view=reports');
 
-    fireEvent.click(screen.getByRole('button', { name: 'With report' }));
-
-    // The toggle switches the active query to the server report collection.
     expect(mocks.useReportsArgs?.[1]).toBe(true);
     expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
   });
 
-  it('allows an organization manager to switch to the recurring schedules view', async () => {
+  it('renders recurring schedules when the schedules view is active via query param', async () => {
     signInAs(['CUSTOMER']);
-    renderPage('/client/inspections');
-
-    const schedulesBtn = await screen.findByRole('button', { name: 'Recurring schedules' });
-    expect(schedulesBtn).toBeTruthy();
-
-    fireEvent.click(schedulesBtn);
+    renderPage('/client/inspections?view=schedules');
 
     expect(await screen.findByText('Bridge Alpha')).toBeTruthy();
   });
 
-  it('allows switching to the schedule calendar view and renders the calendar', async () => {
+  it('does not show view-switch buttons because navigation is driven by direct sidebar destinations', async () => {
     renderPage('/operations/inspections');
 
-    const calendarBtn = await screen.findByRole('button', { name: 'Schedule calendar' });
-    expect(calendarBtn).toBeTruthy();
+    expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Inspection list view' })).toBeNull();
+  });
 
-    fireEvent.click(calendarBtn);
+  it('opens the schedule calendar directly from its Inspector deep link', async () => {
+    renderPage('/operations/inspections?view=calendar');
 
     expect(await screen.findByRole('button', { name: 'Month' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Week' })).toBeTruthy();

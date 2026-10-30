@@ -11,6 +11,8 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import { canPerform } from '@/app/permissions/capability';
 import {
   getSectionPath,
@@ -20,6 +22,8 @@ import {
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   usePublishReportVersion,
+  useAcceptReportVersion,
+  useCreateInspectionPayOSLink,
   useReviewReportVersion,
   useSubmitReportVersion,
   useWithdrawReportVersion,
@@ -73,6 +77,8 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
+  const acceptReport = useAcceptReportVersion(inspectionId);
+  const payosLink = useCreateInspectionPayOSLink(inspectionId);
 
   const canAuthor = canPerform('inspections.authorReport', user);
   const canReview = canPerform('reports.review', user);
@@ -471,6 +477,84 @@ export default function ReportDetailPage() {
                   {t('Published version')} {publish.data.versionNo}. The PDF is immutable; forward
                   confirmed findings to maintenance individually when they require corrective work.
                 </Alert>
+              )}
+
+              {/* Customer Report Acceptance & Payment Gate */}
+              {openVersion.status === 'PUBLISHED' && portal === 'client' && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: '16px',
+                    border: '1px solid #b2ddff',
+                    bgcolor: '#f0f9ff',
+                  }}
+                >
+                  {new URLSearchParams(location.search).get('payment') === 'success' ? (
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
+                        {t('Thanh toán thành công! Báo cáo chính thức đã được mở khóa để tải về.')}
+                      </Typography>
+                    </Stack>
+                  ) : acceptReport.isSuccess ? (
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                        <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
+                          {t('Báo cáo đã được nghiệm thu (Report Accepted)')}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" sx={{ color: '#026aa2' }}>
+                        {t(
+                          'Báo cáo đã được nghiệm thu thành công. Vui lòng thanh toán phí dịch vụ để mở khóa tải toàn văn tệp PDF chính thức có dấu mộc.',
+                        )}
+                      </Typography>
+                      <Box sx={{ pt: 0.5 }}>
+                        <Button
+                          variant="contained"
+                          disabled={payosLink.isPending}
+                          onClick={() => payosLink.mutate()}
+                          endIcon={<OpenInNewRounded />}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: '#026aa2',
+                            '&:hover': { bgcolor: '#005585' },
+                          }}
+                        >
+                          {payosLink.isPending
+                            ? t('Đang kết nối cổng thanh toán PayOS…')
+                            : t('Tiến hành thanh toán VietQR qua PayOS ↗')}
+                        </Button>
+                      </Box>
+                    </Stack>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#026aa2' }}>
+                        {t('Nghiệm thu báo cáo (Customer Report Acceptance)')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#026aa2' }}>
+                        {t(
+                          'Vui lòng đọc kỹ báo cáo kiểm định đã xuất bản bên dưới. Khi hài lòng với kết quả kiểm định, bấm "Nghiệm thu báo cáo" để xác nhận nghiệm thu và mở khóa cổng thanh toán.',
+                        )}
+                      </Typography>
+                      <Box sx={{ pt: 0.5 }}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          disabled={acceptReport.isPending}
+                          onClick={() => acceptReport.mutate(openVersion.id)}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {acceptReport.isPending
+                            ? t('Đang nghiệm thu…')
+                            : t('Nghiệm thu báo cáo (Accept Report)')}
+                        </Button>
+                      </Box>
+                    </Stack>
+                  )}
+                </Paper>
               )}
 
               {canReview && publishedUnhanded && (

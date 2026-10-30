@@ -99,8 +99,12 @@ const ClientDroneLeasingPage = lazy(
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
+const PlatformFinanceSettingsPage = lazy(
+  () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
+);
 const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
+);
 );
 
 function SubscriptionsSectionRoute() {
@@ -133,6 +137,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   subscriptions: <SubscriptionsSectionRoute />,
   'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
+  'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   settings: <AccountSecurityPage />,

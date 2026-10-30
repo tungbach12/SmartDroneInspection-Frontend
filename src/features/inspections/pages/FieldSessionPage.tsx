@@ -27,7 +27,9 @@ import {
   useInspection,
   useStartFieldSession,
   useUploadFlightPermit,
+  useReinspectionVerifications,
 } from '../hooks/useInspections';
+import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -41,6 +43,8 @@ export default function FieldSessionPage() {
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
   const uploadPermit = useUploadFlightPermit(inspectionId);
+  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
+  const verifications = useReinspectionVerifications(isReinspection ? inspectionId : '');
 
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [startOpen, setStartOpen] = useState(false);
@@ -83,6 +87,15 @@ export default function FieldSessionPage() {
   return (
     <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 960, mx: 'auto' }}>
       <Stack spacing={2}>
+        {isReinspection && (
+          <TargetFlightShotList
+            mode="flight-guidance"
+            inspectionId={inspectionId}
+            sourceInspectionId={inspection?.sourceInspectionId}
+            items={verifications.data ?? []}
+          />
+        )}
+
         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
           <FlightTakeoffRounded color="primary" />
           <Box>
@@ -245,8 +258,12 @@ export default function FieldSessionPage() {
                           {t('Start another session')}
                         </Button>
                       )}
-                      <Button component={RouterLink} to="../evidence" variant="contained">
-                        {t('Continue to evidence')}
+                      <Button
+                        component={RouterLink}
+                        to={isReinspection ? '../findings' : '../evidence'}
+                        variant="contained"
+                      >
+                        {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
                       </Button>
                     </Stack>
                   ) : (

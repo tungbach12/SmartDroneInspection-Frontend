@@ -2,11 +2,10 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-rout
 import {
   Box,
   Button,
+  ButtonBase,
   Chip,
   Paper,
   Stack,
-  Tab,
-  Tabs,
   Typography,
 } from '@mui/material';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
@@ -44,7 +43,7 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     step: 1,
     value: 'field-session',
     label: 'Field session',
-    title: 'Field Session',
+    title: 'Flight Operation',
     sublabel: 'Flight & Permits',
     to: 'field-session',
     icon: FlightTakeoffRounded,
@@ -53,8 +52,8 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     step: 2,
     value: 'evidence',
     label: 'Evidence',
-    title: 'Evidence Intake',
-    sublabel: 'Upload & Register',
+    title: 'Field Evidence',
+    sublabel: 'Upload & Review',
     to: 'evidence',
     icon: CloudUploadOutlined,
   },
@@ -62,8 +61,8 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     step: 3,
     value: 'findings',
     label: 'Findings',
-    title: 'Defect Analysis',
-    sublabel: 'AI Review & Verify',
+    title: 'Defect Findings',
+    sublabel: 'AI Detection & Review',
     to: 'findings',
     icon: AutoAwesomeOutlined,
   },
@@ -71,8 +70,38 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     step: 4,
     value: 'report',
     label: 'Report draft',
-    title: 'Report Synthesis',
-    sublabel: 'Draft & Publish',
+    title: 'Inspection Report',
+    sublabel: 'Draft & Submit',
+    to: 'report',
+    icon: AssignmentTurnedInOutlined,
+  },
+] as const;
+
+const REINSPECTION_STEPS: readonly WorkflowStep[] = [
+  {
+    step: 1,
+    value: 'field-session',
+    label: 'Field session',
+    title: 'Re-flight Operation',
+    sublabel: 'Flight & Target Site',
+    to: 'field-session',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
+    value: 'findings',
+    label: 'Findings',
+    title: 'Defect Verification',
+    sublabel: '3-Way Comparison',
+    to: 'findings',
+    icon: AutoAwesomeOutlined,
+  },
+  {
+    step: 3,
+    value: 'report',
+    label: 'Report draft',
+    title: 'Verification Report',
+    sublabel: 'Sign-off & Submit',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -114,10 +143,15 @@ export default function InspectionDetailPage() {
     (roles.includes('CUSTOMER') && location.pathname.startsWith('/client/')) ||
     ((roles.includes('ADMIN') || roles.includes('MANAGER')) &&
       location.pathname.startsWith('/admin/'));
-  const steps = isOrganizationAdmin ? REVIEWER_STEPS : INSPECTOR_STEPS;
-  const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
+  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
+  const steps = isOrganizationAdmin
+    ? REVIEWER_STEPS
+    : isReinspection
+      ? REINSPECTION_STEPS
+      : INSPECTOR_STEPS;
+  const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
 
@@ -141,7 +175,9 @@ export default function InspectionDetailPage() {
       ? reviewerSourceRoutes.includes(current)
         ? 'review'
         : visibleSteps[0]?.value ?? 'review'
-      : 'field-session';
+      : isReinspection && current === 'evidence'
+        ? 'findings'
+        : 'field-session';
 
   const isStepCompleted = (stepValue: string): boolean => {
     if (isOrganizationAdmin) {
@@ -160,19 +196,19 @@ export default function InspectionDetailPage() {
     const status = workflowQuery.data?.status ?? inspection?.status ?? '';
     const hasCurrentFindingsConfirmation =
       Boolean(workflowQuery.data?.findingsConfirmedAt) &&
-      ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
+      ['REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'field-session':
-        return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
+        return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
       case 'evidence':
         return (
           activeEvidenceCount > 0 ||
-          ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          ['REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
         );
       case 'findings':
         return (
           hasCurrentFindingsConfirmation ||
-          ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          ['UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
         );
       case 'report':
         return (
@@ -250,8 +286,7 @@ export default function InspectionDetailPage() {
                 {inspection.inspectionType === 'RE_INSPECTION' && (
                   <Chip
                     size="small"
-                    color="secondary"
-                    variant="filled"
+                    variant="outlined"
                     label={
                       inspection.workOrderId
                         ? `${t('Re-inspection')} · WO #${inspection.workOrderId.slice(0, 8)}`
@@ -268,11 +303,11 @@ export default function InspectionDetailPage() {
                         : undefined
                     }
                     sx={{
-                      height: 20,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      bgcolor: 'secondary.main',
-                      color: 'common.white',
+                      height: 22,
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      borderColor: 'divider',
+                      color: 'text.secondary',
                       cursor: inspection.workOrderId ? 'pointer' : 'default',
                     }}
                   />
@@ -289,7 +324,6 @@ export default function InspectionDetailPage() {
 
               <Chip
                 size="small"
-                color={inspection.flightPermitFileName ? 'success' : 'warning'}
                 variant="outlined"
                 title={
                   inspection.flightPermitFileName
@@ -305,7 +339,7 @@ export default function InspectionDetailPage() {
                     ? t('Permit on file')
                     : t('Awaiting Permit Upload')
                 }
-                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, borderColor: 'divider', color: 'text.secondary' }}
               />
             </Stack>
           </Paper>
@@ -314,6 +348,8 @@ export default function InspectionDetailPage() {
         {/* Centered Modern Animated 1-4 Step Navigator */}
         <Paper
           elevation={0}
+          role="tablist"
+          aria-label={t('Inspection workflow steps')}
           sx={{
             mt: 3,
             p: { xs: 1.5, sm: 2 },
@@ -328,27 +364,14 @@ export default function InspectionDetailPage() {
             overflow: 'visible',
           }}
         >
-          <Tabs
-            value={tabValue}
-            centered
-            aria-label={t('Inspection workflow steps')}
+          <Stack
+            direction="row"
             sx={{
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexWrap: { xs: 'wrap', sm: 'nowrap' },
+              gap: { xs: 0.5, sm: 1, md: 1.5 },
               width: '100%',
-              minHeight: 'auto',
-              overflow: 'visible',
-              '& .MuiTabs-scroller': {
-                overflow: 'visible !important',
-              },
-              '& .MuiTabs-flexContainer': {
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexWrap: { xs: 'wrap', sm: 'nowrap' },
-                gap: { xs: 0.5, sm: 1, md: 1.5 },
-                overflow: 'visible',
-              },
-              '& .MuiTabs-indicator': {
-                display: 'none',
-              },
             }}
           >
             {visibleSteps.map((step, idx) => {
@@ -365,156 +388,116 @@ export default function InspectionDetailPage() {
                     flex: { xs: '1 1 45%', sm: 'none' },
                   }}
                 >
-                  <Tab
-                    value={step.value}
+                  <ButtonBase
                     component={NavLink}
                     to={step.to}
+                    role="tab"
+                    aria-selected={isActive}
                     aria-label={step.label}
-                    label={
-                      <Stack
-                        direction="row"
-                        spacing={1.25}
-                        sx={{ alignItems: 'center', textAlign: 'left', minWidth: 0 }}
-                      >
-                        <Box
-                          sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.84rem',
-                            fontWeight: 800,
-                            flexShrink: 0,
-                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                            ...(isActive
-                              ? {
-                                  bgcolor: 'primary.main',
-                                  color: '#ffffff',
-                                  boxShadow: isDark
-                                    ? '0 0 0 3px rgba(129, 140, 248, 0.35)'
-                                    : '0 0 0 3px rgba(87, 80, 241, 0.22)',
-                                  transform: 'scale(1.06)',
-                                }
-                              : isCompleted
-                                ? {
-                                    bgcolor: isDark ? '#059669' : '#10b981',
-                                    color: '#ffffff',
-                                    border: '1.5px solid',
-                                    borderColor: isDark ? '#34d399' : '#059669',
-                                  }
-                                : {
-                                    bgcolor: isDark ? '#1e293b' : '#e2e8f0',
-                                    color: isDark ? '#e2e8f0' : '#1e293b',
-                                    border: '1.5px solid',
-                                    borderColor: isDark ? '#475569' : '#94a3b8',
-                                  }),
-                          }}
-                        >
-                          {isCompleted ? <CheckRounded sx={{ fontSize: 18 }} /> : step.step}
-                        </Box>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              fontSize: '10.5px',
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.06em',
-                              color: isActive
-                                ? isDark
-                                  ? '#a5b4fc'
-                                  : '#4338ca'
-                                : isCompleted
-                                  ? isDark
-                                    ? '#34d399'
-                                    : '#047857'
-                                  : isDark
-                                    ? '#cbd5e1'
-                                    : '#475569',
-                              lineHeight: 1.2,
-                              transition: 'color 0.25s ease',
-                            }}
-                          >
-                            {t(`Step ${step.step}`)}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 700,
-                              color: isActive
-                                ? isDark
-                                  ? '#ffffff'
-                                  : '#0f172a'
-                                : isDark
-                                  ? '#f1f5f9'
-                                  : '#1e293b',
-                              fontSize: '0.9rem',
-                              lineHeight: 1.3,
-                              whiteSpace: 'nowrap',
-                              transition: 'color 0.25s ease',
-                            }}
-                          >
-                            {t(step.title)}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: { xs: 'none', md: 'block' },
-                              color: isActive
-                                ? isDark
-                                  ? '#cbd5e1'
-                                  : '#334155'
-                                : isDark
-                                  ? '#94a3b8'
-                                  : '#475569',
-                              fontWeight: 500,
-                              fontSize: '11.5px',
-                              lineHeight: 1.15,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {t(step.sublabel)}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    }
                     sx={{
-                      opacity: '1 !important',
-                      minHeight: 56,
-                      borderRadius: '12px',
+                      minHeight: 50,
+                      borderRadius: '10px',
                       px: { xs: 1.5, sm: 2 },
-                      py: 0.85,
+                      py: 0.75,
                       textTransform: 'none',
-                      border: isActive ? '2px solid' : '1.5px solid',
+                      border: '1px solid',
                       borderColor: isActive
-                        ? 'primary.main'
-                        : isCompleted
-                          ? isDark
-                            ? 'rgba(16, 185, 129, 0.35)'
-                            : 'rgba(16, 185, 129, 0.32)'
-                          : 'transparent',
+                        ? 'text.primary'
+                        : 'divider',
                       bgcolor: isActive
-                        ? isDark
-                          ? 'rgba(99, 102, 241, 0.18)'
-                          : 'rgba(87, 80, 241, 0.08)'
-                        : isCompleted
-                          ? isDark
-                            ? 'rgba(16, 185, 129, 0.08)'
-                            : 'rgba(16, 185, 129, 0.05)'
-                          : 'transparent',
-                      overflow: 'visible',
+                        ? 'action.selected'
+                        : 'transparent',
+                      textAlign: 'left',
+                      justifyContent: 'flex-start',
+                      transition: 'all 0.15s ease',
                       '&:hover': {
-                        bgcolor: isActive
-                          ? isDark
-                            ? 'rgba(99, 102, 241, 0.24)'
-                            : 'rgba(87, 80, 241, 0.12)'
-                          : 'action.hover',
+                        bgcolor: 'action.hover',
                       },
                     }}
-                  />
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1.25}
+                      sx={{ alignItems: 'center', textAlign: 'left', minWidth: 0 }}
+                    >
+                      <Box
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          bgcolor: isActive
+                            ? 'text.primary'
+                            : 'action.hover',
+                          color: isActive
+                            ? 'background.paper'
+                            : isCompleted
+                              ? 'text.primary'
+                              : 'text.disabled',
+                          border: '1px solid',
+                          borderColor: isActive
+                            ? 'text.primary'
+                            : 'divider',
+                        }}
+                      >
+                        {isCompleted && !isActive ? (
+                          <CheckRounded sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        ) : (
+                          step.step
+                        )}
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: 'block',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            color: isActive
+                              ? 'text.primary'
+                              : 'text.secondary',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {t(`Step ${step.step}`)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: isActive ? 700 : 550,
+                            fontSize: '0.84rem',
+                            color: isActive
+                              ? 'text.primary'
+                              : 'text.secondary',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1.25,
+                          }}
+                        >
+                          {t(step.title)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: { xs: 'none', md: 'block' },
+                            fontSize: '10.5px',
+                            color: 'text.secondary',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1.2,
+                            opacity: 0.8,
+                          }}
+                        >
+                          {t(step.sublabel)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </ButtonBase>
 
                   {!isLast && (
                     <Box
@@ -522,17 +505,16 @@ export default function InspectionDetailPage() {
                         display: { xs: 'none', sm: 'flex' },
                         alignItems: 'center',
                         px: { sm: 0.5, md: 1 },
-                        color: isCompleted ? '#10b981' : '#cbd5e1',
-                        transition: 'color 0.3s ease',
+                        color: 'text.disabled',
                       }}
                     >
-                      <ArrowForwardIosRounded sx={{ fontSize: 12 }} />
+                      <ArrowForwardIosRounded sx={{ fontSize: 11 }} />
                     </Box>
                   )}
                 </Box>
               );
             })}
-          </Tabs>
+          </Stack>
         </Paper>
       </Box>
 
