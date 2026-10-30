@@ -120,7 +120,7 @@ export default function LandingPage() {
             direction="row"
             spacing={{ xs: 2, md: 4 }}
             aria-label={t('Main navigation')}
-            sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}
+            sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}
           >
             {navLinks.map((item) => (
               <Link
@@ -129,9 +129,9 @@ export default function LandingPage() {
                 underline="none"
                 sx={{
                   color: 'rgba(255,255,255,.66)',
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 550,
-                  letterSpacing: '.12em',
+                  letterSpacing: '.1em',
                   textTransform: 'uppercase',
                   '&:hover': { color: '#fff' },
                 }}
@@ -139,24 +139,51 @@ export default function LandingPage() {
                 {item.label}
               </Link>
             ))}
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
             <Link
               href="/login"
               underline="none"
               sx={{
-                color: 'rgba(255,255,255,.66)',
-                fontSize: 10,
-                fontWeight: 550,
-                letterSpacing: '.12em',
-                textTransform: 'uppercase',
-                '&:hover': { color: '#fff' },
+                color: 'rgba(255,255,255,.8)',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.04em',
+                px: 1.75,
+                py: 0.9,
+                borderRadius: '6px',
+                transition: 'color .15s ease, background-color .15s ease',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.08)' },
               }}
             >
               {t('Sign in')}
             </Link>
+            <Box
+              component="a"
+              href="/register"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 36,
+                px: 2.25,
+                bgcolor: '#ffffff',
+                color: '#0c1110',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.03em',
+                textDecoration: 'none',
+                borderRadius: '6px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                transition: 'background-color .15s ease, opacity .15s ease',
+                '&:hover': {
+                  bgcolor: '#e8eaed',
+                },
+              }}
+            >
+              {t('Sign up')}
+            </Box>
           </Stack>
-          <Box component="a" href="/register" sx={{ ...actionSx, minHeight: 38, px: 2, fontSize: 11 }}>
-            {t('Sign up')}
-          </Box>
         </Box>
       </Box>
 
