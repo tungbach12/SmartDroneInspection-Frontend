@@ -49,7 +49,7 @@ export default function InspectorPartnerApplicationPage() {
   }
 
   return (
-    <AuthPageLayout title={t('Apply as an inspector partner')} description={t('Submit your pilot license details for administrator review. You can register a drone after partner approval.')}>
+    <AuthPageLayout title={t('Apply as an inspector partner')} description={t('Submit your pilot license details for administrator review. You can register a drone after partner approval.')} showSocial={false}>
       <Stack component="form" spacing={2} noValidate onSubmit={form.handleSubmit(onSubmit)}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField {...form.register('fullName')} label={t('Full name')} error={Boolean(form.formState.errors.fullName)} helperText={form.formState.errors.fullName?.message} />
