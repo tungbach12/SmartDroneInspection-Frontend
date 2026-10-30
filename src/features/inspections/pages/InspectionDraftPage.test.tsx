@@ -245,9 +245,10 @@ describe('InspectionDraftPage', () => {
     expect(screen.queryByText('Method, equipment and conditions')).toBeNull();
     expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
 
-    // In-place Verify as author action
-    fireEvent.click(screen.getByRole('button', { name: 'Verify as author' }));
-    expect(mocks.verifyVersion.mutate).toHaveBeenCalledWith('version-1');
+    // In-place submit action opens ConfirmDialog
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and Submit' }));
+    expect(mocks.submitVersion.mutate).toHaveBeenCalledWith('version-1', expect.anything());
   });
 
   it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {

@@ -199,6 +199,14 @@ export interface ManualFindingInput {
   recommendedAction?: string | undefined;
 }
 
+export interface PayOSCheckoutDetails {
+  orderCode: number;
+  amount: number;
+  paymentLinkId: string;
+  checkoutUrl: string;
+  qrCode: string;
+}
+
 export interface ManualDraftInput {}
 
 export type InspectionStatus =
@@ -208,6 +216,7 @@ export type InspectionStatus =
   | 'IN_PROGRESS'
   | 'FIELD_COMPLETED'
   | 'REPORT_DRAFT'
+  | 'UNDER_REVIEW'
   | 'REPORT_PUBLISHED'
   | 'REPAIR_PENDING'
   | 'COMPLETED'
@@ -317,6 +326,11 @@ export interface ReinspectionVerificationItem {
   sourceTechnicalNotes?: string | null;
   sourceEvidenceId?: string | null;
   sourceEvidenceFileKey?: string | null;
+  sourceLocationDescription?: string | null;
+  sourceLatitude?: number | null;
+  sourceLongitude?: number | null;
+  repairProofUrl?: string | null;
+  repairEngineerNotes?: string | null;
   newEvidenceId?: string | null;
   newEvidenceFileKey?: string | null;
   resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
@@ -630,6 +644,22 @@ export const inspectionApi = {
       .get<Blob>(
         `/inspections/${inspectionId}/report/versions/${versionId}/document`,
         { responseType: 'blob' },
+      )
+      .then((response) => response.data),
+
+  /** Customer accepts the published report version to start payment window. */
+  acceptReport: (inspectionId: string, versionId: string) =>
+    api
+      .post<void>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/accept`,
+      )
+      .then((response) => response.data),
+
+  /** Generates a PayOS VietQR online payment link for an accepted inspection. */
+  createPayOSPaymentLink: (inspectionId: string) =>
+    api
+      .post<PayOSCheckoutDetails>(
+        `/inspections/${inspectionId}/payos/create-payment-link`,
       )
       .then((response) => response.data),
 

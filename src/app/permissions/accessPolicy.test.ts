@@ -34,6 +34,7 @@ const expectedAccess: Record<
     subscriptions: ['ADMIN', 'PLATFORM_MANAGER'],
     'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
     'platform-users': ['ADMIN'],
+    'finance-settings': ['ADMIN'],
     settings: ['ADMIN', 'PLATFORM_MANAGER'],
   },
   client: {
@@ -48,6 +49,7 @@ const expectedAccess: Record<
     subscriptions: ['ORG_MANAGER'],
     'drone-leasing': ['ORG_MANAGER'],
     'platform-users': [],
+    'finance-settings': [],
     settings: ['ORG_MANAGER'],
   },
   operations: {
@@ -62,6 +64,7 @@ const expectedAccess: Record<
     subscriptions: [],
     'drone-leasing': [],
     'platform-users': [],
+    'finance-settings': [],
     settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
   },
 };

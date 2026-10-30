@@ -29,6 +29,7 @@ export const SECTION_IDS = [
   'subscriptions',
   'drone-leasing',
   'platform-users',
+  'finance-settings',
   'settings',
 ] as const;
 
@@ -46,6 +47,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   subscriptions: 'Subscriptions',
   'drone-leasing': 'Drone leasing',
   'platform-users': 'Platform accounts',
+  'finance-settings': 'Finance settings',
   settings: 'Settings',
 };
 
@@ -71,6 +73,7 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   subscriptions: 'Gói thuê bao',
   'drone-leasing': 'Thuê thiết bị bay',
   'platform-users': 'Tài khoản nền tảng',
+  'finance-settings': 'Cấu hình tài chính',
   settings: 'Cài đặt',
 };
 
@@ -117,6 +120,7 @@ const SECTION_ROLE_ACCESS = {
     'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
+    'finance-settings': ['ADMIN'],
     settings: ['ADMIN', 'PLATFORM_MANAGER'],
   },
   client: {
@@ -134,6 +138,7 @@ const SECTION_ROLE_ACCESS = {
     'drone-leasing': ['ORG_MANAGER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
+    'finance-settings': [],
     settings: ['ORG_MANAGER'],
   },
   operations: {
@@ -148,6 +153,7 @@ const SECTION_ROLE_ACCESS = {
     subscriptions: [],
     'drone-leasing': [],
     'platform-users': [],
+    'finance-settings': [],
     settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
   },
 } as const satisfies Record<

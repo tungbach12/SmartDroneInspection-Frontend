@@ -233,8 +233,9 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove finding' }));
 
-    await waitFor(() => expect(mocks.deleteFinding.mutate).toHaveBeenCalledWith('finding-1'));
+    await waitFor(() => expect(mocks.deleteFinding.mutate).toHaveBeenCalledWith('finding-1', expect.anything()));
   });
 
   it('offers no detection before any capture exists', () => {

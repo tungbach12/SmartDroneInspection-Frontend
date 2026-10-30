@@ -26,9 +26,10 @@ describe('canPerform capability gate', () => {
     expect(canPerform('findings.decide', makeUser(['ORG_MANAGER']))).toBe(true);
   });
 
-  it('keeps asset review scoped to the organization manager', () => {
+  it('allows organization manager, platform manager, and admin to review organization assets', () => {
     expect(canPerform('assets.review', makeUser(['ORG_MANAGER']))).toBe(true);
-    expect(canPerform('assets.review', makeUser(['ADMIN']))).toBe(false);
+    expect(canPerform('assets.review', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('assets.review', makeUser(['PLATFORM_MANAGER']))).toBe(true);
     expect(canPerform('assets.review', makeUser(['INSPECTOR']))).toBe(false);
   });
 

@@ -189,4 +189,38 @@ describe('InspectionDetailPage', () => {
     // The layout owns the header and tabs; each stage renders through the outlet.
     expect(container.querySelector('.workspace-page--inspections')).toBeTruthy();
   });
+
+  it('displays tailored step titles for initial inspection', () => {
+    mocks.inspectionQuery = {
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS', inspectionType: 'INITIAL' },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    render(<InspectionDetailPage />);
+
+    expect(screen.getByText('Flight Operation')).toBeTruthy();
+    expect(screen.getByText('Field Evidence')).toBeTruthy();
+    expect(screen.getByText('Defect Findings')).toBeTruthy();
+    expect(screen.getByText('Inspection Report')).toBeTruthy();
+  });
+
+  it('displays tailored step titles for re-inspection post-repair (3-step workflow)', () => {
+    mocks.inspectionQuery = {
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS', inspectionType: 'RE_INSPECTION' },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    render(<InspectionDetailPage />);
+
+    expect(screen.getByText('Re-flight Operation')).toBeTruthy();
+    expect(screen.queryByText('Repair Evidence')).toBeNull();
+    expect(screen.getByText('Defect Verification')).toBeTruthy();
+    expect(screen.getByText('Verification Report')).toBeTruthy();
+  });
 });

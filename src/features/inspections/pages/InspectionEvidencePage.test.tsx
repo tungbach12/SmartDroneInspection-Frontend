@@ -89,6 +89,9 @@ vi.mock('../hooks/useInspections', () => ({
   useRetireEvidence: () => mocks.retire,
   useBulkRetireEvidence: () => mocks.bulkRetire,
   useUploadInspectionEvidence: () => mocks.upload,
+  useInspection: () => ({ data: { id: 'inspection-1', inspectionType: 'INITIAL' }, isLoading: false }),
+  useReinspectionVerifications: () => ({ data: [], isLoading: false }),
+  useUpdateReinspectionVerification: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -311,11 +314,12 @@ describe('InspectionEvidencePage', () => {
     expect(screen.queryByRole('button', { name: 'Accept evidence set' })).toBeNull();
   });
 
-  it('offers a delete action while the report is editable', () => {
+  it('offers a delete action while the report is editable', async () => {
     mocks.evidenceQuery = { data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: '2026-10-08T08:15:00Z', latestRetiredAt: null }, isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionEvidencePage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete evidence' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }));
 
     expect(mocks.retire.mutate).toHaveBeenCalledWith('evidence-1');
   });

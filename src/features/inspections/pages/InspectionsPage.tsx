@@ -8,8 +8,6 @@ import {
   Paper,
   Stack,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { FactCheckOutlined, TaskAltOutlined } from '@mui/icons-material';
@@ -23,7 +21,6 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
-import { MetricCard } from '@/shared/ui/MetricCard';
 import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
@@ -45,10 +42,10 @@ const EMPTY_ITEMS: never[] = [];
  * report summary already carries a status or version number.
  */
 export default function InspectionsPage() {
-  const { formatNumber, t } = useLocale();
+  const { t } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const roles = useAuthStore((state) => state.roles);
@@ -101,36 +98,21 @@ export default function InspectionsPage() {
   const items = visibleItems;
   const displayedItems = useMemo(() => {
     if (statusFilter === 'ALL') return visibleItems;
-    if (statusFilter === 'RE_INSPECTION') {
-      return visibleItems.filter((item) => item.inspectionType === 'RE_INSPECTION');
+    if (statusFilter === 'UNDER_REVIEW') {
+      return visibleItems.filter(
+        (item) => item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+      );
+    }
+    if (statusFilter === 'REPORT_PUBLISHED') {
+      return visibleItems.filter((item) => item.status === 'REPORT_PUBLISHED' || item.status === 'COMPLETED');
     }
     return visibleItems.filter((item) => item.status === statusFilter);
   }, [visibleItems, statusFilter]);
-  const totalCount = inspections.data?.totalCount ?? visibleItems.length;
-  const inProgressCount = items.filter((item) =>
-    ['READY_FOR_FLIGHT', 'IN_PROGRESS', 'FIELD_COMPLETED', 'REPORT_DRAFT'].includes(item.status),
-  ).length;
-  const repairPendingCount = items.filter((item) => item.status === 'REPAIR_PENDING').length;
-  const completedCount = items.filter((item) => item.status === 'COMPLETED').length;
 
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
   const correctiveDueCount = items.filter((item) => item.pendingAction === 'CORRECTIVE_DISPOSITION').length;
-
-  const setView = (next: InspectionsView) => {
-    setPage(1);
-    if (next === 'reports') {
-      setSearchParams({ view: 'reports' }, { replace: true });
-    } else if (next === 'schedules') {
-      setSearchParams({ view: 'schedules' }, { replace: true });
-    } else if (next === 'calendar') {
-      setSearchParams({ view: 'calendar' }, { replace: true });
-    } else {
-      searchParams.delete('view');
-      setSearchParams(searchParams, { replace: true });
-    }
-  };
 
   const newInspectionButton = isOrgAdmin ? (
     <Button
@@ -183,51 +165,6 @@ export default function InspectionsPage() {
         actions={newInspectionButton}
       />
 
-      {/* Inspector workload metrics are distinct from the Organization Manager report queue. */}
-      {!isOrganizationAdmin && (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-            gap: 2.5,
-            mb: 3,
-          }}
-        >
-          <MetricCard
-            label={isOrganizationAdmin ? (view === 'reports' ? 'Reports in queue' : 'Organization inspections') : 'Total Inspections'}
-            value={inspections.isLoading ? '…' : formatNumber(totalCount)}
-            change={isOrganizationAdmin ? 'Current view' : 'Operational'}
-            positive
-            subtext={isOrganizationAdmin ? (view === 'reports' ? 'across all pages' : 'across your organization') : 'scoped to your assignment'}
-            iconType="plane"
-          />
-          <MetricCard
-            label={t('In Progress')}
-            value={inspections.isLoading ? '…' : formatNumber(inProgressCount)}
-            change={t('Operational')}
-            positive
-            subtext="active inspections"
-            iconType="clock"
-          />
-          <MetricCard
-            label={t('Repair Pending')}
-            value={inspections.isLoading ? '…' : formatNumber(repairPendingCount)}
-            change={repairPendingCount > 0 ? 'Follow-up' : 'Clear'}
-            positive={repairPendingCount === 0}
-            subtext="requires maintenance"
-            iconType="alert"
-          />
-          <MetricCard
-            label={t('Completed')}
-            value={inspections.isLoading ? '…' : formatNumber(completedCount)}
-            change={t('Published')}
-            positive
-            subtext="immutable records"
-            iconType="check-circle"
-          />
-        </Box>
-      )}
-
       {!canBrowse ? (
         <Alert severity="info">
           The inspection list is available to Inspectors, organization manageristrators, and platform
@@ -259,28 +196,11 @@ export default function InspectionsPage() {
             spacing={2}
             sx={{
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               flexWrap: 'wrap',
               gap: 1.5,
             }}
           >
-            <ToggleButtonGroup
-              value={view}
-              exclusive
-              onChange={(_, next: InspectionsView | null) => {
-                if (next) setView(next);
-              }}
-              aria-label={t('Inspection list view')}
-              size="small"
-            >
-              <ToggleButton value="all">{isOrganizationAdmin ? 'All inspections' : 'All'}</ToggleButton>
-              <ToggleButton value="calendar">{t('Schedule calendar')}</ToggleButton>
-              <ToggleButton value="reports">{isOrganizationAdmin ? 'Review queue' : 'With report'}</ToggleButton>
-              {isOrganizationAdmin && (
-                <ToggleButton value="schedules">{t('Recurring schedules')}</ToggleButton>
-              )}
-            </ToggleButtonGroup>
-
             {view !== 'schedules' && view !== 'calendar' && (
               <TextField
                 select
@@ -291,15 +211,12 @@ export default function InspectionsPage() {
                 sx={{ minWidth: 180 }}
               >
                 <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-                <MenuItem value="RE_INSPECTION">{t('Re-inspections only')}</MenuItem>
                 <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
                 <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
                 <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
                 <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
-                <MenuItem value="REPORT_DRAFT">{t('Report Draft')}</MenuItem>
+                <MenuItem value="UNDER_REVIEW">{t('Under Review')}</MenuItem>
                 <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
-                <MenuItem value="REPAIR_PENDING">{t('Repair Pending')}</MenuItem>
-                <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
                 <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
               </TextField>
             )}
