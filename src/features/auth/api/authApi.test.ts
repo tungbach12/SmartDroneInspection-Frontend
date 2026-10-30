@@ -365,7 +365,7 @@ describe('browser auth API', () => {
   });
 
   it('uploads partner license and returns server-generated file key', async () => {
-    transport.apiPost.mockResolvedValue({ data: { fileKey: 'inspector-partner-applications/licenses/00000000-0000-0000-0000-000000000000.pdf' } });
+    transport.apiPost.mockResolvedValue({ data: { data: { fileKey: 'inspector-partner-applications/licenses/00000000-0000-0000-0000-000000000000.pdf' } } });
     const file = new File(['%PDF-1.7'], 'license.pdf', { type: 'application/pdf' });
 
     await expect(uploadPartnerLicense(file)).resolves.toContain('/licenses/');
