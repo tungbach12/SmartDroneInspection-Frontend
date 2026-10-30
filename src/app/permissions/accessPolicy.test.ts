@@ -24,6 +24,7 @@ const expectedAccess: Record<
 > = {
   admin: {
     dashboard: ['ADMIN', 'MANAGER'],
+    contracts: ['MANAGER'],
     assets: ['ADMIN', 'MANAGER'],
     'asset-catalog': ['ADMIN'],
     'asset-review': [],
@@ -41,6 +42,7 @@ const expectedAccess: Record<
   },
   client: {
     dashboard: ['CUSTOMER'],
+    contracts: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
     'asset-review': [],
@@ -58,6 +60,7 @@ const expectedAccess: Record<
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    contracts: [],
     assets: [],
     'asset-catalog': [],
     'asset-review': [],

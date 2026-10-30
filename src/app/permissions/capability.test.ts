@@ -30,6 +30,10 @@ describe('canPerform capability gate', () => {
     expect(canPerform('findings.decide', makeUser(['CUSTOMER']))).toBe(true);
     expect(canPerform('findings.decide', makeUser(['ADMIN']))).toBe(true);
     expect(canPerform('findings.decide', makeUser(['MANAGER']))).toBe(true);
+    expect(canPerform('contracts.request', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('contracts.request', makeUser(['MANAGER']))).toBe(false);
+    expect(canPerform('contracts.manage', makeUser(['MANAGER']))).toBe(true);
+    expect(canPerform('contracts.manage', makeUser(['CUSTOMER']))).toBe(false);
   });
 
   it('allows asset review to organization and platform administrators, not field roles', () => {

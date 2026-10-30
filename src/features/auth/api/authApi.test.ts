@@ -76,7 +76,7 @@ describe('browser auth API', () => {
     expect(result).not.toHaveProperty('refreshToken');
   });
 
-  it('preserves canonical enterprise roles when parsing an authenticated user', async () => {
+  it('normalizes backend customer and manager roles to the existing frontend role keys', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         ...authenticatedFlow,

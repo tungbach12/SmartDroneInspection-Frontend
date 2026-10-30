@@ -102,7 +102,7 @@ function parseUser(value: unknown): AuthUser {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
-    roles: user.roles.map(normalizeRole).filter((r): r is Role => r !== null),
+    roles: user.roles.map(normalizeRole).filter((role): role is Role => role !== null),
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,

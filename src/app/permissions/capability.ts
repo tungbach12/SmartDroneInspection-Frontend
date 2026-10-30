@@ -5,6 +5,8 @@ import type { AuthUser, Role } from '@/features/auth/store/authStore';
  * assignment and separation-of-duties scope that a route guard cannot see.
  */
 export type Capability =
+  | 'contracts.request'
+  | 'contracts.manage'
   | 'inspections.capture'
   | 'inspections.authorReport'
   | 'reports.review'
@@ -13,6 +15,8 @@ export type Capability =
   | 'assets.review';
 
 const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
+  'contracts.request': ['CUSTOMER'],
+  'contracts.manage': ['MANAGER'],
   'inspections.capture': ['INSPECTOR'],
   'inspections.authorReport': ['INSPECTOR'],
   // MF3-09: an organization CUSTOMER decides findings and the report. The backend separately refuses a

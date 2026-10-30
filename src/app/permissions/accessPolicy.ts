@@ -19,6 +19,7 @@ export const PORTAL_CONFIG = {
 
 export const SECTION_IDS = [
   'dashboard',
+  'contracts',
   'assets',
   'asset-catalog',
   'asset-review',
@@ -39,6 +40,7 @@ export type SectionId = (typeof SECTION_IDS)[number];
 
 export const SECTION_LABELS: Record<SectionId, string> = {
   dashboard: 'Dashboard',
+  contracts: 'Service requests',
   assets: 'Assets',
   'asset-catalog': 'Asset catalog',
   'asset-review': 'Asset review',
@@ -67,6 +69,7 @@ const PORTAL_LABELS_VI: Record<PortalId, string> = {
 
 const SECTION_LABELS_VI: Record<SectionId, string> = {
   dashboard: 'Bảng điều khiển',
+  contracts: 'Yêu cầu dịch vụ',
   assets: 'Tài sản',
   'asset-catalog': 'Danh mục tài sản',
   'asset-review': 'Duyệt tài sản',
@@ -114,6 +117,7 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
 const SECTION_ROLE_ACCESS = {
   admin: {
     dashboard: ['ADMIN', 'MANAGER'],
+    contracts: ['MANAGER'],
     assets: ['ADMIN', 'MANAGER'],
     'asset-catalog': ['ADMIN'],
     'asset-review': [],
@@ -133,6 +137,7 @@ const SECTION_ROLE_ACCESS = {
   },
   client: {
     dashboard: ['CUSTOMER'],
+    contracts: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
     'asset-review': [],
@@ -152,6 +157,7 @@ const SECTION_ROLE_ACCESS = {
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    contracts: [],
     assets: [],
     'asset-catalog': [],
     'asset-review': [],
