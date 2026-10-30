@@ -105,7 +105,6 @@ const PlatformFinanceSettingsPage = lazy(
 const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
 );
-);
 
 function SubscriptionsSectionRoute() {
   const location = useLocation();
