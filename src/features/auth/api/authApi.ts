@@ -20,12 +20,22 @@ export interface AuthFlowResponse {
   user: AuthUser;
 }
 
+export interface FirstAssetRegistrationInput {
+  code: string;
+  name: string;
+  categoryId: string;
+  locationText: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface OrganizationRegistrationRequest {
   email: string;
   fullName: string;
   organizationName: string;
   organizationCode: string;
   password: string;
+  firstAsset: FirstAssetRegistrationInput;
 }
 
 interface ApiUser {
@@ -50,11 +60,22 @@ interface ApiAuthFlow {
 }
 
 export interface OrganizationRegistrationResponse {
-  organizationId: string;
+  registrationStatus?: 'ACTIVE' | 'PENDING_AIRSPACE_REVIEW' | string;
+  organizationId: string | null;
   organizationName: string;
   organizationCode: string;
+  airspaceClassification?: string;
+  airspaceReviewId?: string;
+  reviewMessage?: string;
   user: AuthUser;
 }
+
+const VALID_ACTOR_ZONES: readonly ActorZone[] = [
+  'PLATFORM',
+  'CUSTOMER_ORGANIZATION',
+  'INSPECTOR_PARTNER',
+  'PROSPECT_CUSTOMER',
+];
 
 function parseUser(value: unknown): AuthUser {
   if (!value || typeof value !== 'object') {
@@ -73,10 +94,7 @@ function parseUser(value: unknown): AuthUser {
   }
 
   const actorZone = user.actorZone as ActorZone;
-  if (
-    actorZone !== 'PLATFORM' &&
-    actorZone !== 'CUSTOMER_ORGANIZATION'
-  ) {
+  if (!VALID_ACTOR_ZONES.includes(actorZone)) {
     throw new Error('The server returned an invalid account profile.');
   }
 
@@ -171,18 +189,94 @@ export async function registerOrganization(
   request: OrganizationRegistrationRequest,
 ): Promise<OrganizationRegistrationResponse> {
   const { data } = await postWithBrowserCsrf<{
-    organizationId: string;
+    registrationStatus?: string;
+    organizationId: string | null;
     organizationName: string;
     organizationCode: string;
+    airspaceClassification?: string;
+    airspaceReviewId?: string;
+    reviewMessage?: string;
     user: unknown;
   }>('/auth/register', request);
 
   return {
-    organizationId: data.organizationId,
+    ...(data.registrationStatus !== undefined && {
+      registrationStatus: data.registrationStatus,
+    }),
+    organizationId: data.organizationId ?? null,
     organizationName: data.organizationName,
     organizationCode: data.organizationCode,
+    ...(data.airspaceClassification !== undefined && {
+      airspaceClassification: data.airspaceClassification,
+    }),
+    ...(data.airspaceReviewId !== undefined && {
+      airspaceReviewId: data.airspaceReviewId,
+    }),
+    ...(data.reviewMessage !== undefined && { reviewMessage: data.reviewMessage }),
     user: parseUser(data.user),
   };
+}
+
+export interface AirspaceEvaluationResponse {
+  latitude: number;
+  longitude: number;
+  classification: 'NO_FLY_ZONE' | 'RESTRICTED_ZONE' | 'UNKNOWN' | 'CLEAR_ZONE' | string;
+  messageCode: string;
+  advisoryMessage: string;
+  portalUrl: string;
+  matchingZones: unknown[];
+  nearbyZones: unknown[];
+}
+
+export async function evaluateAirspace(
+  latitude: number,
+  longitude: number,
+): Promise<AirspaceEvaluationResponse> {
+  const { data } = await postWithBrowserCsrf<AirspaceEvaluationResponse>(
+    '/airspace/evaluate',
+    { latitude, longitude },
+  );
+  return data;
+}
+
+export interface InspectorPartnerApplicationInput {
+  email: string;
+  fullName: string;
+  phone?: string;
+  pilotLicenseNumber: string;
+  pilotLicenseClass: string;
+  pilotLicenseExpiresAt: string;
+  pilotLicenseFileKey: string;
+}
+
+export interface InspectorPartnerApplicationResponse {
+  id: string;
+  status: string;
+  email: string;
+  fullName: string;
+}
+
+export async function uploadPartnerLicense(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post<{ data: { fileKey: string } }>(
+    '/inspector-partner-applications/license-document',
+    formData,
+  );
+  if (!data?.data || typeof data.data.fileKey !== 'string' || !data.data.fileKey) {
+    throw new Error('The server did not return a license document reference.');
+  }
+  return data.data.fileKey;
+}
+
+export async function submitPartnerApplication(
+  input: InspectorPartnerApplicationInput,
+): Promise<InspectorPartnerApplicationResponse> {
+  const { data } = await postWithBrowserCsrf<InspectorPartnerApplicationResponse>(
+    '/inspector-partner-applications',
+    input,
+  );
+  return data;
 }
 
 

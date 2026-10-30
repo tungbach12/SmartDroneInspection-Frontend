@@ -34,6 +34,9 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
+const InspectorPartnerApplicationPage = lazy(
+  () => import('@/features/auth/pages/InspectorPartnerApplicationPage'),
+);
 const AccountSecurityPage = lazy(
   () => import('@/features/auth/pages/AccountSecurityPage'),
 );
@@ -43,6 +46,9 @@ const DashboardPage = lazy(
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
 const AssetReviewPage = lazy(() => import('@/features/assets/pages/AssetReviewPage'));
+const InspectorDroneRegistrationPage = lazy(
+  () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
+);
 const InspectionsPage = lazy(
   () => import('@/features/inspections/pages/InspectionsPage'),
 );
@@ -93,6 +99,9 @@ const ClientDroneLeasingPage = lazy(
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
+const Mf1ReviewPage = lazy(
+  () => import('@/features/admin/pages/Mf1ReviewPage'),
+);
 
 function SubscriptionsSectionRoute() {
   const location = useLocation();
@@ -124,21 +133,23 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   subscriptions: <SubscriptionsSectionRoute />,
   'drone-leasing': <DroneLeasingSectionRoute />,
   'platform-users': <PlatformUsersPage />,
+  'onboarding-reviews': <Mf1ReviewPage />,
+  'inspector-drones': <InspectorDroneRegistrationPage />,
   settings: <AccountSecurityPage />,
 };
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
-  const isReviewer = roles.some((r) =>
-    ['PLATFORM_MANAGER', 'MANAGER', 'ADMIN', 'ORG_MANAGER'].includes(r),
+  const isReviewer = roles.some((role) =>
+    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
   );
   return <Navigate to={isReviewer ? 'review' : 'field-session'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
-  const isReviewer = roles.some((r) =>
-    ['PLATFORM_MANAGER', 'MANAGER', 'ADMIN', 'ORG_MANAGER'].includes(r),
+  const isReviewer = roles.some((role) =>
+    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
   );
   return isReviewer
     ? <Navigate to="../review" replace />
@@ -199,7 +210,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                 {
                   path: 'review',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER', 'ADMIN', 'PLATFORM_MANAGER']}>
+                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
                       <OrganizationReportReviewPage />
                     </RequireAuth>
                   ),
@@ -210,7 +221,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                   // as "editing the report".
                   path: 'corrective',
                   element: (
-                    <RequireAuth roles={['ORG_MANAGER', 'ADMIN', 'PLATFORM_MANAGER']}>
+                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
                       <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),
@@ -280,6 +291,14 @@ export const router = createBrowserRouter([
         element: (
           <PublicOnly>
             <RegisterPage />
+          </PublicOnly>
+        ),
+      },
+      {
+        path: 'inspector-partner-application',
+        element: (
+          <PublicOnly>
+            <InspectorPartnerApplicationPage />
           </PublicOnly>
         ),
       },

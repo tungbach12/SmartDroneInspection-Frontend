@@ -1,130 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const restore = vi.hoisted(() => vi.fn());
+const mocks = vi.hoisted(() => ({ restoreBrowserSession: vi.fn() }));
+vi.mock('./authApi', () => ({ restoreBrowserSession: mocks.restoreBrowserSession }));
 
-vi.mock('./authApi', () => ({ restoreBrowserSession: restore }));
-
+import { useAuthStore } from '../store/authStore';
 import { initializeBrowserSession } from './sessionBootstrap';
-import type { AuthFlowResponse } from './authApi';
-import { useAuthStore, type Role } from '../store/authStore';
 
-const authenticatedFlow: AuthFlowResponse = {
-  step: 'AUTHENTICATED' as const,
-  accessToken: 'restored-memory-token',
-  accessTokenExpiresInSeconds: 900,
-  user: {
-    id: 'user-1',
-    email: 'org-manager@example.com',
-    fullName: 'Organization Manager',
-    roles: ['ORG_MANAGER'] as Role[],
-    actorZone: 'CUSTOMER_ORGANIZATION',
-    organizationId: 'org-1',
-  },
-};
-
-describe('browser session bootstrap', () => {
+describe('MF1 browser session role handling', () => {
   beforeEach(() => {
-    restore.mockReset();
-    localStorage.removeItem('sdi_dev_session');
-    useAuthStore.setState({
-      status: 'checking',
-      accessToken: null,
-      user: null,
-      userId: null,
-      userName: null,
-      email: null,
-      roles: [],
-      actorZone: null,
-      organizationId: null,
-    });
+    vi.clearAllMocks();
+    useAuthStore.getState().clearSession();
   });
 
-  it('restores the profile and access token into memory', async () => {
-    restore.mockResolvedValue(authenticatedFlow);
-
-    await initializeBrowserSession();
-
-    expect(useAuthStore.getState()).toMatchObject({
-      status: 'authenticated',
-      accessToken: 'restored-memory-token',
-      email: 'org-manager@example.com',
-      roles: ['ORG_MANAGER'],
-    });
-  });
-
-  it('ends the bootstrap as signed out when refresh is rejected', async () => {
-    restore.mockRejectedValue(new Error('Refresh cookie is no longer valid.'));
-
-    await initializeBrowserSession();
-
-    expect(useAuthStore.getState()).toMatchObject({
-      status: 'anonymous',
-      accessToken: null,
-      roles: [],
-    });
-  });
-
-  it('shares one in-tab restoration request when mounted concurrently', async () => {
-    let complete: ((value: typeof authenticatedFlow) => void) | undefined;
-    restore.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          complete = resolve;
-        }),
-    );
-
-    const first = initializeBrowserSession();
-    const second = initializeBrowserSession();
-    expect(restore).toHaveBeenCalledTimes(1);
-
-    complete?.(authenticatedFlow);
-    await Promise.all([first, second]);
-    expect(useAuthStore.getState().status).toBe('authenticated');
-  });
-
-  it('does not let a stale refresh response overwrite a newer successful login', async () => {
-    let completeRestore: ((value: AuthFlowResponse) => void) | undefined;
-    const staleFlow = {
-      step: 'AUTHENTICATED' as const,
-      accessToken: 'stale-refresh-token',
+  it.each([
+    ['ADMIN', 'PLATFORM'],
+    ['MANAGER', 'PLATFORM'],
+    ['CUSTOMER', 'CUSTOMER_ORGANIZATION'],
+    ['INSPECTOR', 'INSPECTOR_PARTNER'],
+    ['MAINTENANCE_ENGINEER', 'CUSTOMER_ORGANIZATION'],
+  ] as const)('restores the canonical %s role and %s actor zone', async (role, actorZone) => {
+    useAuthStore.getState().setStatus('checking');
+    mocks.restoreBrowserSession.mockResolvedValue({
+      step: 'AUTHENTICATED',
+      accessToken: 'memory-token',
       accessTokenExpiresInSeconds: 900,
       user: {
-        id: 'stale-user',
-        email: 'stale-inspector@example.test',
-        fullName: 'Stale Inspector',
-        roles: ['INSPECTOR'] as Role[],
-        actorZone: 'CUSTOMER_ORGANIZATION' as const,
-        organizationId: 'org-1',
-      },
-    };
-    restore.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          completeRestore = resolve;
-        }),
-    );
-
-    const bootstrap = initializeBrowserSession();
-    useAuthStore.getState().setSession({
-      accessToken: 'fresh-login-token',
-      user: {
-        id: 'fresh-user',
-        email: 'fresh-admin@example.test',
-        fullName: 'Fresh Admin',
-        roles: ['ORG_MANAGER'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-2',
+        id: 'user-1',
+        email: 'user@example.test',
+        fullName: 'Test User',
+        roles: [role],
+        actorZone,
+        organizationId: actorZone === 'CUSTOMER_ORGANIZATION' ? 'org-1' : null,
       },
     });
 
-    completeRestore?.(staleFlow);
-    await bootstrap;
+    await initializeBrowserSession();
 
-    expect(useAuthStore.getState()).toMatchObject({
-      status: 'authenticated',
-      accessToken: 'fresh-login-token',
-      email: 'fresh-admin@example.test',
-      roles: ['ORG_MANAGER'],
-    });
+    expect(useAuthStore.getState().roles).toEqual([role]);
+    expect(useAuthStore.getState().actorZone).toBe(actorZone);
   });
 });

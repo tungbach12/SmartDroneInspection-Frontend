@@ -1,7 +1,7 @@
 export type RoleId =
-  | 'ORG_MANAGER'
+  | 'CUSTOMER'
   | 'ADMIN'
-  | 'PLATFORM_MANAGER'
+  | 'MANAGER'
   | 'INSPECTOR'
   | 'MAINTENANCE_ENGINEER';
 
@@ -79,12 +79,12 @@ export interface DashboardRoleConfig {
 }
 
 export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
-  // 1. ORG_MANAGER (Organization Manager) - Report 3 Customer Enterprise Authority
-  ORG_MANAGER: {
-    id: 'ORG_MANAGER',
+  // 1. CUSTOMER (Organization Manager) - Report 3 Customer Enterprise Authority
+  CUSTOMER: {
+    id: 'CUSTOMER',
     name: 'Organization Manager',
     badge: 'Enterprise Authority',
-    report3RoleName: 'ORG_MANAGER',
+    report3RoleName: 'CUSTOMER',
     roleDescription: 'Customer enterprise authority: asset registration (MF1), readiness authorization (MF2), report approvals (MF3), and repair budget reconciliation (MF4).',
     overviewTitle: 'Asset overview',
     overviewSubtitle: 'Recent structures, fleet readiness, and workflow approvals registered to your organization.',
@@ -275,12 +275,12 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
     },
   },
 
-  // 2b. PLATFORM_MANAGER (Platform Manager) - Commercial & B2B Drone Leasing Operations
-  PLATFORM_MANAGER: {
-    id: 'PLATFORM_MANAGER',
+  // 2b. MANAGER (Platform Manager) - Commercial & B2B Drone Leasing Operations
+  MANAGER: {
+    id: 'MANAGER',
     name: 'Platform Manager',
     badge: 'Commercial & Leasing Operations',
-    report3RoleName: 'PLATFORM_MANAGER',
+    report3RoleName: 'MANAGER',
     roleDescription: 'Platform commercial operator: enterprise subscription settlement, B2B drone leasing pool management, wire reconciliation, and lease provisioning.',
     overviewTitle: 'Platform overview',
     overviewSubtitle: 'Enterprise subscriptions, B2B drone leasing pool, and commercial settlement status.',

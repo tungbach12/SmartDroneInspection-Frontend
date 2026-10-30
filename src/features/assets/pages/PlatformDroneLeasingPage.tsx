@@ -59,7 +59,7 @@ const LEASE_STATUS_FILTERS = [
 
 export default function PlatformDroneLeasingPage() {
   const roles = useAuthStore((s) => s.roles);
-  const canManage = roles.includes('PLATFORM_MANAGER');
+  const canManage = roles.includes('MANAGER');
   const isReadOnlyAdmin = roles.includes('ADMIN') && !canManage;
 
   const [activeTab, setActiveTab] = useState<'POOL' | 'LEASES'>('POOL');

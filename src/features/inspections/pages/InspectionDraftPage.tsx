@@ -410,7 +410,6 @@ export default function InspectionDraftPage() {
 
       <ConfirmDialog
         open={confirmSubmitOpen}
-        onClose={() => setConfirmSubmitOpen(false)}
         title={t('Confirm Report Submission')}
         cancelLabel={t('Cancel')}
         confirmLabel={t('Confirm and Submit')}

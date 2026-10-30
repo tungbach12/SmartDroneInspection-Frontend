@@ -16,7 +16,6 @@ export const viCatalog: Record<string, string> = {
   "Confirm delete": "Xác nhận xóa",
   "Confirm Remove Finding": "Xác nhận xóa khiếm khuyết",
   "Are you sure you want to remove this defect finding? It will be excluded from the report set, but an audit record will be preserved.": "Bạn có chắc chắn muốn xóa khiếm khuyết này? Khiếm khuyết sẽ không được đưa vào báo cáo nhưng hệ thống vẫn lưu vết kiểm toán.",
-  "Remove finding": "Xóa khiếm khuyết",
   "Confirm Completion Report Submission": "Xác nhận nộp biên bản hoàn công",
   "Are you sure you want to submit this completion report for acceptance? The report and maintenance records will be locked while awaiting independent reviewer decision.": "Bạn có chắc chắn muốn nộp biên bản hoàn công này để nghiệm thu? Biên bản và hồ sơ sửa chữa sẽ bị khóa trong khi chờ người nghiệm thu độc lập đánh giá.",
   "Confirm & Submit": "Xác nhận & Nộp",
@@ -137,7 +136,7 @@ export const viCatalog: Record<string, string> = {
   "Add frequency": "Thêm tần suất",
   "Add manual finding for": "Thêm phát hiện thủ công cho",
   "Add task": "Thêm công việc",
-  "Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent ORG_MANAGER readiness review before starting another session.": "Đã yêu cầu thực hiện thêm công việc tại hiện trường. Tiếp tục trong MF2 Preparation, sau đó gửi kế hoạch mới để ORG_MANAGER đánh giá độc lập mức độ sẵn sàng trước khi bắt đầu phiên tiếp theo.",
+  "Additional field work was requested. Continue in MF2 Preparation, then submit the new plan for independent CUSTOMER readiness review before starting another session.": "Đã yêu cầu thực hiện thêm công việc tại hiện trường. Tiếp tục trong MF2 Preparation, sau đó gửi kế hoạch mới để CUSTOMER đánh giá độc lập mức độ sẵn sàng trước khi bắt đầu phiên tiếp theo.",
   "Administrator-managed accounts: platform admins and each workspace's Organization Manager": "Tài khoản do quản trị viên quản lý: quản trị viên nền tảng và Quản lý tổ chức của từng không gian làm việc",
   "Advisory detection": "Phát hiện mang tính khuyến nghị",
   "All confirmed findings from this report have already been forwarded to Maintenance.": "Tất cả phát hiện đã xác nhận trong báo cáo này đã được chuyển tiếp sang Bảo trì.",
@@ -1238,9 +1237,9 @@ export const viCatalog: Record<string, string> = {
 
   // Inspection Detail, Field Session, Airspace & Role Labels
   "INSPECTOR": "KIỂM ĐỊNH VIÊN",
-  "ORG_MANAGER": "QUẢN LÝ TỔ CHỨC",
+  "CUSTOMER": "QUẢN LÝ TỔ CHỨC",
   "ADMIN": "QUẢN TRỊ HỆ THỐNG",
-  "PLATFORM_MANAGER": "QUẢN LÝ NỀN TẢNG",
+  "MANAGER": "QUẢN LÝ NỀN TẢNG",
   "MAINTENANCE_ENGINEER": "KỸ SƯ BẢO TRÌ",
   "Back to list": "Quay lại danh sách",
   "Back to review queue": "Quay lại hàng đợi xét duyệt",

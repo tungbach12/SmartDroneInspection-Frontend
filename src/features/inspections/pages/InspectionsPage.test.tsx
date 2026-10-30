@@ -1,4 +1,4 @@
-﻿import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -285,7 +285,7 @@ describe('InspectionsPage', () => {
   });
 
   it('presents an Organization Manager review queue with status-specific next actions', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.reportsQuery = {
       data: {
         items: [
@@ -323,7 +323,7 @@ describe('InspectionsPage', () => {
   });
 
   it('opens the phase a row is waiting in, rather than a fixed tab', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.reportsQuery = {
       data: {
         items: [
@@ -386,7 +386,7 @@ describe('InspectionsPage', () => {
   });
 
   it('allows an organization manager to switch to the recurring schedules view', async () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     renderPage('/client/inspections');
 
     const schedulesBtn = await screen.findByRole('button', { name: 'Recurring schedules' });
@@ -394,7 +394,7 @@ describe('InspectionsPage', () => {
 
     fireEvent.click(schedulesBtn);
 
-    expect(await screen.findByText('Weekly Bridge Inspection')).toBeTruthy();
+    expect(await screen.findByText('Bridge Alpha')).toBeTruthy();
   });
 
   it('allows switching to the schedule calendar view and renders the calendar', async () => {

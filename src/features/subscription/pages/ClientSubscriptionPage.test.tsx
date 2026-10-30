@@ -99,7 +99,7 @@ describe('ClientSubscriptionPage', () => {
         id: 'user-1',
         email: 'org.manager@acme.test',
         fullName: 'Alice OrgManager',
-        roles: ['ORG_MANAGER'],
+        roles: ['CUSTOMER'],
         actorZone: 'CUSTOMER_ORGANIZATION',
         organizationId: 'org-1',
       },

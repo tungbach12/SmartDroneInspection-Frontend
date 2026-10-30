@@ -16,19 +16,26 @@ function makeUser(roles: Role[]): AuthUser {
 describe('canPerform capability gate', () => {
   it('maps report author and reviewer actions to the Report 3 MF3 roles', () => {
     expect(canPerform('inspections.authorReport', makeUser(['INSPECTOR']))).toBe(true);
-    expect(canPerform('inspections.authorReport', makeUser(['ORG_MANAGER']))).toBe(false);
+    expect(canPerform('inspections.authorReport', makeUser(['CUSTOMER']))).toBe(false);
 
-    // MF3-09: a qualified ORG_MANAGER reviews and publishes; the Inspector never does.
-    expect(canPerform('reports.review', makeUser(['ORG_MANAGER']))).toBe(true);
+    // MF3-09: the organization Customer reviews and publishes; the Inspector never does.
+    expect(canPerform('reports.review', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('reports.review', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('reports.review', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.review', makeUser(['INSPECTOR']))).toBe(false);
-    expect(canPerform('reports.publish', makeUser(['ORG_MANAGER']))).toBe(true);
+    expect(canPerform('reports.publish', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('reports.publish', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('reports.publish', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.publish', makeUser(['INSPECTOR']))).toBe(false);
-    expect(canPerform('findings.decide', makeUser(['ORG_MANAGER']))).toBe(true);
+    expect(canPerform('findings.decide', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('findings.decide', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('findings.decide', makeUser(['MANAGER']))).toBe(true);
   });
 
-  it('keeps asset review scoped to the organization manager', () => {
-    expect(canPerform('assets.review', makeUser(['ORG_MANAGER']))).toBe(true);
-    expect(canPerform('assets.review', makeUser(['ADMIN']))).toBe(false);
+  it('allows asset review to organization and platform administrators, not field roles', () => {
+    expect(canPerform('assets.review', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('assets.review', makeUser(['ADMIN']))).toBe(true);
+    expect(canPerform('assets.review', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('assets.review', makeUser(['INSPECTOR']))).toBe(false);
   });
 
