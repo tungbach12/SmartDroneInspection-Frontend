@@ -30,6 +30,16 @@ describe('Organization Manager MF3 reviewer routes', () => {
   });
 });
 
+describe('MF1 guarded onboarding routes', () => {
+  it.each([
+    ['/admin/onboarding-reviews', 'onboarding-reviews'],
+    ['/operations/inspector-drones', 'inspector-drones'],
+  ])('matches guarded route %s', (path, expected) => {
+    const matches = matchRoutes(router.routes, path);
+    expect(matches?.at(-1)?.route.path).toBe(expected);
+  });
+});
+
 describe('MF1 client-only routes', () => {
   it('matches /client/workforce as a guarded client section', () => {
     const matches = matchRoutes(router.routes, '/client/workforce');
@@ -57,12 +67,12 @@ describe('MF1 client-only routes', () => {
   );
 
   it.each([
-    ['/client/workforce', 'ORG_MANAGER'],
-    ['/client/assets', 'ORG_MANAGER'],
-    ['/client/subscriptions', 'ORG_MANAGER'],
-    ['/client/drone-leasing', 'ORG_MANAGER'],
-    ['/admin/subscriptions', 'PLATFORM_MANAGER'],
-    ['/admin/drone-leasing', 'PLATFORM_MANAGER'],
+    ['/client/workforce', 'CUSTOMER'],
+    ['/client/assets', 'CUSTOMER'],
+    ['/client/subscriptions', 'CUSTOMER'],
+    ['/client/drone-leasing', 'CUSTOMER'],
+    ['/admin/subscriptions', 'MANAGER'],
+    ['/admin/drone-leasing', 'MANAGER'],
     ['/client/workforce', 'ADMIN'],
     ['/client/assets', 'ADMIN'],
     ['/client/workforce', 'INSPECTOR'],

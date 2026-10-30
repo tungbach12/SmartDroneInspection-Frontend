@@ -33,7 +33,7 @@ describe('dashboard', () => {
   });
 
   it('shows organization-scoped asset metrics and the asset register', () => {
-    renderDashboard(['ORG_MANAGER']);
+    renderDashboard(['CUSTOMER']);
     expect(screen.getByRole('heading', { name: 'Asset overview' })).toBeTruthy();
     expect(screen.getByRole('group', { name: /registered assets: 12/i })).toBeTruthy();
     expect(screen.getByText('North Bridge')).toBeTruthy();
@@ -74,15 +74,15 @@ describe('dashboard', () => {
     expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
   });
 
-  it('supports PLATFORM_MANAGER in /admin/dashboard', () => {
-    renderDashboard(['PLATFORM_MANAGER'], '/admin/dashboard');
+  it('supports MANAGER in /admin/dashboard', () => {
+    renderDashboard(['MANAGER'], '/admin/dashboard');
     expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Platform Manager' })).toBeTruthy();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
   });
 
   it('keeps cross-portal roles in their selected client workspace', () => {
-    renderDashboard(['ORG_MANAGER', 'INSPECTOR'], '/client/dashboard');
+    renderDashboard(['CUSTOMER', 'INSPECTOR'], '/client/dashboard');
     expect(screen.getByRole('heading', { name: 'Asset overview' })).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeTruthy();
     expect(document.querySelector('a[href="/operations/inspections"]')).toBeNull();

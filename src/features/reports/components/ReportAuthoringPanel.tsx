@@ -23,6 +23,7 @@ import type {
   EvidenceItem,
   InspectionReport,
   Finding,
+  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -42,6 +43,7 @@ export interface ReportAuthoringPanelProps {
   inspectionId: string;
   canEdit: boolean;
   onSaveSections: (sections: ReportSectionValues) => Promise<unknown>;
+  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
 }
 
 function triggerDownload(blob: Blob, fileName: string) {
@@ -62,6 +64,7 @@ export function ReportAuthoringPanel({
   inspectionId,
   canEdit,
   onSaveSections,
+  reinspectionVerifications,
 }: ReportAuthoringPanelProps) {
   const { t } = useLocale();
   const [sections, setSections] = useState<ReportSectionValues>(() =>
@@ -239,10 +242,31 @@ export function ReportAuthoringPanel({
         findings={findings}
         evidenceList={evidenceList}
         inspectionId={inspectionId}
-        executiveSummary={<ReportSectionField section="executiveSummary" sections={sections} onChange={change} disabled={!canEdit} />}
-        limitations={<ReportSectionField section="omissionDisclosure" sections={sections} onChange={change} disabled={!canEdit} />}
-        method={<ReportSectionField section="methodEquipmentConditions" sections={sections} onChange={change} disabled={!canEdit} />}
-        conclusions={<ReportSectionField section="conclusionsRecommendations" sections={sections} onChange={change} disabled={!canEdit} />}
+        reinspectionVerifications={reinspectionVerifications}
+        executiveSummary={
+          <ReportSectionField
+            section="executiveSummary"
+            sections={sections}
+            onChange={change}
+            disabled={!canEdit}
+          />
+        }
+        limitations={
+          <ReportSectionField
+            section="omissionDisclosure"
+            sections={sections}
+            onChange={change}
+            disabled={!canEdit}
+          />
+        }
+        conclusions={
+          <ReportSectionField
+            section="conclusionsRecommendations"
+            sections={sections}
+            onChange={change}
+            disabled={!canEdit}
+          />
+        }
       />
 
       {/* PDF Preview Dialog */}

@@ -97,6 +97,8 @@ export interface WorkOrder {
   acceptingReviewerName?: string | null;
   createdAt: string;
   updatedAt: string;
+  reinspectionId?: string | null;
+  reinspectionReportVersionId?: string | null;
 }
 
 export interface WorkOrderPage {

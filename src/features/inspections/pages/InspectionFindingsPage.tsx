@@ -28,6 +28,7 @@ import type {
   ManualFindingInput,
 } from '../api/inspectionApi';
 import { AiMotionFigure } from '../components/AiMotionFigure';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   useAnalyzeEvidence,
@@ -43,8 +44,12 @@ import {
   useConfirmFinding,
   useRemovedFindings,
   useRestoreFinding,
+  useInspection,
+  useReinspectionVerifications,
+  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
 import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
+import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -54,7 +59,14 @@ export default function InspectionFindingsPage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const isReviewer = roles.includes('ORG_MANAGER');
+  const isReviewer = roles.includes('CUSTOMER');
+
+  const inspectionQuery = useInspection(inspectionId);
+  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
+  const reinspectionVerifications = useReinspectionVerifications(
+    isReinspection ? inspectionId : null,
+  );
+  const updateVerificationMutation = useUpdateReinspectionVerification(inspectionId);
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -116,6 +128,7 @@ export default function InspectionFindingsPage() {
   const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
   const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
+  const [findingToDeleteId, setFindingToDeleteId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
 
   // Combine active findings + soft-deleted findings when filter warrants it
@@ -358,6 +371,20 @@ export default function InspectionFindingsPage() {
 
   return (
     <Stack spacing={2.5}>
+      {/* Re-inspection Target Defect Verifications */}
+      {isReinspection && (
+        <ReinspectionVerificationSection
+          inspectionId={inspectionId}
+          sourceInspectionId={inspectionQuery.data?.sourceInspectionId}
+          items={reinspectionVerifications.data ?? []}
+          evidenceList={activeEvidenceItems}
+          onUpdate={(verificationId, payload) =>
+            updateVerificationMutation.mutateAsync({ verificationId, payload })
+          }
+          readOnly={!isInspector || isFindingsLocked}
+        />
+      )}
+
       {/* 1. Page Header with Clean Single-Row Actions */}
       <Paper
         elevation={0}
@@ -758,7 +785,7 @@ export default function InspectionFindingsPage() {
                     },
                   })
                 }
-                onDeleteFinding={(fid) => deleteFinding.mutate(fid)}
+                onDeleteFinding={(fid) => setFindingToDeleteId(fid)}
                 onRestoreFinding={(fid) => restoreFinding.mutate(fid)}
                 isRestorePending={restoreFinding.isPending}
                 isConfirmPending={confirmFinding.isPending}
@@ -874,7 +901,27 @@ export default function InspectionFindingsPage() {
         isPending={updateFinding.isPending || deleteFinding.isPending}
         error={updateFinding.error ?? deleteFinding.error}
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
-        onDelete={(findingId) => deleteFinding.mutate(findingId)}
+        onDelete={(findingId) => setFindingToDeleteId(findingId)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(findingToDeleteId)}
+        title={t('Confirm Remove Finding')}
+        message={t(
+          'Are you sure you want to remove this defect finding? It will be excluded from the report set, but an audit record will be preserved.',
+        )}
+        severity="danger"
+        confirmLabel={t('Remove finding')}
+        cancelLabel={t('Cancel')}
+        loading={deleteFinding.isPending}
+        onCancel={() => setFindingToDeleteId(null)}
+        onConfirm={() => {
+          if (findingToDeleteId) {
+            deleteFinding.mutate(findingToDeleteId, {
+              onSettled: () => setFindingToDeleteId(null),
+            });
+          }
+        }}
       />
     </Stack>
   );

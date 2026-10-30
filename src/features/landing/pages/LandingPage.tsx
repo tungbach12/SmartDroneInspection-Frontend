@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Box, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -10,30 +10,30 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 const services = [
   {
     number: '01',
-    title: 'Drone-ready inspections',
+    title: 'Fly to hard-to-reach spots',
     description:
-      'Bring hard-to-reach places into view with imagery from your drone team or inspection partner.',
+      'Drones easily fly up to high roofs, towers, and areas where people cannot safely climb.',
     Icon: FlightTakeoffIcon,
   },
   {
     number: '02',
-    title: 'AI-assisted review',
+    title: 'Spot cracks and damage',
     description:
-      'Computer vision can highlight details like concrete cracks, sealant gaps and corrosion for a closer look.',
+      'Automatically highlights cracks, spalling, or rust so you never miss a damaged spot.',
     Icon: AutoAwesomeIcon,
   },
   {
     number: '03',
-    title: 'Connected asset records',
+    title: 'Organized photo records',
     description:
-      'Keep photos, inspection notes and reports together with the building or structure they belong to.',
+      'All inspection photos and damage locations are organized neatly by building for easy review.',
     Icon: AccountTreeIcon,
   },
   {
     number: '04',
-    title: 'Clear follow-up',
+    title: 'Clear next steps',
     description:
-      'Give your team an organized path from a reviewed finding to the next action.',
+      'From identified flaws to repair action, helping you decide what to fix quickly and correctly.',
     Icon: TaskAltIcon,
   },
 ];
@@ -62,15 +62,18 @@ const actionSx = {
 };
 
 export default function LandingPage() {
-  const { t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SmartDroneInspection | A clearer view of every asset';
+    if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
+      setLocale('en');
+    }
 
     return () => {
       document.title = previousTitle;
     };
-  }, []);
+  }, [setLocale]);
 
   return (
     <Box
@@ -120,7 +123,7 @@ export default function LandingPage() {
             direction="row"
             spacing={{ xs: 2, md: 4 }}
             aria-label={t('Main navigation')}
-            sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center' }}
+            sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center' }}
           >
             {navLinks.map((item) => (
               <Link
@@ -129,34 +132,82 @@ export default function LandingPage() {
                 underline="none"
                 sx={{
                   color: 'rgba(255,255,255,.66)',
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 550,
-                  letterSpacing: '.12em',
+                  letterSpacing: '.1em',
                   textTransform: 'uppercase',
                   '&:hover': { color: '#fff' },
                 }}
               >
-                {item.label}
+                {t(item.label)}
               </Link>
             ))}
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            <Button
+              size="small"
+              onClick={() => {
+                const next = locale === 'en' ? 'vi' : 'en';
+                setLocale(next);
+                window.sessionStorage.setItem('sdi_locale_explicit', 'true');
+              }}
+              sx={{
+                minWidth: 'auto',
+                px: 1.25,
+                py: 0.5,
+                color: 'rgba(255,255,255,.65)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '.06em',
+                borderRadius: '6px',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.06)' },
+              }}
+            >
+              {locale === 'en' ? 'VI' : 'EN'}
+            </Button>
             <Link
               href="/login"
               underline="none"
               sx={{
-                color: 'rgba(255,255,255,.66)',
-                fontSize: 10,
-                fontWeight: 550,
-                letterSpacing: '.12em',
-                textTransform: 'uppercase',
-                '&:hover': { color: '#fff' },
+                color: 'rgba(255,255,255,.8)',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.04em',
+                px: 1.75,
+                py: 0.9,
+                borderRadius: '6px',
+                transition: 'color .15s ease, background-color .15s ease',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.08)' },
               }}
             >
               {t('Sign in')}
             </Link>
+            <Box
+              component="a"
+              href="/register"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 36,
+                px: 2.25,
+                bgcolor: '#ffffff',
+                color: '#0c1110',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.03em',
+                textDecoration: 'none',
+                borderRadius: '6px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                transition: 'background-color .15s ease, opacity .15s ease',
+                '&:hover': {
+                  bgcolor: '#e8eaed',
+                },
+              }}
+            >
+              {t('Sign up')}
+            </Box>
           </Stack>
-          <Box component="a" href="/register" sx={{ ...actionSx, minHeight: 38, px: 2, fontSize: 11 }}>
-            {t('Get a consultation')}
-          </Box>
         </Box>
       </Box>
 
@@ -204,14 +255,14 @@ export default function LandingPage() {
           </Typography>
           <Typography
             sx={{
-              maxWidth: 530,
+              maxWidth: 580,
               mt: 3,
-              color: 'rgba(255,255,255,.69)',
+              color: 'rgba(255,255,255,.76)',
               fontSize: { xs: 14, md: 16 },
               lineHeight: 1.7,
             }}
           >
-            {t('Drone imagery and AI-assisted inspection help your team understand the places and structures you’re responsible for—and decide what to do next.')}
+            {t('No risky climbing. No expensive scaffolding. Drones fly directly to hard-to-reach roofs, towers, and bridges—capturing close-up photos so you know exactly what needs fixing.')}
           </Typography>
           <Stack direction="row" spacing={3} sx={{ alignItems: 'center', mt: 3.5, flexWrap: 'wrap', rowGap: 2 }}>
             <Box component="a" href="/register" sx={actionSx}>
@@ -328,10 +379,10 @@ export default function LandingPage() {
                     {item.number}
                   </Typography>
                   <Typography component="h3" sx={{ mt: 1.5, fontSize: 19, fontWeight: 550, lineHeight: 1.2, letterSpacing: '-.04em' }}>
-                    {item.title}
+                    {t(item.title)}
                   </Typography>
                   <Typography sx={{ mt: 1.25, maxWidth: 270, color: '#777b75', fontSize: 12, lineHeight: 1.65 }}>
-                    {item.description}
+                    {t(item.description)}
                   </Typography>
                 </Box>
               ))}
@@ -416,8 +467,8 @@ export default function LandingPage() {
               >
                 {t('Technology brings it into view. People decide what it means.')}
               </Typography>
-              <Typography sx={{ mt: 3, maxWidth: 490, color: 'rgba(255,255,255,.62)', fontSize: 14, lineHeight: 1.8 }}>
-                {t('AI can help your team notice and organize details. Inspectors review the evidence, make the call and keep the next step connected to the asset.')}
+              <Typography sx={{ mt: 3, maxWidth: 510, color: 'rgba(255,255,255,.7)', fontSize: 14, lineHeight: 1.8 }}>
+                {t('Instead of risking lives on ladders or guessing from the ground, drones give you a clear, front-row view of your structure. AI highlights the issues, and experienced inspectors help you make the right call.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5, alignSelf: 'flex-start' }}>
                 {t('See how the platform works')} <NorthEastIcon sx={{ fontSize: 16 }} />
@@ -474,7 +525,7 @@ export default function LandingPage() {
             >
               {navLinks.map((item) => (
                 <Link key={item.href} href={item.href} underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>
-                  {item.label}
+                  {t(item.label)}
                 </Link>
               ))}
               <Link href="/login" underline="none" sx={{ color: '#858982', fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', '&:hover': { color: '#fff' } }}>

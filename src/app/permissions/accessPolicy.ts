@@ -2,8 +2,8 @@ import type { Role } from '@/features/auth/store/authStore';
 import type { Locale } from '@/shared/i18n/LocaleProvider';
 
 export const PORTAL_ROLE_ACCESS = {
-  admin: ['ADMIN', 'PLATFORM_MANAGER'],
-  client: ['ORG_MANAGER'],
+  admin: ['ADMIN', 'MANAGER'],
+  client: ['CUSTOMER'],
   operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
 } as const satisfies Record<string, readonly Role[]>;
 
@@ -30,6 +30,8 @@ export const SECTION_IDS = [
   'subscriptions',
   'drone-leasing',
   'platform-users',
+  'onboarding-reviews',
+  'inspector-drones',
   'settings',
 ] as const;
 
@@ -48,6 +50,8 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   subscriptions: 'Subscriptions',
   'drone-leasing': 'Drone leasing',
   'platform-users': 'Platform accounts',
+  'onboarding-reviews': 'Onboarding reviews',
+  'inspector-drones': 'My drones',
   settings: 'Settings',
 };
 
@@ -74,6 +78,8 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   subscriptions: 'Gói thuê bao',
   'drone-leasing': 'Thuê thiết bị bay',
   'platform-users': 'Tài khoản nền tảng',
+  'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
+  'inspector-drones': 'Drone của tôi',
   settings: 'Cài đặt',
 };
 
@@ -107,39 +113,42 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
 
 const SECTION_ROLE_ACCESS = {
   admin: {
-    dashboard: ['ADMIN', 'PLATFORM_MANAGER'],
-    contracts: ['PLATFORM_MANAGER'],
-    assets: ['ADMIN', 'PLATFORM_MANAGER'],
+    dashboard: ['ADMIN', 'MANAGER'],
+    contracts: ['MANAGER'],
+    assets: ['ADMIN', 'MANAGER'],
     'asset-catalog': ['ADMIN'],
     'asset-review': [],
-    inspections: ['ADMIN', 'PLATFORM_MANAGER'],
-    reports: ['ADMIN', 'PLATFORM_MANAGER'],
+    inspections: ['ADMIN', 'MANAGER'],
+    reports: ['ADMIN', 'MANAGER'],
     maintenance: ['ADMIN'],
     // Workforce is a customer-organization function; the platform workspace does not expose it.
     workforce: [],
-    subscriptions: ['ADMIN', 'PLATFORM_MANAGER'],
-    'drone-leasing': ['ADMIN', 'PLATFORM_MANAGER'],
+    subscriptions: ['ADMIN', 'MANAGER'],
+    'drone-leasing': ['ADMIN', 'MANAGER'],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
-    settings: ['ADMIN', 'PLATFORM_MANAGER'],
+    'onboarding-reviews': ['ADMIN'],
+    'inspector-drones': [],
+    settings: ['ADMIN', 'MANAGER'],
   },
   client: {
-    dashboard: ['ORG_MANAGER'],
-    contracts: ['ORG_MANAGER'],
-    assets: ['ORG_MANAGER'],
+    dashboard: ['CUSTOMER'],
+    contracts: ['CUSTOMER'],
+    assets: ['CUSTOMER'],
     'asset-catalog': [],
     'asset-review': [],
-    inspections: ['ORG_MANAGER'],
-    reports: ['ORG_MANAGER'],
-    maintenance: ['ORG_MANAGER'],
-    // MF1 workforce management is an ORG_MANAGER customer function. ADMIN, INSPECTOR and
-    // MAINTENANCE_ENGINEER are deliberately absent rather than granted read-only access.
-    workforce: ['ORG_MANAGER'],
-    subscriptions: ['ORG_MANAGER'],
-    'drone-leasing': ['ORG_MANAGER'],
+    inspections: ['CUSTOMER'],
+    reports: ['CUSTOMER'],
+    maintenance: ['CUSTOMER'],
+    // Workforce provisioning is limited to the organization CUSTOMER account.
+    workforce: ['CUSTOMER'],
+    subscriptions: ['CUSTOMER'],
+    'drone-leasing': ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
-    settings: ['ORG_MANAGER'],
+    'onboarding-reviews': [],
+    'inspector-drones': [],
+    settings: ['CUSTOMER'],
   },
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
@@ -154,6 +163,8 @@ const SECTION_ROLE_ACCESS = {
     subscriptions: [],
     'drone-leasing': [],
     'platform-users': [],
+    'onboarding-reviews': [],
+    'inspector-drones': ['INSPECTOR'],
     settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
   },
 } as const satisfies Record<

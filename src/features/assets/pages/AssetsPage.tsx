@@ -80,7 +80,7 @@ export function AssetsPage() {
   const navigate = useNavigate();
   const { formatNumber, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const isClient = roles.includes('ORG_MANAGER');
+  const isClient = roles.includes('CUSTOMER');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
   const categories = useCategories();
@@ -876,7 +876,7 @@ function AssetDetailDrawer({
 }) {
   const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const isClient = roles.includes('ORG_MANAGER');
+  const isClient = roles.includes('CUSTOMER');
   const retireMutation = useRetireAsset();
   const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);
   const documents = useAssetDocuments(asset?.id ?? '');

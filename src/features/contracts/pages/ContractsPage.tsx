@@ -54,8 +54,8 @@ function errorText(error: unknown): string {
 
 export default function ContractsPage() {
   const roles = useAuthStore((state) => state.roles);
-  const isCustomer = roles.includes('ORG_MANAGER');
-  const isManager = roles.includes('PLATFORM_MANAGER');
+  const isCustomer = roles.includes('CUSTOMER');
+  const isManager = roles.includes('MANAGER');
   const requests = useServiceRequests();
   const assets = useAssets({ page: 1, pageSize: 100 }, isCustomer);
   const [selectedRequestId, setSelectedRequestId] = useState('');

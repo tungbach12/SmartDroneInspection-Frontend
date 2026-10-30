@@ -11,8 +11,6 @@ type FormProps = React.ComponentProps<typeof ReportSectionForm>;
 
 const SECTION_TITLES = [
   'Executive summary',
-  'Purpose, scope and criteria',
-  'Method, equipment and conditions',
   'Limitations and omissions',
   'Conclusions and recommendations',
 ];
@@ -39,12 +37,11 @@ describe('ReportSectionForm', () => {
     }
   });
 
-  it('names the accountable human on each section', () => {
+  it('describes each section concisely without internal specification chips', () => {
     renderForm();
-    // Summary, conclusions, and the complete report are approved as one report-level decision.
-    expect(screen.getAllByText(/approved with report/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/SYSTEM records · Inspector may annotate/)).toBeTruthy();
-    expect(screen.getAllByText('Inspector').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Observed asset condition/)).toBeTruthy();
+    expect(screen.getByText(/Conclusions within the inspected scope/)).toBeTruthy();
+    expect(screen.queryByText(/SYSTEM records/)).toBeNull();
   });
 
   it('reports an unsaved-changes state only when there is one', () => {
@@ -98,10 +95,10 @@ describe('ReportSectionForm', () => {
 
   it('keeps each authored section separate and shows duplicate-free field labels', () => {
     renderForm();
-    expect(screen.getByRole('heading', { name: 'Purpose, scope and criteria', level: 2 })).toBeTruthy();
-    expect(screen.getByLabelText(/Purpose scope and criteria from inspection records/)).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Method, equipment and conditions', level: 2 })).toBeTruthy();
-    expect(screen.getByLabelText(/Method, equipment and conditions text/)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Purpose, scope and criteria', level: 2 })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Method, equipment and conditions', level: 2 })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Limitations and omissions', level: 2 })).toBeTruthy();
+    expect(screen.getByLabelText(/Limitations and omissions text/)).toBeTruthy();
     expect(screen.queryByText(/^0 \/ 4000$/)).toBeNull();
   });
 

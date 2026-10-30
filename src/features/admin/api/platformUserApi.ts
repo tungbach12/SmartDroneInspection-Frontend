@@ -10,14 +10,18 @@ import { api } from '@/shared/api/client';
 
 export type PlatformUserRole =
   | 'ADMIN'
-  | 'PLATFORM_MANAGER'
-  | 'ORG_MANAGER'
+  | 'MANAGER'
+  | 'CUSTOMER'
   | 'INSPECTOR'
   | 'MAINTENANCE_ENGINEER';
 
 export type PlatformUserStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 
-export type ActorZone = 'PLATFORM' | 'CUSTOMER_ORGANIZATION';
+export type ActorZone =
+  | 'PLATFORM'
+  | 'CUSTOMER_ORGANIZATION'
+  | 'INSPECTOR_PARTNER'
+  | 'PROSPECT_CUSTOMER';
 
 export interface PlatformUser {
   id: string;

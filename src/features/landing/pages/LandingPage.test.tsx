@@ -26,7 +26,8 @@ describe('landing page', () => {
     expect(
       within(aboutSection as HTMLElement).getByText(/illustrative ai confidence — not a risk score/i).textContent,
     ).toMatch(/not a risk score/i);
-    expect(screen.getAllByRole('link', { name: /get a consultation/i })).toHaveLength(3);
+    expect(screen.getByRole('link', { name: /sign up/i }).getAttribute('href')).toBe('/register');
+    expect(screen.getAllByRole('link', { name: /get a consultation/i })).toHaveLength(2);
     expect(
       screen.getAllByRole('link', { name: /get a consultation/i }).every(
         (link) => link.getAttribute('href') === '/register',

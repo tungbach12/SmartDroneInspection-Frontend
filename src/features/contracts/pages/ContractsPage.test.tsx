@@ -27,7 +27,7 @@ describe('ContractsPage', () => {
     vi.clearAllMocks();
     useAuthStore.setState({
       status: 'authenticated',
-      roles: ['ORG_MANAGER'],
+      roles: ['CUSTOMER'],
       userId: 'customer-1',
       userName: 'Customer One',
       email: 'customer@test.local',
@@ -185,7 +185,7 @@ describe('ContractsPage', () => {
   it('allows manager to issue a quote and view partner resources', () => {
     useAuthStore.setState({
       status: 'authenticated',
-      roles: ['PLATFORM_MANAGER'],
+      roles: ['MANAGER'],
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
@@ -350,7 +350,7 @@ describe('ContractsPage', () => {
   it('allows manager to assign an occurrence filtering drones by the selected inspector', () => {
     useAuthStore.setState({
       status: 'authenticated',
-      roles: ['PLATFORM_MANAGER'],
+      roles: ['MANAGER'],
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',

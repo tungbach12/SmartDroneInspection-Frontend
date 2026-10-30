@@ -41,7 +41,7 @@ const SERVICEABILITY_VALUES: DroneServiceability[] = [
 export function DroneInventoryPanel() {
   const { formatDate, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
-  const canManage = roles.includes('ORG_MANAGER');
+  const canManage = roles.includes('CUSTOMER');
   const drones = useDrones();
   const createDrone = useCreateDrone();
   const [createOpen, setCreateOpen] = useState(false);

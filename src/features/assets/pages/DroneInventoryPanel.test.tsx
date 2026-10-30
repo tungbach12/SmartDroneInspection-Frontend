@@ -47,7 +47,7 @@ const serviceabilityMutate = vi.fn();
 function setDefaultHooks() {
   vi.mocked(useAuthStore).mockImplementation(((
     selector: (state: { roles: string[] }) => unknown,
-  ) => selector({ roles: ['ORG_MANAGER'] })) as never);
+  ) => selector({ roles: ['CUSTOMER'] })) as never);
   vi.mocked(useDrones).mockReturnValue({
     data: [DRONE],
     isLoading: false,
@@ -104,7 +104,7 @@ describe('DroneInventoryPanel', () => {
     ).toBeNull();
   });
 
-  it('provides create controls only to ORG_MANAGER', () => {
+  it('provides create controls only to CUSTOMER', () => {
     render(<DroneInventoryPanel />);
     expect(
       screen.getByRole('button', { name: /register drone/i }),
@@ -184,7 +184,7 @@ describe('DroneInventoryPanel', () => {
     expect(within(drawer).getByText(/Registration Information/i)).toBeTruthy();
   });
 
-  it('updates serviceability only for ORG_MANAGER', () => {
+  it('updates serviceability only for CUSTOMER', () => {
     render(<DroneInventoryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /open drone/i }));
     const drawer = screen.getByRole('dialog');

@@ -22,6 +22,7 @@ import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -345,10 +346,10 @@ function AssignTeamDialog({
 
   const orgAdmins = useMemo(() => {
     const list = (workforce.data ?? []).filter(
-      (member) => member.roles.includes('ORG_MANAGER') && member.status === 'ACTIVE',
+      (member) => member.roles.includes('CUSTOMER') && member.status === 'ACTIVE',
     );
     if (list.length > 0) return list;
-    if (currentUser?.roles.includes('ORG_MANAGER')) {
+    if (currentUser?.roles.includes('CUSTOMER')) {
       return [
         {
           userId: currentUser.id,
@@ -1304,6 +1305,8 @@ function ReportTab({
   const transition = useWorkOrderTransition(workOrder.id);
 
   const [content, setContent] = useState('');
+  const [confirmSubmitReportOpen, setConfirmSubmitReportOpen] = useState(false);
+  const [submittingVersionNo, setSubmittingVersionNo] = useState<number | null>(null);
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
@@ -1364,7 +1367,10 @@ function ReportTab({
                     variant="contained"
                     disabled={workOrder.status !== 'WORK_COMPLETED'}
                     loading={submitReport.isPending && submitReport.variables === version.versionNo}
-                    onClick={() => submitReport.mutate(version.versionNo)}
+                    onClick={() => {
+                      setSubmittingVersionNo(version.versionNo);
+                      setConfirmSubmitReportOpen(true);
+                    }}
                   >
                     {t('Submit for acceptance')}
                   </LoadingButton>
@@ -1463,6 +1469,26 @@ function ReportTab({
           </Stack>
         </Box>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmSubmitReportOpen}
+        title={t('Confirm Completion Report Submission')}
+        message={t(
+          'Are you sure you want to submit this completion report for acceptance? The report and maintenance records will be locked while awaiting independent reviewer decision.',
+        )}
+        confirmLabel={t('Confirm & Submit')}
+        cancelLabel={t('Cancel')}
+        loading={submitReport.isPending}
+        confirmColor="primary"
+        onCancel={() => setConfirmSubmitReportOpen(false)}
+        onConfirm={() => {
+          if (submittingVersionNo != null) {
+            submitReport.mutate(submittingVersionNo, {
+              onSuccess: () => setConfirmSubmitReportOpen(false),
+            });
+          }
+        }}
+      />
     </Paper>
   );
 }
@@ -1722,6 +1748,59 @@ function CostsTab({
             ))}
           </Stack>
         ) : null}
+
+        {workOrder.reinspectionId && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'secondary.main',
+              borderRadius: '12px',
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Chip
+                    label={t('Re-inspection completed')}
+                    color="secondary"
+                    size="small"
+                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                  />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {t('Target flight verification on file')}
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  {t(
+                    'The flight crew verified the repaired defect in the field. Review the published re-inspection report before deciding final acceptance.',
+                  )}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                startIcon={<PictureAsPdfOutlined />}
+                onClick={() =>
+                  window.open(
+                    `/operations/inspections/${workOrder.reinspectionId}/report`,
+                    '_blank',
+                  )
+                }
+                sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+              >
+                {t('View Re-inspection Report')}
+              </Button>
+            </Stack>
+          </Box>
+        )}
 
         {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>

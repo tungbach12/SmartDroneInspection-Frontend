@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { resolveSafeNotificationRoute } from './targetPath';
 
 describe('resolveSafeNotificationRoute', () => {
@@ -11,11 +11,11 @@ describe('resolveSafeNotificationRoute', () => {
     expect(route).toBe('/operations/inspections/3fa85f64-5717-4562-b3fc-2c963f66afa6');
   });
 
-  it('translates inspection detail route for client workspace ORG_MANAGER', () => {
+  it('translates inspection detail route for client workspace CUSTOMER', () => {
     const route = resolveSafeNotificationRoute(
       '/inspections/insp-100',
       'client',
-      ['ORG_MANAGER'],
+      ['CUSTOMER'],
     );
     expect(route).toBe('/client/inspections/insp-100');
   });

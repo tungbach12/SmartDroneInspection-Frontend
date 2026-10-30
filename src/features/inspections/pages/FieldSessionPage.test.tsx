@@ -56,6 +56,8 @@ const SESSION = {
 
 const INSPECTION = {
   id: 'inspection-1',
+  assetName: 'Red River Bridge',
+  locationText: JSON.stringify({ latitude: 21.0285, longitude: 105.8542, label: 'Hanoi, Vietnam' }),
   status: 'READY_FOR_FLIGHT',
   flightPermitFileName: 'permit-license.pdf',
   flightPermitUploadedAt: '2026-10-20T01:00:00Z',
@@ -100,14 +102,22 @@ describe('FieldSessionPage', () => {
     cleanup();
   });
 
-  it('lists the sessions with their status and active flight permit', async () => {
+  it('keeps the field-session screen focused on permit and session actions', async () => {
     renderWithClient();
 
-    expect(await screen.findByText('IN_PROGRESS')).toBeTruthy();
-    expect(await screen.findByText(/permit-license\.pdf/)).toBeTruthy();
+    expect(await screen.findByText('Session in progress')).toBeTruthy();
+    expect(screen.getByText('Red River Bridge')).toBeTruthy();
+    expect(screen.getByText(/permit-license\.pdf/)).toBeTruthy();
+    expect(screen.getByText(/Checked assigned drone M350/)).toBeTruthy();
+    expect(screen.queryByText('Bản đồ Không phận & Vùng cấm bay')).toBeNull();
+    expect(screen.queryByText('Asset Inspection Checkpoints & Pre-Flight Checklist')).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Complete session' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Postpone' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Abort' })).toBeTruthy();
   });
 
-  it('shows card to upload flight permit when inspection status is ASSIGNED', async () => {
+  it('shows the permit upload action when inspection status is ASSIGNED', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
       status: 'ASSIGNED',
@@ -117,17 +127,23 @@ describe('FieldSessionPage', () => {
 
     renderWithClient();
 
-    expect(await screen.findByText('Flight Permit Required')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Flight permit required' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Flight permit required' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText('Flight permit')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
+    expect(
+      screen.getByText(/does not verify validity or grant permission to fly/i),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('requires the inspector own pre-flight note before starting a session', async () => {
+    mocks.list.mockResolvedValue([]);
     renderWithClient();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start session' }));
 
-    const note = await screen.findByLabelText(/Pre-flight checklist note/);
+    const note = await screen.findByLabelText(/Pre-flight note/);
     const submit = screen.getByRole('button', { name: 'Start session', hidden: false });
     expect((submit as HTMLButtonElement).disabled).toBe(true);
 
@@ -141,10 +157,11 @@ describe('FieldSessionPage', () => {
   });
 
   it('starts the session with the recorded pre-flight note', async () => {
+    mocks.list.mockResolvedValue([]);
     renderWithClient();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start session' }));
-    fireEvent.change(await screen.findByLabelText(/Pre-flight checklist note/), {
+    fireEvent.change(await screen.findByLabelText(/Pre-flight note/), {
       target: { value: 'Checked assigned drone M350, site access clear.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Start session', hidden: false }));
@@ -182,7 +199,7 @@ describe('FieldSessionPage', () => {
     fireEvent.change(await screen.findByLabelText(/Reason/), {
       target: { value: 'Unauthorised personnel entered the exclusion zone.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Abort session' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop session' }));
 
     await waitFor(() =>
       expect(mocks.abort).toHaveBeenCalledWith(
@@ -197,7 +214,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Complete session' }));
-    fireEvent.change(await screen.findByLabelText(/Outcome notes/), {
+    fireEvent.change(await screen.findByLabelText(/Session notes/), {
       target: { value: 'All bridge spans surveyed.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Complete session', hidden: false }));
@@ -228,10 +245,27 @@ describe('FieldSessionPage', () => {
     ).toBeTruthy();
   });
 
-  it('does not offer a second session while one is open', async () => {
+  it('does not offer session start after the inspection has left the ready state', async () => {
+    mocks.getById.mockResolvedValue({ ...INSPECTION, status: 'REPORT_DRAFT' });
+    mocks.list.mockResolvedValue([
+      { ...SESSION, status: 'FIELD_COMPLETED', endedAt: '2026-10-20T03:00:00Z' },
+    ]);
+
     renderWithClient();
 
-    const startButton = await screen.findByRole('button', { name: 'Session already open' });
-    expect((startButton as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText('Field session complete')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Continue to evidence' }).getAttribute('href')).toContain('/evidence');
+    expect(screen.queryByRole('button', { name: 'Start session' })).toBeNull();
+  });
+
+  it('does not treat browser-only checklist state as a readiness gate', async () => {
+    localStorage.setItem('inspection_checked_items_inspection-1', '{"0":true,"1":true}');
+    localStorage.setItem('inspection_checklist_confirmed_inspection-1', 'true');
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient();
+
+    expect(await screen.findByRole('button', { name: 'Start session' })).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });

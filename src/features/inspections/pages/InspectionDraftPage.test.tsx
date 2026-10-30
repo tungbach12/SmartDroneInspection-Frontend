@@ -79,6 +79,7 @@ vi.mock('../hooks/useInspections', () => ({
   useVerifyReportVersion: () => mocks.verifyVersion,
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
+  useReinspectionVerifications: () => ({ data: [] }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -91,13 +92,13 @@ vi.mock('react-router-dom', async () => {
 
 import InspectionDraftPage from './InspectionDraftPage';
 
-function signInAs(role: 'INSPECTOR' | 'ORG_MANAGER') {
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: role === 'ORG_MANAGER' ? 'org-admin-1' : 'inspector-1',
+      id: role === 'CUSTOMER' ? 'org-admin-1' : 'inspector-1',
       email: 'user@example.test',
-      fullName: role === 'ORG_MANAGER' ? 'Organization Manager' : 'Inspector',
+      fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
       actorZone: 'CUSTOMER_ORGANIZATION',
       organizationId: 'org-1',
@@ -236,12 +237,12 @@ describe('InspectionDraftPage', () => {
     renderWithRouter(<InspectionDraftPage />);
 
     expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
-    expect(screen.getByLabelText('Method, equipment and conditions text')).toBeTruthy();
     expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
     expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
 
     // Legacy fields must be completely removed
     expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
+    expect(screen.queryByText('Method, equipment and conditions')).toBeNull();
     expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
 
     // In-place Verify as author action
@@ -321,7 +322,7 @@ describe('InspectionDraftPage', () => {
   });
 
   it('shows the reviewer read-only report view without Inspector draft controls', () => {
-    signInAs('ORG_MANAGER');
+    signInAs('CUSTOMER');
     mocks.versionsQuery = {
       data: [
         {

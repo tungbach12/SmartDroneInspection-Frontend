@@ -152,7 +152,7 @@ describe('ReportDetailPage MF3 gates', () => {
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
       findingsSnapshotHash: 'abc123',
     });
-    setRole(['ORG_MANAGER']);
+    setRole(['CUSTOMER']);
   });
 
   it('allows the Organization Manager to approve the report without per-finding decisions', async () => {
@@ -165,11 +165,11 @@ describe('ReportDetailPage MF3 gates', () => {
 
     const approve = (await screen.findByRole('button', { name: 'Approve' })) as HTMLButtonElement;
     expect(approve.disabled).toBe(false);
-    expect(screen.getByText(/not separately accepted/i)).toBeTruthy();
+    expect(screen.getByText('Inspector-confirmed')).toBeTruthy();
     expect(screen.queryByText(/Decide every proposed finding/)).toBeNull();
   });
 
-  it('orders editable report sections like the generated PDF and keeps them separate', async () => {
+  it('groups authored report sections together before confirmed findings and evidence', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([]);
     mockedApi.listEvidence.mockResolvedValue([]);
@@ -182,11 +182,9 @@ describe('ReportDetailPage MF3 gates', () => {
       'Identification',
       'Executive summary',
       'Limitations and omissions',
-      'Method, equipment and conditions',
-      'Evidence register',
-      'Confirmed findings',
       'Conclusions and recommendations',
-      'Approval and revisions',
+      'Confirmed findings',
+      'Evidence register',
     ]);
   });
 
@@ -476,7 +474,7 @@ describe('ReportDetailPage MF3 gates', () => {
   it('returns to the reports queue on the inspections list', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
 
-    setRole(['ORG_MANAGER']);
+    setRole(['CUSTOMER']);
     renderPage('/client/reports/inspection-1');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Back to review queue' }));

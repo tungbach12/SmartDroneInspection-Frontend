@@ -129,7 +129,7 @@ describe('PlatformDroneLeasingPage', () => {
         id: 'pm-1',
         email: 'pm@platform.test',
         fullName: 'Platform Manager',
-        roles: ['PLATFORM_MANAGER'],
+        roles: ['MANAGER'],
         actorZone: 'PLATFORM',
         organizationId: null,
       },
@@ -144,7 +144,7 @@ describe('PlatformDroneLeasingPage', () => {
     vi.clearAllMocks();
   });
 
-  it('allows PLATFORM_MANAGER to view pool and add a new leasable drone', async () => {
+  it('allows MANAGER to view pool and add a new leasable drone', async () => {
     mockedApi.createPoolDrone.mockResolvedValue({
       ...mockPoolDrones[0]!,
       id: 'pool-3',
@@ -181,7 +181,7 @@ describe('PlatformDroneLeasingPage', () => {
     });
   });
 
-  it('allows PLATFORM_MANAGER to confirm payment & provision pending lease and reclaim active lease', async () => {
+  it('allows MANAGER to confirm payment & provision pending lease and reclaim active lease', async () => {
     mockedApi.confirmPayment.mockResolvedValue({
       ...mockLeases[0]!,
       status: 'ACTIVE',

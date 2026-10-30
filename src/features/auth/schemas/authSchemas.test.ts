@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   organizationRegistrationSchema,
   loginSchema,
+  partnerApplicationSchema,
   passwordChangeSchema,
   passwordSetupSchema,
 } from './authSchemas';
@@ -21,9 +22,40 @@ describe('authentication form validation', () => {
       email: 'client@example.com',
       password: 'a much longer secure password',
       confirmPassword: 'a much longer secure password',
+      firstAsset: {
+        code: 'AST-001',
+        name: 'Saigon Bridge',
+        categoryId: 'e58ed763-928c-4155-bee9-fdbaaadc15f3',
+        locationText: 'District 2, HCMC',
+        latitude: 10.7769,
+        longitude: 106.6953,
+      },
     };
 
     expect(organizationRegistrationSchema.safeParse(valid).success).toBe(true);
+
+    const withAsset = {
+      ...valid,
+      firstAsset: {
+        code: 'AST-001',
+        name: 'Saigon Bridge',
+        categoryId: 'e58ed763-928c-4155-bee9-fdbaaadc15f3',
+        locationText: 'District 2, HCMC',
+        latitude: 10.7769,
+        longitude: 106.6953,
+      },
+    };
+    expect(organizationRegistrationSchema.safeParse(withAsset).success).toBe(true);
+
+    expect(
+      organizationRegistrationSchema.safeParse({
+        ...withAsset,
+        firstAsset: {
+          ...withAsset.firstAsset,
+          latitude: 95, // invalid latitude
+        },
+      }).success,
+    ).toBe(false);
     expect(
       organizationRegistrationSchema.safeParse({
         ...valid,
@@ -51,6 +83,34 @@ describe('authentication form validation', () => {
         currentPassword: 'current password',
         newPassword: 'short',
         confirmPassword: 'short',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates inspector partner application fields', () => {
+    const validPartner = {
+      email: 'inspector@example.com',
+      fullName: 'Nguyen Van A',
+      phone: '0901234567',
+      pilotLicenseNumber: 'VN-LIC-12345',
+      pilotLicenseClass: 'CLASS_A',
+      pilotLicenseExpiresAt: '2027-12-31',
+      pilotLicenseFile: new File(['%PDF-1.7'], 'license.pdf', { type: 'application/pdf' }),
+    };
+
+    expect(partnerApplicationSchema.safeParse(validPartner).success).toBe(true);
+
+    expect(
+      partnerApplicationSchema.safeParse({
+        ...validPartner,
+        email: 'invalid-email',
+      }).success,
+    ).toBe(false);
+
+    expect(
+      partnerApplicationSchema.safeParse({
+        ...validPartner,
+        pilotLicenseNumber: '',
       }).success,
     ).toBe(false);
   });

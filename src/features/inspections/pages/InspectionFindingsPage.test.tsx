@@ -75,7 +75,26 @@ vi.mock('../hooks/useInspections', () => ({
   useUpdateFinding: () => mocks.updateFinding,
   useDeleteFinding: () => mocks.deleteFinding,
   useUpdateEvidenceLocation: () => mocks.updateLocation,
+  useInspection: () => ({ data: { inspectionType: 'INITIAL' } }),
+  useReinspectionVerifications: () => ({ data: [] }),
+  useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
 }));
+
+vi.mock('@/shared/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/api/client')>();
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      get: vi.fn().mockImplementation((url, config) => {
+        if (config?.responseType === 'blob') {
+          return Promise.resolve({ data: new Blob(['fake-img'], { type: 'image/png' }) });
+        }
+        return actual.api.get(url, config);
+      }),
+    },
+  };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -155,7 +174,7 @@ function signInAs(roles: Role[]) {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
-      id: roles.includes('ORG_MANAGER') ? 'admin-1' : 'inspector-1',
+      id: roles.includes('CUSTOMER') ? 'admin-1' : 'inspector-1',
       email: 'user@example.test',
       fullName: 'User',
       roles,
@@ -435,7 +454,7 @@ describe('InspectionFindingsPage', () => {
 
     expect(await screen.findByRole('button', { name: /Analyze all images/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
-    expect(screen.getByText(/remain editable while authoring the report/)).toBeTruthy();
+    expect(await screen.findByText(/remain editable while authoring the report/)).toBeTruthy();
   });
 
   it('does not auto-analyze after findings confirmation moved the inspection forward', async () => {
@@ -602,7 +621,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not show a retired evidence image in reviewer verdicts', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.evidenceQuery = {
       data: [{ ...imageEvidence(), isDeleted: true }],
       isLoading: false,
@@ -645,14 +664,13 @@ describe('InspectionFindingsPage', () => {
     );
     expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
     expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
-    expect(screen.getByText(/Detected via advisor/)).toBeTruthy();
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();
   });
 
   it('shows a read-only Inspector findings overview for Organization Manager', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.findingsQuery = {
       data: [
         {
@@ -693,7 +711,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('keeps detection Inspector-only and never exposes per-finding Org Manager decisions', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -719,7 +737,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not show the removed per-finding reviewer surface on a draft', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -740,7 +758,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('does not bring back per-finding controls from an older submitted report version', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
@@ -761,7 +779,7 @@ describe('InspectionFindingsPage', () => {
   });
 
   it('withholds the removed per-finding reviewer surface from report authors too', () => {
-    signInAs(['ORG_MANAGER']);
+    signInAs(['CUSTOMER']);
     mocks.findingsQuery = {
       data: [undecidedFinding()],
       isLoading: false, isError: false,
