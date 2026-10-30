@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Box, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -62,15 +62,18 @@ const actionSx = {
 };
 
 export default function LandingPage() {
-  const { t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
     document.title = 'SmartDroneInspection | A clearer view of every asset';
+    if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
+      setLocale('en');
+    }
 
     return () => {
       document.title = previousTitle;
     };
-  }, []);
+  }, [setLocale]);
 
   return (
     <Box
@@ -141,6 +144,27 @@ export default function LandingPage() {
             ))}
           </Stack>
           <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+            <Button
+              size="small"
+              onClick={() => {
+                const next = locale === 'en' ? 'vi' : 'en';
+                setLocale(next);
+                window.sessionStorage.setItem('sdi_locale_explicit', 'true');
+              }}
+              sx={{
+                minWidth: 'auto',
+                px: 1.25,
+                py: 0.5,
+                color: 'rgba(255,255,255,.65)',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '.06em',
+                borderRadius: '6px',
+                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.06)' },
+              }}
+            >
+              {locale === 'en' ? 'VI' : 'EN'}
+            </Button>
             <Link
               href="/login"
               underline="none"
@@ -214,27 +238,6 @@ export default function LandingPage() {
         }}
       >
         <Box sx={{ width: '100%', maxWidth: 1440, mx: 'auto', position: 'relative' }}>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 1,
-              px: 1.75,
-              py: 0.6,
-              mb: 3,
-              borderRadius: '20px',
-              bgcolor: 'rgba(101,223,186,0.12)',
-              border: '1px solid rgba(101,223,186,0.3)',
-              color: '#65DFBA',
-              fontSize: { xs: 10, sm: 11 },
-              fontWeight: 650,
-              letterSpacing: '.08em',
-              textTransform: 'uppercase',
-            }}
-          >
-            <FlightTakeoffIcon sx={{ fontSize: 15 }} />
-            {t('Where humans can’t climb, drones fly in seconds.')}
-          </Box>
           <Typography
             component="h1"
             sx={{
@@ -280,42 +283,6 @@ export default function LandingPage() {
             >
               {t('How it works')}
             </Link>
-          </Stack>
-
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={{ xs: 2.5, sm: 5 }}
-            sx={{
-              mt: 6,
-              pt: 3.5,
-              borderTop: '1px solid rgba(255,255,255,0.12)',
-              maxWidth: 900,
-            }}
-          >
-            <Box>
-              <Typography sx={{ color: '#65DFBA', fontSize: 13, fontWeight: 700, letterSpacing: '.04em' }}>
-                {t('Safe & Scaffold-Free')}
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, mt: 0.5, lineHeight: 1.5 }}>
-                {t('Zero dangerous climbing or rope access')}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ color: '#65DFBA', fontSize: 13, fontWeight: 700, letterSpacing: '.04em' }}>
-                {t('Reaches Hard Spots')}
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, mt: 0.5, lineHeight: 1.5 }}>
-                {t('High roofs, bridge towers, steep walls')}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ color: '#65DFBA', fontSize: 13, fontWeight: 700, letterSpacing: '.04em' }}>
-                {t('Clear Close-Up Photos')}
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, mt: 0.5, lineHeight: 1.5 }}>
-                {t('Spot cracks and rust from above')}
-              </Typography>
-            </Box>
           </Stack>
         </Box>
       </Box>
