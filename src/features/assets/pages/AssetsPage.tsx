@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -24,6 +25,7 @@ import {
   Paper,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
@@ -75,6 +77,7 @@ function formatLocation(text: string | null): string {
 }
 
 export function AssetsPage() {
+  const navigate = useNavigate();
   const { formatNumber, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('ORG_MANAGER');
@@ -178,6 +181,25 @@ export function AssetsPage() {
                 }}
               >
                 {t('Recurring schedule')}
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                startIcon={<AssignmentIcon sx={{ fontSize: 15 }} />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate('/client/contracts');
+                }}
+                sx={{
+                  borderRadius: '8px',
+                  color: 'primary.main',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)' },
+                }}
+              >
+                {t('MF2 Service request')}
               </Button>
             </>
           )}

@@ -44,6 +44,13 @@ interface ApiAuthFlow {
   user: unknown;
 }
 
+function normalizeRole(value: unknown): Role | undefined {
+  if (isRole(value)) return value;
+  if (value === 'CUSTOMER') return 'ORG_MANAGER';
+  if (value === 'MANAGER') return 'PLATFORM_MANAGER';
+  return undefined;
+}
+
 export interface OrganizationRegistrationResponse {
   organizationId: string;
   organizationName: string;
@@ -79,7 +86,7 @@ function parseUser(value: unknown): AuthUser {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
-    roles: user.roles.filter(isRole) as Role[],
+    roles: user.roles.map(normalizeRole).filter((role): role is Role => role !== undefined),
     actorZone,
     organizationId:
       typeof user.organizationId === 'string' ? user.organizationId : null,

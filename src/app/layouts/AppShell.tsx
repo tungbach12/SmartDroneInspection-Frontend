@@ -29,6 +29,7 @@ import {
   useTheme,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import CategoryIcon from '@mui/icons-material/Category';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
@@ -76,6 +77,7 @@ const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <DashboardIcon /> },
+  { section: 'contracts', icon: <AssignmentIcon /> },
   { section: 'assets', icon: <ApartmentIcon /> },
   { section: 'asset-catalog', icon: <CategoryIcon /> },
   { section: 'asset-review', icon: <FactCheckIcon /> },

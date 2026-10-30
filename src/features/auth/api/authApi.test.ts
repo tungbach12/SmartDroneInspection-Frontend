@@ -64,7 +64,7 @@ describe('browser auth API', () => {
     expect(result).not.toHaveProperty('refreshToken');
   });
 
-  it('preserves canonical enterprise roles when parsing an authenticated user', async () => {
+  it('normalizes backend customer and manager roles to the existing frontend role keys', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         ...authenticatedFlow,
@@ -72,8 +72,8 @@ describe('browser auth API', () => {
           ...user,
           roles: [
             'ADMIN',
-            'PLATFORM_MANAGER',
-            'ORG_MANAGER',
+            'MANAGER',
+            'CUSTOMER',
             'INSPECTOR',
             'MAINTENANCE_ENGINEER',
             'UNKNOWN_ROLE',
@@ -160,7 +160,7 @@ describe('browser auth API', () => {
         organizationId: 'org-1',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
-        user: { ...user, roles: ['ORG_MANAGER', 'UNKNOWN_ROLE'] },
+        user: { ...user, roles: ['CUSTOMER', 'UNKNOWN_ROLE'] },
       },
     });
 

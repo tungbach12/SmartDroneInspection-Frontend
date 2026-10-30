@@ -24,6 +24,10 @@ describe('canPerform capability gate', () => {
     expect(canPerform('reports.publish', makeUser(['ORG_MANAGER']))).toBe(true);
     expect(canPerform('reports.publish', makeUser(['INSPECTOR']))).toBe(false);
     expect(canPerform('findings.decide', makeUser(['ORG_MANAGER']))).toBe(true);
+    expect(canPerform('contracts.request', makeUser(['ORG_MANAGER']))).toBe(true);
+    expect(canPerform('contracts.request', makeUser(['PLATFORM_MANAGER']))).toBe(false);
+    expect(canPerform('contracts.manage', makeUser(['PLATFORM_MANAGER']))).toBe(true);
+    expect(canPerform('contracts.manage', makeUser(['ORG_MANAGER']))).toBe(false);
   });
 
   it('keeps asset review scoped to the organization manager', () => {
