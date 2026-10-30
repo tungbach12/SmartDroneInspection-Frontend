@@ -155,7 +155,7 @@ export default function LandingPage() {
             </Link>
           </Stack>
           <Box component="a" href="/register" sx={{ ...actionSx, minHeight: 38, px: 2, fontSize: 11 }}>
-            {t('Get a consultation')}
+            {t('Sign up')}
           </Box>
         </Box>
       </Box>
