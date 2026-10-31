@@ -100,11 +100,8 @@ export default function InspectionsPage() {
     if (statusFilter === 'ALL') return visibleItems;
     if (statusFilter === 'UNDER_REVIEW') {
       return visibleItems.filter(
-        (item) => item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+        (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
       );
-    }
-    if (statusFilter === 'REPORT_PUBLISHED') {
-      return visibleItems.filter((item) => item.status === 'REPORT_PUBLISHED' || item.status === 'COMPLETED');
     }
     return visibleItems.filter((item) => item.status === statusFilter);
   }, [visibleItems, statusFilter]);
@@ -211,12 +208,11 @@ export default function InspectionsPage() {
                 sx={{ minWidth: 180 }}
               >
                 <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-                <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
-                <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
+                <MenuItem value="SCHEDULED">{t('Scheduled')}</MenuItem>
                 <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
                 <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
                 <MenuItem value="UNDER_REVIEW">{t('Under Review')}</MenuItem>
-                <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
+                <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
                 <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
               </TextField>
             )}

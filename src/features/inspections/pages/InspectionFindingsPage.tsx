@@ -7,12 +7,12 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
   FormControlLabel,
   InputAdornment,
   MenuItem,
   Paper,
   Stack,
-  Switch,
   TablePagination,
   TextField,
   Typography,
@@ -110,7 +110,7 @@ export default function InspectionFindingsPage() {
   );
   const isFindingsLocked =
     isReportLocked ||
-    ['UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+    ['UNDER_REVIEW', 'COMPLETED'].includes(workflow.data?.status ?? '');
 
   // Filter & Search states
   const [evidenceQuery, setEvidenceQuery] = useState('');
@@ -119,6 +119,7 @@ export default function InspectionFindingsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'AI' | 'MANUAL'>('ALL');
   const [onlyWithDefects, setOnlyWithDefects] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Pagination states (capture-level)
   const [page, setPage] = useState(0);
@@ -160,12 +161,12 @@ export default function InspectionFindingsPage() {
   const hasActiveEvidence = activeEvidenceItems.length > 0;
   const isReturnedRevision = latestReportVersion?.status === 'RETURNED';
   const analysisUnlocked =
-    ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') && !isFindingsLocked;
+    workflow.data?.status === 'FIELD_COMPLETED' && !isFindingsLocked;
 
   const canConfirm =
     isInspector &&
     hasActiveEvidence &&
-    ['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') &&
+    workflow.data?.status === 'FIELD_COMPLETED' &&
     !findings.isLoading &&
     !workflow.isLoading &&
     !findings.isError &&
@@ -293,6 +294,11 @@ export default function InspectionFindingsPage() {
     severityFilter !== 'ALL' ||
     sourceFilter !== 'ALL' ||
     onlyWithDefects;
+  const advancedFilterCount =
+    Number(statusFilter !== 'ACTIVE') +
+    Number(severityFilter !== 'ALL') +
+    Number(sourceFilter !== 'ALL') +
+    Number(onlyWithDefects);
 
   const resetFilters = () => {
     setEvidenceQuery('');
@@ -378,13 +384,14 @@ export default function InspectionFindingsPage() {
       {/* 1. Page Header with Clean Single-Row Actions */}
       <Paper
         elevation={0}
+        className="trace-stage-panel trace-stage-panel--findings"
         sx={{
           p: { xs: 2, sm: 2.5 },
-          borderRadius: '16px',
+          borderRadius: '10px',
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+          boxShadow: 'none',
         }}
       >
         <Stack
@@ -395,9 +402,9 @@ export default function InspectionFindingsPage() {
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '12px',
+                width: 38,
+                height: 38,
+                borderRadius: '6px',
                 bgcolor: 'action.selected',
                 color: 'primary.main',
                 display: 'flex',
@@ -463,7 +470,7 @@ export default function InspectionFindingsPage() {
             {t('This report was returned for revision. Evidence and findings are editable; update the requested content, then verify and resubmit the report.')}
           </Alert>
         )}
-        {isInspector && workflow.data?.status === 'REPORT_DRAFT' && latestReportVersion && !isReturnedRevision && (
+        {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
           <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
             {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
           </Alert>
@@ -489,23 +496,23 @@ export default function InspectionFindingsPage() {
         )}
       </Paper>
 
-      {/* 2. Advanced Search & Filter Toolbar */}
       <Paper
         variant="outlined"
+        className="trace-filter-panel"
         sx={{
-          p: { xs: 2, sm: 2.25 },
-          borderRadius: '16px',
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: '8px',
           bgcolor: 'background.paper',
           borderColor: 'divider',
         }}
       >
-        <Stack spacing={2}>
-          {/* Row 1: Dual Search Bars */}
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+        <Stack spacing={1.5}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
             <TextField
               size="small"
               fullWidth
-              placeholder={t('Search photos or asset location (e.g. shot-01, Pier T1)...')}
+              label={t('Evidence search')}
+              placeholder={t('File name or capture location')}
               value={evidenceQuery}
               onChange={(e) => {
                 setEvidenceQuery(e.target.value);
@@ -515,17 +522,18 @@ export default function InspectionFindingsPage() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <ImageOutlined sx={{ fontSize: 20, color: '#64748b' }} />
+                      <ImageOutlined sx={{ fontSize: 20, color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: '10px', bgcolor: '#fbfcfd' },
+                  sx: { borderRadius: '6px' },
                 },
               }}
             />
             <TextField
               size="small"
               fullWidth
-              placeholder={t('Search defects, codes, or notes (e.g. F-1, crack, spall)...')}
+              label={t('Finding search')}
+              placeholder={t('Defect, code, or technical note')}
               value={defectQuery}
               onChange={(e) => {
                 setDefectQuery(e.target.value);
@@ -535,115 +543,121 @@ export default function InspectionFindingsPage() {
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchRounded sx={{ fontSize: 20, color: '#64748b' }} />
+                      <SearchRounded sx={{ fontSize: 20, color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: '10px', bgcolor: '#fbfcfd' },
+                  sx: { borderRadius: '6px' },
                 },
               }}
             />
           </Stack>
-
-          {/* Row 2: Filter Selectors & Toggles */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.25}
-            sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap', gap: 1 }}
-          >
-            <TextField
-              select
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button
               size="small"
-              label={t('Finding status')}
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as typeof statusFilter);
-                setPage(0);
-              }}
-              sx={{ minWidth: 165 }}
-              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
+              variant="outlined"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((open) => !open)}
+              sx={{ borderRadius: '5px', textTransform: 'none' }}
             >
-              <MenuItem value="ACTIVE">{t('Active only (default)')}</MenuItem>
-              <MenuItem value="PENDING">{t('Awaiting review')}</MenuItem>
-              <MenuItem value="CONFIRMED">{t('Confirmed only')}</MenuItem>
-              <MenuItem value="REMOVED">{t('Removed')}</MenuItem>
-              <MenuItem value="ALL">{t('All findings')}</MenuItem>
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label={t('Severity')}
-              value={severityFilter}
-              onChange={(e) => {
-                setSeverityFilter(e.target.value);
-                setPage(0);
-              }}
-              sx={{ minWidth: 140 }}
-              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
-            >
-              <MenuItem value="ALL">{t('All Severities')}</MenuItem>
-              {SEVERITIES.map((sev) => (
-                <MenuItem key={sev} value={sev}>{sev}</MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              size="small"
-              label={t('Detection source')}
-              value={sourceFilter}
-              onChange={(e) => {
-                setSourceFilter(e.target.value as typeof sourceFilter);
-                setPage(0);
-              }}
-              sx={{ minWidth: 150 }}
-              slotProps={{ input: { sx: { borderRadius: '8px' } } }}
-            >
-              <MenuItem value="ALL">{t('All Sources')}</MenuItem>
-              <MenuItem value="AI">{t('AI Detection')}</MenuItem>
-              <MenuItem value="MANUAL">{t('Manual Entry')}</MenuItem>
-            </TextField>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={onlyWithDefects}
-                  onChange={(e) => {
-                    setOnlyWithDefects(e.target.checked);
-                    setPage(0);
-                  }}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: '#475569' }}>
-                  {t('Only photos with defects')}
-                </Typography>
-              }
-            />
-
+              {filtersOpen ? t('Hide filters') : t('More filters')}
+              {advancedFilterCount > 0 ? ` · ${advancedFilterCount}` : ''}
+            </Button>
             {hasActiveFilters && (
               <Button
                 size="small"
                 startIcon={<RestartAltRounded />}
                 onClick={resetFilters}
-                sx={{ textTransform: 'none', color: '#64748b', ml: 'auto' }}
+                sx={{ textTransform: 'none', color: 'text.secondary', ml: 'auto' }}
               >
-                {t('Reset filters')}
+                {t('Clear filters')}
               </Button>
             )}
           </Stack>
+          {filtersOpen && (
+            <Box
+              className="trace-advanced-filters"
+              sx={{
+                pt: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                gap: 1.25,
+                alignItems: 'center',
+              }}
+            >
+              <TextField
+                select
+                size="small"
+                label={t('Finding status')}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as typeof statusFilter);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="ACTIVE">{t('Active only (default)')}</MenuItem>
+                <MenuItem value="PENDING">{t('Awaiting review')}</MenuItem>
+                <MenuItem value="CONFIRMED">{t('Confirmed only')}</MenuItem>
+                <MenuItem value="REMOVED">{t('Removed')}</MenuItem>
+                <MenuItem value="ALL">{t('All findings')}</MenuItem>
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label={t('Severity')}
+                value={severityFilter}
+                onChange={(e) => {
+                  setSeverityFilter(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="ALL">{t('All Severities')}</MenuItem>
+                {SEVERITIES.map((sev) => (
+                  <MenuItem key={sev} value={sev}>{sev}</MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label={t('Detection source')}
+                value={sourceFilter}
+                onChange={(e) => {
+                  setSourceFilter(e.target.value as typeof sourceFilter);
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="ALL">{t('All Sources')}</MenuItem>
+                <MenuItem value="AI">{t('AI Detection')}</MenuItem>
+                <MenuItem value="MANUAL">{t('Manual Entry')}</MenuItem>
+              </TextField>
+              <FormControlLabel
+                sx={{ ml: 0, minHeight: 42 }}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={onlyWithDefects}
+                    onChange={(e) => {
+                      setOnlyWithDefects(e.target.checked);
+                      setPage(0);
+                    }}
+                  />
+                }
+                label={t('Only photos with defects')}
+              />
+            </Box>
+          )}
         </Stack>
       </Paper>
 
       {/* 3. Result Metric Bar */}
       <Stack
-        direction="row"
-        sx={{ alignItems: 'center', justifyContent: 'space-between', px: 0.5 }}
+        direction={{ xs: 'column', sm: 'row' }}
+        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 1, px: 0.25 }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>
-          {t('Showing')} {totalMatchingCaptures} {t('capture(s)')} · {totalMatchingFindings}{' '}
-          {t('defect finding(s)')}
+        <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
+          {totalMatchingCaptures} {t('captures in view')} · {totalMatchingFindings} {t('findings')}
+          {pendingFindings > 0 ? ` · ${pendingFindings} ${t('awaiting Inspector review')}` : ''}
         </Typography>
         {statusFilter === 'REMOVED' && (
           <Chip
@@ -835,16 +849,19 @@ export default function InspectionFindingsPage() {
 
       {/* 6. Findings Confirmation Gate */}
       {isInspector && (
-        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px' }}>
+        <Paper variant="outlined" className="trace-confirmation-gate" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px', borderColor: pendingFindings > 0 ? 'warning.main' : 'divider' }}>
           <Stack spacing={1.5}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('Findings Confirmation Gate')}
-            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 0.5 }}>
+              <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700 }}>
+                {t('Confirm findings set')}
+              </Typography>
+              {pendingFindings > 0 && <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />}
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               {pendingFindings > 0
-                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision.`
+                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before this inspection can move to report drafting.`
                 : reviewedItemCount > 0
-                  ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} ready for the report stage.`
+                  ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} will be included in the report.`
                   : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
             </Typography>
             {noFindings && (

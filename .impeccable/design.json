@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/google-labs-code/design.md/main/docs/schema.json",
+  "name": "SmartDroneInspection",
+  "version": "1.0.0",
+  "tokens": {
+    "colors": {
+      "primary": "#5750F1",
+      "primary-dark": "#463EC5",
+      "primary-light": "#7B75F5",
+      "primary-soft": "#EEF2FF",
+      "harbor": "#17364A",
+      "harbor-light": "#234C62",
+      "neutral-bg": "#F7F9FA",
+      "neutral-surface": "#FFFFFF",
+      "neutral-divider": "#D9E2E6",
+      "text-primary": "#253746",
+      "text-secondary": "#5D707B",
+      "success": "#176B52",
+      "warning": "#8C520B",
+      "error": "#A8323B",
+      "info": "#225F85",
+      "dark-canvas": "#0B0F17",
+      "dark-surface": "#111827",
+      "dark-raised": "#1E293B",
+      "dark-text": "#F1F5F9",
+      "dark-muted": "#94A3B8"
+    },
+    "typography": {
+      "fontFamily": "\"Geist Sans\", \"Helvetica Neue\", Arial, sans-serif"
+    },
+    "rounded": {
+      "sm": "5px",
+      "md": "8px",
+      "lg": "10px",
+      "xl": "16px",
+      "pill": "999px"
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px"
+    }
+  }
+}

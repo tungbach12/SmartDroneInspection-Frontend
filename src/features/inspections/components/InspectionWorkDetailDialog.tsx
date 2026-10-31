@@ -58,16 +58,10 @@ export function InspectionWorkDetailDialog({
 
   const getWorkflowGuidance = (status: InspectionStatus) => {
     switch (status) {
-      case 'ASSIGNED':
+      case 'SCHEDULED':
         return {
-          tip: t('This inspection is assigned to you. Upload the regulatory flight permit in the field session to unlock flight readiness.'),
+          tip: t('This inspection is scheduled. Upload the regulatory flight permit in the field session to unlock flight readiness.'),
           actionLabel: t('Open field session'),
-          subpath: 'field-session',
-        };
-      case 'READY_FOR_FLIGHT':
-        return {
-          tip: t('Flight readiness approved. You are cleared to start the on-site field flight session.'),
-          actionLabel: t('Start field session'),
           subpath: 'field-session',
         };
       case 'IN_PROGRESS':
@@ -78,15 +72,9 @@ export function InspectionWorkDetailDialog({
         };
       case 'FIELD_COMPLETED':
         return {
-          tip: t('Field flight completed. Upload captured drone evidence, review AI detections, and confirm findings.'),
+          tip: t('Field flight completed. Upload captured drone evidence, review AI detections, confirm findings, and draft report.'),
           actionLabel: t('Review evidence & findings'),
           subpath: 'evidence',
-        };
-      case 'REPORT_DRAFT':
-        return {
-          tip: t('Findings confirmed. Draft report narrative and submit for independent review.'),
-          actionLabel: t('View report draft'),
-          subpath: 'report',
         };
       case 'UNDER_REVIEW':
         return {
@@ -94,18 +82,17 @@ export function InspectionWorkDetailDialog({
           actionLabel: t('View submitted report'),
           subpath: 'report',
         };
-      case 'REPORT_PUBLISHED':
       case 'COMPLETED':
         return {
           tip: t('Inspection report is officially published.'),
           actionLabel: t('View published report'),
           subpath: 'report',
         };
-      case 'REPAIR_PENDING':
+      case 'CANCELLED':
         return {
-          tip: t('Critical defects forwarded to maintenance engineering team.'),
-          actionLabel: t('View report & findings'),
-          subpath: 'report',
+          tip: t('This inspection has been cancelled.'),
+          actionLabel: t('Open inspection details'),
+          subpath: '',
         };
       default:
         return {

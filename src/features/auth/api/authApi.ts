@@ -284,12 +284,20 @@ export async function logoutCurrentSession(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout');
 }
 
+export async function fetchCurrentUser(accessToken?: string): Promise<AuthUser> {
+  const config = accessToken
+    ? { headers: { Authorization: `Bearer ${accessToken}` } }
+    : undefined;
+  const { data } = await api.get<unknown>('/auth/me', config);
+  return parseUser(data);
+}
+
 export async function logoutAllSessions(): Promise<void> {
   await postWithBrowserCsrf('/auth/logout-all');
 }
 
 export async function updateVisionFallbackPreference(visionFallbackEnabled: boolean): Promise<AuthUser> {
-  const { data } = await api.put<AuthUser>('/auth/me/ai-fallback-preference', {
+  const { data } = await api.put<AuthUser>('/users/me/ai-fallback-preference', {
     visionFallbackEnabled,
   });
   return parseUser(data);
@@ -303,7 +311,7 @@ export interface UpdatePilotLicenseInput {
 }
 
 export async function updatePilotLicense(input: UpdatePilotLicenseInput): Promise<AuthUser> {
-  const { data } = await api.put<AuthUser>('/auth/me/pilot-license', input);
+  const { data } = await api.put<AuthUser>('/users/me/pilot-license', input);
   return parseUser(data);
 }
 

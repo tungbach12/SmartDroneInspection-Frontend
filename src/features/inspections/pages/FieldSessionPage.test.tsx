@@ -58,7 +58,7 @@ const INSPECTION = {
   id: 'inspection-1',
   assetName: 'Red River Bridge',
   locationText: JSON.stringify({ latitude: 21.0285, longitude: 105.8542, label: 'Hanoi, Vietnam' }),
-  status: 'READY_FOR_FLIGHT',
+  status: 'SCHEDULED',
   flightPermitFileName: 'permit-license.pdf',
   flightPermitUploadedAt: '2026-10-20T01:00:00Z',
   inspectionItems: ['Mố cầu', 'Dầm chính'],
@@ -117,10 +117,10 @@ describe('FieldSessionPage', () => {
     expect(screen.getByRole('button', { name: 'Abort' })).toBeTruthy();
   });
 
-  it('shows the permit upload action when inspection status is ASSIGNED', async () => {
+  it('shows the permit upload action when inspection status is SCHEDULED', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
-      status: 'ASSIGNED',
+      status: 'SCHEDULED',
       flightPermitFileName: null,
     });
     mocks.list.mockResolvedValue([]);
