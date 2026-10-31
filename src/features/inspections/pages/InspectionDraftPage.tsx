@@ -50,7 +50,10 @@ const NEXT_STEP: Record<string, string> = {
  */
 export default function InspectionDraftPage() {
   const { t } = useLocale();
-  const { onReportDirtyChange } = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>();
+  const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
+    | { onReportDirtyChange?: (dirty: boolean) => void }
+    | null;
+  const onReportDirtyChange = outletContext?.onReportDirtyChange;
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const userId = useAuthStore((state) => state.user?.id ?? state.userId);
