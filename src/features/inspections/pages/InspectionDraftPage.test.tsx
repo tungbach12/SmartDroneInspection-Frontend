@@ -136,20 +136,18 @@ describe('InspectionDraftPage', () => {
   it('keeps draft generation blocked until findings have been confirmed, without an evidence decision', () => {
     renderWithRouter(<InspectionDraftPage />);
 
-    expect(
-      (screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.queryByText(/Accept the evidence set/)).toBeNull();
   });
 
   it('keeps report draft generation disabled until findings have been confirmed', () => {
     renderWithRouter(<InspectionDraftPage />);
 
-    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
   });
 
-  it('generates a draft once findings are confirmed, without an evidence decision', () => {
+  it('generates a draft automatically once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
       data: {
         status: 'FIELD_COMPLETED',
@@ -161,7 +159,6 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate report draft' }));
     expect(mocks.createDraft.mutate).toHaveBeenCalledOnce();
   });
 
@@ -313,7 +310,7 @@ describe('InspectionDraftPage', () => {
 
     expect(screen.queryByRole('link', { name: 'Go to Findings' })).toBeNull();
     expect(screen.getByText(/report has been published/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
   });
 
   it('shows the reviewer read-only report view without Inspector draft controls', () => {
@@ -357,7 +354,6 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate report draft' }));
     expect(mocks.createDraft.mutate).toHaveBeenCalled();
   });
 });
