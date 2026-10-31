@@ -3,11 +3,13 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Paper,
   Stack,
@@ -56,6 +58,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const [budgetApprover, setBudgetApprover] = useState('');
   const [standards, setStandards] = useState<string[]>([]);
   const [suggestedTasks, setSuggestedTasks] = useState<SuggestedTask[]>([]);
+  const [includeSuggestedTasks, setIncludeSuggestedTasks] = useState(true);
 
   const currentUser = useAuthStore((state) => state.user);
   const orgAdmins = useMemo(() => {
@@ -191,6 +194,14 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 dueAt: dueAt ? new Date(dueAt).toISOString() : null,
                 correctiveScope: correctiveScope.trim(),
                 acceptanceCriteria: acceptanceCriteria.trim() || null,
+                initialTasks:
+                  includeSuggestedTasks && suggestedTasks.length > 0
+                    ? suggestedTasks.map((t) => ({
+                        name: t.name,
+                        method: t.method ?? null,
+                        acceptanceCriteria: t.acceptanceCriteria ?? null,
+                      }))
+                    : undefined,
               },
               {
                 onSuccess: () => {
@@ -286,13 +297,24 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                 </Stack>
               ) : null}
               {suggestedTasks.length > 0 ? (
-                <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
-                  <Typography variant="caption" sx={{ color: '#344054', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                    {t('Recommended repair steps:')}
-                  </Typography>
-                  <Stack spacing={0.5}>
+                <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1.5, border: '1px solid #b9e6fe' }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={includeSuggestedTasks}
+                        onChange={(e) => setIncludeSuggestedTasks(e.target.checked)}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#026aa2' }}>
+                        {`${t('Tự động tạo')} ${suggestedTasks.length} ${t('hạng mục công việc gợi ý vào Work Order')}`}
+                      </Typography>
+                    }
+                  />
+                  <Stack spacing={0.5} sx={{ pl: 3.5, mt: 0.5 }}>
                     {suggestedTasks.map((task) => (
-                      <Typography key={task.taskNumber} variant="caption" sx={{ color: '#475467' }}>
+                      <Typography key={task.taskNumber} variant="caption" sx={{ color: '#034466' }}>
                         {task.taskNumber}. <strong>{task.name}</strong>
                         {task.method ? ` — ${task.method}` : ''}
                       </Typography>

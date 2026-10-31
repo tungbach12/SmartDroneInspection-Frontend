@@ -25,18 +25,23 @@ export function AuthenticatedMedia({
   maxHeight = 420,
 }: AuthenticatedMediaProps) {
   const { t } = useLocale();
+  const [prevSrc, setPrevSrc] = useState(src);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    setBlobUrl(null);
+    setLoading(true);
+    setError(false);
+  }
 
   const isVideo = contentType.startsWith('video/');
 
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
-    setLoading(true);
-    setError(false);
-    setBlobUrl(null);
 
     const apiBaseUrl = api.defaults.baseURL?.replace(/\/+$/, '') ?? '/api/v1';
     const requestPath = src.startsWith(apiBaseUrl) ? src.slice(apiBaseUrl.length) : src;
