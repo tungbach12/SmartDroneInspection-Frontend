@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -49,6 +50,7 @@ const NEXT_STEP: Record<string, string> = {
  */
 export default function InspectionDraftPage() {
   const { t } = useLocale();
+  const { onReportDirtyChange } = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>();
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const userId = useAuthStore((state) => state.user?.id ?? state.userId);
@@ -77,12 +79,10 @@ export default function InspectionDraftPage() {
   const inspectionStatus = workflow.data?.status ?? '';
   const findingsConfirmed =
     Boolean(workflow.data?.findingsSnapshotHash) &&
-    ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
+    ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(
       inspectionStatus,
     );
-  const isPublished = ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-    inspectionStatus,
-  );
+  const isPublished = inspectionStatus === 'COMPLETED';
   const latestStatus = versionList[0]?.status;
   const isLockedInReview =
     latestStatus === 'SUBMITTED' ||
@@ -125,7 +125,7 @@ export default function InspectionDraftPage() {
   };
 
   return (
-    <Stack spacing={2}>
+    <Stack className="trace-ledger-workspace" spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
@@ -135,9 +135,10 @@ export default function InspectionDraftPage() {
       {(isInspector || openVersion) && (
         <Paper
           variant="outlined"
+          className="trace-stage-panel"
           sx={{
             p: { xs: 2, sm: 2.5 },
-            borderRadius: '16px',
+            borderRadius: '8px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
           }}
@@ -369,6 +370,7 @@ export default function InspectionDraftPage() {
             inspectionId={inspectionId}
             canEdit={canEditOpenVersion}
             onSaveSections={handleSaveSections}
+            onDirtyChange={onReportDirtyChange}
             reinspectionVerifications={reinspectionVerifications.data}
           />
         )

@@ -79,10 +79,17 @@ interface AuthPageLayoutProps extends PropsWithChildren {
   heroTagline?: { line1: string; line2: string };
   socialPrompt?: string;
   showSocial?: boolean;
+  onGoogleClick?: () => void;
+  onAppleClick?: () => void;
   footer?: ReactNode;
   workspaceCopy?: { sideLabel: string; sideTitle: string; sideBody: string };
   sideLabels?: readonly string[];
 }
+
+const defaultGoogleLogin = () => {
+  const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1';
+  window.location.href = `${apiBase}/auth/oauth2/authorize/google?client_type=web`;
+};
 
 export function AuthPageLayout({
   eyebrow,
@@ -99,6 +106,8 @@ export function AuthPageLayout({
   },
   socialPrompt = 'Or register with',
   showSocial = true,
+  onGoogleClick,
+  onAppleClick: _onAppleClick,
   footer,
   children,
 }: AuthPageLayoutProps) {
@@ -364,6 +373,7 @@ export function AuthPageLayout({
                   <Button
                     type="button"
                     variant="outlined"
+                    onClick={onGoogleClick ?? defaultGoogleLogin}
                     startIcon={<GoogleIcon />}
                     sx={{
                       height: 44,

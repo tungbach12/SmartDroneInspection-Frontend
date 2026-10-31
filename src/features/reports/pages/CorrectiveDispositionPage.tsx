@@ -98,7 +98,7 @@ export default function CorrectiveDispositionPage() {
   };
 
   const handleSend = () => {
-    if (selectedIds.size === 0 && workflow.data?.status === 'REPORT_PUBLISHED') {
+    if (selectedIds.size === 0 && alreadyForwardedFindings.length === 0) {
       setConfirmCompletionOpen(true);
       return;
     }
@@ -267,7 +267,7 @@ export default function CorrectiveDispositionPage() {
                         {completeCorrectiveHandoff.isPending
                           ? 'Saving maintenance decision…'
                           : selectedIds.size === 0
-                            ? workflow.data?.status === 'REPAIR_PENDING'
+                            ? alreadyForwardedFindings.length > 0
                               ? 'Leave remaining findings unforwarded'
                               : 'Complete inspection without forwarding'
                             : `Send ${selectedIds.size} finding(s) to Maintenance`}
@@ -276,8 +276,8 @@ export default function CorrectiveDispositionPage() {
 
                     {selectedIds.size === 0 && (
                       <Alert severity="info">
-                        {workflow.data?.status === 'REPAIR_PENDING'
-                          ? 'No additional findings selected. The inspection remains in maintenance; these findings can be forwarded later.'
+                        {alreadyForwardedFindings.length > 0
+                          ? 'No additional findings selected. The inspection remains completed; unforwarded findings can be forwarded later if needed.'
                           : 'Completing now closes the inspection without forwarding; this decision is final.'}
                       </Alert>
                     )}

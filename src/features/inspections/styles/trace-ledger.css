@@ -1,0 +1,71 @@
+/* Trace Ledger: clean, native structure without loud colored decorative borders */
+.trace-ledger-workspace .inspection-trace-context {
+  position: relative;
+  border-top: none;
+  background: var(--mui-palette-background-paper);
+}
+
+.trace-ledger-workspace .inspection-trace-context > .MuiStack-root > .MuiStack-root:first-child {
+  row-gap: 10px;
+}
+
+.trace-ledger-workspace .trace-stage-link {
+  position: relative;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.trace-ledger-workspace .trace-stage-link.is-complete::after {
+  content: none;
+}
+
+.inspection-evidence-trace {
+  padding: 10px 12px;
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: 6px;
+  background: var(--mui-palette-background-paper);
+}
+
+.inspection-trace-line {
+  flex: 1 1 24px;
+  min-width: 24px;
+  height: 1px;
+  background: var(--mui-palette-divider);
+}
+
+.trace-stage-panel,
+.trace-filter-panel,
+.trace-confirmation-gate {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  border-top: 1px solid var(--mui-palette-divider) !important;
+}
+
+.trace-stage-panel--findings .MuiChip-root {
+  border-radius: 4px;
+}
+
+.trace-advanced-filters {
+  animation: trace-filter-open 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.trace-confirmation-gate {
+  background: var(--mui-palette-background-paper);
+}
+
+.trace-ledger-workspace :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--mui-palette-divider);
+  outline-offset: 2px;
+}
+
+@keyframes trace-filter-open {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace-advanced-filters,
+  .trace-stage-link {
+    animation: none !important;
+    transition: none !important;
+  }
+}

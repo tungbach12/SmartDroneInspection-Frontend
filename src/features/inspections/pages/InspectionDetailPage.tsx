@@ -1,14 +1,19 @@
-import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
+  Alert,
   Box,
   Button,
   ButtonBase,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
   Typography,
 } from '@mui/material';
-import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
@@ -18,9 +23,9 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
-import ArrowForwardIosRounded from '@mui/icons-material/ArrowForwardIosRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import '../styles/trace-ledger.css';
 import {
   useInspection,
   useInspectionEvidence,
@@ -37,6 +42,16 @@ interface WorkflowStep {
   to: string;
   icon: typeof FlightTakeoffRounded;
 }
+
+type WorkflowStepState = 'active' | 'complete' | 'ready' | 'blocked' | 'pending';
+
+const STEP_STATE_COPY: Record<WorkflowStepState, string> = {
+  active: 'In progress',
+  complete: 'Complete',
+  ready: 'Ready',
+  blocked: 'Waiting',
+  pending: 'Not started',
+};
 
 const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   {
@@ -134,7 +149,17 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
 
 export default function InspectionDetailPage() {
   const { formatDate, t } = useLocale();
-  const isDark = useIsDarkMode();
+  const [reportDirty, setReportDirty] = useState(false);
+  const blocker = useBlocker(reportDirty);
+  useEffect(() => {
+    if (!reportDirty) return undefined;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [reportDirty]);
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,7 +181,7 @@ export default function InspectionDetailPage() {
   const evidenceQuery = useInspectionEvidence(inspectionId);
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
-  const versions = useReportVersions(isOrganizationAdmin ? inspectionId : null);
+  const versions = useReportVersions(inspectionId);
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
@@ -182,13 +207,10 @@ export default function InspectionDetailPage() {
   const isStepCompleted = (stepValue: string): boolean => {
     if (isOrganizationAdmin) {
       if (stepValue === 'review') {
-        return (
-          hasPublishedVersion ||
-          ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(inspection?.status ?? '')
-        );
+        return hasPublishedVersion || (inspection?.status === 'COMPLETED');
       }
       if (stepValue === 'corrective') {
-        return ['REPAIR_PENDING', 'COMPLETED'].includes(inspection?.status ?? '');
+        return inspection?.status === 'COMPLETED';
       }
       return false;
     }
@@ -196,72 +218,104 @@ export default function InspectionDetailPage() {
     const status = workflowQuery.data?.status ?? inspection?.status ?? '';
     const hasCurrentFindingsConfirmation =
       Boolean(workflowQuery.data?.findingsConfirmedAt) &&
-      ['REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
+      ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'field-session':
-        return ['FIELD_COMPLETED', 'REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status);
+        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
       case 'evidence':
         return (
           activeEvidenceCount > 0 ||
-          ['REPORT_DRAFT', 'UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
         );
       case 'findings':
         return (
           hasCurrentFindingsConfirmation ||
-          ['UNDER_REVIEW', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          ['UNDER_REVIEW', 'COMPLETED'].includes(status)
         );
       case 'report':
         return (
           hasPublishedVersion ||
-          ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(status)
+          status === 'COMPLETED'
         );
       default:
         return false;
     }
   };
 
-  return (
-    <Box className="workspace-page workspace-page--inspections" sx={{ width: '100%', maxWidth: '100%', mx: 'auto' }}>
-      <Box sx={{ mb: 3 }}>
-        <Button
-          startIcon={<ArrowBackRounded />}
-          onClick={() => {
-            if (isOrganizationAdmin) {
-              const portal = location.pathname.startsWith('/admin') ? 'admin' : 'client';
-              navigate(`${getSectionPath(portal, 'inspections')}?view=reports`);
-              return;
-            }
-            navigate(-1);
-          }}
-          sx={{
-            color: 'text.secondary',
-            fontWeight: 500,
-            fontSize: '0.875rem',
-            textTransform: 'none',
-            borderRadius: '8px',
-            mb: 2,
-            '&:hover': { bgcolor: 'action.hover' },
-          }}
-        >
-          {isOrganizationAdmin ? t('Back to review queue') : t('Back to list')}
-        </Button>
+  const workflowStatus = workflowQuery.data?.status ?? inspection?.status ?? '';
+  const isFieldWorkComplete = [
+    'FIELD_COMPLETED',
+    'UNDER_REVIEW',
+    'COMPLETED',
+  ].includes(workflowStatus);
+  const hasEvidence =
+    activeEvidenceCount > 0 ||
+    ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
+  const findingsComplete = isStepCompleted('findings');
+  const readinessFor = (step: WorkflowStep): WorkflowStepState => {
+    if (isStepCompleted(step.value)) return 'complete';
+    if (tabValue === step.value) return 'active';
+    if (step.value === 'field-session' || step.value === 'review') return 'ready';
+    if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
+    if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
+    if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
+    if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
+    return 'pending';
+  };
 
-        <PageHeader
-          title={isOrganizationAdmin ? t('Inspection review') : t('Inspection Detail')}
-        />
+  const blockedReason = (step: WorkflowStep): string | null => {
+    if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
+    if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
+    if (step.value === 'report' && !findingsComplete) return t('Confirm findings before drafting the report.');
+    if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
+    return null;
+  };
+
+  const currentStep = visibleSteps.find((step) => step.value === tabValue);
+  const currentStepIndex = visibleSteps.findIndex((step) => step.value === tabValue);
+  const currentStepState = currentStep ? readinessFor(currentStep) : 'pending';
+  const currentBlocker = currentStep ? blockedReason(currentStep) : null;
+  return (
+    <Box
+      className="workspace-page workspace-page--inspections trace-ledger-workspace"
+      sx={{ width: '100%', maxWidth: '100%', mx: 'auto' }}
+    >
+      <Box className="trace-ledger-header" sx={{ mb: { xs: 2.5, md: 3.5 } }}>
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Button
+            startIcon={<ArrowBackRounded />}
+            onClick={() => {
+              if (isOrganizationAdmin) {
+                const portal = location.pathname.startsWith('/admin') ? 'admin' : 'client';
+                navigate(`${getSectionPath(portal, 'inspections')}?view=reports`);
+                return;
+              }
+              navigate(-1);
+            }}
+            sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'none', px: 0 }}
+          >
+            {isOrganizationAdmin ? t('Back to review queue') : t('Back to inspections')}
+          </Button>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 650, letterSpacing: '0.04em' }}>
+            {isOrganizationAdmin ? t('REPORT DECISIONS') : t('FIELD WORKSPACE')}
+          </Typography>
+        </Stack>
+
+        <PageHeader title={isOrganizationAdmin ? t('Inspection review') : t('Inspection detail')} />
 
         {inspection && (
           <Paper
             elevation={0}
+            className="inspection-trace-context"
             sx={{
-              mt: 1.5,
-              px: 2,
-              py: 1.25,
-              borderRadius: '12px',
+              mt: 1,
+              px: { xs: 1.75, sm: 2.25 },
+              py: { xs: 1.5, sm: 1.75 },
+              borderRadius: '10px',
               border: '1px solid',
               borderColor: 'divider',
               bgcolor: 'background.paper',
-              boxShadow: isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
+              boxShadow: 'none',
             }}
           >
             <Stack
@@ -325,6 +379,7 @@ export default function InspectionDetailPage() {
               <Chip
                 size="small"
                 variant="outlined"
+                aria-label={inspection.flightPermitFileName ? t('Flight document recorded; this does not authorize flight') : t('Flight document not recorded')}
                 title={
                   inspection.flightPermitFileName
                     ? `${inspection.flightPermitFileName}${
@@ -345,180 +400,186 @@ export default function InspectionDetailPage() {
           </Paper>
         )}
 
-        {/* Centered Modern Animated 1-4 Step Navigator */}
+        {!isOrganizationAdmin && inspection && (
+          <Box className="inspection-evidence-trace" aria-label={t('Inspection evidence trace')}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.25, mt: 1.25 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flex: '0 0 auto' }}>
+                {t('RECORD TRACE')}
+              </Typography>
+              <Box className="inspection-trace-line" aria-hidden="true" />
+              <Stack direction="row" spacing={{ xs: 1.5, sm: 2.5 }} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                <Typography variant="body2"><strong>{t('Session')}</strong> · {isFieldWorkComplete ? t('Recorded') : t('Not complete')}</Typography>
+                <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
+                <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
+                <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        )}
+
         <Paper
+          component="nav"
+          aria-label={t('Inspection workflow stages')}
+          className="inspection-stage-rail"
           elevation={0}
-          role="tablist"
-          aria-label={t('Inspection workflow steps')}
           sx={{
-            mt: 3,
-            p: { xs: 1.5, sm: 2 },
+            mt: 2,
+            p: { xs: 1.5, sm: 1.75 },
             bgcolor: 'background.paper',
-            borderRadius: '16px',
+            borderRadius: '10px',
             border: '1px solid',
             borderColor: 'divider',
-            boxShadow: isDark ? 'none' : '0 4px 20px -4px rgba(15, 23, 42, 0.06)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            overflow: 'visible',
+            boxShadow: 'none',
           }}
         >
           <Stack
             direction="row"
-            sx={{
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexWrap: { xs: 'wrap', sm: 'nowrap' },
-              gap: { xs: 0.5, sm: 1, md: 1.5 },
-              width: '100%',
-            }}
+            sx={{ alignItems: 'stretch', display: { xs: 'none', sm: 'flex' } }}
           >
-            {visibleSteps.map((step, idx) => {
-              const isActive = tabValue === step.value;
-              const isCompleted = isStepCompleted(step.value);
-              const isLast = idx === visibleSteps.length - 1;
-
+            {visibleSteps.map((step) => {
+              const state = readinessFor(step);
+              const reason = blockedReason(step);
               return (
-                <Box
+                <ButtonBase
                   key={step.value}
+                  component={NavLink}
+                  to={step.to}
+                  aria-current={tabValue === step.value ? 'step' : undefined}
+                  aria-label={`${t(step.title)}: ${t(STEP_STATE_COPY[state])}${reason ? `. ${reason}` : ''}`}
+                  title={reason ?? undefined}
+                  className={`trace-stage-link${state === 'active' ? ' is-active' : ''}${state === 'complete' ? ' is-complete' : ''}`}
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    flex: { xs: '1 1 45%', sm: 'none' },
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 56,
+                    px: { sm: 1.25, md: 2 },
+                    py: 1,
+                    textAlign: 'left',
+                    justifyContent: 'flex-start',
+                    borderRight: '1px solid',
+                    borderColor: 'divider',
+                    borderBottom: state === 'active' ? '2px solid' : '2px solid transparent',
+                    borderBottomColor: state === 'active' ? 'primary.main' : 'transparent',
+                    bgcolor: state === 'active' ? 'action.selected' : 'transparent',
+                    '&:last-of-type': { borderRight: 0 },
+                    '&:hover': { bgcolor: state === 'active' ? 'action.selected' : 'action.hover' },
+                    '&:focus-visible': { outline: '2px solid', outlineColor: 'divider', outlineOffset: -2 },
                   }}
                 >
-                  <ButtonBase
-                    component={NavLink}
-                    to={step.to}
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-label={step.label}
-                    sx={{
-                      minHeight: 50,
-                      borderRadius: '10px',
-                      px: { xs: 1.5, sm: 2 },
-                      py: 0.75,
-                      textTransform: 'none',
-                      border: '1px solid',
-                      borderColor: isActive
-                        ? 'text.primary'
-                        : 'divider',
-                      bgcolor: isActive
-                        ? 'action.selected'
-                        : 'transparent',
-                      textAlign: 'left',
-                      justifyContent: 'flex-start',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                      },
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      spacing={1.25}
-                      sx={{ alignItems: 'center', textAlign: 'left', minWidth: 0 }}
-                    >
-                      <Box
-                        sx={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          flexShrink: 0,
-                          bgcolor: isActive
-                            ? 'text.primary'
-                            : 'action.hover',
-                          color: isActive
-                            ? 'background.paper'
-                            : isCompleted
-                              ? 'text.primary'
-                              : 'text.disabled',
-                          border: '1px solid',
-                          borderColor: isActive
-                            ? 'text.primary'
-                            : 'divider',
-                        }}
-                      >
-                        {isCompleted && !isActive ? (
-                          <CheckRounded sx={{ fontSize: 16, color: 'text.secondary' }} />
-                        ) : (
-                          step.step
-                        )}
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: 'block',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            color: isActive
-                              ? 'text.primary'
-                              : 'text.secondary',
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {t(`Step ${step.step}`)}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: isActive ? 700 : 550,
-                            fontSize: '0.84rem',
-                            color: isActive
-                              ? 'text.primary'
-                              : 'text.secondary',
-                            whiteSpace: 'nowrap',
-                            lineHeight: 1.25,
-                          }}
-                        >
-                          {t(step.title)}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: { xs: 'none', md: 'block' },
-                            fontSize: '10.5px',
-                            color: 'text.secondary',
-                            whiteSpace: 'nowrap',
-                            lineHeight: 1.2,
-                            opacity: 0.8,
-                          }}
-                        >
-                          {t(step.sublabel)}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </ButtonBase>
-
-                  {!isLast && (
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
                     <Box
+                      aria-hidden="true"
                       sx={{
-                        display: { xs: 'none', sm: 'flex' },
-                        alignItems: 'center',
-                        px: { sm: 0.5, md: 1 },
-                        color: 'text.disabled',
+                        width: 28,
+                        height: 28,
+                        flex: '0 0 auto',
+                        display: 'grid',
+                        placeItems: 'center',
+                        borderRadius: '50%',
+                        border: '1px solid',
+                        borderColor: state === 'active' ? 'divider' : 'divider',
+                        bgcolor: state === 'active' ? 'primary.main' : 'background.paper',
+                        color: state === 'active' ? 'primary.contrastText' : 'text.secondary',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
                       }}
                     >
-                      <ArrowForwardIosRounded sx={{ fontSize: 11 }} />
+                      {state === 'complete' ? <CheckRounded sx={{ fontSize: 17 }} /> : step.step}
                     </Box>
-                  )}
-                </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography component="span" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.3 }}>
+                        {t(STEP_STATE_COPY[state])}
+                      </Typography>
+                      <Typography component="span" sx={{ display: 'block', color: state === 'active' ? 'text.primary' : 'text.secondary', fontSize: { sm: '0.8125rem', md: '0.875rem' }, fontWeight: state === 'active' ? 700 : 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {t(step.title)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </ButtonBase>
               );
             })}
           </Stack>
+
+          {currentStep && (
+            <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{t(currentStep.title)}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('Step')} {currentStepIndex + 1} / {visibleSteps.length} · {t(STEP_STATE_COPY[currentStepState])}
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                {visibleSteps.map((step) => {
+                  const state = readinessFor(step);
+                  return (
+                    <ButtonBase
+                      key={step.value}
+                      component={NavLink}
+                      to={step.to}
+                      aria-current={tabValue === step.value ? 'step' : undefined}
+                      aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
+                      title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
+                      sx={{
+                        flex: 1,
+                        minWidth: 40,
+                        minHeight: 42,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderBottomWidth: state === 'active' ? 2 : 1,
+                        borderRadius: '5px',
+                        bgcolor: state === 'active' ? 'action.selected' : 'background.paper',
+                        color: state === 'active' ? 'primary.main' : 'text.secondary',
+                        fontWeight: 700,
+                        '&:focus-visible': { outline: '2px solid', outlineColor: 'divider', outlineOffset: 1 },
+                      }}
+                    >
+                      {state === 'complete' ? <CheckRounded sx={{ fontSize: 18 }} /> : step.step}
+                    </ButtonBase>
+                  );
+                })}
+              </Stack>
+            </Box>
+          )}
+
         </Paper>
       </Box>
 
-      <Outlet />
+      <Box className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
+        {currentBlocker && (
+          <Alert severity="info" icon={false} sx={{ mb: 1.5, borderRadius: '5px' }}>
+            <Typography variant="body2"><strong>{t('This stage is open for review')}:</strong> {currentBlocker}</Typography>
+            <Typography variant="caption">{t('Navigation stays available; the required action becomes available when the prerequisite is met.')}</Typography>
+          </Alert>
+        )}
+        <Outlet context={{ onReportDirtyChange: setReportDirty }} />
+      </Box>
+
+      <Dialog
+        open={blocker.state === 'blocked'}
+        onClose={() => {
+          if (blocker.state === 'blocked') blocker.reset();
+        }}
+        aria-labelledby="unsaved-report-title"
+        aria-describedby="unsaved-report-description"
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle id="unsaved-report-title">{t('Unsaved report changes')}</DialogTitle>
+        <DialogContent id="unsaved-report-description">
+          <Typography variant="body2" color="text.secondary">
+            {t('Your report sections have not been saved. Save them before leaving, or discard your edits.')}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => {
+            if (blocker.state === 'blocked') blocker.reset();
+          }}>{t('Stay here')}</Button>
+          <Button color="error" onClick={() => {
+            setReportDirty(false);
+            if (blocker.state === 'blocked') blocker.proceed();
+          }}>{t('Discard edits')}</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -64,12 +64,12 @@ export default function FieldSessionPage() {
   const canStart =
     !openSession &&
     hasPermit &&
-    ['READY_FOR_FLIGHT', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
+    ['SCHEDULED', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
       inspection?.status ?? '',
     );
   const canContinueToEvidence =
     !openSession &&
-    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(inspection?.status ?? '') ||
+    (inspection?.status === 'FIELD_COMPLETED' ||
       latestSession?.status === 'FIELD_COMPLETED');
   const canStartAnother =
     canStart &&
@@ -85,7 +85,7 @@ export default function FieldSessionPage() {
   };
 
   return (
-    <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 960, mx: 'auto' }}>
+    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace" sx={{ maxWidth: 1040, mx: 'auto' }}>
       <Stack spacing={2}>
         {isReinspection && (
           <TargetFlightShotList
@@ -114,8 +114,8 @@ export default function FieldSessionPage() {
           onRetry={() => void inspectionQuery.refetch()}
           loadingLabel={t('Loading inspection…')}
         >
-          {inspection && !hasPermit && inspection.status === 'ASSIGNED' ? (
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+          {inspection && !hasPermit && inspection.status === 'SCHEDULED' ? (
+            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
               <Stack spacing={1.5}>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -188,7 +188,7 @@ export default function FieldSessionPage() {
               </Box>
               <Chip size="small" label={t('On file')} color="success" variant="outlined" />
             </Paper>
-          ) : inspection && inspection.status !== 'ASSIGNED' && !hasPermit ? (
+          ) : inspection && inspection.status !== 'SCHEDULED' && !hasPermit ? (
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
@@ -202,7 +202,7 @@ export default function FieldSessionPage() {
           loadingLabel={t('Loading field sessions…')}
         >
           {inspection && (
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
               <Stack spacing={2}>
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}

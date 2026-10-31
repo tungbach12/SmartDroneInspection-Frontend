@@ -33,6 +33,7 @@ import { ToastHost } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const InspectorPartnerApplicationPage = lazy(
   () => import('@/features/auth/pages/InspectorPartnerApplicationPage'),
@@ -293,6 +294,10 @@ export const router = createBrowserRouter([
             <LoginPage />
           </PublicOnly>
         ),
+      },
+      {
+        path: 'auth/callback',
+        element: <OAuthCallbackPage />,
       },
       {
         path: 'register',

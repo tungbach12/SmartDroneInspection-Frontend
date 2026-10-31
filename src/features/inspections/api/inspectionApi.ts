@@ -217,15 +217,10 @@ export interface ReportAiSummary {
 }
 
 export type InspectionStatus =
-  | 'DRAFT'
-  | 'ASSIGNED'
-  | 'READY_FOR_FLIGHT'
+  | 'SCHEDULED'
   | 'IN_PROGRESS'
   | 'FIELD_COMPLETED'
-  | 'REPORT_DRAFT'
   | 'UNDER_REVIEW'
-  | 'REPORT_PUBLISHED'
-  | 'REPAIR_PENDING'
   | 'COMPLETED'
   | 'CANCELLED';
 

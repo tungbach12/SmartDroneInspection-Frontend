@@ -25,6 +25,8 @@ export interface ServiceRequestQuote {
   firstOccurrenceEndAt: string;
   inspectorId: string;
   droneId: string;
+  currency?: string;
+  pricePerOccurrenceVnd?: number | null;
   pricePerOccurrenceUsd: number;
   issuedByUserId: string;
   createdAt: string;
@@ -90,6 +92,7 @@ export interface IssueServiceQuoteInput {
   firstOccurrenceEndAt: string;
   inspectorId: string;
   droneId: string;
+  pricePerOccurrenceVnd?: number;
   pricePerOccurrenceUsd: number;
 }
 

@@ -93,7 +93,7 @@ export default function ReportDetailPage() {
   const inspectionStatus = workflowState.data?.status;
   const publishedUnhanded =
     openVersion?.status === 'PUBLISHED' &&
-    (inspectionStatus === 'REPORT_PUBLISHED' || inspectionStatus == null);
+    (inspectionStatus === 'COMPLETED' || inspectionStatus == null);
   const reportReadLoading =
     findings.isLoading || evidence.isLoading || Boolean(findings.error || evidence.error);
   const canWithdrawSubmission = Boolean(
