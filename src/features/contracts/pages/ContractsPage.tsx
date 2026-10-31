@@ -325,8 +325,8 @@ function QuotePanel({ request, customer, manager, onChanged, onError }: { reques
   const latest = request.quotes[0];
   const accept = useAcceptServiceQuote(request.id);
   const issue = useIssueServiceQuote(request.id);
-  const inspectors = usePartnerInspectors();
-  const drones = usePartnerDrones();
+  const inspectors = usePartnerInspectors(manager);
+  const drones = usePartnerDrones(manager);
   const [scope, setScope] = useState(request.description);
   const [start, setStart] = useState(`${request.requestedFrom}T08:00`);
   const [end, setEnd] = useState(`${request.requestedFrom}T10:00`);
@@ -495,8 +495,8 @@ function OccurrenceRow({ request, occurrenceId, occurrenceIndex, startAt, endAt,
   request: ServiceRequest; occurrenceId: string; occurrenceIndex: number; startAt: string; endAt: string; status: string; inspectorId: string | null; droneId: string | null; inspectionId: string | null; manager: boolean; onChanged: () => void; onError: (message: string) => void;
 }) {
   const assign = useAssignServiceOccurrence(request.id, occurrenceId);
-  const inspectors = usePartnerInspectors();
-  const drones = usePartnerDrones();
+  const inspectors = usePartnerInspectors(manager);
+  const drones = usePartnerDrones(manager);
   const [inspector, setInspector] = useState('');
   const [drone, setDrone] = useState('');
   const [customStart, setCustomStart] = useState<string | null>(null);

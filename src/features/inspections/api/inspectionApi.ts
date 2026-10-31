@@ -6,8 +6,6 @@ import { api } from '@/shared/api/client';
  * and a qualified CUSTOMER reviewer who is not the author decides.
  */
 export type ReportStatus =
-  | 'DRAFT'
-  | 'AUTHOR_VERIFIED'
   | 'SUBMITTED'
   | 'RETURNED'
   | 'APPROVED'
@@ -205,6 +203,15 @@ export interface PayOSCheckoutDetails {
   paymentLinkId: string;
   checkoutUrl: string;
   qrCode: string;
+}
+
+export interface ReportPaymentStatusDetails {
+  reportAccepted: boolean;
+  paid: boolean;
+  paymentStatus: string;
+  orderCode: number | null;
+  amount: number | null;
+  checkoutUrl: string | null;
 }
 
 export interface ManualDraftInput {}
@@ -684,6 +691,13 @@ export const inspectionApi = {
     api
       .post<PayOSCheckoutDetails>(
         `/inspections/${inspectionId}/payos/create-payment-link`,
+      )
+      .then((response) => response.data),
+
+  getReportPaymentStatus: (inspectionId: string) =>
+    api
+      .get<ReportPaymentStatusDetails>(
+        `/inspections/${inspectionId}/report/payment-status`,
       )
       .then((response) => response.data),
 

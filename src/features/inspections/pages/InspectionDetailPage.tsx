@@ -85,9 +85,9 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   {
     step: 4,
     value: 'report',
-    label: 'Report draft',
+    label: 'Report',
     title: 'Inspection Report',
-    sublabel: 'Draft & Submit',
+    sublabel: 'Compile & Submit',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -115,7 +115,7 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
   {
     step: 3,
     value: 'report',
-    label: 'Report draft',
+    label: 'Report',
     title: 'Verification Report',
     sublabel: 'Sign-off & Submit',
     to: 'report',
@@ -148,6 +148,36 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
   },
 ] as const;
 
+const CUSTOMER_STEPS: readonly WorkflowStep[] = [
+  {
+    step: 1,
+    value: 'tracking',
+    label: 'Progress',
+    title: 'Inspection Progress',
+    sublabel: 'Field & Review Status',
+    to: 'tracking',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
+    value: 'report',
+    label: 'Official Report',
+    title: 'Inspection Report',
+    sublabel: 'Published Deliverable',
+    to: 'report',
+    icon: AssignmentTurnedInOutlined,
+  },
+  {
+    step: 3,
+    value: 'corrective',
+    label: 'Maintenance',
+    title: 'Corrective Action',
+    sublabel: 'Work Order Creation',
+    to: 'corrective',
+    icon: BuildOutlined,
+  },
+] as const;
+
 export default function InspectionDetailPage() {
   const { formatDate, t } = useLocale();
   const [reportDirty, setReportDirty] = useState(false);
@@ -165,18 +195,21 @@ export default function InspectionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
-  const isOrganizationAdmin =
-    (roles.includes('CUSTOMER') && location.pathname.startsWith('/client/')) ||
-    ((roles.includes('ADMIN') || roles.includes('MANAGER')) &&
-      location.pathname.startsWith('/admin/'));
+  const isCustomer = roles.includes('CUSTOMER') && location.pathname.startsWith('/client/');
+  const isReviewerAdmin =
+    (roles.includes('ADMIN') || roles.includes('MANAGER')) &&
+    location.pathname.startsWith('/admin/');
+  const isOrganizationAdmin = isReviewerAdmin;
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
-  const steps = isOrganizationAdmin
-    ? REVIEWER_STEPS
-    : isReinspection
-      ? REINSPECTION_STEPS
-      : INSPECTOR_STEPS;
+  const steps = isCustomer
+    ? CUSTOMER_STEPS
+    : isReviewerAdmin
+      ? REVIEWER_STEPS
+      : isReinspection
+        ? REINSPECTION_STEPS
+        : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
@@ -191,26 +224,61 @@ export default function InspectionDetailPage() {
   const latestSession = sessionsQuery.data?.at(-1);
   const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
 
-  const visibleSteps = isOrganizationAdmin
-    ? REVIEWER_STEPS.filter((step) => {
-        if (step.value === 'corrective') return hasPublishedVersion;
+  const visibleSteps = isCustomer
+    ? CUSTOMER_STEPS.filter((step) => {
+        if (step.value === 'corrective') return !isReinspection && hasPublishedVersion;
         return true;
       })
-    : steps;
+    : isReviewerAdmin
+      ? REVIEWER_STEPS.filter((step) => {
+          if (step.value === 'corrective') return !isReinspection && hasPublishedVersion;
+          return true;
+        })
+      : steps;
 
   const reviewerSourceRoutes = ['evidence', 'findings'];
   const tabValue = visibleSteps.some((step) => step.value === current)
     ? current
-    : isOrganizationAdmin
-      ? reviewerSourceRoutes.includes(current)
-        ? 'review'
-        : visibleSteps[0]?.value ?? 'review'
-      : isReinspection && current === 'evidence'
-        ? 'findings'
-        : 'field-session';
+    : isCustomer
+      ? hasPublishedVersion && (current === 'report' || current === 'corrective')
+        ? current
+        : 'tracking'
+      : isReviewerAdmin
+        ? reviewerSourceRoutes.includes(current)
+          ? 'review'
+          : visibleSteps[0]?.value ?? 'review'
+        : isReinspection && current === 'evidence'
+          ? 'findings'
+          : 'field-session';
+
+  // Guard against Customer directly visiting forbidden operational or reviewer URLs
+  useEffect(() => {
+    if (isCustomer && !versions.isLoading) {
+      const forbiddenForCustomer = ['field-session', 'evidence', 'findings', 'review'];
+      if (forbiddenForCustomer.includes(current)) {
+        const dest = hasPublishedVersion ? 'report' : 'tracking';
+        navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${dest}`, { replace: true });
+      } else if (!hasPublishedVersion && (current === 'report' || current === 'corrective')) {
+        navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/tracking`, { replace: true });
+      }
+    }
+  }, [isCustomer, versions.isLoading, hasPublishedVersion, current, inspectionId, navigate]);
 
   const isStepCompleted = (stepValue: string): boolean => {
-    if (isOrganizationAdmin) {
+    const status = workflowQuery.data?.status ?? inspection?.status ?? '';
+    if (isCustomer) {
+      if (stepValue === 'tracking') {
+        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
+      }
+      if (stepValue === 'report') {
+        return hasPublishedVersion;
+      }
+      if (stepValue === 'corrective') {
+        return inspection?.status === 'COMPLETED';
+      }
+      return false;
+    }
+    if (isReviewerAdmin) {
       if (stepValue === 'review') {
         return hasPublishedVersion || (inspection?.status === 'COMPLETED');
       }
@@ -220,7 +288,6 @@ export default function InspectionDetailPage() {
       return false;
     }
 
-    const status = workflowQuery.data?.status ?? inspection?.status ?? '';
     const hasCurrentFindingsConfirmation =
       Boolean(workflowQuery.data?.findingsConfirmedAt) &&
       ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
@@ -258,6 +325,14 @@ export default function InspectionDetailPage() {
     ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
   const findingsComplete = isStepCompleted('findings');
   const readinessFor = (step: WorkflowStep): WorkflowStepState => {
+    if (isCustomer) {
+      if (isStepCompleted(step.value)) return 'complete';
+      if (tabValue === step.value) return 'active';
+      if (step.value === 'tracking') return 'ready';
+      if (step.value === 'report') return hasPublishedVersion ? 'ready' : 'blocked';
+      if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
+      return 'pending';
+    }
     if (isStepCompleted(step.value)) return 'complete';
     if (tabValue === step.value) return 'active';
     if (step.value === 'field-session' || step.value === 'review') return 'ready';
@@ -269,9 +344,18 @@ export default function InspectionDetailPage() {
   };
 
   const blockedReason = (step: WorkflowStep): string | null => {
+    if (isCustomer) {
+      if (step.value === 'report' && !hasPublishedVersion) {
+        return t('The official report is being reviewed and has not been published yet. Please track progress.');
+      }
+      if (step.value === 'corrective' && !hasPublishedVersion) {
+        return t('Publish the report before sending findings to Maintenance.');
+      }
+      return null;
+    }
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
     if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
-    if (step.value === 'report' && !findingsComplete) return t('Confirm findings before drafting the report.');
+    if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
     if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
     return null;
   };
@@ -290,23 +374,26 @@ export default function InspectionDetailPage() {
           <Button
             startIcon={<ArrowBackRounded />}
             onClick={() => {
-              if (isOrganizationAdmin) {
-                const portal = location.pathname.startsWith('/admin') ? 'admin' : 'client';
-                navigate(`${getSectionPath(portal, 'inspections')}?view=reports`);
+              if (isCustomer) {
+                navigate(getSectionPath('client', 'inspections'));
+                return;
+              }
+              if (isReviewerAdmin) {
+                navigate(`${getSectionPath('admin', 'inspections')}?view=reports`);
                 return;
               }
               navigate(-1);
             }}
             sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'none', px: 0 }}
           >
-            {isOrganizationAdmin ? t('Back to review queue') : t('Back to inspections')}
+            {isCustomer ? t('Back to inspections') : isReviewerAdmin ? t('Back to review queue') : t('Back to inspections')}
           </Button>
           <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 650, letterSpacing: '0.04em' }}>
-            {isOrganizationAdmin ? t('REPORT DECISIONS') : t('FIELD WORKSPACE')}
+            {isCustomer ? t('CUSTOMER WORKSPACE') : isReviewerAdmin ? t('REPORT DECISIONS') : t('FIELD WORKSPACE')}
           </Typography>
         </Stack>
 
-        <PageHeader title={isOrganizationAdmin ? t('Inspection review') : t('Inspection detail')} />
+        <PageHeader title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')} />
 
         {inspection && (
           <Paper
@@ -405,7 +492,7 @@ export default function InspectionDetailPage() {
           </Paper>
         )}
 
-        {!isOrganizationAdmin && inspection && (
+        {!isOrganizationAdmin && !isCustomer && inspection && (
           <Box className="inspection-evidence-trace" aria-label={t('Inspection evidence trace')}>
             <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.25, mt: 1.25 }}>
               <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flex: '0 0 auto' }}>
@@ -472,9 +559,15 @@ export default function InspectionDetailPage() {
                   component={NavLink}
                   to={step.to}
                   aria-current={tabValue === step.value ? 'step' : undefined}
+                  aria-disabled={state === 'blocked' ? true : undefined}
+                  onClick={(e) => {
+                    if (state === 'blocked') {
+                      e.preventDefault();
+                    }
+                  }}
                   aria-label={`${t(step.title)}: ${t(STEP_STATE_COPY[state])}${reason ? `. ${reason}` : ''}`}
                   title={reason ?? undefined}
-                  className={`trace-stage-link${state === 'active' ? ' is-active' : ''}${state === 'complete' ? ' is-complete' : ''}`}
+                  className={`trace-stage-link${state === 'active' ? ' is-active' : ''}${state === 'complete' ? ' is-complete' : ''}${state === 'blocked' ? ' is-blocked' : ''}`}
                   sx={{
                     flex: 1,
                     minWidth: 0,
@@ -488,8 +581,10 @@ export default function InspectionDetailPage() {
                     borderBottom: state === 'active' ? '2px solid' : '2px solid transparent',
                     borderBottomColor: state === 'active' ? 'primary.main' : 'transparent',
                     bgcolor: state === 'active' ? 'action.selected' : 'transparent',
+                    cursor: state === 'blocked' ? 'not-allowed' : 'pointer',
+                    opacity: state === 'blocked' ? 0.6 : 1,
                     '&:last-of-type': { borderRight: 0 },
-                    '&:hover': { bgcolor: state === 'active' ? 'action.selected' : 'action.hover' },
+                    '&:hover': { bgcolor: state === 'blocked' ? 'transparent' : state === 'active' ? 'action.selected' : 'action.hover' },
                     '&:focus-visible': { outline: '2px solid', outlineColor: 'divider', outlineOffset: -2 },
                   }}
                 >

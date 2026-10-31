@@ -32,23 +32,23 @@ export function DraftProgressTracker() {
                 key={figure}
                 name={figure}
                 size={figure === 'draftStack' ? 40 : 32}
-                alt={t('Report drafting in progress')}
+                alt={t('Compiling report in progress')}
               />
             ))}
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              {t('Generating report draft')}
+              {t('Compiling inspection report')}
             </Typography>
           </Stack>
           <LinearProgress sx={{ borderRadius: 4 }} />
           <Alert severity="info" sx={{ borderRadius: '8px' }}>
-            Waiting for the report-drafting service. Progress stages are not available. The draft
-            will appear when the request completes; you must review and verify every section before
-            submitting it.
+            {t(
+              'Compiling report automatically from confirmed findings and evidence records. The report will appear when ready for review.',
+            )}
           </Alert>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <AiMotionFigure name="draftBurst" size={22} alt={t('Report drafting in progress')} />
+            <AiMotionFigure name="draftBurst" size={22} alt={t('Compiling report in progress')} />
             <Typography variant="caption" color="text.secondary">
-              {t('You can keep working in another tab; this request continues on its own.')}
+              {t('You can keep working in another tab; this process runs automatically.')}
             </Typography>
           </Stack>
         </Stack>

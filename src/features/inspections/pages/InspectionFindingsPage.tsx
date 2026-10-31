@@ -859,7 +859,7 @@ export default function InspectionFindingsPage() {
             </Stack>
             <Typography variant="body2" color="text.secondary">
               {pendingFindings > 0
-                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before this inspection can move to report drafting.`
+                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
                 : reviewedItemCount > 0
                   ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} will be included in the report.`
                   : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
