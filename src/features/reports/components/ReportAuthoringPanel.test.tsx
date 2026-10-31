@@ -8,7 +8,7 @@ const version: InspectionReport = {
   id: 'version-1',
   inspectionReportId: 'report-1',
   versionNo: 1,
-  status: 'DRAFT',
+  status: 'SUBMITTED',
   authorUserId: 'inspector-1',
   submittedAt: null,
   reviewerUserId: null,

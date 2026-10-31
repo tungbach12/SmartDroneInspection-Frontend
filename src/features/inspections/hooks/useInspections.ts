@@ -730,6 +730,14 @@ export function useCreateInspectionPayOSLink(inspectionId: string | null) {
   });
 }
 
+export function useReportPaymentStatus(inspectionId: string | null) {
+  return useQuery({
+    queryKey: ['inspections', inspectionId, 'payment-status'],
+    queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
 /**
  * MF2-10: starting a session.
  *

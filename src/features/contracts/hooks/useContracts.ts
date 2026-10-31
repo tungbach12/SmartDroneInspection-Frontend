@@ -93,17 +93,19 @@ export function useAssignServiceOccurrence(requestId: string, occurrenceId: stri
   );
 }
 
-export function usePartnerInspectors() {
+export function usePartnerInspectors(enabled = true) {
   return useQuery({
     queryKey: [...contractQueryKeys.partners(), 'inspectors'],
     queryFn: contractApi.listPartnerInspectors,
+    enabled,
   });
 }
 
-export function usePartnerDrones() {
+export function usePartnerDrones(enabled = true) {
   return useQuery({
     queryKey: [...contractQueryKeys.partners(), 'drones'],
     queryFn: contractApi.listPartnerDrones,
+    enabled,
   });
 }
 

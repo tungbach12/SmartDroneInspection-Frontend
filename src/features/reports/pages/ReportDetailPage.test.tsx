@@ -328,21 +328,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByRole('button', { name: 'Publish immutable version' })).toBeNull();
   });
 
-  it('lets the Inspector author verify a draft', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'DRAFT', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the Inspector re-verify a returned report version', async () => {
+  it('lets the Inspector resubmit a returned report version', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([
       version({ status: 'RETURNED', authorUserId: 'user-1', returnReason: 'Clarify east-face coverage' }),
@@ -350,51 +336,27 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the verified Inspector submit the version for review', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'AUTHOR_VERIFIED', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Resubmit for review' }));
     await waitFor(() =>
       expect(mockedApi.submitVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
     );
   });
-  it.each([
-    {
-      action: 'verify' as const,
-      button: 'Verify as author',
-      status: 'DRAFT' as const,
-      request: () => mockedApi.verifyVersion,
-    },
-    {
-      action: 'submit' as const,
-      button: 'Submit for review',
-      status: 'AUTHOR_VERIFIED' as const,
-      request: () => mockedApi.submitVersion,
-    },
-  ])('shows the server stale-snapshot refusal when $action fails', async ({ action, button, status, request }) => {
+
+  it('shows the server stale-snapshot refusal when submit fails', async () => {
     setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([version({ status, authorUserId: 'user-1' })]);
-    request().mockRejectedValue(
-      problemError(409, 'Evidence changed since this report draft was created.', 'REPORT_SNAPSHOT_STALE'),
+    mockedApi.listVersions.mockResolvedValue([
+      version({ status: 'RETURNED', authorUserId: 'user-1', returnReason: 'Clarify east-face coverage' }),
+    ]);
+    mockedApi.submitVersion.mockRejectedValue(
+      problemError(409, 'Evidence changed since this report was created.', 'REPORT_SNAPSHOT_STALE'),
     );
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: button }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Resubmit for review' }));
 
-    expect((await screen.findByTestId(`report-${action}-refusal`)).textContent).toContain(
-      'Evidence changed since this report draft was created.',
+    expect((await screen.findByTestId('report-submit-refusal')).textContent).toContain(
+      'Evidence changed since this report was created.',
     );
   });
 

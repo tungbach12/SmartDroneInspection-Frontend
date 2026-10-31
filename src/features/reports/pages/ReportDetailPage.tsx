@@ -5,6 +5,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
   TextField,
@@ -27,13 +31,14 @@ import {
   useReviewReportVersion,
   useSubmitReportVersion,
   useWithdrawReportVersion,
-  useVerifyReportVersion,
   useReportVersions,
   useInspectionFindings,
   useInspectionEvidence,
   useSaveReportSections,
   useInspectionWorkflowState,
   useReinspectionVerifications,
+  useInspection,
+  useReportPaymentStatus,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
@@ -46,11 +51,9 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  DRAFT: 'Waiting for the author to verify this draft.',
-  RETURNED: 'Returned to the author for revision.',
-  AUTHOR_VERIFIED: 'Waiting for the author to submit for review.',
   SUBMITTED: 'Waiting for a qualified reviewer to approve or return.',
-  APPROVED: 'Waiting for a qualified reviewer to publish.',
+  RETURNED: 'Returned to the author for revision.',
+  APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This version is immutable.',
   SUPERSEDED: 'Superseded by a later version.',
 };
@@ -67,22 +70,39 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+
+  const inspectionQuery = useInspection(inspectionId);
+  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
+  const isClientPortal = portal === 'client';
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
   const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const workflowState = useInspectionWorkflowState(inspectionId);
-  const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publish = usePublishReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId);
+  const paymentStatus = paymentStatusQuery.data;
+  const isPaid = Boolean(
+    paymentStatus?.paid ||
+      paymentStatus?.paymentStatus === 'PAID' ||
+      new URLSearchParams(location.search).get('payment') === 'success',
+  );
+  const isReportAccepted = Boolean(
+    paymentStatus?.reportAccepted || acceptReport.isSuccess,
+  );
 
   const canAuthor = canPerform('inspections.authorReport', user);
   const canReview = canPerform('reports.review', user);
+  const canReviewReport = canReview && !isClientPortal;
 
   const openVersion =
     versions.data?.find((version) => version.id === openVersionId) ??
@@ -228,7 +248,7 @@ export default function ReportDetailPage() {
               {/* The reviewer's sources live in the inspection workspace, not in the report
                   document. They are read, not edited, and they are what the decision is made
                   on, so the links are offered rather than hidden behind a tab. */}
-              {canReview && !isAuthor ? (
+              {canReviewReport && !isAuthor ? (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                   <Button
                     variant="outlined"
@@ -294,25 +314,7 @@ export default function ReportDetailPage() {
                         </Button>
                       </Stack>
                     )}
-                    {canAuthor && isAuthor && !sourcesNeedFreshDraft &&
-                      (openVersion.status === 'DRAFT' || canEditReturnedText) && (
-                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                          <Button
-                            variant="contained"
-                            disabled={verify.isPending}
-                            onClick={() => verify.mutate(openVersion.id)}
-                            sx={{ borderRadius: '8px', px: 2.5 }}
-                          >
-                            {verify.isPending ? 'Verifying…' : 'Verify as author'}
-                          </Button>
-                          <Typography variant="caption" sx={{ color: '#667085' }}>
-                            {t('Attest that you surveyed the site and the narrative is complete.')}
-                          </Typography>
-                        </Stack>
-                      )}
-
-                    {/* Author submit step */}
-                    {canAuthor && isAuthor && openVersion.status === 'AUTHOR_VERIFIED' && (
+                    {canAuthor && isAuthor && !sourcesNeedFreshDraft && canEditReturnedText && (
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Button
                           variant="contained"
@@ -320,26 +322,14 @@ export default function ReportDetailPage() {
                           onClick={() => submit.mutate(openVersion.id)}
                           sx={{ borderRadius: '8px', px: 2.5 }}
                         >
-                          {submit.isPending ? 'Submitting…' : 'Submit for review'}
+                          {submit.isPending ? t('Submitting…') : t('Resubmit for review')}
                         </Button>
                         <Typography variant="caption" sx={{ color: '#667085' }}>
-                          {t('Submits this draft to an organization reviewer.')}
+                          {t('Resubmits this revised report for Platform Manager review.')}
                         </Typography>
                       </Stack>
                     )}
 
-                    {verify.isError && isConflict(verify.error) ? (
-                      <RefusalNotice
-                        testId="report-verify-refusal"
-                        reason={getErrorMessage(verify.error, '')}
-                        fallbackMessage={t('The server refused this verification. Refresh the report and create a new draft if its evidence has changed.')}
-                      />
-                    ) : null}
-                    <MutationProblemAlert
-                      error={verify.error}
-                      isError={verify.isError && !isConflict(verify.error)}
-                      fallbackMessage={t('Could not verify this report draft.')}
-                    />
                     {submit.isError && isConflict(submit.error) ? (
                       <RefusalNotice
                         testId="report-submit-refusal"
@@ -350,7 +340,7 @@ export default function ReportDetailPage() {
                     <MutationProblemAlert
                       error={submit.error}
                       isError={submit.isError && !isConflict(submit.error)}
-                      fallbackMessage={t('Could not submit this report draft.')}
+                      fallbackMessage={t('Could not submit this report.')}
                     />
                     {canWithdrawSubmission && (
                       <Stack spacing={1.25}>
@@ -371,7 +361,7 @@ export default function ReportDetailPage() {
                     )}
 
                     {/* Reviewer approval or return step */}
-                    {canReview && !isAuthor && openVersion.status === 'SUBMITTED' && (
+                    {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
                       <Stack spacing={2}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                           {t('Review the submitted report')}
@@ -442,7 +432,7 @@ export default function ReportDetailPage() {
                     )}
 
                     {/* Reviewer publish step */}
-                    {canReview && openVersion.status === 'APPROVED' && (
+                    {canReviewReport && openVersion.status === 'APPROVED' && (
                       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Button
                           variant="contained"
@@ -492,24 +482,24 @@ export default function ReportDetailPage() {
                     bgcolor: '#f0f9ff',
                   }}
                 >
-                  {new URLSearchParams(location.search).get('payment') === 'success' ? (
+                  {isPaid ? (
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
-                        {t('Thanh toán thành công! Báo cáo chính thức đã được mở khóa để tải về.')}
+                        {t('Payment successful! The official report has been unlocked for download.')}
                       </Typography>
                     </Stack>
-                  ) : acceptReport.isSuccess ? (
+                  ) : isReportAccepted ? (
                     <Stack spacing={1.5}>
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <CheckCircleRounded sx={{ color: '#027a48', fontSize: 22 }} />
                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#027a48' }}>
-                          {t('Báo cáo đã được nghiệm thu (Report Accepted)')}
+                          {t('Report accepted')}
                         </Typography>
                       </Stack>
                       <Typography variant="body2" sx={{ color: '#026aa2' }}>
                         {t(
-                          'Báo cáo đã được nghiệm thu thành công. Vui lòng thanh toán phí dịch vụ để mở khóa tải toàn văn tệp PDF chính thức có dấu mộc.',
+                          'The report has been accepted successfully. Please complete the service payment to unlock and download the official stamped PDF deliverable.',
                         )}
                       </Typography>
                       <Box sx={{ pt: 0.5 }}>
@@ -526,41 +516,62 @@ export default function ReportDetailPage() {
                           }}
                         >
                           {payosLink.isPending
-                            ? t('Đang kết nối cổng thanh toán PayOS…')
-                            : t('Tiến hành thanh toán VietQR qua PayOS ↗')}
+                            ? t('Connecting to PayOS gateway…')
+                            : t('Proceed to VietQR payment via PayOS ↗')}
                         </Button>
                       </Box>
                     </Stack>
                   ) : (
                     <Stack spacing={1.5}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#026aa2' }}>
-                        {t('Nghiệm thu báo cáo (Customer Report Acceptance)')}
+                        {t('Customer report acceptance')}
                       </Typography>
                       <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
                       <Typography variant="body2" sx={{ color: '#026aa2' }}>
                         {t(
-                          'Vui lòng đọc kỹ báo cáo kiểm định đã xuất bản bên dưới. Khi hài lòng với kết quả kiểm định, bấm "Nghiệm thu báo cáo" để xác nhận nghiệm thu và mở khóa cổng thanh toán.',
+                          'Please review the published inspection report below. When satisfied with the inspection findings, click "Accept Report" to record acceptance and unlock the payment gateway.',
                         )}
                       </Typography>
-                      <Box sx={{ pt: 0.5 }}>
+                      {disputeSubmitted && (
+                        <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                          {t(
+                            'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+                          )}
+                        </Alert>
+                      )}
+                      <Stack direction="row" spacing={1.5} sx={{ pt: 0.5, flexWrap: 'wrap', gap: 1 }}>
                         <Button
                           variant="contained"
                           color="primary"
                           disabled={acceptReport.isPending}
-                          onClick={() => acceptReport.mutate(openVersion.id)}
+                          onClick={() =>
+                            acceptReport.mutate(openVersion.id, {
+                              onSuccess: () => {
+                                void paymentStatusQuery.refetch();
+                              },
+                            })
+                          }
                           sx={{ textTransform: 'none', fontWeight: 600 }}
                         >
                           {acceptReport.isPending
-                            ? t('Đang nghiệm thu…')
-                            : t('Nghiệm thu báo cáo (Accept Report)')}
+                            ? t('Accepting…')
+                            : t('Accept Report')}
                         </Button>
-                      </Box>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() => setDisputeOpen(true)}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {t('File a dispute / Request clarification')}
+                        </Button>
+                      </Stack>
                     </Stack>
                   )}
                 </Paper>
               )}
 
-              {canReview && publishedUnhanded && (
+              {canReview && publishedUnhanded && !isReinspection && (
                 <Stack spacing={2}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                     {t('Send to Maintenance (MF3-12)')}
@@ -582,13 +593,21 @@ export default function ReportDetailPage() {
                 </Stack>
               )}
 
+              {publishedUnhanded && isReinspection && (
+                <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                  {t(
+                    'This is a re-inspection deliverable verifying previous repair work. Findings verification has been recorded directly to the linked maintenance work order.',
+                  )}
+                </Alert>
+              )}
+
               {/* MF3-08/MF3-11: authored sections, derived sections, and the delivered PDF */}
               <ReportAuthoringPanel
                 version={openVersion}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
                 inspectionId={inspectionId}
-                canEdit={canAuthor && (openVersion.status === 'DRAFT' || canEditReturnedText)}
+                canEdit={canAuthor && canEditReturnedText}
                 onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
                 reinspectionVerifications={reinspectionVerifications.data}
               />
@@ -596,6 +615,55 @@ export default function ReportDetailPage() {
           )}
         </Stack>
       </QueryState>
+
+      {/* Customer Dispute / Clarification Request Dialog */}
+      <Dialog
+        open={disputeOpen}
+        onClose={() => setDisputeOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t('File a dispute / Request clarification')}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Platform Manager will review and provide a response.',
+              )}
+            </Typography>
+            <TextField
+              label={t('Dispute details or questions')}
+              multiline
+              rows={4}
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder={t('e.g. Defect location is inaccurate, photo quality is unclear, severity rating requires re-evaluation…')}
+              fullWidth
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDisputeOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            disabled={!disputeReason.trim()}
+            onClick={() => {
+              setDisputeSubmitted(true);
+              setDisputeOpen(false);
+            }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+          >
+            {t('Submit dispute request')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

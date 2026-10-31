@@ -94,7 +94,7 @@ function renderInspectionPage({ route = '/operations/inspections/inspection-1/fi
   return { ...render(<RouterProvider router={router} />), router };
 }
 
-function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER' | 'MANAGER' | 'ADMIN') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
@@ -149,9 +149,9 @@ describe('InspectionDetailPage', () => {
     expect(navigateMock).toHaveBeenCalledWith(-1);
   });
 
-  it('renders an Organization Manager review workspace first and returns to the review queue', () => {
-    signInAs('CUSTOMER');
-    renderInspectionPage({ route: '/client/inspections/inspection-1/review' });
+  it('renders a Platform Manager review workspace on admin portal and returns to the review queue', () => {
+    signInAs('MANAGER');
+    renderInspectionPage({ route: '/admin/inspections/inspection-1/review' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
     // Reviewer steps are decision phases, presented as route navigation rather than a tab widget.
@@ -164,7 +164,19 @@ describe('InspectionDetailPage', () => {
 
     expect(stageNav.querySelector('a[href*="review"]')).toBeTruthy();
     screen.getByRole('button', { name: 'Back to review queue' }).click();
-    expect(navigateMock).toHaveBeenCalledWith('/client/inspections?view=reports');
+    expect(navigateMock).toHaveBeenCalledWith('/admin/inspections?view=reports');
+  });
+
+  it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {
+    signInAs('CUSTOMER');
+    renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
+
+    expect(screen.getByRole('heading', { name: 'Inspection detail' })).toBeTruthy();
+    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
+    expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
+    screen.getByRole('button', { name: 'Back to inspections' }).click();
+    expect(navigateMock).toHaveBeenCalledWith('/client/inspections');
   });
 
   it('shows Findings as complete only while its confirmation is current', () => {

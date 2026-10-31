@@ -43,6 +43,7 @@ interface InspectionListTableProps {
   onOpen: (inspectionId: string) => void;
   showReportColumn?: boolean;
   reviewerMode?: boolean;
+  getActionLabel?: (row: InspectionListItem) => string | undefined;
 }
 
 function formatDate(
@@ -79,6 +80,7 @@ export function InspectionListTable({
   onOpen,
   showReportColumn = false,
   reviewerMode = false,
+  getActionLabel,
 }: InspectionListTableProps) {
   const { t, formatDate: formatDateValue } = useLocale();
   return (
@@ -296,7 +298,7 @@ export function InspectionListTable({
                           borderColor: 'divider',
                         }}
                       >
-                        <StatusChip status={row.status} />
+                        <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
                       </TableCell>
 
                       <TableCell
@@ -397,17 +399,18 @@ export function InspectionListTable({
                           },
                         }}
                       >
-                        {reviewerMode
-                          ? row.pendingAction === 'REPORT_REVIEW'
-                            ? 'Review submission'
-                            : row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                              ? 'Record corrective outcome'
-                              : row.reportStatus === 'APPROVED'
-                                ? 'Publish report'
-                                : row.reportStatus === 'RETURNED'
-                                  ? 'Read returned report'
-                                  : 'Open report'
-                          : 'Open'}
+                        {(getActionLabel ? getActionLabel(row) : undefined) ??
+                          (reviewerMode
+                            ? row.pendingAction === 'REPORT_REVIEW'
+                              ? 'Review submission'
+                              : row.pendingAction === 'CORRECTIVE_DISPOSITION'
+                                ? 'Record corrective outcome'
+                                : row.reportStatus === 'APPROVED'
+                                  ? 'Publish report'
+                                  : row.reportStatus === 'RETURNED'
+                                    ? 'Read returned report'
+                                    : 'Open report'
+                            : 'Open')}
                       </Button>
                     </TableCell>
                   </TableRow>

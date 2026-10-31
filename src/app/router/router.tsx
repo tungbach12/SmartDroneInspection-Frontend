@@ -60,6 +60,9 @@ const ReportDetailPage = lazy(
 const InspectionDetailPage = lazy(
   () => import('@/features/inspections/pages/InspectionDetailPage'),
 );
+const InspectionProgressPage = lazy(
+  () => import('@/features/inspections/pages/InspectionProgressPage'),
+);
 const OrganizationReportReviewPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
 );
@@ -149,16 +152,22 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
+  if (roles.includes('CUSTOMER')) {
+    return <Navigate to="tracking" replace />;
+  }
   const isReviewer = roles.some((role) =>
-    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
+    ['MANAGER', 'ADMIN'].includes(role),
   );
   return <Navigate to={isReviewer ? 'review' : 'field-session'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
+  if (roles.includes('CUSTOMER')) {
+    return <ReportDetailPage />;
+  }
   const isReviewer = roles.some((role) =>
-    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
+    ['MANAGER', 'ADMIN'].includes(role),
   );
   return isReviewer
     ? <Navigate to="../review" replace />
@@ -214,6 +223,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         ),
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
+          { path: 'tracking', element: <InspectionProgressPage /> },
           ...(portal === 'client' || portal === 'admin'
             ? [
                 {
@@ -240,7 +250,14 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
-          { path: 'field-session', element: <FieldSessionPage /> },
+          {
+            path: 'field-session',
+            element: (
+              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                <FieldSessionPage />
+              </RequireAuth>
+            ),
+          },
         ],
       },
       {

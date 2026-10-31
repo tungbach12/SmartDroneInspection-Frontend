@@ -23,6 +23,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
+import type { InspectionListItem } from '../api/inspectionApi';
 import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
@@ -82,15 +83,37 @@ export default function InspectionsPage() {
 
   const openInspection = (inspectionId: string) => {
     const row = visibleItems.find((item) => item.id === inspectionId);
-    if (isReviewer && (view === 'reports' || portal === 'admin')) {
+    if (view === 'reports' || portal === 'admin') {
       const target =
-        row?.pendingAction === 'CORRECTIVE_DISPOSITION'
+        row?.pendingAction === 'CORRECTIVE_DISPOSITION' && row?.inspectionType !== 'RE_INSPECTION'
           ? 'corrective'
           : 'review';
       navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
       return;
     }
+    if (portal === 'client') {
+      if (row?.reportStatus === 'PUBLISHED') {
+        const target =
+          row?.pendingAction === 'CORRECTIVE_DISPOSITION' && row.inspectionType !== 'RE_INSPECTION'
+            ? 'corrective'
+            : 'report';
+        navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
+        return;
+      }
+      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/tracking`);
+      return;
+    }
     navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/field-session`);
+  };
+
+  const getActionLabel = (row: InspectionListItem): string | undefined => {
+    if (view === 'reports' && isReviewer) {
+      return undefined;
+    }
+    if (portal === 'client') {
+      return row.reportStatus === 'PUBLISHED' ? t('View report') : t('Track progress');
+    }
+    return undefined;
   };
 
   // Metrics calculation
@@ -259,8 +282,9 @@ export default function InspectionsPage() {
                   setPage(1);
                 }}
                 onOpen={openInspection}
-                showReportColumn={view === 'reports' || isOrganizationAdmin}
-                reviewerMode={isOrganizationAdmin && view === 'reports'}
+                getActionLabel={getActionLabel}
+                showReportColumn={view === 'reports'}
+                reviewerMode={view === 'reports'}
               />
             </QueryState>
           )}
