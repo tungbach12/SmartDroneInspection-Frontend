@@ -357,6 +357,7 @@ function QuotePanel({ request, customer, manager, onChanged, onError }: { reques
         firstOccurrenceEndAt: endAt,
         inspectorId,
         droneId: selectedDroneId,
+        pricePerOccurrenceVnd: amount,
         pricePerOccurrenceUsd: amount,
       } satisfies IssueServiceQuoteInput);
       onChanged();
@@ -378,7 +379,14 @@ function QuotePanel({ request, customer, manager, onChanged, onError }: { reques
           <Box key={quote.id} sx={{ p: 1.5, border: 1, borderColor: quote.versionNo === latest?.versionNo ? 'primary.main' : 'divider', borderRadius: 1.5 }}>
             <Stack direction="row" sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>Version {quote.versionNo}{quote.versionNo === latest?.versionNo ? ' · Latest' : ''}</Typography>
-              <Chip size="small" label={`$${quote.pricePerOccurrenceUsd.toFixed(2)} USD / occurrence`} />
+              <Chip
+                size="small"
+                label={
+                  quote.currency === 'VND' || (quote.pricePerOccurrenceVnd != null && quote.pricePerOccurrenceVnd > 0)
+                    ? `${(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd).toLocaleString()} VND / đợt`
+                    : `$${quote.pricePerOccurrenceUsd.toFixed(2)} USD / occurrence`
+                }
+              />
             </Stack>
             <Typography variant="body2" sx={{ mt: 1 }}>{quote.scopeSnapshot}</Typography>
             <Typography variant="caption" color="text.secondary">First occurrence proposal: {new Date(quote.firstOccurrenceStartAt).toLocaleString()} – {new Date(quote.firstOccurrenceEndAt).toLocaleString()} · Inspector {quote.inspectorId} · Drone {quote.droneId}</Typography>
