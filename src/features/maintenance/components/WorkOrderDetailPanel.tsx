@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import PictureAsPdfOutlined from '@mui/icons-material/PictureAsPdfOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
@@ -29,6 +30,7 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import {
   useAcceptanceDecisions,
+  useBatchVerifyWorkLogs,
   useChanges,
   useCloseWorkOrder,
   useCreateEstimateVersion,
@@ -46,6 +48,8 @@ import {
   useSubmitEstimate,
   useSubmitMaintenanceReport,
   useSubmitWorkLog,
+  useSuggestEstimate,
+  useAcceptanceCompliance,
   useVerifyWorkLog,
   useTasks,
   useTeam,
@@ -54,7 +58,12 @@ import {
   useWorkOrderTransition,
   useMaintenanceReportVersions,
 } from '../hooks/useMaintenance';
-import { maintenanceApi, type CostLineKind, type WorkOrder } from '../api/maintenanceApi';
+import {
+  maintenanceApi,
+  type CostLineKind,
+  type SuggestedEstimateLine,
+  type WorkOrder,
+} from '../api/maintenanceApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface WorkOrderDetailPanelProps {
@@ -479,6 +488,7 @@ function ExecutionTab({
   const recordWork = useRecordWork(workOrder.id);
   const submitLog = useSubmitWorkLog(workOrder.id);
   const verifyLog = useVerifyWorkLog(workOrder.id);
+  const batchVerifyLog = useBatchVerifyWorkLogs(workOrder.id);
   const transition = useWorkOrderTransition(workOrder.id);
   const workforce = useWorkforceUsers(isOrgAdmin);
   const currentUser = useAuthStore((state) => state.user);
@@ -640,9 +650,22 @@ function ExecutionTab({
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-          {t('Work logs')}
-        </Typography>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
+            {t('Work logs')}
+          </Typography>
+          {!isOrgAdmin && (logs.data ?? []).some((l) => l.status === 'SUBMITTED') ? (
+            <LoadingButton
+              size="small"
+              variant="outlined"
+              color="primary"
+              loading={batchVerifyLog.isPending}
+              onClick={() => batchVerifyLog.mutate()}
+            >
+              {`${t('Duyệt tất cả nhật ký')} (${(logs.data ?? []).filter((l) => l.status === 'SUBMITTED').length})`}
+            </LoadingButton>
+          ) : null}
+        </Stack>
         <QueryState
           isLoading={logs.isLoading}
           error={logs.error}
@@ -707,6 +730,11 @@ function ExecutionTab({
           error={verifyLog.error}
           isError={verifyLog.isError}
           fallbackMessage={t('Could not verify the work log.')}
+        />
+        <MutationProblemAlert
+          error={batchVerifyLog.error}
+          isError={batchVerifyLog.isError}
+          fallbackMessage={t('Could not verify the work logs.')}
         />
         <MutationProblemAlert
           error={transition.error}
@@ -889,6 +917,7 @@ function EstimateTab({
   const createEstimate = useCreateEstimateVersion(workOrder.id);
   const submitEstimate = useSubmitEstimate(workOrder.id);
   const decideEstimate = useDecideEstimate(workOrder.id);
+  const suggestEstimate = useSuggestEstimate(workOrder.id);
 
   const [open, setOpen] = useState(false);
   const [currency, setCurrency] = useState('VND');
@@ -897,6 +926,7 @@ function EstimateTab({
   const [lineDescription, setLineDescription] = useState('');
   const [lineQuantity, setLineQuantity] = useState('1');
   const [lineRate, setLineRate] = useState('');
+  const [suggestedLines, setSuggestedLines] = useState<SuggestedEstimateLine[] | null>(null);
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
@@ -1007,18 +1037,30 @@ function EstimateTab({
         <form
           onSubmit={(event) => {
             event.preventDefault();
+            const linesToSubmit =
+              suggestedLines && suggestedLines.length > 0
+                ? suggestedLines.map((l) => ({
+                    taskId: l.taskId ?? null,
+                    lineKind: l.lineKind,
+                    description: l.description,
+                    quantity: l.quantity,
+                    unit: l.unit ?? null,
+                    unitRate: l.unitRate,
+                  }))
+                : [
+                    {
+                      lineKind,
+                      description: lineDescription.trim(),
+                      quantity: Number(lineQuantity),
+                      unitRate: Number(lineRate),
+                    },
+                  ];
+
             createEstimate.mutate(
               {
                 currency,
                 assumptions: snapshot.trim() || null,
-                lines: [
-                  {
-                    lineKind,
-                    description: lineDescription.trim(),
-                    quantity: Number(lineQuantity),
-                    unitRate: Number(lineRate),
-                  },
-                ],
+                lines: linesToSubmit,
               },
               {
                 onSuccess: () => {
@@ -1026,13 +1068,43 @@ function EstimateTab({
                   setLineQuantity('1');
                   setLineRate('');
                   setSnapshot('');
+                  setSuggestedLines(null);
                   setOpen(false);
                 },
               },
             );
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>{t('New estimate version')}</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{t('New estimate version')}</span>
+              <LoadingButton
+                size="small"
+                variant="outlined"
+                color="primary"
+                startIcon={<AutoAwesomeOutlined />}
+                loading={suggestEstimate.isPending}
+                onClick={() => {
+                  suggestEstimate.mutate(undefined, {
+                    onSuccess: (data) => {
+                      if (data.currency) setCurrency(data.currency);
+                      if (data.assumptions) setSnapshot(data.assumptions);
+                      const first = data.lines?.[0];
+                      if (data.lines && first) {
+                        setSuggestedLines(data.lines);
+                        setLineDescription(first.description);
+                        setLineKind(first.lineKind);
+                        setLineQuantity(first.quantity.toString());
+                        setLineRate(first.unitRate.toString());
+                      }
+                    },
+                  });
+                }}
+              >
+                {t('AI Gợi ý Định mức (RAG)')}
+              </LoadingButton>
+            </Stack>
+          </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <MutationProblemAlert
@@ -1040,6 +1112,36 @@ function EstimateTab({
                 isError={createEstimate.isError}
                 fallbackMessage={t('Could not create the estimate.')}
               />
+              <MutationProblemAlert
+                error={suggestEstimate.error}
+                isError={suggestEstimate.isError}
+                fallbackMessage={t('Could not generate estimate suggestions.')}
+              />
+              {suggestedLines && suggestedLines.length > 0 ? (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    bgcolor: '#f0f9ff',
+                    borderRadius: 1.5,
+                    border: '1px solid #b9e6fe',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 700, color: '#026aa2', display: 'block', mb: 0.5 }}
+                  >
+                    {`${t('Định mức kỹ thuật đề xuất')} (${suggestedLines.length} ${t('dòng')}):`}
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {suggestedLines.map((line, idx) => (
+                      <Typography key={idx} variant="caption" sx={{ color: '#034466' }}>
+                        • [{line.lineKind}] {line.description}: {line.quantity}{' '}
+                        {line.unit ? `${line.unit} ` : ''}x {line.unitRate} {currency}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
               <Stack direction="row" spacing={2}>
                 <TextField
                   select
@@ -1305,8 +1407,23 @@ function ReportTab({
   const transition = useWorkOrderTransition(workOrder.id);
 
   const [content, setContent] = useState('');
+  const [isDrafting, setIsDrafting] = useState(false);
   const [confirmSubmitReportOpen, setConfirmSubmitReportOpen] = useState(false);
   const [submittingVersionNo, setSubmittingVersionNo] = useState<number | null>(null);
+
+  const handleAutoDraft = async () => {
+    try {
+      setIsDrafting(true);
+      const draft = await maintenanceApi.getReportDraft(workOrder.id);
+      if (draft.content) {
+        setContent(draft.content);
+      }
+    } catch {
+      // Handled silently
+    } finally {
+      setIsDrafting(false);
+    }
+  };
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '16px', border: '1px solid #eaecf0' }}>
@@ -1437,9 +1554,24 @@ function ReportTab({
 
       {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
         <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-            {t('Draft a completion report')}
-          </Typography>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1, mb: 1.5 }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828' }}>
+              {t('Draft a completion report')}
+            </Typography>
+            <LoadingButton
+              size="small"
+              variant="outlined"
+              color="primary"
+              startIcon={<AutoAwesomeOutlined />}
+              loading={isDrafting}
+              onClick={handleAutoDraft}
+            >
+              {t('Tự động tổng hợp từ nhật ký & công việc')}
+            </LoadingButton>
+          </Stack>
           <Stack spacing={1.5}>
             <TextField
               label={t('Completion narrative')}
@@ -1509,6 +1641,10 @@ function CostsTab({
   const reconcile = useReconcileCosts(workOrder.id);
   const close = useCloseWorkOrder(workOrder.id);
   const tasks = useTasks(workOrder.id);
+  const compliance = useAcceptanceCompliance(
+    workOrder.id,
+    isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE',
+  );
 
   const [decision, setDecision] = useState<'ACCEPTED' | 'REWORK_REQUIRED' | 'REINSPECTION_REQUIRED'>(
     'ACCEPTED',
@@ -1603,9 +1739,28 @@ function CostsTab({
 
         {isOrgAdmin && workOrder.status === 'ACCEPTED' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828', mb: 1.5 }}>
-              {t('Record actual cost')}
-            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1, mb: 1.5 }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#101828' }}>
+                {t('Record actual cost')}
+              </Typography>
+              {reconciliation.data ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    setLineDescription(t('Chi phí thực tế nghiệm thu theo dự toán'));
+                    setLineQuantity('1');
+                    setLineRate(reconciliation.data.authorizedAmount.toString());
+                    setLineCurrency(reconciliation.data.currency);
+                  }}
+                >
+                  {t('Lấy số liệu từ Dự toán đã duyệt')}
+                </Button>
+              ) : null}
+            </Stack>
             <Stack spacing={1.5}>
               <TextField
                 label={t('Description')}
@@ -1801,6 +1956,79 @@ function CostsTab({
             </Stack>
           </Box>
         )}
+
+        {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' && compliance.data ? (
+          <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #b9e6fe', mt: 2 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1 }}
+            >
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                <AutoAwesomeOutlined color="primary" />
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#026aa2' }}>
+                    {t('RAG Thẩm tra Nghiệm thu Kỹ thuật')}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#034466' }}>
+                    {t('Tự động đối soát số đo thử nghiệm hiện trường với tiêu chuẩn nghiệm thu TCVN')}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Chip
+                label={`${compliance.data.complianceScore}% ${compliance.data.status}`}
+                color={compliance.data.complianceScore >= 75 ? 'success' : 'warning'}
+                size="small"
+                sx={{ fontWeight: 700 }}
+              />
+            </Stack>
+            <Typography variant="body2" sx={{ color: '#344054', mt: 1, fontStyle: 'italic' }}>
+              "{compliance.data.technicalSummary}"
+            </Typography>
+            <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+              {compliance.data.checks.map((check, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 1,
+                    bgcolor: '#ffffff',
+                    borderRadius: 1,
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <Box>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#101828' }}>
+                      {check.criteriaName}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#667085', display: 'block' }}>
+                      {check.actualMeasured}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={check.resultStatus}
+                    color={check.resultStatus === 'PASSED' ? 'success' : 'warning'}
+                    sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+                  />
+                </Box>
+              ))}
+            </Stack>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              sx={{ mt: 1.5 }}
+              onClick={() => {
+                setDecision(compliance.data!.recommendation);
+                setComments(compliance.data!.technicalSummary);
+              }}
+            >
+              {`${t('Áp dụng kết luận thẩm tra')} (${compliance.data.recommendation})`}
+            </Button>
+          </Box>
+        ) : null}
 
         {isOrgAdmin && workOrder.status === 'SUBMITTED_FOR_ACCEPTANCE' ? (
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f8fafc', borderRadius: 1.5 }}>

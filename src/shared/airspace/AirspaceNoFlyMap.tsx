@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type WheelEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type WheelEvent } from 'react';
 import {
   Alert,
   Box,
@@ -170,7 +170,7 @@ export function AirspaceNoFlyMap({
   const searchResults = useMemo(() => {
     const q = searchQuery.trim();
     if (!q) return [];
-    const names = new Set(localMatches.map((p) => p.name.toLowerCase()));
+    const names = new Set(localMatches.map((p: LandmarkLocation) => p.name.toLowerCase()));
     const combined = [...localMatches];
     const online = q.length >= 3 ? onlineResults : [];
     for (const o of online) {
@@ -681,7 +681,7 @@ export function AirspaceNoFlyMap({
                       size="small"
                       onClick={() => {
                         setSearchQuery('');
-                        setSearchResults([]);
+                        setOnlineResults([]);
                         setShowSearchDropdown(false);
                       }}
                       sx={{ p: 0.25 }}
@@ -710,7 +710,7 @@ export function AirspaceNoFlyMap({
                       bgcolor: 'background.paper',
                     }}
                   >
-                    {searchResults.map((item, idx) => (
+                    {searchResults.map((item: LandmarkLocation, idx: number) => (
                       <Box
                         key={`${item.name}-${idx}`}
                         onClick={() => handleSelectLocation(item)}

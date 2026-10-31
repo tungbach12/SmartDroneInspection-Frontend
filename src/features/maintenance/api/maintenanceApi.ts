@@ -248,15 +248,22 @@ export interface SuggestScopeResponse {
   fallbackApplied: boolean;
 }
 
+export interface InitialTaskInput {
+  name: string;
+  method?: string | null;
+  acceptanceCriteria?: string | null;
+}
+
 export interface CreateWorkOrderInput {
   assetId: string;
   sourceReportVersionId: string;
   sourceFindingId: string;
   budgetApproverUserId: string;
-  priority?: MaintenancePriority;
-  dueAt?: string | null;
+  priority?: MaintenancePriority | undefined;
+  dueAt?: string | null | undefined;
   correctiveScope: string;
-  acceptanceCriteria?: string | null;
+  acceptanceCriteria?: string | null | undefined;
+  initialTasks?: InitialTaskInput[] | undefined;
 }
 
 export interface AssignTeamInput {
@@ -307,6 +314,38 @@ export interface CreateChangeOrderInput {
 
 export interface ChangeDecisionInput {
   reason?: string;
+}
+
+export interface SuggestedEstimateLine {
+  taskId?: string | null;
+  lineKind: CostLineKind;
+  description: string;
+  quantity: number;
+  unit?: string | null;
+  unitRate: number;
+  amount: number;
+}
+
+export interface SuggestEstimateResponse {
+  currency: string;
+  assumptions: string;
+  estimatedTotal: number;
+  lines: SuggestedEstimateLine[];
+}
+
+export interface ComplianceCheckItem {
+  criteriaName: string;
+  requiredStandard: string;
+  actualMeasured: string;
+  resultStatus: string;
+}
+
+export interface AcceptanceComplianceResponse {
+  complianceScore: number;
+  status: string;
+  recommendation: AcceptanceDecisionKind;
+  technicalSummary: string;
+  checks: ComplianceCheckItem[];
 }
 
 export interface RecordAcceptanceInput {
@@ -445,6 +484,11 @@ export const maintenanceApi = {
       .post<WorkLog>(`/maintenance/work-orders/${workOrderId}/work-logs/${workLogId}/verify`)
       .then((r) => r.data),
 
+  batchVerifyWorkLogs: (workOrderId: string) =>
+    api
+      .post<WorkLog[]>(`/maintenance/work-orders/${workOrderId}/work-logs/batch-verify`)
+      .then((r) => r.data),
+
   listChanges: (workOrderId: string) =>
     api.get<ChangeOrder[]>(`/maintenance/work-orders/${workOrderId}/changes`).then((r) => r.data),
 
@@ -480,6 +524,11 @@ export const maintenanceApi = {
   listReportVersions: (workOrderId: string) =>
     api
       .get<MaintenanceReportVersion[]>(`/maintenance/work-orders/${workOrderId}/reports`)
+      .then((r) => r.data),
+
+  getReportDraft: (workOrderId: string) =>
+    api
+      .get<{ content: string }>(`/maintenance/work-orders/${workOrderId}/reports/auto-draft`)
       .then((r) => r.data),
 
   createReportVersion: (workOrderId: string, contentSnapshot: string) =>
@@ -547,4 +596,16 @@ export const maintenanceApi = {
 
   suggestScope: (input: SuggestScopeInput) =>
     api.post<SuggestScopeResponse>('/maintenance/suggest-scope', input).then((r) => r.data),
+
+  suggestEstimate: (workOrderId: string) =>
+    api
+      .post<SuggestEstimateResponse>(`/maintenance/work-orders/${workOrderId}/suggest-estimate`)
+      .then((r) => r.data),
+
+  checkAcceptanceCompliance: (workOrderId: string) =>
+    api
+      .get<AcceptanceComplianceResponse>(
+        `/maintenance/work-orders/${workOrderId}/acceptance-compliance`,
+      )
+      .then((r) => r.data),
 };

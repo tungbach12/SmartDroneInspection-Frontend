@@ -273,6 +273,18 @@ export function useVerifyWorkLog(workOrderId: string) {
   });
 }
 
+export function useBatchVerifyWorkLogs(workOrderId: string) {
+  const invalidate = useWorkOrderInvalidation(workOrderId);
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: () => maintenanceApi.batchVerifyWorkLogs(workOrderId),
+    onSuccess: (logs) => {
+      invalidate();
+      showToast(`${logs.length} work logs verified`);
+    },
+  });
+}
+
 export function useProposeChange(workOrderId: string) {
   const invalidate = useWorkOrderInvalidation(workOrderId);
   const showToast = useToastStore((s) => s.showToast);
@@ -399,6 +411,24 @@ export function useSuggestWorkOrderScope() {
           : 'AI scope and criteria generated',
       );
     },
+  });
+}
+
+export function useSuggestEstimate(workOrderId: string) {
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: () => maintenanceApi.suggestEstimate(workOrderId),
+    onSuccess: () => {
+      showToast('Đã tính toán định mức dự toán chi phí từ tiêu chuẩn');
+    },
+  });
+}
+
+export function useAcceptanceCompliance(workOrderId: string | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...maintenanceKeys.workOrder(workOrderId ?? ''), 'compliance'],
+    queryFn: () => maintenanceApi.checkAcceptanceCompliance(workOrderId!),
+    enabled: enabled && Boolean(workOrderId),
   });
 }
 

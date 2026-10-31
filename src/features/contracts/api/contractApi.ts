@@ -13,6 +13,8 @@ export type ServiceRequestType = 'ONE_TIME' | 'RECURRING';
 export interface ServiceRequestMessage {
   id: string;
   authorUserId: string;
+  authorName?: string | null;
+  authorRole?: string | null;
   body: string;
   createdAt: string;
 }
