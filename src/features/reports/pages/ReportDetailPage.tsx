@@ -36,6 +36,7 @@ import {
   useReinspectionVerifications,
 } from '@/features/inspections/hooks/useInspections';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
+import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -375,6 +376,7 @@ export default function ReportDetailPage() {
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                           {t('Review the submitted report')}
                         </Typography>
+                        <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
                         {reportReadLoading ? (
                           <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
                             {findings.error || evidence.error
@@ -534,6 +536,7 @@ export default function ReportDetailPage() {
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#026aa2' }}>
                         {t('Nghiệm thu báo cáo (Customer Report Acceptance)')}
                       </Typography>
+                      <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
                       <Typography variant="body2" sx={{ color: '#026aa2' }}>
                         {t(
                           'Vui lòng đọc kỹ báo cáo kiểm định đã xuất bản bên dưới. Khi hài lòng với kết quả kiểm định, bấm "Nghiệm thu báo cáo" để xác nhận nghiệm thu và mở khóa cổng thanh toán.',
