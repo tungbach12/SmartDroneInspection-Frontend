@@ -20,6 +20,7 @@ import {
 
 export const inspectionKeys = {
   all: ['inspections'] as const,
+  detail: (inspectionId: string) => [...inspectionKeys.all, 'detail', inspectionId] as const,
   list: (filters: InspectionListFilters) => [...inspectionKeys.all, 'list', filters] as const,
   listWithReports: (filters: InspectionListFilters) =>
     [...inspectionKeys.all, 'list-with-reports', filters] as const,
@@ -753,7 +754,7 @@ export function useStartFieldSession(inspectionId: string | null) {
   });
 }
 
-/** MF2-09: postponement, MF2-11: abort, and MF2-12: completion. Each records the Inspector's own stated notes/reason. */
+/** MF2-11: abort and MF2-12: completion. Each records the Inspector's own stated notes/reason. */
 export function useFieldSessionOutcome(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
@@ -764,15 +765,13 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       reason,
     }: {
       sessionId: string;
-      outcome: 'postpone' | 'abort' | 'complete';
+      outcome: 'abort' | 'complete';
       reason: string;
     }) => {
       if (outcome === 'complete') {
         return fieldSessionApi.complete(inspectionId!, sessionId, reason);
       }
-      return outcome === 'postpone'
-        ? fieldSessionApi.postpone(inspectionId!, sessionId, reason)
-        : fieldSessionApi.abort(inspectionId!, sessionId, reason);
+      return fieldSessionApi.abort(inspectionId!, sessionId, reason);
     },
     onSuccess: (_data, variables) => {
       if (inspectionId) {
@@ -782,16 +781,72 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
         void client.invalidateQueries({
           queryKey: inspectionKeys.workflowState(inspectionId),
         });
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
         void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
       showToast(
         variables.outcome === 'complete'
           ? 'Session completed'
-          : variables.outcome === 'postpone'
-            ? 'Session postponed'
-            : 'Session aborted',
+          : 'Session aborted',
       );
+    },
+  });
+}
+
+export function useRescheduleInspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (payload: { plannedStartAt: string; plannedEndAt: string }) =>
+      inspectionApi.reschedule(inspectionId!, payload),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        void client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Inspection schedule updated');
+    },
+  });
+}
+
+export function useReassignInspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (payload: { inspectorId: string; droneId?: string | null }) =>
+      inspectionApi.reassign(inspectionId!, payload),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        void client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Inspector reassigned successfully');
+    },
+  });
+}
+
+export function useCancelInspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (payload?: { reason?: string }) =>
+      inspectionApi.cancel(inspectionId!, payload),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        void client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Inspection cancelled');
     },
   });
 }

@@ -43,6 +43,9 @@ vi.mock('../hooks/useInspections', async () => {
       return mocks.reportsQuery;
     },
     useInspection: () => ({ data: undefined, isLoading: false, isError: false }),
+    useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
+    useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
   };
 });
 

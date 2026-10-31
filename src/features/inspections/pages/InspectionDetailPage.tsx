@@ -27,6 +27,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import '../styles/trace-ledger.css';
 import {
+  useFieldSessions,
   useInspection,
   useInspectionEvidence,
   useInspectionWorkflowState,
@@ -185,6 +186,10 @@ export default function InspectionDetailPage() {
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
+
+  const sessionsQuery = useFieldSessions(inspectionId);
+  const latestSession = sessionsQuery.data?.at(-1);
+  const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
 
   const visibleSteps = isOrganizationAdmin
     ? REVIEWER_STEPS.filter((step) => {
@@ -408,13 +413,35 @@ export default function InspectionDetailPage() {
               </Typography>
               <Box className="inspection-trace-line" aria-hidden="true" />
               <Stack direction="row" spacing={{ xs: 1.5, sm: 2.5 }} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
-                <Typography variant="body2"><strong>{t('Session')}</strong> · {isFieldWorkComplete ? t('Recorded') : t('Not complete')}</Typography>
+                <Typography variant="body2">
+                  <strong>{t('Session')}</strong> ·{' '}
+                  {wasAborted
+                    ? t('Aborted (reschedule required)')
+                    : isFieldWorkComplete
+                      ? t('Recorded')
+                      : t('Not complete')}
+                </Typography>
                 <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
                 <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
                 <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
               </Stack>
             </Stack>
           </Box>
+        )}
+
+        {wasAborted && (
+          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              {t('Previous flight session was aborted')}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              {latestSession?.endedAt ? `${t('Ended')} ${formatDate(new Date(latestSession.endedAt))} · ` : ''}
+              {t('Reason')}: "{latestSession?.abortReason}"
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              {t('The flight session was stopped before completion. Please reschedule the flight window or dispatch as needed.')}
+            </Typography>
+          </Alert>
         )}
 
         <Paper
