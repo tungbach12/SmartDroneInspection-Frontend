@@ -364,7 +364,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               </Paper>
             ) : (
               props.findings.map((finding) => {
-                const box = parseBoundingBox(finding.boundingBox ?? undefined);
                 const confirmed = finding.status === 'CONFIRMED';
                 const isEditing = props.editingCandidateId === finding.id;
 
@@ -538,14 +537,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 label={confirmed ? t('Confirmed') : t('Awaiting review')}
                                 sx={{ fontWeight: 600, fontSize: '11px' }}
                               />
-                              {box && (
-                                <Chip
-                                  size="small"
-                                  variant="outlined"
-                                  label={`[${Math.round(box.xMin * 100)}%, ${Math.round(box.yMin * 100)}%] → [${Math.round(box.xMax * 100)}%, ${Math.round(box.yMax * 100)}%]`}
-                                  sx={{ fontFamily: 'monospace', fontSize: '10px', color: 'text.secondary' }}
-                                />
-                              )}
                             </Stack>
 
                             <Typography

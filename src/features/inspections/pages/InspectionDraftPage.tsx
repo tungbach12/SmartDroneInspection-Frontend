@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
@@ -10,7 +10,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -29,7 +28,6 @@ import {
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
-import { AiMotionFigure } from '../components/AiMotionFigure';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -127,6 +125,29 @@ export default function InspectionDraftPage() {
     // Report sections are derived automatically from confirmed records.
   };
 
+  useEffect(() => {
+    if (
+      isInspector &&
+      findingsConfirmed &&
+      !isPublished &&
+      !isLockedInReview &&
+      (versionList.length === 0 || sourcesChangedAfterVersion) &&
+      !createDraft.isPending &&
+      !createDraft.isError &&
+      !createDraft.isSuccess
+    ) {
+      createDraft.mutate();
+    }
+  }, [
+    isInspector,
+    findingsConfirmed,
+    isPublished,
+    isLockedInReview,
+    versionList.length,
+    sourcesChangedAfterVersion,
+    createDraft,
+  ]);
+
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
       {!isInspector && (
@@ -155,7 +176,7 @@ export default function InspectionDraftPage() {
               <Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
                   <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Create report draft')}
+                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Inspection report')}
                   </Typography>
                   {openVersion && (
                     <Chip
@@ -189,9 +210,9 @@ export default function InspectionDraftPage() {
                 </Stack>
                 {!openVersion && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    {t(
-                      'Generate the report from your confirmed findings, evidence, and field records.',
-                    )}
+                    {createDraft.isPending
+                      ? t('Compiling report automatically from confirmed findings and evidence…')
+                      : t('Report is generated automatically from confirmed findings and evidence.')}
                   </Typography>
                 )}
               </Box>
@@ -221,29 +242,6 @@ export default function InspectionDraftPage() {
                       {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
                     </Button>
                   )}
-
-                  <Button
-                    variant={openVersion && !sourcesChangedAfterVersion ? 'outlined' : 'contained'}
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      createDraft.isPending ||
-                      !findingsConfirmed
-                    }
-                    startIcon={
-                      createDraft.isPending ? (
-                        <AiMotionFigure name="draftBurst" size={20} />
-                      ) : (
-                        <AutoAwesomeOutlined fontSize="small" />
-                      )
-                    }
-                    onClick={() => createDraft.mutate()}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
-                  </Button>
                 </Stack>
               )}
             </Stack>
