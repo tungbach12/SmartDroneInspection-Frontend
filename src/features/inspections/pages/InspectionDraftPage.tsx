@@ -11,7 +11,6 @@ import {
   Typography,
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import EditNoteRounded from '@mui/icons-material/EditNoteRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -23,7 +22,6 @@ import {
   useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
-  useSaveReportSections,
   useSubmitReportVersion,
   useVerifyReportVersion,
   useWithdrawReportVersion,
@@ -65,7 +63,6 @@ export default function InspectionDraftPage() {
 
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
-  const saveSections = useSaveReportSections(inspectionId);
   const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
@@ -123,16 +120,8 @@ export default function InspectionDraftPage() {
       (openVersion?.status === 'DRAFT' || openVersion?.status === 'RETURNED'),
   );
 
-  const handleSaveSections = async (sections: ReportSectionValues) => {
-    if (!openVersion) return;
-    await saveSections.mutateAsync({
-      versionId: openVersion.id,
-      sections: {
-        ...sections,
-        overallCondition: sections.overallCondition || null,
-      },
-    });
-    await versions.refetch();
+  const handleSaveSections = async (_sections: ReportSectionValues) => {
+    // Report sections are derived automatically from confirmed records.
   };
 
   return (
@@ -198,7 +187,7 @@ export default function InspectionDraftPage() {
                 {!openVersion && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                     {t(
-                      'Generate an AI-assisted draft from your confirmed findings and field records, or start a blank structured draft.',
+                      'Generate the report from your confirmed findings, evidence, and field records.',
                     )}
                   </Typography>
                 )}
@@ -251,29 +240,6 @@ export default function InspectionDraftPage() {
                     sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
                     {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      !findingsConfirmed ||
-                      authorManualDraft.isPending
-                    }
-                    startIcon={
-                      authorManualDraft.isPending ? (
-                        <AiMotionFigure name="draftRibbon" size={18} />
-                      ) : (
-                        <EditNoteRounded fontSize="small" />
-                      )
-                    }
-                    onClick={() => authorManualDraft.mutate({})}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
                   </Button>
                 </Stack>
               )}

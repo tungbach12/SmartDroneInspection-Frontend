@@ -41,6 +41,12 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     publishVersion: vi.fn(),
     completeCorrectiveHandoff: vi.fn(),
     workflowState: vi.fn(),
+    getAiSummary: vi.fn().mockResolvedValue({
+      summary: 'AI summary',
+      keyHighlights: [],
+      recommendedActions: '',
+      overallRisk: 'LOW',
+    }),
   },
 }));
 
@@ -180,9 +186,6 @@ describe('ReportDetailPage MF3 gates', () => {
     const headings = [...document.querySelectorAll('h2')].map((heading) => heading.textContent);
     expect(headings).toEqual([
       'Identification',
-      'Executive summary',
-      'Limitations and omissions',
-      'Conclusions and recommendations',
       'Evidence register',
     ]);
   });
@@ -193,7 +196,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/The north span was surveyed/)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Identification' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
 
     const returnButton = screen.getByRole('button', {
@@ -249,7 +252,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(await screen.findByText(/This report was returned after source changes/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Review findings and create a fresh version' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Verify as author' })).toBeNull();
-    expect((screen.getByRole('button', { name: 'Save sections' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
   });
 
   it('lets the Inspector withdraw a submitted report before report-level reviewer action', async () => {
@@ -401,7 +404,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    await screen.findByText(/The north span was surveyed/);
+    await screen.findByText('SDI-RPT-VERSION--V1');
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.queryByLabelText('Reason for return')).toBeNull();
   });

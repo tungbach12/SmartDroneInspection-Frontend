@@ -209,6 +209,13 @@ export interface PayOSCheckoutDetails {
 
 export interface ManualDraftInput {}
 
+export interface ReportAiSummary {
+  summary: string;
+  keyHighlights: string[];
+  recommendedActions: string;
+  overallRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
 export type InspectionStatus =
   | 'SCHEDULED'
   | 'IN_PROGRESS'
@@ -639,6 +646,13 @@ export const inspectionApi = {
       .get<Blob>(
         `/inspections/${inspectionId}/report/versions/${versionId}/document`,
         { responseType: 'blob' },
+      )
+      .then((response) => response.data),
+
+  getAiSummary: (inspectionId: string, versionId: string) =>
+    api
+      .get<ReportAiSummary>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/ai-summary`,
       )
       .then((response) => response.data),
 

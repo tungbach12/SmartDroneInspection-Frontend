@@ -29,9 +29,6 @@ export interface ReportDerivedSectionsProps {
   evidenceList: EvidenceItem[];
   inspectionId: string;
   reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
-  executiveSummary?: React.ReactNode;
-  limitations?: React.ReactNode;
-  conclusions?: React.ReactNode;
 }
 
 function formatDateTime(
@@ -103,9 +100,6 @@ export function ReportDerivedSections({
   evidenceList,
   inspectionId,
   reinspectionVerifications,
-  executiveSummary,
-  limitations,
-  conclusions,
 }: ReportDerivedSectionsProps) {
   const { t, formatDateTime: formatDateTimeValue } = useLocale();
   const [selectedModalEvidence, setSelectedModalEvidence] = useState<EvidenceItem | null>(null);
@@ -240,10 +234,6 @@ export function ReportDerivedSections({
           )}
         </Box>
       </ReadOnlySection>
-
-      {executiveSummary}
-      {limitations}
-      {conclusions}
 
       {/* Target Defect Verifications (for Re-inspection) */}
       {reinspectionVerifications && reinspectionVerifications.length > 0 && (

@@ -507,13 +507,25 @@ export function useGenerateReportDraft(inspectionId: string | null) {
   return useMutation({
     mutationFn: () => inspectionApi.generateDraft(inspectionId!),
     onSuccess: () => {
-      showToast('AI-assisted report draft created.');
+      showToast('Report draft created.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
     },
     onError: (error) =>
-      showToast(getErrorMessage(error, 'The AI-assisted draft was not created.'), 'error'),
+      showToast(getErrorMessage(error, 'The report draft was not created.'), 'error'),
+  });
+}
+
+export function useReportAiSummary(
+  inspectionId: string | null | undefined,
+  versionId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ['reports', 'ai-summary', inspectionId ?? '', versionId ?? ''],
+    queryFn: () => inspectionApi.getAiSummary(inspectionId!, versionId!),
+    enabled: Boolean(inspectionId && versionId),
+    staleTime: 60_000,
   });
 }
 

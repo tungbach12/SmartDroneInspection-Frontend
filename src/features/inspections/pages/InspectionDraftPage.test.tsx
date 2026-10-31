@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -66,7 +66,6 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     error: null as Error | null,
   },
-  reportDirtyChange: vi.fn(),
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -88,7 +87,6 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useParams: () => ({ inspectionId: 'inspection-1' }),
-    useOutletContext: () => ({ onReportDirtyChange: mocks.reportDirtyChange }),
   };
 });
 
@@ -128,7 +126,6 @@ describe('InspectionDraftPage', () => {
     mocks.verifyVersion.mutate.mockReset();
     mocks.submitVersion.mutate.mockReset();
     mocks.withdrawVersion.mutate.mockReset();
-    mocks.reportDirtyChange.mockReset();
   });
 
   afterEach(() => {
@@ -145,11 +142,10 @@ describe('InspectionDraftPage', () => {
     expect(screen.queryByText(/Accept the evidence set/)).toBeNull();
   });
 
-  it('keeps manual draft creation disabled until findings have been confirmed', () => {
+  it('keeps report draft generation disabled until findings have been confirmed', () => {
     renderWithRouter(<InspectionDraftPage />);
 
     expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
   });
 
@@ -239,61 +235,15 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
-    expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
-    expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
-    expect(mocks.reportDirtyChange).toHaveBeenCalledWith(false);
-    expect(screen.getByRole('status').textContent).toContain('All changes saved');
-
-    // Legacy fields must be completely removed
-    expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
-    expect(screen.queryByText('Method, equipment and conditions')).toBeNull();
-    expect(screen.queryByLabelText('Inspector coverage assessment (optional)')).toBeNull();
+    expect(screen.getByText('Report details')).toBeTruthy();
+    expect(screen.queryByLabelText('Executive summary text')).toBeNull();
+    expect(screen.queryByLabelText('Limitations and omissions text')).toBeNull();
+    expect(screen.queryByLabelText('Conclusions and recommendations text')).toBeNull();
 
     // In-place submit action opens ConfirmDialog
     fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and Submit' }));
     expect(mocks.submitVersion.mutate).toHaveBeenCalledWith('version-1', expect.anything());
-  });
-
-  it('reports dirty report edits to the workflow shell', async () => {
-    mocks.workflowQuery = {
-      data: {
-        status: 'FIELD_COMPLETED',
-        findingsConfirmedAt: '2026-10-14T11:00:00Z',
-        findingsSnapshotHash: 'abc123',
-      },
-      isLoading: false,
-      error: null,
-    };
-    mocks.versionsQuery = {
-      data: [
-        {
-          id: 'version-1',
-          inspectionReportId: 'inspection-1',
-          versionNo: 1,
-          status: 'DRAFT',
-          authorUserId: 'inspector-1',
-          createdAt: '2026-10-14T12:00:00Z',
-          sections: { executiveSummary: 'Original summary.' },
-        },
-      ],
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    mocks.saveSections.mutateAsync.mockImplementation(async () => {
-      const currentVersion = mocks.versionsQuery.data?.[0] as { sections?: { executiveSummary?: string } };
-      currentVersion.sections = { ...currentVersion.sections, executiveSummary: 'Updated summary.' };
-    });
-    renderWithRouter(<InspectionDraftPage />);
-
-    fireEvent.change(screen.getByLabelText('Executive summary text'), { target: { value: 'Updated summary.' } });
-    expect(mocks.reportDirtyChange).toHaveBeenLastCalledWith(true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
-    await waitFor(() => expect(mocks.saveSections.mutateAsync).toHaveBeenCalledOnce());
-    await waitFor(() => expect(mocks.reportDirtyChange).toHaveBeenLastCalledWith(false));
   });
 
   it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {
@@ -364,7 +314,6 @@ describe('InspectionDraftPage', () => {
     expect(screen.queryByRole('link', { name: 'Go to Findings' })).toBeNull();
     expect(screen.getByText(/report has been published/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Generate report draft' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Create manual draft' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('shows the reviewer read-only report view without Inspector draft controls', () => {
@@ -393,11 +342,10 @@ describe('InspectionDraftPage', () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Generate report draft' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Create manual draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
   });
 
-  it('creates an empty manual structured draft after findings confirmation', () => {
+  it('creates an auto-generated structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
       data: {
         status: 'FIELD_COMPLETED',
@@ -409,9 +357,7 @@ describe('InspectionDraftPage', () => {
     };
     renderWithRouter(<InspectionDraftPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create manual draft' }));
-    expect(mocks.authorManualDraft.mutate).toHaveBeenCalledWith({});
-    expect(screen.queryByLabelText('Narrative')).toBeNull();
-    expect(screen.queryByLabelText('Omitted analysis disclosure')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate report draft' }));
+    expect(mocks.createDraft.mutate).toHaveBeenCalled();
   });
 });
