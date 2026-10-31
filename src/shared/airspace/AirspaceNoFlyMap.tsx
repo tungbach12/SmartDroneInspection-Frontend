@@ -150,72 +150,78 @@ export function AirspaceNoFlyMap({
 
   // Search Address / Landmark State
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<LandmarkLocation[]>([]);
+  const [onlineResults, setOnlineResults] = useState<LandmarkLocation[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [prevTargetStorageKey, setPrevTargetStorageKey] = useState(targetStorageKey);
+  if (prevTargetStorageKey !== targetStorageKey) {
+    setPrevTargetStorageKey(targetStorageKey);
     setCustomTarget(readSavedTarget(targetStorageKey));
-  }, [targetStorageKey]);
+  }
 
   // Debounced search logic for landmarks and addresses
+  const localMatches = useMemo(
+    () => (searchQuery.trim() ? searchVietnamLandmarks(searchQuery.trim()) : []),
+    [searchQuery],
+  );
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return [];
+    const names = new Set(localMatches.map((p) => p.name.toLowerCase()));
+    const combined = [...localMatches];
+    const online = q.length >= 3 ? onlineResults : [];
+    for (const o of online) {
+      if (!names.has(o.name.toLowerCase())) {
+        combined.push(o);
+      }
+    }
+    return combined.slice(0, 8);
+  }, [searchQuery, localMatches, onlineResults]);
+
   useEffect(() => {
     const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-    const localMatches = searchVietnamLandmarks(q);
-    setSearchResults(localMatches);
+    if (q.length < 3) return;
 
-    if (q.length >= 3) {
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
       setIsSearching(true);
-      const controller = new AbortController();
-      const timer = setTimeout(async () => {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-              q,
-            )}&countrycodes=vn&limit=6&addressdetails=1`,
-            {
-              headers: { 'Accept-Language': 'vi,en' },
-              signal: controller.signal,
-            },
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const onlineResults: LandmarkLocation[] = data.map((item: { display_name: string; lat: string; lon: string }) => ({
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            q,
+          )}&countrycodes=vn&limit=6&addressdetails=1`,
+          {
+            headers: { 'Accept-Language': 'vi,en' },
+            signal: controller.signal,
+          },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const parsed: LandmarkLocation[] = data.map(
+            (item: { display_name: string; lat: string; lon: string }) => ({
               name: item.display_name.split(',')[0]?.trim() || item.display_name,
               category: 'ĐỊA DANH' as const,
               latitude: Number(Number(item.lat).toFixed(6)),
               longitude: Number(Number(item.lon).toFixed(6)),
               region: item.display_name,
-            }));
-            setSearchResults((prev) => {
-              const names = new Set(prev.map((p) => p.name.toLowerCase()));
-              const combined = [...prev];
-              for (const o of onlineResults) {
-                if (!names.has(o.name.toLowerCase())) {
-                  combined.push(o);
-                }
-              }
-              return combined.slice(0, 8);
-            });
-          }
-        } catch {
-          // ignore network or abort errors
-        } finally {
-          setIsSearching(false);
+            }),
+          );
+          setOnlineResults(parsed);
         }
-      }, 350);
+      } catch {
+        // ignore network or abort errors
+      } finally {
+        setIsSearching(false);
+      }
+    }, 350);
 
-      return () => {
-        clearTimeout(timer);
-        controller.abort();
-      };
-    }
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   const [zoneFilter, setZoneFilter] = useState<'ALL' | 'NO_FLY_ZONE' | 'RESTRICTED_ZONE'>('ALL');

@@ -65,8 +65,7 @@ export function AuthenticatedImage({ src, alt, sx, maxHeight = 420 }: Authentica
           ...sx,
         }}
       >
-        <img src="" alt={alt} style={{ display: 'none' }} />
-        <BrokenImageOutlined sx={{ fontSize: 32, color: '#98a2b3' }} />
+        <BrokenImageOutlined sx={{ fontSize: 32, color: 'text.disabled' }} />
         <Typography variant="caption">{t('Could not load preview')}</Typography>
       </Box>
     );

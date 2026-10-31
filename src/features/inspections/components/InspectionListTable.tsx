@@ -421,7 +421,7 @@ export function InspectionListTable({
       <TablePagination
         component="div"
         count={totalCount}
-        page={Math.min(page, Math.max(totalPages - 1, 0))}
+        page={Math.max(0, Math.min(page - 1, Math.max(totalPages - 1, 0)))}
         onPageChange={(_, nextPage) => onPageChange(nextPage + 1)}
         rowsPerPage={pageSize}
         onRowsPerPageChange={(event) => onPageSizeChange(parseInt(event.target.value, 10))}

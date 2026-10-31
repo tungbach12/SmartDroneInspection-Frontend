@@ -63,7 +63,8 @@ export default function InspectionFindingsPage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isInspector = roles.includes('INSPECTOR');
-  const isReviewer = roles.includes('CUSTOMER');
+  const isReviewer =
+    roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN');
 
   const inspectionQuery = useInspection(inspectionId);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';

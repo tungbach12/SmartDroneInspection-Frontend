@@ -92,7 +92,7 @@ export default function LandingPage() {
           position: 'absolute',
           zIndex: 2,
           inset: '0 0 auto',
-          px: { xs: 2.5, md: 6 },
+          px: { xs: 1.5, sm: 2.5, md: 6 },
           py: { xs: 2, md: 2.5 },
         }}
       >
@@ -103,7 +103,7 @@ export default function LandingPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 3,
+            gap: { xs: 1, sm: 2, md: 3 },
           }}
         >
           <Link
@@ -115,7 +115,8 @@ export default function LandingPage() {
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
               <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 38, height: 38, borderRadius: 1, objectFit: 'cover' }} />
               <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
-                SmartDroneInspection
+                SmartDrone
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Inspection</Box>
               </Typography>
             </Stack>
           </Link>
