@@ -43,6 +43,7 @@ export interface ReportAuthoringPanelProps {
   inspectionId: string;
   canEdit: boolean;
   onSaveSections: (sections: ReportSectionValues) => Promise<unknown>;
+  onDirtyChange?: ((dirty: boolean) => void) | undefined;
   reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
 }
 
@@ -64,6 +65,7 @@ export function ReportAuthoringPanel({
   inspectionId,
   canEdit,
   onSaveSections,
+  onDirtyChange,
   reinspectionVerifications,
 }: ReportAuthoringPanelProps) {
   const { t } = useLocale();
@@ -112,6 +114,12 @@ export function ReportAuthoringPanel({
   };
 
   const isPublished = version.status === 'PUBLISHED';
+  useEffect(() => {
+    if (!onDirtyChange) return undefined;
+    onDirtyChange(canEdit && hasChanges);
+    return () => onDirtyChange(false);
+  }, [canEdit, hasChanges, onDirtyChange]);
+
   const canPreview = canEdit || isPublished;
   const canDownload = canEdit || isPublished;
 
@@ -179,15 +187,23 @@ export function ReportAuthoringPanel({
         bgcolor: 'background.paper',
       }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: { xs: 'stretch', md: 'center' } }}>
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
             {t('Report sections')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-            Sections marked with the author are yours to write. The rest are read from the reviewed
-            records.
+            Sections marked with the author are yours to write. The rest are read from the reviewed records.
           </Typography>
+          {canEdit && (
+            <Typography
+              role="status"
+              aria-live="polite"
+              sx={{ mt: 0.75, fontSize: '0.8125rem', fontWeight: 650, color: hasChanges ? 'warning.dark' : 'success.dark' }}
+            >
+              {hasChanges ? t('Unsaved changes') : t('All changes saved')}
+            </Typography>
+          )}
         </Box>
         <Stack direction="row" spacing={1}>
           {canEdit && (

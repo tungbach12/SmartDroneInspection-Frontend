@@ -58,23 +58,16 @@ function getStatusColors(status: InspectionStatus): {
   badge: string;
 } {
   switch (status) {
-    case 'ASSIGNED':
+    case 'SCHEDULED':
       return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', badge: '#3b82f6' };
-    case 'READY_FOR_FLIGHT':
-      return { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', badge: '#10b981' };
     case 'IN_PROGRESS':
       return { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe', badge: '#8b5cf6' };
     case 'FIELD_COMPLETED':
       return { bg: '#f0fdfa', color: '#0f766e', border: '#99f6e4', badge: '#14b8a6' };
-    case 'REPORT_DRAFT':
-      return { bg: '#f8fafc', color: '#475569', border: '#cbd5e1', badge: '#64748b' };
     case 'UNDER_REVIEW':
       return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', badge: '#3b82f6' };
-    case 'REPORT_PUBLISHED':
     case 'COMPLETED':
       return { bg: '#ecfdf5', color: '#065f46', border: '#6ee7b7', badge: '#059669' };
-    case 'REPAIR_PENDING':
-      return { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca', badge: '#ef4444' };
     case 'CANCELLED':
       return { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb', badge: '#9ca3af' };
     default:
@@ -102,11 +95,8 @@ export function InspectorScheduleCalendar({
     if (statusFilter === 'ALL') return allItems;
     if (statusFilter === 'UNDER_REVIEW') {
       return allItems.filter(
-        (item) => item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+        (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
       );
-    }
-    if (statusFilter === 'REPORT_PUBLISHED') {
-      return allItems.filter((item) => item.status === 'REPORT_PUBLISHED' || item.status === 'COMPLETED');
     }
     return allItems.filter((item) => item.status === statusFilter);
   }, [allItems, statusFilter]);
@@ -326,12 +316,11 @@ export function InspectorScheduleCalendar({
             sx={{ minWidth: 160 }}
           >
             <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-            <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
-            <MenuItem value="READY_FOR_FLIGHT">{t('Ready for Flight')}</MenuItem>
+            <MenuItem value="SCHEDULED">{t('Scheduled')}</MenuItem>
             <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
             <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
             <MenuItem value="UNDER_REVIEW">{t('Under Review')}</MenuItem>
-            <MenuItem value="REPORT_PUBLISHED">{t('Report Published')}</MenuItem>
+            <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
             <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
           </TextField>
 

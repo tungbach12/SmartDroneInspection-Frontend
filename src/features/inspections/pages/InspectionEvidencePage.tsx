@@ -112,7 +112,7 @@ export default function InspectionEvidencePage() {
   const evidenceLocked =
     Boolean(
       currentVersion && ['SUBMITTED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED'].includes(currentVersion.status),
-    ) || ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(workflow.data?.status ?? '');
+    ) || workflow.data?.status === 'COMPLETED';
   const isReturnedRevision = currentVersion?.status === 'RETURNED';
   const completedFieldSessionId = sessionHistory.data
     ?.filter((session) => session.status === 'FIELD_COMPLETED')
@@ -120,12 +120,12 @@ export default function InspectionEvidencePage() {
   const hasCompletedFieldSession = Boolean(completedFieldSessionId);
   const canEditEvidence =
     isInspector &&
-    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') ||
+    (workflow.data?.status === 'FIELD_COMPLETED' ||
       hasCompletedFieldSession) &&
     !evidenceLocked;
   const canUploadEvidence =
     isInspector &&
-    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(workflow.data?.status ?? '') ||
+    (workflow.data?.status === 'FIELD_COMPLETED' ||
       hasCompletedFieldSession) &&
     !evidenceLocked;
   const selectedEvidence =
@@ -212,7 +212,7 @@ export default function InspectionEvidencePage() {
   };
 
   return (
-    <Stack spacing={2}>
+    <Stack className="trace-ledger-workspace" spacing={2}>
       {isReinspection && (
         <TargetFlightShotList
           mode="evidence-assignment"
@@ -235,9 +235,10 @@ export default function InspectionEvidencePage() {
       {isInspector && (
         <Paper
           variant="outlined"
+          className="trace-stage-panel"
           sx={{
             p: { xs: 2, sm: 2.25 },
-            borderRadius: '14px',
+            borderRadius: '8px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
           }}
@@ -336,9 +337,10 @@ export default function InspectionEvidencePage() {
 
       <Paper
         variant="outlined"
+        className="trace-stage-panel trace-evidence-register"
         sx={{
           p: { xs: 2, sm: 2.5 },
-          borderRadius: '14px',
+          borderRadius: '8px',
           borderColor: 'divider',
           bgcolor: 'background.paper',
         }}

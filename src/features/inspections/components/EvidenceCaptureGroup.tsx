@@ -548,15 +548,28 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                               )}
                             </Stack>
 
-                            <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.5 }}>
-                              {finding.technicalNotes}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: finding.technicalNotes?.trim() ? 'text.primary' : 'text.disabled',
+                                fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <strong>{t('Notes')}:</strong>{' '}
+                              {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
                             </Typography>
-                            {finding.recommendedAction && (
-                              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-                                <strong>{t('Recommended action:')}</strong>{' '}
-                                {finding.recommendedAction}
-                              </Typography>
-                            )}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: finding.recommendedAction?.trim() ? 'text.secondary' : 'text.disabled',
+                                fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic',
+                                fontSize: '0.8125rem',
+                              }}
+                            >
+                              <strong>{t('Recommended action:')}</strong>{' '}
+                              {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
+                            </Typography>
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (

@@ -132,7 +132,7 @@ describe('CorrectiveDispositionPage', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: ['finding-1', 'finding-2'],
-      inspectionStatus: 'REPAIR_PENDING',
+      inspectionStatus: 'COMPLETED',
     } as never);
 
     renderPage();
@@ -160,7 +160,7 @@ describe('CorrectiveDispositionPage', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: ['finding-2'],
-      inspectionStatus: 'REPAIR_PENDING',
+      inspectionStatus: 'COMPLETED',
     } as never);
 
     renderPage();

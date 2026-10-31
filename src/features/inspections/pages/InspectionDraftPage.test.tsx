@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -66,6 +66,7 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     error: null as Error | null,
   },
+  reportDirtyChange: vi.fn(),
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -87,6 +88,7 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useParams: () => ({ inspectionId: 'inspection-1' }),
+    useOutletContext: () => ({ onReportDirtyChange: mocks.reportDirtyChange }),
   };
 });
 
@@ -126,6 +128,7 @@ describe('InspectionDraftPage', () => {
     mocks.verifyVersion.mutate.mockReset();
     mocks.submitVersion.mutate.mockReset();
     mocks.withdrawVersion.mutate.mockReset();
+    mocks.reportDirtyChange.mockReset();
   });
 
   afterEach(() => {
@@ -153,7 +156,7 @@ describe('InspectionDraftPage', () => {
   it('generates a draft once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -205,7 +208,7 @@ describe('InspectionDraftPage', () => {
   it('renders the 4 simplified report sections and author verification actions in-place once a version exists', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -239,6 +242,8 @@ describe('InspectionDraftPage', () => {
     expect(screen.getByLabelText('Executive summary text')).toBeTruthy();
     expect(screen.getByLabelText('Limitations and omissions text')).toBeTruthy();
     expect(screen.getByLabelText('Conclusions and recommendations text')).toBeTruthy();
+    expect(mocks.reportDirtyChange).toHaveBeenCalledWith(false);
+    expect(screen.getByRole('status').textContent).toContain('All changes saved');
 
     // Legacy fields must be completely removed
     expect(screen.queryByText('Purpose, scope and criteria')).toBeNull();
@@ -251,10 +256,50 @@ describe('InspectionDraftPage', () => {
     expect(mocks.submitVersion.mutate).toHaveBeenCalledWith('version-1', expect.anything());
   });
 
+  it('reports dirty report edits to the workflow shell', async () => {
+    mocks.workflowQuery = {
+      data: {
+        status: 'FIELD_COMPLETED',
+        findingsConfirmedAt: '2026-10-14T11:00:00Z',
+        findingsSnapshotHash: 'abc123',
+      },
+      isLoading: false,
+      error: null,
+    };
+    mocks.versionsQuery = {
+      data: [
+        {
+          id: 'version-1',
+          inspectionReportId: 'inspection-1',
+          versionNo: 1,
+          status: 'DRAFT',
+          authorUserId: 'inspector-1',
+          createdAt: '2026-10-14T12:00:00Z',
+          sections: { executiveSummary: 'Original summary.' },
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.saveSections.mutateAsync.mockImplementation(async () => {
+      const currentVersion = mocks.versionsQuery.data?.[0] as { sections?: { executiveSummary?: string } };
+      currentVersion.sections = { ...currentVersion.sections, executiveSummary: 'Updated summary.' };
+    });
+    renderWithRouter(<InspectionDraftPage />);
+
+    fireEvent.change(screen.getByLabelText('Executive summary text'), { target: { value: 'Updated summary.' } });
+    expect(mocks.reportDirtyChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
+    await waitFor(() => expect(mocks.saveSections.mutateAsync).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mocks.reportDirtyChange).toHaveBeenLastCalledWith(false));
+  });
+
   it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -290,7 +335,7 @@ describe('InspectionDraftPage', () => {
   it('does not ask an already published inspection to confirm findings again', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_PUBLISHED',
+        status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-15T09:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -355,7 +400,7 @@ describe('InspectionDraftPage', () => {
   it('creates an empty manual structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },

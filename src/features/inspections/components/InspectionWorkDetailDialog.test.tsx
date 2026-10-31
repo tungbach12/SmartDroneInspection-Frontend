@@ -31,7 +31,7 @@ const mockInspectionData: InspectionDetail = {
   inspectionItems: ['Cable Stay 1', 'Pylon North', 'Deck Joint East'],
   plannedStartAt: '2026-11-05T09:00:00Z',
   plannedEndAt: '2026-11-05T12:00:00Z',
-  status: 'READY_FOR_FLIGHT',
+  status: 'SCHEDULED',
   createdAt: '2026-10-20T08:00:00Z',
   updatedAt: '2026-10-25T10:00:00Z',
 };
@@ -84,7 +84,7 @@ describe('InspectionWorkDetailDialog', () => {
 
     // Header & Status
     expect(screen.getAllByText('Thu Thiem Bridge No. 2').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('READY_FOR_FLIGHT')).toBeTruthy();
+    expect(screen.getByText('SCHEDULED')).toBeTruthy();
 
     // Asset & Location
     expect(screen.getByText('10.7769° N, 106.7009° E')).toBeTruthy();
@@ -99,9 +99,9 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText('Pylon North')).toBeTruthy();
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
 
-    // Guidance banner for READY_FOR_FLIGHT
-    expect(screen.getByText(/Flight readiness approved/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Start field session/i })).toBeTruthy();
+    // Guidance banner for SCHEDULED
+    expect(screen.getByText(/This inspection is scheduled/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Open field session/i })).toBeTruthy();
   });
 
   it('navigates to field session when action button is clicked', () => {
@@ -114,18 +114,18 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    const actionButton = screen.getByRole('button', { name: /Start field session/i });
+    const actionButton = screen.getByRole('button', { name: /Open field session/i });
     fireEvent.click(actionButton);
 
     expect(handleClose).toHaveBeenCalledTimes(1);
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
   });
 
-  it('navigates to field-session when inspection status is ASSIGNED', () => {
+  it('navigates to field-session when inspection status is IN_PROGRESS', () => {
     mockUseInspection.mockReturnValue({
       data: {
         ...mockInspectionData,
-        status: 'ASSIGNED',
+        status: 'IN_PROGRESS',
       },
       isLoading: false,
       isError: false,
@@ -139,8 +139,8 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    expect(screen.getByText(/This inspection is assigned to you/i)).toBeTruthy();
-    const actionButton = screen.getByRole('button', { name: /Open field session/i });
+    expect(screen.getByText(/Field session is actively in progress/i)).toBeTruthy();
+    const actionButton = screen.getByRole('button', { name: /Go to field session/i });
     fireEvent.click(actionButton);
 
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
