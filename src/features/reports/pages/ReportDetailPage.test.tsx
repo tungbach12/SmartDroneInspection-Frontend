@@ -154,7 +154,7 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.listFindings.mockResolvedValue([]);
     mockedApi.listEvidence.mockResolvedValue([]);
     mockedApi.workflowState.mockResolvedValue({
-      status: 'REPORT_DRAFT',
+      status: 'FIELD_COMPLETED',
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
       findingsSnapshotHash: 'abc123',
     });
@@ -186,7 +186,6 @@ describe('ReportDetailPage MF3 gates', () => {
     const headings = [...document.querySelectorAll('h2')].map((heading) => heading.textContent);
     expect(headings).toEqual([
       'Identification',
-      'Confirmed findings',
       'Evidence register',
     ]);
   });
@@ -445,12 +444,12 @@ describe('ReportDetailPage MF3 gates', () => {
       ]);
     mockedApi.workflowState
       .mockResolvedValueOnce({
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       })
       .mockResolvedValue({
-        status: 'REPORT_PUBLISHED',
+        status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       });
@@ -460,7 +459,7 @@ describe('ReportDetailPage MF3 gates', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: [],
-      inspectionStatus: 'REPORT_PUBLISHED',
+      inspectionStatus: 'COMPLETED',
     });
 
     renderPage();

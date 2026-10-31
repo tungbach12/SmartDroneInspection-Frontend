@@ -152,7 +152,7 @@ describe('InspectionDraftPage', () => {
   it('generates a draft once findings are confirmed, without an evidence decision', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -204,7 +204,7 @@ describe('InspectionDraftPage', () => {
   it('renders the 4 simplified report sections and author verification actions in-place once a version exists', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -249,7 +249,7 @@ describe('InspectionDraftPage', () => {
   it('allows the Inspector to withdraw a submitted version in-place before reviewer action', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -285,7 +285,7 @@ describe('InspectionDraftPage', () => {
   it('does not ask an already published inspection to confirm findings again', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_PUBLISHED',
+        status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-15T09:00:00Z',
         findingsSnapshotHash: 'abc123',
       },
@@ -348,7 +348,7 @@ describe('InspectionDraftPage', () => {
   it('creates an auto-generated structured draft after findings confirmation', () => {
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
         findingsSnapshotHash: 'abc123',
       },

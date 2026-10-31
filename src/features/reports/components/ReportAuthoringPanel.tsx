@@ -76,6 +76,7 @@ export function ReportAuthoringPanel({
   }, [previewUrl]);
 
   const isPublished = version.status === 'PUBLISHED';
+
   const canPreview = canEdit || isPublished;
   const canDownload = canEdit || isPublished;
 
@@ -143,7 +144,7 @@ export function ReportAuthoringPanel({
         bgcolor: 'background.paper',
       }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: { xs: 'stretch', md: 'center' } }}>
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
             {t('Report details')}
