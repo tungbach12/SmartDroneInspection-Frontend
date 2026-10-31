@@ -388,6 +388,21 @@ export const inspectionApi = {
       .then((response) => response.data);
   },
 
+  reschedule: (inspectionId: string, payload: { plannedStartAt: string; plannedEndAt: string }) =>
+    api
+      .put<InspectionDetail>(`/inspections/${inspectionId}/schedule`, payload)
+      .then((response) => response.data),
+
+  reassign: (inspectionId: string, payload: { inspectorId: string; droneId?: string | null }) =>
+    api
+      .put<InspectionDetail>(`/inspections/${inspectionId}/assignment`, payload)
+      .then((response) => response.data),
+
+  cancel: (inspectionId: string, payload?: { reason?: string }) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/cancellation`, payload ?? {})
+      .then((response) => response.data),
+
   // MF3-01/02 evidence intake. The server computes the checksum and treats a repeat as idempotent.
   listEvidence: (inspectionId: string) =>
     api

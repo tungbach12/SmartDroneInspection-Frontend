@@ -36,6 +36,7 @@ vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useInspectionFindings: () => mocks.findingsQuery,
   useReportVersions: () => mocks.versionsQuery,
+  useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 const navigateMock = vi.hoisted(() => vi.fn());

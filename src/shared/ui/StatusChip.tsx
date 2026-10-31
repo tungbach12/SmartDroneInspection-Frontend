@@ -89,10 +89,12 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   field_completed: 'warning',
   report_draft: 'warning',
   under_review: 'info',
+  reschedule_required: 'warning',
 
   returned: 'error',
   rework_required: 'error',
   cancelled: 'error',
+  aborted: 'error',
   rejected: 'error',
   suspended: 'error',
   failed: 'error',

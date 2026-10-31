@@ -59,16 +59,7 @@ export const fieldSessionApi = {
       )
       .then((r) => r.data),
 
-  /** MF2-09: weather or site safety stopped the session; the inspection stays startable. */
-  postpone: (inspectionId: string, sessionId: string, reason: string) =>
-    api
-      .post<FieldSession>(
-        `/inspections/${inspectionId}/field-sessions/${sessionId}/postponement`,
-        { reason },
-      )
-      .then((r) => r.data),
-
-  /** MF2-11: the session cannot continue and will not resume under this record. */
+  /** MF2-11: the session cannot continue and is aborted with recorded reason. */
   abort: (inspectionId: string, sessionId: string, reason: string) =>
     api
       .post<FieldSession>(

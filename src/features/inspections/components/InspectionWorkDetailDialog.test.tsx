@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InspectionWorkDetailDialog } from './InspectionWorkDetailDialog';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import type { InspectionDetail } from '../api/inspectionApi';
 
 const mockNavigate = vi.fn();
@@ -37,15 +38,28 @@ const mockInspectionData: InspectionDetail = {
 };
 
 const mockUseInspection = vi.fn();
+const mockUseFieldSessions = vi.fn();
+const mockUseReschedule = vi.fn();
+const mockUseCancel = vi.fn();
+
 vi.mock('../hooks/useInspections', () => ({
   useInspection: (id: string | null, enabled: boolean) => mockUseInspection(id, enabled),
+  useFieldSessions: (id: string | null, enabled: boolean) => mockUseFieldSessions(id, enabled),
+  useRescheduleInspection: () => ({ mutate: mockUseReschedule, isPending: false, isError: false }),
+  useCancelInspection: () => ({ mutate: mockUseCancel, isPending: false, isError: false }),
 }));
 
 describe('InspectionWorkDetailDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.setState({ roles: ['CUSTOMER'] });
     mockUseInspection.mockReturnValue({
       data: mockInspectionData,
+      isLoading: false,
+      isError: false,
+    });
+    mockUseFieldSessions.mockReturnValue({
+      data: [],
       isLoading: false,
       isError: false,
     });
@@ -53,6 +67,7 @@ describe('InspectionWorkDetailDialog', () => {
 
   afterEach(() => {
     cleanup();
+    useAuthStore.getState().clearSession();
   });
 
   it('renders loading state when query is loading', () => {
@@ -159,5 +174,34 @@ describe('InspectionWorkDetailDialog', () => {
     fireEvent.click(fullViewBtn);
 
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd');
+  });
+
+  it('renders aborted session warning alert and manager dispatch actions', () => {
+    mockUseFieldSessions.mockReturnValue({
+      data: [
+        {
+          id: 'sess-1',
+          status: 'ABORTED',
+          abortReason: 'Heavy thunderstorm on site',
+          endedAt: '2026-10-25T11:00:00Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Reschedule required')).toBeTruthy();
+    expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
+    expect(screen.getByText(/Heavy thunderstorm on site/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reschedule' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel inspection' })).toBeTruthy();
   });
 });
