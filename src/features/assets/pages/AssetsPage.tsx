@@ -491,12 +491,12 @@ function CreateAssetDialogForm({
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
               <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                {t('Tọa độ vị trí công trình')}
+                {t('Asset Coordinates')}
               </Typography>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
-                label={t('Vĩ độ (Latitude)')}
+                label={t('Latitude')}
                 value={latitudeText}
                 onChange={(e) => setLatitudeText(e.target.value)}
                 placeholder="10.7805"
@@ -506,10 +506,10 @@ function CreateAssetDialogForm({
                 slotProps={{
                   htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
                 }}
-                helperText={t('VD: 10.7805 (Cầu Ba Son)')}
+                helperText={t('e.g. 10.7805 (Ba Son Bridge)')}
               />
               <TextField
-                label={t('Kinh độ (Longitude)')}
+                label={t('Longitude')}
                 value={longitudeText}
                 onChange={(e) => setLongitudeText(e.target.value)}
                 placeholder="106.7108"
@@ -519,7 +519,7 @@ function CreateAssetDialogForm({
                 slotProps={{
                   htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
                 }}
-                helperText={t('VD: 106.7108 (Cầu Ba Son)')}
+                helperText={t('e.g. 106.7108 (Ba Son Bridge)')}
               />
             </Stack>
 
@@ -536,11 +536,11 @@ function CreateAssetDialogForm({
                 }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>
-                  {t('Vị trí công trình nằm trong VÙNG CẤM BAY (NO-FLY ZONE)!')}
+                  {t('Asset location is in a NO-FLY ZONE!')}
                 </Typography>
                 <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.primary' }}>
                   {t(
-                    'Không thể tạo mới tài sản tại tọa độ cấm bay quân sự / hàng không tuyệt đối theo Quyết định 18/2020/QĐ-TTg. Vui lòng chọn vị trí ở vùng an toàn (ngoài vùng cấm bay) để tiếp tục tạo công trình.',
+                    'Cannot create asset at coordinates in an absolute military / aviation no-fly zone (Decision 18/2020/QD-TTg). Please select a location in a safe zone to continue.',
                   )}
                 </Typography>
               </Alert>

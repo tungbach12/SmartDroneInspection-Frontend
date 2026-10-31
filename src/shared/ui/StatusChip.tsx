@@ -82,17 +82,18 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   proposed: 'warning',
   repair_pending: 'warning',
   submitted: 'warning',
-  author_verified: 'warning',
   inprogress: 'warning',
   in_progress: 'warning',
   preparing: 'warning',
   field_completed: 'warning',
   report_draft: 'warning',
   under_review: 'info',
+  reschedule_required: 'warning',
 
   returned: 'error',
   rework_required: 'error',
   cancelled: 'error',
+  aborted: 'error',
   rejected: 'error',
   suspended: 'error',
   failed: 'error',
@@ -103,7 +104,6 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   planned: 'info',
   work_completed: 'info',
 
-  draft: 'default',
   inactive: 'default',
   superseded: 'default',
 };

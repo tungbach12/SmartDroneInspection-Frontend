@@ -41,6 +41,12 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     publishVersion: vi.fn(),
     completeCorrectiveHandoff: vi.fn(),
     workflowState: vi.fn(),
+    getAiSummary: vi.fn().mockResolvedValue({
+      summary: 'AI summary',
+      keyHighlights: [],
+      recommendedActions: '',
+      overallRisk: 'LOW',
+    }),
   },
 }));
 
@@ -148,7 +154,7 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.listFindings.mockResolvedValue([]);
     mockedApi.listEvidence.mockResolvedValue([]);
     mockedApi.workflowState.mockResolvedValue({
-      status: 'REPORT_DRAFT',
+      status: 'FIELD_COMPLETED',
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
       findingsSnapshotHash: 'abc123',
     });
@@ -180,10 +186,6 @@ describe('ReportDetailPage MF3 gates', () => {
     const headings = [...document.querySelectorAll('h2')].map((heading) => heading.textContent);
     expect(headings).toEqual([
       'Identification',
-      'Executive summary',
-      'Limitations and omissions',
-      'Conclusions and recommendations',
-      'Confirmed findings',
       'Evidence register',
     ]);
   });
@@ -194,7 +196,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/The north span was surveyed/)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Identification' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
 
     const returnButton = screen.getByRole('button', {
@@ -250,7 +252,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(await screen.findByText(/This report was returned after source changes/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Review findings and create a fresh version' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Verify as author' })).toBeNull();
-    expect((screen.getByRole('button', { name: 'Save sections' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
   });
 
   it('lets the Inspector withdraw a submitted report before report-level reviewer action', async () => {
@@ -326,21 +328,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByRole('button', { name: 'Publish immutable version' })).toBeNull();
   });
 
-  it('lets the Inspector author verify a draft', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'DRAFT', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the Inspector re-verify a returned report version', async () => {
+  it('lets the Inspector resubmit a returned report version', async () => {
     setRole(['INSPECTOR']);
     mockedApi.listVersions.mockResolvedValue([
       version({ status: 'RETURNED', authorUserId: 'user-1', returnReason: 'Clarify east-face coverage' }),
@@ -348,51 +336,27 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Verify as author' }));
-    await waitFor(() =>
-      expect(mockedApi.verifyVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
-    );
-  });
-
-  it('lets the verified Inspector submit the version for review', async () => {
-    setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'AUTHOR_VERIFIED', authorUserId: 'user-1' }),
-    ]);
-
-    renderPage();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Resubmit for review' }));
     await waitFor(() =>
       expect(mockedApi.submitVersion).toHaveBeenCalledWith('inspection-1', 'version-1'),
     );
   });
-  it.each([
-    {
-      action: 'verify' as const,
-      button: 'Verify as author',
-      status: 'DRAFT' as const,
-      request: () => mockedApi.verifyVersion,
-    },
-    {
-      action: 'submit' as const,
-      button: 'Submit for review',
-      status: 'AUTHOR_VERIFIED' as const,
-      request: () => mockedApi.submitVersion,
-    },
-  ])('shows the server stale-snapshot refusal when $action fails', async ({ action, button, status, request }) => {
+
+  it('shows the server stale-snapshot refusal when submit fails', async () => {
     setRole(['INSPECTOR']);
-    mockedApi.listVersions.mockResolvedValue([version({ status, authorUserId: 'user-1' })]);
-    request().mockRejectedValue(
-      problemError(409, 'Evidence changed since this report draft was created.', 'REPORT_SNAPSHOT_STALE'),
+    mockedApi.listVersions.mockResolvedValue([
+      version({ status: 'RETURNED', authorUserId: 'user-1', returnReason: 'Clarify east-face coverage' }),
+    ]);
+    mockedApi.submitVersion.mockRejectedValue(
+      problemError(409, 'Evidence changed since this report was created.', 'REPORT_SNAPSHOT_STALE'),
     );
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: button }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Resubmit for review' }));
 
-    expect((await screen.findByTestId(`report-${action}-refusal`)).textContent).toContain(
-      'Evidence changed since this report draft was created.',
+    expect((await screen.findByTestId('report-submit-refusal')).textContent).toContain(
+      'Evidence changed since this report was created.',
     );
   });
 
@@ -402,7 +366,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    await screen.findByText(/The north span was surveyed/);
+    await screen.findByText('SDI-RPT-VERSION--V1');
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.queryByLabelText('Reason for return')).toBeNull();
   });
@@ -442,12 +406,12 @@ describe('ReportDetailPage MF3 gates', () => {
       ]);
     mockedApi.workflowState
       .mockResolvedValueOnce({
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       })
       .mockResolvedValue({
-        status: 'REPORT_PUBLISHED',
+        status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
         findingsSnapshotHash: 'abc123',
       });
@@ -457,7 +421,7 @@ describe('ReportDetailPage MF3 gates', () => {
       versionNo: 1,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: [],
-      inspectionStatus: 'REPORT_PUBLISHED',
+      inspectionStatus: 'COMPLETED',
     });
 
     renderPage();

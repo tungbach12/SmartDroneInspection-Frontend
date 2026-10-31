@@ -1,9 +1,8 @@
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import InspectionDetailPage from './InspectionDetailPage';
-import { renderWithRouter as render } from '@/test/renderWithRouter';
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { useLocation } from 'react-router-dom';
+import InspectionDetailPage from './InspectionDetailPage';
 
 const mocks = vi.hoisted(() => ({
   inspectionQuery: {
@@ -37,24 +36,65 @@ vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useInspectionFindings: () => mocks.findingsQuery,
   useReportVersions: () => mocks.versionsQuery,
+  useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
-const navigateMock = vi.fn();
+const navigateMock = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
-    useNavigate: () => navigateMock,
+    useNavigate: () => {
+      const navigate = actual.useNavigate();
+      return (...args: Parameters<typeof navigate>) => {
+        navigateMock(...args);
+        return navigate(...args);
+      };
+    },
     useParams: () => ({ inspectionId: 'inspection-1' }),
   };
 });
 
-function LocationProbe() {
+function InspectionStageTestOutlet() {
+  const { onReportDirtyChange } = useOutletContext<{
+    onReportDirtyChange: (dirty: boolean) => void;
+  }>();
+  const navigate = useNavigate();
   const location = useLocation();
-  return <div data-testid="route-path">{location.pathname}</div>;
+
+  return (
+    <>
+      <output data-testid="current-path">{location.pathname}</output>
+      <button onClick={() => onReportDirtyChange(true)}>Mark report dirty</button>
+      <button onClick={() => navigate('/operations/inspections/inspection-1/evidence')}>
+        Navigate to evidence
+      </button>
+      <button onClick={() => navigate(-1)}>Browser back</button>
+    </>
+  );
 }
 
-function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
+function renderInspectionPage({ route = '/operations/inspections/inspection-1/field-session', initialEntries }: {
+  route?: string;
+  initialEntries?: string[];
+} = {}) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/:portal/inspections/:inspectionId',
+        element: <InspectionDetailPage />,
+        children: [
+          { index: true, element: <InspectionStageTestOutlet /> },
+          { path: '*', element: <InspectionStageTestOutlet /> },
+        ],
+      },
+    ],
+    { initialEntries: initialEntries ?? [route] },
+  );
+  return { ...render(<RouterProvider router={router} />), router };
+}
+
+function signInAs(role: 'INSPECTOR' | 'CUSTOMER' | 'MANAGER' | 'ADMIN') {
   useAuthStore.getState().setSession({
     accessToken: 'test-token',
     user: {
@@ -96,95 +136,117 @@ afterEach(() => {
 
 describe('InspectionDetailPage', () => {
   it('names the inspection it is showing', () => {
-    render(<InspectionDetailPage />);
+    renderInspectionPage();
 
-    expect(screen.getByText(/inspection-1/)).toBeTruthy();
+    expect(screen.getAllByText(/inspection-1/).length).toBeGreaterThan(0);
   });
 
   it('offers a way back to the list', () => {
-    render(<InspectionDetailPage />);
+    renderInspectionPage();
 
-    const back = screen.getByRole('button', { name: /back to list/i });
+    const back = screen.getByRole('button', { name: /back to inspections/i });
     back.click();
     expect(navigateMock).toHaveBeenCalledWith(-1);
   });
 
-  it('renders an Organization Manager review workspace first and returns to the review queue', () => {
-    signInAs('CUSTOMER');
-    render(<><InspectionDetailPage /><LocationProbe /></>, { route: '/client/inspections/inspection-1' });
+  it('renders a Platform Manager review workspace on admin portal and returns to the review queue', () => {
+    signInAs('MANAGER');
+    renderInspectionPage({ route: '/admin/inspections/inspection-1/review' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
-    // The reviewer's tabs are decision phases, not data types: there is no per-evidence or
-    // per-finding tab beside the decisions.
-    expect(screen.getByRole('tab', { name: 'Report review' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'Evidence review' })).toBeNull();
-    expect(screen.queryByRole('tab', { name: 'Findings overview' })).toBeNull();
-    expect(screen.queryByRole('tab', { name: 'Report draft' })).toBeNull();
+    // Reviewer steps are decision phases, presented as route navigation rather than a tab widget.
+    expect(screen.getByRole('navigation', { name: 'Inspection workflow stages' })).toBeTruthy();
+    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(stageNav.querySelector('a[aria-label="Report Review: In progress"]')).toBeTruthy();
+    expect(stageNav.querySelector('a[aria-label*="Evidence review"]')).toBeNull();
+    expect(stageNav.querySelector('a[aria-label*="Findings overview"]')).toBeNull();
+    expect(stageNav.querySelector('a[aria-label*="Report draft"]')).toBeNull();
 
-    expect(screen.getByRole('tab', { name: 'Report review' }).getAttribute('href')).toContain('review');
+    expect(stageNav.querySelector('a[href*="review"]')).toBeTruthy();
     screen.getByRole('button', { name: 'Back to review queue' }).click();
-    expect(navigateMock).toHaveBeenCalledWith('/client/inspections?view=reports');
+    expect(navigateMock).toHaveBeenCalledWith('/admin/inspections?view=reports');
+  });
+
+  it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {
+    signInAs('CUSTOMER');
+    renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
+
+    expect(screen.getByRole('heading', { name: 'Inspection detail' })).toBeTruthy();
+    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
+    expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
+    screen.getByRole('button', { name: 'Back to inspections' }).click();
+    expect(navigateMock).toHaveBeenCalledWith('/client/inspections');
   });
 
   it('shows Findings as complete only while its confirmation is current', () => {
     mocks.inspectionQuery = {
-      data: { id: 'inspection-1', assetId: 'asset-1', status: 'REPORT_DRAFT' },
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'FIELD_COMPLETED' },
       isLoading: false,
       isError: false,
       error: null,
       refetch: vi.fn(),
     };
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: null, findingsSnapshotHash: null },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null },
       isLoading: false,
       isError: false,
       error: null,
       refetch: vi.fn(),
     };
 
-    const { rerender } = render(<InspectionDetailPage />);
-    expect(screen.getByRole('tab', { name: 'Findings' }).textContent).toContain('3');
+    const { rerender } = renderInspectionPage();
+    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(stageNav.querySelector('a[aria-label="Defect Findings: Ready"]')).toBeTruthy();
 
+    mocks.evidenceQuery = {
+      data: [{ id: 'evidence-1', isDeleted: false }],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-27T08:00:00Z', findingsSnapshotHash: 'current-hash' },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-27T08:00:00Z', findingsSnapshotHash: 'current-hash' },
       isLoading: false,
       isError: false,
       error: null,
       refetch: vi.fn(),
     };
-    rerender(<InspectionDetailPage />);
-    expect(screen.getByRole('tab', { name: 'Findings' }).querySelector('svg')).not.toBeNull();
+    rerender(<RouterProvider router={createMemoryRouter([
+      {
+        path: '/:portal/inspections/:inspectionId',
+        element: <InspectionDetailPage />,
+        children: [{ index: true, element: <InspectionStageTestOutlet /> }, { path: '*', element: <InspectionStageTestOutlet /> }],
+      },
+    ], { initialEntries: ['/operations/inspections/inspection-1/field-session'] })} />);
+    expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"] svg')).not.toBeNull();
   });
 
-  it('renders one tab per workspace stage', () => {
-    render(<InspectionDetailPage />);
+  it('renders each workspace stage as direct navigation with a readiness state', () => {
+    renderInspectionPage();
 
-    expect(screen.getByRole('tab', { name: 'Evidence' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Findings' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Report draft' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Field session' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'Preparation' })).toBeNull();
+    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Defect Findings: Waiting"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Inspection Report: Waiting"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Flight Operation: In progress"]')).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(navigation.querySelector('a[title="Complete a field session before adding evidence."]')).toBeTruthy();
   });
 
-  it('links each stage to its nested route', () => {
-    render(<InspectionDetailPage />);
-
-    expect(screen.getByRole('tab', { name: 'Evidence' }).getAttribute('href')).toContain(
-      'evidence',
-    );
-    expect(screen.getByRole('tab', { name: 'Findings' }).getAttribute('href')).toContain(
-      'findings',
-    );
-    expect(screen.getByRole('tab', { name: 'Report draft' }).getAttribute('href')).toContain(
-      'report',
-    );
-    expect(screen.getByRole('tab', { name: 'Field session' }).getAttribute('href')).toContain(
-      'field-session',
-    );
+  it('keeps every workflow stage directly navigable while prerequisites are unmet', () => {
+    renderInspectionPage();
+    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')?.getAttribute('href')).toContain('evidence');
+    expect(navigation.querySelector('a[aria-label*="Defect Findings: Waiting"]')?.getAttribute('href')).toContain('findings');
+    expect(navigation.querySelector('a[aria-label*="Inspection Report: Waiting"]')?.getAttribute('href')).toContain('report');
+    expect(navigation.querySelector('a[aria-label*="Flight Operation: In progress"]')?.getAttribute('href')).toContain('field-session');
   });
 
   it('renders the stage outlet', () => {
-    const { container } = render(<InspectionDetailPage />);
+    const { container } = renderInspectionPage();
 
     // The layout owns the header and tabs; each stage renders through the outlet.
     expect(container.querySelector('.workspace-page--inspections')).toBeTruthy();
@@ -199,12 +261,13 @@ describe('InspectionDetailPage', () => {
       refetch: vi.fn(),
     };
 
-    render(<InspectionDetailPage />);
+    renderInspectionPage();
 
-    expect(screen.getByText('Flight Operation')).toBeTruthy();
-    expect(screen.getByText('Field Evidence')).toBeTruthy();
-    expect(screen.getByText('Defect Findings')).toBeTruthy();
-    expect(screen.getByText('Inspection Report')).toBeTruthy();
+    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Flight Operation"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Field Evidence"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Defect Findings"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
   });
 
   it('displays tailored step titles for re-inspection post-repair (3-step workflow)', () => {
@@ -216,11 +279,48 @@ describe('InspectionDetailPage', () => {
       refetch: vi.fn(),
     };
 
-    render(<InspectionDetailPage />);
+    renderInspectionPage();
 
-    expect(screen.getByText('Re-flight Operation')).toBeTruthy();
+    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Re-flight Operation"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Defect Verification"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Verification Report"]')).toBeTruthy();
     expect(screen.queryByText('Repair Evidence')).toBeNull();
-    expect(screen.getByText('Defect Verification')).toBeTruthy();
-    expect(screen.getByText('Verification Report')).toBeTruthy();
+  });
+
+  it('blocks leaving when report edits are dirty, allowing cancel to stay', async () => {
+    renderInspectionPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark report dirty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate to evidence' }));
+
+    expect(screen.getByRole('dialog', { name: 'Unsaved report changes' })).toBeTruthy();
+    expect(screen.getByTestId('current-path').textContent).toBe(
+      '/operations/inspections/inspection-1/field-session',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Unsaved report changes' })).toBeNull();
+    });
+    expect(screen.getByTestId('current-path').textContent).toBe(
+      '/operations/inspections/inspection-1/field-session',
+    );
+  });
+
+  it('allows discarding report edits to proceed to another stage', async () => {
+    renderInspectionPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark report dirty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate to evidence' }));
+
+    expect(screen.getByRole('dialog', { name: 'Unsaved report changes' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('current-path').textContent).toBe(
+        '/operations/inspections/inspection-1/evidence',
+      );
+    });
   });
 });

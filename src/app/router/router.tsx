@@ -33,6 +33,7 @@ import { ToastHost } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const InspectorPartnerApplicationPage = lazy(
   () => import('@/features/auth/pages/InspectorPartnerApplicationPage'),
@@ -58,6 +59,9 @@ const ReportDetailPage = lazy(
 );
 const InspectionDetailPage = lazy(
   () => import('@/features/inspections/pages/InspectionDetailPage'),
+);
+const InspectionProgressPage = lazy(
+  () => import('@/features/inspections/pages/InspectionProgressPage'),
 );
 const OrganizationReportReviewPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
@@ -148,16 +152,22 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
 
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
+  if (roles.includes('CUSTOMER')) {
+    return <Navigate to="tracking" replace />;
+  }
   const isReviewer = roles.some((role) =>
-    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
+    ['MANAGER', 'ADMIN'].includes(role),
   );
   return <Navigate to={isReviewer ? 'review' : 'field-session'} replace />;
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
+  if (roles.includes('CUSTOMER')) {
+    return <ReportDetailPage />;
+  }
   const isReviewer = roles.some((role) =>
-    ['CUSTOMER', 'MANAGER', 'ADMIN'].includes(role),
+    ['MANAGER', 'ADMIN'].includes(role),
   );
   return isReviewer
     ? <Navigate to="../review" replace />
@@ -213,6 +223,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         ),
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
+          { path: 'tracking', element: <InspectionProgressPage /> },
           ...(portal === 'client' || portal === 'admin'
             ? [
                 {
@@ -239,7 +250,14 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
-          { path: 'field-session', element: <FieldSessionPage /> },
+          {
+            path: 'field-session',
+            element: (
+              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                <FieldSessionPage />
+              </RequireAuth>
+            ),
+          },
         ],
       },
       {
@@ -293,6 +311,10 @@ export const router = createBrowserRouter([
             <LoginPage />
           </PublicOnly>
         ),
+      },
+      {
+        path: 'auth/callback',
+        element: <OAuthCallbackPage />,
       },
       {
         path: 'register',

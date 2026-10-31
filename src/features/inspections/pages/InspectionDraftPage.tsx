@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -9,8 +10,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import EditNoteRounded from '@mui/icons-material/EditNoteRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -22,35 +21,34 @@ import {
   useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
-  useSaveReportSections,
   useSubmitReportVersion,
-  useVerifyReportVersion,
   useWithdrawReportVersion,
   useReinspectionVerifications,
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
-import { AiMotionFigure } from '../components/AiMotionFigure';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  DRAFT: 'Review and edit the report sections below, then click Submit when ready.',
-  AUTHOR_VERIFIED: 'Report verified. Submit the report for Platform Manager review.',
   SUBMITTED: 'Submitted for Platform Manager review. Report sections and sources are locked while awaiting review.',
-  RETURNED: 'Returned for revision. Update the sections and submit again.',
+  RETURNED: 'Returned for revision. Re-evaluate findings and submit again.',
   APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This report version and its PDF are immutable.',
   SUPERSEDED: 'Superseded by a newer published version.',
 };
 
 /**
- * Step 4: Report Synthesis — unified in-place report creation, section authoring,
- * PDF preview/download, and author verification/submission/withdrawal.
+ * Step 4: Report Synthesis — automated compilation from confirmed findings,
+ * submission for Platform Manager review, and version history.
  */
 export default function InspectionDraftPage() {
   const { t } = useLocale();
+  const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
+    | { onReportDirtyChange?: (dirty: boolean) => void }
+    | null;
+  const onReportDirtyChange = outletContext?.onReportDirtyChange;
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const userId = useAuthStore((state) => state.user?.id ?? state.userId);
@@ -63,8 +61,6 @@ export default function InspectionDraftPage() {
 
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
-  const saveSections = useSaveReportSections(inspectionId);
-  const verify = useVerifyReportVersion(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
 
@@ -80,17 +76,7 @@ export default function InspectionDraftPage() {
   const inspectionStatus = workflow.data?.status ?? '';
   const findingsConfirmed =
     Boolean(workflow.data?.findingsSnapshotHash) &&
-    ['REPORT_DRAFT', 'REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-      inspectionStatus,
-    );
-  const isPublished = ['REPORT_PUBLISHED', 'REPAIR_PENDING', 'COMPLETED'].includes(
-    inspectionStatus,
-  );
-  const latestStatus = versionList[0]?.status;
-  const isLockedInReview =
-    latestStatus === 'SUBMITTED' ||
-    latestStatus === 'APPROVED' ||
-    latestStatus === 'PUBLISHED';
+    ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(inspectionStatus);
 
   const isAuthor = Boolean(
     openVersion && (!openVersion.authorUserId || userId === openVersion.authorUserId),
@@ -117,38 +103,30 @@ export default function InspectionDraftPage() {
             new Date(openVersion.createdAt).getTime())),
   );
   const canEditOpenVersion = Boolean(
-    isInspector &&
-      isAuthor &&
-      !sourcesChangedAfterVersion &&
-      (openVersion?.status === 'DRAFT' || openVersion?.status === 'RETURNED'),
+    isInspector && isAuthor && !sourcesChangedAfterVersion && openVersion?.status === 'RETURNED',
   );
 
-  const handleSaveSections = async (sections: ReportSectionValues) => {
-    if (!openVersion) return;
-    await saveSections.mutateAsync({
-      versionId: openVersion.id,
-      sections: {
-        ...sections,
-        overallCondition: sections.overallCondition || null,
-      },
-    });
-    await versions.refetch();
+  const handleSaveSections = async (_sections: ReportSectionValues) => {
+    // Report sections are derived automatically from confirmed records.
   };
 
+  const isSubmitting = createDraft.isPending || submit.isPending;
+
   return (
-    <Stack spacing={2}>
+    <Stack className="trace-ledger-workspace" spacing={2}>
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 
-      {(isInspector || openVersion) && (
+      {openVersion && (
         <Paper
           variant="outlined"
+          className="trace-stage-panel"
           sx={{
             p: { xs: 2, sm: 2.5 },
-            borderRadius: '16px',
+            borderRadius: '8px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
           }}
@@ -162,22 +140,20 @@ export default function InspectionDraftPage() {
               <Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
                   <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                    {openVersion ? `${t('Version')} ${openVersion.versionNo}` : t('Create report draft')}
+                    {`${t('Version')} ${openVersion.versionNo}`}
                   </Typography>
-                  {openVersion && (
-                    <Chip
-                      size="small"
-                      label={openVersion.status}
-                      color={
-                        openVersion.status === 'PUBLISHED' || openVersion.status === 'APPROVED'
-                          ? 'success'
-                          : openVersion.status === 'RETURNED'
-                            ? 'warning'
-                            : 'primary'
-                      }
-                      sx={{ fontWeight: 700 }}
-                    />
-                  )}
+                  <Chip
+                    size="small"
+                    label={openVersion.status}
+                    color={
+                      openVersion.status === 'PUBLISHED' || openVersion.status === 'APPROVED'
+                        ? 'success'
+                        : openVersion.status === 'RETURNED'
+                          ? 'warning'
+                          : 'primary'
+                    }
+                    sx={{ fontWeight: 700 }}
+                  />
                   {versionList.length > 1 &&
                     versionList.map((version) => {
                       const isSelected = openVersion?.id === version.id;
@@ -194,22 +170,15 @@ export default function InspectionDraftPage() {
                       );
                     })}
                 </Stack>
-                {!openVersion && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                    {t(
-                      'Generate an AI-assisted draft from your confirmed findings and field records, or start a blank structured draft.',
-                    )}
-                  </Typography>
-                )}
               </Box>
 
               {isInspector && (
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {openVersion && isAuthor && !sourcesChangedAfterVersion && (openVersion.status === 'DRAFT' || openVersion.status === 'AUTHOR_VERIFIED' || canEditReturnedText) && (
+                  {openVersion && isAuthor && !sourcesChangedAfterVersion && canEditReturnedText && (
                     <Button
                       variant="contained"
                       color="primary"
-                      disabled={submit.isPending}
+                      disabled={isSubmitting}
                       onClick={() => setConfirmSubmitOpen(true)}
                       sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                     >
@@ -228,57 +197,11 @@ export default function InspectionDraftPage() {
                       {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
                     </Button>
                   )}
-
-                  <Button
-                    variant={openVersion && !sourcesChangedAfterVersion ? 'outlined' : 'contained'}
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      createDraft.isPending ||
-                      !findingsConfirmed
-                    }
-                    startIcon={
-                      createDraft.isPending ? (
-                        <AiMotionFigure name="draftBurst" size={20} />
-                      ) : (
-                        <AutoAwesomeOutlined fontSize="small" />
-                      )
-                    }
-                    onClick={() => createDraft.mutate()}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {createDraft.isPending ? t('Compiling report…') : t('Generate report draft')}
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    size={openVersion ? 'small' : 'medium'}
-                    disabled={
-                      !isInspector ||
-                      isPublished ||
-                      isLockedInReview ||
-                      !findingsConfirmed ||
-                      authorManualDraft.isPending
-                    }
-                    startIcon={
-                      authorManualDraft.isPending ? (
-                        <AiMotionFigure name="draftRibbon" size={18} />
-                      ) : (
-                        <EditNoteRounded fontSize="small" />
-                      )
-                    }
-                    onClick={() => authorManualDraft.mutate({})}
-                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {authorManualDraft.isPending ? t('Creating draft…') : t('Create manual draft')}
-                  </Button>
                 </Stack>
               )}
             </Stack>
 
-            {isPublished ? (
+            {openVersion.status === 'PUBLISHED' ? (
               <Alert severity="success" sx={{ borderRadius: '10px' }}>
                 {t('The report has been published. This version is immutable.')}
               </Alert>
@@ -292,62 +215,41 @@ export default function InspectionDraftPage() {
                   </Button>
                 }
               >
-                {t(
-                  'Confirm the reviewed findings in Step 3 before creating or updating a report draft.',
-                )}
+                {t('Confirm the reviewed findings in Step 3 before compiling the inspection report.')}
               </Alert>
             ) : sourcesChangedAfterVersion ? (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 {t(
                   'Findings were reconfirmed after Version ' +
-                    (openVersion?.versionNo ?? 1) +
-                    ' was created. Generate a new draft version above to include your latest changes.',
+                    openVersion.versionNo +
+                    ' was created. A new report version will be compiled to include your latest changes.',
                 )}
               </Alert>
-            ) : openVersion ? (
+            ) : (
               <Alert
-                severity={
-                  openVersion.status === 'PUBLISHED'
-                    ? 'success'
-                    : openVersion.status === 'RETURNED'
-                      ? 'warning'
-                      : 'info'
-                }
+                severity={openVersion.status === 'RETURNED' ? 'warning' : 'info'}
                 sx={{ borderRadius: '10px' }}
               >
                 {t(NEXT_STEP[openVersion.status] ?? openVersion.status)}
                 {openVersion.returnReason ? ` — ${t('Reason:')} ${openVersion.returnReason}` : ''}
               </Alert>
-            ) : null}
+            )}
 
             {createDraft.isPending && <DraftProgressTracker />}
             {createDraft.isSuccess && (
               <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                {t('Report draft created. Review and edit the sections below.')}
+                {t('Report compiled successfully. Review the sections below.')}
               </Alert>
             )}
             {createDraft.isError && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                {getErrorMessage(createDraft.error, 'The report draft was not created.')}
+                {getErrorMessage(createDraft.error, 'The report was not generated.')}
               </Alert>
             )}
             {authorManualDraft.isError && (
               <Alert severity="error" sx={{ borderRadius: '10px' }}>
-                {getErrorMessage(authorManualDraft.error, 'The structured draft was not saved.')}
+                {getErrorMessage(authorManualDraft.error, 'The structured report was not saved.')}
               </Alert>
-            )}
-            {verify.isError && (
-              <MutationProblemAlert
-                error={verify.error}
-                isError
-                fallbackMessage={
-                  isConflict(verify.error)
-                    ? t(
-                        'The server refused this verification. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
-                      )
-                    : t('Could not verify this report draft.')
-                }
-              />
             )}
             {submit.isError && (
               <MutationProblemAlert
@@ -355,10 +257,8 @@ export default function InspectionDraftPage() {
                 isError
                 fallbackMessage={
                   isConflict(submit.error)
-                    ? t(
-                        'The server refused this submission. Confirm findings in Step 3 and create a new draft version if evidence or findings changed.',
-                      )
-                    : t('Could not submit this report draft.')
+                    ? t('The server refused this submission. Confirm findings in Step 3 and generate a new report version if evidence or findings changed.')
+                    : t('Could not submit this report.')
                 }
               />
             )}
@@ -373,7 +273,7 @@ export default function InspectionDraftPage() {
         </Paper>
       )}
 
-      {versionList.length === 0 ? (
+      {createDraft.isPending && (
         <Paper
           variant="outlined"
           sx={{
@@ -381,17 +281,55 @@ export default function InspectionDraftPage() {
             borderRadius: '16px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
+          }}
+        >
+          <DraftProgressTracker />
+        </Paper>
+      )}
+
+      {!createDraft.isPending && versionList.length === 0 ? (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: '16px',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
             textAlign: 'center',
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-            {t('No report version yet')}
+          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
+            {findingsConfirmed ? t('Ready to Submit Inspection Report') : t('No report version yet')}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {t(
-              'Once findings are confirmed in Step 3, generate an AI-assisted draft or create a blank manual draft above to author the report here.',
-            )}
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 540, mx: 'auto', mb: 2.5 }}>
+            {findingsConfirmed
+              ? t('All defect findings and field evidence have been verified. Click below to compile and submit the official inspection report for Platform Manager review.')
+              : t('Once findings are confirmed in Step 3, the inspection report can be compiled and submitted.')}
           </Typography>
+
+          {isInspector && findingsConfirmed && (
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              disabled={isSubmitting}
+              onClick={() => setConfirmSubmitOpen(true)}
+              sx={{ borderRadius: '10px', px: 3, py: 1, textTransform: 'none', fontWeight: 700 }}
+            >
+              {createDraft.isPending ? t('Compiling & Submitting…') : t('Submit for review')}
+            </Button>
+          )}
+
+          {!findingsConfirmed && (
+            <Button
+              component={RouterLink}
+              to="../findings"
+              variant="outlined"
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              {t('Go to Findings')}
+            </Button>
+          )}
         </Paper>
       ) : (
         openVersion && (
@@ -403,6 +341,7 @@ export default function InspectionDraftPage() {
             inspectionId={inspectionId}
             canEdit={canEditOpenVersion}
             onSaveSections={handleSaveSections}
+            onDirtyChange={onReportDirtyChange}
             reinspectionVerifications={reinspectionVerifications.data}
           />
         )
@@ -413,12 +352,16 @@ export default function InspectionDraftPage() {
         title={t('Confirm Report Submission')}
         cancelLabel={t('Cancel')}
         confirmLabel={t('Confirm and Submit')}
-        loading={submit.isPending}
+        loading={isSubmitting}
         maxWidth="sm"
         onCancel={() => setConfirmSubmitOpen(false)}
         onConfirm={() => {
-          if (openVersion) {
+          if (openVersion && openVersion.status === 'RETURNED') {
             submit.mutate(openVersion.id, {
+              onSuccess: () => setConfirmSubmitOpen(false),
+            });
+          } else {
+            createDraft.mutate(undefined, {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
           }

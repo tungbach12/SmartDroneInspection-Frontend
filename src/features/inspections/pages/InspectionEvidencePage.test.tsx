@@ -149,7 +149,7 @@ describe('InspectionEvidencePage', () => {
   });
 
   it('keeps evidence editable during report drafting and locks it while submitted', () => {
-    mocks.workflowQuery = { data: { status: 'REPORT_DRAFT' }, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     mocks.evidenceQuery = {
       data: { items: [imageEvidence()], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, activeCount: 1, retiredCount: 0, latestCreatedAt: null, latestRetiredAt: null },
       isLoading: false,
@@ -168,7 +168,7 @@ describe('InspectionEvidencePage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.workflowQuery = { data: { status: 'REPORT_DRAFT' }, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     rerender(<InspectionEvidencePage />);
     expect(screen.queryByRole('button', { name: 'Choose evidence files' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete evidence' })).toBeNull();

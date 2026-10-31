@@ -210,6 +210,18 @@ describe('InspectionFindingsPage', () => {
     useAuthStore.getState().clearSession();
   });
 
+  it('keeps advanced finding filters behind a disclosure and allows them to be revealed', () => {
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByRole('button', { name: 'More filters' })).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Finding status' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    expect(screen.getByRole('combobox', { name: 'Finding status' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Severity' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Detection source' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: /Only photos with defects/i })).toBeTruthy();
+  });
+
   it('lets the Inspector edit a manual finding while the report is not submitted', async () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [undecidedFinding()], isLoading: false, isError: false, error: null, refetch: vi.fn() };
@@ -437,7 +449,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-08T09:00:00Z',
         findingsSnapshotHash: 'abcdef1234567890',
       },
@@ -463,7 +475,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = {
       data: {
-        status: 'REPORT_DRAFT',
+        status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-08T09:00:00Z',
         findingsSnapshotHash: 'abcdef1234567890',
       },
@@ -539,7 +551,7 @@ describe('InspectionFindingsPage', () => {
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
-  it('allows editing confirmed findings during REPORT_DRAFT and blocks them while submitted', () => {
+  it('allows editing confirmed findings during FIELD_COMPLETED and blocks them while submitted', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [{ ...undecidedFinding(), status: 'CONFIRMED' }],
@@ -548,7 +560,7 @@ describe('InspectionFindingsPage', () => {
       refetch: vi.fn(),
     };
     mocks.workflowQuery = {
-      data: { status: 'REPORT_DRAFT', findingsConfirmedAt: '2026-10-08T09:00:00Z', findingsSnapshotHash: 'hash' },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-08T09:00:00Z', findingsSnapshotHash: 'hash' },
       isLoading: false,
       error: null,
     };
@@ -604,7 +616,7 @@ describe('InspectionFindingsPage', () => {
     const sharedLocation = screen.getByLabelText('Asset location description for this photo');
     fireEvent.change(sharedLocation, { target: { value: 'Girder G4, east face' } });
     fireEvent.blur(sharedLocation);
-    fireEvent.mouseDown(screen.getAllByLabelText('Severity')[1]!);
+    fireEvent.mouseDown(screen.getAllByLabelText('Severity')[0]!);
     fireEvent.click(screen.getByRole('option', { name: 'HIGH' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -844,5 +856,29 @@ describe('InspectionFindingsPage', () => {
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('renders Notes and Recommended action labels with None fallback when null or empty', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [
+        {
+          ...undecidedFinding(),
+          status: 'CONFIRMED',
+          technicalNotes: null,
+          recommendedAction: null,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText('Notes:')).toBeTruthy();
+    expect(screen.getByText('Recommended action:')).toBeTruthy();
+    expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(2);
   });
 });

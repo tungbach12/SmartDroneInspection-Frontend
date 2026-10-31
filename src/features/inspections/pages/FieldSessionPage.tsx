@@ -51,7 +51,7 @@ export default function FieldSessionPage() {
   const [preFlightNote, setPreFlightNote] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
-    kind: 'postpone' | 'abort' | 'complete';
+    kind: 'abort' | 'complete';
   } | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
 
@@ -64,12 +64,12 @@ export default function FieldSessionPage() {
   const canStart =
     !openSession &&
     hasPermit &&
-    ['READY_FOR_FLIGHT', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
+    ['SCHEDULED', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
       inspection?.status ?? '',
     );
   const canContinueToEvidence =
     !openSession &&
-    (['FIELD_COMPLETED', 'REPORT_DRAFT'].includes(inspection?.status ?? '') ||
+    (inspection?.status === 'FIELD_COMPLETED' ||
       latestSession?.status === 'FIELD_COMPLETED');
   const canStartAnother =
     canStart &&
@@ -78,14 +78,14 @@ export default function FieldSessionPage() {
 
   const openOutcomeDialog = (
     session: FieldSession,
-    kind: 'postpone' | 'abort' | 'complete',
+    kind: 'abort' | 'complete',
   ) => {
     setOutcomeReason('');
     setOutcomeTarget({ session, kind });
   };
 
   return (
-    <Box className="workspace-page workspace-page--inspections" sx={{ maxWidth: 960, mx: 'auto' }}>
+    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace" sx={{ maxWidth: 1040, mx: 'auto' }}>
       <Stack spacing={2}>
         {isReinspection && (
           <TargetFlightShotList
@@ -114,8 +114,8 @@ export default function FieldSessionPage() {
           onRetry={() => void inspectionQuery.refetch()}
           loadingLabel={t('Loading inspection…')}
         >
-          {inspection && !hasPermit && inspection.status === 'ASSIGNED' ? (
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+          {inspection && !hasPermit && inspection.status === 'SCHEDULED' ? (
+            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
               <Stack spacing={1.5}>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -188,7 +188,7 @@ export default function FieldSessionPage() {
               </Box>
               <Chip size="small" label={t('On file')} color="success" variant="outlined" />
             </Paper>
-          ) : inspection && inspection.status !== 'ASSIGNED' && !hasPermit ? (
+          ) : inspection && inspection.status !== 'SCHEDULED' && !hasPermit ? (
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
@@ -202,7 +202,7 @@ export default function FieldSessionPage() {
           loadingLabel={t('Loading field sessions…')}
         >
           {inspection && (
-            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
+            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
               <Stack spacing={2}>
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
@@ -239,16 +239,10 @@ export default function FieldSessionPage() {
                       </Button>
                       <Button
                         variant="outlined"
-                        onClick={() => openOutcomeDialog(openSession, 'postpone')}
-                      >
-                        {t('Postpone')}
-                      </Button>
-                      <Button
-                        variant="outlined"
                         color="error"
                         onClick={() => openOutcomeDialog(openSession, 'abort')}
                       >
-                        {t('Abort')}
+                        {t('Abort session')}
                       </Button>
                     </Stack>
                   ) : canContinueToEvidence ? (
@@ -299,6 +293,21 @@ export default function FieldSessionPage() {
                   isError={outcome.isError}
                   fallbackMessage={t('Could not record the session outcome.')}
                 />
+
+                {!openSession && latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED' && (
+                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {t('Previous flight session was aborted')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {latestSession.endedAt ? `${t('Ended')} ${formatDateTime(new Date(latestSession.endedAt))} · ` : ''}
+                      {t('Reason')}: "{latestSession.abortReason}"
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      {t('The inspection status was returned to SCHEDULED. Contact manager for rescheduling, or start a new session when conditions are safe.')}
+                    </Typography>
+                  </Alert>
+                )}
               </Stack>
             </Paper>
           )}
@@ -414,15 +423,13 @@ export default function FieldSessionPage() {
         >
           <DialogTitle sx={{ fontWeight: 700 }}>
             {outcomeTarget?.kind === 'abort'
-              ? t('Stop the session')
-              : outcomeTarget?.kind === 'complete'
-                ? t('Complete the session')
-                : t('Postpone the session')}
+              ? t('Abort the flight session')
+              : t('Complete the session')}
           </DialogTitle>
           <DialogContent>
             <Stack spacing={1.5} sx={{ mt: 1 }}>
               <TextField
-                label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Reason')}
+                label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Abort reason')}
                 required
                 multiline
                 minRows={3}
@@ -431,9 +438,7 @@ export default function FieldSessionPage() {
                 helperText={
                   outcomeTarget?.kind === 'complete'
                     ? t('Summarize the work completed at the site.')
-                    : outcomeTarget?.kind === 'abort'
-                      ? t('Explain why this session cannot continue.')
-                      : t('Explain why work must pause. The inspection can be started again later.')
+                    : t('Explain why this session was aborted (weather, technical defect, etc.). A notification will be sent to the manager.')
                 }
               />
               <MutationProblemAlert
@@ -448,15 +453,13 @@ export default function FieldSessionPage() {
             <LoadingButton
               type="submit"
               variant="contained"
-              color={outcomeTarget?.kind === 'abort' ? 'error' : outcomeTarget?.kind === 'complete' ? 'success' : 'primary'}
+              color={outcomeTarget?.kind === 'abort' ? 'error' : 'success'}
               loading={outcome.isPending}
               disabled={!outcomeReason.trim()}
             >
               {outcomeTarget?.kind === 'abort'
-                ? t('Stop session')
-                : outcomeTarget?.kind === 'complete'
-                  ? t('Complete session')
-                  : t('Postpone session')}
+                ? t('Abort session')
+                : t('Complete session')}
             </LoadingButton>
           </DialogActions>
         </form>

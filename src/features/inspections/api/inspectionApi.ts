@@ -6,8 +6,6 @@ import { api } from '@/shared/api/client';
  * and a qualified CUSTOMER reviewer who is not the author decides.
  */
 export type ReportStatus =
-  | 'DRAFT'
-  | 'AUTHOR_VERIFIED'
   | 'SUBMITTED'
   | 'RETURNED'
   | 'APPROVED'
@@ -207,18 +205,29 @@ export interface PayOSCheckoutDetails {
   qrCode: string;
 }
 
+export interface ReportPaymentStatusDetails {
+  reportAccepted: boolean;
+  paid: boolean;
+  paymentStatus: string;
+  orderCode: number | null;
+  amount: number | null;
+  checkoutUrl: string | null;
+}
+
 export interface ManualDraftInput {}
 
+export interface ReportAiSummary {
+  summary: string;
+  keyHighlights: string[];
+  recommendedActions: string;
+  overallRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
 export type InspectionStatus =
-  | 'DRAFT'
-  | 'ASSIGNED'
-  | 'READY_FOR_FLIGHT'
+  | 'SCHEDULED'
   | 'IN_PROGRESS'
   | 'FIELD_COMPLETED'
-  | 'REPORT_DRAFT'
   | 'UNDER_REVIEW'
-  | 'REPORT_PUBLISHED'
-  | 'REPAIR_PENDING'
   | 'COMPLETED'
   | 'CANCELLED';
 
@@ -385,6 +394,21 @@ export const inspectionApi = {
       .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit`, form)
       .then((response) => response.data);
   },
+
+  reschedule: (inspectionId: string, payload: { plannedStartAt: string; plannedEndAt: string }) =>
+    api
+      .put<InspectionDetail>(`/inspections/${inspectionId}/schedule`, payload)
+      .then((response) => response.data),
+
+  reassign: (inspectionId: string, payload: { inspectorId: string; droneId?: string | null }) =>
+    api
+      .put<InspectionDetail>(`/inspections/${inspectionId}/assignment`, payload)
+      .then((response) => response.data),
+
+  cancel: (inspectionId: string, payload?: { reason?: string }) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/cancellation`, payload ?? {})
+      .then((response) => response.data),
 
   // MF3-01/02 evidence intake. The server computes the checksum and treats a repeat as idempotent.
   listEvidence: (inspectionId: string) =>
@@ -647,6 +671,13 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  getAiSummary: (inspectionId: string, versionId: string) =>
+    api
+      .get<ReportAiSummary>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/ai-summary`,
+      )
+      .then((response) => response.data),
+
   /** Customer accepts the published report version to start payment window. */
   acceptReport: (inspectionId: string, versionId: string) =>
     api
@@ -660,6 +691,13 @@ export const inspectionApi = {
     api
       .post<PayOSCheckoutDetails>(
         `/inspections/${inspectionId}/payos/create-payment-link`,
+      )
+      .then((response) => response.data),
+
+  getReportPaymentStatus: (inspectionId: string) =>
+    api
+      .get<ReportPaymentStatusDetails>(
+        `/inspections/${inspectionId}/report/payment-status`,
       )
       .then((response) => response.data),
 

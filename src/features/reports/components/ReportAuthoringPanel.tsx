@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,7 +17,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
-import SaveRounded from '@mui/icons-material/SaveRounded';
 import type {
   EvidenceItem,
   InspectionReport,
@@ -29,20 +27,16 @@ import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ReportDerivedSections } from './ReportDerivedSections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import {
-  EMPTY_SECTION_VALUES,
-  ReportSectionField,
-  sectionValuesFrom,
-  type ReportSectionValues,
-} from './ReportSectionForm';
+import type { ReportSectionValues } from './ReportSectionForm';
 
 export interface ReportAuthoringPanelProps {
   version: InspectionReport;
   findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;
-  canEdit: boolean;
-  onSaveSections: (sections: ReportSectionValues) => Promise<unknown>;
+  canEdit?: boolean;
+  onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
+  onDirtyChange?: ((dirty: boolean) => void) | undefined;
   reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
 }
 
@@ -62,18 +56,10 @@ export function ReportAuthoringPanel({
   findings,
   evidenceList,
   inspectionId,
-  canEdit,
-  onSaveSections,
+  canEdit = false,
   reinspectionVerifications,
 }: ReportAuthoringPanelProps) {
   const { t } = useLocale();
-  const [sections, setSections] = useState<ReportSectionValues>(() =>
-    sectionValuesFrom(version),
-  );
-  const [saved, setSaved] = useState<ReportSectionValues>(() =>
-    sectionValuesFrom(version),
-  );
-  const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -89,29 +75,8 @@ export function ReportAuthoringPanel({
     };
   }, [previewUrl]);
 
-  const hasChanges =
-    JSON.stringify(sections) !== JSON.stringify(saved) ||
-    JSON.stringify(sectionValuesFrom(version)) !== JSON.stringify(saved);
-
-  const change = <K extends keyof ReportSectionValues>(
-    field: K,
-    value: ReportSectionValues[K],
-  ) => setSections((previous) => ({ ...previous, [field]: value }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await onSaveSections(sections);
-      setSaved(sections);
-    } catch (saveError) {
-      setError(getErrorMessage(saveError, 'The report sections could not be saved.'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const isPublished = version.status === 'PUBLISHED';
+
   const canPreview = canEdit || isPublished;
   const canDownload = canEdit || isPublished;
 
@@ -179,29 +144,16 @@ export function ReportAuthoringPanel({
         bgcolor: 'background.paper',
       }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', alignItems: { xs: 'stretch', md: 'center' } }}>
         <Box sx={{ flex: 1, minWidth: 240 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-            {t('Report sections')}
+            {t('Report details')}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-            Sections marked with the author are yours to write. The rest are read from the reviewed
-            records.
+            {t('Report generated automatically from confirmed findings, evidence, and flight records.')}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
-          {canEdit && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<SaveRounded />}
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-            >
-              {saving ? 'Saving…' : 'Save sections'}
-            </Button>
-          )}
           {canPreview && (
             <Button
               size="small"
@@ -211,10 +163,10 @@ export function ReportAuthoringPanel({
               disabled={previewing}
               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
             >
-              {previewing ? 'Rendering…' : 'Preview PDF'}
+              {previewing ? t('Rendering…') : t('Preview PDF')}
             </Button>
           )}
-          <Tooltip title={!canDownload ? 'Available once the report is published' : ''}>
+          <Tooltip title={!canDownload ? t('Available once the report is published') : ''}>
             <span>
               <Button
                 size="small"
@@ -224,7 +176,7 @@ export function ReportAuthoringPanel({
                 disabled={!canDownload || downloading}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                {downloading ? 'Downloading…' : 'Download report'}
+                {downloading ? t('Downloading…') : t('Download report')}
               </Button>
             </span>
           </Tooltip>
@@ -243,30 +195,6 @@ export function ReportAuthoringPanel({
         evidenceList={evidenceList}
         inspectionId={inspectionId}
         reinspectionVerifications={reinspectionVerifications}
-        executiveSummary={
-          <ReportSectionField
-            section="executiveSummary"
-            sections={sections}
-            onChange={change}
-            disabled={!canEdit}
-          />
-        }
-        limitations={
-          <ReportSectionField
-            section="omissionDisclosure"
-            sections={sections}
-            onChange={change}
-            disabled={!canEdit}
-          />
-        }
-        conclusions={
-          <ReportSectionField
-            section="conclusionsRecommendations"
-            sections={sections}
-            onChange={change}
-            disabled={!canEdit}
-          />
-        }
       />
 
       {/* PDF Preview Dialog */}
@@ -288,46 +216,21 @@ export function ReportAuthoringPanel({
         <DialogTitle
           sx={{
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
-            pb: 1.5,
-            borderBottom: '1px solid #eaecf0',
-            bgcolor: '#ffffff',
+            alignItems: 'center',
+            p: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: '8px',
-                bgcolor: '#f0f4ff',
-                color: '#3538cd',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <PictureAsPdfRounded fontSize="small" />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#101828' }}>
-                {t('Report PDF Preview')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#667085' }}>
-                {reportRef}
-              </Typography>
-            </Box>
-            <Chip
-              label={version.status}
-              size="small"
-              sx={{
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                bgcolor: isPublished ? '#ecfdf3' : '#f8f9fc',
-                color: isPublished ? '#027a48' : '#344054',
-              }}
-            />
+            <PictureAsPdfRounded sx={{ color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
+              {isPublished ? t('Published Report PDF') : t('Draft Report Preview')}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+              {reportRef}
+            </Typography>
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             {previewUrl && (
@@ -341,72 +244,47 @@ export function ReportAuthoringPanel({
                 {t('Open in new tab')}
               </Button>
             )}
-            {previewBlob && (
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<DownloadRounded />}
-                onClick={() => {
-                  const fileName = isPublished ? `${reportRef}.pdf` : `${reportRef}-draft.pdf`;
-                  triggerDownload(previewBlob, fileName);
-                }}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {t('Download PDF')}
-              </Button>
-            )}
-            <IconButton onClick={handleClosePreview} size="small" aria-label={t('Close preview')}>
+            <IconButton onClick={handleClosePreview} size="small" aria-label="close">
               <CloseIcon />
             </IconButton>
           </Stack>
         </DialogTitle>
-
-        <DialogContent sx={{ p: 0, bgcolor: '#f8fafc', height: '75vh', overflow: 'hidden' }}>
+        <DialogContent sx={{ p: 0, bgcolor: 'background.default' }}>
           {previewUrl ? (
-            <Box
-              component="iframe"
+            <iframe
               src={previewUrl}
-              title={t('Report PDF Preview')}
-              sx={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                display: 'block',
-              }}
+              title={reportRef}
+              width="100%"
+              height="750px"
+              style={{ border: 'none', display: 'block' }}
             />
           ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: '#667085',
-              }}
-            >
-              <Typography>{t('Loading preview…')}</Typography>
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography color="text.secondary">{t('No PDF preview available.')}</Typography>
             </Box>
           )}
         </DialogContent>
-
-        <DialogActions sx={{ px: 3, py: 1.5, borderTop: '1px solid #eaecf0', bgcolor: '#ffffff' }}>
-          <Typography variant="caption" sx={{ color: '#667085', flex: 1 }}>
-            {isPublished
-              ? 'This is the official published deliverable.'
-              : 'Preview is rendered from the current report sections and reviewed findings.'}
-          </Typography>
-          <Button
-            onClick={handleClosePreview}
-            variant="outlined"
-            size="small"
-            sx={{ borderRadius: '8px', textTransform: 'none' }}
-          >
+        <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button onClick={handleClosePreview} sx={{ borderRadius: '8px', textTransform: 'none' }}>
             {t('Close')}
           </Button>
+          {previewBlob && (
+            <Button
+              variant="contained"
+              startIcon={<DownloadRounded />}
+              onClick={() => {
+                const fileName = isPublished
+                  ? `${reportRef}.pdf`
+                  : `${reportRef}-draft.pdf`;
+                triggerDownload(previewBlob, fileName);
+              }}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              {t('Download PDF')}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Paper>
   );
 }
-
-export { EMPTY_SECTION_VALUES };

@@ -1,5 +1,5 @@
-import { render } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   EvidenceItem,
   InspectionReport,
@@ -15,7 +15,7 @@ const version: InspectionReport = {
   id: 'version-1',
   inspectionReportId: 'report-1',
   versionNo: 1,
-  status: 'DRAFT',
+  status: 'SUBMITTED',
   authorUserId: 'author-1',
   submittedAt: null,
   reviewerUserId: null,
@@ -111,9 +111,15 @@ function renderConfirmedFindings(findings: Finding[]) {
     />,
   );
   return Array.from(container.querySelectorAll('section')).find(
-    (section) => section.querySelector('h2')?.textContent === 'Confirmed findings',
+    (section) =>
+      section.querySelector('h2')?.textContent === 'Evidence register' ||
+      section.querySelector('h2')?.textContent === 'Confirmed findings',
   );
 }
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('ReportDerivedSections source context', () => {
   it('shows source-backed organization, asset, drone and session details without legacy fields or raw UUIDs', () => {
@@ -168,10 +174,9 @@ describe('ReportDerivedSections confirmed findings', () => {
     ]);
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
-    expect(section?.textContent).toContain('Inspector-confirmed');
-    expect(section?.textContent).not.toContain('await Organization Manager decision');
-    expect(section?.textContent).not.toContain('additional finding(s)');
-    expect(section?.textContent).not.toContain('No confirmed findings were recorded');
+    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Inspector-confirmed')).toBeTruthy();
   });
 
   it('excludes reviewer-rejected findings from the section', () => {
@@ -180,5 +185,69 @@ describe('ReportDerivedSections confirmed findings', () => {
     ]);
 
     expect(section?.textContent).not.toContain('spurious-seam');
+  });
+
+  it('always displays Technical notes and Recommended action even when empty or null', () => {
+    renderConfirmedFindings([
+      finding({
+        defectLabel: 'Crack',
+        status: 'CONFIRMED',
+        technicalNotes: '',
+        recommendedAction: null,
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Technical notes:/)).toBeTruthy();
+    expect(within(dialog).getByText(/Recommended action:/)).toBeTruthy();
+  });
+
+  it('displays Technical notes and Recommended action content when provided', () => {
+    renderConfirmedFindings([
+      finding({
+        defectLabel: 'Corrosion',
+        status: 'CONFIRMED',
+        technicalNotes: 'Surface rust visible on bracket',
+        recommendedAction: 'Apply anti-corrosion primer',
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Surface rust visible on bracket/)).toBeTruthy();
+    expect(within(dialog).getByText(/Apply anti-corrosion primer/)).toBeTruthy();
+  });
+
+  it('renders findings preview on evidence item and opens modal via the small link', () => {
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            defectLabel: 'Surface crack',
+            severity: 'HIGH',
+            status: 'CONFIRMED',
+            technicalNotes: 'Longitudinal crack near seam',
+            recommendedAction: 'Seal and monitor',
+          }),
+        ]}
+        evidenceList={[evidence]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(screen.getByText('Findings preview')).toBeTruthy();
+    expect(screen.getByText('Surface crack · HIGH')).toBeTruthy();
+
+    const openModalBtn = screen.getByRole('button', { name: /View finding details/i });
+    expect(openModalBtn).toBeTruthy();
+
+    fireEvent.click(openModalBtn);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(within(dialog).getByText('Surface crack')).toBeTruthy();
+    expect(within(dialog).getByText(/Longitudinal crack near seam/)).toBeTruthy();
+    expect(within(dialog).getByText(/Seal and monitor/)).toBeTruthy();
   });
 });

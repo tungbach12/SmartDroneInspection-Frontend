@@ -364,7 +364,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               </Paper>
             ) : (
               props.findings.map((finding) => {
-                const box = parseBoundingBox(finding.boundingBox ?? undefined);
                 const confirmed = finding.status === 'CONFIRMED';
                 const isEditing = props.editingCandidateId === finding.id;
 
@@ -538,25 +537,30 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 label={confirmed ? t('Confirmed') : t('Awaiting review')}
                                 sx={{ fontWeight: 600, fontSize: '11px' }}
                               />
-                              {box && (
-                                <Chip
-                                  size="small"
-                                  variant="outlined"
-                                  label={`[${Math.round(box.xMin * 100)}%, ${Math.round(box.yMin * 100)}%] → [${Math.round(box.xMax * 100)}%, ${Math.round(box.yMax * 100)}%]`}
-                                  sx={{ fontFamily: 'monospace', fontSize: '10px', color: 'text.secondary' }}
-                                />
-                              )}
                             </Stack>
 
-                            <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.5 }}>
-                              {finding.technicalNotes}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: finding.technicalNotes?.trim() ? 'text.primary' : 'text.disabled',
+                                fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <strong>{t('Notes')}:</strong>{' '}
+                              {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
                             </Typography>
-                            {finding.recommendedAction && (
-                              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-                                <strong>{t('Recommended action:')}</strong>{' '}
-                                {finding.recommendedAction}
-                              </Typography>
-                            )}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: finding.recommendedAction?.trim() ? 'text.secondary' : 'text.disabled',
+                                fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic',
+                                fontSize: '0.8125rem',
+                              }}
+                            >
+                              <strong>{t('Recommended action:')}</strong>{' '}
+                              {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
+                            </Typography>
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (

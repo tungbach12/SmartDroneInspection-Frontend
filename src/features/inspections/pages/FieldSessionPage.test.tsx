@@ -58,7 +58,7 @@ const INSPECTION = {
   id: 'inspection-1',
   assetName: 'Red River Bridge',
   locationText: JSON.stringify({ latitude: 21.0285, longitude: 105.8542, label: 'Hanoi, Vietnam' }),
-  status: 'READY_FOR_FLIGHT',
+  status: 'SCHEDULED',
   flightPermitFileName: 'permit-license.pdf',
   flightPermitUploadedAt: '2026-10-20T01:00:00Z',
   inspectionItems: ['Mố cầu', 'Dầm chính'],
@@ -113,14 +113,14 @@ describe('FieldSessionPage', () => {
     expect(screen.queryByText('Asset Inspection Checkpoints & Pre-Flight Checklist')).toBeNull();
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByRole('button', { name: 'Complete session' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Postpone' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Abort' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Postpone' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Abort session' })).toBeTruthy();
   });
 
-  it('shows the permit upload action when inspection status is ASSIGNED', async () => {
+  it('shows the permit upload action when inspection status is SCHEDULED', async () => {
     mocks.getById.mockResolvedValue({
       ...INSPECTION,
-      status: 'ASSIGNED',
+      status: 'SCHEDULED',
       flightPermitFileName: null,
     });
     mocks.list.mockResolvedValue([]);
@@ -174,32 +174,14 @@ describe('FieldSessionPage', () => {
     );
   });
 
-  it('records a postponement with the inspector stated reason', async () => {
-    renderWithClient();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Postpone' }));
-    fireEvent.change(await screen.findByLabelText(/Reason/), {
-      target: { value: 'Crosswind above the safe limit.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Postpone session' }));
-
-    await waitFor(() =>
-      expect(mocks.postpone).toHaveBeenCalledWith(
-        'inspection-1',
-        'session-1',
-        'Crosswind above the safe limit.',
-      ),
-    );
-  });
-
   it('records an abort with the inspector stated reason', async () => {
     renderWithClient();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Abort' }));
-    fireEvent.change(await screen.findByLabelText(/Reason/), {
+    fireEvent.click(await screen.findByRole('button', { name: 'Abort session' }));
+    fireEvent.change(await screen.findByLabelText(/Abort reason/), {
       target: { value: 'Unauthorised personnel entered the exclusion zone.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Stop session' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Abort session', hidden: false }));
 
     await waitFor(() =>
       expect(mocks.abort).toHaveBeenCalledWith(
@@ -208,6 +190,21 @@ describe('FieldSessionPage', () => {
         'Unauthorised personnel entered the exclusion zone.',
       ),
     );
+  });
+
+  it('displays a warning alert when previous flight session was aborted', async () => {
+    mocks.list.mockResolvedValue([
+      {
+        ...SESSION,
+        status: 'ABORTED',
+        abortReason: 'Heavy rain and storm',
+        endedAt: '2026-10-20T03:00:00Z',
+      },
+    ]);
+    renderWithClient();
+
+    expect(await screen.findByText('Previous flight session was aborted')).toBeTruthy();
+    expect(screen.getByText(/Heavy rain and storm/)).toBeTruthy();
   });
 
   it('records session completion with the inspector outcome notes and displays them when completed', async () => {
