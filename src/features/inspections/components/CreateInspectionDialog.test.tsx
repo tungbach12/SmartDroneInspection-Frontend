@@ -4,28 +4,11 @@ import type React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateInspection = vi.fn();
-const mockCreateRecurringSchedule = vi.fn();
-let mockActiveSchedules: { id: string; assetId: string; status: string }[] = [];
 
 vi.mock('../hooks/useInspections', () => ({
   useCreateInspection: () => ({
     mutate: mockCreateInspection,
     isPending: false,
-    isError: false,
-    error: null,
-  }),
-}));
-
-vi.mock('../hooks/useRecurringSchedules', () => ({
-  useCreateRecurringSchedule: () => ({
-    mutate: mockCreateRecurringSchedule,
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
-  useRecurringSchedules: () => ({
-    data: { items: mockActiveSchedules, total: mockActiveSchedules.length },
-    isLoading: false,
     isError: false,
     error: null,
   }),
@@ -102,7 +85,6 @@ describe('CreateInspectionDialog', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
-    mockActiveSchedules = [];
   });
 
   it('renders direct inspector and drone select dropdowns', async () => {
@@ -168,152 +150,5 @@ describe('CreateInspectionDialog', () => {
 
     expect(handleSuccess).toHaveBeenCalledWith('insp-new-1');
     expect(handleClose).toHaveBeenCalled();
-  });
-
-  it('switches to recurring schedule and shows recurrence options', async () => {
-    renderWithClient(
-      <CreateInspectionDialog
-        open={true}
-        onClose={vi.fn()}
-        preselectedAssetId="asset-1"
-      />,
-    );
-
-    expect(screen.getByLabelText(/One-off/i)).toBeTruthy();
-    const recurringRadio = screen.getByLabelText(/Recurring schedule/i);
-    expect(recurringRadio).toBeTruthy();
-
-    fireEvent.click(recurringRadio);
-
-    expect(screen.getByLabelText(/Recurrence Frequency/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Repeat Interval/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Timezone Anchor/i)).toBeTruthy();
-    expect(screen.getByLabelText(/First Inspection Date/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Reminder Days/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Create Schedule/i })).toBeTruthy();
-  });
-
-  it('submits recurring schedule with direct inspector and drone, anchor, interval, frequency, and reminder days', async () => {
-    mockCreateRecurringSchedule.mockImplementation((_payload, { onSuccess }) => {
-      onSuccess?.({ id: 'sched-101' });
-    });
-
-    const handleSuccess = vi.fn();
-    const handleClose = vi.fn();
-
-    renderWithClient(
-      <CreateInspectionDialog
-        open={true}
-        onClose={handleClose}
-        preselectedAssetId="asset-1"
-        onSuccess={handleSuccess}
-      />,
-    );
-
-    const recurringRadio = screen.getByLabelText(/Recurring schedule/i);
-    fireEvent.click(recurringRadio);
-
-    fireEvent.mouseDown(screen.getByLabelText(/Inspector/));
-    fireEvent.click(await screen.findByRole('option', { name: /Inspector Alice/ }));
-
-    fireEvent.mouseDown(screen.getByLabelText(/Drone/));
-    fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
-
-    const anchorInput = screen.getByLabelText(/First Inspection Date/i);
-    fireEvent.change(anchorInput, { target: { value: '2026-11-01' } });
-
-    const intervalInput = screen.getByLabelText(/Repeat Interval/i);
-    fireEvent.change(intervalInput, { target: { value: '2' } });
-
-    const reminderInput = screen.getByLabelText(/Reminder Days/i);
-    fireEvent.change(reminderInput, { target: { value: '5' } });
-
-    const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(mockCreateRecurringSchedule).toHaveBeenCalledWith(
-        expect.objectContaining({
-          assetId: 'asset-1',
-          anchor: '2026-11-01T08:00:00',
-          interval: 2,
-          reminderDays: 5,
-          durationSeconds: expect.any(Number),
-          inspectorId: 'insp-1',
-          droneId: 'drone-1',
-        }),
-        expect.anything(),
-      );
-    });
-
-    expect(handleSuccess).toHaveBeenCalledWith('sched-101');
-    expect(handleClose).toHaveBeenCalled();
-  });
-
-  it('submits recurring schedule with selected inspector and drone', async () => {
-    mockCreateRecurringSchedule.mockImplementation((_payload, { onSuccess }) => {
-      onSuccess?.({ id: 'sched-102' });
-    });
-
-    renderWithClient(
-      <CreateInspectionDialog
-        open={true}
-        onClose={vi.fn()}
-        preselectedAssetId="asset-1"
-      />,
-    );
-
-    const recurringRadio = screen.getByLabelText(/Recurring schedule/i);
-    fireEvent.click(recurringRadio);
-
-    fireEvent.mouseDown(screen.getByLabelText(/Inspector/));
-    fireEvent.click(await screen.findByRole('option', { name: /Inspector Bob/ }));
-
-    fireEvent.mouseDown(screen.getByLabelText(/Drone/));
-    fireEvent.click(await screen.findByRole('option', { name: /DJI-002/ }));
-
-    const anchorInput = screen.getByLabelText(/First Inspection Date/i);
-    fireEvent.change(anchorInput, { target: { value: '2026-12-01' } });
-
-    const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(mockCreateRecurringSchedule).toHaveBeenCalledWith(
-        expect.objectContaining({
-          assetId: 'asset-1',
-          anchor: '2026-12-01T08:00:00',
-          inspectorId: 'insp-2',
-          droneId: 'drone-2',
-        }),
-        expect.anything(),
-      );
-    });
-  });
-
-  it('disables submit and shows warning alert when asset already has an active recurring schedule', () => {
-    mockActiveSchedules = [
-      {
-        id: 'sched-existing',
-        assetId: 'asset-1',
-        status: 'ACTIVE',
-      },
-    ];
-
-    renderWithClient(
-      <CreateInspectionDialog
-        open={true}
-        onClose={vi.fn()}
-        preselectedAssetId="asset-1"
-        initialScheduleMode="RECURRING"
-      />,
-    );
-
-    expect(
-      screen.getByText(/This asset already has an active recurring inspection schedule/i),
-    ).toBeTruthy();
-
-    const submitBtn = screen.getByRole('button', { name: /Create Schedule/i });
-    expect(submitBtn).toHaveProperty('disabled', true);
   });
 });

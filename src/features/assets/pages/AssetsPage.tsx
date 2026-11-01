@@ -29,7 +29,6 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
-import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
 import GppBadRounded from '@mui/icons-material/GppBadRounded';
 import MapRounded from '@mui/icons-material/MapRounded';
@@ -51,8 +50,6 @@ import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments
 import { useAssets, useCreateAsset, useRetireAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
 import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
-import { useRecurringSchedules } from '@/features/inspections/hooks/useRecurringSchedules';
-import { RecurringScheduleDetailDialog } from '@/features/inspections/components/RecurringScheduleDetailDialog';
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
@@ -92,8 +89,6 @@ export function AssetsPage() {
   const [selected, setSelected] = useState<Asset | null>(null);
   const [resourceTab, setResourceTab] = useState(0);
   const [inspectionAssetId, setInspectionAssetId] = useState<string | null>(null);
-  const [recurringAssetId, setRecurringAssetId] = useState<string | null>(null);
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [surveyMapAsset, setSurveyMapAsset] = useState<Asset | null>(null);
 
@@ -185,26 +180,6 @@ export function AssetsPage() {
                 }}
               >
                 {t('New inspection')}
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<EventRepeatIcon sx={{ fontSize: 15 }} />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setRecurringAssetId(asset.id);
-                }}
-                sx={{
-                  borderRadius: '8px',
-                  borderColor: '#3758f9',
-                  color: '#3758f9',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)', borderColor: '#2b45cb' },
-                }}
-              >
-                {t('Recurring schedule')}
               </Button>
               <Button
                 size="small"
@@ -356,8 +331,6 @@ export function AssetsPage() {
         asset={selected}
         onClose={() => setSelected(null)}
         onNewInspection={(id) => setInspectionAssetId(id)}
-        onNewRecurringSchedule={(id) => setRecurringAssetId(id)}
-        onSelectSchedule={(id) => setSelectedScheduleId(id)}
         onSelectInspection={(id) => setSelectedInspectionId(id)}
       />
       <CreateInspectionDialog
@@ -365,18 +338,6 @@ export function AssetsPage() {
         onClose={() => setInspectionAssetId(null)}
         preselectedAssetId={inspectionAssetId}
         onSuccess={() => void refetch()}
-      />
-      <CreateInspectionDialog
-        open={Boolean(recurringAssetId)}
-        onClose={() => setRecurringAssetId(null)}
-        preselectedAssetId={recurringAssetId}
-        initialScheduleMode="RECURRING"
-        onSuccess={() => void refetch()}
-      />
-      <RecurringScheduleDetailDialog
-        open={Boolean(selectedScheduleId)}
-        scheduleId={selectedScheduleId}
-        onClose={() => setSelectedScheduleId(null)}
       />
       <InspectionWorkDetailDialog
         open={Boolean(selectedInspectionId)}
@@ -816,130 +777,6 @@ function InspectionItemsSection({ items }: { items: string[] }) {
   );
 }
 
-function AssetRecurringSchedulesSection({
-  assetId,
-  isClient,
-  onNewRecurringSchedule,
-  onSelectSchedule,
-}: {
-  assetId: string;
-  isClient: boolean;
-  onNewRecurringSchedule?: (assetId: string) => void;
-  onSelectSchedule?: (scheduleId: string) => void;
-}) {
-  const { t } = useLocale();
-  const schedulesQuery = useRecurringSchedules({ assetId });
-  const schedules = schedulesQuery.data?.items ?? [];
-  const hasActiveSchedule = schedules.some((s) => s.status === 'ACTIVE');
-
-  return (
-    <Box sx={{ my: 1.5, p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
-      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography
-          variant="subtitle2"
-          sx={{ fontWeight: 600, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 0.75 }}
-        >
-          <EventRepeatIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-          {t('Recurring inspection schedules')}
-        </Typography>
-        {isClient && (
-          hasActiveSchedule ? (
-            <Chip
-              size="small"
-              label={t('Active schedule running')}
-              color="success"
-              variant="outlined"
-              sx={{ fontSize: '0.75rem', height: 22, fontWeight: 600 }}
-            />
-          ) : (
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<Add sx={{ fontSize: 14 }} />}
-              onClick={() => onNewRecurringSchedule?.(assetId)}
-              sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600 }}
-            >
-              {t('Add schedule')}
-            </Button>
-          )
-        )}
-      </Stack>
-
-      {schedulesQuery.isLoading ? (
-        <CircularProgress size={18} sx={{ my: 1 }} />
-      ) : schedules.length > 0 ? (
-        <Stack spacing={1}>
-          {schedules.map((schedule) => (
-            <Paper
-              key={schedule.id}
-              variant="outlined"
-              sx={{
-                p: 1.25,
-                borderRadius: '8px',
-                bgcolor: 'background.paper',
-                cursor: 'pointer',
-                transition: 'all 120ms ease',
-                '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-              }}
-              onClick={() => onSelectSchedule?.(schedule.id)}
-            >
-              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
-                    {t('Every')} {schedule.interval} {t(schedule.unit)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                    {schedule.inspectorName ?? t('Assigned Inspector')}
-                    {schedule.droneSerialNumber ? ` · ${schedule.droneSerialNumber}` : ''}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={t(schedule.status)}
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    bgcolor:
-                      schedule.status === 'ACTIVE'
-                        ? 'rgba(16, 185, 129, 0.1)'
-                        : schedule.status === 'PAUSED'
-                          ? 'rgba(245, 158, 11, 0.1)'
-                          : 'rgba(148, 163, 184, 0.1)',
-                    color:
-                      schedule.status === 'ACTIVE'
-                        ? 'success.main'
-                        : schedule.status === 'PAUSED'
-                          ? 'warning.main'
-                          : 'text.secondary',
-                  }}
-                />
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      ) : (
-        <Box sx={{ py: 1, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-            {t('No recurring schedule configured for this asset yet.')}
-          </Typography>
-          {isClient && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<EventRepeatIcon sx={{ fontSize: 14 }} />}
-              onClick={() => onNewRecurringSchedule?.(assetId)}
-              sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem', borderRadius: '8px' }}
-            >
-              {t('Set up recurring schedule')}
-            </Button>
-          )}
-        </Box>
-      )}
-    </Box>
-  );
-}
-
 function AssetInspectionHistorySection({
   assetId,
   onSelectInspection,
@@ -1017,15 +854,11 @@ function AssetDetailDrawer({
   asset,
   onClose,
   onNewInspection,
-  onNewRecurringSchedule,
-  onSelectSchedule,
   onSelectInspection,
 }: {
   asset: Asset | null;
   onClose: () => void;
   onNewInspection?: (assetId: string) => void;
-  onNewRecurringSchedule?: (assetId: string) => void;
-  onSelectSchedule?: (scheduleId: string) => void;
   onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
@@ -1154,25 +987,6 @@ function AssetDetailDrawer({
               >
                 {t('New inspection')}
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<EventRepeatIcon sx={{ fontSize: 16 }} />}
-                onClick={() => {
-                  if (asset) onNewRecurringSchedule?.(asset.id);
-                  onClose();
-                }}
-                sx={{
-                  borderColor: '#3758f9',
-                  color: '#3758f9',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)', borderColor: '#2b45cb' },
-                }}
-              >
-                {t('Recurring schedule')}
-              </Button>
             </Stack>
             <Button
               variant="outlined"
@@ -1237,17 +1051,6 @@ function AssetDetailDrawer({
             latitude={asset.latitude}
             longitude={asset.longitude}
             inspectionItems={asset.inspectionItems}
-          />
-        )}
-        {asset && (
-          <AssetRecurringSchedulesSection
-            assetId={asset.id}
-            isClient={isClient}
-            onNewRecurringSchedule={(id) => {
-              onNewRecurringSchedule?.(id);
-              onClose();
-            }}
-            onSelectSchedule={(id) => onSelectSchedule?.(id)}
           />
         )}
         {asset && (

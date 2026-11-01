@@ -69,8 +69,6 @@ describe('MF1 client-only routes', () => {
   it.each([
     ['/client/workforce', 'CUSTOMER'],
     ['/client/assets', 'CUSTOMER'],
-    ['/client/subscriptions', 'CUSTOMER'],
-    ['/admin/subscriptions', 'MANAGER'],
     ['/client/workforce', 'ADMIN'],
     ['/client/assets', 'ADMIN'],
     ['/client/workforce', 'INSPECTOR'],

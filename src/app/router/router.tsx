@@ -4,7 +4,6 @@ import {
   Navigate,
   Outlet,
   RouterProvider,
-  useLocation,
 } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { AppShell } from '@/app/layouts/AppShell';
@@ -35,9 +34,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
-const InspectorPartnerApplicationPage = lazy(
-  () => import('@/features/auth/pages/InspectorPartnerApplicationPage'),
-);
 const AccountSecurityPage = lazy(
   () => import('@/features/auth/pages/AccountSecurityPage'),
 );
@@ -87,12 +83,6 @@ const MaintenancePage = lazy(
 const WorkforcePage = lazy(
   () => import('@/features/workforce/pages/WorkforcePage'),
 );
-const PlatformSubscriptionsPage = lazy(
-  () => import('@/features/subscription/pages/PlatformSubscriptionsPage'),
-);
-const ClientSubscriptionPage = lazy(
-  () => import('@/features/subscription/pages/ClientSubscriptionPage'),
-);
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
@@ -106,15 +96,6 @@ const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
 );
 
-function SubscriptionsSectionRoute() {
-  const location = useLocation();
-  return location.pathname.startsWith('/admin') ? (
-    <PlatformSubscriptionsPage />
-  ) : (
-    <ClientSubscriptionPage />
-  );
-}
-
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   contracts: <ContractsPage />,
@@ -124,7 +105,6 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   reports: <ReportsPage />,
   maintenance: <MaintenancePage />,
   workforce: <WorkforcePage />,
-  subscriptions: <SubscriptionsSectionRoute />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
@@ -303,14 +283,6 @@ export const router = createBrowserRouter([
         element: (
           <PublicOnly>
             <RegisterPage />
-          </PublicOnly>
-        ),
-      },
-      {
-        path: 'inspector-partner-application',
-        element: (
-          <PublicOnly>
-            <InspectorPartnerApplicationPage />
           </PublicOnly>
         ),
       },

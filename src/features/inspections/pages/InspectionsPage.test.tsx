@@ -49,42 +49,6 @@ vi.mock('../hooks/useInspections', async () => {
   };
 });
 
-vi.mock('../hooks/useRecurringSchedules', () => ({
-  useRecurringSchedules: () => ({
-    data: {
-      items: [
-        {
-          id: 'sched-1',
-          objective: 'Weekly Bridge Inspection',
-          assetName: 'Bridge Alpha',
-          status: 'ACTIVE',
-          unit: 'WEEK',
-          interval: 1,
-          timezone: 'Asia/Ho_Chi_Minh',
-          durationSeconds: 7200,
-          reminderDays: 3,
-          totalGeneratedOccurrences: 1,
-          totalBlockedOccurrences: 0,
-        },
-      ],
-      page: 1,
-      pageSize: 10,
-      totalCount: 1,
-      totalPages: 1,
-    },
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-  useRecurringSchedule: () => ({ data: null, isLoading: false, error: null }),
-  usePauseRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
-  useResumeRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
-  useEndRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false }),
-  useRetryScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
-  useSkipScheduleOccurrence: () => ({ mutate: vi.fn(), isPending: false }),
-  useCreateRecurringSchedule: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-}));
-
 vi.mock('@/features/assets/hooks/useAssets', () => ({
   useAssets: () => ({
     data: { items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 },
@@ -380,13 +344,6 @@ describe('InspectionsPage', () => {
     expect(mocks.useReportsArgs?.[1]).toBe(true);
     expect(await screen.findByRole('row', { name: /Inspect the north pier/ })).toBeTruthy();
     expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
-  });
-
-  it('renders recurring schedules when the schedules view is active via query param', async () => {
-    signInAs(['CUSTOMER']);
-    renderPage('/client/inspections?view=schedules');
-
-    expect(await screen.findByText('Bridge Alpha')).toBeTruthy();
   });
 
   it('does not show view-switch buttons because navigation is driven by direct sidebar destinations', async () => {

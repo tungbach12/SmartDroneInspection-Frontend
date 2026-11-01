@@ -14,10 +14,6 @@ vi.mock('../api/mf1ReviewApi', () => ({
     pendingCustomers: vi.fn(),
     approveCustomer: vi.fn(),
     rejectCustomer: vi.fn(),
-    pendingPartners: vi.fn(),
-    approvePartner: vi.fn(),
-    rejectPartner: vi.fn(),
-    partnerLicenseDocument: vi.fn(),
     droneEvidence: vi.fn(),
     pendingDrones: vi.fn(),
     approveDrone: vi.fn(),
@@ -72,23 +68,6 @@ describe('MF1 review queues', () => {
         createdAt: '2026-10-29T00:00:00Z',
       },
     ]);
-    vi.mocked(mf1ReviewApi.pendingPartners).mockResolvedValue([
-      {
-        id: 'partner-1',
-        email: 'pilot@example.test',
-        fullName: 'Pilot One',
-        phone: null,
-        pilotLicenseNumber: 'LIC-1',
-        pilotLicenseClass: 'A',
-        pilotLicenseExpiresAt: '2027-12-31',
-        pilotLicenseFileKey: 'licenses/lic-1',
-        partnerContractFileKey: null,
-        status: 'PENDING',
-        reviewNote: null,
-        createdAt: '2026-10-29T00:00:00Z',
-      },
-    ]);
-    vi.mocked(mf1ReviewApi.partnerLicenseDocument).mockResolvedValue(new Blob(['%PDF-1.7']));
     vi.mocked(mf1ReviewApi.droneEvidence).mockResolvedValue(new Blob(['%PDF-1.7']));
     vi.mocked(mf1ReviewApi.droneHistory).mockResolvedValue([]);
     vi.mocked(mf1ReviewApi.pendingDrones).mockResolvedValue([

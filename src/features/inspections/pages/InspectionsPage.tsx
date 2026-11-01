@@ -24,14 +24,13 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import type { InspectionListItem } from '../api/inspectionApi';
-import { RecurringSchedulesPanel } from './RecurringSchedulesPanel';
 import { CustomerInspectionsPage } from './CustomerInspectionsPage';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-type InspectionsView = 'all' | 'reports' | 'schedules' | 'calendar';
+type InspectionsView = 'all' | 'reports' | 'calendar';
 
 const EMPTY_ITEMS: never[] = [];
 
@@ -69,11 +68,9 @@ export default function InspectionsPage() {
   const view: InspectionsView =
     searchParams.get('view') === 'reports'
       ? 'reports'
-      : searchParams.get('view') === 'schedules'
-        ? 'schedules'
-        : searchParams.get('view') === 'calendar'
-          ? 'calendar'
-          : 'all';
+      : searchParams.get('view') === 'calendar'
+        ? 'calendar'
+        : 'all';
 
   const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
   // The report queue is server-paged from /with-reports so its rows, total and pages stay
@@ -163,11 +160,9 @@ export default function InspectionsPage() {
           isOrganizationAdmin
             ? view === 'reports'
               ? 'Report review queue'
-              : view === 'schedules'
-                ? t('Recurring inspection schedules')
-                : view === 'calendar'
-                  ? t('Schedule calendar')
-                  : 'Organization inspections'
+              : view === 'calendar'
+                ? t('Schedule calendar')
+                : 'Organization inspections'
             : view === 'calendar'
               ? t('Schedule calendar')
               : 'Inspections'
@@ -178,9 +173,7 @@ export default function InspectionsPage() {
             : isOrganizationAdmin
               ? view === 'reports'
                 ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
-                : view === 'schedules'
-                  ? t('Automate periodic asset inspections, monitor occurrence generation, and resolve blocked dispatches.')
-                  : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
+                : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
               : 'Review field evidence, record findings, and prepare inspection reports'
         }
         actions={newInspectionButton}
@@ -200,7 +193,7 @@ export default function InspectionsPage() {
               and the corrective outcome is recorded after publication.
             </Alert>
           )}
-          {isOrganizationAdmin && view !== 'schedules' && (
+          {isOrganizationAdmin && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
                 <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
@@ -222,7 +215,7 @@ export default function InspectionsPage() {
               gap: 1.5,
             }}
           >
-            {view !== 'schedules' && view !== 'calendar' && (
+            {view !== 'calendar' && (
               <TextField
                 select
                 size="small"
@@ -242,9 +235,7 @@ export default function InspectionsPage() {
             )}
           </Stack>
 
-          {view === 'schedules' ? (
-            <RecurringSchedulesPanel onOpenCreateDialog={() => setCreateInspectionOpen(true)} />
-          ) : view === 'calendar' ? (
+          {view === 'calendar' ? (
             <InspectorScheduleCalendar onSelectInspection={(id) => setSelectedWorkDetailId(id)} />
           ) : (
             <QueryState

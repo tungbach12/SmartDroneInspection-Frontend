@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   organizationRegistrationSchema,
   loginSchema,
-  partnerApplicationSchema,
   passwordChangeSchema,
   passwordSetupSchema,
 } from './authSchemas';
@@ -83,34 +82,6 @@ describe('authentication form validation', () => {
         currentPassword: 'current password',
         newPassword: 'short',
         confirmPassword: 'short',
-      }).success,
-    ).toBe(false);
-  });
-
-  it('validates inspector partner application fields', () => {
-    const validPartner = {
-      email: 'inspector@example.com',
-      fullName: 'Nguyen Van A',
-      phone: '0901234567',
-      pilotLicenseNumber: 'VN-LIC-12345',
-      pilotLicenseClass: 'CLASS_A',
-      pilotLicenseExpiresAt: '2027-12-31',
-      pilotLicenseFile: new File(['%PDF-1.7'], 'license.pdf', { type: 'application/pdf' }),
-    };
-
-    expect(partnerApplicationSchema.safeParse(validPartner).success).toBe(true);
-
-    expect(
-      partnerApplicationSchema.safeParse({
-        ...validPartner,
-        email: 'invalid-email',
-      }).success,
-    ).toBe(false);
-
-    expect(
-      partnerApplicationSchema.safeParse({
-        ...validPartner,
-        pilotLicenseNumber: '',
       }).success,
     ).toBe(false);
   });

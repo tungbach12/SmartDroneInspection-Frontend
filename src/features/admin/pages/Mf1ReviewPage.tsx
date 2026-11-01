@@ -39,7 +39,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   mf1ReviewApi,
   type DroneRegistrationApplication,
-  type InspectorPartnerApplication,
   type ProspectiveCustomerReview,
 } from '../api/mf1ReviewApi';
 import {
@@ -58,10 +57,7 @@ const ALL_PANELS = [
   'Customer airspace',
 ] as const;
 type Panel = (typeof ALL_PANELS)[number];
-type ReviewItem =
-  | ProspectiveCustomerReview
-  | InspectorPartnerApplication
-  | DroneRegistrationApplication;
+type ReviewItem = ProspectiveCustomerReview | DroneRegistrationApplication;
 
 interface EvidenceDoc {
   label: string;

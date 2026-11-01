@@ -1621,7 +1621,7 @@ export const viCatalog: Record<string, string> = {
   "Ready for Review": "Sẵn sàng xét duyệt",
   "View all assets": "Xem tất cả tài sản",
   "View platform catalog": "Xem danh mục nền tảng",
-  "View platform subscriptions": "Xem gói thuê bao nền tảng",
+  "View service requests": "Xem yêu cầu dịch vụ",
   "View all": "Xem tất cả",
   "Jan": "Thg 1",
   "Feb": "Thg 2",
