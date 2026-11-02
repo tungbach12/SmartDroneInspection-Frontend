@@ -23,7 +23,6 @@ import {
   Paper,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
@@ -44,7 +43,6 @@ import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
 import { useAssets, useCreateAsset, useRetireAsset } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useCatalog';
-import { CreateInspectionDialog } from '@/features/inspections/components/CreateInspectionDialog';
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
@@ -80,7 +78,6 @@ export function AssetsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
-  const [inspectionAssetId, setInspectionAssetId] = useState<string | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
@@ -122,59 +119,6 @@ export function AssetsPage() {
       label: t('Status'),
       width: 160,
       render: (asset) => <StatusChip status={asset.status} />,
-    },
-    {
-      id: 'actions',
-      label: '',
-      width: 220,
-      align: 'right',
-      render: (asset) => (
-        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-          {isClient && asset.status === 'ACTIVE' && (
-            <>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setInspectionAssetId(asset.id);
-                }}
-                sx={{
-                  borderRadius: '8px',
-                  bgcolor: '#3758f9',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#2b45cb' },
-                }}
-              >
-                {t('New inspection')}
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                startIcon={<AssignmentIcon sx={{ fontSize: 15 }} />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigate('/client/contracts');
-                }}
-                sx={{
-                  borderRadius: '8px',
-                  color: 'primary.main',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  '&:hover': { bgcolor: 'rgba(55, 88, 249, 0.05)' },
-                }}
-              >
-                {t('MF2 Service request')}
-              </Button>
-            </>
-          )}
-        </Stack>
-      ),
     },
   ];
 
@@ -294,14 +238,7 @@ export function AssetsPage() {
       <AssetDetailDrawer
         asset={selected}
         onClose={() => setSelected(null)}
-        onNewInspection={(id) => setInspectionAssetId(id)}
         onSelectInspection={(id) => setSelectedInspectionId(id)}
-      />
-      <CreateInspectionDialog
-        open={Boolean(inspectionAssetId)}
-        onClose={() => setInspectionAssetId(null)}
-        preselectedAssetId={inspectionAssetId}
-        onSuccess={() => void refetch()}
       />
       <InspectionWorkDetailDialog
         open={Boolean(selectedInspectionId)}
@@ -745,12 +682,10 @@ function AssetInspectionHistorySection({
 function AssetDetailDrawer({
   asset,
   onClose,
-  onNewInspection,
   onSelectInspection,
 }: {
   asset: Asset | null;
   onClose: () => void;
-  onNewInspection?: (assetId: string) => void;
   onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
@@ -857,46 +792,25 @@ function AssetDetailDrawer({
           </Alert>
         )}
         {isClient && asset?.status === 'ACTIVE' && (
-          <>
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 1 }}>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={() => {
-                  if (asset) onNewInspection?.(asset.id);
-                  onClose();
-                }}
-                sx={{
-                  bgcolor: '#3758f9',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#2b45cb' },
-                }}
-              >
-                {t('New inspection')}
-              </Button>
-            </Stack>
-            <Button
-              variant="outlined"
-              color="error"
-              fullWidth
-              size="small"
-              onClick={() => setConfirmRetireOpen(true)}
-              sx={{
-                mb: 1.5,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                borderColor: 'error.light',
-                color: 'error.main',
-                '&:hover': { bgcolor: 'action.hover', borderColor: 'error.main' },
-              }}
-            >
-              {t('Complete & Archive Asset')}
-            </Button>
-          </>
+          <Button
+            variant="outlined"
+            color="error"
+            fullWidth
+            size="small"
+            onClick={() => setConfirmRetireOpen(true)}
+            sx={{
+              mt: 1.5,
+              mb: 1.5,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              borderColor: 'error.light',
+              color: 'error.main',
+              '&:hover': { bgcolor: 'action.hover', borderColor: 'error.main' },
+            }}
+          >
+            {t('Complete & Archive Asset')}
+          </Button>
         )}
         {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
         {asset && (
