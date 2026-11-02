@@ -17,7 +17,6 @@ import {
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
-import MapRounded from '@mui/icons-material/MapRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -33,7 +32,6 @@ import {
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
 
 /** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage() {
@@ -51,7 +49,6 @@ export default function FieldSessionPage() {
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [preFlightNote, setPreFlightNote] = useState('');
-  const [surveyMapOpen, setSurveyMapOpen] = useState(false);
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
@@ -78,6 +75,16 @@ export default function FieldSessionPage() {
     canStart &&
     latestSession?.status === 'FIELD_COMPLETED' &&
     inspection?.status === 'FIELD_COMPLETED';
+
+  const DEFAULT_PRE_FLIGHT_NOTE =
+    'Đã kiểm tra an toàn UAV, pin 100%, thời tiết đảm bảo, sẵn sàng cất cánh.';
+  const DEFAULT_OUTCOME_NOTE =
+    'Hoàn thành chụp quét cấu kiện theo kế hoạch, hạ cánh an toàn.';
+
+  const handleOpenStart = () => {
+    setPreFlightNote('');
+    setStartOpen(true);
+  };
 
   const openOutcomeDialog = (
     session: FieldSession,
@@ -115,28 +122,6 @@ export default function FieldSessionPage() {
               </Typography>
             </Box>
           </Stack>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<MapRounded sx={{ fontSize: 16 }} />}
-            onClick={() => setSurveyMapOpen(true)}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              borderRadius: '8px',
-              borderColor: 'primary.main',
-              color: 'primary.main',
-              bgcolor: 'rgba(55, 88, 249, 0.05)',
-              alignSelf: { xs: 'flex-start', sm: 'center' },
-              '&:hover': {
-                borderColor: 'primary.dark',
-                bgcolor: 'rgba(55, 88, 249, 0.12)',
-              },
-            }}
-          >
-            {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
-          </Button>
         </Stack>
 
         <QueryState
@@ -279,7 +264,7 @@ export default function FieldSessionPage() {
                   ) : canContinueToEvidence ? (
                     <Stack direction="row" spacing={1}>
                       {canStartAnother && (
-                        <Button variant="outlined" onClick={() => setStartOpen(true)}>
+                        <Button variant="outlined" onClick={handleOpenStart}>
                           {t('Start another session')}
                         </Button>
                       )}
@@ -296,7 +281,7 @@ export default function FieldSessionPage() {
                       variant="contained"
                       loading={startSession.isPending}
                       disabled={!canStart}
-                      onClick={() => setStartOpen(true)}
+                      onClick={handleOpenStart}
                     >
                       {t('Start session')}
                     </LoadingButton>
@@ -399,6 +384,16 @@ export default function FieldSessionPage() {
           <DialogTitle sx={{ fontWeight: 700 }}>{t('Start a field session')}</DialogTitle>
           <DialogContent>
             <Stack spacing={1.5} sx={{ mt: 1 }}>
+              <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setPreFlightNote(DEFAULT_PRE_FLIGHT_NOTE)}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0 }}
+                >
+                  ⚡ {t('Điền mẫu an toàn')}
+                </Button>
+              </Stack>
               <TextField
                 label={t('Pre-flight note')}
                 required
@@ -459,6 +454,18 @@ export default function FieldSessionPage() {
           </DialogTitle>
           <DialogContent>
             <Stack spacing={1.5} sx={{ mt: 1 }}>
+              {outcomeTarget?.kind === 'complete' && (
+                <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => setOutcomeReason(DEFAULT_OUTCOME_NOTE)}
+                    sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0 }}
+                  >
+                    ⚡ {t('Điền mẫu hoàn tất')}
+                  </Button>
+                </Stack>
+              )}
               <TextField
                 label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Abort reason')}
                 required
@@ -495,16 +502,6 @@ export default function FieldSessionPage() {
           </DialogActions>
         </form>
       </Dialog>
-
-      {inspection && (
-        <AirspaceFlightPlannerDialog
-          open={surveyMapOpen}
-          onClose={() => setSurveyMapOpen(false)}
-          assetName={inspection.assetName || 'Công trình kiểm định'}
-          locationText={inspection.locationText}
-          inspectionItems={inspection.inspectionItems ?? []}
-        />
-      )}
     </Box>
   );
 }

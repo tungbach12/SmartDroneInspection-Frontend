@@ -486,7 +486,6 @@ export function useGenerateReportDraft(inspectionId: string | null) {
   return useMutation({
     mutationFn: () => inspectionApi.generateDraft(inspectionId!),
     onSuccess: () => {
-      showToast('Report draft created.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }

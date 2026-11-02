@@ -79,6 +79,7 @@ vi.mock('../hooks/useInspections', () => ({
   useVerifyReportVersion: () => mocks.verifyVersion,
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
+  useInspection: () => ({ data: undefined }),
   useReinspectionVerifications: () => ({ data: [] }),
 }));
 
