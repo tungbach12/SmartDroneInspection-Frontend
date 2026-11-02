@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
@@ -33,7 +34,6 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { InspectionListItem } from '../api/inspectionApi';
-import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import { useInspections } from '../hooks/useInspections';
 
 type CustomerQuickFilter = 'ALL' | 'IN_PROGRESS' | 'REPORT_READY' | 'ACTION_NEEDED';
@@ -80,7 +80,6 @@ export function CustomerInspectionsPage() {
   const { t, formatDate, formatNumber } = useLocale();
   const navigate = useNavigate();
 
-  const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [quickFilter, setQuickFilter] = useState<CustomerQuickFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -258,29 +257,39 @@ export function CustomerInspectionsPage() {
   return (
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
-        title={t('Organization inspections')}
-        subtitle={t('Track inspection progress, official reports, and service fee settlement.')}
+        title={t('Nhật ký & Lịch sử các đợt kiểm tra')}
+        subtitle={t('Theo dõi toàn bộ lịch sử đợt kiểm tra, tiến độ bay thực địa, báo cáo thẩm định và kết quả khắc phục công trình.')}
         actions={
-          <Button
-            variant="contained"
-            aria-label={t('New inspection')}
-            startIcon={<Add />}
-            onClick={() => setCreateInspectionOpen(true)}
-            sx={{
-              borderRadius: '8px',
-              px: 2,
-              py: 0.875,
-              bgcolor: 'primary.main',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              whiteSpace: 'nowrap',
-              boxShadow: 'none',
-              '&:hover': { bgcolor: 'primary.dark', boxShadow: 'none' },
-            }}
-          >
-            {t('New inspection')}
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RefreshRounded />}
+              onClick={() => void inspections.refetch()}
+              disabled={inspections.isFetching}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            >
+              {inspections.isFetching ? t('Đang tải…') : t('Làm mới')}
+            </Button>
+            <Button
+              variant="contained"
+              size="medium"
+              startIcon={<Add />}
+              onClick={() => navigate('/client/contracts')}
+              sx={{
+                borderRadius: '8px',
+                px: 2,
+                bgcolor: '#087E8B',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#066B70' },
+              }}
+            >
+              {t('Yêu cầu kiểm định mới')}
+            </Button>
+          </Stack>
         }
       />
 
@@ -921,12 +930,6 @@ export function CustomerInspectionsPage() {
           </Paper>
         </QueryState>
       </Stack>
-
-      <CreateInspectionDialog
-        open={createInspectionOpen}
-        onClose={() => setCreateInspectionOpen(false)}
-        onSuccess={() => void inspections.refetch()}
-      />
     </Box>
   );
 }

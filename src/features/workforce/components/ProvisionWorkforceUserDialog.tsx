@@ -64,7 +64,7 @@ function ProvisionForm({
   const { t } = useLocale();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [roles, setRoles] = useState<GrantableWorkforceRole[]>(['MAINTENANCE_ENGINEER']);
+  const [roles, setRoles] = useState<GrantableWorkforceRole[]>([]);
   const [errors, setErrors] = useState<{ email?: string; fullName?: string; roles?: string }>({});
 
   const submit = (event: FormEvent) => {

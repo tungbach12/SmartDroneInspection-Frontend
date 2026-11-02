@@ -55,8 +55,11 @@ export const organizationRegistrationSchema = z
     phoneNumber: z.string().trim().max(32).optional(),
     password: z
       .string()
-      .min(15, 'Use at least 15 characters.')
-      .max(128, 'Password must be 128 characters or fewer.'),
+      .min(8, 'Use at least 8 characters.')
+      .max(128, 'Password must be 128 characters or fewer.')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
+      .regex(/[0-9]/, 'Password must contain at least one number.')
+      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
     confirmPassword: z.string(),
     firstAsset: firstAssetSchema.optional(),
   })
@@ -70,8 +73,11 @@ export const passwordSetupSchema = z
     currentPassword: z.string().min(1, 'Enter the temporary password.'),
     password: z
       .string()
-      .min(15, 'Use at least 15 characters.')
-      .max(128, 'Password must be 128 characters or fewer.'),
+      .min(8, 'Use at least 8 characters.')
+      .max(128, 'Password must be 128 characters or fewer.')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
+      .regex(/[0-9]/, 'Password must contain at least one number.')
+      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
     confirmPassword: z.string(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -84,8 +90,11 @@ export const passwordChangeSchema = z
     currentPassword: z.string().min(1, 'Enter your current password.'),
     newPassword: z
       .string()
-      .min(15, 'Use at least 15 characters.')
-      .max(128, 'Password must be 128 characters or fewer.'),
+      .min(8, 'Use at least 8 characters.')
+      .max(128, 'Password must be 128 characters or fewer.')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
+      .regex(/[0-9]/, 'Password must contain at least one number.')
+      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
     confirmPassword: z.string(),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

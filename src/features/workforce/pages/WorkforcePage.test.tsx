@@ -98,7 +98,7 @@ function openProvisionDialog() {
 }
 
 /** Fills the provision form with one valid draft. */
-function fillProvisionForm(roleLabel = 'Inspector', email = 'new.member@example.test') {
+function fillProvisionForm(roleLabel = 'Maintenance engineer', email = 'new.member@example.test') {
   fireEvent.change(screen.getByLabelText(/Email/), { target: { value: email } });
   fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: 'New Member' } });
   fireEvent.click(screen.getByLabelText(roleLabel));
@@ -188,7 +188,7 @@ describe('WorkforcePage users tab', () => {
     const labels = within(dialog)
       .getAllByRole('checkbox')
       .map((checkbox) => checkbox.closest('label')?.textContent);
-    expect(labels).toEqual(['Inspector', 'Maintenance engineer']);
+    expect(labels).toEqual(['Maintenance engineer']);
     expect(within(dialog).queryByLabelText(/Administrator/)).toBeNull();
   });
 
@@ -227,7 +227,7 @@ describe('WorkforcePage users tab', () => {
         {
           email: 'new.member@example.test',
           fullName: 'New Member',
-          roles: ['INSPECTOR'],
+          roles: ['MAINTENANCE_ENGINEER'],
         },
         expect.objectContaining({ onSuccess: expect.any(Function) }),
       ),
@@ -498,27 +498,23 @@ describe('WorkforcePage users tab', () => {
 
   it('opens the role editor pre-filled from the member and saves the changed set', async () => {
     users.data = [
-      { ...MEMBER, roles: ['INSPECTOR', 'MAINTENANCE_ENGINEER'] },
+      { ...MEMBER, roles: ['MAINTENANCE_ENGINEER'] },
     ];
 
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
-    // The current role set arrives selected, so saving without touching anything is a no-op
-    // rather than a silent reset to nothing.
-    expect(within(dialog).getByLabelText('Inspector')).toHaveProperty('checked', true);
     expect(within(dialog).getByLabelText('Maintenance engineer')).toHaveProperty(
       'checked',
       true,
     );
 
-    fireEvent.click(within(dialog).getByLabelText('Maintenance engineer'));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save roles' }));
 
     await waitFor(() =>
       expect(updateRoles).toHaveBeenCalledWith(
-        { userId: MEMBER.userId, roles: ['INSPECTOR'] },
+        { userId: MEMBER.userId, roles: ['MAINTENANCE_ENGINEER'] },
         expect.anything(),
       ),
     );
@@ -542,13 +538,13 @@ describe('WorkforcePage users tab', () => {
   });
 
   it('will not submit an empty role set', async () => {
-    users.data = [MEMBER];
+    users.data = [{ ...MEMBER, roles: ['MAINTENANCE_ENGINEER'] }];
 
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit roles' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit roles' });
-    fireEvent.click(within(dialog).getByLabelText('Inspector'));
+    fireEvent.click(within(dialog).getByLabelText('Maintenance engineer'));
 
     expect(
       (within(dialog).getByRole('button', { name: 'Save roles' }) as HTMLButtonElement).disabled,
@@ -606,7 +602,7 @@ describe('WorkforcePage users tab', () => {
     expect(inputValue(/Email/)).toBe('');
     expect(inputValue(/Full name/)).toBe('');
     expect(
-      (screen.getByLabelText('Inspector') as HTMLInputElement).checked,
+      (screen.getByLabelText('Maintenance engineer') as HTMLInputElement).checked,
     ).toBe(false);
   });
 });

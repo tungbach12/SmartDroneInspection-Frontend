@@ -60,6 +60,9 @@ interface IssuedCredential {
 export default function WorkforcePage() {
   const { t } = useLocale();
   const { data: members, isLoading, error, refetch } = useWorkforceUsers();
+  const workforceMembers = (members ?? []).filter(
+    (member) => !member.roles.includes('CUSTOMER') && !member.roles.includes('ADMIN'),
+  );
   const [issued, setIssued] = useState<IssuedCredential | null>(null);
   const provision = useProvisionWorkforceUser((created) => {
     // Keep the one-time password only in local component state; the mutation result itself is
@@ -138,7 +141,7 @@ export default function WorkforcePage() {
         isLoading={isLoading}
         error={error}
         onRetry={() => void refetch()}
-        isEmpty={Boolean(members && members.length === 0)}
+        isEmpty={Boolean(members && workforceMembers.length === 0)}
         empty={
           <EmptyState
             title={t('No workforce users yet')}
@@ -149,7 +152,7 @@ export default function WorkforcePage() {
       >
         <DataTable
           columns={columns}
-          rows={members ?? []}
+          rows={workforceMembers}
           rowKey={(member) => member.userId}
           searchable
           searchPlaceholder={t('Search by name or email…')}

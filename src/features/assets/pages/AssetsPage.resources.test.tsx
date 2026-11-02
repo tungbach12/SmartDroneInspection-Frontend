@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const roles = vi.hoisted(() => ({ current: ['CUSTOMER'] as string[] }));
@@ -40,15 +40,11 @@ describe('AssetsPage resource tabs', () => {
     roles.current = ['CUSTOMER'];
   });
 
-  it('exposes the Drones tab to CUSTOMER and does not include Permits tab', () => {
+  it('does not expose Drones tab to CUSTOMER as drones belong to inspectors', () => {
     roles.current = ['CUSTOMER'];
     render(<AssetsPage />);
-    expect(screen.getByRole('tab', { name: 'Assets' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Drones' })).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Drones' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Permits' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Drones' }));
-    expect(screen.getByText('No drones registered')).toBeTruthy();
   });
 
   it('does not expose resource tabs to ADMIN', () => {

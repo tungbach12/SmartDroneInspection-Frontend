@@ -257,8 +257,17 @@ export default function LoginPage() {
       setErrorMessage(t('Please enter a 6-digit OTP code.'));
       return;
     }
-    if (!resetNewPassword || resetNewPassword.length < 15) {
-      setErrorMessage(t('Password must contain between 15 and 128 characters.'));
+    if (!resetNewPassword || resetNewPassword.length < 8) {
+      setErrorMessage(t('Password must contain between 8 and 128 characters.'));
+      return;
+    }
+    const hasUpper = /[A-Z]/.test(resetNewPassword);
+    const hasNumber = /[0-9]/.test(resetNewPassword);
+    const hasSpecial = /[^A-Za-z0-9]/.test(resetNewPassword);
+    if (!hasUpper || !hasNumber || !hasSpecial) {
+      setErrorMessage(
+        t('Password must contain at least one uppercase letter, one number, and one special character.'),
+      );
       return;
     }
     if (resetNewPassword !== resetConfirmPassword) {
@@ -427,7 +436,7 @@ export default function LoginPage() {
                 autoComplete="new-password"
                 fullWidth
                 required
-                helperText={t('Use 15–128 characters. Avoid common passwords.')}
+                helperText={t('Tối thiểu 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt.')}
                 sx={authInputSx}
                 slotProps={{
                   input: {
@@ -462,7 +471,7 @@ export default function LoginPage() {
                 type="submit"
                 variant="contained"
                 size="large"
-                disabled={resetPending || resetOtpCode.length !== 6 || !resetNewPassword}
+                disabled={resetPending || resetOtpCode.length !== 6 || !resetNewPassword || resetNewPassword.length < 8}
                 sx={{
                   minHeight: 50,
                   borderRadius: '8px',
@@ -615,7 +624,7 @@ export default function LoginPage() {
             error={Boolean(setupForm.formState.errors.password)}
             helperText={
               setupForm.formState.errors.password?.message ??
-              'Use 15–128 characters. Avoid common passwords and account details.'
+              t('Tối thiểu 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt.')
             }
             slotProps={{
               input: {

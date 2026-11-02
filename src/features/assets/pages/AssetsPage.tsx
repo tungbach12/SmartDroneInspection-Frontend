@@ -19,8 +19,6 @@ import {
   Stack,
   TextField,
   Typography,
-  Tab,
-  Tabs,
   CircularProgress,
   Paper,
 } from '@mui/material';
@@ -30,11 +28,8 @@ import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
-import GppBadRounded from '@mui/icons-material/GppBadRounded';
-import MapRounded from '@mui/icons-material/MapRounded';
 import MyLocationRounded from '@mui/icons-material/MyLocationRounded';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
-import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
@@ -53,10 +48,8 @@ import { CreateInspectionDialog } from '@/features/inspections/components/Create
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import { DroneInventoryPanel } from './DroneInventoryPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { AirspaceNoFlyMap } from '@/shared/airspace/AirspaceNoFlyMap';
-import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
+import { AssetLocationPickerModal } from '../components/AssetLocationPickerModal';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
@@ -87,10 +80,8 @@ export function AssetsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
-  const [resourceTab, setResourceTab] = useState(0);
   const [inspectionAssetId, setInspectionAssetId] = useState<string | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
-  const [surveyMapAsset, setSurveyMapAsset] = useState<Asset | null>(null);
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
@@ -135,30 +126,10 @@ export function AssetsPage() {
     {
       id: 'actions',
       label: '',
-      width: 280,
+      width: 220,
       align: 'right',
       render: (asset) => (
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<MapRounded sx={{ fontSize: 14 }} />}
-            onClick={(event) => {
-              event.stopPropagation();
-              setSurveyMapAsset(asset);
-            }}
-            sx={{
-              borderRadius: '8px',
-              borderColor: 'divider',
-              color: 'text.primary',
-              fontSize: '12px',
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-            }}
-          >
-            {t('Bản đồ bay')}
-          </Button>
           {isClient && asset.status === 'ACTIVE' && (
             <>
               <Button
@@ -233,10 +204,10 @@ export function AssetsPage() {
       <PageHeader
         title={t('Assets')}
         subtitle={t('Infrastructure assets registered for inspection')}
-        actions={resourceTab === 0 ? newAssetButton : undefined}
+        actions={newAssetButton}
       />
       {/* 4 Lytic KPI Metric Cards */}
-      {(!isClient || resourceTab === 0) && (
+      {isClient && (
         <Box
           sx={{
             display: 'grid',
@@ -279,13 +250,6 @@ export function AssetsPage() {
           />
         </Box>
       )}
-      {isClient && (
-        <Tabs value={resourceTab} onChange={(_event, value: number) => setResourceTab(value)} aria-label={t('Asset resources')}>
-          <Tab label={t('Assets')} />
-          <Tab label={t('Drones')} />
-        </Tabs>
-      )}
-      {(!isClient || resourceTab === 0) && <>
 
       <QueryState
         isLoading={isLoading}
@@ -344,17 +308,6 @@ export function AssetsPage() {
         inspectionId={selectedInspectionId}
         onClose={() => setSelectedInspectionId(null)}
       />
-      <AirspaceFlightPlannerDialog
-        open={Boolean(surveyMapAsset)}
-        onClose={() => setSurveyMapAsset(null)}
-        assetName={surveyMapAsset?.name || ''}
-        locationText={surveyMapAsset?.locationText}
-        latitude={surveyMapAsset?.latitude}
-        longitude={surveyMapAsset?.longitude}
-        inspectionItems={surveyMapAsset?.inspectionItems}
-      />
-      </>}
-      {isClient && resourceTab === 1 && <DroneInventoryPanel />}
     </Box>
   );
 }
@@ -394,7 +347,7 @@ function CreateAssetDialogForm({
   const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
   const [inspectionItemsText, setInspectionItemsText] = useState('');
-  const [flightPlannerOpen, setFlightPlannerOpen] = useState(false);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsFeedback, setGpsFeedback] = useState<string | null>(null);
 
@@ -420,9 +373,7 @@ function CreateAssetDialogForm({
       () => {
         setGpsLoading(false);
         setGpsFeedback(
-          t(
-            'Không lấy được GPS (chưa cấp quyền vị trí). Bạn có thể nhấp chuột trực tiếp lên bản đồ bên dưới để điều chỉnh tọa độ công trình.',
-          ),
+          t('Không lấy được GPS (chưa cấp quyền vị trí). Vui lòng nhập trực tiếp tọa độ bên dưới.'),
         );
       },
       { enableHighAccuracy: true, timeout: 8000 },
@@ -433,15 +384,8 @@ function CreateAssetDialogForm({
   const parsedLat = latitudeText.trim() !== '' && !Number.isNaN(Number(latitudeText)) ? Number(latitudeText) : null;
   const parsedLon = longitudeText.trim() !== '' && !Number.isNaN(Number(longitudeText)) ? Number(longitudeText) : null;
 
-  const airspaceEval =
-    parsedLat != null && parsedLon != null ? evaluateAirspace(parsedLat, parsedLon) : null;
-  const isNoFlyZone = airspaceEval?.classification === 'NO_FLY_ZONE';
-
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (isNoFlyZone) {
-      return;
-    }
     const items = inspectionItemsText
       .split(/[\n,]+/)
       .map((s) => s.trim())
@@ -513,12 +457,12 @@ function CreateAssetDialogForm({
               borderRadius: '12px',
               bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : '#f8fafc',
               border: '1px solid',
-              borderColor: isNoFlyZone ? 'error.main' : 'divider',
+              borderColor: 'divider',
             }}
           >
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25, flexWrap: 'wrap', gap: 1 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <PlaceRounded sx={{ fontSize: 18, color: isNoFlyZone ? 'error.main' : 'primary.main' }} />
+                <PlaceRounded sx={{ fontSize: 18, color: 'primary.main' }} />
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {t('Asset Coordinates')}
                 </Typography>
@@ -550,28 +494,24 @@ function CreateAssetDialogForm({
                     },
                   }}
                 >
-                  {gpsLoading ? t('Đang lấy GPS…') : t('📍 Lấy GPS vị trí của tôi')}
+                  {gpsLoading ? t('Đang lấy GPS…') : t('📍 Lấy GPS của tôi')}
                 </Button>
                 <Button
                   size="small"
-                  variant="outlined"
-                  startIcon={<MapRounded sx={{ fontSize: 15 }} />}
-                  onClick={() => setFlightPlannerOpen(true)}
+                  variant="contained"
+                  startIcon={<PlaceRounded sx={{ fontSize: 15 }} />}
+                  onClick={() => setMapPickerOpen(true)}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
                     fontSize: '0.78rem',
                     borderRadius: '8px',
-                    borderColor: 'primary.main',
-                    color: 'primary.main',
-                    bgcolor: isDark ? 'rgba(55, 88, 249, 0.15)' : 'rgba(55, 88, 249, 0.06)',
-                    '&:hover': {
-                      borderColor: 'primary.dark',
-                      bgcolor: isDark ? 'rgba(55, 88, 249, 0.25)' : 'rgba(55, 88, 249, 0.12)',
-                    },
+                    bgcolor: '#087E8B',
+                    boxShadow: 'none',
+                    '&:hover': { bgcolor: '#066B70' },
                   }}
                 >
-                  {t('🗺️ Mở Bản đồ khảo sát')}
+                  {t('🗺️ Mở bản đồ cắm kim')}
                 </Button>
               </Stack>
             </Stack>
@@ -592,7 +532,6 @@ function CreateAssetDialogForm({
                 placeholder="10.7805"
                 fullWidth
                 autoComplete="off"
-                error={isNoFlyZone}
                 slotProps={{
                   htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
                 }}
@@ -605,85 +544,15 @@ function CreateAssetDialogForm({
                 placeholder="106.7108"
                 fullWidth
                 autoComplete="off"
-                error={isNoFlyZone}
                 slotProps={{
                   htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
                 }}
                 helperText={t('e.g. 106.7108 (Ba Son Bridge)')}
               />
             </Stack>
-
-            {isNoFlyZone && (
-              <Alert
-                severity="error"
-                icon={<GppBadRounded sx={{ fontSize: 20 }} />}
-                sx={{
-                  mt: 1.5,
-                  borderRadius: '10px',
-                  border: '1px solid',
-                  borderColor: 'error.main',
-                  py: 0.5,
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'error.main' }}>
-                  {t('Asset location is in a NO-FLY ZONE!')}
-                </Typography>
-                <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.primary' }}>
-                  {t(
-                    'Cannot create asset at coordinates in an absolute military / aviation no-fly zone (Decision 18/2020/QD-TTg). Please select a location in a safe zone to continue.',
-                  )}
-                </Typography>
-              </Alert>
-            )}
           </Box>
 
-          <AirspaceNoFlyMap
-            assetName={name || 'Công trình mới'}
-            locationText={locationText}
-            latitude={parsedLat}
-            longitude={parsedLon}
-            inspectionItems={inspectionItemsText
-              .split(/[\n,]+/)
-              .map((s) => s.trim())
-              .filter(Boolean)}
-            compact
-            onSelectCoordinates={(lat, lon, placeName) => {
-              setLatitudeText(String(lat));
-              setLongitudeText(String(lon));
-              if (placeName && (!locationText || locationText === 'Công trình mới')) {
-                setLocationText(placeName);
-              }
-            }}
-          />
-
-          <AirspaceFlightPlannerDialog
-            open={flightPlannerOpen}
-            onClose={() => setFlightPlannerOpen(false)}
-            assetName={name || 'Công trình mới'}
-            locationText={locationText}
-            latitude={parsedLat}
-            longitude={parsedLon}
-            inspectionItems={inspectionItemsText
-              .split(/[\n,]+/)
-              .map((s) => s.trim())
-              .filter(Boolean)}
-            canEditCoordinates
-            onApplyCoordinates={(lat, lon, placeName) => {
-              setLatitudeText(String(lat));
-              setLongitudeText(String(lon));
-              if (placeName && (!locationText || locationText === 'Công trình mới')) {
-                setLocationText(placeName);
-              }
-            }}
-          />
-
-          <TextField
-            label={t('Description')}
-            multiline
-            rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+          {/* INSPECTION ITEMS / CHECKPOINTS NGAY SAU PHẦN TỌA ĐỘ VÀ VỊ TRÍ */}
           <Box sx={{ p: 2, bgcolor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#f8fafc', borderRadius: 2, border: '1px solid', borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0' }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
@@ -728,6 +597,14 @@ function CreateAssetDialogForm({
               </Box>
             )}
           </Box>
+
+          <TextField
+            label={t('Description')}
+            multiline
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -737,12 +614,27 @@ function CreateAssetDialogForm({
         <Button
           type="submit"
           variant="contained"
-          color={isNoFlyZone ? 'error' : 'primary'}
-          disabled={pending || isNoFlyZone}
+          disabled={pending}
         >
           {pending ? 'Creating…' : 'Create Asset'}
         </Button>
       </DialogActions>
+
+      <AssetLocationPickerModal
+        open={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        initialLatitude={parsedLat}
+        initialLongitude={parsedLon}
+        assetName={name}
+        onApplyCoordinates={(lat, lon, placeName) => {
+          setLatitudeText(String(lat));
+          setLongitudeText(String(lon));
+          if (placeName && (!locationText || locationText === 'Công trình mới')) {
+            setLocationText(placeName);
+          }
+          setGpsFeedback(`✓ ${t('Đã chọn tọa độ trên bản đồ:')} ${lat}°N, ${lon}°E`);
+        }}
+      />
     </form>
   );
 }
@@ -862,7 +754,6 @@ function AssetDetailDrawer({
   onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
-  const isDark = useIsDarkMode();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
   const retireMutation = useRetireAsset();
@@ -874,7 +765,6 @@ function AssetDetailDrawer({
   const [file, setFile] = useState<File | null>(null);
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
-  const [flightMapOpen, setFlightMapOpen] = useState(false);
   // A blob URL outlives this component unless it is revoked, and a download that resolves after the
   // drawer closed must not write state that no longer has a home.
   const liveObjectUrls = useRef<Set<string>>(new Set());
@@ -1009,50 +899,6 @@ function AssetDetailDrawer({
           </>
         )}
         {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
-        {asset && (
-          <Box sx={{ my: 1.5 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<MapRounded sx={{ fontSize: 16 }} />}
-              onClick={() => setFlightMapOpen(true)}
-              sx={{
-                mb: 1.25,
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '8px',
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                bgcolor: isDark ? 'rgba(55, 88, 249, 0.12)' : 'rgba(55, 88, 249, 0.05)',
-                '&:hover': {
-                  borderColor: 'primary.dark',
-                  bgcolor: isDark ? 'rgba(55, 88, 249, 0.22)' : 'rgba(55, 88, 249, 0.1)',
-                },
-              }}
-            >
-              {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
-            </Button>
-            <AirspaceNoFlyMap
-              assetName={asset.name}
-              locationText={asset.locationText}
-              latitude={asset.latitude}
-              longitude={asset.longitude}
-              inspectionItems={asset.inspectionItems}
-              compact
-            />
-          </Box>
-        )}
-        {asset && (
-          <AirspaceFlightPlannerDialog
-            open={flightMapOpen}
-            onClose={() => setFlightMapOpen(false)}
-            assetName={asset.name}
-            locationText={asset.locationText}
-            latitude={asset.latitude}
-            longitude={asset.longitude}
-            inspectionItems={asset.inspectionItems}
-          />
-        )}
         {asset && (
           <AssetInspectionHistorySection
             assetId={asset.id}
