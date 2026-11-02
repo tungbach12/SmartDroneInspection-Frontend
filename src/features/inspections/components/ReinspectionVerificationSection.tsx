@@ -189,7 +189,16 @@ export function ReinspectionVerificationSection({
         <Button
           variant="contained"
           endIcon={<ArrowForwardRounded />}
-          onClick={() => navigate('../report')}
+          onClick={async () => {
+            if (!readOnly && evidenceList.length > 0) {
+              try {
+                await inspectionApi.confirmFindings(inspectionId, true);
+              } catch {
+                // Already confirmed or handled on report page
+              }
+            }
+            navigate('../report');
+          }}
           sx={{
             textTransform: 'none',
             fontWeight: 600,

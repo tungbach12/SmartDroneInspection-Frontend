@@ -349,8 +349,20 @@ export function CostsTab({
               <Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Chip
-                    label={t('Re-inspection completed')}
-                    color="secondary"
+                    label={
+                      workOrder.status === 'REINSPECTION_REQUIRED'
+                        ? t('Re-inspection in progress')
+                        : workOrder.status === 'REWORK_REQUIRED'
+                          ? t('Rework required after re-inspection')
+                          : t('Re-inspection completed')
+                    }
+                    color={
+                      workOrder.status === 'REWORK_REQUIRED'
+                        ? 'warning'
+                        : workOrder.status === 'REINSPECTION_REQUIRED'
+                          ? 'info'
+                          : 'secondary'
+                    }
                     size="small"
                     sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                   />
@@ -359,9 +371,13 @@ export function CostsTab({
                   </Typography>
                 </Stack>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                  {t(
-                    'The flight crew verified the repaired defect in the field. Review the published re-inspection report before deciding final acceptance.',
-                  )}
+                  {workOrder.status === 'REWORK_REQUIRED'
+                    ? t(
+                        'The latest re-inspection report found unresolved defects. Please resume execution, record additional repair work logs, and submit a revised completion report for re-inspection.',
+                      )
+                    : t(
+                        'The flight crew verified the repaired defect in the field. Review the published re-inspection report before deciding final acceptance.',
+                      )}
                 </Typography>
               </Box>
               <Button
@@ -371,7 +387,7 @@ export function CostsTab({
                 startIcon={<PictureAsPdfOutlined />}
                 onClick={() =>
                   window.open(
-                    `/operations/inspections/${workOrder.reinspectionId}/report`,
+                    `${isOrgAdmin ? '/client' : '/operations'}/inspections/${workOrder.reinspectionId}/report`,
                     '_blank',
                   )
                 }
