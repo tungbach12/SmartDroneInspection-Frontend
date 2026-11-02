@@ -112,7 +112,12 @@ export function ReportTab({
                 </Typography>
               ) : null}
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: 'center' }}>
-                {!isOrgAdmin && (version.status === 'DRAFT' || version.status === 'RETURNED') ? (
+                {!isOrgAdmin &&
+                version.versionNo === reports.data[0]?.versionNo &&
+                (version.status === 'DRAFT' || version.status === 'RETURNED') &&
+                !['SUBMITTED_FOR_ACCEPTANCE', 'ACCEPTED', 'COST_RECONCILED', 'CLOSED'].includes(
+                  workOrder.status,
+                ) ? (
                   <LoadingButton
                     size="small"
                     variant="outlined"
@@ -200,7 +205,10 @@ export function ReportTab({
         </Alert>
       ) : null}
 
-      {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
+      {!isOrgAdmin &&
+      !['SUBMITTED_FOR_ACCEPTANCE', 'ACCEPTED', 'COST_RECONCILED', 'CLOSED'].includes(
+        workOrder.status,
+      ) ? (
         <Box
           sx={{
             mt: 2,
