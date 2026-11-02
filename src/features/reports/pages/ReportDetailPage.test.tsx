@@ -198,6 +198,11 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(await screen.findByRole('heading', { name: 'Identification' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
 
+    const openReturnBtn = screen.getByRole('button', {
+      name: 'Return with reason',
+    });
+    fireEvent.click(openReturnBtn);
+
     const returnButton = screen.getByRole('button', {
       name: 'Return with reason',
     }) as HTMLButtonElement;
@@ -220,6 +225,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
     expect(screen.queryByLabelText('What needs revision?')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Return with reason' }));
     fireEvent.change(await screen.findByLabelText('Reason for return'), {
       target: { value: 'Revisit the evidence and findings.' },
     });
@@ -280,6 +286,7 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage();
 
     if (action === 'return') {
+      fireEvent.click(await screen.findByRole('button', { name: 'Return with reason' }));
       fireEvent.change(await screen.findByLabelText('Reason for return'), {
         target: { value: 'Please clarify the inspection scope.' },
       });

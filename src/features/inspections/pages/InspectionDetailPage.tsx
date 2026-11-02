@@ -496,24 +496,10 @@ export default function InspectionDetailPage() {
 
         {!isOrganizationAdmin && !isCustomer && inspection && (
           <Box className="inspection-evidence-trace" aria-label={t('Inspection evidence trace')}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.25, mt: 1.25 }}>
-              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flex: '0 0 auto' }}>
-                {t('RECORD TRACE')}
-              </Typography>
-              <Box className="inspection-trace-line" aria-hidden="true" />
-              <Stack direction="row" spacing={{ xs: 1.5, sm: 2.5 }} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
-                <Typography variant="body2">
-                  <strong>{t('Session')}</strong> ·{' '}
-                  {wasAborted
-                    ? t('Aborted (reschedule required)')
-                    : isFieldWorkComplete
-                      ? t('Recorded')
-                      : t('Not complete')}
-                </Typography>
-                <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
-                <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
-                <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
-              </Stack>
+            <Stack direction="row" spacing={{ xs: 1.5, sm: 2.5 }} sx={{ flexWrap: 'wrap', rowGap: 0.75, mt: 1.25 }}>
+              <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
+              <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
+              <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
             </Stack>
           </Box>
         )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -17,6 +18,7 @@ import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import {
   useAuthorManualDraft,
   useGenerateReportDraft,
+  useInspection,
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
@@ -28,7 +30,12 @@ import {
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
+import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
+import type {
+  InspectionReport,
+  ReportOverallCondition,
+} from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
@@ -111,6 +118,75 @@ export default function InspectionDraftPage() {
   };
 
   const isSubmitting = createDraft.isPending || submit.isPending;
+
+  const inspectionQuery = useInspection?.(inspectionId);
+  const inspectionData = inspectionQuery?.data;
+
+  const draftPreviewVersion: InspectionReport = useMemo(() => {
+    const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
+    const severities = reportable.map((f) => f.severity);
+    const overallCondition: ReportOverallCondition = severities.includes('CRITICAL')
+      ? 'CRITICAL'
+      : severities.includes('HIGH')
+        ? 'POOR'
+        : severities.includes('MEDIUM')
+          ? 'FAIR'
+          : 'GOOD';
+
+    return {
+      id: `preview-${inspectionId}`,
+      inspectionReportId: `preview-${inspectionId}`,
+      versionNo: 1,
+      status: 'SUBMITTED',
+      authorUserId: userId ?? '',
+      submittedAt: null,
+      reviewerUserId: null,
+      reviewedAt: null,
+      returnReason: null,
+      publishedAt: null,
+      createdAt: new Date().toISOString(),
+      omissionDisclosure: null,
+      sections: {
+        executiveSummary: `Báo cáo kiểm định cho công trình ${inspectionData?.assetName || 'công trình'}. Đã ghi nhận ${reportable.length} khuyết tật cần theo dõi/sửa chữa và ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường.`,
+        overallCondition,
+        purposeScopeCriteria:
+          'Khảo sát hiện trạng kết cấu bằng thiết bị máy bay không người lái (UAV/Drone), thu thập hình ảnh độ phân giải cao và phát hiện các khiếm khuyết bề mặt.',
+        methodEquipmentConditions: inspectionData?.assignedDrone
+          ? `Thiết bị bay: ${inspectionData.assignedDrone.manufacturer ?? ''} ${inspectionData.assignedDrone.model ?? ''} (Số hiệu: ${inspectionData.assignedDrone.serialNumber ?? 'N/A'}). Kiểm tra trực quan từ xa theo quy trình chuẩn.`
+          : 'Thiết bị bay UAV chuyên dụng và camera quang học độ phân giải cao.',
+        conclusionsRecommendations:
+          reportable.length > 0
+            ? `Đề xuất chuyển giao ${reportable.length} phát hiện khuyết tật đã xác nhận sang bộ phận bảo trì (Maintenance) để lập kế hoạch sửa chữa và khắc phục.`
+            : 'Công trình trong tình trạng hoạt động tốt, không phát hiện khuyết tật nghiêm trọng tại thời điểm khảo sát.',
+      },
+      reportContext: {
+        organizationName: null,
+        assetCode: null,
+        assetName: inspectionData?.assetName ?? null,
+        assetLocation: inspectionData?.locationText ?? null,
+        assetCategory: null,
+        assignedDrone: inspectionData?.assignedDrone ?? null,
+        inspectionItems: inspectionData?.inspectionItems ?? null,
+        flightPermitFileName: inspectionData?.flightPermitFileName ?? null,
+        flightPermitUploadedAt: inspectionData?.flightPermitUploadedAt ?? null,
+        fieldSessions: (inspectionData?.fieldSessions ?? []).map((fs) => ({
+          id: fs.id,
+          status: fs.status,
+          startedAt: fs.startedAt,
+          endedAt: fs.endedAt,
+          preFlightChecklistNote: fs.preFlightChecklistNote,
+          postponementReason: fs.postponementReason,
+          abortReason: fs.abortReason,
+          outcomeNotes: fs.outcomeNotes,
+          droneSerialNumber: inspectionData?.assignedDrone?.serialNumber ?? null,
+          droneManufacturer: inspectionData?.assignedDrone?.manufacturer ?? null,
+          droneModel: inspectionData?.assignedDrone?.model ?? null,
+        })),
+        reviewerQualificationDisclosure: null,
+        findingsConfirmedAt: workflow.data?.findingsConfirmedAt ?? null,
+      },
+    };
+  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data]);
 
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
@@ -288,49 +364,98 @@ export default function InspectionDraftPage() {
       )}
 
       {!createDraft.isPending && versionList.length === 0 ? (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: { xs: 2.5, sm: 3.5 },
-            borderRadius: '16px',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-            textAlign: 'center',
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
-            {findingsConfirmed ? t('Ready to Submit Inspection Report') : t('No report version yet')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 540, mx: 'auto', mb: 2.5 }}>
-            {findingsConfirmed
-              ? t('All defect findings and field evidence have been verified. Click below to compile and submit the official inspection report for Platform Manager review.')
-              : t('Once findings are confirmed in Step 3, the inspection report can be compiled and submitted.')}
-          </Typography>
-
-          {isInspector && findingsConfirmed && (
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              disabled={isSubmitting}
-              onClick={() => setConfirmSubmitOpen(true)}
-              sx={{ borderRadius: '10px', px: 3, py: 1, textTransform: 'none', fontWeight: 700 }}
+        <Stack spacing={2}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2.5, sm: 3 },
+              borderRadius: '16px',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
             >
-              {createDraft.isPending ? t('Compiling & Submitting…') : t('Submit for review')}
-            </Button>
-          )}
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                  {findingsConfirmed ? t('Ready to Submit Inspection Report') : t('No report version yet')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {findingsConfirmed
+                    ? t('Dưới đây là bản xem trước nội dung báo cáo tổng hợp. Vui lòng kiểm tra kỹ trước khi bấm "Nộp cho Manager duyệt".')
+                    : t('Once findings are confirmed in Step 3, the inspection report can be compiled and submitted.')}
+                </Typography>
+              </Box>
 
-          {!findingsConfirmed && (
-            <Button
-              component={RouterLink}
-              to="../findings"
+              {isInspector && findingsConfirmed && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  disabled={isSubmitting}
+                  onClick={() => setConfirmSubmitOpen(true)}
+                  sx={{
+                    borderRadius: '10px',
+                    px: 3,
+                    py: 1.25,
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {createDraft.isPending ? t('Compiling & Submitting…') : t('Submit for review')}
+                </Button>
+              )}
+
+              {!findingsConfirmed && (
+                <Button
+                  component={RouterLink}
+                  to="../findings"
+                  variant="outlined"
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('Go to Findings')}
+                </Button>
+              )}
+            </Stack>
+          </Paper>
+
+          {findingsConfirmed && (
+            <Paper
               variant="outlined"
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{
+                p: { xs: 2.5, sm: 3.5 },
+                borderRadius: '16px',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
             >
-              {t('Go to Findings')}
-            </Button>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2.5, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <PictureAsPdfRounded color="primary" sx={{ fontSize: 26 }} />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {t('Bản xem trước Báo cáo Kiểm định')}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Nội dung tổng hợp từ các phát hiện khuyết tật và bằng chứng hiện trường trước khi gửi duyệt')}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <ReportDerivedSections
+                version={draftPreviewVersion}
+                findings={findings.data ?? []}
+                evidenceList={(evidence.data ?? []).filter((item) => !item.isDeleted)}
+                inspectionId={inspectionId}
+                reinspectionVerifications={reinspectionVerifications.data}
+              />
+            </Paper>
           )}
-        </Paper>
+        </Stack>
       ) : (
         openVersion && (
           <ReportAuthoringPanel

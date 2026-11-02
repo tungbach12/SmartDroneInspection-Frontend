@@ -70,6 +70,7 @@ export default function ReportDetailPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
+  const [showReturnBox, setShowReturnBox] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
@@ -359,44 +360,73 @@ export default function ReportDetailPage() {
                             {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Manager does not separately accept each finding.')}
                           </Alert>
                         )}
-                        <TextField
-                          label={t('Reason for return')}
-                          placeholder={t('Required when returning for author revisions')}
-                          multiline
-                          minRows={2}
-                          value={reviewReason}
-                          onChange={(e) => setReviewReason(e.target.value)}
-                          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                        />
-                        <Stack direction="row" spacing={1.5}>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            disabled={
-                              review.isPending ||
-                              reportReadLoading
-                            }
-                            onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
-                            sx={{ borderRadius: '8px', px: 2.5 }}
-                          >
-                            {t('Approve')}
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            disabled={review.isPending || reportReadLoading || !reviewReason.trim()}
-                            onClick={() =>
-                              review.mutate({
-                                versionId: openVersion.id,
-                                approve: false,
-                                reason: reviewReason.trim(),
-                              })
-                            }
-                            sx={{ borderRadius: '8px', px: 2.5 }}
-                          >
-                            {t('Return with reason')}
-                          </Button>
-                        </Stack>
+                        {showReturnBox ? (
+                          <Stack spacing={1.5}>
+                            <TextField
+                              label={t('Reason for return')}
+                              placeholder={t('Required when returning for author revisions')}
+                              multiline
+                              minRows={2}
+                              autoFocus
+                              value={reviewReason}
+                              onChange={(e) => setReviewReason(e.target.value)}
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                            />
+                            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                disabled={review.isPending || reportReadLoading || !reviewReason.trim()}
+                                onClick={() =>
+                                  review.mutate({
+                                    versionId: openVersion.id,
+                                    approve: false,
+                                    reason: reviewReason.trim(),
+                                  })
+                                }
+                                sx={{ borderRadius: '8px', px: 2.5 }}
+                              >
+                                {t('Return with reason')}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="inherit"
+                                disabled={review.isPending}
+                                onClick={() => {
+                                  setShowReturnBox(false);
+                                  setReviewReason('');
+                                }}
+                                sx={{ borderRadius: '8px', px: 2 }}
+                              >
+                                {t('Cancel')}
+                              </Button>
+                            </Stack>
+                          </Stack>
+                        ) : (
+                          <Stack direction="row" spacing={1.5}>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              disabled={
+                                review.isPending ||
+                                reportReadLoading
+                              }
+                              onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
+                              sx={{ borderRadius: '8px', px: 2.5 }}
+                            >
+                              {t('Approve')}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              disabled={review.isPending || reportReadLoading}
+                              onClick={() => setShowReturnBox(true)}
+                              sx={{ borderRadius: '8px', px: 2.5 }}
+                            >
+                              {t('Return with reason')}
+                            </Button>
+                          </Stack>
+                        )}
                         {review.isError && isConflict(review.error) ? (
                           <RefusalNotice
                             testId="report-review-refusal"
