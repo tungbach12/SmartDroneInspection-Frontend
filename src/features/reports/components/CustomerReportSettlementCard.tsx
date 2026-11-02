@@ -25,22 +25,25 @@ interface CustomerReportSettlementCardProps {
   versionNo: number;
   isPaid: boolean;
   isReportAccepted: boolean;
+  isPaymentCancelled?: boolean;
   paymentStatus?: ReportPaymentStatusDetails | undefined;
   acceptPending: boolean;
   payosPending: boolean;
+  vnpayPending?: boolean;
   disputeSubmitted: boolean;
   onAcceptReport: () => void;
   onProceedToPayOS: () => void;
+  onProceedToVnPay?: () => void;
   onOpenDispute: () => void;
 }
 
 /**
- * Customer Report Acceptance & PayOS Commercial Settlement Panel.
+ * Customer Report Acceptance & PayOS / VNPay Commercial Settlement Panel.
  *
  * The published report and its PDF export are always readable by the Customer once published.
  * Commercial flow from Customer's perspective:
  * 1. Review & Accept Official Report
- * 2. Settle Service Fee via PayOS (VietQR)
+ * 2. Settle Service Fee via VNPay or PayOS (VietQR)
  * 3. Inspection Service Fulfilled & Deliverables Verified
  */
 export function CustomerReportSettlementCard({
@@ -49,12 +52,15 @@ export function CustomerReportSettlementCard({
   versionNo,
   isPaid,
   isReportAccepted,
+  isPaymentCancelled = false,
   paymentStatus,
   acceptPending,
   payosPending,
+  vnpayPending = false,
   disputeSubmitted,
   onAcceptReport,
   onProceedToPayOS,
+  onProceedToVnPay,
   onOpenDispute,
 }: CustomerReportSettlementCardProps) {
   const { formatNumber, t } = useLocale();
@@ -253,43 +259,76 @@ export function CustomerReportSettlementCard({
             </Box>
           </Stack>
         ) : isReportAccepted ? (
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-          >
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
-                {t('Report accepted')}
-                {amountVnd ? ` · ${t('Payment due')}: ${amountVnd}` : ''}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Stack spacing={1.5}>
+            {isPaymentCancelled && (
+              <Alert severity="warning" sx={{ borderRadius: '8px' }}>
                 {t(
-                  'Please complete the VietQR payment via PayOS. Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
+                  'The previous online payment session was cancelled or did not complete. Please select a payment method below to retry.',
                 )}
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={payosPending}
-              endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
-              onClick={onProceedToPayOS}
-              sx={{
-                fontWeight: 650,
-                borderRadius: '8px',
-                px: 2.5,
-                py: 1,
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-              }}
+              </Alert>
+            )}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
             >
-              {payosPending
-                ? t('Connecting to PayOS gateway…')
-                : amountVnd
-                  ? `${t('Pay')} ${amountVnd} ${t('via PayOS')}`
-                  : t('Proceed to VietQR payment via PayOS ↗')}
-            </Button>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
+                  {t('Report accepted')}
+                  {amountVnd ? ` · ${t('Payment due')}: ${amountVnd}` : ''}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {t(
+                    'Please complete the online service payment via VNPay or PayOS (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
+                  )}
+                </Typography>
+              </Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0 }}>
+                {onProceedToVnPay && (
+                  <Button
+                    variant="contained"
+                    disabled={vnpayPending || payosPending}
+                    endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
+                    onClick={onProceedToVnPay}
+                    sx={{
+                      fontWeight: 650,
+                      borderRadius: '8px',
+                      px: 2.5,
+                      py: 1,
+                      textTransform: 'none',
+                      whiteSpace: 'nowrap',
+                      bgcolor: '#005baa',
+                      '&:hover': { bgcolor: '#004684' },
+                    }}
+                  >
+                    {vnpayPending
+                      ? t('Connecting to VNPay gateway…')
+                      : t('Proceed to VNPay payment ↗')}
+                  </Button>
+                )}
+                <Button
+                  variant={onProceedToVnPay ? 'outlined' : 'contained'}
+                  color="primary"
+                  disabled={payosPending || vnpayPending}
+                  endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
+                  onClick={onProceedToPayOS}
+                  sx={{
+                    fontWeight: 650,
+                    borderRadius: '8px',
+                    px: 2.5,
+                    py: 1,
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {payosPending
+                    ? t('Connecting to PayOS gateway…')
+                    : amountVnd
+                      ? `${t('Pay')} ${amountVnd} ${t('via PayOS')}`
+                      : t('Proceed to VietQR payment via PayOS ↗')}
+                </Button>
+              </Stack>
+            </Stack>
           </Stack>
         ) : (
           <Stack spacing={2}>

@@ -708,6 +708,20 @@ export function useCreateInspectionPayOSLink(inspectionId: string | null) {
   });
 }
 
+export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.createVnPayPaymentUrl(inspectionId!),
+    onSuccess: (data) => {
+      if (data?.checkoutUrl) {
+        window.location.assign(data.checkoutUrl);
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not create VNPay payment link.'), 'error'),
+  });
+}
+
 export function useReportPaymentStatus(inspectionId: string | null) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],

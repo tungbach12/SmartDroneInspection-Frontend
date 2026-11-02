@@ -204,6 +204,13 @@ export interface PayOSCheckoutDetails {
   qrCode: string;
 }
 
+export interface VnPayCheckoutDetails {
+  orderCode: number;
+  amount: number;
+  txnRef: string;
+  checkoutUrl: string;
+}
+
 export interface ReportPaymentStatusDetails {
   reportAccepted: boolean;
   paid: boolean;
@@ -698,6 +705,14 @@ export const inspectionApi = {
     api
       .post<PayOSCheckoutDetails>(
         `/inspections/${inspectionId}/payos/create-payment-link`,
+      )
+      .then((response) => response.data),
+
+  /** Generates a signed VNPay online checkout URL for an accepted inspection. */
+  createVnPayPaymentUrl: (inspectionId: string) =>
+    api
+      .post<VnPayCheckoutDetails>(
+        `/inspections/${inspectionId}/vnpay/create-payment-url`,
       )
       .then((response) => response.data),
 
