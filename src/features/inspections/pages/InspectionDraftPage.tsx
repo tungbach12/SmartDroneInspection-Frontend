@@ -174,7 +174,7 @@ export default function InspectionDraftPage() {
 
               {isInspector && (
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {openVersion && isAuthor && !sourcesChangedAfterVersion && canEditReturnedText && (
+                  {openVersion && isAuthor && canEditReturnedText && (
                     <Button
                       variant="contained"
                       color="primary"
@@ -182,7 +182,11 @@ export default function InspectionDraftPage() {
                       onClick={() => setConfirmSubmitOpen(true)}
                       sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                     >
-                      {submit.isPending ? t('Submitting…') : t('Submit for review')}
+                      {isSubmitting
+                        ? t('Submitting…')
+                        : sourcesChangedAfterVersion
+                          ? t('Compile & submit new version')
+                          : t('Submit for review')}
                     </Button>
                   )}
 
@@ -356,7 +360,11 @@ export default function InspectionDraftPage() {
         maxWidth="sm"
         onCancel={() => setConfirmSubmitOpen(false)}
         onConfirm={() => {
-          if (openVersion && openVersion.status === 'RETURNED') {
+          if (
+            openVersion &&
+            openVersion.status === 'RETURNED' &&
+            !sourcesChangedAfterVersion
+          ) {
             submit.mutate(openVersion.id, {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
