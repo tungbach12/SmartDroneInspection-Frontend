@@ -5,6 +5,8 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -12,17 +14,20 @@ import {
   Divider,
   Drawer,
   IconButton,
+  InputAdornment,
   List,
   ListItem,
   ListItemText,
   MenuItem,
+  Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
-  CircularProgress,
-  Paper,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
+import ShuffleRounded from '@mui/icons-material/ShuffleRounded';
+import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
@@ -267,6 +272,26 @@ interface CreateAssetDialogProps {
   }) => void;
 }
 
+function generateRandomAssetCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let rand = '';
+  for (let i = 0; i < 5; i++) {
+    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `AST-${rand}`;
+}
+
+const DEFAULT_CHECKPOINT_TEMPLATES = [
+  'Mố cầu & Trụ đỡ (Abutments & Piers)',
+  'Dầm chính & Dầm biên (Girders & Beams)',
+  'Khe co giãn & Khớp nối (Expansion Joints)',
+  'Hệ cáp văng / Cáp treo (Stay Cables)',
+  'Mặt đường & Lớp phủ bê tông (Deck Surface)',
+  'Lan can, Khung hộ lan & Chiếu sáng (Railings)',
+  'Gối cầu & Đệm giảm chấn (Bearings & Dampers)',
+  'Kiểm tra vết nứt & ăn mòn cốt thép (Cracks & Corrosion)',
+];
+
 function CreateAssetDialogForm({
   categories,
   pending,
@@ -276,17 +301,36 @@ function CreateAssetDialogForm({
 }: CreateAssetDialogProps) {
   const { t } = useLocale();
   const isDark = useIsDarkMode();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() => generateRandomAssetCode());
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [locationText, setLocationText] = useState('');
   const [latitudeText, setLatitudeText] = useState('10.7789');
   const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
-  const [inspectionItemsText, setInspectionItemsText] = useState('');
+  const [selectedCheckpoints, setSelectedCheckpoints] = useState<string[]>([
+    'Mố cầu & Trụ đỡ (Abutments & Piers)',
+    'Dầm chính & Dầm biên (Girders & Beams)',
+    'Khe co giãn & Khớp nối (Expansion Joints)',
+  ]);
+  const [customItemInput, setCustomItemInput] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsFeedback, setGpsFeedback] = useState<string | null>(null);
+
+  const toggleCheckpoint = (item: string) => {
+    setSelectedCheckpoints((current) =>
+      current.includes(item) ? current.filter((c) => c !== item) : [...current, item],
+    );
+  };
+
+  const handleAddCustomItem = () => {
+    const val = customItemInput.trim();
+    if (val && !selectedCheckpoints.includes(val)) {
+      setSelectedCheckpoints((current) => [...current, val]);
+      setCustomItemInput('');
+    }
+  };
 
   const handleGetCurrentGpsLocation = () => {
     setGpsFeedback(null);
@@ -323,10 +367,6 @@ function CreateAssetDialogForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const items = inspectionItemsText
-      .split(/[\n,]+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
     onSubmit({
       code,
       name,
@@ -335,7 +375,7 @@ function CreateAssetDialogForm({
       latitude: parsedLat,
       longitude: parsedLon,
       description: description || null,
-      inspectionItems: items,
+      inspectionItems: selectedCheckpoints,
     });
   };
 
@@ -357,8 +397,26 @@ function CreateAssetDialogForm({
             required
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder={t('e.g. BR-NORTH-01')}
-            helperText={t('Unique identifier for the structure')}
+            placeholder="AST-X7K9A"
+            helperText={t('Mã định danh tự động tạo ngẫu nhiên (có thể chỉnh sửa hoặc bấm đổi mã)')}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title={t('Tạo lại mã ngẫu nhiên')}>
+                      <IconButton
+                        size="small"
+                        edge="end"
+                        onClick={() => setCode(generateRandomAssetCode())}
+                        aria-label={t('Tạo lại mã ngẫu nhiên')}
+                      >
+                        <ShuffleRounded sx={{ fontSize: 18, color: 'primary.main' }} />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <TextField
             label={t('Asset name')}
@@ -489,47 +547,135 @@ function CreateAssetDialogForm({
             </Stack>
           </Box>
 
-          {/* INSPECTION ITEMS / CHECKPOINTS NGAY SAU PHẦN TỌA ĐỘ VÀ VỊ TRÍ */}
-          <Box sx={{ p: 2, bgcolor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#f8fafc', borderRadius: 2, border: '1px solid', borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0' }}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                {t('Inspection Items / Checkpoints')}
-              </Typography>
-              <Chip label={t('Checklist')} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }} />
+          {/* INSPECTION ITEMS / CHECKPOINTS CHECKLIST MẪU CÓ SẴN */}
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#f8fafc',
+              borderRadius: '12px',
+              border: '1px solid',
+              borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <PlaylistAddCheckRounded sx={{ color: 'primary.main', fontSize: 20 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {t('Inspection Items / Checkpoints')}
+                </Typography>
+                <Chip
+                  label={`${t('Đã chọn')} ${selectedCheckpoints.length}`}
+                  size="small"
+                  color="primary"
+                  sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
+                />
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  onClick={() => setSelectedCheckpoints(DEFAULT_CHECKPOINT_TEMPLATES)}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.25 }}
+                >
+                  {t('Chọn tất cả')}
+                </Button>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => setSelectedCheckpoints([])}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.25 }}
+                >
+                  {t('Bỏ chọn')}
+                </Button>
+              </Stack>
             </Stack>
+
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-              {t('Define specific structural components, bridge piers, or equipment checkpoints that the drone inspector must examine and confirm during field inspection.')}
+              {t('Tích chọn các hạng mục cấu kiện mẫu có sẵn để phi công drone kiểm tra hoặc nhập thêm cấu kiện tùy chỉnh.')}
             </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              value={inspectionItemsText}
-              onChange={(e) => setInspectionItemsText(e.target.value)}
-              placeholder={t('e.g. Mố cầu M1, Trụ P1, Dầm chính, Khe co giãn, Cáp văng số 01-08')}
-              helperText={t('List components or checkpoints to inspect (separated by comma or newline)')}
-              sx={{ bgcolor: 'background.paper' }}
-            />
-            {inspectionItemsText.trim() && (
-              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+
+            {/* CHECKBOXES GRID */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mb: 1.5 }}>
+              {DEFAULT_CHECKPOINT_TEMPLATES.map((item) => {
+                const checked = selectedCheckpoints.includes(item);
+                return (
+                  <Paper
+                    key={item}
+                    variant="outlined"
+                    onClick={() => toggleCheckpoint(item)}
+                    sx={{
+                      p: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      border: checked ? '1.5px solid #3758f9' : '1px solid #e2e8f0',
+                      bgcolor: checked ? (isDark ? 'rgba(55, 88, 249, 0.15)' : '#eff6ff') : 'background.paper',
+                      transition: 'all 120ms ease',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                      },
+                    }}
+                  >
+                    <Checkbox
+                      size="small"
+                      checked={checked}
+                      onChange={() => toggleCheckpoint(item)}
+                      sx={{ p: 0.5, mr: 1 }}
+                    />
+                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: checked ? 600 : 400, color: 'text.primary', lineHeight: 1.25 }}>
+                      {item}
+                    </Typography>
+                  </Paper>
+                );
+              })}
+            </Box>
+
+            {/* INPUT THÊM HẠNG MỤC TÙY CHỌN */}
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder={t('Nhập thêm cấu kiện riêng (VD: Trụ T1, Mố phía Bắc, Cáp văng số 5...)')}
+                value={customItemInput}
+                onChange={(e) => setCustomItemInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomItem();
+                  }
+                }}
+                sx={{ bgcolor: 'background.paper' }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Add />}
+                onClick={handleAddCustomItem}
+                disabled={!customItemInput.trim()}
+                sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0, borderRadius: '8px' }}
+              >
+                {t('Thêm')}
+              </Button>
+            </Stack>
+
+            {/* PREVIEW SELECTED CHIPS */}
+            {selectedCheckpoints.length > 0 && (
+              <Box sx={{ mt: 1.5, pt: 1.25, borderTop: '1px dashed', borderColor: 'divider' }}>
                 <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
-                  {t('Preview Checkpoints for Inspector:')}
+                  {t('Danh sách cấu kiện đã chọn cho Inspector:')}
                 </Typography>
                 <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                  {inspectionItemsText
-                    .split(/[\n,]+/)
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                    .map((item, idx) => (
-                      <Chip
-                        key={idx}
-                        label={`${idx + 1}. ${item}`}
-                        size="small"
-                        color="info"
-                        variant="outlined"
-                        sx={{ fontWeight: 500 }}
-                      />
-                    ))}
+                  {selectedCheckpoints.map((item, idx) => (
+                    <Chip
+                      key={idx}
+                      label={`${idx + 1}. ${item}`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      onDelete={() => toggleCheckpoint(item)}
+                      sx={{ fontWeight: 500, fontSize: '0.75rem' }}
+                    />
+                  ))}
                 </Stack>
               </Box>
             )}
