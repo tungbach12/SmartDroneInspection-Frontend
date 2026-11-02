@@ -156,7 +156,6 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.workflowState.mockResolvedValue({
       status: 'FIELD_COMPLETED',
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
-      findingsSnapshotHash: 'abc123',
     });
     setRole(['CUSTOMER']);
   });
@@ -242,7 +241,6 @@ describe('ReportDetailPage MF3 gates', () => {
     mockedApi.workflowState.mockResolvedValue({
       status: 'FIELD_COMPLETED',
       findingsConfirmedAt: null,
-      findingsSnapshotHash: null,
     });
     mockedApi.listFindings.mockResolvedValue([finding({ status: 'CONFIRMED' })]);
     mockedApi.listEvidence.mockResolvedValue([]);
@@ -408,12 +406,10 @@ describe('ReportDetailPage MF3 gates', () => {
       .mockResolvedValueOnce({
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
-        findingsSnapshotHash: 'abc123',
       })
       .mockResolvedValue({
         status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
-        findingsSnapshotHash: 'abc123',
       });
     mockedApi.listFindings.mockResolvedValue([finding({})]);
     mockedApi.publishVersion.mockResolvedValue({

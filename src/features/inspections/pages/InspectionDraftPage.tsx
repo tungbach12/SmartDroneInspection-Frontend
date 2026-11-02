@@ -75,7 +75,7 @@ export default function InspectionDraftPage() {
 
   const inspectionStatus = workflow.data?.status ?? '';
   const findingsConfirmed =
-    Boolean(workflow.data?.findingsSnapshotHash) &&
+    Boolean(workflow.data?.findingsConfirmedAt) &&
     ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(inspectionStatus);
 
   const isAuthor = Boolean(

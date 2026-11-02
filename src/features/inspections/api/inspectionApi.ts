@@ -127,7 +127,6 @@ export type FindingStatus = 'PENDING' | 'CONFIRMED';
 export interface InspectionWorkflowState {
   status: InspectionStatus;
   findingsConfirmedAt: string | null;
-  findingsSnapshotHash: string | null;
 }
 
 /**

@@ -667,175 +667,179 @@ export function AirspaceNoFlyMap({
           </Stack>
         )}
 
-        {/* MSG28 or Clear Advisory Alert */}
-        <Alert
-          severity={statusMeta.color}
-          sx={{
-            borderRadius: '12px',
-            py: 0.75,
-            '& .MuiAlert-message': { width: '100%' },
-          }}
-          action={
-            <Chip
-              size="small"
-              label={evaluation.messageCode}
-              color={statusMeta.color}
-              variant="outlined"
-              sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem' }}
-            />
-          }
-        >
-          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.84rem' }}>
-            [{evaluation.messageCode}] {t(evaluation.advisoryMessage)}
-          </Typography>
-          <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
-            {evaluation.classification === 'NO_FLY_ZONE'
-              ? 'Tọa độ công trình nằm trong Vùng Cấm Bay Tuyệt Đối. Không được phép cất cánh nếu chưa có văn bản cho phép đặc biệt của Cục Tác chiến - Bộ Tổng Tham mưu.'
-              : evaluation.classification === 'RESTRICTED_ZONE'
-                ? `Công trình nằm trong ${evaluation.matchingZones.length} vùng hạn chế bay (${evaluation.matchingZones.map((z) => z.name).join('; ')}). Bắt buộc đối chiếu giới hạn độ cao và tải lên Giấy phép bay hợp lệ trước khi mở phiên bay.`
-                : 'Khu vực ngoài phạm vi vùng cấm tĩnh đã công bố. Kiểm định viên vẫn bắt buộc tải lên Giấy phép bay hợp lệ theo quy định.'}
-          </Typography>
-        </Alert>
+        {/* MSG28 or Clear Advisory Alert (only in standalone mode) */}
+        {!dialogMode && (
+          <Alert
+            severity={statusMeta.color}
+            sx={{
+              borderRadius: '12px',
+              py: 0.75,
+              '& .MuiAlert-message': { width: '100%' },
+            }}
+            action={
+              <Chip
+                size="small"
+                label={evaluation.messageCode}
+                color={statusMeta.color}
+                variant="outlined"
+                sx={{ fontWeight: 700, height: 22, fontSize: '0.7rem' }}
+              />
+            }
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.84rem' }}>
+              [{evaluation.messageCode}] {t(evaluation.advisoryMessage)}
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
+              {evaluation.classification === 'NO_FLY_ZONE'
+                ? 'Tọa độ công trình nằm trong Vùng Cấm Bay Tuyệt Đối. Không được phép cất cánh nếu chưa có văn bản cho phép đặc biệt của Cục Tác chiến - Bộ Tổng Tham mưu.'
+                : evaluation.classification === 'RESTRICTED_ZONE'
+                  ? `Công trình nằm trong ${evaluation.matchingZones.length} vùng hạn chế bay (${evaluation.matchingZones.map((z) => z.name).join('; ')}). Bắt buộc đối chiếu giới hạn độ cao và tải lên Giấy phép bay hợp lệ trước khi mở phiên bay.`
+                  : 'Khu vực ngoài phạm vi vùng cấm tĩnh đã công bố. Kiểm định viên vẫn bắt buộc tải lên Giấy phép bay hợp lệ theo quy định.'}
+            </Typography>
+          </Alert>
+        )}
 
-        {/* Address & Landmark Search Bar */}
-        <Box sx={{ position: 'relative' }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <ClickAwayListener onClickAway={() => setShowSearchDropdown(false)}>
-              <Box sx={{ position: 'relative', flex: 1 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    p: 0.5,
-                    px: 1.25,
-                    borderRadius: '10px',
-                    bgcolor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#ffffff',
-                    border: '1px solid',
-                    borderColor: showSearchDropdown ? 'primary.main' : 'divider',
-                    boxShadow: showSearchDropdown ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {isSearching ? (
-                    <CircularProgress size={16} sx={{ color: 'primary.main', flexShrink: 0 }} />
-                  ) : (
-                    <SearchRounded sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
-                  )}
-                  <TextField
-                    variant="standard"
-                    fullWidth
-                    value={searchQuery}
-                    placeholder="Tìm kiếm công trình, địa chỉ (VD: Cầu Phú Mỹ, Cầu Ba Son, Cảng Cát Lái, Landmark 81...)"
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setShowSearchDropdown(true);
-                    }}
-                    onFocus={() => {
-                      if (searchQuery.trim()) setShowSearchDropdown(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && searchResults.length > 0) {
-                        e.preventDefault();
-                        handleSelectLocation(searchResults[0]!);
-                      }
-                    }}
-                    slotProps={{
-                      input: {
-                        disableUnderline: true,
-                        sx: { fontSize: '0.8125rem', color: 'text.primary' },
-                      },
-                      htmlInput: {
-                        autoComplete: 'off',
-                        spellCheck: false,
-                        'data-lpignore': 'true',
-                      },
-                    }}
-                  />
-                  {searchQuery && (
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setOnlineResults([]);
-                        setShowSearchDropdown(false);
-                      }}
-                      sx={{ p: 0.25 }}
-                    >
-                      <ClearRounded sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  )}
-                </Box>
-
-                {/* Search Autocomplete Suggestions Dropdown */}
-                {showSearchDropdown && searchResults.length > 0 && (
-                  <Paper
-                    elevation={8}
+        {/* Address & Landmark Search Bar (only in standalone mode) */}
+        {!dialogMode && (
+          <Box sx={{ position: 'relative' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+              <ClickAwayListener onClickAway={() => setShowSearchDropdown(false)}>
+                <Box sx={{ position: 'relative', flex: 1 }}>
+                  <Box
                     sx={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      mt: 0.75,
-                      zIndex: 50,
-                      maxHeight: 280,
-                      overflowY: 'auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      p: 0.5,
+                      px: 1.25,
                       borderRadius: '10px',
+                      bgcolor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#ffffff',
                       border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper',
+                      borderColor: showSearchDropdown ? 'primary.main' : 'divider',
+                      boxShadow: showSearchDropdown ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none',
+                      transition: 'all 0.2s ease',
                     }}
                   >
-                    {searchResults.map((item: LandmarkLocation, idx: number) => (
-                      <Box
-                        key={`${item.name}-${idx}`}
-                        onClick={() => handleSelectLocation(item)}
-                        sx={{
-                          p: 1.25,
-                          px: 1.5,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 1.5,
-                          borderBottom: idx < searchResults.length - 1 ? '1px solid' : 'none',
-                          borderColor: 'divider',
-                          '&:hover': { bgcolor: 'action.hover' },
+                    {isSearching ? (
+                      <CircularProgress size={16} sx={{ color: 'primary.main', flexShrink: 0 }} />
+                    ) : (
+                      <SearchRounded sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+                    )}
+                    <TextField
+                      variant="standard"
+                      fullWidth
+                      value={searchQuery}
+                      placeholder="Tìm kiếm công trình, địa chỉ (VD: Cầu Phú Mỹ, Cầu Ba Son, Cảng Cát Lái, Landmark 81...)"
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setShowSearchDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (searchQuery.trim()) setShowSearchDropdown(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchResults.length > 0) {
+                          e.preventDefault();
+                          handleSelectLocation(searchResults[0]!);
+                        }
+                      }}
+                      slotProps={{
+                        input: {
+                          disableUnderline: true,
+                          sx: { fontSize: '0.8125rem', color: 'text.primary' },
+                        },
+                        htmlInput: {
+                          autoComplete: 'off',
+                          spellCheck: false,
+                          'data-lpignore': 'true',
+                        },
+                      }}
+                    />
+                    {searchQuery && (
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setOnlineResults([]);
+                          setShowSearchDropdown(false);
                         }}
+                        sx={{ p: 0.25 }}
                       >
-                        <Box sx={{ minWidth: 0 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                            <PlaceRounded sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.84rem' }} noWrap>
-                              {item.name}
+                        <ClearRounded sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    )}
+                  </Box>
+
+                  {/* Search Autocomplete Suggestions Dropdown */}
+                  {showSearchDropdown && searchResults.length > 0 && (
+                    <Paper
+                      elevation={8}
+                      sx={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        mt: 0.75,
+                        zIndex: 50,
+                        maxHeight: 280,
+                        overflowY: 'auto',
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                      }}
+                    >
+                      {searchResults.map((item: LandmarkLocation, idx: number) => (
+                        <Box
+                          key={`${item.name}-${idx}`}
+                          onClick={() => handleSelectLocation(item)}
+                          sx={{
+                            p: 1.25,
+                            px: 1.5,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1.5,
+                            borderBottom: idx < searchResults.length - 1 ? '1px solid' : 'none',
+                            borderColor: 'divider',
+                            '&:hover': { bgcolor: 'action.hover' },
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                              <PlaceRounded sx={{ fontSize: 16, color: 'primary.main', flexShrink: 0 }} />
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.84rem' }} noWrap>
+                                {item.name}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                label={item.category}
+                                sx={{ height: 18, fontSize: '9.5px', fontWeight: 700 }}
+                              />
+                            </Stack>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }} noWrap>
+                              {item.region}
                             </Typography>
-                            <Chip
-                              size="small"
-                              label={item.category}
-                              sx={{ height: 18, fontSize: '9.5px', fontWeight: 700 }}
-                            />
-                          </Stack>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }} noWrap>
-                            {item.region}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, flexShrink: 0, fontSize: '11px' }}>
+                            {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, flexShrink: 0, fontSize: '11px' }}>
-                          {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Paper>
-                )}
-              </Box>
-            </ClickAwayListener>
-          </Stack>
+                      ))}
+                    </Paper>
+                  )}
+                </Box>
+              </ClickAwayListener>
+            </Stack>
 
-          {searchFeedback && (
-            <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, mt: 0.5, display: 'block' }}>
-              ✓ {searchFeedback}
-            </Typography>
-          )}
-        </Box>
+            {searchFeedback && (
+              <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, mt: 0.5, display: 'block' }}>
+                ✓ {searchFeedback}
+              </Typography>
+            )}
+          </Box>
+        )}
 
         {/* Unified Single-Row Control Bar */}
         <Box
@@ -910,7 +914,7 @@ export function AirspaceNoFlyMap({
             })}
           </Stack>
 
-          {/* Right: Positioning & Region Quick Actions */}
+          {/* Right: Positioning & Quick Actions */}
           <Stack
             direction="row"
             spacing={0.75}
@@ -954,81 +958,84 @@ export function AirspaceNoFlyMap({
               Vị trí của tôi (GPS)
             </Button>
 
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<PersonPinCircleRounded sx={{ fontSize: 15 }} />}
-              onClick={handleSimulatePilotLocation}
-              sx={{
-                height: 28,
-                px: 1.15,
-                textTransform: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                borderRadius: '8px',
-                borderColor:
-                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
-                    ? '#0284c7'
-                    : 'divider',
-                bgcolor:
-                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
-                    ? isDark
-                      ? 'rgba(2, 132, 199, 0.22)'
-                      : '#e0f2fe'
-                    : 'background.paper',
-                color:
-                  pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
-                    ? isDark
-                      ? '#7dd3fc'
-                      : '#0369a1'
-                    : 'text.primary',
-                '&:hover': {
-                  borderColor: 'text.secondary',
-                  bgcolor: 'action.hover',
-                },
-              }}
-            >
-              Giả lập điểm đứng cất cánh
-            </Button>
+            {!dialogMode && (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PersonPinCircleRounded sx={{ fontSize: 15 }} />}
+                  onClick={handleSimulatePilotLocation}
+                  sx={{
+                    height: 28,
+                    px: 1.15,
+                    textTransform: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    borderColor:
+                      pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
+                        ? '#0284c7'
+                        : 'divider',
+                    bgcolor:
+                      pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
+                        ? isDark
+                          ? 'rgba(2, 132, 199, 0.22)'
+                          : '#e0f2fe'
+                        : 'background.paper',
+                    color:
+                      pilotLocation?.source === 'SIMULATED' || pilotLocation?.source === 'RECOMMENDED'
+                        ? isDark
+                          ? '#7dd3fc'
+                          : '#0369a1'
+                        : 'text.primary',
+                    '&:hover': {
+                      borderColor: 'text.secondary',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  Giả lập điểm đứng cất cánh
+                </Button>
 
-            {/* Tự chọn nơi đứng bay (Custom Pick on Map) */}
-            <Button
-              size="small"
-              variant={isPickingPilotLocation ? 'contained' : 'outlined'}
-              startIcon={<TouchAppRounded sx={{ fontSize: 15 }} />}
-              onClick={handleTogglePickPilotLocation}
-              sx={{
-                height: 28,
-                px: 1.15,
-                textTransform: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                borderRadius: '8px',
-                borderColor: isPickingPilotLocation ? '#7c3aed' : 'divider',
-                bgcolor: isPickingPilotLocation
-                  ? '#7c3aed'
-                  : pilotLocation?.source === 'CUSTOM'
-                    ? isDark
-                      ? 'rgba(124, 58, 237, 0.22)'
-                      : '#ede9fe'
-                    : 'background.paper',
-                color: isPickingPilotLocation
-                  ? '#ffffff'
-                  : pilotLocation?.source === 'CUSTOM'
-                    ? isDark
-                      ? '#c4b5fd'
-                      : '#6d28d9'
-                    : 'text.primary',
-                '&:hover': {
-                  borderColor: isPickingPilotLocation ? '#6d28d9' : 'text.secondary',
-                  bgcolor: isPickingPilotLocation ? '#6d28d9' : 'action.hover',
-                },
-              }}
-            >
-              {isPickingPilotLocation ? 'Đang chọn nơi đứng bay…' : 'Tự chọn nơi đứng bay'}
-            </Button>
+                <Button
+                  size="small"
+                  variant={isPickingPilotLocation ? 'contained' : 'outlined'}
+                  startIcon={<TouchAppRounded sx={{ fontSize: 15 }} />}
+                  onClick={handleTogglePickPilotLocation}
+                  sx={{
+                    height: 28,
+                    px: 1.15,
+                    textTransform: 'none',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    borderColor: isPickingPilotLocation ? '#7c3aed' : 'divider',
+                    bgcolor: isPickingPilotLocation
+                      ? '#7c3aed'
+                      : pilotLocation?.source === 'CUSTOM'
+                        ? isDark
+                          ? 'rgba(124, 58, 237, 0.22)'
+                          : '#ede9fe'
+                        : 'background.paper',
+                    color: isPickingPilotLocation
+                      ? '#ffffff'
+                      : pilotLocation?.source === 'CUSTOM'
+                        ? isDark
+                          ? '#c4b5fd'
+                          : '#6d28d9'
+                        : 'text.primary',
+                    '&:hover': {
+                      borderColor: isPickingPilotLocation ? '#6d28d9' : 'text.secondary',
+                      bgcolor: isPickingPilotLocation ? '#6d28d9' : 'action.hover',
+                    },
+                  }}
+                >
+                  {isPickingPilotLocation ? 'Đang chọn nơi đứng bay…' : 'Tự chọn nơi đứng bay'}
+                </Button>
+              </>
+            )}
 
-            {!readOnly && !isAdjustingTarget ? (
+            {(!dialogMode || onSelectCoordinates) && !readOnly && !isAdjustingTarget && (
               <Button
                 size="small"
                 variant="outlined"
@@ -1053,7 +1060,9 @@ export function AirspaceNoFlyMap({
               >
                 Điều chỉnh mục tiêu
               </Button>
-            ) : (
+            )}
+
+            {isAdjustingTarget && (
               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                 <Button
                   size="small"
@@ -1095,7 +1104,7 @@ export function AirspaceNoFlyMap({
               </Stack>
             )}
 
-            {customTarget && !isAdjustingTarget && (
+            {!dialogMode && customTarget && !isAdjustingTarget && (
               <Button
                 size="small"
                 variant="text"
@@ -1125,41 +1134,45 @@ export function AirspaceNoFlyMap({
               </Button>
             )}
 
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.25, display: { xs: 'none', sm: 'block' } }} />
+            {!dialogMode && (
+              <>
+                <Divider orientation="vertical" flexItem sx={{ mx: 0.25, display: { xs: 'none', sm: 'block' } }} />
 
-            <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
-              {(
-                [
-                  { label: 'TP.HCM', lat: 10.79, lon: 106.695 },
-                  { label: 'Hà Nội', lat: 21.0369, lon: 105.8342 },
-                  { label: 'Đà Nẵng', lat: 16.0539, lon: 108.1994 },
-                ] as const
-              ).map((region) => (
-                <Button
-                  key={region.label}
-                  size="small"
-                  variant="text"
-                  onClick={() => {
-                    setIsTargetLocked(false);
-                    setViewOffset({ lat: region.lat, lon: region.lon });
-                    setZoom(12);
-                  }}
-                  sx={{
-                    minWidth: 'unset',
-                    height: 26,
-                    px: 0.9,
-                    borderRadius: '6px',
-                    textTransform: 'none',
-                    fontSize: '0.73rem',
-                    fontWeight: 500,
-                    color: 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
-                  }}
-                >
-                  {region.label}
-                </Button>
-              ))}
-            </Stack>
+                <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
+                  {(
+                    [
+                      { label: 'TP.HCM', lat: 10.79, lon: 106.695 },
+                      { label: 'Hà Nội', lat: 21.0369, lon: 105.8342 },
+                      { label: 'Đà Nẵng', lat: 16.0539, lon: 108.1994 },
+                    ] as const
+                  ).map((region) => (
+                    <Button
+                      key={region.label}
+                      size="small"
+                      variant="text"
+                      onClick={() => {
+                        setIsTargetLocked(false);
+                        setViewOffset({ lat: region.lat, lon: region.lon });
+                        setZoom(12);
+                      }}
+                      sx={{
+                        minWidth: 'unset',
+                        height: 26,
+                        px: 0.9,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontSize: '0.73rem',
+                        fontWeight: 500,
+                        color: 'text.secondary',
+                        '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                      }}
+                    >
+                      {region.label}
+                    </Button>
+                  ))}
+                </Stack>
+              </>
+            )}
           </Stack>
         </Box>
 
@@ -1277,7 +1290,7 @@ export function AirspaceNoFlyMap({
                       fill={isNoFly ? '#dc2626' : '#d97706'}
                       fontSize="10"
                       fontWeight="700"
-                      fontFamily="Inter, system-ui, sans-serif"
+                      fontFamily="system-ui, sans-serif"
                       style={{ pointerEvents: 'none' }}
                     >
                       {zone.name.split('—')[0]?.trim() || zone.name} (R={(zone.radiusMeters / 1000).toFixed(1)} km)
@@ -1332,7 +1345,7 @@ export function AirspaceNoFlyMap({
                   fill="#f8fafc"
                   fontSize="10"
                   fontWeight="600"
-                  fontFamily="Inter, system-ui, sans-serif"
+                  fontFamily="system-ui, sans-serif"
                 >
                   {pilotLocation?.source === 'RECOMMENDED'
                     ? 'Gợi ý cất cánh (Safe)'
@@ -1405,7 +1418,7 @@ export function AirspaceNoFlyMap({
                 fill="#f8fafc"
                 fontSize="10"
                 fontWeight="600"
-                fontFamily="Inter, system-ui, sans-serif"
+                fontFamily="system-ui, sans-serif"
               >
                 Mục tiêu công trình
               </text>
@@ -1452,31 +1465,35 @@ export function AirspaceNoFlyMap({
                     fill="#ffffff"
                     fontSize="9"
                     fontWeight="700"
-                    fontFamily="Inter, system-ui, sans-serif"
+                    fontFamily="system-ui, sans-serif"
                   >
                     {chk.index}
                   </text>
-                  {/* Label Badge */}
-                  <rect
-                    x={chkX + 11}
-                    y={chkY - 9}
-                    width={Math.max(60, chk.name.length * 6.5 + 12)}
-                    height={17}
-                    rx={4}
-                    fill="rgba(15, 23, 42, 0.85)"
-                    stroke={isSelectedChk ? '#f59e0b' : 'rgba(255,255,255,0.15)'}
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={chkX + 16}
-                    y={chkY + 3}
-                    fill="#f8fafc"
-                    fontSize="9"
-                    fontWeight="600"
-                    fontFamily="Inter, system-ui, sans-serif"
-                  >
-                    #{chk.index} {chk.name.slice(0, 16)}
-                  </text>
+                  {/* Label Badge: only render when !dialogMode or when explicitly selected to avoid cluttering */}
+                  {(!dialogMode || isSelectedChk) && (
+                    <>
+                      <rect
+                        x={chkX + 11}
+                        y={chkY - 9}
+                        width={Math.max(60, chk.name.length * 6.5 + 12)}
+                        height={17}
+                        rx={4}
+                        fill="rgba(15, 23, 42, 0.85)"
+                        stroke={isSelectedChk ? '#f59e0b' : 'rgba(255,255,255,0.15)'}
+                        strokeWidth={1}
+                      />
+                      <text
+                        x={chkX + 16}
+                        y={chkY + 3}
+                        fill="#f8fafc"
+                        fontSize="9"
+                        fontWeight="600"
+                        fontFamily="system-ui, sans-serif"
+                      >
+                        #{chk.index} {chk.name.slice(0, 16)}
+                      </text>
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -1490,17 +1507,18 @@ export function AirspaceNoFlyMap({
               left: 10,
               bgcolor: 'rgba(15, 23, 42, 0.84)',
               color: '#ffffff',
-              px: 1.5,
-              py: 0.85,
-              borderRadius: '10px',
+              px: 1.25,
+              py: 0.6,
+              borderRadius: '8px',
               backdropFilter: 'blur(6px)',
-              maxWidth: '78%',
+              maxWidth: '85%',
               border: '1px solid rgba(255,255,255,0.12)',
+              zIndex: 5,
             }}
           >
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <ColorDot color="#a855f7" />
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#f8fafc' }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.75rem' }}>
                 Mục tiêu công trình cần kiểm tra ({assetName || 'Vị trí khảo sát'}):{' '}
                 {activeLat.toFixed(4)}°N, {activeLon.toFixed(4)}°E
                 {isAdjustingTarget
@@ -1511,44 +1529,48 @@ export function AirspaceNoFlyMap({
                 {isTargetLocked && viewOffset === null ? ` · Đã khóa tâm (Zoom ${zoom}x)` : ''}
               </Typography>
             </Stack>
-            {isAdjustingTarget && (
+            {!dialogMode && isAdjustingTarget && (
               <Typography variant="caption" sx={{ color: '#e9d5ff', display: 'block', mt: 0.25 }}>
                 Nhấp chuột vào bất kỳ điểm nào trên bản đồ để chọn mục tiêu, sau đó bấm "Xác nhận mục tiêu" để lưu.
               </Typography>
             )}
-            {isPickingPilotLocation && (
+            {!dialogMode && isPickingPilotLocation && (
               <Typography variant="caption" sx={{ color: '#7dd3fc', display: 'block', mt: 0.25, fontWeight: 700 }}>
                 🎯 Chế độ tự chọn nơi đứng bay: Nhấp chuột vào bất kỳ điểm nào trên bản đồ để đặt vị trí cất cánh của phi công.
               </Typography>
             )}
             {pilotLocation && (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.4 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.35 }}>
                 <ColorDot color="#38bdf8" />
-                <Typography variant="caption" sx={{ color: '#bae6fd' }}>
+                <Typography variant="caption" sx={{ color: '#bae6fd', fontSize: '0.73rem' }}>
                   Vị trí người điều khiển / Điểm cất cánh (
                   {pilotLocation.source === 'GPS'
                     ? 'GPS thiết bị'
                     : pilotLocation.source === 'RECOMMENDED'
-                      ? 'Gợi ý cất cánh an toàn'
+                      ? 'Gợi ý an toàn'
                       : pilotLocation.source === 'CUSTOM'
-                        ? 'Tự chọn vị trí'
-                        : 'Giả lập hiện trường'}):{' '}
-                  {pilotLocation.lat.toFixed(4)}°N, {pilotLocation.lon.toFixed(4)}°E · Cách mục
-                  tiêu:{' '}
-                  <strong>
-                    {pilotToTargetDistanceMeters != null && pilotToTargetDistanceMeters >= 1000
-                      ? `${(pilotToTargetDistanceMeters / 1000).toFixed(2)} km`
-                      : `${pilotToTargetDistanceMeters ?? 0} m`}
-                  </strong>
+                        ? 'Tự chọn'
+                        : 'Hiện trường'}):{' '}
+                  {pilotLocation.lat.toFixed(4)}°N, {pilotLocation.lon.toFixed(4)}°E
+                  {pilotToTargetDistanceMeters != null && (
+                    <>
+                      {' · '}Cách mục tiêu:{' '}
+                      <strong>
+                        {pilotToTargetDistanceMeters >= 1000
+                          ? `${(pilotToTargetDistanceMeters / 1000).toFixed(2)} km`
+                          : `${pilotToTargetDistanceMeters} m`}
+                      </strong>
+                    </>
+                  )}
                 </Typography>
               </Stack>
             )}
-            {!hasCoordinates && (
+            {!dialogMode && !hasCoordinates && (
               <Typography variant="caption" sx={{ color: '#fde68a', display: 'block', mt: 0.25 }}>
                 Đang hiển thị tọa độ mặc định trung tâm TP.HCM
               </Typography>
             )}
-            {onSelectCoordinates && (
+            {!dialogMode && onSelectCoordinates && (
               <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mt: 0.25 }}>
                 Nhấp chuột lên bản đồ để chọn tọa độ công trình
               </Typography>
@@ -1610,13 +1632,13 @@ export function AirspaceNoFlyMap({
               bottom: 6,
               right: 8,
               bgcolor: isDark ? 'rgba(15, 23, 42, 0.86)' : 'rgba(255, 255, 255, 0.88)',
-              px: 1,
-              py: 0.25,
-              borderRadius: '6px',
+              px: 0.85,
+              py: 0.2,
+              borderRadius: '5px',
             }}
           >
-            <Typography variant="caption" sx={{ fontSize: '0.68rem', color: isDark ? '#cbd5e1' : '#334155' }}>
-              © OpenStreetMap · QĐ 18/2020/QĐ-TTg & NĐ 288/2025/NĐ-CP
+            <Typography variant="caption" sx={{ fontSize: '0.65rem', color: isDark ? '#cbd5e1' : '#334155' }}>
+              © OpenStreetMap
             </Typography>
           </Box>
         </Box>
@@ -1624,13 +1646,13 @@ export function AirspaceNoFlyMap({
         {/* Clean Minimal Legend Bar */}
         <Stack
           direction="row"
-          spacing={2.5}
+          spacing={2}
           sx={{
             flexWrap: 'wrap',
-            rowGap: 0.75,
-            px: 1.5,
-            py: 0.85,
-            borderRadius: '10px',
+            rowGap: 0.5,
+            px: 1.25,
+            py: 0.65,
+            borderRadius: '8px',
             bgcolor: isDark ? 'rgba(15, 23, 42, 0.65)' : '#f8fafc',
             border: '1px solid',
             borderColor: 'divider',
@@ -1640,39 +1662,71 @@ export function AirspaceNoFlyMap({
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
             Chú giải:
           </Typography>
-          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
             <ColorDot color="#a855f7" />
-            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
               Mục tiêu công trình cần kiểm tra
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
             <ColorDot color="#38bdf8" />
-            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
               Vị trí người điều khiển / Điểm cất cánh
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
             <ColorDot color="#ef4444" />
-            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
               Vùng cấm bay tuyệt đối (No-Fly)
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
             <ColorDot color="#f59e0b" dashed />
-            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
               Vùng hạn chế bay (Restricted)
             </Typography>
           </Stack>
           {checkpointPositions.length > 0 && (
-            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+            <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
               <ColorDot color="#10b981" />
-              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
                 Hạng mục kiểm tra & Điểm sửa chữa ({checkpointPositions.length})
               </Typography>
             </Stack>
           )}
         </Stack>
+
+        {dialogMode && checkpointPositions.length > 0 && (
+          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              Hạng mục:
+            </Typography>
+            {checkpointPositions.map((chk) => (
+              <Chip
+                key={chk.id || `chk-${chk.index}`}
+                size="small"
+                label={chk.name}
+                onClick={() => {
+                  setSelectedCheckpointId(chk.id || null);
+                  setViewOffset({ lat: chk.lat, lon: chk.lon });
+                  setZoom(16);
+                }}
+                sx={{
+                  height: 22,
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  bgcolor:
+                    selectedCheckpointId === chk.id
+                      ? 'warning.light'
+                      : isDark
+                        ? 'rgba(255,255,255,0.08)'
+                        : '#f1f5f9',
+                }}
+              />
+            ))}
+          </Stack>
+        )}
 
         {gpsError && (
           <Alert severity="info" sx={{ borderRadius: '10px', py: 0.5 }}>
@@ -1680,8 +1734,8 @@ export function AirspaceNoFlyMap({
           </Alert>
         )}
 
-        {/* Danh sách vị trí cấu kiện cần kiểm tra & sửa chữa (Checkpoints & Defect Locations) */}
-        {checkpointPositions.length > 0 && (
+        {/* Danh sách vị trí cấu kiện cần kiểm tra & sửa chữa (Checkpoints & Defect Locations - only in standalone mode) */}
+        {!dialogMode && checkpointPositions.length > 0 && (
           <Paper
             variant="outlined"
             sx={{
@@ -1773,8 +1827,8 @@ export function AirspaceNoFlyMap({
           </Paper>
         )}
 
-        {/* Đánh giá an toàn không phận tại điểm đứng cất cánh của Người điều khiển */}
-        {pilotLocation && pilotEvaluation && (
+        {/* Đánh giá an toàn không phận tại điểm đứng cất cánh của Người điều khiển (only in standalone mode) */}
+        {!dialogMode && pilotLocation && pilotEvaluation && (
           <Alert
             severity={
               pilotEvaluation.classification === 'NO_FLY_ZONE'
@@ -1822,8 +1876,8 @@ export function AirspaceNoFlyMap({
           </Alert>
         )}
 
-        {/* Active / Selected Airspace Zone Details */}
-        {activeSelectedZone && (
+        {/* Active / Selected Airspace Zone Details (only in standalone mode) */}
+        {!dialogMode && activeSelectedZone && (
           <Box
             sx={{
               p: 1.5,
