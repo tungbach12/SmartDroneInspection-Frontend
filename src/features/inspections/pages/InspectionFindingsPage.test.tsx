@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
     refetch?: ReturnType<typeof vi.fn>;
   },
   workflowQuery: {
-    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    data: { status: 'FIELD_COMPLETED' as string, findingsConfirmedAt: null as string | null },
     isLoading: false,
     error: null as Error | null,
   },
@@ -191,7 +191,7 @@ describe('InspectionFindingsPage', () => {
     mocks.evidenceQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
-    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null }, isLoading: false, error: null };
+    mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null }, isLoading: false, error: null };
     mocks.reportVersionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.analyze.isPending = false;
     mocks.analyze.analysingIds = [];
@@ -371,7 +371,6 @@ describe('InspectionFindingsPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: null,
-        findingsSnapshotHash: null,
       },
       isLoading: false,
       error: null,
@@ -451,7 +450,6 @@ describe('InspectionFindingsPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-08T09:00:00Z',
-        findingsSnapshotHash: 'abcdef1234567890',
       },
       isLoading: false,
       error: null,
@@ -477,7 +475,6 @@ describe('InspectionFindingsPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-08T09:00:00Z',
-        findingsSnapshotHash: 'abcdef1234567890',
       },
       isLoading: false,
       error: null,
@@ -560,7 +557,7 @@ describe('InspectionFindingsPage', () => {
       refetch: vi.fn(),
     };
     mocks.workflowQuery = {
-      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-08T09:00:00Z', findingsSnapshotHash: 'hash' },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-08T09:00:00Z' },
       isLoading: false,
       error: null,
     };

@@ -315,22 +315,6 @@ export function InspectionListTable({
                             {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…
                           </Typography>
                         )}
-
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: 'text.secondary',
-                            fontFamily: 'monospace',
-                            fontSize: '0.75rem',
-                            display: 'block',
-                            fontVariantNumeric: 'tabular-nums',
-                          }}
-                        >
-                          #{row.id.slice(0, 8)}
-                          {row.plannedStartAt
-                            ? ` · ${formatDate(row.plannedStartAt, formatDateValue)}`
-                            : ''}
-                        </Typography>
                       </Stack>
                     </TableCell>
 

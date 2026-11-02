@@ -112,7 +112,6 @@ describe('CorrectiveDispositionPage', () => {
     mockedApi.workflowState.mockResolvedValue({
       status: 'REPORT_PUBLISHED',
       findingsConfirmedAt: '2026-10-01T11:00:00Z',
-      findingsSnapshotHash: 'abc123',
     } as never);
     mockedApi.completeCorrectiveHandoff.mockReset();
   });
@@ -183,7 +182,6 @@ describe('CorrectiveDispositionPage', () => {
     mockedApi.workflowState.mockResolvedValue({
       status: 'COMPLETED',
       findingsConfirmedAt: '2026-10-01T11:00:00Z',
-      findingsSnapshotHash: 'abc123',
     } as never);
     mockedApi.listFindings.mockResolvedValue([
       finding({

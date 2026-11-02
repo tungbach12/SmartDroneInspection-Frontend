@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   workflowQuery: {
-    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null as string | null, findingsSnapshotHash: null as string | null },
+    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null as string | null },
     isLoading: false,
     isError: false,
     error: null as Error | null,
@@ -119,7 +119,7 @@ beforeEach(() => {
     refetch: vi.fn(),
   };
   mocks.workflowQuery = {
-    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null, findingsSnapshotHash: null },
+    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null },
     isLoading: false,
     isError: false,
     error: null,
@@ -188,7 +188,7 @@ describe('InspectionDetailPage', () => {
       refetch: vi.fn(),
     };
     mocks.workflowQuery = {
-      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null },
       isLoading: false,
       isError: false,
       error: null,
@@ -207,7 +207,7 @@ describe('InspectionDetailPage', () => {
       refetch: vi.fn(),
     };
     mocks.workflowQuery = {
-      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-27T08:00:00Z', findingsSnapshotHash: 'current-hash' },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: '2026-10-27T08:00:00Z' },
       isLoading: false,
       isError: false,
       error: null,

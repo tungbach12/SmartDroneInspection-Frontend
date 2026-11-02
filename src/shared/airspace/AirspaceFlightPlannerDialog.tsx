@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
   Stack,
   Typography,
 } from '@mui/material';
@@ -27,7 +26,6 @@ import {
   CAMBAY_PORTAL_URL,
   evaluateAirspace,
   extractCoordinates,
-  haversineDistanceMeters,
 } from './airspaceZones';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -81,19 +79,6 @@ export function AirspaceFlightPlannerDialog({
   const activeLon = draftLon ?? resolved.longitude ?? 106.7108;
 
   const evaluation = evaluateAirspace(activeLat, activeLon);
-  const pilotEvaluation = pilotLocation
-    ? evaluateAirspace(pilotLocation.lat, pilotLocation.lon)
-    : null;
-  const distanceToPilotMeters = pilotLocation
-    ? Math.round(
-        haversineDistanceMeters(
-          pilotLocation.lat,
-          pilotLocation.lon,
-          activeLat,
-          activeLon,
-        ),
-      )
-    : null;
 
   const handleSelectCoordinates = (
     lat: number,
@@ -216,8 +201,7 @@ export function AirspaceFlightPlannerDialog({
               color="text.secondary"
               sx={{ display: 'block' }}
             >
-              Công trình: <strong>{assetName || 'Khảo sát công trình'}</strong> ·
-              QĐ 18/2020/QĐ-TTg & NĐ 288/2025/NĐ-CP
+              Công trình: <strong>{assetName || 'Khảo sát công trình'}</strong> · Tọa độ mục tiêu công trình: {activeLat.toFixed(5)}°N, {activeLon.toFixed(5)}°E
             </Typography>
           </Box>
         </Stack>
@@ -242,153 +226,21 @@ export function AirspaceFlightPlannerDialog({
         </Stack>
       </DialogTitle>
 
-      <DialogContent sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: '#f8fafc' }}>
-        <Stack spacing={2}>
-          {/* Quick Metrics & Flight Summary Bar */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 1.5,
-              borderRadius: '12px',
-              bgcolor: isDark ? 'rgba(15, 23, 42, 0.8)' : '#ffffff',
-              border: '1px solid',
-              borderColor: 'divider',
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(4, 1fr)',
-              },
-              gap: 1.5,
-            }}
-          >
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  display: 'block',
-                }}
-              >
-                Tọa độ mục tiêu công trình
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 700, color: 'text.primary', mt: 0.25 }}
-              >
-                {activeLat.toFixed(5)}°N, {activeLon.toFixed(5)}°E
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  display: 'block',
-                }}
-              >
-                Vùng không phận tại công trình
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 700,
-                  color:
-                    evaluation.classification === 'NO_FLY_ZONE'
-                      ? 'error.main'
-                      : evaluation.classification === 'RESTRICTED_ZONE'
-                        ? 'warning.main'
-                        : 'success.main',
-                  mt: 0.25,
-                }}
-              >
-                {evaluation.classification === 'NO_FLY_ZONE'
-                  ? 'Vùng cấm bay tuyệt đối'
-                  : evaluation.classification === 'RESTRICTED_ZONE'
-                    ? `Hạn chế bay (${evaluation.matchingZones.length} vùng)`
-                    : 'Ngoài vùng cấm (An toàn)'}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  display: 'block',
-                }}
-              >
-                Điểm cất cánh của phi công (Pilot)
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 700,
-                  color:
-                    pilotEvaluation?.classification === 'NO_FLY_ZONE'
-                      ? 'error.main'
-                      : 'text.primary',
-                  mt: 0.25,
-                }}
-              >
-                {pilotLocation
-                  ? `${pilotLocation.lat.toFixed(5)}°N, ${pilotLocation.lon.toFixed(5)}°E`
-                  : 'Chưa đặt (Nhấn Gợi ý / Tự chọn)'}
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  color: 'text.secondary',
-                  display: 'block',
-                }}
-              >
-                Khoảng cách cất cánh tới mục tiêu
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 700,
-                  color:
-                    distanceToPilotMeters != null &&
-                    distanceToPilotMeters > 2000
-                      ? 'warning.main'
-                      : 'primary.main',
-                  mt: 0.25,
-                }}
-              >
-                {distanceToPilotMeters != null
-                  ? distanceToPilotMeters >= 1000
-                    ? `${(distanceToPilotMeters / 1000).toFixed(2)} km`
-                    : `${distanceToPilotMeters} mét`
-                  : '—'}
-              </Typography>
-            </Box>
-          </Paper>
-
-          {/* Interactive Survey Map with No-Fly overlays, Takeoff points, and Checkpoints */}
-          <AirspaceNoFlyMap
-            assetName={assetName}
-            locationText={locationText}
-            latitude={activeLat}
-            longitude={activeLon}
-            inspectionItems={inspectionItems}
-            initialPilotLocation={pilotLocation ?? undefined}
-            onSelectCoordinates={
-              canEditCoordinates ? handleSelectCoordinates : undefined
-            }
-            onSelectPilotLocation={handleSelectPilotLocation}
-            dialogMode
-            height={420}
-          />
-        </Stack>
+      <DialogContent sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: isDark ? 'background.default' : '#f8fafc' }}>
+        <AirspaceNoFlyMap
+          assetName={assetName}
+          locationText={locationText}
+          latitude={activeLat}
+          longitude={activeLon}
+          inspectionItems={inspectionItems}
+          initialPilotLocation={pilotLocation ?? undefined}
+          onSelectCoordinates={
+            canEditCoordinates ? handleSelectCoordinates : undefined
+          }
+          onSelectPilotLocation={handleSelectPilotLocation}
+          dialogMode
+          height={460}
+        />
       </DialogContent>
 
       <DialogActions

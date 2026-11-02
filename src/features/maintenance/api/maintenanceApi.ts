@@ -177,8 +177,6 @@ export interface MaintenanceReportVersion {
   authorUserId: string;
   authorVerifiedAt: string | null;
   contentSnapshot: string | null;
-  renderedObjectKey?: string | null;
-  renderedChecksumSha256?: string | null;
 }
 
 export interface AcceptanceDecision {

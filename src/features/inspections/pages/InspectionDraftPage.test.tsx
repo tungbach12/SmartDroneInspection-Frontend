@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
     data: {
       status: 'FIELD_COMPLETED' as string,
       findingsConfirmedAt: null as string | null,
-      findingsSnapshotHash: null as string | null,
     },
     isLoading: false,
     error: null as Error | null,
@@ -113,7 +112,7 @@ describe('InspectionDraftPage', () => {
     signInAs('INSPECTOR');
     mocks.versionsQuery = { data: [], isLoading: false, error: null, refetch: vi.fn() };
     mocks.workflowQuery = {
-      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null, findingsSnapshotHash: null },
+      data: { status: 'FIELD_COMPLETED', findingsConfirmedAt: null },
       isLoading: false,
       error: null,
     };
@@ -153,7 +152,6 @@ describe('InspectionDraftPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T12:00:00Z',
-        findingsSnapshotHash: 'abc123',
       },
       isLoading: false,
       error: null,
@@ -210,7 +208,6 @@ describe('InspectionDraftPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
-        findingsSnapshotHash: 'abc123',
       },
       isLoading: false,
       error: null,
@@ -253,7 +250,6 @@ describe('InspectionDraftPage', () => {
       data: {
         status: 'FIELD_COMPLETED',
         findingsConfirmedAt: '2026-10-14T11:00:00Z',
-        findingsSnapshotHash: 'abc123',
       },
       isLoading: false,
       error: null,
@@ -289,7 +285,6 @@ describe('InspectionDraftPage', () => {
       data: {
         status: 'COMPLETED',
         findingsConfirmedAt: '2026-10-15T09:00:00Z',
-        findingsSnapshotHash: 'abc123',
       },
       isLoading: false,
       error: null,

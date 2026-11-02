@@ -249,31 +249,6 @@ export default function ReportDetailPage() {
 
           {openVersion && (
             <>
-
-              {/* The reviewer's sources live in the inspection workspace, not in the report
-                  document. They are read, not edited, and they are what the decision is made
-                  on, so the links are offered rather than hidden behind a tab. */}
-              {canReviewReport && !isAuthor ? (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <Button
-                    variant="outlined"
-                    component={RouterLink}
-                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/evidence`}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {t('View the full evidence register')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    component={RouterLink}
-                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/findings`}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {t('View the Inspector findings')}
-                  </Button>
-                </Stack>
-              ) : null}
-
               {/* Next step banner */}
               <Alert
                 severity={openVersion.status === 'PUBLISHED' ? 'success' : 'info'}
