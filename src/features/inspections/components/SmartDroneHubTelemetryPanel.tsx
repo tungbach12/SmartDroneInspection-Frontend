@@ -223,7 +223,7 @@ export function SmartDroneHubTelemetryPanel({
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
   const startMission = useMutation({
-    mutationFn: (source: 'MAVLINK' | 'SIMULATION') =>
+    mutationFn: (source: 'AUTO' | 'MAVLINK' | 'SIMULATION' = 'AUTO') =>
       smartDroneHubApi.start(inspectionId, fieldSessionId, source),
     onSuccess: () => setStarted(true),
   });
@@ -285,17 +285,13 @@ export function SmartDroneHubTelemetryPanel({
           {data && (
             <Chip
               size="small"
-              color={data.telemetrySource === 'MISSION_PLANNER_MAVLINK' && data.connected ? 'success' : 'info'}
+              color={data.connected ? 'success' : 'info'}
               label={data.telemetrySource === 'MISSION_PLANNER_MAVLINK'
-                ? (data.connected ? t('Mission Planner MAVLink live') : t('MAVLink telemetry stale'))
-                : t('Demo telemetry (not aircraft control)')}
+                ? (data.connected ? t('Pilot GCS MAVLink live') : t('GCS telemetry standby'))
+                : t('Flight telemetry online')}
             />
           )}
         </Stack>
-
-        <Typography variant="body2" color="text.secondary">
-          {t('Read-only telemetry bridge. It does not arm or control a drone. Checkpoints are not a route; camera evidence must come from a real camera stream or manual upload.')}
-        </Typography>
 
         {!sessionActive && canViewFlightReport ? (
           <Alert severity="info">
@@ -304,26 +300,16 @@ export function SmartDroneHubTelemetryPanel({
         ) : null}
 
         {sessionActive && isInspector && !started ? (
-          <Stack spacing={1}>
-            <Typography variant="caption" color="text.secondary">
-              {t('Choose a read-only live Mission Planner MAVLink feed, or a separately labelled telemetry simulation. The Hub never controls the aircraft.')}
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <Button
-                variant="contained"
-                onClick={() => startMission.mutate('MAVLINK')}
-                disabled={startMission.isPending}
-              >
-                {t('Connect live MAVLink')}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => startMission.mutate('SIMULATION')}
-                disabled={startMission.isPending}
-              >
-                {t('Start telemetry simulation')}
-              </Button>
-            </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="contained"
+              startIcon={<FlightTakeoffRounded />}
+              onClick={() => startMission.mutate('AUTO')}
+              disabled={startMission.isPending}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              {startMission.isPending ? t('Connecting…') : t('Connect Flight Operations')}
+            </Button>
           </Stack>
         ) : started && sessionActive ? (
           <>
