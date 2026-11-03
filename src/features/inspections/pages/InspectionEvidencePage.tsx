@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -13,12 +13,15 @@ import {
   TablePagination,
   Typography,
 } from '@mui/material';
+import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import CropRounded from '@mui/icons-material/CropRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { inspectionApi } from '../api/inspectionApi';
 import {
   useInspectionEvidenceQuery,
@@ -33,6 +36,7 @@ import {
   useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
+import { VideoFrameCropDialog } from '../components/VideoFrameCropDialog';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -102,6 +106,33 @@ export default function InspectionEvidencePage() {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [cropDialogState, setCropDialogState] = useState<{
+    open: boolean;
+    frameDataUrl: string | null;
+    naturalWidth: number;
+    naturalHeight: number;
+    timestampSeconds: number;
+  }>({
+    open: false,
+    frameDataUrl: null,
+    naturalWidth: 960,
+    naturalHeight: 720,
+    timestampSeconds: 0,
+  });
+  const [savingCropped, setSavingCropped] = useState(false);
+  const [autoDetectingVideo, setAutoDetectingVideo] = useState(false);
+  const [videoDetectResult, setVideoDetectResult] = useState<{
+    extractedEvidenceCount: number;
+    createdFindingsCount: number;
+    keyframes: Array<{
+      timestampSeconds: number;
+      evidenceFileName: string;
+      primaryDefect: string;
+    }>;
+  } | null>(null);
+  const [videoActionError, setVideoActionError] = useState<string | null>(null);
 
   const displayedEvidenceItems = evidence.data?.items ?? [];
   const totalEvidenceCount = evidence.data?.totalCount ?? 0;
@@ -208,6 +239,133 @@ export default function InspectionEvidencePage() {
     } else if (selectedEvidence && !selectedEvidence.isDeleted) {
       retire.mutate(selectedEvidence.id);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleOpenCropFromVideo = () => {
+    setVideoActionError(null);
+    const videoEl = videoRef.current;
+    if (!videoEl || videoEl.readyState < 2) {
+      setVideoActionError(t('Wait for the video to load before capturing a frame.'));
+      return;
+    }
+    videoEl.pause();
+    const w = videoEl.videoWidth || 960;
+    const h = videoEl.videoHeight || 720;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(videoEl, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    setCropDialogState({
+      open: true,
+      frameDataUrl: dataUrl,
+      naturalWidth: w,
+      naturalHeight: h,
+      timestampSeconds: videoEl.currentTime || 0,
+    });
+  };
+
+  const handleSaveCroppedFrame = async (file: File, locationDescription: string) => {
+    if (!selectedEvidence) return;
+    setSavingCropped(true);
+    try {
+      const sessionTarget = selectedEvidence.fieldSessionId ?? completedFieldSessionId;
+      const saved = await upload.mutateAsync({
+        file,
+        ...(sessionTarget ? { fieldSessionId: sessionTarget } : {}),
+      });
+      if (locationDescription) {
+        await inspectionApi.updateEvidenceLocation(inspectionId, saved.id, locationDescription);
+      }
+      await evidence.refetch();
+      setCropDialogState((prev) => ({ ...prev, open: false }));
+      setSelectedEvidenceId(saved.id);
+    } finally {
+      setSavingCropped(false);
+    }
+  };
+
+  const handleAutoDetectFromVideo = async () => {
+    if (!selectedEvidence) return;
+    const videoEl = videoRef.current;
+    if (!videoEl || !videoEl.src) {
+      setVideoActionError(t('Wait for the video preview to finish loading before running AI detection.'));
+      return;
+    }
+    setVideoActionError(null);
+    setAutoDetectingVideo(true);
+    try {
+      const probe = document.createElement('video');
+      probe.src = videoEl.src;
+      probe.muted = true;
+      probe.playsInline = true;
+      await new Promise<void>((resolve, reject) => {
+        probe.onloadedmetadata = () => resolve();
+        probe.onerror = () => reject(new Error('Could not read video stream metadata'));
+      });
+      const duration = Number.isFinite(probe.duration) && probe.duration > 0 ? probe.duration : 12;
+      const sampleCount = 6;
+      const sampledFrames: Array<{
+        timestampSeconds: number;
+        fileName: string;
+        imageBase64: string;
+        locationDescription: string;
+      }> = [];
+
+      const canvas = document.createElement('canvas');
+      for (let i = 0; i < sampleCount; i++) {
+        const ts = Math.min(duration - 0.2, Math.max(0.5, ((i + 0.6) / sampleCount) * duration));
+        probe.currentTime = ts;
+        await new Promise<void>((resolve) => {
+          const onSeeked = () => {
+            probe.removeEventListener('seeked', onSeeked);
+            resolve();
+          };
+          probe.addEventListener('seeked', onSeeked);
+        });
+        const w = probe.videoWidth || 960;
+        const h = probe.videoHeight || 720;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.drawImage(probe, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const mins = Math.floor(ts / 60);
+        const secs = Math.floor(ts % 60);
+        const tag = `${String(mins).padStart(2, '0')}m${String(secs).padStart(2, '0')}s`;
+        sampledFrames.push({
+          timestampSeconds: Math.round(ts * 10) / 10,
+          fileName: `video_auto_wp${i + 1}_${tag}.jpg`,
+          imageBase64: dataUrl,
+          locationDescription: `AI YOLO11 trích xuất tự động từ video ${selectedEvidence.fileName} tại ${tag} (WP#${i + 1})`,
+        });
+      }
+
+      const result = await inspectionApi.analyzeVideoEvidence(
+        inspectionId,
+        selectedEvidence.id,
+        sampledFrames,
+      );
+      setVideoDetectResult({
+        extractedEvidenceCount: result.extractedEvidenceCount,
+        createdFindingsCount: result.createdFindingsCount,
+        keyframes: result.keyframes.map((kf) => ({
+          timestampSeconds: kf.timestampSeconds,
+          evidenceFileName: kf.evidence.fileName,
+          primaryDefect: kf.findings[0]?.defectLabel ?? 'defect',
+        })),
+      });
+      await evidence.refetch();
+    } catch (err) {
+      setVideoActionError(
+        getErrorMessage(err, 'Automated video defect detection could not complete.'),
+      );
+    } finally {
+      setAutoDetectingVideo(false);
     }
   };
 
@@ -565,9 +723,99 @@ export default function InspectionEvidencePage() {
                           src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
                           alt={selectedEvidence.fileName}
                           contentType={selectedEvidence.contentType}
+                          videoRef={videoRef}
                           maxHeight={460}
                           sx={{ borderRadius: '8px' }}
                         />
+                        {selectedEvidence.contentType.startsWith('video/') && canUploadEvidence && (
+                          <Stack
+                            spacing={1.25}
+                            sx={{
+                              mt: 1.5,
+                              pt: 1.5,
+                              borderTop: '1px dashed',
+                              borderColor: 'divider',
+                            }}
+                          >
+                            <Stack
+                              direction={{ xs: 'column', sm: 'row' }}
+                              spacing={1}
+                              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
+                            >
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                🎬 {t('Video Evidence Extraction & AI YOLO11 Scanner')}
+                              </Typography>
+                              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<CropRounded fontSize="small" />}
+                                  onClick={handleOpenCropFromVideo}
+                                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  {t('Capture & Crop Frame to Evidence')}
+                                </Button>
+                                <LoadingButton
+                                  size="small"
+                                  variant="contained"
+                                  startIcon={<AutoAwesomeRounded fontSize="small" />}
+                                  loading={autoDetectingVideo}
+                                  onClick={() => void handleAutoDetectFromVideo()}
+                                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                                >
+                                  {autoDetectingVideo
+                                    ? t('Scanning video with YOLO11…')
+                                    : t('Auto-Detect Defects from Video (YOLO11)')}
+                                </LoadingButton>
+                              </Stack>
+                            </Stack>
+
+                            {videoActionError && (
+                              <Alert severity="error" onClose={() => setVideoActionError(null)}>
+                                {videoActionError}
+                              </Alert>
+                            )}
+
+                            {videoDetectResult && (
+                              <Alert severity="success" onClose={() => setVideoDetectResult(null)}>
+                                <Stack spacing={1}>
+                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                    {`AI YOLO11 extracted ${videoDetectResult.extractedEvidenceCount} defect frame(s) into Evidence and created ${videoDetectResult.createdFindingsCount} pending Finding(s).`}
+                                  </Typography>
+                                  {videoDetectResult.keyframes.length > 0 && (
+                                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+                                      {videoDetectResult.keyframes.map((kf, idx) => (
+                                        <Chip
+                                          key={`${kf.evidenceFileName}-${idx}`}
+                                          size="small"
+                                          color="primary"
+                                          variant="outlined"
+                                          onClick={() => {
+                                            if (videoRef.current) {
+                                              videoRef.current.currentTime = kf.timestampSeconds;
+                                              videoRef.current.pause();
+                                            }
+                                          }}
+                                          label={`⏱ ${kf.timestampSeconds.toFixed(1)}s · ${kf.primaryDefect}`}
+                                        />
+                                      ))}
+                                      <Button
+                                        size="small"
+                                        component={RouterLink}
+                                        to="../findings"
+                                        variant="contained"
+                                        color="success"
+                                        sx={{ textTransform: 'none', fontWeight: 600, ml: 1 }}
+                                      >
+                                        {t('Review AI Findings')}
+                                      </Button>
+                                    </Stack>
+                                  )}
+                                </Stack>
+                              </Alert>
+                            )}
+                          </Stack>
+                        )}
                       </Box>
                     ) : (
                       <Alert severity="info">
@@ -677,6 +925,18 @@ export default function InspectionEvidencePage() {
         loading={retire.isPending || bulkRetire.isPending}
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteAction}
+      />
+
+      <VideoFrameCropDialog
+        open={cropDialogState.open}
+        frameDataUrl={cropDialogState.frameDataUrl}
+        naturalWidth={cropDialogState.naturalWidth}
+        naturalHeight={cropDialogState.naturalHeight}
+        timestampSeconds={cropDialogState.timestampSeconds}
+        sourceVideoName={selectedEvidence?.fileName ?? 'mission.mp4'}
+        saving={savingCropped}
+        onClose={() => setCropDialogState((prev) => ({ ...prev, open: false }))}
+        onSaveCroppedFile={handleSaveCroppedFrame}
       />
     </Stack>
   );

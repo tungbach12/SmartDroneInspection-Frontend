@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -73,7 +73,6 @@ function formatLocation(text: string | null): string {
 }
 
 export function AssetsPage() {
-  const navigate = useNavigate();
   const { formatNumber, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');

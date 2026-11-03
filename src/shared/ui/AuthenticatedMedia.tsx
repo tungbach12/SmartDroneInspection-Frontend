@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type RefObject, useEffect, useState } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import BrokenImageOutlined from '@mui/icons-material/BrokenImageOutlined';
 import VideocamOffOutlined from '@mui/icons-material/VideocamOffOutlined';
@@ -11,6 +11,7 @@ interface AuthenticatedMediaProps {
   contentType?: string;
   sx?: Record<string, unknown>;
   maxHeight?: number | string;
+  videoRef?: RefObject<HTMLVideoElement | null>;
 }
 
 /**
@@ -23,6 +24,7 @@ export function AuthenticatedMedia({
   contentType = 'image/jpeg',
   sx,
   maxHeight = 420,
+  videoRef,
 }: AuthenticatedMediaProps) {
   const { t } = useLocale();
   const [prevSrc, setPrevSrc] = useState(src);
@@ -110,6 +112,7 @@ export function AuthenticatedMedia({
       {isVideo ? (
         <Box
           component="video"
+          ref={videoRef}
           controls
           src={blobUrl ?? undefined}
           data-src={src}

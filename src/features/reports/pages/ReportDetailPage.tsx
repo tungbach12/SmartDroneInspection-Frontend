@@ -23,7 +23,6 @@ import {
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
-  usePublishReportVersion,
   useAcceptReportVersion,
   useCreateInspectionPayOSLink,
   useCreateInspectionVnPayUrl,
@@ -43,6 +42,7 @@ import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthor
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
+import { SmartDroneHubTelemetryPanel } from '@/features/inspections/components/SmartDroneHubTelemetryPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -52,9 +52,8 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  SUBMITTED: 'Waiting for a qualified reviewer to approve or return.',
+  SUBMITTED: 'Waiting for a qualified reviewer to publish or return.',
   RETURNED: 'Returned to the author for revision.',
-  APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This version is immutable.',
   SUPERSEDED: 'Superseded by a later version.',
 };
@@ -88,7 +87,6 @@ export default function ReportDetailPage() {
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
-  const publish = usePublishReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
@@ -384,7 +382,6 @@ export default function ReportDetailPage() {
                                 onClick={() =>
                                   review.mutate({
                                     versionId: openVersion.id,
-                                    approve: false,
                                     reason: reviewReason.trim(),
                                   })
                                 }
@@ -411,14 +408,13 @@ export default function ReportDetailPage() {
                             <Button
                               variant="contained"
                               color="success"
-                              disabled={
-                                review.isPending ||
-                                reportReadLoading
-                              }
-                              onClick={() => review.mutate({ versionId: openVersion.id, approve: true })}
+                              disabled={review.isPending || reportReadLoading}
+                              onClick={() => review.mutate({ versionId: openVersion.id })}
                               sx={{ borderRadius: '8px', px: 2.5 }}
                             >
-                              {t('Approve')}
+                              {review.isPending
+                                ? t('Publishing…')
+                                : t('Approve & publish')}
                             </Button>
                             <Button
                               variant="outlined"
@@ -445,43 +441,13 @@ export default function ReportDetailPage() {
                         />
                       </Stack>
                     )}
-
-                    {/* Reviewer publish step */}
-                    {canReviewReport && openVersion.status === 'APPROVED' && (
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                        <Button
-                          variant="contained"
-                          disabled={publish.isPending}
-                          onClick={() => publish.mutate(openVersion.id)}
-                          sx={{ borderRadius: '8px', px: 2.5 }}
-                        >
-                          {publish.isPending ? 'Publishing…' : 'Publish immutable version'}
-                        </Button>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {t('Makes this version permanent and immutable.')}
-                        </Typography>
-                      </Stack>
-                    )}
-
-                    {publish.isError && isConflict(publish.error) ? (
-                      <RefusalNotice
-                        testId="report-publish-refusal"
-                        reason={getErrorMessage(publish.error, '')}
-                        fallbackMessage={t('The server refused this publication. Refresh the report before trying again.')}
-                      />
-                    ) : null}
-                    <MutationProblemAlert
-                      error={publish.error}
-                      isError={publish.isError && !isConflict(publish.error)}
-                      fallbackMessage={t('Could not publish this report version.')}
-                    />
                   </Stack>
                 </Paper>
               )}
 
-              {publish.isSuccess && (
+              {review.isSuccess && !review.variables?.reason && (
                 <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                  {t('Published version')} {publish.data.versionNo}. The PDF is immutable; forward
+                  {t('Published version')} {review.data.versionNo}. The PDF is immutable; forward
                   confirmed findings to maintenance individually when they require corrective work.
                 </Alert>
               )}
@@ -551,6 +517,20 @@ export default function ReportDetailPage() {
                   )}
                 </Alert>
               )}
+
+              {/* SmartDroneHub Flight Report & Recorded GPS Orbit Trace for Reviewer/Customer Audit */}
+              {openVersion.reportContext?.fieldSessions &&
+                openVersion.reportContext.fieldSessions.length > 0 && (
+                  <SmartDroneHubTelemetryPanel
+                    inspectionId={inspectionId}
+                    fieldSessionId={openVersion.reportContext.fieldSessions.at(-1)!.id}
+                    sessionActive={false}
+                    canViewFlightReport={
+                      openVersion.reportContext.fieldSessions.at(-1)!.status === 'FIELD_COMPLETED' ||
+                      openVersion.reportContext.fieldSessions.at(-1)!.status === 'ABORTED'
+                    }
+                  />
+                )}
 
               {/* MF3-08/MF3-11: authored sections, derived sections, and the delivered PDF */}
               <ReportAuthoringPanel

@@ -581,22 +581,15 @@ export function useSubmitReportVersion(inspectionId: string | null) {
   });
 }
 
-/** MF3-09: returning requires a reason; approval is an explicit act that never defaults. */
+/** MF3-09: a submitted report is returned for revision or published as the review decision. */
 export function useReviewReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: ({
-      versionId,
-      approve,
-      reason,
-    }: {
-      versionId: string;
-      approve: boolean;
-      reason?: string;
-    }) => inspectionApi.reviewVersion(inspectionId!, versionId, approve, reason),
-    onSuccess: (_data, variables) => {
-      showToast(variables.approve ? 'Report approved.' : 'Report returned to the Inspector.');
+    mutationFn: ({ versionId, reason }: { versionId: string; reason?: string }) =>
+      inspectionApi.reviewVersion(inspectionId!, versionId, reason),
+    onSuccess: (result) => {
+      showToast(result.publishedAt ? 'Report approved and published.' : 'Report returned to the Inspector.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
@@ -655,24 +648,6 @@ export function useCompleteCorrectiveHandoff(inspectionId: string | null) {
     },
     onError: (error) =>
       showToast(getErrorMessage(error, 'Failed to forward findings to Maintenance.'), 'error'),
-  });
-}
-
-export function usePublishReportVersion(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (versionId: string) =>
-      inspectionApi.publishVersion(inspectionId!, versionId),
-    onSuccess: () => {
-      showToast('Approved report published.');
-      if (inspectionId) {
-        // Publication changes the inspection state and reveals the maintenance handoff action.
-        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
-      }
-    },
-    onError: (error) => showToast(getErrorMessage(error, 'The report was not published.'), 'error'),
   });
 }
 

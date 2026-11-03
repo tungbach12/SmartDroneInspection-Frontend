@@ -30,6 +30,7 @@ import {
   useReinspectionVerifications,
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
+import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -64,17 +65,11 @@ export default function FieldSessionPage() {
   const canStart =
     !openSession &&
     hasPermit &&
-    ['SCHEDULED', 'IN_PROGRESS', 'FIELD_COMPLETED'].includes(
-      inspection?.status ?? '',
-    );
+    inspection?.status === 'SCHEDULED';
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
       latestSession?.status === 'FIELD_COMPLETED');
-  const canStartAnother =
-    canStart &&
-    latestSession?.status === 'FIELD_COMPLETED' &&
-    inspection?.status === 'FIELD_COMPLETED';
 
   const DEFAULT_PRE_FLIGHT_NOTE =
     'Đã kiểm tra an toàn UAV, pin 100%, thời tiết đảm bảo, sẵn sàng cất cánh.';
@@ -263,11 +258,6 @@ export default function FieldSessionPage() {
                     </Stack>
                   ) : canContinueToEvidence ? (
                     <Stack direction="row" spacing={1}>
-                      {canStartAnother && (
-                        <Button variant="outlined" onClick={handleOpenStart}>
-                          {t('Start another session')}
-                        </Button>
-                      )}
                       <Button
                         component={RouterLink}
                         to={isReinspection ? '../findings' : '../evidence'}
@@ -287,6 +277,23 @@ export default function FieldSessionPage() {
                     </LoadingButton>
                   )}
                 </Stack>
+
+                {openSession?.status === 'IN_PROGRESS' && (
+                  <SmartDroneHubTelemetryPanel
+                    inspectionId={inspectionId}
+                    fieldSessionId={openSession.id}
+                    sessionActive
+                    canViewFlightReport={false}
+                  />
+                )}
+                {!openSession && latestSession?.startedAt && (
+                  <SmartDroneHubTelemetryPanel
+                    inspectionId={inspectionId}
+                    fieldSessionId={latestSession.id}
+                    sessionActive={false}
+                    canViewFlightReport={latestSession.status === 'FIELD_COMPLETED' || latestSession.status === 'ABORTED'}
+                  />
+                )}
 
                 {openSession?.preFlightChecklistNote && (
                   <Box sx={{ pt: 1.5, borderTop: 1, borderColor: 'divider' }}>

@@ -476,11 +476,9 @@ export function InspectionListTable({
                               ? 'Review submission'
                               : row.pendingAction === 'CORRECTIVE_DISPOSITION'
                                 ? 'Record corrective outcome'
-                                : row.reportStatus === 'APPROVED'
-                                  ? 'Publish report'
-                                  : row.reportStatus === 'RETURNED'
-                                    ? 'Read returned report'
-                                    : 'Open report'
+                                : row.reportStatus === 'RETURNED'
+                                  ? 'Read returned report'
+                                  : 'Open report'
                             : 'Open')}
                       </Button>
                     </TableCell>

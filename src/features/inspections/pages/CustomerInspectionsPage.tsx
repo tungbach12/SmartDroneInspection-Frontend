@@ -55,8 +55,7 @@ function computeStageInfo(row: InspectionListItem): { index: number; shortLabel:
   }
   if (
     row.status === 'UNDER_REVIEW' ||
-    row.reportStatus === 'SUBMITTED' ||
-    row.reportStatus === 'APPROVED'
+    row.reportStatus === 'SUBMITTED'
   ) {
     return { index: 4, shortLabel: 'Step 4/5 · In technical review' };
   }

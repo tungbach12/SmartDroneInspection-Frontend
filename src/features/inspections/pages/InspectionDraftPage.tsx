@@ -151,8 +151,8 @@ export default function InspectionDraftPage() {
         overallCondition,
         purposeScopeCriteria:
           'Khảo sát hiện trạng kết cấu bằng thiết bị máy bay không người lái (UAV/Drone), thu thập hình ảnh độ phân giải cao và phát hiện các khiếm khuyết bề mặt.',
-        methodEquipmentConditions: inspectionData?.assignedDrone
-          ? `Thiết bị bay: ${inspectionData.assignedDrone.manufacturer ?? ''} ${inspectionData.assignedDrone.model ?? ''} (Số hiệu: ${inspectionData.assignedDrone.serialNumber ?? 'N/A'}). Kiểm tra trực quan từ xa theo quy trình chuẩn.`
+        methodEquipmentConditions: inspectionData?.droneSerialNumber
+          ? `Thiết bị bay: ${inspectionData.droneModel ?? ''} (Số hiệu: ${inspectionData.droneSerialNumber}). Kiểm tra trực quan từ xa theo quy trình chuẩn.`
           : 'Thiết bị bay UAV chuyên dụng và camera quang học độ phân giải cao.',
         conclusionsRecommendations:
           reportable.length > 0
@@ -165,23 +165,17 @@ export default function InspectionDraftPage() {
         assetName: inspectionData?.assetName ?? null,
         assetLocation: inspectionData?.locationText ?? null,
         assetCategory: null,
-        assignedDrone: inspectionData?.assignedDrone ?? null,
+        assignedDrone: inspectionData?.droneSerialNumber
+          ? {
+              serialNumber: inspectionData.droneSerialNumber,
+              manufacturer: null,
+              model: inspectionData.droneModel ?? null,
+            }
+          : null,
         inspectionItems: inspectionData?.inspectionItems ?? null,
         flightPermitFileName: inspectionData?.flightPermitFileName ?? null,
         flightPermitUploadedAt: inspectionData?.flightPermitUploadedAt ?? null,
-        fieldSessions: (inspectionData?.fieldSessions ?? []).map((fs) => ({
-          id: fs.id,
-          status: fs.status,
-          startedAt: fs.startedAt,
-          endedAt: fs.endedAt,
-          preFlightChecklistNote: fs.preFlightChecklistNote,
-          postponementReason: fs.postponementReason,
-          abortReason: fs.abortReason,
-          outcomeNotes: fs.outcomeNotes,
-          droneSerialNumber: inspectionData?.assignedDrone?.serialNumber ?? null,
-          droneManufacturer: inspectionData?.assignedDrone?.manufacturer ?? null,
-          droneModel: inspectionData?.assignedDrone?.model ?? null,
-        })),
+        fieldSessions: [],
         reviewerQualificationDisclosure: null,
         findingsConfirmedAt: workflow.data?.findingsConfirmedAt ?? null,
       },
@@ -222,7 +216,7 @@ export default function InspectionDraftPage() {
                     size="small"
                     label={openVersion.status}
                     color={
-                      openVersion.status === 'PUBLISHED' || openVersion.status === 'APPROVED'
+                      openVersion.status === 'PUBLISHED'
                         ? 'success'
                         : openVersion.status === 'RETURNED'
                           ? 'warning'

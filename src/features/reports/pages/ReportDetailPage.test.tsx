@@ -38,7 +38,6 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     submitVersion: vi.fn(),
     withdrawVersion: vi.fn(),
     reviewVersion: vi.fn(),
-    publishVersion: vi.fn(),
     completeCorrectiveHandoff: vi.fn(),
     workflowState: vi.fn(),
     getAiSummary: vi.fn().mockResolvedValue({
@@ -160,7 +159,7 @@ describe('ReportDetailPage MF3 gates', () => {
     setRole(['CUSTOMER']);
   });
 
-  it('allows the Organization Manager to approve the report without per-finding decisions', async () => {
+  it('allows the Organization Manager to approve and publish without per-finding decisions', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
       finding({ status: 'CONFIRMED' }),
@@ -168,7 +167,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     renderPage();
 
-    const approve = (await screen.findByRole('button', { name: 'Approve' })) as HTMLButtonElement;
+    const approve = (await screen.findByRole('button', { name: 'Approve & publish' })) as HTMLButtonElement;
     expect(approve.disabled).toBe(false);
     expect(screen.getByText('Inspector-confirmed')).toBeTruthy();
     expect(screen.queryByText(/Decide every proposed finding/)).toBeNull();
@@ -189,14 +188,14 @@ describe('ReportDetailPage MF3 gates', () => {
     ]);
   });
 
-  it('offers approve and return-with-reason to the reviewer on a submitted version', async () => {
+  it('offers approve-and-publish and return-with-reason to the reviewer on a submitted version', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([]);
 
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Identification' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Approve & publish' })).toBeTruthy();
 
     const openReturnBtn = screen.getByRole('button', {
       name: 'Return with reason',
@@ -215,7 +214,11 @@ describe('ReportDetailPage MF3 gates', () => {
 
     fireEvent.click(returnButton);
     await waitFor(() =>
-      expect(mockedApi.reviewVersion).toHaveBeenCalledWith('inspection-1', 'version-1', false, 'The east face coverage is not disclosed'),
+      expect(mockedApi.reviewVersion).toHaveBeenCalledWith(
+        'inspection-1',
+        'version-1',
+        'The east face coverage is not disclosed',
+      ),
     );
   });
 
@@ -235,7 +238,6 @@ describe('ReportDetailPage MF3 gates', () => {
       expect(mockedApi.reviewVersion).toHaveBeenCalledWith(
         'inspection-1',
         'version-1',
-        false,
         'Revisit the evidence and findings.',
       ),
     );
@@ -276,7 +278,7 @@ describe('ReportDetailPage MF3 gates', () => {
   });
 
   it.each([
-    { action: 'approve', button: 'Approve' },
+    { action: 'approve', button: 'Approve & publish' },
     { action: 'return', button: 'Return with reason' },
   ])('shows a user-visible error when report review $action fails', async ({ action, button }) => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
@@ -296,17 +298,15 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(await screen.findByText(`Review ${action} failed.`)).toBeTruthy();
   });
 
-  it('shows a user-visible error when report publishing fails', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'APPROVED', authorUserId: 'someone-else' }),
-    ]);
-    mockedApi.publishVersion.mockRejectedValue(new Error('Publishing failed.'));
+  it('shows a user-visible error when report approval and publication fails', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({ authorUserId: 'someone-else' })]);
+    mockedApi.reviewVersion.mockRejectedValue(new Error('Publication failed.'));
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
 
-    expect(await screen.findByText('Publishing failed.')).toBeTruthy();
+    expect(await screen.findByText('Publication failed.')).toBeTruthy();
   });
 
   it('marks a published version immutable and offers no further action', async () => {
@@ -329,8 +329,7 @@ describe('ReportDetailPage MF3 gates', () => {
       await screen.findByRole('button', { name: 'Download report' }),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Save sections' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Publish immutable version' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Approve & publish' })).toBeNull();
   });
 
   it('lets the Inspector resubmit a returned report version', async () => {
@@ -372,25 +371,25 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage();
 
     await screen.findByText('SDI-RPT-VERSION--V1');
-    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Approve & publish' })).toBeNull();
     expect(screen.queryByLabelText('Reason for return')).toBeNull();
   });
 
-  it('publishes the approved report without immediately forwarding its findings', async () => {
-    mockedApi.listVersions.mockResolvedValue([
-      version({ status: 'APPROVED', authorUserId: 'someone-else' }),
-    ]);
-    mockedApi.publishVersion.mockResolvedValue({
+  it('publishes the submitted report without immediately forwarding its findings', async () => {
+    mockedApi.listVersions.mockResolvedValue([version({ authorUserId: 'someone-else' })]);
+    mockedApi.reviewVersion.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
+      status: 'PUBLISHED',
+      returnReason: null,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: [],
-      inspectionStatus: 'REPORT_PUBLISHED',
+      inspectionStatus: 'COMPLETED',
     });
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
 
     expect(await screen.findByText(/Published version 1\. The PDF is immutable/i)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();
@@ -398,10 +397,8 @@ describe('ReportDetailPage MF3 gates', () => {
   });
 
   it('reveals the send-to-maintenance navigation after the report is published', async () => {
-    // The inspection only reaches REPORT_PUBLISHED through the publish call, so the page has to
-    // refetch workflow state before exposing the separate per-finding forwarding screen.
     mockedApi.listVersions
-      .mockResolvedValueOnce([version({ status: 'APPROVED', authorUserId: 'someone-else' })])
+      .mockResolvedValueOnce([version({ authorUserId: 'someone-else' })])
       .mockResolvedValue([
         version({
           status: 'PUBLISHED',
@@ -419,9 +416,11 @@ describe('ReportDetailPage MF3 gates', () => {
         findingsConfirmedAt: '2026-10-01T11:00:00Z',
       });
     mockedApi.listFindings.mockResolvedValue([finding({})]);
-    mockedApi.publishVersion.mockResolvedValue({
+    mockedApi.reviewVersion.mockResolvedValue({
       reportVersionId: 'version-1',
       versionNo: 1,
+      status: 'PUBLISHED',
+      returnReason: null,
       publishedAt: '2026-10-01T12:00:00Z',
       forwardedFindingIds: [],
       inspectionStatus: 'COMPLETED',
@@ -431,7 +430,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish immutable version' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
 
     expect(await screen.findByText(/Send to Maintenance \(MF3-12\)/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Send findings to Maintenance' })).toBeTruthy();

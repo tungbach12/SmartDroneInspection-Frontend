@@ -257,7 +257,7 @@ describe('InspectionsPage', () => {
       data: {
         items: [
           { ...listedInspection(), id: 'submitted-1', objective: 'Review bridge report', reportId: 'report-1', reportStatus: 'SUBMITTED', reportVersionNo: 3, pendingAction: 'REPORT_REVIEW' },
-          { ...listedInspection(), id: 'approved-1', objective: 'Publish tower report', reportId: 'report-2', reportStatus: 'APPROVED', reportVersionNo: 2, pendingAction: 'NONE' },
+          { ...listedInspection(), id: 'returned-1', objective: 'Revise tower report', reportId: 'report-2', reportStatus: 'RETURNED', reportVersionNo: 2, pendingAction: 'NONE' },
           { ...listedInspection(), id: 'published-1', objective: 'Follow up dam report', reportId: 'report-3', reportStatus: 'PUBLISHED', reportVersionNo: 1, pendingAction: 'CORRECTIVE_DISPOSITION' },
         ],
         page: 1,
@@ -279,7 +279,7 @@ describe('InspectionsPage', () => {
     expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Corrective outcomes due on this page: 1' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Publish report' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Read returned report' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Record corrective outcome' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Review submission' }));

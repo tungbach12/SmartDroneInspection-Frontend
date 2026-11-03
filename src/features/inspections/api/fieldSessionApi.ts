@@ -25,6 +25,7 @@ export interface FieldSession {
   postponementReason: string | null;
   abortReason: string | null;
   outcomeNotes: string | null;
+  flightVideoEvidenceId?: string | null;
 }
 
 export const fieldSessionKeys = {

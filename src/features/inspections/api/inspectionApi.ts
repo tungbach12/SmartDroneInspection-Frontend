@@ -8,7 +8,6 @@ import { api } from '@/shared/api/client';
 export type ReportStatus =
   | 'SUBMITTED'
   | 'RETURNED'
-  | 'APPROVED'
   | 'PUBLISHED'
   | 'SUPERSEDED';
 
@@ -166,12 +165,14 @@ export interface Finding {
   isDeleted: boolean;
 }
 
-export interface PublishedReport {
+export interface ReportReviewResult {
   reportVersionId: string;
   versionNo: number;
-  publishedAt: string;
+  publishedAt: string | null;
   forwardedFindingIds: string[];
   inspectionStatus: string;
+  status?: ReportStatus;
+  returnReason?: string | null;
 }
 
 /**
@@ -540,6 +541,34 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  analyzeVideoEvidence: (
+    inspectionId: string,
+    evidenceId: string,
+    frames: Array<{
+      timestampSeconds: number;
+      fileName?: string;
+      imageBase64: string;
+      locationDescription?: string;
+    }>,
+  ) =>
+    api
+      .post<{
+        videoEvidenceId: string;
+        scannedFrames: number;
+        extractedEvidenceCount: number;
+        createdFindingsCount: number;
+        keyframes: Array<{
+          timestampSeconds: number;
+          evidence: EvidenceItem;
+          findings: Finding[];
+        }>;
+      }>(
+        `/inspections/${inspectionId}/evidence/${evidenceId}/analyze-video`,
+        { frames },
+        { timeout: 120000 },
+      )
+      .then((response) => response.data),
+
   /** The Inspector accepts a finding and states what it is. */
   confirmFinding: (inspectionId: string, findingId: string, input: ReviewFindingInput) =>
     api
@@ -618,27 +647,19 @@ export const inspectionApi = {
   reviewVersion: (
     inspectionId: string,
     versionId: string,
-    approve: boolean,
     reason?: string,
   ) =>
     api
-      .post<InspectionReport>(
+      .post<ReportReviewResult>(
         `/inspections/${inspectionId}/report/versions/${versionId}/review`,
         null,
-        { params: { approve, reason } },
-      )
-      .then((response) => response.data),
-
-  publishVersion: (inspectionId: string, versionId: string) =>
-    api
-      .post<PublishedReport>(
-        `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+        { params: { reason } },
       )
       .then((response) => response.data),
 
   completeCorrectiveHandoff: (inspectionId: string, findingIds: string[]) =>
     api
-      .post<PublishedReport>(
+      .post<ReportReviewResult>(
         `/inspections/${inspectionId}/report/corrective-handoff`,
         { findingIds },
       )
