@@ -34,6 +34,29 @@ export interface ServiceRequestQuote {
   createdAt: string;
 }
 
+export interface ServiceInvoiceSummary {
+  totalPrice: number | null;
+  vatRate: number | null;
+  commissionRate: number | null;
+  tncnRate: number | null;
+  reportAcceptedAt: string | null;
+}
+
+export interface ServicePaymentSummary {
+  status: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | null;
+  payosOrderCode: number | null;
+  method: string | null;
+  reference: string | null;
+  confirmedAt: string | null;
+}
+
+export interface InspectorPayoutSummary {
+  inspectorId: string | null;
+  status: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
+  reference: string | null;
+  recordedAt: string | null;
+}
+
 export interface ServiceRequestOccurrence {
   id: string;
   occurrenceIndex: number;
@@ -50,11 +73,26 @@ export interface ServiceRequestOccurrence {
   contractUploadedAt?: string | null;
   currency?: string | null;
   totalPrice?: number | null;
+  serviceBaseAmount?: number | null;
+  vatRate?: number | null;
   vatAmount?: number | null;
+  commissionRate?: number | null;
+  commissionAmount?: number | null;
+  inspectorGrossPayout?: number | null;
+  tncnRate?: number | null;
+  tncnAmount?: number | null;
+  inspectorNetPayout?: number | null;
   paymentStatus?: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | string | null;
   paymentConfirmedAt?: string | null;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  payosOrderCode?: number | null;
   payoutStatus?: string | null;
+  payoutReference?: string | null;
   reportAcceptedAt?: string | null;
+  invoice?: ServiceInvoiceSummary | null;
+  payment?: ServicePaymentSummary | null;
+  payout?: InspectorPayoutSummary | null;
 }
 
 export interface ServiceRequest {

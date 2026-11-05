@@ -16,6 +16,28 @@ export interface UpdateInspectionFinanceSettingsPayload {
   tncnRate: number;
 }
 
+export interface ServiceInvoiceSummary {
+  totalPrice: number | null;
+  vatRate: number | null;
+  commissionRate: number | null;
+  tncnRate: number | null;
+  reportAcceptedAt: string | null;
+}
+
+export interface ServicePaymentSummary {
+  status: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | null;
+  payosOrderCode: number | null;
+  method: string | null;
+  reference: string | null;
+  confirmedAt: string | null;
+}
+
+export interface InspectorPayoutSummary {
+  status: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
+  reference: string | null;
+  recordedAt: string | null;
+}
+
 export interface OccurrenceFinanceProjection {
   currency: string;
   totalCustomerPrice: number | null;
@@ -29,6 +51,13 @@ export interface OccurrenceFinanceProjection {
   inspectorNetPayout: number | null;
   paymentStatus: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | null;
   payoutStatus: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  payosOrderCode?: number | null;
+  payoutReference?: string | null;
+  invoice?: ServiceInvoiceSummary | null;
+  payment?: ServicePaymentSummary | null;
+  payout?: InspectorPayoutSummary | null;
   accountingDisclaimer: string;
 }
 

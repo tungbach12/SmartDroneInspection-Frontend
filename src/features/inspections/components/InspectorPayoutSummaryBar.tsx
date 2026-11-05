@@ -53,6 +53,9 @@ export function InspectorPayoutSummaryBar({
                 ? t('Order revenue, platform commission & auto-disbursement')
                 : t('Partner order value & payout breakdown')}
             </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', ml: 3.5 }}>
+              Invoice: service_invoices · Payment: service_payments · Payout: inspector_payouts
+            </Typography>
           </Stack>
 
           <Chip
