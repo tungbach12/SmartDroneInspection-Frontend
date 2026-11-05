@@ -230,6 +230,8 @@ export interface ReportPaymentStatusDetails {
   inspectorNetPayout?: number | null;
   payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
   payoutReference?: string | null;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
 }
 
 export interface ManualDraftInput {}
@@ -284,6 +286,7 @@ export interface InspectionListItem {
   commissionAmount?: number | null;
   inspectorNetPayout?: number | null;
   payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
+  paymentMethod?: string | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *

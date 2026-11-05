@@ -139,6 +139,9 @@ function OccurrenceCard({
   const feeVnd = totalPrice != null && totalPrice > 0 ? `${formatNumber(totalPrice)} ₫` : null;
   const isPaid = paymentStatus === 'PAID';
   const isPaymentDue = paymentStatus === 'PAYMENT_DUE';
+  const invoice = occurrence.invoice;
+  const payment = occurrence.payment;
+  const payout = occurrence.payout;
 
   const submit = async () => {
     if (!inspector || !selectedDrone) {
@@ -233,6 +236,24 @@ function OccurrenceCard({
           {new Date(startAt).toLocaleString(undefined, { timeZone: request.timezone })} -{' '}
           {new Date(endAt).toLocaleString(undefined, { timeZone: request.timezone })} · {request.timezone}
         </Typography>
+
+        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'background.default' }}>
+          <Stack spacing={0.75}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+              {t('Service invoice')}: {feeVnd ?? t('Awaiting invoice snapshot')}
+              {invoice?.vatRate != null ? ` · VAT ${invoice.vatRate}%` : ''}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('Service payment')}: {payment?.status ?? paymentStatus ?? 'PENDING'}
+              {payment?.method ? ` · ${payment.method}` : ''}
+              {payment?.payosOrderCode ? ` · #${payment.payosOrderCode}` : ''}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
+              {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
+            </Typography>
+          </Stack>
+        </Paper>
 
         {isAssigned ? (
           <Stack

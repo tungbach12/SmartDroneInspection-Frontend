@@ -141,7 +141,7 @@ export function CustomerReportSettlementCard({
             </Stack>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
               {t('Official report version')} v{versionNo} · {t('PDF available for export below')}
-              {paymentStatus?.orderCode ? ` · ${t('PayOS Order')} #${paymentStatus.orderCode}` : ''}
+              {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
             </Typography>
           </Box>
 
@@ -253,7 +253,7 @@ export function CustomerReportSettlementCard({
                 sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
               >
                 {paymentStatus?.orderCode
-                  ? `${t('PayOS Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
+                  ? `${paymentStatus.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
                   : t('Official receipt verified')}
               </Typography>
             </Box>
