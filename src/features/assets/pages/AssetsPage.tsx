@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -27,7 +26,6 @@ import {
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
 import ShuffleRounded from '@mui/icons-material/ShuffleRounded';
-import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
 import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
@@ -46,8 +44,13 @@ import { MetricCard } from '@/shared/ui/MetricCard';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
-import { useAssets, useCreateAsset, useRetireAsset } from '../hooks/useAssets';
-import { useCategories } from '../hooks/useCatalog';
+import {
+  useAssets,
+  useCreateAsset,
+  useRetireAsset,
+  useUpdateAssetInspectionItems,
+} from '../hooks/useAssets';
+import { useCategories, useChecklistTemplates } from '../hooks/useCatalog';
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
@@ -240,8 +243,9 @@ export function AssetsPage() {
       />
 
       <AssetDetailDrawer
-        asset={selected}
+        asset={items.find((a) => a.id === selected?.id) ?? selected}
         onClose={() => setSelected(null)}
+        onAssetUpdated={(updated) => setSelected(updated)}
         onSelectInspection={(id) => setSelectedInspectionId(id)}
       />
       <InspectionWorkDetailDialog
@@ -280,17 +284,6 @@ function generateRandomAssetCode(): string {
   return `AST-${rand}`;
 }
 
-const DEFAULT_CHECKPOINT_TEMPLATES = [
-  'Mố cầu & Trụ đỡ (Abutments & Piers)',
-  'Dầm chính & Dầm biên (Girders & Beams)',
-  'Khe co giãn & Khớp nối (Expansion Joints)',
-  'Hệ cáp văng / Cáp treo (Stay Cables)',
-  'Mặt đường & Lớp phủ bê tông (Deck Surface)',
-  'Lan can, Khung hộ lan & Chiếu sáng (Railings)',
-  'Gối cầu & Đệm giảm chấn (Bearings & Dampers)',
-  'Kiểm tra vết nứt & ăn mòn cốt thép (Cracks & Corrosion)',
-];
-
 function CreateAssetDialogForm({
   categories,
   pending,
@@ -307,29 +300,9 @@ function CreateAssetDialogForm({
   const [latitudeText, setLatitudeText] = useState('10.7789');
   const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
-  const [selectedCheckpoints, setSelectedCheckpoints] = useState<string[]>([
-    'Mố cầu & Trụ đỡ (Abutments & Piers)',
-    'Dầm chính & Dầm biên (Girders & Beams)',
-    'Khe co giãn & Khớp nối (Expansion Joints)',
-  ]);
-  const [customItemInput, setCustomItemInput] = useState('');
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsFeedback, setGpsFeedback] = useState<string | null>(null);
-
-  const toggleCheckpoint = (item: string) => {
-    setSelectedCheckpoints((current) =>
-      current.includes(item) ? current.filter((c) => c !== item) : [...current, item],
-    );
-  };
-
-  const handleAddCustomItem = () => {
-    const val = customItemInput.trim();
-    if (val && !selectedCheckpoints.includes(val)) {
-      setSelectedCheckpoints((current) => [...current, val]);
-      setCustomItemInput('');
-    }
-  };
 
   const handleGetCurrentGpsLocation = () => {
     setGpsFeedback(null);
@@ -374,7 +347,7 @@ function CreateAssetDialogForm({
       latitude: parsedLat,
       longitude: parsedLon,
       description: description || null,
-      inspectionItems: selectedCheckpoints,
+      inspectionItems: [],
     });
   };
 
@@ -546,140 +519,6 @@ function CreateAssetDialogForm({
             </Stack>
           </Box>
 
-          {/* INSPECTION ITEMS / CHECKPOINTS CHECKLIST MẪU CÓ SẴN */}
-          <Box
-            sx={{
-              p: 2,
-              bgcolor: isDark ? 'rgba(99, 102, 241, 0.08)' : '#f8fafc',
-              borderRadius: '12px',
-              border: '1px solid',
-              borderColor: isDark ? 'rgba(99, 102, 241, 0.25)' : '#e2e8f0',
-            }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <PlaylistAddCheckRounded sx={{ color: 'primary.main', fontSize: 20 }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {t('Inspection Items / Checkpoints')}
-                </Typography>
-                <Chip
-                  label={`${t('Đã chọn')} ${selectedCheckpoints.length}`}
-                  size="small"
-                  color="primary"
-                  sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
-                />
-              </Stack>
-              <Stack direction="row" spacing={1}>
-                <Button
-                  size="small"
-                  onClick={() => setSelectedCheckpoints(DEFAULT_CHECKPOINT_TEMPLATES)}
-                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.25 }}
-                >
-                  {t('Chọn tất cả')}
-                </Button>
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={() => setSelectedCheckpoints([])}
-                  sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.25 }}
-                >
-                  {t('Bỏ chọn')}
-                </Button>
-              </Stack>
-            </Stack>
-
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-              {t('Tích chọn các hạng mục cấu kiện mẫu có sẵn để phi công drone kiểm tra hoặc nhập thêm cấu kiện tùy chỉnh.')}
-            </Typography>
-
-            {/* CHECKBOXES GRID */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, mb: 1.5 }}>
-              {DEFAULT_CHECKPOINT_TEMPLATES.map((item) => {
-                const checked = selectedCheckpoints.includes(item);
-                return (
-                  <Paper
-                    key={item}
-                    variant="outlined"
-                    onClick={() => toggleCheckpoint(item)}
-                    sx={{
-                      p: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      border: checked ? '1.5px solid #3758f9' : '1px solid #e2e8f0',
-                      bgcolor: checked ? (isDark ? 'rgba(55, 88, 249, 0.15)' : '#eff6ff') : 'background.paper',
-                      transition: 'all 120ms ease',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                      },
-                    }}
-                  >
-                    <Checkbox
-                      size="small"
-                      checked={checked}
-                      onChange={() => toggleCheckpoint(item)}
-                      sx={{ p: 0.5, mr: 1 }}
-                    />
-                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: checked ? 600 : 400, color: 'text.primary', lineHeight: 1.25 }}>
-                      {item}
-                    </Typography>
-                  </Paper>
-                );
-              })}
-            </Box>
-
-            {/* INPUT THÊM HẠNG MỤC TÙY CHỌN */}
-            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-              <TextField
-                size="small"
-                fullWidth
-                placeholder={t('Nhập thêm cấu kiện riêng (VD: Trụ T1, Mố phía Bắc, Cáp văng số 5...)')}
-                value={customItemInput}
-                onChange={(e) => setCustomItemInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCustomItem();
-                  }
-                }}
-                sx={{ bgcolor: 'background.paper' }}
-              />
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<Add />}
-                onClick={handleAddCustomItem}
-                disabled={!customItemInput.trim()}
-                sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0, borderRadius: '8px' }}
-              >
-                {t('Thêm')}
-              </Button>
-            </Stack>
-
-            {/* PREVIEW SELECTED CHIPS */}
-            {selectedCheckpoints.length > 0 && (
-              <Box sx={{ mt: 1.5, pt: 1.25, borderTop: '1px dashed', borderColor: 'divider' }}>
-                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}>
-                  {t('Danh sách cấu kiện đã chọn cho Inspector:')}
-                </Typography>
-                <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                  {selectedCheckpoints.map((item, idx) => (
-                    <Chip
-                      key={idx}
-                      label={`${idx + 1}. ${item}`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      onDelete={() => toggleCheckpoint(item)}
-                      sx={{ fontWeight: 500, fontSize: '0.75rem' }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-            )}
-          </Box>
-
           <TextField
             label={t('Description')}
             multiline
@@ -729,23 +568,208 @@ function CreateAssetDialog(props: CreateAssetDialogProps) {
   );
 }
 
-function InspectionItemsSection({ items }: { items: string[] }) {
+function InspectionItemsEditor({
+  asset,
+  onCancel,
+  onSaved,
+}: {
+  asset: Asset;
+  onCancel: () => void;
+  onSaved: (updated: Asset) => void;
+}) {
   const { t } = useLocale();
+  const [draftItems, setDraftItems] = useState<string[]>(asset.inspectionItems ?? []);
+  const [customInput, setCustomInput] = useState('');
+  const updateItemsMutation = useUpdateAssetInspectionItems();
+  const categoryTemplatesQuery = useChecklistTemplates(
+    { type: 'CATEGORY_INSPECTION_ITEM', categoryId: asset.categoryId },
+    Boolean(asset.categoryId),
+  );
+
+  const addCustomItem = () => {
+    const val = customInput.trim();
+    if (val && !draftItems.includes(val)) {
+      setDraftItems((prev) => [...prev, val]);
+      setCustomInput('');
+    }
+  };
+
+  const toggleItem = (label: string) => {
+    setDraftItems((prev) =>
+      prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label],
+    );
+  };
+
+  const handleSave = () => {
+    updateItemsMutation.mutate(
+      { assetId: asset.id, inspectionItems: draftItems },
+      {
+        onSuccess: (updated) => {
+          onSaved(updated);
+        },
+      },
+    );
+  };
+
+  const categorySuggestions = (categoryTemplatesQuery.data ?? [])
+    .filter((tpl) => tpl.active && !draftItems.includes(tpl.label))
+    .map((tpl) => tpl.label);
+
   return (
-    <Box sx={{ my: 1.5, p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
-        {t('Inspection Checkpoints')}
-      </Typography>
-      {items && items.length > 0 ? (
+    <Stack spacing={1.5}>
+      {draftItems.length > 0 ? (
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-          {items.map((item, idx) => (
-            <Chip key={idx} label={item} size="small" variant="outlined" />
+          {draftItems.map((item, idx) => (
+            <Chip
+              key={idx}
+              label={item}
+              size="small"
+              color="primary"
+              variant="outlined"
+              onDelete={() => toggleItem(item)}
+            />
           ))}
         </Stack>
       ) : (
-        <Typography variant="body2" color="text.secondary">
-          {t('No inspection checkpoints defined for this asset.')}
+        <Typography variant="caption" color="text.secondary">
+          {t('No items selected yet. Add custom checkpoints or pick from category templates below.')}
         </Typography>
+      )}
+
+      {categorySuggestions.length > 0 && (
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            {t('Standard category items (click to add):')}
+          </Typography>
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+            {categorySuggestions.map((label) => (
+              <Chip
+                key={label}
+                label={`+ ${label}`}
+                size="small"
+                variant="outlined"
+                onClick={() => toggleItem(label)}
+                sx={{ cursor: 'pointer', fontSize: '0.72rem' }}
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      <Stack direction="row" spacing={1}>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder={t('Add custom inspection item (e.g. West facade 18F crack)...')}
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addCustomItem();
+            }
+          }}
+        />
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={addCustomItem}
+          disabled={!customInput.trim()}
+          sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+        >
+          {t('Add')}
+        </Button>
+      </Stack>
+
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+        <Button
+          size="small"
+          onClick={onCancel}
+          disabled={updateItemsMutation.isPending}
+          sx={{ textTransform: 'none' }}
+        >
+          {t('Cancel')}
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={handleSave}
+          disabled={updateItemsMutation.isPending}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          {updateItemsMutation.isPending ? t('Saving…') : t('Save checkpoints')}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
+function InspectionItemsSection({
+  asset,
+  canEdit,
+  onAssetUpdated,
+}: {
+  asset: Asset;
+  canEdit: boolean;
+  onAssetUpdated?: ((updated: Asset) => void) | undefined;
+}) {
+  const { t } = useLocale();
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    setEditing(false);
+  }, [asset.id]);
+
+  const items = asset.inspectionItems ?? [];
+
+  return (
+    <Box
+      sx={{
+        my: 1.5,
+        p: 2,
+        bgcolor: 'background.default',
+        borderRadius: 1.5,
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          {t('Inspection Checkpoints')}
+        </Typography>
+        {canEdit && !editing && (
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => setEditing(true)}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', py: 0 }}
+          >
+            {t('+ Add / Edit custom items')}
+          </Button>
+        )}
+      </Stack>
+
+      {!editing ? (
+        items.length > 0 ? (
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+            {items.map((item, idx) => (
+              <Chip key={idx} label={item} size="small" variant="outlined" />
+            ))}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t('No inspection checkpoints defined for this asset.')}
+          </Typography>
+        )
+      ) : (
+        <InspectionItemsEditor
+          asset={asset}
+          onCancel={() => setEditing(false)}
+          onSaved={(updated) => {
+            setEditing(false);
+            onAssetUpdated?.(updated);
+          }}
+        />
       )}
     </Box>
   );
@@ -827,15 +851,19 @@ function AssetInspectionHistorySection({
 function AssetDetailDrawer({
   asset,
   onClose,
+  onAssetUpdated,
   onSelectInspection,
 }: {
   asset: Asset | null;
   onClose: () => void;
+  onAssetUpdated?: (updated: Asset) => void;
   onSelectInspection?: (inspectionId: string) => void;
 }) {
   const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
+  const canEditInspectionItems =
+    roles.includes('MANAGER') || roles.includes('ADMIN');
   const retireMutation = useRetireAsset();
   const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);
   const documents = useAssetDocuments(asset?.id ?? '');
@@ -957,7 +985,13 @@ function AssetDetailDrawer({
             {t('Complete & Archive Asset')}
           </Button>
         )}
-        {asset && <InspectionItemsSection items={asset.inspectionItems ?? []} />}
+        {asset && canEditInspectionItems && (
+          <InspectionItemsSection
+            asset={asset}
+            canEdit={asset.status !== 'RETIRED'}
+            onAssetUpdated={onAssetUpdated}
+          />
+        )}
         {asset && (
           <AssetInspectionHistorySection
             assetId={asset.id}

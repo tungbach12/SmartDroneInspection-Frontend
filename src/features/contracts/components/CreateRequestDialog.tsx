@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded';
+import PlaylistAddCheckRoundedIcon from '@mui/icons-material/PlaylistAddCheckRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { type CreateServiceRequestInput } from '../api/contractApi';
 import { useCreateServiceRequest } from '../hooks/useContracts';
@@ -23,7 +25,7 @@ import { useCreateServiceRequest } from '../hooks/useContracts';
 interface CreateRequestDialogProps {
   open: boolean;
   onClose: () => void;
-  assets: { id: string; name: string; code: string }[];
+  assets: { id: string; name: string; code: string; inspectionItems?: string[] }[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
 }
@@ -139,6 +141,46 @@ export function CreateRequestDialog({
               ))}
             </Select>
           </FormControl>
+
+          {assetId && (() => {
+            const selectedAsset = assets.find((a) => a.id === assetId);
+            const items = selectedAsset?.inspectionItems ?? [];
+            return (
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 0.75 }}>
+                  <PlaylistAddCheckRoundedIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    Hạng mục kiểm tra của công trình (Chỉ xem · Do Manager/Admin thiết lập)
+                  </Typography>
+                </Stack>
+                {items.length > 0 ? (
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+                    {items.map((item, idx) => (
+                      <Chip
+                        key={idx}
+                        label={`${idx + 1}. ${item}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: '0.74rem' }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Hệ thống sẽ áp dụng danh mục kiểm tra tiêu chuẩn theo phân loại tòa nhà và do Platform Manager điều phối.
+                  </Typography>
+                )}
+              </Box>
+            );
+          })()}
 
           <TextField
             label="Phạm vi & Yêu cầu khảo sát"

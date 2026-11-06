@@ -8,8 +8,11 @@ import {
   Chip,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from '@mui/material';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -17,6 +20,7 @@ import { isConflict } from '@/shared/api/problem';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import {
   useAuthorManualDraft,
+  useFieldSessions,
   useGenerateReportDraft,
   useInspection,
   useInspectionEvidence,
@@ -31,6 +35,7 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
+import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import type {
   InspectionReport,
@@ -65,6 +70,7 @@ export default function InspectionDraftPage() {
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
   const reinspectionVerifications = useReinspectionVerifications(inspectionId);
+  const fieldSessionsQuery = useFieldSessions?.(inspectionId);
 
   const createDraft = useGenerateReportDraft(inspectionId);
   const authorManualDraft = useAuthorManualDraft(inspectionId);
@@ -73,6 +79,7 @@ export default function InspectionDraftPage() {
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [activeDocTab, setActiveDocTab] = useState<'inspection' | 'flight'>('inspection');
 
   const versionList = versions.data ?? [];
   const openVersion =
@@ -121,6 +128,11 @@ export default function InspectionDraftPage() {
 
   const inspectionQuery = useInspection?.(inspectionId);
   const inspectionData = inspectionQuery?.data;
+  const fieldSessionItems = fieldSessionsQuery?.data ?? [];
+  const latestFieldSessionId =
+    openVersion?.reportContext?.fieldSessions?.at(-1)?.id ??
+    fieldSessionItems.at(-1)?.id ??
+    null;
 
   const draftPreviewVersion: InspectionReport = useMemo(() => {
     const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
@@ -175,12 +187,29 @@ export default function InspectionDraftPage() {
         inspectionItems: inspectionData?.inspectionItems ?? null,
         flightPermitFileName: inspectionData?.flightPermitFileName ?? null,
         flightPermitUploadedAt: inspectionData?.flightPermitUploadedAt ?? null,
-        fieldSessions: [],
+        fieldSessions: fieldSessionItems.map((s) => ({
+          id: s.id,
+          status: s.status,
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          preFlightChecklistNote: s.preFlightChecklistNote,
+          postponementReason: s.postponementReason,
+          abortReason: s.abortReason,
+          outcomeNotes: s.outcomeNotes,
+          droneSerialNumber: inspectionData?.droneSerialNumber ?? null,
+          droneManufacturer: null,
+          droneModel: inspectionData?.droneModel ?? null,
+        })),
         reviewerQualificationDisclosure: null,
         findingsConfirmedAt: workflow.data?.findingsConfirmedAt ?? null,
       },
     };
-  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data]);
+  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data, fieldSessionItems]);
+
+  const activeEvidenceList = useMemo(
+    () => (evidence.data ?? []).filter((item) => !item.isDeleted),
+    [evidence.data],
+  );
 
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
@@ -379,12 +408,12 @@ export default function InspectionDraftPage() {
             >
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
-                  {findingsConfirmed ? t('Ready to Submit Inspection Report') : t('No report version yet')}
+                  {findingsConfirmed ? t('Ready to Submit Inspection & Flight Reports') : t('No report version yet')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {findingsConfirmed
-                    ? t('Dưới đây là bản xem trước nội dung báo cáo tổng hợp. Vui lòng kiểm tra kỹ trước khi bấm "Nộp cho Manager duyệt".')
-                    : t('Once findings are confirmed in Step 3, the inspection report can be compiled and submitted.')}
+                    ? t('Dưới đây là 2 bản báo cáo tổng hợp tự động: (1) Báo cáo Kiểm định & Khuyết tật và (2) Báo cáo Hành trình Bay thực tế. Vui lòng kiểm tra trước khi gửi duyệt.')
+                    : t('Once findings are confirmed in Step 3, the inspection report and flight operations report can be compiled and submitted.')}
                 </Typography>
               </Box>
 
@@ -432,41 +461,113 @@ export default function InspectionDraftPage() {
                 bgcolor: 'background.paper',
               }}
             >
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2.5, pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <PictureAsPdfRounded color="primary" sx={{ fontSize: 26 }} />
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {t('Bản xem trước Báo cáo Kiểm định')}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('Nội dung tổng hợp từ các phát hiện khuyết tật và bằng chứng hiện trường trước khi gửi duyệt')}
-                  </Typography>
-                </Box>
-              </Stack>
+              <Tabs
+                value={activeDocTab}
+                onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
+                sx={{ mb: 2.5, borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Tab
+                  value="inspection"
+                  icon={<PictureAsPdfRounded fontSize="small" />}
+                  iconPosition="start"
+                  label={t('1. Inspection Findings Report')}
+                  sx={{ textTransform: 'none', fontWeight: 700 }}
+                />
+                <Tab
+                  value="flight"
+                  icon={<FlightTakeoffRounded fontSize="small" />}
+                  iconPosition="start"
+                  label={t('2. Flight Operations Report (Auto-Generated)')}
+                  sx={{ textTransform: 'none', fontWeight: 700 }}
+                />
+              </Tabs>
 
-              <ReportDerivedSections
-                version={draftPreviewVersion}
-                findings={findings.data ?? []}
-                evidenceList={(evidence.data ?? []).filter((item) => !item.isDeleted)}
-                inspectionId={inspectionId}
-                reinspectionVerifications={reinspectionVerifications.data}
-              />
+              {activeDocTab === 'inspection' ? (
+                <ReportDerivedSections
+                  version={draftPreviewVersion}
+                  findings={findings.data ?? []}
+                  evidenceList={activeEvidenceList}
+                  inspectionId={inspectionId}
+                  reinspectionVerifications={reinspectionVerifications.data}
+                />
+              ) : (
+                <FlightOperationsReportView
+                  inspectionId={inspectionId}
+                  fieldSessionId={latestFieldSessionId}
+                  version={draftPreviewVersion}
+                  evidenceList={activeEvidenceList}
+                  assetName={inspectionData?.assetName}
+                  droneSummary={
+                    [inspectionData?.droneModel, inspectionData?.droneSerialNumber]
+                      .filter(Boolean)
+                      .join(' · ') || null
+                  }
+                  flightPermitFileName={inspectionData?.flightPermitFileName}
+                />
+              )}
             </Paper>
           )}
         </Stack>
       ) : (
         openVersion && (
-          <ReportAuthoringPanel
-            key={openVersion.id}
-            version={openVersion}
-            findings={findings.data ?? []}
-            evidenceList={(evidence.data ?? []).filter((item) => !item.isDeleted)}
-            inspectionId={inspectionId}
-            canEdit={canEditOpenVersion}
-            onSaveSections={handleSaveSections}
-            onDirtyChange={onReportDirtyChange}
-            reinspectionVerifications={reinspectionVerifications.data}
-          />
+          <Stack spacing={2}>
+            <Paper
+              variant="outlined"
+              sx={{
+                px: 2,
+                pt: 1,
+                borderRadius: '12px',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Tabs
+                value={activeDocTab}
+                onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
+              >
+                <Tab
+                  value="inspection"
+                  icon={<PictureAsPdfRounded fontSize="small" />}
+                  iconPosition="start"
+                  label={t('1. Inspection Findings Report')}
+                  sx={{ textTransform: 'none', fontWeight: 700 }}
+                />
+                <Tab
+                  value="flight"
+                  icon={<FlightTakeoffRounded fontSize="small" />}
+                  iconPosition="start"
+                  label={t('2. Flight Operations Report (Auto-Generated)')}
+                  sx={{ textTransform: 'none', fontWeight: 700 }}
+                />
+              </Tabs>
+            </Paper>
+
+            {activeDocTab === 'inspection' ? (
+              <ReportAuthoringPanel
+                key={openVersion.id}
+                version={openVersion}
+                findings={findings.data ?? []}
+                evidenceList={activeEvidenceList}
+                inspectionId={inspectionId}
+                canEdit={canEditOpenVersion}
+                onSaveSections={handleSaveSections}
+                onDirtyChange={onReportDirtyChange}
+                reinspectionVerifications={reinspectionVerifications.data}
+              />
+            ) : (
+              <FlightOperationsReportView
+                inspectionId={inspectionId}
+                fieldSessionId={latestFieldSessionId}
+                version={openVersion}
+                evidenceList={activeEvidenceList}
+                assetName={openVersion.reportContext?.assetName ?? inspectionData?.assetName}
+                flightPermitFileName={
+                  openVersion.reportContext?.flightPermitFileName ??
+                  inspectionData?.flightPermitFileName
+                }
+              />
+            )}
+          </Stack>
         )
       )}
 
@@ -501,7 +602,7 @@ export default function InspectionDraftPage() {
             </Typography>
             <Typography variant="body2">
               {t(
-                'As the inspecting author, by submitting this report you certify that all observations, technical assessments, defect classifications, and field evidence have been thoroughly reviewed and verified in accordance with technical standards.',
+                'As the inspecting author, by submitting this deliverable package you certify that both the Inspection Findings Report and the automated Flight Operations Report have been reviewed and verified.',
               )}
             </Typography>
           </Alert>
@@ -512,7 +613,7 @@ export default function InspectionDraftPage() {
             </Typography>
             <Typography variant="body2">
               {t(
-                'Upon submission, this report version, along with all associated evidence and findings, will be locked from further edits while awaiting Platform Manager review. Changes can only be made if the report is returned with requested revisions.',
+                'Upon submission, this report version, along with all associated evidence, findings, and flight telemetry records, will be locked from further edits while awaiting Platform Manager review.',
               )}
             </Typography>
           </Alert>

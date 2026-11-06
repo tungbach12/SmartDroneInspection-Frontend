@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Paper,
   Stack,
   TextField,
@@ -25,14 +27,39 @@ import {
   useFieldSessionOutcome,
   useFieldSessions,
   useInspection,
+  useInspectionEvidence,
   useStartFieldSession,
   useUploadFlightPermit,
   useReinspectionVerifications,
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
+import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
+import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+const PRE_FLIGHT_CHECKLIST_ITEMS = [
+  'Airframe, propellers & gimbal camera intact',
+  'UAV & controller battery >= 85%, locked securely',
+  'GPS 3D Fix / RTK & compass calibrated',
+  'Return-to-Home (RTH) altitude set above structure',
+  'Weather, wind speed & takeoff/landing zone clear',
+] as const;
+
+const POST_FLIGHT_CHECKLIST_ITEMS = [
+  'UAV landed safely, motors disarmed & battery removed',
+  'Airframe, motors & payload free of post-flight damage',
+  'All target asset components scanned per plan',
+  'Captured photos & flight telemetry verified on site',
+] as const;
+
+const ABORT_REASON_PRESETS = [
+  'Sudden adverse weather / high wind',
+  'GPS signal loss / magnetic interference',
+  'UAV battery or hardware warning',
+  'Site safety hazard / airspace intrusion',
+] as const;
 
 /** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage() {
@@ -46,15 +73,36 @@ export default function FieldSessionPage() {
   const uploadPermit = useUploadFlightPermit(inspectionId);
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
   const verifications = useReinspectionVerifications(isReinspection ? inspectionId : '');
+  const evidenceQuery = useInspectionEvidence?.(inspectionId);
 
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [startOpen, setStartOpen] = useState(false);
+  const [preFlightChecked, setPreFlightChecked] = useState<string[]>([]);
   const [preFlightNote, setPreFlightNote] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
     session: FieldSession;
     kind: 'abort' | 'complete';
   } | null>(null);
+  const [postFlightChecked, setPostFlightChecked] = useState<string[]>([]);
+  const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
+  const abortReasonInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  const preFlightTemplatesQuery = useChecklistTemplates({ type: 'PRE_FLIGHT' }, startOpen);
+  const postFlightTemplatesQuery = useChecklistTemplates(
+    { type: 'POST_FLIGHT' },
+    outcomeTarget?.kind === 'complete',
+  );
+
+  const preFlightItems: readonly string[] =
+    preFlightTemplatesQuery.data && preFlightTemplatesQuery.data.length > 0
+      ? preFlightTemplatesQuery.data.filter((item) => item.active).map((item) => item.label)
+      : PRE_FLIGHT_CHECKLIST_ITEMS;
+
+  const postFlightItems: readonly string[] =
+    postFlightTemplatesQuery.data && postFlightTemplatesQuery.data.length > 0
+      ? postFlightTemplatesQuery.data.filter((item) => item.active).map((item) => item.label)
+      : POST_FLIGHT_CHECKLIST_ITEMS;
 
   const items = sessions.data ?? [];
   const openSession = items.find(
@@ -71,12 +119,8 @@ export default function FieldSessionPage() {
     (inspection?.status === 'FIELD_COMPLETED' ||
       latestSession?.status === 'FIELD_COMPLETED');
 
-  const DEFAULT_PRE_FLIGHT_NOTE =
-    'Đã kiểm tra an toàn UAV, pin 100%, thời tiết đảm bảo, sẵn sàng cất cánh.';
-  const DEFAULT_OUTCOME_NOTE =
-    'Hoàn thành chụp quét cấu kiện theo kế hoạch, hạ cánh an toàn.';
-
   const handleOpenStart = () => {
+    setPreFlightChecked([]);
     setPreFlightNote('');
     setStartOpen(true);
   };
@@ -85,8 +129,51 @@ export default function FieldSessionPage() {
     session: FieldSession,
     kind: 'abort' | 'complete',
   ) => {
+    setPostFlightChecked([]);
+    setAbortCategory(null);
     setOutcomeReason('');
     setOutcomeTarget({ session, kind });
+  };
+
+  const togglePreFlightItem = (item: string) => {
+    setPreFlightChecked((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item],
+    );
+  };
+
+  const togglePostFlightItem = (item: string) => {
+    setPostFlightChecked((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item],
+    );
+  };
+
+  const allPreFlightChecked =
+    preFlightItems.length > 0 && preFlightChecked.length === preFlightItems.length;
+  const canSubmitPreFlight =
+    allPreFlightChecked || Boolean(preFlightNote.trim());
+
+  const allPostFlightChecked =
+    postFlightItems.length > 0 && postFlightChecked.length === postFlightItems.length;
+  const canSubmitOutcome =
+    outcomeTarget?.kind === 'complete'
+      ? allPostFlightChecked || Boolean(outcomeReason.trim())
+      : Boolean(outcomeReason.trim());
+
+  const buildPreFlightPayload = () => {
+    const checkedSummary = preFlightChecked.map((item) => `[✓] ${t(item)}`).join(' · ');
+    const note = preFlightNote.trim();
+    if (checkedSummary && note) return `${checkedSummary} — ${note}`;
+    return note || checkedSummary;
+  };
+
+  const buildOutcomePayload = () => {
+    if (outcomeTarget?.kind !== 'complete') {
+      return outcomeReason.trim();
+    }
+    const checkedSummary = postFlightChecked.map((item) => `[✓] ${t(item)}`).join(' · ');
+    const note = outcomeReason.trim();
+    if (checkedSummary && note) return `${checkedSummary} — ${note}`;
+    return note || checkedSummary;
   };
 
   return (
@@ -286,22 +373,31 @@ export default function FieldSessionPage() {
                     canViewFlightReport={false}
                   />
                 )}
-                {!openSession && latestSession?.startedAt && (
-                  <SmartDroneHubTelemetryPanel
-                    inspectionId={inspectionId}
-                    fieldSessionId={latestSession.id}
-                    sessionActive={false}
-                    canViewFlightReport={latestSession.status === 'FIELD_COMPLETED' || latestSession.status === 'ABORTED'}
-                  />
-                )}
+                {!openSession &&
+                  latestSession?.startedAt &&
+                  (latestSession.status === 'FIELD_COMPLETED' ||
+                    latestSession.status === 'ABORTED') && (
+                    <FlightOperationsReportView
+                      inspectionId={inspectionId}
+                      fieldSessionId={latestSession.id}
+                      evidenceList={evidenceQuery?.data ?? []}
+                      assetName={inspection.assetName}
+                      droneSummary={
+                        [inspection.droneModel, inspection.droneSerialNumber]
+                          .filter(Boolean)
+                          .join(' · ') || null
+                      }
+                      flightPermitFileName={inspection.flightPermitFileName}
+                    />
+                  )}
 
-                {openSession?.preFlightChecklistNote && (
+                {(openSession ?? latestSession)?.preFlightChecklistNote && (
                   <Box sx={{ pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
                     <Typography variant="caption" color="text.secondary">
                       {t('Pre-flight note')}
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {openSession.preFlightChecklistNote}
+                      {(openSession ?? latestSession)?.preFlightChecklistNote}
                     </Typography>
                   </Box>
                 )}
@@ -380,9 +476,12 @@ export default function FieldSessionPage() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            startSession.mutate(preFlightNote.trim(), {
+            const payload = buildPreFlightPayload();
+            if (!payload) return;
+            startSession.mutate(payload, {
               onSuccess: () => {
                 setStartOpen(false);
+                setPreFlightChecked([]);
                 setPreFlightNote('');
               },
             });
@@ -390,25 +489,60 @@ export default function FieldSessionPage() {
         >
           <DialogTitle sx={{ fontWeight: 700 }}>{t('Start a field session')}</DialogTitle>
           <DialogContent>
-            <Stack spacing={1.5} sx={{ mt: 1 }}>
-              <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
-                <Button
-                  size="small"
-                  variant="text"
-                  onClick={() => setPreFlightNote(DEFAULT_PRE_FLIGHT_NOTE)}
-                  sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0 }}
+            <Stack spacing={1.75} sx={{ mt: 0.5 }}>
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Stack
+                  direction="row"
+                  sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
                 >
-                  ⚡ {t('Điền mẫu an toàn')}
-                </Button>
-              </Stack>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {t('Pre-flight safety checklist')} ({preFlightChecked.length}/{preFlightItems.length})
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() =>
+                      setPreFlightChecked(
+                        allPreFlightChecked ? [] : [...preFlightItems],
+                      )
+                    }
+                    sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                  >
+                    {allPreFlightChecked ? t('Clear all') : t('Check all')}
+                  </Button>
+                </Stack>
+                <Stack spacing={0.25}>
+                  {preFlightItems.map((item) => {
+                    const checked = preFlightChecked.includes(item);
+                    return (
+                      <FormControlLabel
+                        key={item}
+                        sx={{ m: 0, alignItems: 'center' }}
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={checked}
+                            onChange={() => togglePreFlightItem(item)}
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">
+                            {t(item)}
+                          </Typography>
+                        }
+                      />
+                    );
+                  })}
+                </Stack>
+              </Paper>
+
               <TextField
                 label={t('Pre-flight note')}
-                required
                 multiline
-                minRows={3}
+                minRows={2}
                 value={preFlightNote}
                 onChange={(event) => setPreFlightNote(event.target.value)}
-                helperText={t('Describe the checks you completed at the site. This note is stored with the session.')}
+                helperText={t('Optional remarks (site conditions, wind, obstacle notes). Stored with the session.')}
               />
               <Alert severity="info">
                 {t('Starting records the Inspector’s session in software. It does not arm the aircraft or grant flight authorization.')}
@@ -426,7 +560,7 @@ export default function FieldSessionPage() {
               type="submit"
               variant="contained"
               loading={startSession.isPending}
-              disabled={!preFlightNote.trim()}
+              disabled={!canSubmitPreFlight}
             >
               {t('Start session')}
             </LoadingButton>
@@ -444,11 +578,13 @@ export default function FieldSessionPage() {
           onSubmit={(event) => {
             event.preventDefault();
             if (!outcomeTarget) return;
+            const payload = buildOutcomePayload();
+            if (!payload) return;
             outcome.mutate(
               {
                 sessionId: outcomeTarget.session.id,
                 outcome: outcomeTarget.kind,
-                reason: outcomeReason.trim(),
+                reason: payload,
               },
               { onSuccess: () => setOutcomeTarget(null) },
             );
@@ -460,29 +596,117 @@ export default function FieldSessionPage() {
               : t('Complete the session')}
           </DialogTitle>
           <DialogContent>
-            <Stack spacing={1.5} sx={{ mt: 1 }}>
-              {outcomeTarget?.kind === 'complete' && (
-                <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
-                  <Button
-                    size="small"
-                    variant="text"
-                    onClick={() => setOutcomeReason(DEFAULT_OUTCOME_NOTE)}
-                    sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0 }}
+            <Stack spacing={1.75} sx={{ mt: 0.5 }}>
+              {outcomeTarget?.kind === 'complete' ? (
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                  <Stack
+                    direction="row"
+                    sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
                   >
-                    ⚡ {t('Điền mẫu hoàn tất')}
-                  </Button>
-                </Stack>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {t('Post-flight completion checklist')} ({postFlightChecked.length}/{postFlightItems.length})
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() =>
+                        setPostFlightChecked(
+                          allPostFlightChecked ? [] : [...postFlightItems],
+                        )
+                      }
+                      sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                    >
+                      {allPostFlightChecked ? t('Clear all') : t('Check all')}
+                    </Button>
+                  </Stack>
+                  <Stack spacing={0.25}>
+                    {postFlightItems.map((item) => {
+                      const checked = postFlightChecked.includes(item);
+                      return (
+                        <FormControlLabel
+                          key={item}
+                          sx={{ m: 0, alignItems: 'center' }}
+                          control={
+                            <Checkbox
+                              size="small"
+                              color="success"
+                              checked={checked}
+                              onChange={() => togglePostFlightItem(item)}
+                            />
+                          }
+                          label={
+                            <Typography variant="body2">
+                              {t(item)}
+                            </Typography>
+                          }
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Paper>
+              ) : (
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, display: 'block', mb: 0.75 }}
+                  >
+                    {t('Select abort category or describe below')}
+                  </Typography>
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                    {ABORT_REASON_PRESETS.map((preset) => {
+                      const label = t(preset);
+                      const active = abortCategory === preset || outcomeReason === label;
+                      return (
+                        <Chip
+                          key={preset}
+                          size="small"
+                          color={active ? 'error' : 'default'}
+                          variant={active ? 'filled' : 'outlined'}
+                          label={label}
+                          onClick={() => {
+                            setAbortCategory(preset);
+                            setOutcomeReason(label);
+                          }}
+                        />
+                      );
+                    })}
+                    <Chip
+                      size="small"
+                      color={abortCategory === 'other' ? 'error' : 'default'}
+                      variant={abortCategory === 'other' ? 'filled' : 'outlined'}
+                      label={t('Other (specify below)')}
+                      onClick={() => {
+                        const presetLabels = ABORT_REASON_PRESETS.map((p) => t(p));
+                        setAbortCategory('other');
+                        if (presetLabels.includes(outcomeReason)) {
+                          setOutcomeReason('');
+                        }
+                        setTimeout(() => abortReasonInputRef.current?.focus(), 0);
+                      }}
+                    />
+                  </Stack>
+                </Box>
               )}
+
               <TextField
+                inputRef={abortReasonInputRef}
                 label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Abort reason')}
-                required
+                required={outcomeTarget?.kind === 'abort'}
                 multiline
-                minRows={3}
+                minRows={2}
                 value={outcomeReason}
-                onChange={(event) => setOutcomeReason(event.target.value)}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setOutcomeReason(val);
+                  if (outcomeTarget?.kind === 'abort') {
+                    const matched = ABORT_REASON_PRESETS.find((p) => t(p) === val);
+                    setAbortCategory(matched ?? (val.trim() ? 'other' : abortCategory));
+                  }
+                }}
                 helperText={
                   outcomeTarget?.kind === 'complete'
-                    ? t('Summarize the work completed at the site.')
+                    ? t('Optional summary or observations from the flight.')
                     : t('Explain why this session was aborted (weather, technical defect, etc.). A notification will be sent to the manager.')
                 }
               />
@@ -500,7 +724,7 @@ export default function FieldSessionPage() {
               variant="contained"
               color={outcomeTarget?.kind === 'abort' ? 'error' : 'success'}
               loading={outcome.isPending}
-              disabled={!outcomeReason.trim()}
+              disabled={!canSubmitOutcome}
             >
               {outcomeTarget?.kind === 'abort'
                 ? t('Abort session')

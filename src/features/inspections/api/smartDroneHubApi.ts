@@ -10,6 +10,8 @@ export interface SmartDroneHubFlightTracePoint {
   altitudeMeters: number | null;
   groundSpeedMps: number | null;
   headingDeg: number | null;
+  batteryPercent?: number | null;
+  flightMode?: string | null;
   waypoint: number | null;
   recordedAt: string;
 }

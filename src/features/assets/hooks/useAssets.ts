@@ -53,3 +53,20 @@ export function useRetireAsset() {
     },
   });
 }
+
+export function useUpdateAssetInspectionItems() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: ({ assetId, inspectionItems }: { assetId: string; inspectionItems: string[] }) =>
+      assetApi.updateInspectionItems(assetId, inspectionItems),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      showToast('Inspection items updated successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to update inspection items', 'error');
+    },
+  });
+}

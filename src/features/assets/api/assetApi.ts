@@ -55,5 +55,8 @@ export const assetApi = {
 
   create: (input: CreateAssetInput) => api.post<Asset>('/assets', input).then((r) => r.data),
 
+  updateInspectionItems: (id: string, inspectionItems: string[]) =>
+    api.put<Asset>(`/assets/${id}/inspection-items`, { inspectionItems }).then((r) => r.data),
+
   retire: (id: string) => api.post<Asset>(`/assets/${id}/retire`).then((r) => r.data),
 };
