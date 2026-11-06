@@ -265,4 +265,20 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByRole('button', { name: 'Start session' })).toBeTruthy();
     expect(screen.queryByRole('checkbox')).toBeNull();
   });
+
+  it('allows starting and completing a session using the structured pre-flight and post-flight checklists', async () => {
+    mocks.list.mockResolvedValue([]);
+    renderWithClient();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start session' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start session', hidden: false }));
+
+    await waitFor(() =>
+      expect(mocks.start).toHaveBeenCalledWith(
+        'inspection-1',
+        expect.stringContaining('[✓] Airframe, propellers & gimbal camera intact'),
+      ),
+    );
+  });
 });

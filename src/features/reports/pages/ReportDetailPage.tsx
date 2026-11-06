@@ -11,10 +11,14 @@ import {
   DialogTitle,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import { canPerform } from '@/app/permissions/capability';
 import {
   getSectionPath,
@@ -41,8 +45,8 @@ import {
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
-import { SmartDroneHubTelemetryPanel } from '@/features/inspections/components/SmartDroneHubTelemetryPanel';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -74,6 +78,7 @@ export default function ReportDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [activeDocTab, setActiveDocTab] = useState<'inspection' | 'flight'>('inspection');
 
   const inspectionQuery = useInspection(inspectionId);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
@@ -518,30 +523,61 @@ export default function ReportDetailPage() {
                 </Alert>
               )}
 
-              {/* SmartDroneHub Flight Report & Recorded GPS Orbit Trace for Reviewer/Customer Audit */}
-              {openVersion.reportContext?.fieldSessions &&
-                openVersion.reportContext.fieldSessions.length > 0 && (
-                  <SmartDroneHubTelemetryPanel
-                    inspectionId={inspectionId}
-                    fieldSessionId={openVersion.reportContext.fieldSessions.at(-1)!.id}
-                    sessionActive={false}
-                    canViewFlightReport={
-                      openVersion.reportContext.fieldSessions.at(-1)!.status === 'FIELD_COMPLETED' ||
-                      openVersion.reportContext.fieldSessions.at(-1)!.status === 'ABORTED'
-                    }
+              {/* Dual Deliverable Tabs: 1. Inspection Findings Report | 2. Flight Operations Report */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  px: 2,
+                  pt: 1,
+                  borderRadius: '12px',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                }}
+              >
+                <Tabs
+                  value={activeDocTab}
+                  onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
+                >
+                  <Tab
+                    value="inspection"
+                    icon={<PictureAsPdfRounded fontSize="small" />}
+                    iconPosition="start"
+                    label={t('1. Inspection Findings Report')}
+                    sx={{ textTransform: 'none', fontWeight: 700 }}
                   />
-                )}
+                  <Tab
+                    value="flight"
+                    icon={<FlightTakeoffRounded fontSize="small" />}
+                    iconPosition="start"
+                    label={t('2. Flight Operations Report (Auto-Generated)')}
+                    sx={{ textTransform: 'none', fontWeight: 700 }}
+                  />
+                </Tabs>
+              </Paper>
 
-              {/* MF3-08/MF3-11: authored sections, derived sections, and the delivered PDF */}
-              <ReportAuthoringPanel
-                version={openVersion}
-                findings={findings.data ?? []}
-                evidenceList={evidence.data ?? []}
-                inspectionId={inspectionId}
-                canEdit={canAuthor && canEditReturnedText}
-                onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
-                reinspectionVerifications={reinspectionVerifications.data}
-              />
+              {activeDocTab === 'inspection' ? (
+                <ReportAuthoringPanel
+                  version={openVersion}
+                  findings={findings.data ?? []}
+                  evidenceList={evidence.data ?? []}
+                  inspectionId={inspectionId}
+                  canEdit={canAuthor && canEditReturnedText}
+                  onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
+                  reinspectionVerifications={reinspectionVerifications.data}
+                />
+              ) : (
+                <FlightOperationsReportView
+                  inspectionId={inspectionId}
+                  fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
+                  version={openVersion}
+                  evidenceList={evidence.data ?? []}
+                  assetName={openVersion.reportContext?.assetName ?? inspectionQuery.data?.assetName}
+                  flightPermitFileName={
+                    openVersion.reportContext?.flightPermitFileName ??
+                    inspectionQuery.data?.flightPermitFileName
+                  }
+                />
+              )}
             </>
           )}
         </Stack>

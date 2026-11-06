@@ -392,7 +392,7 @@ export function AirspaceNoFlyMap({
       const wrappedTx = ((tx % (maxTileIndex + 1)) + (maxTileIndex + 1)) % (maxTileIndex + 1);
       tiles.push({
         key: `${zoom}-${tx}-${ty}`,
-        url: `https://tile.openstreetmap.org/${zoom}/${wrappedTx}/${ty}.png`,
+        url: `https://mt1.google.com/vt/lyrs=m&hl=vi&x=${wrappedTx}&y=${ty}&z=${zoom}`,
         left: tx * 256 - topLeftWorldX,
         top: ty * 256 - topLeftWorldY,
       });

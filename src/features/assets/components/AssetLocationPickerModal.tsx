@@ -403,7 +403,7 @@ export function AssetLocationPickerModal({
             {tiles.map((tile) => (
               <img
                 key={`${zoom}-${tile.x}-${tile.y}`}
-                src={`https://tile.openstreetmap.org/${zoom}/${tile.x}/${tile.y}.png`}
+                src={`https://mt1.google.com/vt/lyrs=m&hl=vi&x=${tile.x}&y=${tile.y}&z=${zoom}`}
                 alt=""
                 draggable={false}
                 style={{
