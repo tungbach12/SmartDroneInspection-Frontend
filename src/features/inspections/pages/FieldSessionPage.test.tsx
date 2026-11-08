@@ -277,7 +277,7 @@ describe('FieldSessionPage', () => {
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith(
         'inspection-1',
-        expect.stringContaining('[✓] Airframe, propellers & gimbal camera intact'),
+        expect.stringContaining('[✓] Drone airframe, propellers & camera gimbal inspected and intact'),
       ),
     );
   });

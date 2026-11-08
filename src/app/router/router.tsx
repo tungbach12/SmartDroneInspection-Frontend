@@ -52,6 +52,12 @@ const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
 const ReportDetailPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
 );
+const ManagerReportReviewPage = lazy(
+  () => import('@/features/reports/pages/ManagerReportReviewPage'),
+);
+const CustomerReportDeliverablePage = lazy(
+  () => import('@/features/reports/pages/CustomerReportDeliverablePage'),
+);
 const InspectionDetailPage = lazy(
   () => import('@/features/inspections/pages/InspectionDetailPage'),
 );
@@ -85,6 +91,9 @@ const WorkforcePage = lazy(
 );
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
+);
+const ManagerPartnerInspectorsPage = lazy(
+  () => import('@/features/admin/pages/ManagerPartnerInspectorsPage'),
 );
 const ContractsPage = lazy(
   () => import('@/features/contracts/pages/ContractsPage'),
@@ -126,7 +135,7 @@ function InspectionWorkspaceIndexRedirect() {
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
   if (roles.includes('CUSTOMER')) {
-    return <ReportDetailPage />;
+    return <CustomerReportDeliverablePage />;
   }
   const isReviewer = roles.some((role) =>
     ['MANAGER', 'ADMIN'].includes(role),
@@ -172,7 +181,11 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         path: section,
         element: (
           <RequireAuth roles={getSectionRoles(portal, section)}>
-            {SECTION_ELEMENTS[section]}
+            {portal === 'manager' && section === 'platform-users' ? (
+              <ManagerPartnerInspectorsPage />
+            ) : (
+              SECTION_ELEMENTS[section]
+            )}
           </RequireAuth>
         ),
       })),
@@ -186,13 +199,17 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
           { path: 'tracking', element: <InspectionProgressPage /> },
-          ...(portal === 'client' || portal === 'admin'
+          ...(portal === 'client' || portal === 'admin' || portal === 'manager'
             ? [
                 {
                   path: 'review',
                   element: (
                     <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
-                      <OrganizationReportReviewPage />
+                      {portal === 'manager' || portal === 'admin' ? (
+                        <ManagerReportReviewPage />
+                      ) : (
+                        <OrganizationReportReviewPage />
+                      )}
                     </RequireAuth>
                   ),
                 },

@@ -56,8 +56,16 @@ const adminAreas: FocusArea[] = [
   { label: 'Maintenance', description: 'Maintenance follow-up', icon: BuildOutlined, path: '/admin/maintenance' },
 ];
 
+const managerAreas: FocusArea[] = [
+  { label: 'Service requests', description: 'Quotations and dispatch', icon: FactCheckOutlined, path: '/manager/contracts' },
+  { label: 'Assets', description: 'Customer asset records', icon: ApartmentOutlined, path: '/manager/assets' },
+  { label: 'Inspections', description: 'Dispatched missions', icon: FlightTakeoffRounded, path: '/manager/inspections' },
+  { label: 'Reports', description: 'Review & publish queue', icon: FactCheckOutlined, path: '/manager/reports' },
+];
+
 function getAreas(roles: readonly string[], portal: string): FocusArea[] {
   if (portal === 'client' && roles.includes('CUSTOMER')) return clientAreas;
+  if (portal === 'manager' && roles.includes('MANAGER')) return managerAreas;
   if (portal === 'admin' && (roles.includes('ADMIN') || roles.includes('MANAGER'))) return adminAreas;
   if (portal === 'operations') {
     return [
@@ -95,17 +103,22 @@ function OperationsAndPlatformDashboard() {
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 
   const isOrganization = false;
-  const isAdmin = portal === 'admin' && (roles.includes('ADMIN') || roles.includes('MANAGER'));
+  const isAdmin =
+    (portal === 'admin' || portal === 'manager') &&
+    (roles.includes('ADMIN') || roles.includes('MANAGER'));
   const isInspector = portal === 'operations' && roles.includes('INSPECTOR');
   const isMaintenanceEngineer = portal === 'operations' && roles.includes('MAINTENANCE_ENGINEER');
   const canReadAssets = isOrganization;
 
   const focusAreas = getAreas(roles, portal);
-  const dashboardRoleOptions: RoleId[] = portal === 'admin'
-    ? ['ADMIN', 'MANAGER']
-    : portal === 'client'
-      ? ['CUSTOMER']
-      : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
+  const dashboardRoleOptions: RoleId[] =
+    portal === 'manager'
+      ? ['MANAGER']
+      : portal === 'admin'
+        ? ['ADMIN', 'MANAGER']
+        : portal === 'client'
+          ? ['CUSTOMER']
+          : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
   const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
   const assets = useAssets({ page: 1, pageSize: 50 }, canReadAssets);
   const analytics = useDashboardAnalytics();
@@ -113,7 +126,9 @@ function OperationsAndPlatformDashboard() {
   // Role controls only vary presentation within roles actually assigned to the account.
   const defaultRole: RoleId = isOrganization
     ? 'CUSTOMER'
-    : portal === 'admin' && roles.includes('MANAGER') && !roles.includes('ADMIN')
+    : (portal === 'manager' || portal === 'admin') &&
+        roles.includes('MANAGER') &&
+        !roles.includes('ADMIN')
       ? 'MANAGER'
       : isAdmin
         ? 'ADMIN'

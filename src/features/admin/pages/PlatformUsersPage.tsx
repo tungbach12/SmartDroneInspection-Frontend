@@ -84,7 +84,12 @@ export default function PlatformUsersPage() {
   const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
-  const items = users.data ?? [];
+  const allItems = users.data ?? [];
+  const items = isManager
+    ? allItems.filter(
+        (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER',
+      )
+    : allItems;
 
   const columns: DataTableColumn<PlatformUser>[] = [
     {

@@ -23,6 +23,28 @@ export function RequireAuth({ roles, children }: RequireAuthProps) {
   }
 
   if (roles && !roles.some((r) => userRoles.includes(r))) {
+    if (
+      userRoles.includes('MANAGER') &&
+      !userRoles.includes('ADMIN') &&
+      location.pathname.startsWith('/admin')
+    ) {
+      const redirectedPath =
+        location.pathname.replace(/^\/admin(?=\/|$)/, '/manager') +
+        location.search +
+        location.hash;
+      return <Navigate to={redirectedPath} replace />;
+    }
+    if (
+      userRoles.includes('ADMIN') &&
+      !userRoles.includes('MANAGER') &&
+      location.pathname.startsWith('/manager')
+    ) {
+      const redirectedPath =
+        location.pathname.replace(/^\/manager(?=\/|$)/, '/admin') +
+        location.search +
+        location.hash;
+      return <Navigate to={redirectedPath} replace />;
+    }
     return <Navigate to="/forbidden" replace />;
   }
 

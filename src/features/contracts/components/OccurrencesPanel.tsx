@@ -248,10 +248,12 @@ function OccurrenceCard({
               {payment?.method ? ` · ${payment.method}` : ''}
               {payment?.payosOrderCode ? ` · #${payment.payosOrderCode}` : ''}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
-              {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
-            </Typography>
+            {manager && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
+                {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
+              </Typography>
+            )}
           </Stack>
         </Paper>
 
@@ -293,7 +295,7 @@ function OccurrenceCard({
                 component="a"
                 href={
                   manager
-                    ? `/admin/inspections/${inspectionId}/review`
+                    ? `/manager/inspections/${inspectionId}/review`
                     : `/client/inspections/${inspectionId}/${reportAcceptedAt || isPaid ? 'report' : 'tracking'}`
                 }
                 size="small"

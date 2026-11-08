@@ -82,8 +82,8 @@ describe('dashboard', () => {
     expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
   });
 
-  it('supports MANAGER in /admin/dashboard', () => {
-    renderDashboard(['MANAGER'], '/admin/dashboard');
+  it('supports MANAGER in /manager/dashboard', () => {
+    renderDashboard(['MANAGER'], '/manager/dashboard');
     expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Platform Manager' })).toBeTruthy();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);

@@ -6,6 +6,7 @@ import {
   fieldSessionApi,
   fieldSessionKeys,
 } from '../api/fieldSessionApi';
+import { cacheUploadedFlightPermit } from '../components/FlightPermitPreviewDialog';
 import {
   inspectionApi,
   type Finding,
@@ -87,9 +88,10 @@ export function useUploadFlightPermit(inspectionId: string | null) {
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: (file: File) => inspectionApi.uploadFlightPermit(inspectionId!, file),
-    onSuccess: () => {
+    onSuccess: (_data, file) => {
       showToast('Flight permit uploaded successfully');
       if (!inspectionId) return;
+      cacheUploadedFlightPermit(inspectionId, file);
       void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
       void client.invalidateQueries({ queryKey: inspectionKeys.all });
     },

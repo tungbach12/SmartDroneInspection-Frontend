@@ -31,6 +31,7 @@ import RouteRounded from '@mui/icons-material/RouteRounded';
 import SpeedRounded from '@mui/icons-material/SpeedRounded';
 import TerrainRounded from '@mui/icons-material/TerrainRounded';
 import ViewInArRounded from '@mui/icons-material/ViewInArRounded';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { useQuery } from '@tanstack/react-query';
 import {
   smartDroneHubApi,
@@ -40,6 +41,7 @@ import type {
   EvidenceItem,
   InspectionReport,
 } from '@/features/inspections/api/inspectionApi';
+import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { MapLibreFlightTrajectoryCanvas } from './MapLibreFlightTrajectoryCanvas';
@@ -118,6 +120,7 @@ export function FlightOperationsReportView({
 
   // Synchronized crosshair index across telemetry timeline charts
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [permitDialogOpen, setPermitDialogOpen] = useState(false);
 
   const flightReportQuery = useQuery({
     queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId],
@@ -228,18 +231,20 @@ export function FlightOperationsReportView({
   }, [report, enrichedSamples, pal]);
 
   const context = version?.reportContext;
+  const sessionDrone = context?.fieldSessions?.at(-1);
   const resolvedAsset =
     assetName ??
     ([context?.assetName, context?.assetCode].filter(Boolean).join(' · ') || '—');
   const resolvedDrone =
-    droneSummary ??
-    ([
-      context?.assignedDrone?.manufacturer,
-      context?.assignedDrone?.model,
-      context?.assignedDrone?.serialNumber,
+    droneSummary ||
+    [
+      context?.assignedDrone?.manufacturer ?? sessionDrone?.droneManufacturer,
+      context?.assignedDrone?.model ?? sessionDrone?.droneModel,
+      context?.assignedDrone?.serialNumber ?? sessionDrone?.droneSerialNumber,
     ]
       .filter(Boolean)
-      .join(' · ') || '—');
+      .join(' · ') ||
+    '—';
   const resolvedPermit =
     flightPermitFileName ??
     context?.flightPermitFileName ??
@@ -348,7 +353,42 @@ export function FlightOperationsReportView({
             >
               <MetaItem label={t('Target Asset')} value={resolvedAsset} />
               <MetaItem label={t('Assigned UAV / Drone')} value={resolvedDrone} />
-              <MetaItem label={t('Flight Permit Gate')} value={resolvedPermit} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}
+                >
+                  {t('Flight Permit Gate')}
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}
+                  >
+                    {resolvedPermit}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
+                    onClick={() => setPermitDialogOpen(true)}
+                    sx={{
+                      height: 22,
+                      px: 1,
+                      fontSize: '0.7rem',
+                      fontWeight: 650,
+                      textTransform: 'none',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    {t('View permit')}
+                  </Button>
+                </Stack>
+              </Box>
               <MetaItem
                 label={t('Takeoff / Started At')}
                 value={report.startedAt ? formatDateTime(report.startedAt) : '—'}
@@ -360,6 +400,16 @@ export function FlightOperationsReportView({
               <MetaItem label={t('Telemetry Audit Note')} value={report.note} />
             </Box>
           </Paper>
+
+          <FlightPermitPreviewDialog
+            open={permitDialogOpen}
+            onClose={() => setPermitDialogOpen(false)}
+            inspectionId={inspectionId}
+            fileName={resolvedPermit}
+            uploadedAt={context?.flightPermitUploadedAt}
+            assetName={resolvedAsset !== '—' ? resolvedAsset : null}
+            droneSummary={resolvedDrone !== '—' ? resolvedDrone : null}
+          />
 
           {/* 2. Automated 6 KPI Stat Tiles */}
           <Box
@@ -701,7 +751,6 @@ function GpsTrajectoryMapCard({
               {t('Flight Path Map')}
             </Typography>
             <LegendSwatch color={pal.series3} label={t('Start')} />
-            <LegendSwatch color={pal.series1} label={t('Track')} />
             <LegendSwatch color={pal.series2} label={t('End')} />
           </Stack>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

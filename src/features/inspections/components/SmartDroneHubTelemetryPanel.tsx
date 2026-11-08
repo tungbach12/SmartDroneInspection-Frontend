@@ -60,22 +60,26 @@ export function SmartDroneHubTelemetryPanel({
   });
 
   const data: SmartDroneHubTelemetry | undefined = telemetry.data ?? startMission.data;
+  const isConnected = Boolean(data?.connected);
 
   return (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
       <Stack spacing={1.5}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <FlightTakeoffRounded color="primary" />
+            <FlightTakeoffRounded color={isConnected ? 'primary' : 'disabled'} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t('SmartDroneHub telemetry')}</Typography>
           </Stack>
           {data && (
             <Chip
               size="small"
-              color={data.connected ? 'success' : 'info'}
-              label={data.telemetrySource === 'MISSION_PLANNER_MAVLINK'
-                ? (data.connected ? t('Pilot GCS MAVLink live') : t('GCS telemetry standby'))
-                : t('Flight telemetry online')}
+              color={isConnected ? 'success' : 'warning'}
+              variant={isConnected ? 'filled' : 'outlined'}
+              label={
+                isConnected
+                  ? t('Flight telemetry online (MAVLink live)')
+                  : t('Not connected · Mission Planner offline')
+              }
             />
           )}
         </Stack>
@@ -100,21 +104,49 @@ export function SmartDroneHubTelemetryPanel({
           </Stack>
         ) : started && sessionActive ? (
           <>
+            {!isConnected && (
+              <Alert severity="warning">
+                {t('No MAVLink connection detected. Open Mission Planner (or connect your drone telemetry) to stream live flight data.')}
+              </Alert>
+            )}
             <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
-              <Chip size="small" label={`${t('State')}: ${data?.missionState ?? '—'}`} />
-              <Chip size="small" label={`${t('Mode')}: ${data?.flightMode ?? '—'}`} />
-              <Chip size="small" label={`${t('Armed')}: ${data?.armed == null ? '—' : data.armed ? t('Yes') : t('No')}`} />
+              <Chip
+                size="small"
+                color={isConnected ? 'default' : 'warning'}
+                variant={isConnected ? 'filled' : 'outlined'}
+                label={`${t('State')}: ${isConnected ? (data?.missionState ?? '—') : t('NOT CONNECTED')}`}
+              />
+              <Chip
+                size="small"
+                label={`${t('Mode')}: ${isConnected ? (data?.flightMode ?? '—') : '—'}`}
+              />
+              <Chip
+                size="small"
+                label={`${t('Armed')}: ${!isConnected || data?.armed == null ? '—' : data.armed ? t('Yes') : t('No')}`}
+              />
             </Stack>
             {telemetry.isError && (
               <Alert severity="warning">{t('Telemetry unavailable. Check the Mission Planner UDP forward or Hub connection.')}</Alert>
             )}
             <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1, flexWrap: 'wrap' }}>
-              <Typography variant="body2">GPS: {data?.latitude == null || data.longitude == null ? '—' : `${format(data.latitude, 6)}, ${format(data.longitude, 6)}`}</Typography>
-              <Typography variant="body2">{t('Altitude')}: {format(data?.altitudeMeters ?? null)} m</Typography>
-              <Typography variant="body2">{t('Speed')}: {format(data?.groundSpeedMps ?? null)} m/s</Typography>
-              <Typography variant="body2">{t('Heading')}: {format(data?.headingDeg ?? null, 0)}°</Typography>
-              <Typography variant="body2">{t('Battery')}: {data?.batteryPercent == null ? '—' : `${data.batteryPercent}%`}</Typography>
-              <Typography variant="body2">{t('Waypoint')}: {data?.currentWaypoint ?? '—'}</Typography>
+              <Typography variant="body2">
+                GPS: {!isConnected || data?.latitude == null || data.longitude == null ? '—' : `${format(data.latitude, 6)}, ${format(data.longitude, 6)}`}
+              </Typography>
+              <Typography variant="body2">
+                {t('Altitude')}: {isConnected ? format(data?.altitudeMeters ?? null) : '—'} m
+              </Typography>
+              <Typography variant="body2">
+                {t('Speed')}: {isConnected ? format(data?.groundSpeedMps ?? null) : '—'} m/s
+              </Typography>
+              <Typography variant="body2">
+                {t('Heading')}: {isConnected ? format(data?.headingDeg ?? null, 0) : '—'}°
+              </Typography>
+              <Typography variant="body2">
+                {t('Battery')}: {!isConnected || data?.batteryPercent == null ? '—' : `${data.batteryPercent}%`}
+              </Typography>
+              <Typography variant="body2">
+                {t('Waypoint')}: {isConnected ? (data?.currentWaypoint ?? '—') : '—'}
+              </Typography>
             </Stack>
             <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.default' }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
@@ -124,9 +156,9 @@ export function SmartDroneHubTelemetryPanel({
                   </Typography>
                   <Chip
                     size="small"
-                    color="success"
+                    color={isConnected ? 'success' : 'default'}
                     variant="outlined"
-                    label={t('Gimbal Active')}
+                    label={isConnected ? t('Gimbal Active') : t('Disconnected')}
                     sx={{ height: 20, fontSize: '0.75rem' }}
                   />
                 </Stack>
@@ -135,7 +167,7 @@ export function SmartDroneHubTelemetryPanel({
                     size="small"
                     variant="contained"
                     startIcon={<CameraAltRounded fontSize="small" />}
-                    disabled={captureMutation.isPending}
+                    disabled={!isConnected || captureMutation.isPending}
                     onClick={() => captureMutation.mutate()}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
@@ -156,7 +188,7 @@ export function SmartDroneHubTelemetryPanel({
         )}
 
         <MutationProblemAlert error={startMission.error} isError={startMission.isError} fallbackMessage={t('Could not connect to SmartDroneHub.')} />
-        <MutationProblemAlert error={captureMutation.error} isError={captureMutation.isError} fallbackMessage={t('Could not capture frame from SmartDroneHub.')} />
+        <MutationProblemAlert error={captureMutation.error} isError={captureMutation.error != null} fallbackMessage={t('Could not capture frame from SmartDroneHub.')} />
       </Stack>
     </Paper>
   );

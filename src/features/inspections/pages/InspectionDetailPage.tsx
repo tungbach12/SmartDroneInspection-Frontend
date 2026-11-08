@@ -23,6 +23,7 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import '../styles/trace-ledger.css';
@@ -30,10 +31,12 @@ import {
   useFieldSessions,
   useInspection,
   useInspectionEvidence,
+  useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
+import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
 
 interface WorkflowStep {
@@ -126,8 +129,8 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
 ] as const;
 
 /**
- * The reviewer's tabs are decision phases: report review (MF3-09/10/11) after submission,
- * and corrective disposition (MF3-12) after publication.
+ * Platform Manager workspace stage: independent report review & publication (MF3-09/10/11).
+ * Corrective maintenance handoff belongs to the Customer organization (MF4).
  */
 const REVIEWER_STEPS: readonly WorkflowStep[] = [
   {
@@ -138,15 +141,6 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
     sublabel: 'Decision & Approval',
     to: 'review',
     icon: AssignmentTurnedInOutlined,
-  },
-  {
-    step: 2,
-    value: 'corrective',
-    label: 'Send to Maintenance',
-    title: 'Maintenance Handoff',
-    sublabel: 'Work Order Creation',
-    to: 'corrective',
-    icon: BuildOutlined,
   },
 ] as const;
 
@@ -183,6 +177,7 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
 export default function InspectionDetailPage() {
   const { formatDate, t } = useLocale();
   const [reportDirty, setReportDirty] = useState(false);
+  const [permitDialogOpen, setPermitDialogOpen] = useState(false);
   const blocker = useBlocker(reportDirty);
   useEffect(() => {
     if (!reportDirty) return undefined;
@@ -198,9 +193,10 @@ export default function InspectionDetailPage() {
   const location = useLocation();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER') && location.pathname.startsWith('/client/');
+  const reviewerPortal = location.pathname.startsWith('/manager/') ? 'manager' : 'admin';
   const isReviewerAdmin =
     (roles.includes('ADMIN') || roles.includes('MANAGER')) &&
-    location.pathname.startsWith('/admin/');
+    (location.pathname.startsWith('/admin/') || location.pathname.startsWith('/manager/'));
   const isOrganizationAdmin = isReviewerAdmin;
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
@@ -215,8 +211,15 @@ export default function InspectionDetailPage() {
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
+  const findingsQuery = useInspectionFindings(inspectionId);
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
+  const confirmedFindings = (findingsQuery.data ?? []).filter(
+    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
+  );
+  const hasForwardedFindings = confirmedFindings.some(
+    (item) => item.forwardedToMaintenanceAt != null,
+  );
   const versions = useReportVersions(inspectionId);
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
@@ -232,10 +235,7 @@ export default function InspectionDetailPage() {
         return true;
       })
     : isReviewerAdmin
-      ? REVIEWER_STEPS.filter((step) => {
-          if (step.value === 'corrective') return !isReinspection && hasPublishedVersion;
-          return true;
-        })
+      ? REVIEWER_STEPS
       : steps;
 
   const reviewerSourceRoutes = ['evidence', 'findings'];
@@ -253,8 +253,13 @@ export default function InspectionDetailPage() {
           ? 'findings'
           : 'field-session';
 
-  // Guard against Customer directly visiting forbidden operational or reviewer URLs
+  // Guard against Customer directly visiting forbidden operational or reviewer URLs,
+  // and guard against Platform Manager landing on Customer-only corrective routes.
   useEffect(() => {
+    if (isReviewerAdmin && current === 'corrective') {
+      navigate(`${getSectionPath(reviewerPortal, 'inspections')}/${inspectionId}/review`, { replace: true });
+      return;
+    }
     if (isCustomer && !versions.isLoading) {
       const forbiddenForCustomer = ['field-session', 'evidence', 'findings', 'review'];
       if (forbiddenForCustomer.includes(current)) {
@@ -264,7 +269,7 @@ export default function InspectionDetailPage() {
         navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/tracking`, { replace: true });
       }
     }
-  }, [isCustomer, versions.isLoading, hasPublishedVersion, current, inspectionId, navigate]);
+  }, [isCustomer, isReviewerAdmin, reviewerPortal, versions.isLoading, hasPublishedVersion, current, inspectionId, navigate]);
 
   const isStepCompleted = (stepValue: string): boolean => {
     const status = workflowQuery.data?.status ?? inspection?.status ?? '';
@@ -276,16 +281,13 @@ export default function InspectionDetailPage() {
         return hasPublishedVersion;
       }
       if (stepValue === 'corrective') {
-        return inspection?.status === 'COMPLETED';
+        return hasPublishedVersion && hasForwardedFindings;
       }
       return false;
     }
     if (isReviewerAdmin) {
       if (stepValue === 'review') {
-        return hasPublishedVersion || (inspection?.status === 'COMPLETED');
-      }
-      if (stepValue === 'corrective') {
-        return inspection?.status === 'COMPLETED';
+        return hasPublishedVersion;
       }
       return false;
     }
@@ -372,7 +374,7 @@ export default function InspectionDetailPage() {
       sx={{ width: '100%', maxWidth: '100%', mx: 'auto' }}
     >
       <Box className="trace-ledger-header" sx={{ mb: { xs: 2.5, md: 3.5 } }}>
-        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
           <Button
             startIcon={<ArrowBackRounded />}
             onClick={() => {
@@ -381,7 +383,7 @@ export default function InspectionDetailPage() {
                 return;
               }
               if (isReviewerAdmin) {
-                navigate(`${getSectionPath('admin', 'inspections')}?view=reports`);
+                navigate(`${getSectionPath(reviewerPortal, 'inspections')}?view=reports`);
                 return;
               }
               navigate(-1);
@@ -390,9 +392,6 @@ export default function InspectionDetailPage() {
           >
             {isCustomer ? t('Back to inspections') : isReviewerAdmin ? t('Back to review queue') : t('Back to inspections')}
           </Button>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 650, letterSpacing: '0.04em' }}>
-            {isCustomer ? t('CUSTOMER WORKSPACE') : isReviewerAdmin ? t('REPORT DECISIONS') : t('FIELD WORKSPACE')}
-          </Typography>
         </Stack>
 
         <PageHeader title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')} />
@@ -470,28 +469,61 @@ export default function InspectionDetailPage() {
                 </Typography>
               </Stack>
 
-              <Chip
-                size="small"
-                variant="outlined"
-                aria-label={inspection.flightPermitFileName ? t('Flight document recorded; this does not authorize flight') : t('Flight document not recorded')}
-                title={
-                  inspection.flightPermitFileName
-                    ? `${inspection.flightPermitFileName}${
-                        inspection.flightPermitUploadedAt
-                          ? ` · ${formatDate(new Date(inspection.flightPermitUploadedAt))}`
-                          : ''
-                      }`
-                    : undefined
-                }
-                label={
-                  inspection.flightPermitFileName
-                    ? t('Permit on file')
-                    : t('Awaiting Permit Upload')
-                }
-                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, borderColor: 'divider', color: 'text.secondary' }}
-              />
+              {inspection.flightPermitFileName ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  startIcon={<VisibilityOutlined sx={{ fontSize: 15 }} />}
+                  onClick={() => setPermitDialogOpen(true)}
+                  title={`${inspection.flightPermitFileName}${
+                    inspection.flightPermitUploadedAt
+                      ? ` · ${formatDate(new Date(inspection.flightPermitUploadedAt))}`
+                      : ''
+                  }`}
+                  sx={{
+                    height: 26,
+                    px: 1.25,
+                    fontSize: '0.75rem',
+                    fontWeight: 650,
+                    textTransform: 'none',
+                    borderRadius: '6px',
+                  }}
+                >
+                  {t('View permit')}
+                </Button>
+              ) : (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  aria-label={t('Flight document not recorded')}
+                  label={t('Awaiting Permit Upload')}
+                  sx={{
+                    height: 22,
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                  }}
+                />
+              )}
             </Stack>
           </Paper>
+        )}
+
+        {inspection?.flightPermitFileName && (
+          <FlightPermitPreviewDialog
+            open={permitDialogOpen}
+            onClose={() => setPermitDialogOpen(false)}
+            inspectionId={inspectionId}
+            fileName={inspection.flightPermitFileName}
+            uploadedAt={inspection.flightPermitUploadedAt}
+            assetName={inspection.assetName}
+            droneSummary={
+              [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') ||
+              null
+            }
+          />
         )}
 
         {!isOrganizationAdmin && !isCustomer && inspection && (
@@ -525,6 +557,7 @@ export default function InspectionDetailPage() {
           </Alert>
         )}
 
+        {visibleSteps.length > 1 && (
         <Paper
           component="nav"
           aria-label={t('Inspection workflow stages')}
@@ -658,6 +691,7 @@ export default function InspectionDetailPage() {
           )}
 
         </Paper>
+        )}
       </Box>
 
       <Box className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>

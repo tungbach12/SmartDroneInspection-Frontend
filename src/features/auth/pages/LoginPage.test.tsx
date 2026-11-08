@@ -29,7 +29,7 @@ function LocationProbe() {
 
 const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER_ORGANIZATION' }[] = [
   { role: 'ADMIN', path: '/admin/dashboard', actorZone: 'PLATFORM' },
-  { role: 'MANAGER', path: '/admin/dashboard', actorZone: 'PLATFORM' },
+  { role: 'MANAGER', path: '/manager/dashboard', actorZone: 'PLATFORM' },
   { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'MAINTENANCE_ENGINEER', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
@@ -42,6 +42,7 @@ function renderLogin(initialEntry = '/login') {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/dashboard" element={<div>Admin dashboard</div>} />
+          <Route path="/manager/dashboard" element={<div>Manager dashboard</div>} />
           <Route path="/client/dashboard" element={<div>Client dashboard</div>} />
           <Route path="/operations/dashboard" element={<div>Operations dashboard</div>} />
           <Route path="/operations/inspections" element={<div>Inspection detail</div>} />
@@ -87,11 +88,13 @@ describe('role-aware sign-in flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await screen.findByText(
-      role === 'ADMIN' || role === 'MANAGER'
+      role === 'ADMIN'
         ? 'Admin dashboard'
-        : role === 'CUSTOMER'
-          ? 'Client dashboard'
-          : 'Operations dashboard',
+        : role === 'MANAGER'
+          ? 'Manager dashboard'
+          : role === 'CUSTOMER'
+            ? 'Client dashboard'
+            : 'Operations dashboard',
     );
     expect(screen.getByLabelText('Current location').textContent).toBe(path);
     expect(useAuthStore.getState()).toMatchObject({ status: 'authenticated', accessToken: 'memory-access-token', roles: [role] });
@@ -118,12 +121,12 @@ describe('role-aware sign-in flow', () => {
 
     await screen.findByRole('heading', { name: 'Set your password' });
     fireEvent.change(screen.getByLabelText('Temporary password'), { target: { value: 'temporary-password' } });
-    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-long-enough' } });
-    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password-long-enough' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'NewPassword123!' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'NewPassword123!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save password and continue' }));
 
     await screen.findByText('Operations dashboard');
-    expect(authMocks.completeInitialPasswordSetup).toHaveBeenCalledWith('field@example.test', 'temporary-password', 'new-password-long-enough');
+    expect(authMocks.completeInitialPasswordSetup).toHaveBeenCalledWith('field@example.test', 'temporary-password', 'NewPassword123!');
     expect(useAuthStore.getState()).toMatchObject({ status: 'authenticated', roles: ['INSPECTOR'] });
   });
 

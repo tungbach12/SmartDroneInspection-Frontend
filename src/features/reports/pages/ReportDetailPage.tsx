@@ -11,14 +11,11 @@ import {
   DialogTitle,
   Paper,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
-import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
+import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import { canPerform } from '@/app/permissions/capability';
 import {
   getSectionPath,
@@ -42,10 +39,11 @@ import {
   useInspection,
   useReportPaymentStatus,
 } from '@/features/inspections/hooks/useInspections';
-import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
+import ManagerReportReviewPage from './ManagerReportReviewPage';
+import CustomerReportDeliverablePage from './CustomerReportDeliverablePage';
+import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
-import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -78,11 +76,11 @@ export default function ReportDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
-  const [activeDocTab, setActiveDocTab] = useState<'inspection' | 'flight'>('inspection');
 
   const inspectionQuery = useInspection(inspectionId);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
   const isClientPortal = portal === 'client';
+  const isManagerPortal = portal === 'admin' || portal === 'manager';
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -119,9 +117,29 @@ export default function ReportDetailPage() {
 
   const isAuthor = Boolean(openVersion && userId === openVersion.authorUserId);
   const inspectionStatus = workflowState.data?.status;
+  const confirmedFindingsList = (findings.data ?? []).filter(
+    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
+  );
+  const hasForwardedFindings = confirmedFindingsList.some(
+    (item) => item.forwardedToMaintenanceAt != null,
+  );
   const publishedUnhanded =
     openVersion?.status === 'PUBLISHED' &&
-    (inspectionStatus === 'COMPLETED' || inspectionStatus == null);
+    (inspectionStatus === 'COMPLETED' || inspectionStatus == null) &&
+    !hasForwardedFindings;
+  const resolvedDroneSummary =
+    [
+      openVersion?.reportContext?.assignedDrone?.manufacturer,
+      openVersion?.reportContext?.assignedDrone?.model ?? inspectionQuery.data?.droneModel,
+      openVersion?.reportContext?.assignedDrone?.serialNumber ??
+        inspectionQuery.data?.droneSerialNumber,
+    ]
+      .filter(Boolean)
+      .join(' · ') || null;
+  const resolvedPermitFileName =
+    openVersion?.reportContext?.flightPermitFileName ??
+    inspectionQuery.data?.flightPermitFileName ??
+    null;
   const reportReadLoading =
     findings.isLoading || evidence.isLoading || Boolean(findings.error || evidence.error);
   const canWithdrawSubmission = Boolean(
@@ -156,53 +174,47 @@ export default function ReportDetailPage() {
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
+  if (isManagerPortal) {
+    return <ManagerReportReviewPage />;
+  }
+  if (isClientPortal && isEmbeddedInInspectionWorkspace) {
+    return <CustomerReportDeliverablePage />;
+  }
+
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
-      {/* Top Navigation: shown when rendered standalone at /:portal/reports/:id */}
+      {/* Top Navigation & Header: shown only when rendered standalone at /:portal/reports/:id */}
       {!isEmbeddedInInspectionWorkspace && (
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Button
-            startIcon={<ArrowBackRounded />}
-            onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Button
+              startIcon={<ArrowBackRounded />}
+              onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                textTransform: 'none',
+                borderRadius: '8px',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
+            </Button>
+          </Box>
+          <Typography
+            component="h1"
             sx={{
-              color: 'text.secondary',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              textTransform: 'none',
-              borderRadius: '8px',
-              '&:hover': { bgcolor: 'action.hover' },
+              fontSize: { xs: '1.5rem', sm: '1.875rem' },
+              fontWeight: 700,
+              color: 'text.primary',
+              letterSpacing: '-0.025em',
             }}
           >
-            {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
-          </Button>
+            {t('Inspection Report')}
+          </Typography>
         </Box>
       )}
-
-      {/* Header card */}
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          component="h1"
-          sx={{
-            fontSize: { xs: '1.5rem', sm: '1.875rem' },
-            fontWeight: 700,
-            color: 'text.primary',
-            letterSpacing: '-0.025em',
-            mb: 0.5,
-          }}
-        >
-          {portal === 'admin'
-            ? t('Platform Manager · Report review')
-            : portal === 'client'
-              ? t('Customer · Inspection Report')
-              : t('Inspection Report')}
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-          {t('Inspection ID:')} {inspectionId} ·{' '}
-          {portal === 'admin'
-            ? t('Review the submitted report, record a decision, and publish approved versions.')
-            : t('Official published inspection deliverable and verified defect records.')}
-        </Typography>
-      </Box>
 
       <QueryState
         isLoading={versions.isLoading}
@@ -257,16 +269,26 @@ export default function ReportDetailPage() {
 
           {openVersion && (
             <>
-              {/* Next step banner */}
+              {/* Unified status banner (single alert, no duplicate publish notices) */}
               <Alert
-                severity={openVersion.status === 'PUBLISHED' ? 'success' : 'info'}
+                severity={
+                  openVersion.status === 'PUBLISHED' ||
+                  (review.isSuccess && !review.variables?.reason)
+                    ? 'success'
+                    : 'info'
+                }
                 sx={{
                   borderRadius: '10px',
                   fontWeight: 500,
                   fontSize: '0.875rem',
                 }}
               >
-                {NEXT_STEP[openVersion.status] ?? openVersion.status}
+                {openVersion.status === 'PUBLISHED' ||
+                (review.isSuccess && !review.variables?.reason)
+                  ? isManagerPortal
+                    ? `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. ${t('This version is immutable and delivered to the Customer.')}`
+                    : `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. The PDF is immutable; forward confirmed findings to maintenance individually when they require corrective work.`
+                  : (NEXT_STEP[openVersion.status] ?? openVersion.status)}
               </Alert>
 
               {/* Reviewer / Author Action controls */}
@@ -450,15 +472,8 @@ export default function ReportDetailPage() {
                 </Paper>
               )}
 
-              {review.isSuccess && !review.variables?.reason && (
-                <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                  {t('Published version')} {review.data.versionNo}. The PDF is immutable; forward
-                  confirmed findings to maintenance individually when they require corrective work.
-                </Alert>
-              )}
-
-              {/* Customer Report Acceptance & Payment Gate */}
-              {openVersion.status === 'PUBLISHED' && portal === 'client' && (
+              {/* Customer Report Acceptance & Payment Gate (Customer view only) */}
+              {openVersion.status === 'PUBLISHED' && isClientPortal && (
                 <CustomerReportSettlementCard
                   inspectionId={inspectionId}
                   versionId={openVersion.id}
@@ -485,34 +500,52 @@ export default function ReportDetailPage() {
               )}
 
               {/* Platform Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
-              {portal !== 'client' && (
+              {!isClientPortal && (
                 <InspectorPayoutSummaryBar
                   inspectionId={inspectionId}
                   paymentDetails={paymentStatus}
-                  roleView={portal === 'admin' ? 'manager' : 'inspector'}
+                  roleView={isManagerPortal ? 'manager' : 'inspector'}
                 />
               )}
 
-              {canReview && publishedUnhanded && !isReinspection && (
-                <Stack spacing={2}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {t('Send to Maintenance (MF3-12)')}
-                  </Typography>
-                  <Alert severity="info">
-                    The published version is immutable. Select which confirmed findings to forward to
-                    maintenance; each finding’s forwarding time is recorded separately.
-                  </Alert>
-                  <Box>
-                    <Button
-                      variant="outlined"
-                      component={RouterLink}
-                      to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      {t('Send findings to Maintenance')}
-                    </Button>
-                  </Box>
-                </Stack>
+              {/* Customer Maintenance Handoff (Customer / Organization Manager view only — never shown in Platform Manager review workspace) */}
+              {canReview && !isManagerPortal && publishedUnhanded && !isReinspection && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: '12px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 2,
+                  }}
+                >
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
+                    <BuildOutlined color="primary" sx={{ mt: 0.25 }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t('Send to Maintenance (MF3-12)')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {t(
+                          'Select confirmed findings to forward to your maintenance team as repair candidates.',
+                        )}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    component={RouterLink}
+                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
+                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', flexShrink: 0 }}
+                  >
+                    {t('Send findings to Maintenance')}
+                  </Button>
+                </Paper>
               )}
 
               {publishedUnhanded && isReinspection && (
@@ -523,61 +556,18 @@ export default function ReportDetailPage() {
                 </Alert>
               )}
 
-              {/* Dual Deliverable Tabs: 1. Inspection Findings Report | 2. Flight Operations Report */}
-              <Paper
-                variant="outlined"
-                sx={{
-                  px: 2,
-                  pt: 1,
-                  borderRadius: '12px',
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Tabs
-                  value={activeDocTab}
-                  onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
-                >
-                  <Tab
-                    value="inspection"
-                    icon={<PictureAsPdfRounded fontSize="small" />}
-                    iconPosition="start"
-                    label={t('1. Inspection Findings Report')}
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  />
-                  <Tab
-                    value="flight"
-                    icon={<FlightTakeoffRounded fontSize="small" />}
-                    iconPosition="start"
-                    label={t('2. Flight Operations Report (Auto-Generated)')}
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  />
-                </Tabs>
-              </Paper>
-
-              {activeDocTab === 'inspection' ? (
-                <ReportAuthoringPanel
-                  version={openVersion}
-                  findings={findings.data ?? []}
-                  evidenceList={evidence.data ?? []}
-                  inspectionId={inspectionId}
-                  canEdit={canAuthor && canEditReturnedText}
-                  onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
-                  reinspectionVerifications={reinspectionVerifications.data}
-                />
-              ) : (
-                <FlightOperationsReportView
-                  inspectionId={inspectionId}
-                  fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
-                  version={openVersion}
-                  evidenceList={evidence.data ?? []}
-                  assetName={openVersion.reportContext?.assetName ?? inspectionQuery.data?.assetName}
-                  flightPermitFileName={
-                    openVersion.reportContext?.flightPermitFileName ??
-                    inspectionQuery.data?.flightPermitFileName
-                  }
-                />
-              )}
+              <ReportDeliverableTabs
+                inspectionId={inspectionId}
+                openVersion={openVersion}
+                findings={findings.data ?? []}
+                evidenceList={evidence.data ?? []}
+                canEdit={canAuthor && canEditReturnedText}
+                onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
+                reinspectionVerifications={reinspectionVerifications.data}
+                assetName={inspectionQuery.data?.assetName}
+                droneSummary={resolvedDroneSummary}
+                flightPermitFileName={resolvedPermitFileName}
+              />
             </>
           )}
         </Stack>

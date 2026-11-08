@@ -88,7 +88,48 @@ export function InspectionWorkDetailDialog({
     navigate(destination);
   };
 
+  const isManagerOrAdminPortal = portal === 'manager' || portal === 'admin';
+  const isClientPortal = portal === 'client';
+
   const getWorkflowGuidance = (status: InspectionStatus) => {
+    if (isManagerOrAdminPortal) {
+      switch (status) {
+        case 'UNDER_REVIEW':
+          return {
+            tip: t('Report submitted. Review the submitted report, record a decision, and publish approved versions.'),
+            actionLabel: t('Review submitted report'),
+            subpath: 'review',
+          };
+        case 'COMPLETED':
+          return {
+            tip: t('Inspection report is officially published.'),
+            actionLabel: t('View published report'),
+            subpath: 'review',
+          };
+        default:
+          return {
+            tip: `${t('Inspection is in status')}: ${status}`,
+            actionLabel: t('Open inspection details'),
+            subpath: 'review',
+          };
+      }
+    }
+    if (isClientPortal) {
+      switch (status) {
+        case 'COMPLETED':
+          return {
+            tip: t('Inspection report is officially published.'),
+            actionLabel: t('View published report'),
+            subpath: 'report',
+          };
+        default:
+          return {
+            tip: `${t('Inspection is in status')}: ${status}`,
+            actionLabel: t('Track inspection progress'),
+            subpath: 'tracking',
+          };
+      }
+    }
     switch (status) {
       case 'SCHEDULED':
         return {

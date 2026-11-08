@@ -449,4 +449,29 @@ describe('ReportDetailPage MF3 gates', () => {
       '/client/inspections?view=reports',
     );
   });
+
+  it('hides Send to Maintenance from Platform Manager on /manager portal and shows a single unified published banner', async () => {
+    setRole(['MANAGER']);
+    mockedApi.listVersions.mockResolvedValue([
+      version({
+        status: 'PUBLISHED',
+        versionNo: 1,
+        authorUserId: 'someone-else',
+        publishedAt: '2026-10-01T12:00:00Z',
+      }),
+    ]);
+    mockedApi.workflowState.mockResolvedValue({
+      status: 'COMPLETED',
+      findingsConfirmedAt: '2026-10-01T11:00:00Z',
+    });
+    mockedApi.listFindings.mockResolvedValue([finding({ status: 'CONFIRMED' })]);
+
+    renderPage('/manager/inspections/inspection-1/review');
+
+    expect(
+      await screen.findByText(/Published version 1\. This version is immutable/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();
+  });
 });

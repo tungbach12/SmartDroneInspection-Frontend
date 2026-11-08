@@ -11,7 +11,7 @@ describe('getAuthRedirectTarget', () => {
       '/operations/dashboard',
     );
     expect(getAuthRedirectTarget(null, ['ADMIN'])).toBe('/admin/dashboard');
-    expect(getAuthRedirectTarget(null, ['MANAGER'])).toBe('/admin/dashboard');
+    expect(getAuthRedirectTarget(null, ['MANAGER'])).toBe('/manager/dashboard');
   });
 
   it('asks a cross-workspace user to choose a workspace', () => {

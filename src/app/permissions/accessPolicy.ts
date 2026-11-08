@@ -2,7 +2,8 @@ import type { Role } from '@/features/auth/store/authStore';
 import type { Locale } from '@/shared/i18n/LocaleProvider';
 
 export const PORTAL_ROLE_ACCESS = {
-  admin: ['ADMIN', 'MANAGER'],
+  admin: ['ADMIN'],
+  manager: ['MANAGER'],
   client: ['CUSTOMER'],
   operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
 } as const satisfies Record<string, readonly Role[]>;
@@ -13,6 +14,7 @@ export const PORTAL_IDS = Object.keys(PORTAL_ROLE_ACCESS) as PortalId[];
 
 export const PORTAL_CONFIG = {
   admin: { label: 'Admin workspace', path: '/admin' },
+  manager: { label: 'Manager workspace', path: '/manager' },
   client: { label: 'Client workspace', path: '/client' },
   operations: { label: 'Operations workspace', path: '/operations' },
 } as const satisfies Record<PortalId, { label: string; path: string }>;
@@ -57,6 +59,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
  */
 const PORTAL_LABELS_VI: Record<PortalId, string> = {
   admin: 'Không gian quản trị',
+  manager: 'Không gian điều phối',
   client: 'Không gian khách hàng',
   operations: 'Không gian vận hành',
 };
@@ -81,7 +84,14 @@ export function getPortalLabel(portal: PortalId, locale: Locale): string {
   return locale === 'vi' ? PORTAL_LABELS_VI[portal] : PORTAL_CONFIG[portal].label;
 }
 
-export function getSectionLabel(section: SectionId, locale: Locale): string {
+export function getSectionLabel(
+  section: SectionId,
+  locale: Locale,
+  portal?: PortalId,
+): string {
+  if (portal === 'manager' && section === 'platform-users') {
+    return locale === 'vi' ? 'Phi công đối tác' : 'Partner inspectors';
+  }
   return locale === 'vi' ? SECTION_LABELS_VI[section] : SECTION_LABELS[section];
 }
 
@@ -100,28 +110,43 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
   if (section && section in SECTION_LABELS) {
     return section === 'dashboard'
       ? (locale === 'vi' ? 'Tổng quan' : 'Overview')
-      : getSectionLabel(section as SectionId, locale);
+      : getSectionLabel(section as SectionId, locale, portal);
   }
   return getPortalLabel(portal, locale);
 }
 
 const SECTION_ROLE_ACCESS = {
   admin: {
-    dashboard: ['ADMIN', 'MANAGER'],
-    contracts: ['MANAGER'],
-    assets: ['ADMIN', 'MANAGER'],
+    dashboard: ['ADMIN'],
+    contracts: [],
+    assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
-    inspections: ['ADMIN', 'MANAGER'],
-    reports: ['ADMIN', 'MANAGER'],
+    inspections: ['ADMIN'],
+    reports: ['ADMIN'],
     maintenance: ['ADMIN'],
     // Workforce is a customer-organization function; the platform workspace does not expose it.
     workforce: [],
     // Platform administration of the administrator-managed accounts (FE-01).
-    'platform-users': ['ADMIN', 'MANAGER'],
+    'platform-users': ['ADMIN'],
     'finance-settings': ['ADMIN'],
-    'onboarding-reviews': ['ADMIN', 'MANAGER'],
+    'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
-    settings: ['ADMIN', 'MANAGER'],
+    settings: ['ADMIN'],
+  },
+  manager: {
+    dashboard: ['MANAGER'],
+    contracts: ['MANAGER'],
+    assets: ['MANAGER'],
+    'asset-catalog': [],
+    inspections: ['MANAGER'],
+    reports: ['MANAGER'],
+    maintenance: [],
+    workforce: [],
+    'platform-users': ['MANAGER'],
+    'finance-settings': [],
+    'onboarding-reviews': ['MANAGER'],
+    'inspector-drones': [],
+    settings: ['MANAGER'],
   },
   client: {
     dashboard: ['CUSTOMER'],

@@ -81,9 +81,12 @@ export default function InspectionsPage() {
 
   const openInspection = (inspectionId: string) => {
     const row = visibleItems.find((item) => item.id === inspectionId);
-    if (view === 'reports' || portal === 'admin') {
+    if (view === 'reports' || portal === 'admin' || portal === 'manager') {
       const target =
-        row?.pendingAction === 'CORRECTIVE_DISPOSITION' && row?.inspectionType !== 'RE_INSPECTION'
+        portal !== 'admin' &&
+        portal !== 'manager' &&
+        row?.pendingAction === 'CORRECTIVE_DISPOSITION' &&
+        row?.inspectionType !== 'RE_INSPECTION'
           ? 'corrective'
           : 'review';
       navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
