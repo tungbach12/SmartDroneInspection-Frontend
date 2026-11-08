@@ -14,8 +14,10 @@ import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRounded';
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
 import type { ReportPaymentStatusDetails } from '@/features/inspections/api/inspectionApi';
+import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -64,11 +66,14 @@ export function CustomerReportSettlementCard({
   onOpenDispute,
 }: CustomerReportSettlementCardProps) {
   const { formatNumber, t } = useLocale();
+  const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
+  const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;
   const amountVnd =
-    paymentStatus?.amount != null && paymentStatus.amount > 0
-      ? `${formatNumber(paymentStatus.amount)} ₫`
-      : null;
+    rawTotal != null && rawTotal > 0 ? `${formatNumber(rawTotal)} ₫` : null;
+  const invoiceRef = paymentStatus?.orderCode
+    ? `INV-${paymentStatus.orderCode}`
+    : `INV-${inspectionId.slice(0, 8).toUpperCase()}`;
 
   const steps = [
     {
@@ -138,6 +143,18 @@ export function CustomerReportSettlementCard({
                 color={isPaid ? 'success' : isReportAccepted ? 'warning' : 'primary'}
                 sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
               />
+              <Chip
+                size="small"
+                variant="outlined"
+                icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
+                label={invoiceRef}
+                sx={{
+                  height: 22,
+                  fontSize: '0.72rem',
+                  fontWeight: 650,
+                  fontFamily: 'monospace',
+                }}
+              />
             </Stack>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
               {t('Official report version')} v{versionNo} · {t('PDF available for export below')}
@@ -149,30 +166,80 @@ export function CustomerReportSettlementCard({
             <Paper
               variant="outlined"
               sx={{
-                px: 2,
-                py: 1,
+                p: 1.75,
+                minWidth: { sm: 290 },
                 borderRadius: '10px',
-                borderColor: 'divider',
+                borderColor: isPaid ? '#176B52' : 'divider',
                 bgcolor: 'background.default',
-                textAlign: { xs: 'left', sm: 'right' },
               }}
             >
               <Typography
                 variant="caption"
-                sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}
-              >
-                {isPaid ? t('Service fee paid') : t('Contracted service fee')}
-              </Typography>
-              <Typography
                 sx={{
-                  fontSize: '1rem',
+                  color: 'text.secondary',
                   fontWeight: 700,
-                  color: isPaid ? '#176B52' : 'text.primary',
-                  fontVariantNumeric: 'tabular-nums',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  display: 'block',
+                  mb: 0.75,
                 }}
               >
-                {amountVnd}
+                {t('Service invoice')}
               </Typography>
+              {finance && (
+                <>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ justifyContent: 'space-between', py: 0.35 }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Pre-VAT base')}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {formatNumber(finance.serviceBaseAmount)} ₫
+                    </Typography>
+                  </Stack>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{ justifyContent: 'space-between', py: 0.35 }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      VAT ({finance.vatRate}%)
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}
+                    >
+                      +{formatNumber(finance.vatAmount)} ₫
+                    </Typography>
+                  </Stack>
+                  <Divider sx={{ my: 0.65, borderStyle: 'dashed' }} />
+                </>
+              )}
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 0.25 }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+                  {isPaid ? t('Total paid') : t('Amount to pay')}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: '1.125rem',
+                    fontWeight: 800,
+                    color: isPaid ? '#176B52' : 'primary.main',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {amountVnd}
+                </Typography>
+              </Stack>
             </Paper>
           )}
         </Stack>

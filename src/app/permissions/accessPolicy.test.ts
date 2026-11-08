@@ -23,19 +23,34 @@ const expectedAccess: Record<
   Record<SectionId, readonly Role[]>
 > = {
   admin: {
-    dashboard: ['ADMIN', 'MANAGER'],
-    contracts: ['MANAGER'],
-    assets: ['ADMIN', 'MANAGER'],
+    dashboard: ['ADMIN'],
+    contracts: [],
+    assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
-    inspections: ['ADMIN', 'MANAGER'],
-    reports: ['ADMIN', 'MANAGER'],
+    inspections: ['ADMIN'],
+    reports: ['ADMIN'],
     maintenance: ['ADMIN'],
     workforce: [],
-    'platform-users': ['ADMIN', 'MANAGER'],
+    'platform-users': ['ADMIN'],
     'finance-settings': ['ADMIN'],
-    'onboarding-reviews': ['ADMIN', 'MANAGER'],
+    'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
-    settings: ['ADMIN', 'MANAGER'],
+    settings: ['ADMIN'],
+  },
+  manager: {
+    dashboard: ['MANAGER'],
+    contracts: ['MANAGER'],
+    assets: ['MANAGER'],
+    'asset-catalog': [],
+    inspections: ['MANAGER'],
+    reports: ['MANAGER'],
+    maintenance: [],
+    workforce: [],
+    'platform-users': ['MANAGER'],
+    'finance-settings': [],
+    'onboarding-reviews': ['MANAGER'],
+    'inspector-drones': [],
+    settings: ['MANAGER'],
   },
   client: {
     dashboard: ['CUSTOMER'],
@@ -97,7 +112,7 @@ describe('role-aware portal access policy', () => {
       '/operations/dashboard',
     );
     expect(getPortalEntryPath(['ADMIN'])).toBe('/admin/dashboard');
-    expect(getPortalEntryPath(['MANAGER'])).toBe('/admin/dashboard');
+    expect(getPortalEntryPath(['MANAGER'])).toBe('/manager/dashboard');
   });
 
   it('offers a portal choice when the user has roles in multiple portals', () => {

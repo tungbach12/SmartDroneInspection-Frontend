@@ -8,11 +8,16 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Paper,
   Stack,
   Typography,
 } from '@mui/material';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import type {
   EvidenceItem,
   InspectionReport,
@@ -21,6 +26,7 @@ import type {
 } from '@/features/inspections/api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
+import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface ReportDerivedSectionsProps {
@@ -29,6 +35,188 @@ export interface ReportDerivedSectionsProps {
   evidenceList: EvidenceItem[];
   inspectionId: string;
   reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
+  droneSummary?: string | null | undefined;
+  flightPermitFileName?: string | null | undefined;
+}
+
+function parseSessionChecklist(raw: string | null | undefined): {
+  checkedItems: string[];
+  skippedItems: string[];
+  remark: string | null;
+} {
+  if (!raw || !raw.trim()) {
+    return { checkedItems: [], skippedItems: [], remark: null };
+  }
+  const trimmed = raw.trim();
+  if (!trimmed.includes('[✓]') && !trimmed.includes('[!]')) {
+    return { checkedItems: [], skippedItems: [], remark: trimmed };
+  }
+  let checklistPart = trimmed;
+  let remark: string | null = null;
+  const separatorIdx = trimmed.lastIndexOf(' — ');
+  if (separatorIdx !== -1) {
+    checklistPart = trimmed.slice(0, separatorIdx).trim();
+    remark = trimmed.slice(separatorIdx + 3).trim() || null;
+  }
+  const checkedItems: string[] = [];
+  const skippedItems: string[] = [];
+  for (const part of checklistPart.split(' · ')) {
+    const clean = part.trim();
+    if (clean.startsWith('[!]')) {
+      skippedItems.push(clean.replace(/^\[!\]\s*/, '').trim());
+    } else if (clean.startsWith('[✓]')) {
+      checkedItems.push(clean.replace(/^\[✓\]\s*/, '').trim());
+    }
+  }
+  return { checkedItems, skippedItems, remark };
+}
+
+function SessionChecklistBlock({
+  label,
+  rawNote,
+}: {
+  label: string;
+  rawNote: string;
+}) {
+  const { t } = useLocale();
+  const { checkedItems, skippedItems, remark } = parseSessionChecklist(rawNote);
+
+  if (checkedItems.length === 0 && skippedItems.length === 0) {
+    return (
+      <Box
+        sx={{
+          p: 1.25,
+          borderRadius: '8px',
+          bgcolor: 'action.hover',
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.25 }}>
+          {label}
+        </Typography>
+        <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.primary' }}>
+          {rawNote}
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        p: 1.25,
+        borderRadius: '8px',
+        bgcolor: 'action.hover',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap' }}
+      >
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <CheckCircleRounded color="success" sx={{ fontSize: 16 }} />
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.78rem' }}>
+            {label}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={0.5}>
+          {checkedItems.length > 0 && (
+            <Chip
+              size="small"
+              color="success"
+              variant="outlined"
+              label={`${checkedItems.length} ${t('verified')}`}
+              sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+            />
+          )}
+          {skippedItems.length > 0 && (
+            <Chip
+              size="small"
+              color="warning"
+              variant="outlined"
+              label={`${skippedItems.length} ${t('skipped')}`}
+              sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+            />
+          )}
+        </Stack>
+      </Stack>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+          gap: 0.75,
+        }}
+      >
+        {checkedItems.map((item, idx) => (
+          <Paper
+            key={`chk-${idx}`}
+            variant="outlined"
+            sx={{
+              px: 1.15,
+              py: 0.65,
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.85,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <CheckCircleRounded color="success" sx={{ fontSize: 15, flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.3 }}>
+              {item}
+            </Typography>
+          </Paper>
+        ))}
+        {skippedItems.map((item, idx) => (
+          <Paper
+            key={`skp-${idx}`}
+            variant="outlined"
+            sx={{
+              px: 1.15,
+              py: 0.65,
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.85,
+              bgcolor: 'background.paper',
+              borderColor: 'warning.main',
+            }}
+          >
+            <WarningAmberRounded color="warning" sx={{ fontSize: 15, flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.3 }}>
+              {item}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+
+      {remark && (
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{
+            mt: 1,
+            pt: 0.75,
+            borderTop: '1px dashed',
+            borderColor: 'divider',
+            alignItems: 'baseline',
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flexShrink: 0 }}>
+            {t('Inspector note')}:
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+            {remark}
+          </Typography>
+        </Stack>
+      )}
+    </Box>
+  );
 }
 
 function formatDateTime(
@@ -100,19 +288,28 @@ export function ReportDerivedSections({
   evidenceList,
   inspectionId,
   reinspectionVerifications,
+  droneSummary: externalDroneSummary,
+  flightPermitFileName: externalPermitFileName,
 }: ReportDerivedSectionsProps) {
   const { t, formatDateTime: formatDateTimeValue } = useLocale();
   const [selectedModalEvidence, setSelectedModalEvidence] = useState<EvidenceItem | null>(null);
+  const [permitDialogOpen, setPermitDialogOpen] = useState(false);
 
   const reportableFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const context = version.reportContext;
-  const droneSummary = [
-    context?.assignedDrone?.manufacturer,
-    context?.assignedDrone?.model,
-    context?.assignedDrone?.serialNumber,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const sessionDrone = context?.fieldSessions?.at(-1);
+  const droneSummary =
+    [
+      context?.assignedDrone?.manufacturer ?? sessionDrone?.droneManufacturer,
+      context?.assignedDrone?.model ?? sessionDrone?.droneModel,
+      context?.assignedDrone?.serialNumber ?? sessionDrone?.droneSerialNumber,
+    ]
+      .filter(Boolean)
+      .join(' · ') ||
+    externalDroneSummary ||
+    '';
+  const resolvedPermitFileName =
+    context?.flightPermitFileName ?? externalPermitFileName ?? null;
 
   const modalFindings = selectedModalEvidence
     ? reportableFindings.filter((finding) => finding.evidenceId === selectedModalEvidence.id)
@@ -157,6 +354,49 @@ export function ReportDerivedSections({
             <SummaryItem label={t('Asset location')} value={context?.assetLocation} />
             <SummaryItem label={t('Asset category')} value={context?.assetCategory} />
             <SummaryItem label={t('Assigned Drone')} value={droneSummary} />
+            {resolvedPermitFileName && (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}
+                >
+                  {t('Flight permit')}
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 500,
+                      fontSize: '0.8125rem',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {resolvedPermitFileName}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
+                    onClick={() => setPermitDialogOpen(true)}
+                    sx={{
+                      height: 22,
+                      px: 1,
+                      fontSize: '0.7rem',
+                      fontWeight: 650,
+                      textTransform: 'none',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    {t('View permit')}
+                  </Button>
+                </Stack>
+              </Box>
+            )}
             {context?.findingsConfirmedAt && (
               <SummaryItem
                 label={t('Findings confirmation')}
@@ -187,53 +427,114 @@ export function ReportDerivedSections({
           </Box>
 
           {context?.fieldSessions && context.fieldSessions.length > 0 && (
-            <Stack spacing={1} sx={{ mt: 1.5, pt: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Stack
+              spacing={1.25}
+              sx={{ mt: 2, pt: 1.75, borderTop: '1px solid', borderColor: 'divider' }}
+            >
               {context.fieldSessions.map((session) => (
-                <Stack
+                <Paper
                   key={session.id}
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={{ xs: 0.5, sm: 2 }}
-                  sx={{ fontSize: '0.75rem', color: 'text.secondary', flexWrap: 'wrap' }}
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    borderRadius: '10px',
+                    bgcolor: 'background.paper',
+                    borderColor: 'divider',
+                  }}
                 >
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {t('Field session ·')} {session.status}
-                  </Typography>
-                  {session.startedAt && (
-                    <Typography variant="caption">
-                      {t('Started')}: {formatDateTime(session.startedAt, formatDateTimeValue, '')}
-                    </Typography>
-                  )}
-                  {session.endedAt && (
-                    <Typography variant="caption">
-                      {t('Ended')}: {formatDateTime(session.endedAt, formatDateTimeValue, '')}
-                    </Typography>
-                  )}
-                  {session.preFlightChecklistNote && (
-                    <Typography variant="caption">
-                      {t('Pre-flight checklist note')}: {session.preFlightChecklistNote}
-                    </Typography>
-                  )}
-                  {session.outcomeNotes && (
-                    <Typography variant="caption">
-                      {t('Outcome notes')}: {session.outcomeNotes}
-                    </Typography>
-                  )}
-                  {session.postponementReason && (
-                    <Typography variant="caption">
-                      {t('Postponement reason')}: {session.postponementReason}
-                    </Typography>
-                  )}
-                  {session.abortReason && (
-                    <Typography variant="caption">
-                      {t('Abort reason')}: {session.abortReason}
-                    </Typography>
-                  )}
-                </Stack>
+                  <Stack spacing={1.25}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1}
+                      sx={{
+                        alignItems: { sm: 'center' },
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                        <FlightTakeoffRounded sx={{ fontSize: 18, color: 'primary.main' }} />
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                          {t('Field session')}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          color={
+                            session.status === 'FIELD_COMPLETED'
+                              ? 'success'
+                              : session.status === 'ABORTED'
+                                ? 'error'
+                                : 'primary'
+                          }
+                          variant="outlined"
+                          label={session.status}
+                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                        />
+                      </Stack>
+
+                      <Stack
+                        direction="row"
+                        spacing={2}
+                        sx={{ color: 'text.secondary', flexWrap: 'wrap', rowGap: 0.5 }}
+                      >
+                        {session.startedAt && (
+                          <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                            <strong>{t('Started')}:</strong>{' '}
+                            {formatDateTime(session.startedAt, formatDateTimeValue, '')}
+                          </Typography>
+                        )}
+                        {session.endedAt && (
+                          <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                            <strong>{t('Ended')}:</strong>{' '}
+                            {formatDateTime(session.endedAt, formatDateTimeValue, '')}
+                          </Typography>
+                        )}
+                      </Stack>
+                    </Stack>
+
+                    {session.preFlightChecklistNote && (
+                      <SessionChecklistBlock
+                        label={t('Pre-flight safety checklist')}
+                        rawNote={session.preFlightChecklistNote}
+                      />
+                    )}
+
+                    {session.outcomeNotes && (
+                      <SessionChecklistBlock
+                        label={t('Post-flight outcome & completion checklist')}
+                        rawNote={session.outcomeNotes}
+                      />
+                    )}
+
+                    {session.postponementReason && (
+                      <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                        {t('Postponement reason')}: {session.postponementReason}
+                      </Typography>
+                    )}
+                    {session.abortReason && (
+                      <Typography variant="caption" color="error.main" sx={{ fontWeight: 600 }}>
+                        {t('Abort reason')}: {session.abortReason}
+                      </Typography>
+                    )}
+                  </Stack>
+                </Paper>
               ))}
             </Stack>
           )}
         </Box>
       </ReadOnlySection>
+
+      {resolvedPermitFileName && (
+        <FlightPermitPreviewDialog
+          open={permitDialogOpen}
+          onClose={() => setPermitDialogOpen(false)}
+          inspectionId={inspectionId}
+          fileName={resolvedPermitFileName}
+          uploadedAt={context?.flightPermitUploadedAt}
+          assetName={context?.assetName}
+          droneSummary={droneSummary || null}
+        />
+      )}
 
       {/* Target Defect Verifications (for Re-inspection) */}
       {reinspectionVerifications && reinspectionVerifications.length > 0 && (

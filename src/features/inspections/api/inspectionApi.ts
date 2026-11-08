@@ -420,6 +420,16 @@ export const inspectionApi = {
       .then((response) => response.data);
   },
 
+  flightPermitContentUrl: (inspectionId: string) =>
+    `${api.defaults.baseURL}/inspections/${inspectionId}/flight-permit/content`,
+
+  getFlightPermitBlob: (inspectionId: string) =>
+    api
+      .get<Blob>(`/inspections/${inspectionId}/flight-permit/content`, {
+        responseType: 'blob',
+      })
+      .then((response) => response.data),
+
   reschedule: (inspectionId: string, payload: { plannedStartAt: string; plannedEndAt: string }) =>
     api
       .put<InspectionDetail>(`/inspections/${inspectionId}/schedule`, payload)

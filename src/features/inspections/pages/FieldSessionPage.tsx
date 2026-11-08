@@ -19,6 +19,8 @@ import {
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -34,24 +36,25 @@ import {
 } from '../hooks/useInspections';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
+import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import type { FieldSession } from '../api/fieldSessionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const PRE_FLIGHT_CHECKLIST_ITEMS = [
-  'Airframe, propellers & gimbal camera intact',
-  'UAV & controller battery >= 85%, locked securely',
-  'GPS 3D Fix / RTK & compass calibrated',
-  'Return-to-Home (RTH) altitude set above structure',
-  'Weather, wind speed & takeoff/landing zone clear',
+  'Drone airframe, propellers & camera gimbal inspected and intact',
+  'Battery level sufficient, GPS lock acquired & Return-to-Home (RTH) altitude set',
+  'Weather, wind speed & visual line-of-sight within safe operating limits',
+  'Takeoff/landing zone secured and clear of bystanders',
+  'Flight permit verified & surrounding airspace clear for takeoff',
 ] as const;
 
 const POST_FLIGHT_CHECKLIST_ITEMS = [
-  'UAV landed safely, motors disarmed & battery removed',
-  'Airframe, motors & payload free of post-flight damage',
-  'All target asset components scanned per plan',
-  'Captured photos & flight telemetry verified on site',
+  'Drone landed safely, motors disarmed & hardware free of post-flight damage',
+  'All planned structural inspection checkpoints captured',
+  'Captured photos, videos & flight telemetry logs saved intact',
+  'Equipment packed, safety barriers removed & site restored',
 ] as const;
 
 const ABORT_REASON_PRESETS = [
@@ -60,6 +63,178 @@ const ABORT_REASON_PRESETS = [
   'UAV battery or hardware warning',
   'Site safety hazard / airspace intrusion',
 ] as const;
+
+function parseChecklistNote(raw: string | null | undefined): {
+  checkedItems: string[];
+  skippedItems: string[];
+  remark: string | null;
+} {
+  if (!raw || !raw.trim()) {
+    return { checkedItems: [], skippedItems: [], remark: null };
+  }
+  const trimmed = raw.trim();
+  if (!trimmed.includes('[✓]') && !trimmed.includes('[!]')) {
+    return { checkedItems: [], skippedItems: [], remark: trimmed };
+  }
+  let checklistPart = trimmed;
+  let remark: string | null = null;
+  const separatorIdx = trimmed.lastIndexOf(' — ');
+  if (separatorIdx !== -1) {
+    checklistPart = trimmed.slice(0, separatorIdx).trim();
+    remark = trimmed.slice(separatorIdx + 3).trim() || null;
+  }
+  const checkedItems: string[] = [];
+  const skippedItems: string[] = [];
+  for (const part of checklistPart.split(' · ')) {
+    const clean = part.trim();
+    if (clean.startsWith('[!]')) {
+      skippedItems.push(clean.replace(/^\[!\]\s*/, '').trim());
+    } else if (clean.startsWith('[✓]')) {
+      checkedItems.push(clean.replace(/^\[✓\]\s*/, '').trim());
+    }
+  }
+  return { checkedItems, skippedItems, remark };
+}
+
+function ChecklistNoteDisplay({
+  title,
+  rawNote,
+}: {
+  title: string;
+  rawNote: string;
+}) {
+  const { t } = useLocale();
+  const { checkedItems, skippedItems, remark } = parseChecklistNote(rawNote);
+
+  if (checkedItems.length === 0 && skippedItems.length === 0) {
+    return (
+      <Box sx={{ pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+          {title}
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.5 }}>
+          {rawNote}
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        p: 1.75,
+        borderRadius: 2,
+        bgcolor: 'action.hover',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25, flexWrap: 'wrap' }}
+      >
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <CheckCircleRounded color="success" sx={{ fontSize: 18 }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={0.75}>
+          {checkedItems.length > 0 && (
+            <Chip
+              size="small"
+              color="success"
+              variant="outlined"
+              label={`${checkedItems.length} ${t('verified')}`}
+              sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }}
+            />
+          )}
+          {skippedItems.length > 0 && (
+            <Chip
+              size="small"
+              color="warning"
+              variant="outlined"
+              label={`${skippedItems.length} ${t('skipped')}`}
+              sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }}
+            />
+          )}
+        </Stack>
+      </Stack>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+          gap: 1,
+        }}
+      >
+        {checkedItems.map((item, idx) => (
+          <Paper
+            key={`ok-${idx}`}
+            variant="outlined"
+            sx={{
+              px: 1.25,
+              py: 0.85,
+              borderRadius: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <CheckCircleRounded color="success" sx={{ fontSize: 16, flexShrink: 0 }} />
+            <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500, lineHeight: 1.3 }}>
+              {item}
+            </Typography>
+          </Paper>
+        ))}
+        {skippedItems.map((item, idx) => (
+          <Paper
+            key={`skip-${idx}`}
+            variant="outlined"
+            sx={{
+              px: 1.25,
+              py: 0.85,
+              borderRadius: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: 'background.paper',
+              borderColor: 'warning.main',
+            }}
+          >
+            <WarningAmberRounded color="warning" sx={{ fontSize: 16, flexShrink: 0 }} />
+            <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500, lineHeight: 1.3 }}>
+              {item}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+
+      {remark && (
+        <Box
+          sx={{
+            mt: 1.25,
+            pt: 1,
+            borderTop: '1px dashed',
+            borderColor: 'divider',
+            display: 'flex',
+            gap: 0.75,
+            alignItems: 'baseline',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, flexShrink: 0 }}>
+            {t('Inspector note')}:
+          </Typography>
+          <Typography variant="body2" color="text.primary">
+            {remark}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 /** Record a mission permit file and the Inspector's on-site session. */
 export default function FieldSessionPage() {
@@ -76,6 +251,7 @@ export default function FieldSessionPage() {
   const evidenceQuery = useInspectionEvidence?.(inspectionId);
 
   const [permitFile, setPermitFile] = useState<File | null>(null);
+  const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [preFlightChecked, setPreFlightChecked] = useState<string[]>([]);
   const [preFlightNote, setPreFlightNote] = useState('');
@@ -84,9 +260,12 @@ export default function FieldSessionPage() {
     kind: 'abort' | 'complete';
   } | null>(null);
   const [postFlightChecked, setPostFlightChecked] = useState<string[]>([]);
+  const [inspectedAssetItems, setInspectedAssetItems] = useState<string[]>([]);
   const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
   const abortReasonInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  const assetInspectionItems = inspection?.inspectionItems ?? [];
 
   const preFlightTemplatesQuery = useChecklistTemplates({ type: 'PRE_FLIGHT' }, startOpen);
   const postFlightTemplatesQuery = useChecklistTemplates(
@@ -147,6 +326,12 @@ export default function FieldSessionPage() {
     );
   };
 
+  const toggleInspectedAssetItem = (item: string) => {
+    setInspectedAssetItems((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item],
+    );
+  };
+
   const allPreFlightChecked =
     preFlightItems.length > 0 && preFlightChecked.length === preFlightItems.length;
   const canSubmitPreFlight =
@@ -154,9 +339,18 @@ export default function FieldSessionPage() {
 
   const allPostFlightChecked =
     postFlightItems.length > 0 && postFlightChecked.length === postFlightItems.length;
+  const allAssetItemsChecked =
+    assetInspectionItems.length === 0 ||
+    inspectedAssetItems.length === assetInspectionItems.length;
+  const uninspectedAssetItems = assetInspectionItems.filter(
+    (item) => !inspectedAssetItems.includes(item),
+  );
+  const requiresCompletionExplanation =
+    outcomeTarget?.kind === 'complete' &&
+    (!allPostFlightChecked || !allAssetItemsChecked);
   const canSubmitOutcome =
     outcomeTarget?.kind === 'complete'
-      ? allPostFlightChecked || Boolean(outcomeReason.trim())
+      ? (allPostFlightChecked && allAssetItemsChecked) || Boolean(outcomeReason.trim())
       : Boolean(outcomeReason.trim());
 
   const buildPreFlightPayload = () => {
@@ -170,7 +364,15 @@ export default function FieldSessionPage() {
     if (outcomeTarget?.kind !== 'complete') {
       return outcomeReason.trim();
     }
-    const checkedSummary = postFlightChecked.map((item) => `[✓] ${t(item)}`).join(' · ');
+    const postChecks = postFlightChecked.map((item) => `[✓] ${t(item)}`);
+    const assetChecks = inspectedAssetItems.map(
+      (item) => `[✓] ${t('Inspected')}: ${item}`,
+    );
+    const assetSkipped =
+      postFlightChecked.length > 0 || inspectedAssetItems.length > 0
+        ? uninspectedAssetItems.map((item) => `[!] ${t('Skipped')}: ${item}`)
+        : [];
+    const checkedSummary = [...postChecks, ...assetChecks, ...assetSkipped].join(' · ');
     const note = outcomeReason.trim();
     if (checkedSummary && note) return `${checkedSummary} — ${note}`;
     return note || checkedSummary;
@@ -225,7 +427,7 @@ export default function FieldSessionPage() {
                     )}
                   </Typography>
                 </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ alignItems: { sm: 'center' } }}>
                   <Button
                     component="label"
                     variant="outlined"
@@ -246,6 +448,16 @@ export default function FieldSessionPage() {
                       onChange={(event) => setPermitFile(event.target.files?.[0] ?? null)}
                     />
                   </Button>
+                  {permitFile && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<VisibilityOutlined />}
+                      onClick={() => setPermitPreviewOpen(true)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {t('Preview file')}
+                    </Button>
+                  )}
                   <LoadingButton
                     variant="contained"
                     disabled={!permitFile}
@@ -270,7 +482,14 @@ export default function FieldSessionPage() {
           ) : inspection && hasPermit ? (
             <Paper
               variant="outlined"
-              sx={{ p: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1.25 }}
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.25,
+                flexWrap: 'wrap',
+              }}
             >
               <CheckCircleRounded color="success" />
               <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -284,13 +503,39 @@ export default function FieldSessionPage() {
                     : ''}
                 </Typography>
               </Box>
-              <Chip size="small" label={t('On file')} color="success" variant="outlined" />
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<VisibilityOutlined fontSize="small" />}
+                  onClick={() => setPermitPreviewOpen(true)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px' }}
+                >
+                  {t('View permit')}
+                </Button>
+                <Chip size="small" label={t('On file')} color="success" variant="outlined" />
+              </Stack>
             </Paper>
           ) : inspection && inspection.status !== 'SCHEDULED' && !hasPermit ? (
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
           ) : null}
+          {inspection && (hasPermit || permitFile) && (
+            <FlightPermitPreviewDialog
+              open={permitPreviewOpen}
+              onClose={() => setPermitPreviewOpen(false)}
+              inspectionId={inspectionId}
+              fileName={permitFile?.name ?? inspection.flightPermitFileName}
+              uploadedAt={inspection.flightPermitUploadedAt}
+              assetName={inspection.assetName}
+              droneSummary={
+                [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') ||
+                null
+              }
+              localFile={permitFile}
+            />
+          )}
         </QueryState>
 
         <QueryState
@@ -319,7 +564,9 @@ export default function FieldSessionPage() {
                       {openSession?.startedAt
                         ? `${t('Started')} ${formatDateTime(new Date(openSession.startedAt))}`
                         : canContinueToEvidence
-                          ? latestSession?.outcomeNotes ?? t('The latest field session is complete.')
+                          ? latestSession?.outcomeNotes && !latestSession.outcomeNotes.includes('[✓]')
+                            ? latestSession.outcomeNotes
+                            : t('The latest field session is complete.')
                           : !hasPermit
                             ? t('Record the mission flight document before starting the session.')
                             : t('Enter the required on-site pre-flight note to start this session.')}
@@ -366,12 +613,103 @@ export default function FieldSessionPage() {
                 </Stack>
 
                 {openSession?.status === 'IN_PROGRESS' && (
-                  <SmartDroneHubTelemetryPanel
-                    inspectionId={inspectionId}
-                    fieldSessionId={openSession.id}
-                    sessionActive
-                    canViewFlightReport={false}
-                  />
+                  <>
+                    <SmartDroneHubTelemetryPanel
+                      inspectionId={inspectionId}
+                      fieldSessionId={openSession.id}
+                      sessionActive
+                      canViewFlightReport={false}
+                    />
+                    {assetInspectionItems.length > 0 && (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.75,
+                          borderRadius: 2,
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            mb: 1,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                              {t('Target Building Inspection Items')} ({inspectedAssetItems.length}/{assetInspectionItems.length})
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {t('Check off each structural item as you fly and capture evidence.')}
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() =>
+                              setInspectedAssetItems(
+                                inspectedAssetItems.length === assetInspectionItems.length
+                                  ? []
+                                  : [...assetInspectionItems],
+                              )
+                            }
+                            sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                          >
+                            {inspectedAssetItems.length === assetInspectionItems.length
+                              ? t('Clear all')
+                              : t('Check all')}
+                          </Button>
+                        </Stack>
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                            gap: 1,
+                          }}
+                        >
+                          {assetInspectionItems.map((item, idx) => {
+                            const checked = inspectedAssetItems.includes(item);
+                            return (
+                              <Paper
+                                key={idx}
+                                variant="outlined"
+                                onClick={() => toggleInspectedAssetItem(item)}
+                                sx={{
+                                  px: 1.25,
+                                  py: 0.75,
+                                  borderRadius: 1.5,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  borderColor: checked ? 'success.main' : 'divider',
+                                  bgcolor: checked ? 'action.selected' : 'background.paper',
+                                }}
+                              >
+                                <CheckCircleRounded
+                                  color={checked ? 'success' : 'disabled'}
+                                  sx={{ fontSize: 18, mr: 1, flexShrink: 0, opacity: checked ? 1 : 0.35 }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontSize: '0.82rem',
+                                    fontWeight: checked ? 600 : 400,
+                                    lineHeight: 1.3,
+                                  }}
+                                >
+                                  {item}
+                                </Typography>
+                              </Paper>
+                            );
+                          })}
+                        </Box>
+                      </Paper>
+                    )}
+                  </>
                 )}
                 {!openSession &&
                   latestSession?.startedAt &&
@@ -392,15 +730,21 @@ export default function FieldSessionPage() {
                   )}
 
                 {(openSession ?? latestSession)?.preFlightChecklistNote && (
-                  <Box sx={{ pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('Pre-flight note')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {(openSession ?? latestSession)?.preFlightChecklistNote}
-                    </Typography>
-                  </Box>
+                  <ChecklistNoteDisplay
+                    title={t('Pre-flight safety checklist')}
+                    rawNote={(openSession ?? latestSession)?.preFlightChecklistNote ?? ''}
+                  />
                 )}
+
+                {!openSession &&
+                  latestSession?.outcomeNotes &&
+                  (latestSession.outcomeNotes.includes('[✓]') ||
+                    latestSession.outcomeNotes.includes('[!]')) && (
+                    <ChecklistNoteDisplay
+                      title={t('Post-flight completion checklist')}
+                      rawNote={latestSession.outcomeNotes}
+                    />
+                  )}
 
                 <MutationProblemAlert
                   error={startSession.error}
@@ -598,52 +942,116 @@ export default function FieldSessionPage() {
           <DialogContent>
             <Stack spacing={1.75} sx={{ mt: 0.5 }}>
               {outcomeTarget?.kind === 'complete' ? (
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Stack
-                    direction="row"
-                    sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
-                  >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {t('Post-flight completion checklist')} ({postFlightChecked.length}/{postFlightItems.length})
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() =>
-                        setPostFlightChecked(
-                          allPostFlightChecked ? [] : [...postFlightItems],
-                        )
-                      }
-                      sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
-                    >
-                      {allPostFlightChecked ? t('Clear all') : t('Check all')}
-                    </Button>
-                  </Stack>
-                  <Stack spacing={0.25}>
-                    {postFlightItems.map((item) => {
-                      const checked = postFlightChecked.includes(item);
-                      return (
-                        <FormControlLabel
-                          key={item}
-                          sx={{ m: 0, alignItems: 'center' }}
-                          control={
-                            <Checkbox
-                              size="small"
-                              color="success"
-                              checked={checked}
-                              onChange={() => togglePostFlightItem(item)}
+                <Stack spacing={1.5}>
+                  {assetInspectionItems.length > 0 && (
+                    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                      <Stack
+                        direction="row"
+                        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {t('Inspected Building Items')} ({inspectedAssetItems.length}/{assetInspectionItems.length})
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={() =>
+                            setInspectedAssetItems(
+                              inspectedAssetItems.length === assetInspectionItems.length
+                                ? []
+                                : [...assetInspectionItems],
+                            )
+                          }
+                          sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                        >
+                          {inspectedAssetItems.length === assetInspectionItems.length
+                            ? t('Clear all')
+                            : t('Check all')}
+                        </Button>
+                      </Stack>
+                      <Stack spacing={0.25}>
+                        {assetInspectionItems.map((item) => {
+                          const checked = inspectedAssetItems.includes(item);
+                          return (
+                            <FormControlLabel
+                              key={item}
+                              sx={{ m: 0, alignItems: 'center' }}
+                              control={
+                                <Checkbox
+                                  size="small"
+                                  color="primary"
+                                  checked={checked}
+                                  onChange={() => toggleInspectedAssetItem(item)}
+                                />
+                              }
+                              label={<Typography variant="body2">{item}</Typography>}
                             />
-                          }
-                          label={
-                            <Typography variant="body2">
-                              {t(item)}
-                            </Typography>
-                          }
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Paper>
+                          );
+                        })}
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                    <Stack
+                      direction="row"
+                      sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
+                    >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t('Post-flight completion checklist')} ({postFlightChecked.length}/{postFlightItems.length})
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() =>
+                          setPostFlightChecked(
+                            allPostFlightChecked ? [] : [...postFlightItems],
+                          )
+                        }
+                        sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
+                      >
+                        {allPostFlightChecked ? t('Clear all') : t('Check all')}
+                      </Button>
+                    </Stack>
+                    <Stack spacing={0.25}>
+                      {postFlightItems.map((item) => {
+                        const checked = postFlightChecked.includes(item);
+                        return (
+                          <FormControlLabel
+                            key={item}
+                            sx={{ m: 0, alignItems: 'center' }}
+                            control={
+                              <Checkbox
+                                size="small"
+                                color="success"
+                                checked={checked}
+                                onChange={() => togglePostFlightItem(item)}
+                              />
+                            }
+                            label={
+                              <Typography variant="body2">
+                                {t(item)}
+                              </Typography>
+                            }
+                          />
+                        );
+                      })}
+                    </Stack>
+                  </Paper>
+
+                  {requiresCompletionExplanation && (
+                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t('Incomplete checklist — explanation required in Session notes')}
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
+                        {uninspectedAssetItems.length > 0
+                          ? `${uninspectedAssetItems.length} ${t('building item(s) not checked')}: ${uninspectedAssetItems.join(', ')}. ${t('Please explain the reason in Session notes below (e.g., crane obstruction, restricted access, high wind).')}`
+                          : t('Not all post-flight checks are ticked. Please record the reason in Session notes below.')}
+                      </Typography>
+                    </Alert>
+                  )}
+                </Stack>
               ) : (
                 <Box>
                   <Typography
@@ -692,7 +1100,7 @@ export default function FieldSessionPage() {
               <TextField
                 inputRef={abortReasonInputRef}
                 label={outcomeTarget?.kind === 'complete' ? t('Session notes') : t('Abort reason')}
-                required={outcomeTarget?.kind === 'abort'}
+                required={outcomeTarget?.kind === 'abort' || requiresCompletionExplanation}
                 multiline
                 minRows={2}
                 value={outcomeReason}
@@ -706,7 +1114,9 @@ export default function FieldSessionPage() {
                 }}
                 helperText={
                   outcomeTarget?.kind === 'complete'
-                    ? t('Optional summary or observations from the flight.')
+                    ? requiresCompletionExplanation
+                      ? t('Required when any building item or post-flight check is unchecked.')
+                      : t('Optional summary or observations from the flight.')
                     : t('Explain why this session was aborted (weather, technical defect, etc.). A notification will be sent to the manager.')
                 }
               />

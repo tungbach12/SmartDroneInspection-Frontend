@@ -155,7 +155,7 @@ export function AppShell({ portal }: AppShellProps) {
         roles.includes('INSPECTOR') &&
         t('Inspection Schedule').toLowerCase().includes(search.trim().toLowerCase())
       : canAccessSection(portal, section, roles) &&
-        getSectionLabel(section, locale).toLowerCase().includes(search.trim().toLowerCase()),
+        getSectionLabel(section, locale, portal).toLowerCase().includes(search.trim().toLowerCase()),
   );
   const availablePortals = getAvailablePortals(roles);
 
@@ -254,7 +254,7 @@ export function AppShell({ portal }: AppShellProps) {
               >
                 <ListItemIcon>{icon}</ListItemIcon>
                 <ListItemText
-                  primary={section === 'schedule' ? t('Inspection Schedule') : getSectionLabel(section, locale)}
+                  primary={section === 'schedule' ? t('Inspection Schedule') : getSectionLabel(section, locale, portal)}
                   slotProps={{ primary: { variant: 'body2', sx: { fontWeight: selected ? 650 : 500 } } }}
                 />
               </ListItemButton>

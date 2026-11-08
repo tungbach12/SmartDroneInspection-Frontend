@@ -33,6 +33,8 @@ describe('Organization Manager MF3 reviewer routes', () => {
 describe('MF1 guarded onboarding routes', () => {
   it.each([
     ['/admin/onboarding-reviews', 'onboarding-reviews'],
+    ['/manager/onboarding-reviews', 'onboarding-reviews'],
+    ['/manager/inspections/inspection-1/review', 'review'],
     ['/operations/inspector-drones', 'inspector-drones'],
   ])('matches guarded route %s', (path, expected) => {
     const matches = matchRoutes(router.routes, path);

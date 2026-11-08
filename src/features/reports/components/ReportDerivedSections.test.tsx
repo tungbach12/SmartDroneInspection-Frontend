@@ -140,6 +140,48 @@ describe('ReportDerivedSections source context', () => {
     expect(container.textContent).not.toContain('author-1');
     expect(container.textContent).not.toContain('title={t(');
   });
+
+  it('renders structured field-session checklists and View permit button when provided', () => {
+    const versionWithChecklists: InspectionReport = {
+      ...version,
+      reportContext: {
+        ...version.reportContext!,
+        flightPermitFileName: 'sitl-test-flight-permit.pdf',
+        fieldSessions: [
+          {
+            id: 'session-2',
+            status: 'FIELD_COMPLETED',
+            startedAt: '2026-11-06T22:11:00Z',
+            endedAt: '2026-11-07T10:59:00Z',
+            preFlightChecklistNote:
+              '[✓] Airframe, propellers & gimbal camera intact · [✓] Battery >= 85% — ok',
+            postponementReason: null,
+            abortReason: null,
+            outcomeNotes:
+              '[✓] Drone landed safely, motors disarmed & airframe undamaged',
+            droneSerialNumber: 'DR-17',
+            droneManufacturer: 'SurveyCo',
+            droneModel: 'S2',
+          },
+        ],
+      },
+    };
+
+    render(
+      <ReportDerivedSections
+        version={versionWithChecklists}
+        findings={[]}
+        evidenceList={[]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(screen.getByText('Pre-flight safety checklist')).toBeTruthy();
+    expect(screen.getByText('Airframe, propellers & gimbal camera intact')).toBeTruthy();
+    expect(screen.getByText('Post-flight outcome & completion checklist')).toBeTruthy();
+    expect(screen.getByText('Drone landed safely, motors disarmed & airframe undamaged')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'View permit' })).toBeTruthy();
+  });
 });
 
 describe('ReportDerivedSections evidence location', () => {

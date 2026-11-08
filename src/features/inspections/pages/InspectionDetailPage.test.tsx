@@ -149,22 +149,78 @@ describe('InspectionDetailPage', () => {
     expect(navigateMock).toHaveBeenCalledWith(-1);
   });
 
-  it('renders a Platform Manager review workspace on admin portal and returns to the review queue', () => {
+  it('renders a Platform Manager review workspace on manager portal without redundant single-step rail and returns to the review queue', () => {
     signInAs('MANAGER');
-    renderInspectionPage({ route: '/admin/inspections/inspection-1/review' });
+    renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
-    // Reviewer steps are decision phases, presented as route navigation rather than a tab widget.
-    expect(screen.getByRole('navigation', { name: 'Inspection workflow stages' })).toBeTruthy();
-    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(stageNav.querySelector('a[aria-label="Report Review: In progress"]')).toBeTruthy();
-    expect(stageNav.querySelector('a[aria-label*="Evidence review"]')).toBeNull();
-    expect(stageNav.querySelector('a[aria-label*="Findings overview"]')).toBeNull();
-    expect(stageNav.querySelector('a[aria-label*="Report draft"]')).toBeNull();
-
-    expect(stageNav.querySelector('a[href*="review"]')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Inspection workflow stages' })).toBeNull();
     screen.getByRole('button', { name: 'Back to review queue' }).click();
-    expect(navigateMock).toHaveBeenCalledWith('/admin/inspections?view=reports');
+    expect(navigateMock).toHaveBeenCalledWith('/manager/inspections?view=reports');
+  });
+
+  it('does not show Maintenance Handoff tab for Platform Manager even after publication, and marks Customer Corrective Action complete only after forwarding', () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'COMPLETED',
+        flightPermitFileName: 'sitl-test-flight-permit.pdf',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.versionsQuery = {
+      data: [{ id: 'v-1', status: 'PUBLISHED' }],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.findingsQuery = {
+      data: [{ id: 'f-1', status: 'CONFIRMED', isDeleted: false, forwardedToMaintenanceAt: null }],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('MANAGER');
+    const { unmount } = renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
+    expect(screen.queryByRole('navigation', { name: 'Inspection workflow stages' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View permit' })).toBeTruthy();
+    unmount();
+
+    signInAs('CUSTOMER');
+    const { unmount: unmountCustomer } = renderInspectionPage({
+      route: '/client/inspections/inspection-1/report',
+    });
+    const customerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(customerNav.querySelector('a[aria-label="Inspection Report: Complete"]')).toBeTruthy();
+    expect(customerNav.querySelector('a[aria-label="Corrective Action: Ready"]')).toBeTruthy();
+    unmountCustomer();
+
+    mocks.findingsQuery = {
+      data: [
+        {
+          id: 'f-1',
+          status: 'CONFIRMED',
+          isDeleted: false,
+          forwardedToMaintenanceAt: '2026-11-07T05:00:00Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderInspectionPage({ route: '/client/inspections/inspection-1/report' });
+    const customerNavAfter = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(
+      customerNavAfter.querySelector('a[aria-label="Corrective Action: Complete"]'),
+    ).toBeTruthy();
   });
 
   it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {

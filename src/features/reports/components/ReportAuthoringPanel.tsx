@@ -38,6 +38,8 @@ export interface ReportAuthoringPanelProps {
   onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
   reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
+  droneSummary?: string | null | undefined;
+  flightPermitFileName?: string | null | undefined;
 }
 
 function triggerDownload(blob: Blob, fileName: string) {
@@ -58,6 +60,8 @@ export function ReportAuthoringPanel({
   inspectionId,
   canEdit = false,
   reinspectionVerifications,
+  droneSummary,
+  flightPermitFileName,
 }: ReportAuthoringPanelProps) {
   const { t } = useLocale();
   const [previewing, setPreviewing] = useState(false);
@@ -195,6 +199,8 @@ export function ReportAuthoringPanel({
         evidenceList={evidenceList}
         inspectionId={inspectionId}
         reinspectionVerifications={reinspectionVerifications}
+        droneSummary={droneSummary}
+        flightPermitFileName={flightPermitFileName}
       />
 
       {/* PDF Preview Dialog */}

@@ -66,12 +66,12 @@ function offsetMeters(
   return [lon + dLon, lat + dLat];
 }
 
-// Create a small regular polygon around [lon, lat] with radius in meters (for 3D extrusion pillars/nodes)
+// Create a small regular polygon around [lon, lat] with radius in meters
 function circlePolygon(
   lon: number,
   lat: number,
   radiusMeters: number,
-  sides = 10,
+  sides = 12,
 ): Array<[number, number]> {
   const ring: Array<[number, number]> = [];
   for (let i = 0; i <= sides; i++) {
@@ -88,7 +88,7 @@ function circlePolygon(
   return ring;
 }
 
-// Create a 3D ribbon polygon segment between two points with given half-width in meters
+// Create a sleek 3D ribbon polygon segment between two points with given half-width in meters
 function segmentPolygon(
   lon1: number,
   lat1: number,
@@ -100,7 +100,7 @@ function segmentPolygon(
   const dx = (lon2 - lon1) * 111320 * cosLat;
   const dy = (lat2 - lat1) * 111320;
   const len = Math.hypot(dx, dy);
-  if (len < 0.05) return null;
+  if (len < 0.08) return null;
   const nx = (-dy / len) * halfWidthMeters;
   const ny = (dx / len) * halfWidthMeters;
   const p1L = offsetMeters(lon1, lat1, nx, ny);
@@ -114,7 +114,8 @@ function buildTrajectoryGeoJson(
   samples: TrajectoryEnrichedSample[],
   activeIdx: number | null,
 ) {
-  const zScale = 5.5; // Visual altitude multiplier so 5m-30m heights are unmistakable in 3D
+  const maxAlt = samples.reduce((m, s) => Math.max(m, s.altitude || 0), 0);
+  const zScale = maxAlt > 0 && maxAlt < 10 ? 12 / maxAlt : 1.0;
 
   // 1. 2D Ground LineString
   const lineFeature = {
@@ -124,7 +125,9 @@ function buildTrajectoryGeoJson(
         ? [
             {
               type: 'Feature' as const,
-              properties: {},
+              properties: {
+              idx: samples[Math.floor(samples.length / 2)]?.idx ?? 0,
+            },
               geometry: {
                 type: 'LineString' as const,
                 coordinates: samples.map((s) => [s.longitude, s.latitude]),
@@ -134,27 +137,27 @@ function buildTrajectoryGeoJson(
         : [],
   };
 
-  // 2. 2D Ground Points
+  // 2. 2D Ground Points (only Start, End, and currently hovered/selected point)
+  const key2DPoints = samples
+    .map((s, idx) => ({ s, idx }))
+    .filter(
+      ({ s, idx }) =>
+        idx === 0 || idx === samples.length - 1 || activeIdx === s.idx,
+    );
+
   const pointsFeature = {
     type: 'FeatureCollection' as const,
-    features: samples.map((s, idx) => ({
+    features: key2DPoints.map(({ s, idx }) => ({
       type: 'Feature' as const,
       properties: {
         idx: s.idx,
         color:
-          idx === 0
-            ? '#1baf7a'
-            : idx === samples.length - 1
-              ? '#eb6834'
-              : activeIdx === s.idx
-                ? '#eda100'
-                : '#2a78d6',
-        radius:
           activeIdx === s.idx
-            ? 8
-            : idx === 0 || idx === samples.length - 1
-              ? 6.5
-              : 4.5,
+            ? '#f59e0b'
+            : idx === 0
+              ? '#10b981'
+              : '#f97316',
+        radius: activeIdx === s.idx ? 8 : 6.5,
       },
       geometry: {
         type: 'Point' as const,
@@ -163,18 +166,49 @@ function buildTrajectoryGeoJson(
     })),
   };
 
-  // 3. 3D Extruded Flight Ribbon, Vertical Pillars & 3D Floating Nodes
+  // 3. Clean 3D Flight Path (no thick white walls, no opaque curtains)
   const extrusions: Array<{
     type: 'Feature';
     properties: Record<string, string | number>;
     geometry: { type: 'Polygon'; coordinates: Array<Array<[number, number]>> };
   }> = [];
 
-  // 3a. Sub-divide each segment into smooth 3D stepped ribbon pieces
   for (let i = 0; i < samples.length - 1; i++) {
     const a = samples[i]!;
     const b = samples[i + 1]!;
-    const steps = 6;
+    const cosLat = Math.max(0.2, Math.cos((((a.latitude + b.latitude) / 2) * Math.PI) / 180));
+    const dx = (b.longitude - a.longitude) * 111320 * cosLat;
+    const dy = (b.latitude - a.latitude) * 111320;
+    const horizDist = Math.hypot(dx, dy);
+    const dAlt = Math.abs(b.altitude - a.altitude) * zScale;
+
+    if (horizDist < 0.35 && dAlt > 0.25) {
+      // Pure vertical climb / descent (e.g. Takeoff or RTL landing): draw one sleek vertical line segment
+      const lowZ = Math.min(a.altitude, b.altitude) * zScale;
+      const highZ = Math.max(a.altitude, b.altitude) * zScale;
+      const isDescending = b.altitude < a.altitude;
+      extrusions.push({
+        type: 'Feature',
+        properties: {
+          kind: 'beam',
+          idx: b.idx,
+          base: Math.max(0, lowZ),
+          height: Math.max(lowZ + 0.3, highZ),
+          color: isDescending ? '#f97316' : '#10b981',
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [circlePolygon(a.longitude, a.latitude, 0.32, 10)],
+        },
+      });
+      continue;
+    }
+
+    if (horizDist < 0.15) {
+      continue;
+    }
+
+    const steps = Math.max(2, Math.min(6, Math.ceil(horizDist / 3)));
     for (let k = 0; k < steps; k++) {
       const t0 = k / steps;
       const t1 = (k + 1) / steps;
@@ -185,30 +219,20 @@ function buildTrajectoryGeoJson(
       const altMid =
         (a.altitude + (b.altitude - a.altitude) * ((t0 + t1) / 2)) * zScale;
 
-      const poly = segmentPolygon(lon0, lat0, lon1, lat1, 1.35);
+      const poly = segmentPolygon(lon0, lat0, lon1, lat1, 0.48);
       if (poly) {
-        // Semi-transparent vertical curtain under the flight path
-        extrusions.push({
-          type: 'Feature',
-          properties: {
-            kind: 'curtain',
-            base: 0,
-            height: Math.max(0.5, altMid - 0.8),
-            color: '#93c5fd',
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [poly],
-          },
-        });
-        // Solid 3D elevated flight path beam in the air
+        // Color-code by altitude tier so lower vs upper passes are immediately distinct
+        const altRatio = maxAlt > 0 ? altMid / (maxAlt * zScale) : 1;
+        const beamColor =
+          altRatio < 0.65 ? '#06b6d4' : '#2563eb';
         extrusions.push({
           type: 'Feature',
           properties: {
             kind: 'beam',
-            base: Math.max(0.2, altMid - 1.1),
-            height: Math.max(1.8, altMid + 1.1),
-            color: '#2a78d6',
+            idx: b.idx,
+            base: Math.max(0.1, altMid - 0.38),
+            height: Math.max(0.8, altMid + 0.38),
+            color: beamColor,
           },
           geometry: {
             type: 'Polygon',
@@ -219,44 +243,49 @@ function buildTrajectoryGeoJson(
     }
   }
 
-  // 3b. Vertical 3D Pillars + 3D Floating Waypoint Caps at each sample
+  // 3b. Only render Start, End, and currently hovered/selected node in 3D (no intermediate track dots)
   samples.forEach((s, idx) => {
-    const topZ = Math.max(2, s.altitude * zScale);
     const isStart = idx === 0;
     const isEnd = idx === samples.length - 1;
     const isSelected = activeIdx === s.idx;
 
-    // Thin vertical pillar from ground (0m) to waypoint altitude
-    extrusions.push({
-      type: 'Feature',
-      properties: {
-        kind: 'pillar',
-        idx: s.idx,
-        base: 0,
-        height: Math.max(0.5, topZ - 1.4),
-        color: isSelected ? '#eda100' : '#64748b',
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [circlePolygon(s.longitude, s.latitude, 0.75, 8)],
-      },
-    });
+    if (!isStart && !isEnd && !isSelected) {
+      return;
+    }
 
-    // 3D Floating Waypoint Cap at exact altitude
+    const topZ = Math.max(0.6, s.altitude * zScale);
+
+    // Subtle vertical height-reference thread for Start, End, or Selected point
+    if (topZ > 1.5) {
+      extrusions.push({
+        type: 'Feature',
+        properties: {
+          kind: 'pillar',
+          idx: s.idx,
+          base: 0,
+          height: Math.max(0.2, topZ - 0.5),
+          color: isSelected ? '#f59e0b' : '#94a3b8',
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [circlePolygon(s.longitude, s.latitude, 0.16, 8)],
+        },
+      });
+    }
+
+    // 3D Node for Start, End, or Active hovered point
     extrusions.push({
       type: 'Feature',
       properties: {
         kind: 'cap',
         idx: s.idx,
-        base: Math.max(0.4, topZ - 1.6),
-        height: topZ + 1.6,
-        color: isStart
-          ? '#1baf7a'
-          : isEnd
-            ? '#eb6834'
-            : isSelected
-              ? '#eda100'
-              : '#1d4ed8',
+        base: Math.max(0.15, topZ - (isSelected ? 0.85 : 0.65)),
+        height: topZ + (isSelected ? 0.85 : 0.65),
+        color: isSelected
+          ? '#f59e0b'
+          : isStart
+            ? '#10b981'
+            : '#f97316',
       },
       geometry: {
         type: 'Polygon',
@@ -264,7 +293,7 @@ function buildTrajectoryGeoJson(
           circlePolygon(
             s.longitude,
             s.latitude,
-            isSelected ? 3.2 : isStart || isEnd ? 2.8 : 2.1,
+            isSelected ? 1.4 : 1.25,
             12,
           ),
         ],
@@ -277,7 +306,7 @@ function buildTrajectoryGeoJson(
     features: extrusions,
   };
 
-  return { lineFeature, pointsFeature, extrusionFeatureCollection };
+  return { lineFeature, pointsFeature, extrusionFeatureCollection, maxAlt };
 }
 
 export function MapLibreFlightTrajectoryCanvas({
@@ -318,6 +347,37 @@ export function MapLibreFlightTrajectoryCanvas({
     () => buildTrajectoryGeoJson(samples, activeIdx),
     [samples, activeIdx],
   );
+
+  const fitTrajectoryCamera = (
+    map: maplibregl.Map,
+    dim: '2d' | '3d',
+    duration = 0,
+  ) => {
+    const is3D = dim === '3d';
+    const altPadDeg = is3D ? Math.max(0.00025, (geoData.maxAlt || 30) / 95000) : 0.00008;
+    map.fitBounds(
+      [
+        [boundsInfo.minLon - altPadDeg, boundsInfo.minLat - altPadDeg * 0.6],
+        [boundsInfo.maxLon + altPadDeg, boundsInfo.maxLat + altPadDeg * 1.15],
+      ],
+      {
+        padding: is3D
+          ? {
+              top: isDialog ? 140 : 88,
+              bottom: isDialog ? 54 : 32,
+              left: isDialog ? 80 : 40,
+              right: isDialog ? 80 : 40,
+            }
+          : isDialog
+            ? 80
+            : 44,
+        maxZoom: is3D ? 18.1 : 18.6,
+        pitch: is3D ? 58 : 0,
+        bearing: is3D ? -28 : 0,
+        duration,
+      },
+    );
+  };
 
   // Initialize single MapLibre GL instance once
   useEffect(() => {
@@ -393,22 +453,22 @@ export function MapLibreFlightTrajectoryCanvas({
                 ['get', 'render_min_height'],
                 0,
               ],
-              'fill-extrusion-opacity': 0.65,
+              'fill-extrusion-opacity': 0.5,
             },
           },
-          // Ground Track White Casing
+          // Ground Track Shadow/Casing
           {
             id: 'ground-track-casing',
             type: 'line',
             source: 'trajectory-line',
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
-              'line-color': '#ffffff',
-              'line-width': is3D ? 3 : 6,
-              'line-opacity': is3D ? 0.55 : 0.95,
+              'line-color': is3D ? '#0f172a' : '#ffffff',
+              'line-width': is3D ? 2 : 6,
+              'line-opacity': is3D ? 0.22 : 0.95,
             },
           },
-          // Ground Track Core Line
+          // Ground Track Core Line (subtle shadow on ground in 3D, primary blue in 2D)
           {
             id: 'ground-track-core',
             type: 'line',
@@ -416,85 +476,73 @@ export function MapLibreFlightTrajectoryCanvas({
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
               'line-color': is3D ? '#475569' : '#2a78d6',
-              'line-width': is3D ? 1.8 : 3.5,
-              'line-opacity': is3D ? 0.65 : 1,
+              'line-width': is3D ? 1.5 : 3.5,
+              'line-opacity': is3D ? 0.45 : 1,
             },
           },
-          // 3D Curtain (translucent altitude wall under flight path)
+          // 3D Thin Vertical Reference Pillars
           {
             id: 'flight-3d-curtain',
             type: 'fill-extrusion',
             source: 'trajectory-3d',
-            filter: ['==', ['get', 'kind'], 'curtain'],
+            filter: ['==', ['get', 'kind'], 'pillar'],
             layout: { visibility: is3D ? 'visible' : 'none' },
             paint: {
               'fill-extrusion-color': ['get', 'color'],
               'fill-extrusion-base': ['get', 'base'],
               'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-opacity': 0.22,
+              'fill-extrusion-opacity': 0.35,
             },
           },
-          // 3D Solid Flight Beam & Vertical Pillars & Waypoint Caps
+          // 3D Sleek Flight Path & Spaced Waypoint Nodes at True Altitude
           {
             id: 'flight-3d-solid',
             type: 'fill-extrusion',
             source: 'trajectory-3d',
-            filter: ['!=', ['get', 'kind'], 'curtain'],
+            filter: ['!=', ['get', 'kind'], 'pillar'],
             layout: { visibility: is3D ? 'visible' : 'none' },
             paint: {
               'fill-extrusion-color': ['get', 'color'],
               'fill-extrusion-base': ['get', 'base'],
               'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-opacity': 0.92,
+              'fill-extrusion-opacity': 0.95,
             },
           },
-          // 2D Ground Waypoint Circles
+          // 2D Ground Waypoint Circles (only in 2D mode)
           {
             id: 'ground-waypoints',
             type: 'circle',
             source: 'trajectory-points',
+            layout: { visibility: is3D ? 'none' : 'visible' },
             paint: {
               'circle-radius': ['get', 'radius'],
               'circle-color': ['get', 'color'],
               'circle-stroke-width': 2,
               'circle-stroke-color': '#ffffff',
-              'circle-opacity': is3D ? 0.5 : 1,
+              'circle-opacity': 1,
             },
           },
         ],
       },
       center: [boundsInfo.centerLon, boundsInfo.centerLat],
       zoom: 16,
-      pitch: is3D ? 60 : 0,
-      bearing: is3D ? -25 : 0,
+      pitch: is3D ? 58 : 0,
+      bearing: is3D ? -28 : 0,
       maxPitch: 80,
       attributionControl: false,
     });
 
     map.on('load', () => {
       styleReadyRef.current = true;
-      if (
-        Math.abs(boundsInfo.maxLon - boundsInfo.minLon) > 0.00005 ||
-        Math.abs(boundsInfo.maxLat - boundsInfo.minLat) > 0.00005
-      ) {
-        map.fitBounds(
-          [
-            [boundsInfo.minLon, boundsInfo.minLat],
-            [boundsInfo.maxLon, boundsInfo.maxLat],
-          ],
-          {
-            padding: isDialog ? 90 : 48,
-            maxZoom: 17.2,
-            pitch: viewDimension === '3d' ? 60 : 0,
-            bearing: viewDimension === '3d' ? -25 : 0,
-            duration: 0,
-          },
-        );
-      }
+      fitTrajectoryCamera(map, viewDimension, 0);
     });
 
-    // Interactive waypoint hover & click on both 2D points and 3D caps
-    const interactiveLayers = ['ground-waypoints', 'flight-3d-solid'];
+    // Interactive waypoint hover & click on both 2D line/points and 3D flight path
+    const interactiveLayers = [
+      'ground-waypoints',
+      'ground-track-core',
+      'flight-3d-solid',
+    ];
     map.on('mousemove', (e) => {
       if (!styleReadyRef.current) return;
       const features = map.queryRenderedFeatures(e.point, {
@@ -575,12 +623,24 @@ export function MapLibreFlightTrajectoryCanvas({
         is3D ? 'visible' : 'none',
       );
     }
+    if (map.getLayer('ground-waypoints')) {
+      map.setLayoutProperty(
+        'ground-waypoints',
+        'visibility',
+        is3D ? 'none' : 'visible',
+      );
+    }
     if (map.getLayer('ground-track-casing')) {
-      map.setPaintProperty('ground-track-casing', 'line-width', is3D ? 3 : 6);
+      map.setPaintProperty(
+        'ground-track-casing',
+        'line-color',
+        is3D ? '#0f172a' : '#ffffff',
+      );
+      map.setPaintProperty('ground-track-casing', 'line-width', is3D ? 2 : 6);
       map.setPaintProperty(
         'ground-track-casing',
         'line-opacity',
-        is3D ? 0.55 : 0.95,
+        is3D ? 0.22 : 0.95,
       );
     }
     if (map.getLayer('ground-track-core')) {
@@ -589,17 +649,12 @@ export function MapLibreFlightTrajectoryCanvas({
         'line-color',
         is3D ? '#475569' : '#2a78d6',
       );
-      map.setPaintProperty('ground-track-core', 'line-width', is3D ? 1.8 : 3.5);
-    }
-    if (map.getLayer('ground-waypoints')) {
-      map.setPaintProperty('ground-waypoints', 'circle-opacity', is3D ? 0.5 : 1);
+      map.setPaintProperty('ground-track-core', 'line-width', is3D ? 1.5 : 3.5);
+      map.setPaintProperty('ground-track-core', 'line-opacity', is3D ? 0.45 : 1);
     }
 
-    map.easeTo({
-      pitch: is3D ? 60 : 0,
-      bearing: is3D ? -25 : 0,
-      duration: 500,
-    });
+    fitTrajectoryCamera(map, viewDimension, 450);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewDimension]);
 
   // Toggle Map <-> Satellite smoothly on the same single MapLibre instance
@@ -734,19 +789,7 @@ export function MapLibreFlightTrajectoryCanvas({
               onSelectIdx(null);
               const map = mapRef.current;
               if (!map) return;
-              map.fitBounds(
-                [
-                  [boundsInfo.minLon, boundsInfo.minLat],
-                  [boundsInfo.maxLon, boundsInfo.maxLat],
-                ],
-                {
-                  padding: isDialog ? 90 : 48,
-                  maxZoom: 17.2,
-                  pitch: viewDimension === '3d' ? 60 : 0,
-                  bearing: viewDimension === '3d' ? -25 : 0,
-                  duration: 450,
-                },
-              );
+              fitTrajectoryCamera(map, viewDimension, 450);
             }}
             sx={{ p: 0.4, color: '#1e293b' }}
           >

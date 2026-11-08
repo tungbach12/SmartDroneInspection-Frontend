@@ -20,7 +20,7 @@ import ChevronLeftRounded from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import ForumRoundedIcon from '@mui/icons-material/ForumRounded';
-import type { PortalId } from '@/app/permissions/accessPolicy';
+import { getSectionPath, type PortalId } from '@/app/permissions/accessPolicy';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import type { UnreadChatNotification } from '@/features/contracts/hooks/useContracts';
@@ -269,9 +269,7 @@ export function NotificationInboxPopover({
                 <Box
                   key={chat.requestId}
                   onClick={() => {
-                    navigate(
-                      `${portal === 'admin' ? '/admin' : '/client'}/contracts?requestId=${chat.requestId}`,
-                    );
+                    navigate(`${getSectionPath(portal, 'contracts')}?requestId=${chat.requestId}`);
                     onClose();
                   }}
                   sx={{
