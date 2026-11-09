@@ -146,7 +146,7 @@ export function InspectorDashboardPage() {
               variant="outlined"
               size="small"
               startIcon={<CalendarMonthOutlined sx={{ fontSize: 16 }} />}
-              onClick={() => navigate('/operations/schedule')}
+              onClick={() => navigate('/operations/inspections?view=calendar')}
               sx={{
                 borderRadius: '8px',
                 borderColor: 'divider',

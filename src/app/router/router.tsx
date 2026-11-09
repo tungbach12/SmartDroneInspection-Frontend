@@ -121,21 +121,37 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   settings: <AccountSecurityPage />,
 };
 
+function resolvePortalSectionElement(
+  portal: PortalId,
+  section: SectionId,
+): ReactNode {
+  if (portal === 'manager' && section === 'platform-users') {
+    return <ManagerPartnerInspectorsPage />;
+  }
+  return SECTION_ELEMENTS[section];
+}
+
 function InspectionWorkspaceIndexRedirect() {
   const roles = useAuthStore((state) => state.roles);
   if (roles.includes('CUSTOMER')) {
-    return <Navigate to="tracking" replace />;
+    return <Navigate to="tracking" replace state={{ autoResumeStep: true }} />;
   }
   const isReviewer = roles.some((role) =>
     ['MANAGER', 'ADMIN'].includes(role),
   );
-  return <Navigate to={isReviewer ? 'review' : 'field-session'} replace />;
+  return (
+    <Navigate
+      to={isReviewer ? 'review' : 'permit'}
+      replace
+      state={{ autoResumeStep: true }}
+    />
+  );
 }
 
 function InspectionReportStage() {
   const roles = useAuthStore((state) => state.roles);
   if (roles.includes('CUSTOMER')) {
-    return <CustomerReportDeliverablePage />;
+    return <CustomerReportDeliverablePage stage="report" />;
   }
   const isReviewer = roles.some((role) =>
     ['MANAGER', 'ADMIN'].includes(role),
@@ -181,11 +197,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         path: section,
         element: (
           <RequireAuth roles={getSectionRoles(portal, section)}>
-            {portal === 'manager' && section === 'platform-users' ? (
-              <ManagerPartnerInspectorsPage />
-            ) : (
-              SECTION_ELEMENTS[section]
-            )}
+            {resolvePortalSectionElement(portal, section)}
           </RequireAuth>
         ),
       })),
@@ -202,13 +214,33 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           ...(portal === 'client' || portal === 'admin' || portal === 'manager'
             ? [
                 {
+                  path: 'audit',
+                  element: (
+                    <RequireAuth roles={['ADMIN', 'MANAGER']}>
+                      <ManagerReportReviewPage stage="audit" />
+                    </RequireAuth>
+                  ),
+                },
+                {
                   path: 'review',
                   element: (
                     <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
                       {portal === 'manager' || portal === 'admin' ? (
-                        <ManagerReportReviewPage />
+                        <ManagerReportReviewPage stage="review" />
                       ) : (
                         <OrganizationReportReviewPage />
+                      )}
+                    </RequireAuth>
+                  ),
+                },
+                {
+                  path: 'settlement',
+                  element: (
+                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
+                      {portal === 'manager' || portal === 'admin' ? (
+                        <ManagerReportReviewPage stage="settlement" />
+                      ) : (
+                        <CustomerReportDeliverablePage stage="settlement" />
                       )}
                     </RequireAuth>
                   ),
@@ -230,10 +262,34 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
           {
+            path: 'permit',
+            element: (
+              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                <FieldSessionPage stage="permit" />
+              </RequireAuth>
+            ),
+          },
+          {
+            path: 'pre-flight',
+            element: (
+              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                <FieldSessionPage stage="pre-flight" />
+              </RequireAuth>
+            ),
+          },
+          {
             path: 'field-session',
             element: (
               <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
-                <FieldSessionPage />
+                <FieldSessionPage stage="flight" />
+              </RequireAuth>
+            ),
+          },
+          {
+            path: 'post-flight',
+            element: (
+              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                <FieldSessionPage stage="post-flight" />
               </RequireAuth>
             ),
           },

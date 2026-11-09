@@ -149,12 +149,15 @@ describe('InspectionDetailPage', () => {
     expect(navigateMock).toHaveBeenCalledWith(-1);
   });
 
-  it('renders a Platform Manager review workspace on manager portal without redundant single-step rail and returns to the review queue', () => {
+  it('renders a Platform Manager review workspace on manager portal with 3 review stages and returns to the review queue', () => {
     signInAs('MANAGER');
     renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
 
     expect(screen.getByRole('heading', { name: 'Inspection review' })).toBeTruthy();
-    expect(screen.queryByRole('navigation', { name: 'Inspection workflow stages' })).toBeNull();
+    const managerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(managerNav.querySelector('a[aria-label*="Field & Evidence Audit"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label*="Report Decision"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label*="Commission & Settlement"]')).toBeTruthy();
     screen.getByRole('button', { name: 'Back to review queue' }).click();
     expect(navigateMock).toHaveBeenCalledWith('/manager/inspections?view=reports');
   });
@@ -189,8 +192,9 @@ describe('InspectionDetailPage', () => {
 
     signInAs('MANAGER');
     const { unmount } = renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
-    expect(screen.queryByRole('navigation', { name: 'Inspection workflow stages' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'View permit' })).toBeTruthy();
+    const managerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(managerNav.querySelector('a[aria-label*="Corrective Action"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View permit' })).toBeNull();
     unmount();
 
     signInAs('CUSTOMER');
@@ -199,6 +203,7 @@ describe('InspectionDetailPage', () => {
     });
     const customerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(customerNav.querySelector('a[aria-label="Inspection Report: Complete"]')).toBeTruthy();
+    expect(customerNav.querySelector('a[aria-label="Acceptance & Payment: Complete"]')).toBeTruthy();
     expect(customerNav.querySelector('a[aria-label="Corrective Action: Ready"]')).toBeTruthy();
     unmountCustomer();
 
@@ -231,6 +236,7 @@ describe('InspectionDetailPage', () => {
     const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
     expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
+    expect(stageNav.querySelector('a[aria-label*="Acceptance & Payment"]')).toBeTruthy();
     screen.getByRole('button', { name: 'Back to inspections' }).click();
     expect(navigateMock).toHaveBeenCalledWith('/client/inspections');
   });
@@ -320,13 +326,16 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage();
 
     const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Flight Permit"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Pre-flight Check"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Flight Operation"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Post-flight & Items"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Field Evidence"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Findings"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
   });
 
-  it('displays tailored step titles for re-inspection post-repair (3-step workflow)', () => {
+  it('displays tailored step titles for re-inspection post-repair (6-step workflow)', () => {
     mocks.inspectionQuery = {
       data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS', inspectionType: 'RE_INSPECTION' },
       isLoading: false,
@@ -338,7 +347,10 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage();
 
     const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Flight Permit"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Pre-flight Check"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Re-flight Operation"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Post-flight Check"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Verification"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Verification Report"]')).toBeTruthy();
     expect(screen.queryByText('Repair Evidence')).toBeNull();

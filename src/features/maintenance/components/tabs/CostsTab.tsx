@@ -31,11 +31,13 @@ import { DetailField } from '../DetailField';
 export interface CostsTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
 }
 
 export function CostsTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
 }: CostsTabProps) {
   const { formatDateTime, t } = useLocale();
   const hasApprovedBaseline =
@@ -387,7 +389,7 @@ export function CostsTab({
                 startIcon={<PictureAsPdfOutlined />}
                 onClick={() =>
                   window.open(
-                    `${isOrgAdmin ? '/client' : '/operations'}/inspections/${workOrder.reinspectionId}/report`,
+                    `${isOrgAdmin ? '/client' : isEngineer ? '/operations' : '/admin'}/inspections/${workOrder.reinspectionId}/${isOrgAdmin || isEngineer ? 'report' : 'review'}`,
                     '_blank',
                   )
                 }

@@ -28,11 +28,13 @@ import { maintenanceApi, type WorkOrder } from '../../api/maintenanceApi';
 export interface ReportTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
 }
 
 export function ReportTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
 }: ReportTabProps) {
   const { t } = useLocale();
   const reports = useMaintenanceReportVersions(workOrder.id);
@@ -112,7 +114,7 @@ export function ReportTab({
                 </Typography>
               ) : null}
               <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: 'center' }}>
-                {!isOrgAdmin &&
+                {isEngineer &&
                 version.versionNo === reports.data[0]?.versionNo &&
                 (version.status === 'DRAFT' || version.status === 'RETURNED') &&
                 !['SUBMITTED_FOR_ACCEPTANCE', 'ACCEPTED', 'COST_RECONCILED', 'CLOSED'].includes(
@@ -128,7 +130,7 @@ export function ReportTab({
                     {t('Verify against sources')}
                   </LoadingButton>
                 ) : null}
-                {!isOrgAdmin && version.status === 'AUTHOR_VERIFIED' ? (
+                {isEngineer && version.status === 'AUTHOR_VERIFIED' ? (
                   <LoadingButton
                     size="small"
                     variant="contained"
@@ -153,7 +155,7 @@ export function ReportTab({
                       version.status === 'AUTHOR_VERIFIED' ||
                       version.status === 'RETURNED';
                     void maintenanceApi
-                      .downloadReportPdf(workOrder.id, version.versionNo, !isOrgAdmin && isDraft)
+                      .downloadReportPdf(workOrder.id, version.versionNo, isEngineer && isDraft)
                       .then((blob) => {
                         const url = URL.createObjectURL(blob);
                         window.open(url, '_blank', 'noopener,noreferrer');
@@ -185,7 +187,7 @@ export function ReportTab({
         fallbackMessage={t('Could not update the work order.')}
       />
 
-      {!isOrgAdmin && workOrder.status === 'IN_PROGRESS' ? (
+      {isEngineer && workOrder.status === 'IN_PROGRESS' ? (
         <Alert
           severity="info"
           sx={{ mt: 1.5, borderRadius: '8px' }}
@@ -205,7 +207,7 @@ export function ReportTab({
         </Alert>
       ) : null}
 
-      {!isOrgAdmin &&
+      {isEngineer &&
       !['SUBMITTED_FOR_ACCEPTANCE', 'ACCEPTED', 'COST_RECONCILED', 'CLOSED'].includes(
         workOrder.status,
       ) ? (

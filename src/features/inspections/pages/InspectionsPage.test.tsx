@@ -165,25 +165,57 @@ describe('InspectionsPage', () => {
     expect(await screen.findByRole('row', { name: /Inspection #inspecti/ })).toBeTruthy();
   });
 
-  it('opens an inspection at Step 1 when a row is chosen', async () => {
+  it('opens an inspection at the current incomplete step when a row is chosen', async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('row', { name: /Inspect the main span/ }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
-      '/operations/inspections/inspection-1/field-session',
+      '/operations/inspections/inspection-1/evidence',
     );
   });
 
-  it('opens an inspection at Step 1 from the row action', async () => {
+  it('opens an inspection at the current incomplete step or final step from the row action', async () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
-      '/operations/inspections/inspection-1/field-session',
+      '/operations/inspections/inspection-1/evidence',
+    );
+  });
+
+  it('opens a completed/published inspection at the final step', async () => {
+    mocks.listQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            status: 'COMPLETED',
+            reportId: 'report-1',
+            reportStatus: 'PUBLISHED',
+            reportVersionNo: 1,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/operations/inspections/inspection-1/report',
     );
   });
 

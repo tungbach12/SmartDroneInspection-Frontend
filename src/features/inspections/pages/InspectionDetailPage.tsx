@@ -18,12 +18,14 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
-import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import '../styles/trace-ledger.css';
@@ -36,7 +38,6 @@ import {
   useReportVersions,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
-import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
 
 interface WorkflowStep {
@@ -62,15 +63,42 @@ const STEP_STATE_COPY: Record<WorkflowStepState, string> = {
 const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
+    value: 'permit',
+    label: 'Flight Permit',
+    title: 'Flight Permit',
+    sublabel: 'Upload & Preview',
+    to: 'permit',
+    icon: DescriptionOutlined,
+  },
+  {
+    step: 2,
+    value: 'pre-flight',
+    label: 'Pre-flight',
+    title: 'Pre-flight Check',
+    sublabel: 'Safety Checklist',
+    to: 'pre-flight',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 3,
     value: 'field-session',
     label: 'Field session',
     title: 'Flight Operation',
-    sublabel: 'Flight & Permits',
+    sublabel: 'MAVLink & Telemetry',
     to: 'field-session',
     icon: FlightTakeoffRounded,
   },
   {
-    step: 2,
+    step: 4,
+    value: 'post-flight',
+    label: 'Post-flight',
+    title: 'Post-flight & Items',
+    sublabel: 'Items & Completion',
+    to: 'post-flight',
+    icon: PlaylistAddCheckRounded,
+  },
+  {
+    step: 5,
     value: 'evidence',
     label: 'Evidence',
     title: 'Field Evidence',
@@ -79,7 +107,7 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     icon: CloudUploadOutlined,
   },
   {
-    step: 3,
+    step: 6,
     value: 'findings',
     label: 'Findings',
     title: 'Defect Findings',
@@ -88,7 +116,7 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     icon: AutoAwesomeOutlined,
   },
   {
-    step: 4,
+    step: 7,
     value: 'report',
     label: 'Report',
     title: 'Inspection Report',
@@ -101,6 +129,24 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
 const REINSPECTION_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
+    value: 'permit',
+    label: 'Flight Permit',
+    title: 'Flight Permit',
+    sublabel: 'Upload & Preview',
+    to: 'permit',
+    icon: DescriptionOutlined,
+  },
+  {
+    step: 2,
+    value: 'pre-flight',
+    label: 'Pre-flight',
+    title: 'Pre-flight Check',
+    sublabel: 'Safety Checklist',
+    to: 'pre-flight',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 3,
     value: 'field-session',
     label: 'Field session',
     title: 'Re-flight Operation',
@@ -109,7 +155,16 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
     icon: FlightTakeoffRounded,
   },
   {
-    step: 2,
+    step: 4,
+    value: 'post-flight',
+    label: 'Post-flight',
+    title: 'Post-flight Check',
+    sublabel: 'Checklist & Completion',
+    to: 'post-flight',
+    icon: PlaylistAddCheckRounded,
+  },
+  {
+    step: 5,
     value: 'findings',
     label: 'Findings',
     title: 'Defect Verification',
@@ -118,7 +173,7 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
     icon: AutoAwesomeOutlined,
   },
   {
-    step: 3,
+    step: 6,
     value: 'report',
     label: 'Report',
     title: 'Verification Report',
@@ -129,18 +184,36 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
 ] as const;
 
 /**
- * Platform Manager workspace stage: independent report review & publication (MF3-09/10/11).
- * Corrective maintenance handoff belongs to the Customer organization (MF4).
+ * Platform Manager workspace stages (3 steps):
+ * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
  */
 const REVIEWER_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
+    value: 'audit',
+    label: 'Field Audit',
+    title: 'Field & Evidence Audit',
+    sublabel: 'Flight & Captures',
+    to: 'audit',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
     value: 'review',
-    label: 'Report review',
-    title: 'Report Review',
-    sublabel: 'Decision & Approval',
+    label: 'Report Decision',
+    title: 'Report Decision',
+    sublabel: 'Publish or Return',
     to: 'review',
     icon: AssignmentTurnedInOutlined,
+  },
+  {
+    step: 3,
+    value: 'settlement',
+    label: 'Commission',
+    title: 'Commission & Settlement',
+    sublabel: 'Fee & Payout',
+    to: 'settlement',
+    icon: FactCheckOutlined,
   },
 ] as const;
 
@@ -165,6 +238,15 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
   },
   {
     step: 3,
+    value: 'settlement',
+    label: 'Settlement',
+    title: 'Acceptance & Payment',
+    sublabel: 'Accept & PayOS',
+    to: 'settlement',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 4,
     value: 'corrective',
     label: 'Maintenance',
     title: 'Corrective Action',
@@ -177,7 +259,6 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
 export default function InspectionDetailPage() {
   const { formatDate, t } = useLocale();
   const [reportDirty, setReportDirty] = useState(false);
-  const [permitDialogOpen, setPermitDialogOpen] = useState(false);
   const blocker = useBlocker(reportDirty);
   useEffect(() => {
     if (!reportDirty) return undefined;
@@ -242,7 +323,7 @@ export default function InspectionDetailPage() {
   const tabValue = visibleSteps.some((step) => step.value === current)
     ? current
     : isCustomer
-      ? hasPublishedVersion && (current === 'report' || current === 'corrective')
+      ? hasPublishedVersion && (current === 'report' || current === 'settlement' || current === 'corrective')
         ? current
         : 'tracking'
       : isReviewerAdmin
@@ -261,11 +342,23 @@ export default function InspectionDetailPage() {
       return;
     }
     if (isCustomer && !versions.isLoading) {
-      const forbiddenForCustomer = ['field-session', 'evidence', 'findings', 'review'];
+      const forbiddenForCustomer = [
+        'permit',
+        'pre-flight',
+        'field-session',
+        'post-flight',
+        'evidence',
+        'findings',
+        'audit',
+        'review',
+      ];
       if (forbiddenForCustomer.includes(current)) {
         const dest = hasPublishedVersion ? 'report' : 'tracking';
         navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${dest}`, { replace: true });
-      } else if (!hasPublishedVersion && (current === 'report' || current === 'corrective')) {
+      } else if (
+        !hasPublishedVersion &&
+        (current === 'report' || current === 'settlement' || current === 'corrective')
+      ) {
         navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/tracking`, { replace: true });
       }
     }
@@ -280,13 +373,25 @@ export default function InspectionDetailPage() {
       if (stepValue === 'report') {
         return hasPublishedVersion;
       }
+      if (stepValue === 'settlement') {
+        return (
+          hasPublishedVersion &&
+          (status === 'COMPLETED' || inspection?.status === 'COMPLETED')
+        );
+      }
       if (stepValue === 'corrective') {
         return hasPublishedVersion && hasForwardedFindings;
       }
       return false;
     }
     if (isReviewerAdmin) {
+      if (stepValue === 'audit') {
+        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
+      }
       if (stepValue === 'review') {
+        return hasPublishedVersion;
+      }
+      if (stepValue === 'settlement') {
         return hasPublishedVersion;
       }
       return false;
@@ -296,17 +401,37 @@ export default function InspectionDetailPage() {
       Boolean(workflowQuery.data?.findingsConfirmedAt) &&
       ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
     switch (stepValue) {
+      case 'permit':
+        return (
+          Boolean(inspection?.flightPermitFileName) ||
+          ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
+        );
+      case 'pre-flight':
+        return (
+          Boolean(
+            sessionsQuery.data?.some(
+              (session) =>
+                session.status === 'IN_PROGRESS' || session.status === 'FIELD_COMPLETED',
+            ),
+          ) ||
+          ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
+        );
       case 'field-session':
+        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
+      case 'post-flight':
         return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
       case 'evidence':
         return (
           activeEvidenceCount > 0 ||
-          ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
+          Boolean(workflowQuery.data?.findingsConfirmedAt) ||
+          ['UNDER_REVIEW', 'COMPLETED'].includes(status) ||
+          hasPublishedVersion
         );
       case 'findings':
         return (
           hasCurrentFindingsConfirmation ||
-          ['UNDER_REVIEW', 'COMPLETED'].includes(status)
+          ['UNDER_REVIEW', 'COMPLETED'].includes(status) ||
+          hasPublishedVersion
         );
       case 'report':
         return (
@@ -324,6 +449,12 @@ export default function InspectionDetailPage() {
     'UNDER_REVIEW',
     'COMPLETED',
   ].includes(workflowStatus);
+  const hasPermitReady =
+    Boolean(inspection?.flightPermitFileName) ||
+    ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
+  const hasSessionStarted =
+    Boolean(sessionsQuery.data?.length) ||
+    ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
   const hasEvidence =
     activeEvidenceCount > 0 ||
     ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
@@ -334,12 +465,15 @@ export default function InspectionDetailPage() {
       if (tabValue === step.value) return 'active';
       if (step.value === 'tracking') return 'ready';
       if (step.value === 'report') return hasPublishedVersion ? 'ready' : 'blocked';
+      if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
       if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
       return 'pending';
     }
     if (isStepCompleted(step.value)) return 'complete';
     if (tabValue === step.value) return 'active';
-    if (step.value === 'field-session' || step.value === 'review') return 'ready';
+    if (step.value === 'permit' || step.value === 'field-session' || step.value === 'audit' || step.value === 'review' || step.value === 'settlement') return 'ready';
+    if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
+    if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
     if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
     if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
@@ -349,7 +483,7 @@ export default function InspectionDetailPage() {
 
   const blockedReason = (step: WorkflowStep): string | null => {
     if (isCustomer) {
-      if (step.value === 'report' && !hasPublishedVersion) {
+      if ((step.value === 'report' || step.value === 'settlement') && !hasPublishedVersion) {
         return t('The official report is being reviewed and has not been published yet. Please track progress.');
       }
       if (step.value === 'corrective' && !hasPublishedVersion) {
@@ -357,6 +491,8 @@ export default function InspectionDetailPage() {
       }
       return null;
     }
+    if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
+    if (step.value === 'post-flight' && !hasSessionStarted) return t('Start a field session before completing the post-flight checklist.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
     if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
@@ -368,6 +504,38 @@ export default function InspectionDetailPage() {
   const currentStepIndex = visibleSteps.findIndex((step) => step.value === tabValue);
   const currentStepState = currentStep ? readinessFor(currentStep) : 'pending';
   const currentBlocker = currentStep ? blockedReason(currentStep) : null;
+
+  const autoResumeStep = Boolean(
+    (location.state as { autoResumeStep?: boolean } | null)?.autoResumeStep,
+  );
+  const queriesReadyForResume =
+    !inspectionQuery.isLoading &&
+    !workflowQuery.isLoading &&
+    !evidenceQuery.isLoading &&
+    !findingsQuery.isLoading &&
+    !versions.isLoading &&
+    !sessionsQuery.isLoading;
+
+  useEffect(() => {
+    if (!autoResumeStep || !queriesReadyForResume || visibleSteps.length === 0) {
+      return;
+    }
+    const firstIncomplete = visibleSteps.find((step) => !isStepCompleted(step.value));
+    const targetStep = firstIncomplete ?? visibleSteps[visibleSteps.length - 1];
+    if (!targetStep) return;
+
+    const portalPrefix = isCustomer
+      ? 'client'
+      : isReviewerAdmin
+        ? reviewerPortal
+        : 'operations';
+    if (targetStep.value !== current) {
+      navigate(`${getSectionPath(portalPrefix, 'inspections')}/${inspectionId}/${targetStep.to}`, {
+        replace: true,
+        state: {},
+      });
+    }
+  });
   return (
     <Box
       className="workspace-page workspace-page--inspections trace-ledger-workspace"
@@ -468,62 +636,8 @@ export default function InspectionDetailPage() {
                   </Box>
                 </Typography>
               </Stack>
-
-              {inspection.flightPermitFileName ? (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="success"
-                  startIcon={<VisibilityOutlined sx={{ fontSize: 15 }} />}
-                  onClick={() => setPermitDialogOpen(true)}
-                  title={`${inspection.flightPermitFileName}${
-                    inspection.flightPermitUploadedAt
-                      ? ` · ${formatDate(new Date(inspection.flightPermitUploadedAt))}`
-                      : ''
-                  }`}
-                  sx={{
-                    height: 26,
-                    px: 1.25,
-                    fontSize: '0.75rem',
-                    fontWeight: 650,
-                    textTransform: 'none',
-                    borderRadius: '6px',
-                  }}
-                >
-                  {t('View permit')}
-                </Button>
-              ) : (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  aria-label={t('Flight document not recorded')}
-                  label={t('Awaiting Permit Upload')}
-                  sx={{
-                    height: 22,
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    borderColor: 'divider',
-                    color: 'text.secondary',
-                  }}
-                />
-              )}
             </Stack>
           </Paper>
-        )}
-
-        {inspection?.flightPermitFileName && (
-          <FlightPermitPreviewDialog
-            open={permitDialogOpen}
-            onClose={() => setPermitDialogOpen(false)}
-            inspectionId={inspectionId}
-            fileName={inspection.flightPermitFileName}
-            uploadedAt={inspection.flightPermitUploadedAt}
-            assetName={inspection.assetName}
-            droneSummary={
-              [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') ||
-              null
-            }
-          />
         )}
 
         {!isOrganizationAdmin && !isCustomer && inspection && (
@@ -565,9 +679,10 @@ export default function InspectionDetailPage() {
           elevation={0}
           sx={{
             mt: 2,
-            p: { xs: 1.5, sm: 1.75 },
+            px: { xs: 1.5, sm: 2.5 },
+            py: { xs: 1.75, sm: 2.25 },
             bgcolor: 'background.paper',
-            borderRadius: '10px',
+            borderRadius: '12px',
             border: '1px solid',
             borderColor: 'divider',
             boxShadow: 'none',
@@ -575,75 +690,171 @@ export default function InspectionDetailPage() {
         >
           <Stack
             direction="row"
-            sx={{ alignItems: 'stretch', display: { xs: 'none', sm: 'flex' } }}
+            sx={{ alignItems: 'flex-start', display: { xs: 'none', sm: 'flex' } }}
           >
-            {visibleSteps.map((step) => {
+            {visibleSteps.map((step, idx) => {
               const state = readinessFor(step);
               const reason = blockedReason(step);
+              const isCurrent = tabValue === step.value;
+              const prevStep = idx > 0 ? visibleSteps[idx - 1] : undefined;
+              const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
+              const isCompleted = state === 'complete';
+              const accentGreen = '#228b6e';
+
               return (
                 <ButtonBase
                   key={step.value}
                   component={NavLink}
                   to={step.to}
-                  aria-current={tabValue === step.value ? 'step' : undefined}
+                  aria-current={isCurrent ? 'step' : undefined}
                   aria-disabled={state === 'blocked' ? true : undefined}
-                  onClick={(e) => {
-                    if (state === 'blocked') {
-                      e.preventDefault();
-                    }
-                  }}
                   aria-label={`${t(step.title)}: ${t(STEP_STATE_COPY[state])}${reason ? `. ${reason}` : ''}`}
-                  title={reason ?? undefined}
-                  className={`trace-stage-link${state === 'active' ? ' is-active' : ''}${state === 'complete' ? ' is-complete' : ''}${state === 'blocked' ? ' is-blocked' : ''}`}
+                  title={reason ?? `${t(step.title)} · ${t(step.sublabel)}`}
+                  className={`trace-stage-link${isCurrent ? ' is-active' : ''}${isCompleted ? ' is-complete' : ''}${state === 'blocked' ? ' is-blocked' : ''}`}
                   sx={{
                     flex: 1,
                     minWidth: 0,
-                    minHeight: 56,
-                    px: { sm: 1.25, md: 2 },
                     py: 1,
-                    textAlign: 'left',
+                    px: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     justifyContent: 'flex-start',
-                    borderRight: '1px solid',
-                    borderColor: 'divider',
-                    borderBottom: state === 'active' ? '2px solid' : '2px solid transparent',
-                    borderBottomColor: state === 'active' ? 'primary.main' : 'transparent',
-                    bgcolor: state === 'active' ? 'action.selected' : 'transparent',
-                    cursor: state === 'blocked' ? 'not-allowed' : 'pointer',
-                    opacity: state === 'blocked' ? 0.6 : 1,
-                    '&:last-of-type': { borderRight: 0 },
-                    '&:hover': { bgcolor: state === 'blocked' ? 'transparent' : state === 'active' ? 'action.selected' : 'action.hover' },
-                    '&:focus-visible': { outline: '2px solid', outlineColor: 'divider', outlineOffset: -2 },
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    transition: 'background-color 160ms ease',
+                    bgcolor: isCurrent ? 'action.hover' : 'transparent',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                    '&:focus-visible': {
+                      outline: '2px solid',
+                      outlineColor: 'divider',
+                      outlineOffset: -2,
+                    },
                   }}
                 >
-                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  {/* Top horizontal connector track + N26 circle indicator */}
+                  <Box
+                    sx={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
                     <Box
                       aria-hidden="true"
                       sx={{
-                        width: 28,
-                        height: 28,
+                        flex: 1,
+                        height: 2.5,
+                        bgcolor:
+                          idx === 0
+                            ? 'transparent'
+                            : prevCompleted
+                              ? accentGreen
+                              : 'divider',
+                        transition: 'background-color 220ms ease',
+                      }}
+                    />
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        width: 32,
+                        height: 32,
                         flex: '0 0 auto',
                         display: 'grid',
                         placeItems: 'center',
                         borderRadius: '50%',
-                        border: '1px solid',
-                        borderColor: state === 'active' ? 'divider' : 'divider',
-                        bgcolor: state === 'active' ? 'primary.main' : 'background.paper',
-                        color: state === 'active' ? 'primary.contrastText' : 'text.secondary',
-                        fontSize: '0.75rem',
+                        border: '2px solid',
+                        borderColor: isCompleted
+                          ? accentGreen
+                          : isCurrent
+                            ? accentGreen
+                            : state === 'ready'
+                              ? 'text.secondary'
+                              : 'divider',
+                        bgcolor: isCompleted
+                          ? accentGreen
+                          : 'background.paper',
+                        color: isCompleted
+                          ? '#ffffff'
+                          : isCurrent
+                            ? accentGreen
+                            : state === 'ready'
+                              ? 'text.primary'
+                              : 'text.secondary',
+                        boxShadow: isCurrent
+                          ? '0 0 0 4px rgba(34, 139, 110, 0.20)'
+                          : 'none',
+                        fontSize: '0.8rem',
                         fontWeight: 700,
+                        transition: 'all 180ms ease',
                       }}
                     >
-                      {state === 'complete' ? <CheckRounded sx={{ fontSize: 17 }} /> : step.step}
+                      {isCompleted ? (
+                        <CheckRounded sx={{ fontSize: 18 }} />
+                      ) : (
+                        step.step
+                      )}
                     </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography component="span" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.3 }}>
-                        {t(STEP_STATE_COPY[state])}
-                      </Typography>
-                      <Typography component="span" sx={{ display: 'block', color: state === 'active' ? 'text.primary' : 'text.secondary', fontSize: '0.875rem', fontWeight: state === 'active' ? 700 : 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {t(step.title)}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        flex: 1,
+                        height: 2.5,
+                        bgcolor:
+                          idx === visibleSteps.length - 1
+                            ? 'transparent'
+                            : isCompleted
+                              ? accentGreen
+                              : 'divider',
+                        transition: 'background-color 220ms ease',
+                      }}
+                    />
+                  </Box>
+
+                  {/* Step Title & Status Subtitle */}
+                  <Box sx={{ mt: 1.1, px: 0.75, minWidth: 0, width: '100%' }}>
+                    <Typography
+                      component="span"
+                      sx={{
+                        display: 'block',
+                        color: isCurrent
+                          ? 'text.primary'
+                          : isCompleted
+                            ? 'text.primary'
+                            : 'text.secondary',
+                        fontSize: '0.8125rem',
+                        fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
+                        lineHeight: 1.25,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {t(step.title)}
+                    </Typography>
+                    <Typography
+                      component="span"
+                      sx={{
+                        display: 'block',
+                        mt: 0.3,
+                        color: isCurrent
+                          ? accentGreen
+                          : isCompleted
+                            ? accentGreen
+                            : 'text.secondary',
+                        fontSize: '0.72rem',
+                        fontWeight: isCurrent ? 700 : 500,
+                        lineHeight: 1.2,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {t(STEP_STATE_COPY[state])}
+                    </Typography>
+                  </Box>
                 </ButtonBase>
               );
             })}
@@ -651,39 +862,55 @@ export default function InspectionDetailPage() {
 
           {currentStep && (
             <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
                 <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{t(currentStep.title)}</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {t('Step')} {currentStepIndex + 1} / {visibleSteps.length} · {t(STEP_STATE_COPY[currentStepState])}
                 </Typography>
               </Stack>
-              <Stack direction="row" spacing={1}>
-                {visibleSteps.map((step) => {
+              <Stack direction="row" sx={{ alignItems: 'center' }}>
+                {visibleSteps.map((step, idx) => {
                   const state = readinessFor(step);
+                  const isCurrent = tabValue === step.value;
+                  const isCompleted = state === 'complete';
+                  const accentGreen = '#228b6e';
                   return (
-                    <ButtonBase
+                    <Box
                       key={step.value}
-                      component={NavLink}
-                      to={step.to}
-                      aria-current={tabValue === step.value ? 'step' : undefined}
-                      aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
-                      title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
-                      sx={{
-                        flex: 1,
-                        minWidth: 40,
-                        minHeight: 42,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderBottomWidth: state === 'active' ? 2 : 1,
-                        borderRadius: '5px',
-                        bgcolor: state === 'active' ? 'action.selected' : 'background.paper',
-                        color: state === 'active' ? 'primary.main' : 'text.secondary',
-                        fontWeight: 700,
-                        '&:focus-visible': { outline: '2px solid', outlineColor: 'divider', outlineOffset: 1 },
-                      }}
+                      sx={{ display: 'flex', alignItems: 'center', flex: idx < visibleSteps.length - 1 ? 1 : '0 0 auto' }}
                     >
-                      {state === 'complete' ? <CheckRounded sx={{ fontSize: 18 }} /> : step.step}
-                    </ButtonBase>
+                      <ButtonBase
+                        component={NavLink}
+                        to={step.to}
+                        aria-current={isCurrent ? 'step' : undefined}
+                        aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
+                        title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: '50%',
+                          border: '2px solid',
+                          borderColor: isCompleted || isCurrent ? accentGreen : 'divider',
+                          bgcolor: isCompleted ? accentGreen : 'background.paper',
+                          color: isCompleted ? '#ffffff' : isCurrent ? accentGreen : 'text.secondary',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(34, 139, 110, 0.2)' : 'none',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        {isCompleted ? <CheckRounded sx={{ fontSize: 16 }} /> : step.step}
+                      </ButtonBase>
+                      {idx < visibleSteps.length - 1 && (
+                        <Box
+                          aria-hidden="true"
+                          sx={{
+                            flex: 1,
+                            height: 2,
+                            bgcolor: isCompleted ? accentGreen : 'divider',
+                          }}
+                        />
+                      )}
+                    </Box>
                   );
                 })}
               </Stack>

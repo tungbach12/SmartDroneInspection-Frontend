@@ -36,11 +36,13 @@ import { type WorkOrder } from '../../api/maintenanceApi';
 export interface ExecutionTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
 }
 
 export function ExecutionTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
 }: ExecutionTabProps) {
   const { t } = useLocale();
   const tasks = useTasks(workOrder.id);
@@ -158,7 +160,7 @@ export function ExecutionTab({
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Tasks')}
           </Typography>
-          {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
+          {isEngineer && workOrder.status !== 'CLOSED' ? (
             <Button size="small" variant="outlined" onClick={() => setTaskOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px' }}>
               {t('Add task')}
             </Button>
@@ -216,7 +218,7 @@ export function ExecutionTab({
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Work logs')}
           </Typography>
-          {!isOrgAdmin && (logs.data ?? []).some((l) => l.status === 'SUBMITTED') ? (
+          {isEngineer && (logs.data ?? []).some((l) => l.status === 'SUBMITTED') ? (
             <LoadingButton
               size="small"
               variant="outlined"
@@ -265,7 +267,7 @@ export function ExecutionTab({
                   </Typography>
                   <StatusChip status={log.status} />
                 </Stack>
-                {!isOrgAdmin && (log.status === 'IN_PROGRESS' || log.status === 'DRAFT') ? (
+                {isEngineer && (log.status === 'IN_PROGRESS' || log.status === 'DRAFT') ? (
                   <LoadingButton
                     size="small"
                     variant="text"
@@ -276,7 +278,7 @@ export function ExecutionTab({
                     {t('Submit for verification')}
                   </LoadingButton>
                 ) : null}
-                {!isOrgAdmin && log.status === 'SUBMITTED' ? (
+                {isEngineer && log.status === 'SUBMITTED' ? (
                   <LoadingButton
                     size="small"
                     variant="text"
@@ -313,7 +315,7 @@ export function ExecutionTab({
           fallbackMessage={t('Could not update the work order.')}
         />
 
-        {!isOrgAdmin &&
+        {isEngineer &&
         workOrder.status === 'IN_PROGRESS' &&
         (logs.data ?? []).length > 0 &&
         (logs.data ?? []).every((l) => l.status === 'VERIFIED') ? (
@@ -331,7 +333,7 @@ export function ExecutionTab({
           </Box>
         ) : null}
 
-        {!isOrgAdmin && workOrder.status !== 'CLOSED' && (tasks.data ?? []).length > 0 ? (
+        {isEngineer && workOrder.status !== 'CLOSED' && (tasks.data ?? []).length > 0 ? (
           <Box
             sx={{
               mt: 2,

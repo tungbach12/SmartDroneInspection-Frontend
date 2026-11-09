@@ -156,7 +156,7 @@ export function useUnreadChatSummary() {
   const roles = useAuthStore((state) => state.roles);
   const isAuth = status === 'authenticated' && Boolean(currentUser);
   const canAccessContracts =
-    isAuth && (roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN'));
+    isAuth && (roles.includes('CUSTOMER') || roles.includes('MANAGER'));
   const { data: requests = [] } = useServiceRequests(canAccessContracts, canAccessContracts);
 
   return useMemo(() => {

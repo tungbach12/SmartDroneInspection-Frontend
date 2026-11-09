@@ -7,11 +7,16 @@ import {
 import type { Role } from '@/features/auth/store/authStore';
 
 const ALLOWED_INSPECTION_SUBROUTES = new Set([
+  'permit',
+  'pre-flight',
+  'field-session',
+  'post-flight',
   'evidence',
   'findings',
   'report',
-  'field-session',
+  'audit',
   'review',
+  'settlement',
   'corrective',
 ]);
 

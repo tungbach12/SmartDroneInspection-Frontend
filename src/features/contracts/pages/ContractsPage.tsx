@@ -74,7 +74,13 @@ export default function ContractsPage() {
   const requests = useServiceRequests();
   const assets = useAssets({ page: 1, pageSize: 100 }, isCustomer);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string>('');
+  const [selectedRequestId, setSelectedRequestId] = useState<string>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('requestId') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const selectedRequest = useServiceRequest(selectedRequestId || undefined);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [error, setError] = useState('');
@@ -425,7 +431,9 @@ export default function ContractsPage() {
                 <Typography variant="body2" sx={{ maxWidth: 400, mx: 'auto', mt: 0.5 }}>
                   {search || statusFilter !== 'ALL'
                     ? t('Try adjusting search keywords or clearing status filter.')
-                    : t('Click "+ New service request" above to create your first inspection request.')}
+                    : isCustomer
+                      ? t('Click "+ New service request" above to create your first inspection request.')
+                      : t('No customer service requests are waiting in the queue.')}
                 </Typography>
               </Box>
             ) : (

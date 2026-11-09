@@ -15,6 +15,7 @@ import { CostsTab } from './tabs/CostsTab';
 export interface WorkOrderDetailPanelProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
   onClose: () => void;
   onOpenInspection?: (() => void) | undefined;
 }
@@ -39,6 +40,7 @@ const TABS: { value: DetailTab; label: string }[] = [
 export function WorkOrderDetailPanel({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
   onClose,
   onOpenInspection,
 }: WorkOrderDetailPanelProps) {
@@ -95,6 +97,7 @@ export function WorkOrderDetailPanel({
         <OverviewTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
           onOpenInspection={onOpenInspection}
         />
       )}
@@ -102,30 +105,35 @@ export function WorkOrderDetailPanel({
         <ExecutionTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
         />
       )}
       {tab === 'estimate' && (
         <EstimateTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
         />
       )}
       {tab === 'changes' && (
         <ChangesTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
         />
       )}
       {tab === 'report' && (
         <ReportTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
         />
       )}
       {tab === 'costs' && (
         <CostsTab
           workOrder={workOrder}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
         />
       )}
     </Stack>

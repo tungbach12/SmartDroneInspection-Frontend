@@ -29,12 +29,14 @@ import { DetailField } from '../DetailField';
 export interface OverviewTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
   onOpenInspection?: (() => void) | undefined;
 }
 
 export function OverviewTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
   onOpenInspection,
 }: OverviewTabProps) {
   const { formatDateTime, t } = useLocale();
@@ -114,7 +116,7 @@ export function OverviewTab({
         />
 
         <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
-          {!isOrgAdmin
+          {isEngineer
             ? engineerActions.map((entry) => (
                 <LoadingButton
                   key={entry.action}

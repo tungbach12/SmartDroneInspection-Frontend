@@ -70,6 +70,7 @@ export default function MaintenancePage() {
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isOrgAdmin = roles.includes('CUSTOMER');
+  const isEngineer = roles.includes('MAINTENANCE_ENGINEER');
   const workOrders = useWorkOrders(0, 50);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -182,6 +183,7 @@ export default function MaintenancePage() {
         <WorkOrderDetailPanel
           workOrder={selected}
           isOrgAdmin={isOrgAdmin}
+          isEngineer={isEngineer}
           onClose={() => setSelectedId(null)}
           onOpenInspection={isOrgAdmin ? () => navigate('/client/inspections') : undefined}
         />
@@ -281,7 +283,9 @@ export default function MaintenancePage() {
             <Typography variant="caption" sx={{ color: '#667085' }}>
               {isOrgAdmin
                 ? t('As Organization Manager you approve scope, budget, changes and final acceptance.')
-                : t('As Maintenance Engineer you record tasks, time, changes and the completion report.')}
+                : isEngineer
+                  ? t('As Maintenance Engineer you record tasks, time, changes and the completion report.')
+                  : t('As Platform Administrator you audit corrective work order progress, compliance, and cost reconciliation.')}
             </Typography>
           </Paper>
           </Box>

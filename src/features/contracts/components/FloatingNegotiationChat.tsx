@@ -444,10 +444,10 @@ export function FloatingNegotiationChat({
                   </Box>
                 ) : (
                   currentRequest.messages.map((message) => {
-                    const isMe = currentUser?.id === message.authorUserId;
+                    const isAiBot = message.body.startsWith('🤖');
+                    const isMe = !isAiBot && currentUser?.id === message.authorUserId;
                     const authorRole = message.authorRole;
                     const isMsgManager = authorRole === 'MANAGER' || authorRole === 'ADMIN';
-                    const isAiBot = message.body.startsWith('🤖');
 
                     return (
                       <Box
