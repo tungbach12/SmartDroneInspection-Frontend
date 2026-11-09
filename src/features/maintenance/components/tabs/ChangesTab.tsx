@@ -25,11 +25,13 @@ import { type WorkOrder } from '../../api/maintenanceApi';
 export interface ChangesTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
 }
 
 export function ChangesTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
 }: ChangesTabProps) {
   const { t } = useLocale();
   const changes = useChanges(workOrder.id);
@@ -46,7 +48,7 @@ export function ChangesTab({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
           {t('Change requests')}
         </Typography>
-        {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
+        {isEngineer && workOrder.status !== 'CLOSED' ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px' }}>
             {t('Propose change')}
           </Button>

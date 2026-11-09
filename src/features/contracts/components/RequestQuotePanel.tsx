@@ -146,7 +146,10 @@ export function RequestQuotePanel({
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                     First occurrence proposal: {new Date(quote.firstOccurrenceStartAt).toLocaleString()} –{' '}
-                    {new Date(quote.firstOccurrenceEndAt).toLocaleString()} · Inspector {quote.inspectorId} · Drone {quote.droneId}
+                    {new Date(quote.firstOccurrenceEndAt).toLocaleString()}
+                    {manager && (quote.inspectorId || quote.droneId)
+                      ? ` · Inspector ${quote.inspectorId ?? 'Unassigned'} · Drone ${quote.droneId ?? 'Unassigned'}`
+                      : ''}
                   </Typography>
                   {customer && request.status === 'QUOTED' && isLatest && (
                     <Box sx={{ mt: 1.5 }}>

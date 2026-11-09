@@ -908,7 +908,7 @@ function AssetDetailDrawer({
     });
   };
 
-  const uploadAllowed = asset?.status === 'ACTIVE' || asset?.status === 'INACTIVE';
+  const uploadAllowed = isClient && (asset?.status === 'ACTIVE' || asset?.status === 'INACTIVE');
   const downloadDenied = isPermissionDenied(downloadError) || isPermissionDenied(documents.error);
 
   const openDocument = async (storedDocument: AssetDocument) => {
@@ -985,10 +985,10 @@ function AssetDetailDrawer({
             {t('Complete & Archive Asset')}
           </Button>
         )}
-        {asset && canEditInspectionItems && (
+        {asset && (
           <InspectionItemsSection
             asset={asset}
-            canEdit={asset.status !== 'RETIRED'}
+            canEdit={canEditInspectionItems && asset.status !== 'RETIRED'}
             onAssetUpdated={onAssetUpdated}
           />
         )}
@@ -1047,64 +1047,68 @@ function AssetDetailDrawer({
           </Typography>
         )}
 
-        <Divider sx={{ my: 2 }} />
-        {uploadAllowed ? (
-          <Stack spacing={2}>
-            <TextField
-              select
-              size="small"
-              label={t('Document type')}
-              value={documentType}
-              onChange={(event) => setDocumentType(event.target.value)}
-            >
-              {DOCUMENT_TYPES.map((type) => (
-                <MenuItem key={type} value={type}>
-                  {type}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              size="small"
-              type="date"
-              label={t('Document date')}
-              value={documentDate}
-              onChange={(event) => setDocumentDate(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <Button variant="outlined" component="label" startIcon={<CloudUploadOutlined />}>
-              {file ? file.name : 'Choose file'}
-              <input
-                hidden
-                type="file"
-                accept="image/png,image/jpeg,image/webp,application/pdf"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              />
-            </Button>
-            {upload.isError && (
-              <Alert severity="error">{getErrorMessage(upload.error, 'Upload failed.')}</Alert>
+        {isClient && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            {uploadAllowed ? (
+              <Stack spacing={2}>
+                <TextField
+                  select
+                  size="small"
+                  label={t('Document type')}
+                  value={documentType}
+                  onChange={(event) => setDocumentType(event.target.value)}
+                >
+                  {DOCUMENT_TYPES.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  size="small"
+                  type="date"
+                  label={t('Document date')}
+                  value={documentDate}
+                  onChange={(event) => setDocumentDate(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <Button variant="outlined" component="label" startIcon={<CloudUploadOutlined />}>
+                  {file ? file.name : 'Choose file'}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  />
+                </Button>
+                {upload.isError && (
+                  <Alert severity="error">{getErrorMessage(upload.error, 'Upload failed.')}</Alert>
+                )}
+                <Button
+                  variant="contained"
+                  disabled={!file || upload.isPending}
+                  onClick={() => {
+                    if (!file) return;
+                    upload.mutate(
+                      {
+                        file,
+                        documentType,
+                        ...(documentDate ? { documentDate } : {}),
+                      },
+                      { onSuccess: () => setFile(null) },
+                    );
+                  }}
+                >
+                  {t('Upload document')}
+                </Button>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('Document upload is available after review.')}
+              </Typography>
             )}
-            <Button
-              variant="contained"
-              disabled={!file || upload.isPending}
-              onClick={() => {
-                if (!file) return;
-                upload.mutate(
-                  {
-                    file,
-                    documentType,
-                    ...(documentDate ? { documentDate } : {}),
-                  },
-                  { onSuccess: () => setFile(null) },
-                );
-              }}
-            >
-              {t('Upload document')}
-            </Button>
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            {t('Document upload is available after review.')}
-          </Typography>
+          </>
         )}
       </Box>
 
@@ -1115,7 +1119,7 @@ function AssetDetailDrawer({
         fullWidth
       >
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {t('Complete & Archive Contract')}
+          {t('Complete & Archive Asset')}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>

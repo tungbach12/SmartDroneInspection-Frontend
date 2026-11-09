@@ -35,11 +35,13 @@ import {
 export interface EstimateTabProps {
   workOrder: WorkOrder;
   isOrgAdmin: boolean;
+  isEngineer?: boolean;
 }
 
 export function EstimateTab({
   workOrder,
   isOrgAdmin,
+  isEngineer = !isOrgAdmin,
 }: EstimateTabProps) {
   const { t } = useLocale();
   const estimates = useEstimateVersions(workOrder.id);
@@ -63,7 +65,7 @@ export function EstimateTab({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
           {t('Estimate versions')}
         </Typography>
-        {!isOrgAdmin && workOrder.status !== 'CLOSED' ? (
+        {isEngineer && workOrder.status !== 'CLOSED' ? (
           <Button size="small" variant="outlined" onClick={() => setOpen(true)} sx={{ textTransform: 'none', borderRadius: '8px' }}>
             {t('New estimate')}
           </Button>
@@ -113,7 +115,7 @@ export function EstimateTab({
                 </Typography>
               ) : null}
               <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                {!isOrgAdmin && version.status === 'DRAFT' ? (
+                {isEngineer && version.status === 'DRAFT' ? (
                   <Button
                     size="small"
                     variant="outlined"

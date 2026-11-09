@@ -16,6 +16,7 @@ import {
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
+import { resolveRowStageSubtitle } from '../utils/workflowStepResolver';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -42,8 +43,11 @@ interface InspectionListTableProps {
   onPageSizeChange: (pageSize: number) => void;
   /** Opens the inspection's own route, which is where the MF3 workflow lives. */
   onOpen: (inspectionId: string) => void;
+  /** Opens the full inspection overview dialog (schedule, airspace map, checkpoints, purpose). */
+  onOverview?: (inspectionId: string) => void;
   showReportColumn?: boolean;
   reviewerMode?: boolean;
+  roleView?: 'inspector' | 'manager';
   getActionLabel?: (row: InspectionListItem) => string | undefined;
 }
 
@@ -58,12 +62,40 @@ function formatDate(
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   } catch {
     return value;
   }
+}
+
+function formatWindowTime(
+  start: string | null,
+  end: string | null,
+  format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+): string | null {
+  if (!start) return null;
+  try {
+    const startTime = format(new Date(start), { hour: '2-digit', minute: '2-digit' });
+    if (!end) return startTime;
+    const endTime = format(new Date(end), { hour: '2-digit', minute: '2-digit' });
+    return `${startTime} – ${endTime}`;
+  } catch {
+    return null;
+  }
+}
+
+function parseLocationLabel(raw?: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { label?: string };
+      return parsed.label?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+  return trimmed;
 }
 
 /**
@@ -79,8 +111,10 @@ export function InspectionListTable({
   onPageChange,
   onPageSizeChange,
   onOpen,
+  onOverview,
   showReportColumn = false,
   reviewerMode = false,
+  roleView = 'inspector',
   getActionLabel,
 }: InspectionListTableProps) {
   const { t, formatDate: formatDateValue, formatNumber } = useLocale();
@@ -124,15 +158,18 @@ export function InspectionListTable({
                 sx={{
                   bgcolor: 'background.default',
                   color: 'text.secondary',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  fontWeight: 650,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
                   py: 1.5,
                   px: 2.5,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
+                  minWidth: 280,
                 }}
               >
-                {reviewerMode ? t('Inspection') : t('Asset & Mission Scope')}
+                {reviewerMode ? t('Inspection') : t('Asset')}
               </TableCell>
               {!reviewerMode && (
                 <>
@@ -140,47 +177,55 @@ export function InspectionListTable({
                     sx={{
                       bgcolor: 'background.default',
                       color: 'text.secondary',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                      fontWeight: 650,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
                       py: 1.5,
                       px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 140,
+                      width: 190,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('Status')}
+                    {t('Schedule')}
                   </TableCell>
                   <TableCell
                     sx={{
                       bgcolor: 'background.default',
                       color: 'text.secondary',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                      fontWeight: 650,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
                       py: 1.5,
                       px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 200,
+                      width: 185,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('Order & Net Payout')}
+                    {t('Stage')}
                   </TableCell>
                   <TableCell
                     sx={{
                       bgcolor: 'background.default',
                       color: 'text.secondary',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                      fontWeight: 650,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
                       py: 1.5,
                       px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 150,
-                      display: { xs: 'none', lg: 'table-cell' },
+                      width: 175,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('Updated')}
+                    {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
                   </TableCell>
                 </>
               )}
@@ -189,8 +234,10 @@ export function InspectionListTable({
                   sx={{
                     bgcolor: 'background.default',
                     color: 'text.secondary',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
+                    fontSize: '0.75rem',
+                    fontWeight: 650,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
                     py: 1.5,
                     px: 2,
                     borderBottom: '1px solid',
@@ -206,16 +253,19 @@ export function InspectionListTable({
                 sx={{
                   bgcolor: 'background.default',
                   color: 'text.secondary',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  fontWeight: 650,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
                   py: 1.5,
                   px: 2.5,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 130,
+                  width: 175,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {reviewerMode ? 'Reviewer action' : 'Action'}
+                {reviewerMode ? 'Reviewer action' : t('Action')}
               </TableCell>
             </TableRow>
           </TableHead>
@@ -232,6 +282,11 @@ export function InspectionListTable({
               rows.map((row) => {
                 const finance = resolveInspectorFinanceBreakdown(row.id, row);
                 const meta = resolveInspectionMetadata(row);
+                const locationLabel = parseLocationLabel(row.assetLocation);
+                const scheduleDate = formatDate(row.plannedStartAt ?? row.updatedAt, formatDateValue);
+                const scheduleWindow = formatWindowTime(row.plannedStartAt, row.plannedEndAt, formatDateValue);
+                const stageSubtitle = resolveRowStageSubtitle(row, roleView);
+
                 return (
                   <TableRow
                     key={row.id}
@@ -258,7 +313,7 @@ export function InspectionListTable({
                   >
                     <TableCell
                       sx={{
-                        py: 2,
+                        py: 1.75,
                         px: 2.5,
                         fontSize: '0.875rem',
                         fontWeight: 600,
@@ -267,15 +322,17 @@ export function InspectionListTable({
                         borderColor: 'divider',
                       }}
                     >
-                      <Stack spacing={0.5}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
                           <Typography
                             variant="body2"
+                            noWrap
+                            title={meta.displayName}
                             sx={{
-                              fontWeight: 600,
+                              fontWeight: 650,
                               color: 'text.primary',
-                              lineHeight: 1.4,
-                              maxWidth: 500,
+                              lineHeight: 1.35,
+                              maxWidth: { xs: 240, md: 360, lg: 440 },
                             }}
                           >
                             {meta.displayName}
@@ -288,9 +345,10 @@ export function InspectionListTable({
                               sx={{
                                 height: 18,
                                 borderRadius: '4px',
-                                fontSize: '0.75rem',
+                                fontSize: '0.7rem',
                                 fontFamily: 'monospace',
                                 fontWeight: 600,
+                                flexShrink: 0,
                               }}
                             />
                           )}
@@ -299,22 +357,29 @@ export function InspectionListTable({
                               size="small"
                               color="secondary"
                               label={t('Re-inspection')}
-                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700 }}
+                              sx={{ height: 18, fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}
                             />
                           )}
                         </Stack>
 
-                        {meta.objective && (
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                            {meta.objective}
-                          </Typography>
-                        )}
-
-                        {reviewerMode && (
+                        {reviewerMode ? (
                           <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
                             {t('Asset')} {row.assetId.slice(0, 8)}{t('… · Inspector')} {row.inspectorId.slice(0, 8)}…
                           </Typography>
-                        )}
+                        ) : (locationLabel || meta.objective) ? (
+                          <Typography
+                            variant="caption"
+                            noWrap
+                            title={locationLabel ?? meta.objective ?? undefined}
+                            sx={{
+                              color: 'text.secondary',
+                              display: 'block',
+                              maxWidth: { xs: 240, md: 360, lg: 440 },
+                            }}
+                          >
+                            {locationLabel ?? meta.objective}
+                          </Typography>
+                        ) : null}
                       </Stack>
                     </TableCell>
 
@@ -322,25 +387,99 @@ export function InspectionListTable({
                       <>
                       <TableCell
                         sx={{
-                          py: 2,
+                          py: 1.75,
                           px: 2,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                        <Stack spacing={0.25}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 600,
+                              color: 'text.primary',
+                              fontSize: '0.84rem',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {scheduleDate}
+                          </Typography>
+                          {scheduleWindow && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {scheduleWindow}
+                            </Typography>
+                          )}
+                        </Stack>
                       </TableCell>
 
                       <TableCell
                         sx={{
-                          py: 2,
+                          py: 1.75,
                           px: 2,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
+                          <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'text.secondary',
+                              fontSize: '0.72rem',
+                              fontWeight: 500,
+                              pl: 0.25,
+                            }}
+                          >
+                            {t(stageSubtitle)}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+
+                      <TableCell
+                        sx={{
+                          py: 1.75,
+                          px: 2,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {finance ? (
-                          <Stack spacing={0.25}>
+                          roleView === 'manager' ? (
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 700,
+                                  color: '#176B52',
+                                  fontSize: '0.875rem',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                +{formatNumber(finance.commissionAmount)} ₫
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'text.secondary',
+                                  fontSize: '0.72rem',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {t('Order')}: {formatNumber(finance.totalPrice)} ₫ ({finance.commissionRate}%)
+                              </Typography>
+                            </Stack>
+                          ) : (
                             <Typography
                               variant="body2"
                               sx={{
@@ -350,40 +489,14 @@ export function InspectionListTable({
                                 fontVariantNumeric: 'tabular-nums',
                               }}
                             >
-                              {t('Net')}: {formatNumber(finance.netPayoutAmount)} ₫
+                              {formatNumber(finance.netPayoutAmount)} ₫
                             </Typography>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: 'text.secondary',
-                                fontVariantNumeric: 'tabular-nums',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {t('Order')}: {formatNumber(finance.totalPrice)} ₫ (-
-                              {finance.commissionRate}% {t('comm.')})
-                            </Typography>
-                          </Stack>
+                          )
                         ) : (
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             {t('Standard rate')}
                           </Typography>
                         )}
-                      </TableCell>
-
-                      <TableCell
-                        sx={{
-                          py: 2,
-                          px: 2,
-                          color: 'text.secondary',
-                          fontSize: '0.875rem',
-                          borderBottom: '1px solid',
-                          borderColor: 'divider',
-                          whiteSpace: 'nowrap',
-                          display: { xs: 'none', lg: 'table-cell' },
-                        }}
-                      >
-                        {formatDate(row.updatedAt, formatDateValue)}
                       </TableCell>
                       </>
                     )}
@@ -447,40 +560,72 @@ export function InspectionListTable({
                         borderColor: 'divider',
                       }}
                     >
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onOpen(row.id);
-                        }}
-                        endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
-                        sx={{
-                          borderRadius: '8px',
-                          borderColor: 'divider',
-                          color: 'text.primary',
-                          fontWeight: 600,
-                          fontSize: '12px',
-                          px: 1.5,
-                          py: 0.5,
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            color: 'primary.main',
-                            bgcolor: 'primary.light',
-                          },
-                        }}
-                      >
-                        {(getActionLabel ? getActionLabel(row) : undefined) ??
-                          (reviewerMode
-                            ? row.pendingAction === 'REPORT_REVIEW'
-                              ? 'Review submission'
-                              : row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                                ? 'Record corrective outcome'
-                                : row.reportStatus === 'RETURNED'
-                                  ? 'Read returned report'
-                                  : 'Open report'
-                            : 'Open')}
-                      </Button>
+                      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {onOverview && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onOverview(row.id);
+                            }}
+                            sx={{
+                              borderRadius: '8px',
+                              borderColor: 'divider',
+                              color: 'text.secondary',
+                              fontWeight: 600,
+                              fontSize: '12px',
+                              textTransform: 'none',
+                              px: 1.25,
+                              py: 0.5,
+                              whiteSpace: 'nowrap',
+                              '&:hover': {
+                                borderColor: 'text.primary',
+                                color: 'text.primary',
+                                bgcolor: 'action.hover',
+                              },
+                            }}
+                          >
+                            {t('Overview')}
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onOpen(row.id);
+                          }}
+                          endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
+                          sx={{
+                            borderRadius: '8px',
+                            borderColor: 'divider',
+                            color: 'text.primary',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            textTransform: 'none',
+                            px: 1.5,
+                            py: 0.5,
+                            whiteSpace: 'nowrap',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              color: 'primary.main',
+                              bgcolor: 'primary.light',
+                            },
+                          }}
+                        >
+                          {(getActionLabel ? getActionLabel(row) : undefined) ??
+                            (reviewerMode
+                              ? row.pendingAction === 'REPORT_REVIEW'
+                                ? 'Review submission'
+                                : row.pendingAction === 'CORRECTIVE_DISPOSITION'
+                                  ? 'Record corrective outcome'
+                                  : row.reportStatus === 'RETURNED'
+                                    ? 'Read returned report'
+                                    : 'Open report'
+                              : 'Open')}
+                        </Button>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 );

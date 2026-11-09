@@ -5,12 +5,13 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import type { InspectionDetail } from '../api/inspectionApi';
 
 const mockNavigate = vi.fn();
+let mockPathname = '/operations/inspections';
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ pathname: '/operations/inspections' }),
+    useLocation: () => ({ pathname: mockPathname }),
   };
 });
 
@@ -52,7 +53,8 @@ vi.mock('../hooks/useInspections', () => ({
 describe('InspectionWorkDetailDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuthStore.setState({ roles: ['CUSTOMER'] });
+    mockPathname = '/operations/inspections';
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
     mockUseInspection.mockReturnValue({
       data: mockInspectionData,
       isLoading: false,
@@ -107,19 +109,19 @@ describe('InspectionWorkDetailDialog', () => {
     // Drone & Permit
     expect(screen.getByText(/DJI-MATRICE-300-RTK/)).toBeTruthy();
     expect(screen.getByText('PERMIT-MND-2026-088.pdf')).toBeTruthy();
-    expect(screen.getByText(/Uploaded/i)).toBeTruthy();
+    expect(screen.getAllByText(/Uploaded/i).length).toBeGreaterThanOrEqual(1);
 
     // Inspection checkpoints
     expect(screen.getByText('Cable Stay 1')).toBeTruthy();
     expect(screen.getByText('Pylon North')).toBeTruthy();
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
 
-    // Guidance banner for SCHEDULED
-    expect(screen.getByText(/This inspection is scheduled/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Open field session/i })).toBeTruthy();
+    // Guidance banner for SCHEDULED when permit is already uploaded -> pre-flight
+    expect(screen.getByText(/Flight permit uploaded/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Open pre-flight check/i })).toBeTruthy();
   });
 
-  it('navigates to field session when action button is clicked', () => {
+  it('navigates to pre-flight step when permit is uploaded and action button is clicked', () => {
     const handleClose = vi.fn();
     render(
       <InspectionWorkDetailDialog
@@ -129,11 +131,11 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    const actionButton = screen.getByRole('button', { name: /Open field session/i });
+    const actionButton = screen.getByRole('button', { name: /Open pre-flight check/i });
     fireEvent.click(actionButton);
 
     expect(handleClose).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
+    expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/pre-flight');
   });
 
   it('navigates to field-session when inspection status is IN_PROGRESS', () => {
@@ -154,8 +156,8 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    expect(screen.getByText(/Field session is actively in progress/i)).toBeTruthy();
-    const actionButton = screen.getByRole('button', { name: /Go to field session/i });
+    expect(screen.getByText(/Flight operation is actively in progress/i)).toBeTruthy();
+    const actionButton = screen.getByRole('button', { name: /Open flight operation/i });
     fireEvent.click(actionButton);
 
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/field-session');
@@ -176,7 +178,8 @@ describe('InspectionWorkDetailDialog', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd');
   });
 
-  it('renders aborted session warning alert and manager dispatch actions', () => {
+  it('renders aborted session warning alert and manager dispatch actions for MANAGER', () => {
+    useAuthStore.setState({ roles: ['MANAGER'] });
     mockUseFieldSessions.mockReturnValue({
       data: [
         {
@@ -203,5 +206,40 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText(/Heavy thunderstorm on site/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reschedule' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Cancel inspection' })).toBeTruthy();
+  });
+
+  it('hides manager reschedule and cancel actions from CUSTOMER', () => {
+    useAuthStore.setState({ roles: ['CUSTOMER'] });
+
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel inspection' })).toBeNull();
+  });
+
+  it('displays Partner Inspector and Customer stakeholder cards with profile and workspace links on /manager/inspections', () => {
+    mockPathname = '/manager/inspections';
+    useAuthStore.setState({ roles: ['MANAGER'] });
+
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Bob Inspector')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Inspector profile/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Customer info/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Customer info/i }));
+    expect(screen.getByRole('button', { name: /Service requests/i })).toBeTruthy();
   });
 });

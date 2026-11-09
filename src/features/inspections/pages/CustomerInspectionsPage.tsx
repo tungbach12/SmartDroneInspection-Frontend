@@ -21,9 +21,6 @@ import {
 import Add from '@mui/icons-material/Add';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
-import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAssets } from '@/features/assets/hooks/useAssets';
@@ -33,8 +30,44 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import type { InspectionListItem } from '../api/inspectionApi';
+import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
 import { useInspections } from '../hooks/useInspections';
+import {
+  resolveInitialStepForRow,
+  resolveRowStageSubtitle,
+} from '../utils/workflowStepResolver';
+
+function parseLocationLabel(raw?: string | null): string | null {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { label?: string };
+      return parsed.label?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+  return trimmed;
+}
+
+function formatWindowTime(
+  start: string | null,
+  end: string | null,
+  format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+): string | null {
+  if (!start) return null;
+  try {
+    const startTime = format(new Date(start), { hour: '2-digit', minute: '2-digit' });
+    if (!end) return startTime;
+    const endTime = format(new Date(end), { hour: '2-digit', minute: '2-digit' });
+    return `${startTime} – ${endTime}`;
+  } catch {
+    return null;
+  }
+}
 
 type CustomerQuickFilter = 'ALL' | 'IN_PROGRESS' | 'REPORT_READY' | 'ACTION_NEEDED';
 
@@ -45,35 +78,10 @@ interface EnrichedCustomerInspection extends InspectionListItem {
   resolvedReportAccepted: boolean;
   resolvedPaymentStatus: 'PAID' | 'PAYMENT_DUE' | 'PENDING' | 'NOT_APPLICABLE';
   resolvedPaymentAmount: number | null;
-  stageIndex: number;
-  stageShortLabel: string;
-}
-
-function computeStageInfo(row: InspectionListItem): { index: number; shortLabel: string } {
-  if (row.reportStatus === 'PUBLISHED') {
-    return { index: 5, shortLabel: 'Step 5/5 · Report published' };
-  }
-  if (
-    row.status === 'UNDER_REVIEW' ||
-    row.reportStatus === 'SUBMITTED'
-  ) {
-    return { index: 4, shortLabel: 'Step 4/5 · In technical review' };
-  }
-  if (row.status === 'FIELD_COMPLETED') {
-    return { index: 3, shortLabel: 'Step 3/5 · AI & findings' };
-  }
-  if (row.status === 'IN_PROGRESS') {
-    return { index: 2, shortLabel: 'Step 2/5 · Aerial flight' };
-  }
-  return { index: 1, shortLabel: 'Step 1/5 · Scheduled' };
 }
 
 /**
  * Customer Inspections & Deliverables Page (`/client/inspections`).
- *
- * Designed for low visual noise and full responsiveness:
- * - Desktop (`md+`): 4-column table (Asset & Scope, Status & Report, Service Fee, Action)
- * - Tablet/Mobile (`< md`): stacked responsive cards with zero horizontal overflow
  */
 export function CustomerInspectionsPage() {
   const { t, formatDate, formatNumber } = useLocale();
@@ -83,6 +91,7 @@ export function CustomerInspectionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
 
   const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
   const inspections = useInspections(listFilters, true);
@@ -149,7 +158,6 @@ export function CustomerInspectionsPage() {
     return rawItems.map((row) => {
       const asset = assetById.get(row.assetId);
       const occ = occurrenceByInspectionId.get(row.id);
-      const stage = computeStageInfo(row);
 
       const resolvedAssetName =
         row.assetName || asset?.name || `${t('Asset')} #${row.assetId.slice(0, 8)}`;
@@ -164,17 +172,20 @@ export function CustomerInspectionsPage() {
         occ?.paymentStatus ??
         'NOT_APPLICABLE'
       ).toUpperCase();
+      const isPublishedReport = row.reportStatus === 'PUBLISHED';
       const resolvedPaymentStatus: EnrichedCustomerInspection['resolvedPaymentStatus'] =
-        rawPaymentStatus === 'PAID'
-          ? 'PAID'
-          : rawPaymentStatus === 'PAYMENT_DUE'
-            ? 'PAYMENT_DUE'
-            : rawPaymentStatus === 'PENDING'
-              ? 'PENDING'
-              : 'NOT_APPLICABLE';
-      const resolvedReportAccepted = Boolean(
-        row.reportAccepted ?? occ?.reportAccepted ?? resolvedPaymentStatus === 'PAID',
-      );
+        !isPublishedReport
+          ? 'PENDING'
+          : rawPaymentStatus === 'PAID'
+            ? 'PAID'
+            : rawPaymentStatus === 'PAYMENT_DUE'
+              ? 'PAYMENT_DUE'
+              : rawPaymentStatus === 'PENDING'
+                ? 'PENDING'
+                : 'NOT_APPLICABLE';
+      const resolvedReportAccepted =
+        isPublishedReport &&
+        Boolean(row.reportAccepted ?? occ?.reportAccepted ?? resolvedPaymentStatus === 'PAID');
 
       return {
         ...row,
@@ -184,8 +195,6 @@ export function CustomerInspectionsPage() {
         resolvedReportAccepted,
         resolvedPaymentStatus,
         resolvedPaymentAmount,
-        stageIndex: stage.index,
-        stageShortLabel: stage.shortLabel,
       };
     });
   }, [inspections.data?.items, assetById, occurrenceByInspectionId, t]);
@@ -202,9 +211,6 @@ export function CustomerInspectionsPage() {
       (item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted) ||
       (item.pendingAction === 'CORRECTIVE_DISPOSITION' && item.inspectionType !== 'RE_INSPECTION'),
   );
-  const totalPaidVnd = enrichedItems
-    .filter((item) => item.resolvedPaymentStatus === 'PAID')
-    .reduce((sum, item) => sum + (item.resolvedPaymentAmount ?? 0), 0);
 
   const displayedItems = useMemo(() => {
     return enrichedItems.filter((item) => {
@@ -237,15 +243,14 @@ export function CustomerInspectionsPage() {
   }, [enrichedItems, quickFilter, searchQuery]);
 
   const openPrimaryDestination = (row: EnrichedCustomerInspection) => {
-    if (row.reportStatus === 'PUBLISHED') {
-      navigate(`${getSectionPath('client', 'inspections')}/${row.id}/report`);
-      return;
-    }
-    navigate(`${getSectionPath('client', 'inspections')}/${row.id}/tracking`);
-  };
-
-  const openMaintenanceHandoff = (inspectionId: string) => {
-    navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/corrective`);
+    const targetStep = resolveInitialStepForRow(row, 'customer', {
+      resolvedReportAccepted: row.resolvedReportAccepted,
+      resolvedPaymentStatus: row.resolvedPaymentStatus,
+    });
+    navigate(
+      `${getSectionPath('client', 'inspections')}/${row.id}/${targetStep}`,
+      targetStep === 'tracking' ? { state: { autoResumeStep: true } } : undefined,
+    );
   };
 
   const formatVnd = (amount: number | null) => {
@@ -256,8 +261,8 @@ export function CustomerInspectionsPage() {
   return (
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
-        title={t('Nhật ký & Lịch sử các đợt kiểm tra')}
-        subtitle={t('Theo dõi toàn bộ lịch sử đợt kiểm tra, tiến độ bay thực địa, báo cáo thẩm định và kết quả khắc phục công trình.')}
+        title={t('Inspections')}
+        subtitle={t('Monitor scheduled drone inspections, track field progress, review published reports, and settle service fees.')}
         actions={
           <Stack direction="row" spacing={1.5}>
             <Button
@@ -268,7 +273,7 @@ export function CustomerInspectionsPage() {
               disabled={inspections.isFetching}
               sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
             >
-              {inspections.isFetching ? t('Đang tải…') : t('Làm mới')}
+              {inspections.isFetching ? t('Loading…') : t('Refresh')}
             </Button>
             <Button
               variant="contained"
@@ -278,15 +283,14 @@ export function CustomerInspectionsPage() {
               sx={{
                 borderRadius: '8px',
                 px: 2,
-                bgcolor: '#087E8B',
+                bgcolor: 'primary.main',
                 fontSize: '0.875rem',
                 fontWeight: 600,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#066B70' },
               }}
             >
-              {t('Yêu cầu kiểm định mới')}
+              {t('New inspection request')}
             </Button>
           </Stack>
         }
@@ -376,26 +380,6 @@ export function CustomerInspectionsPage() {
                   },
                 }}
               />
-              {totalPaidVnd > 0 && (
-                <Chip
-                  icon={<PaidOutlined sx={{ fontSize: '15px !important', color: '#176B52' }} />}
-                  label={`${formatNumber(totalPaidVnd)} ₫ ${t('settled')}`}
-                  variant="outlined"
-                  size="small"
-                  sx={{
-                    height: 32,
-                    borderRadius: '8px',
-                    fontSize: '0.75rem',
-                    fontWeight: 650,
-                    color: '#176B52',
-                    borderColor: 'rgba(23, 107, 82, 0.3)',
-                    bgcolor: 'rgba(23, 107, 82, 0.04)',
-                    display: { xs: 'none', sm: 'inline-flex' },
-                    flexShrink: 0,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                />
-              )}
             </Stack>
           </Stack>
         </Paper>
@@ -442,11 +426,12 @@ export function CustomerInspectionsPage() {
                         fontWeight: 650,
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        py: 1.25,
+                        py: 1.5,
                         px: 2.5,
+                        minWidth: 280,
                       }}
                     >
-                      {t('Asset & Scope')}
+                      {t('Asset')}
                     </TableCell>
                     <TableCell
                       sx={{
@@ -456,24 +441,42 @@ export function CustomerInspectionsPage() {
                         fontWeight: 650,
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        py: 1.25,
-                        px: 2,
-                        width: 240,
-                      }}
-                    >
-                      {t('Report & Progress')}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: 'background.default',
-                        color: 'text.secondary',
-                        fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                        py: 1.25,
+                        py: 1.5,
                         px: 2,
                         width: 190,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t('Schedule')}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        bgcolor: 'background.default',
+                        color: 'text.secondary',
+                        fontSize: '0.75rem',
+                        fontWeight: 650,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        py: 1.5,
+                        px: 2,
+                        width: 195,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t('Stage')}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        bgcolor: 'background.default',
+                        color: 'text.secondary',
+                        fontSize: '0.75rem',
+                        fontWeight: 650,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        py: 1.5,
+                        px: 2,
+                        width: 165,
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {t('Service Fee')}
@@ -487,9 +490,10 @@ export function CustomerInspectionsPage() {
                         fontWeight: 650,
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        py: 1.25,
+                        py: 1.5,
                         px: 2.5,
-                        width: 220,
+                        width: 195,
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {t('Action')}
@@ -500,10 +504,28 @@ export function CustomerInspectionsPage() {
                 <TableBody>
                   {displayedItems.map((row) => {
                     const isPublished = row.reportStatus === 'PUBLISHED';
-                    const needsMaintenance =
-                      row.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-                      row.inspectionType !== 'RE_INSPECTION';
                     const feeDisplay = formatVnd(row.resolvedPaymentAmount);
+                    const locationLabel = parseLocationLabel(row.assetLocation);
+                    const scheduleDate = row.plannedStartAt
+                      ? formatDate(new Date(row.plannedStartAt), {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : formatDate(new Date(row.updatedAt), {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        });
+                    const scheduleWindow = formatWindowTime(
+                      row.plannedStartAt,
+                      row.plannedEndAt,
+                      formatDate,
+                    );
+                    const customerStepSubtitle = resolveRowStageSubtitle(row, 'customer', {
+                      resolvedReportAccepted: row.resolvedReportAccepted,
+                      resolvedPaymentStatus: row.resolvedPaymentStatus,
+                    });
 
                     return (
                       <TableRow
@@ -525,17 +547,24 @@ export function CustomerInspectionsPage() {
                           '&:hover': { bgcolor: 'action.hover' },
                         }}
                       >
-                        {/* Col 1: Asset & Scope (2 concise lines) */}
+                        {/* Col 1: Asset & Location (Clean 2 lines) */}
                         <TableCell sx={{ py: 1.75, px: 2.5 }}>
-                          <Stack spacing={0.5}>
+                          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                             <Stack
                               direction="row"
                               spacing={1}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}
+                              sx={{ alignItems: 'center', minWidth: 0 }}
                             >
                               <Typography
                                 variant="body2"
-                                sx={{ fontWeight: 650, color: 'text.primary', fontSize: '0.875rem' }}
+                                noWrap
+                                title={row.resolvedAssetName}
+                                sx={{
+                                  fontWeight: 650,
+                                  color: 'text.primary',
+                                  fontSize: '0.875rem',
+                                  maxWidth: { md: 320, lg: 420 },
+                                }}
                               >
                                 {row.resolvedAssetName}
                               </Typography>
@@ -545,11 +574,12 @@ export function CustomerInspectionsPage() {
                                   label={row.resolvedAssetCode}
                                   variant="outlined"
                                   sx={{
-                                    height: 20,
-                                    borderRadius: '5px',
-                                    fontSize: '0.75rem',
+                                    height: 18,
+                                    borderRadius: '4px',
+                                    fontSize: '0.7rem',
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
+                                    flexShrink: 0,
                                   }}
                                 />
                               )}
@@ -559,10 +589,11 @@ export function CustomerInspectionsPage() {
                                   color="secondary"
                                   label={t('Re-inspection')}
                                   sx={{
-                                    height: 20,
-                                    borderRadius: '5px',
-                                    fontSize: '0.75rem',
+                                    height: 18,
+                                    borderRadius: '4px',
+                                    fontSize: '0.7rem',
                                     fontWeight: 650,
+                                    flexShrink: 0,
                                   }}
                                 />
                               )}
@@ -570,88 +601,68 @@ export function CustomerInspectionsPage() {
 
                             <Typography
                               variant="caption"
+                              noWrap
+                              title={locationLabel ?? row.resolvedObjective}
                               sx={{
                                 color: 'text.secondary',
                                 display: 'block',
-                                fontVariantNumeric: 'tabular-nums',
+                                maxWidth: { md: 320, lg: 420 },
                               }}
                             >
-                              {row.resolvedObjective}
-                              {row.plannedStartAt
-                                ? ` · ${formatDate(new Date(row.plannedStartAt), {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })}`
-                                : ''}
+                              {locationLabel ?? row.resolvedObjective}
                             </Typography>
                           </Stack>
                         </TableCell>
 
-                        {/* Col 2: Consolidated Report & Progress */}
-                        <TableCell sx={{ py: 1.75, px: 2 }}>
-                          {isPublished ? (
-                            <Stack spacing={0.5}>
-                              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                                <CheckCircleRounded sx={{ fontSize: 16, color: '#176B52' }} />
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    fontWeight: 650,
-                                    color: '#176B52',
-                                    fontSize: '0.875rem',
-                                    fontVariantNumeric: 'tabular-nums',
-                                  }}
-                                >
-                                  {t('Report ready')} · v{row.reportVersionNo ?? 1}
-                                </Typography>
-                              </Stack>
+                        {/* Col 2: Schedule */}
+                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                          <Stack spacing={0.25}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                fontSize: '0.84rem',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {scheduleDate}
+                            </Typography>
+                            {scheduleWindow && (
                               <Typography
                                 variant="caption"
                                 sx={{
-                                  color: row.resolvedReportAccepted ? 'text.secondary' : '#8C520B',
-                                  fontWeight: row.resolvedReportAccepted ? 500 : 650,
+                                  color: 'text.secondary',
+                                  fontVariantNumeric: 'tabular-nums',
                                 }}
                               >
-                                {row.resolvedReportAccepted
-                                  ? t('✓ Accepted')
-                                  : t('● Awaiting your acceptance')}
+                                {scheduleWindow}
                               </Typography>
-                            </Stack>
-                          ) : (
-                            <Stack spacing={0.5}>
-                              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                                <HourglassEmptyRounded sx={{ fontSize: 16, color: '#225F85' }} />
-                                <Typography
-                                  variant="body2"
-                                  sx={{ fontWeight: 600, color: '#225F85', fontSize: '0.875rem' }}
-                                >
-                                  {t(row.stageShortLabel)}
-                                </Typography>
-                              </Stack>
-                              <Stack direction="row" spacing={0.5} sx={{ maxWidth: 120, pt: 0.25 }}>
-                                {[1, 2, 3, 4, 5].map((step) => (
-                                  <Box
-                                    key={step}
-                                    sx={{
-                                      flex: 1,
-                                      height: 3.5,
-                                      borderRadius: '3px',
-                                      bgcolor:
-                                        step <= row.stageIndex
-                                          ? 'primary.main'
-                                          : 'divider',
-                                    }}
-                                  />
-                                ))}
-                              </Stack>
-                            </Stack>
-                          )}
+                            )}
+                          </Stack>
                         </TableCell>
 
-                        {/* Col 3: Service Fee (Clean Amount + Compact Badge) */}
-                        <TableCell sx={{ py: 1.75, px: 2 }}>
-                          <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+                        {/* Col 3: Stage & Status */}
+                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                          <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
+                            <StatusChip status={isPublished ? 'PUBLISHED' : row.status} />
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: 'text.secondary',
+                                fontSize: '0.72rem',
+                                fontWeight: 500,
+                                pl: 0.25,
+                              }}
+                            >
+                              {customerStepSubtitle}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+
+                        {/* Col 4: Service Fee */}
+                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                          <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
                             <Typography
                               variant="body2"
                               sx={{
@@ -663,91 +674,91 @@ export function CustomerInspectionsPage() {
                             >
                               {feeDisplay ?? t('Included')}
                             </Typography>
-                            {row.resolvedPaymentStatus === 'PAID' ? (
-                              <Chip
-                                size="small"
-                                label={t('Paid')}
-                                sx={{
-                                  height: 20,
-                                  borderRadius: '5px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 650,
-                                  bgcolor: 'rgba(23, 107, 82, 0.1)',
-                                  color: '#176B52',
-                                }}
-                              />
-                            ) : row.resolvedPaymentStatus === 'PAYMENT_DUE' ? (
-                              <Chip
-                                size="small"
-                                label={t('Payment due via PayOS')}
-                                sx={{
-                                  height: 20,
-                                  borderRadius: '5px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 650,
-                                  bgcolor: 'rgba(140, 82, 11, 0.12)',
-                                  color: '#8C520B',
-                                }}
-                              />
-                            ) : (
-                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                {isPublished ? t('Accept to pay') : t('Billed on report')}
-                              </Typography>
-                            )}
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: '0.72rem',
+                                color:
+                                  row.resolvedPaymentStatus === 'PAID'
+                                    ? '#176B52'
+                                    : row.resolvedPaymentStatus === 'PAYMENT_DUE'
+                                      ? '#8C520B'
+                                      : 'text.secondary',
+                              }}
+                            >
+                              {row.resolvedPaymentStatus === 'PAID'
+                                ? t('Paid')
+                                : row.resolvedPaymentStatus === 'PAYMENT_DUE'
+                                  ? t('Payment due')
+                                  : isPublished
+                                    ? t('Accept to pay')
+                                    : t('Billed on report')}
+                            </Typography>
                           </Stack>
                         </TableCell>
 
-                        {/* Col 4: Actions (Horizontal on single row) */}
-                        <TableCell align="right" sx={{ py: 1.75, px: 2.5 }}>
+                        {/* Col 5: Actions (Clean 2 buttons: Overview + Open) */}
+                        <TableCell align="right" sx={{ py: 1.75, px: 2.5, whiteSpace: 'nowrap' }}>
                           <Stack
                             direction="row"
                             spacing={1}
                             sx={{ justifyContent: 'flex-end', alignItems: 'center' }}
                           >
-                            {needsMaintenance && (
-                              <Button
-                                size="small"
-                                variant="text"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openMaintenanceHandoff(row.id);
-                                }}
-                                sx={{
-                                  borderRadius: '8px',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem',
-                                  textTransform: 'none',
-                                  color: '#8C520B',
-                                  px: 1,
-                                  py: 0.5,
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {t('Maintenance')}
-                              </Button>
-                            )}
                             <Button
                               size="small"
-                              variant={
-                                isPublished && !row.resolvedReportAccepted ? 'contained' : 'outlined'
-                              }
+                              variant="outlined"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedWorkDetailId(row.id);
+                              }}
+                              sx={{
+                                borderRadius: '8px',
+                                borderColor: 'divider',
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                textTransform: 'none',
+                                px: 1.25,
+                                py: 0.5,
+                                whiteSpace: 'nowrap',
+                                '&:hover': {
+                                  borderColor: 'text.primary',
+                                  color: 'text.primary',
+                                  bgcolor: 'action.hover',
+                                },
+                              }}
+                            >
+                              {t('Overview')}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              aria-label={isPublished ? t('View report') : t('Open')}
                               onClick={(event) => {
                                 event.stopPropagation();
                                 openPrimaryDestination(row);
                               }}
-                              endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
+                              endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
                               sx={{
                                 borderRadius: '8px',
+                                borderColor: 'divider',
+                                color: 'text.primary',
                                 fontWeight: 600,
-                                fontSize: '0.75rem',
+                                fontSize: '12px',
                                 textTransform: 'none',
                                 px: 1.5,
                                 py: 0.5,
                                 boxShadow: 'none',
                                 whiteSpace: 'nowrap',
+                                '&:hover': {
+                                  borderColor: 'primary.main',
+                                  color: 'primary.main',
+                                  bgcolor: 'primary.light',
+                                },
                               }}
                             >
-                              {isPublished ? t('View report') : t('Track progress')}
+                              {t('Open')}
                             </Button>
                           </Stack>
                         </TableCell>
@@ -765,9 +776,6 @@ export function CustomerInspectionsPage() {
             >
               {displayedItems.map((row) => {
                 const isPublished = row.reportStatus === 'PUBLISHED';
-                const needsMaintenance =
-                  row.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-                  row.inspectionType !== 'RE_INSPECTION';
                 const feeDisplay = formatVnd(row.resolvedPaymentAmount);
 
                 return (
@@ -796,25 +804,7 @@ export function CustomerInspectionsPage() {
                             {row.resolvedObjective}
                           </Typography>
                         </Box>
-                        <Chip
-                          size="small"
-                          label={
-                            isPublished
-                              ? `${t('Report')} v${row.reportVersionNo ?? 1}`
-                              : t(row.stageShortLabel)
-                          }
-                          sx={{
-                            height: 22,
-                            borderRadius: '5px',
-                            fontSize: '0.75rem',
-                            fontWeight: 650,
-                            flexShrink: 0,
-                            bgcolor: isPublished
-                              ? 'rgba(23, 107, 82, 0.1)'
-                              : 'rgba(34, 95, 133, 0.1)',
-                            color: isPublished ? '#176B52' : '#225F85',
-                          }}
-                        />
+                        <StatusChip status={isPublished ? 'PUBLISHED' : row.status} />
                       </Stack>
 
                       <Stack
@@ -837,56 +827,52 @@ export function CustomerInspectionsPage() {
                           >
                             {feeDisplay ?? t('Included')}
                           </Typography>
-                          <Chip
-                            size="small"
-                            label={
-                              row.resolvedPaymentStatus === 'PAID'
-                                ? t('Paid')
-                                : row.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                  ? t('Payment due')
-                                  : t('Pending')
-                            }
+                          <Typography
+                            variant="caption"
                             sx={{
-                              height: 20,
-                              borderRadius: '5px',
-                              fontSize: '0.75rem',
                               fontWeight: 600,
-                              bgcolor:
-                                row.resolvedPaymentStatus === 'PAID'
-                                  ? 'rgba(23, 107, 82, 0.1)'
-                                  : 'action.hover',
                               color:
                                 row.resolvedPaymentStatus === 'PAID'
                                   ? '#176B52'
-                                  : 'text.secondary',
+                                  : row.resolvedPaymentStatus === 'PAYMENT_DUE'
+                                    ? '#8C520B'
+                                    : 'text.secondary',
                             }}
-                          />
+                          >
+                            {row.resolvedPaymentStatus === 'PAID'
+                              ? t('Paid')
+                              : row.resolvedPaymentStatus === 'PAYMENT_DUE'
+                                ? t('Payment due')
+                                : isPublished
+                                  ? t('Accept to pay')
+                                  : t('Billed on report')}
+                          </Typography>
                         </Stack>
 
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          {needsMaintenance && (
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openMaintenanceHandoff(row.id);
-                              }}
-                              sx={{
-                                borderRadius: '8px',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                                textTransform: 'none',
-                                color: '#8C520B',
-                                px: 1,
-                              }}
-                            >
-                              {t('Maintenance')}
-                            </Button>
-                          )}
                           <Button
                             size="small"
                             variant="outlined"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedWorkDetailId(row.id);
+                            }}
+                            sx={{
+                              borderRadius: '8px',
+                              borderColor: 'divider',
+                              color: 'text.secondary',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              textTransform: 'none',
+                              px: 1.25,
+                            }}
+                          >
+                            {t('Overview')}
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            aria-label={isPublished ? t('View report') : t('Open')}
                             onClick={(event) => {
                               event.stopPropagation();
                               openPrimaryDestination(row);
@@ -900,7 +886,7 @@ export function CustomerInspectionsPage() {
                               px: 1.5,
                             }}
                           >
-                            {isPublished ? t('View report') : t('Track')}
+                            {t('Open')}
                           </Button>
                         </Stack>
                       </Stack>
@@ -929,6 +915,12 @@ export function CustomerInspectionsPage() {
           </Paper>
         </QueryState>
       </Stack>
+
+      <InspectionWorkDetailDialog
+        open={Boolean(selectedWorkDetailId)}
+        inspectionId={selectedWorkDetailId}
+        onClose={() => setSelectedWorkDetailId(null)}
+      />
     </Box>
   );
 }

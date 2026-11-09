@@ -34,15 +34,23 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
+export interface CustomerReportDeliverablePageProps {
+  stage?: 'report' | 'settlement';
+}
+
 /**
- * Dedicated Customer Official Report & Deliverable Settlement Page (/client/inspections/:id/report).
+ * Dedicated Customer Official Report & Deliverable Settlement Page (/client/inspections/:id/report | /settlement).
  * Handles Customer report acceptance, service invoice payment (PayOS / VNPay), and forwarding confirmed findings to Maintenance.
  */
-export default function CustomerReportDeliverablePage() {
+export default function CustomerReportDeliverablePage({
+  stage,
+}: CustomerReportDeliverablePageProps = {}) {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const showReportContent = !stage || stage === 'report';
+  const showSettlementContent = !stage || stage === 'settlement';
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [disputeOpen, setDisputeOpen] = useState(false);
@@ -155,20 +163,7 @@ export default function CustomerReportDeliverablePage() {
       >
         {openVersion && (
           <Stack spacing={3}>
-            <Alert
-              severity={openVersion.status === 'PUBLISHED' ? 'success' : 'info'}
-              sx={{
-                borderRadius: '10px',
-                fontWeight: 500,
-                fontSize: '0.875rem',
-              }}
-            >
-              {openVersion.status === 'PUBLISHED'
-                ? `${t('Published version')} ${openVersion.versionNo}. The PDF is immutable; forward confirmed findings to maintenance individually when they require corrective work.`
-                : openVersion.status}
-            </Alert>
-
-            {openVersion.status === 'PUBLISHED' && (
+            {showSettlementContent && openVersion.status === 'PUBLISHED' && (
               <CustomerReportSettlementCard
                 inspectionId={inspectionId}
                 versionId={openVersion.id}
@@ -194,7 +189,7 @@ export default function CustomerReportDeliverablePage() {
               />
             )}
 
-            {publishedUnhanded && !isReinspection && (
+            {showSettlementContent && publishedUnhanded && !isReinspection && (
               <Paper
                 variant="outlined"
                 sx={{
@@ -231,7 +226,7 @@ export default function CustomerReportDeliverablePage() {
               </Paper>
             )}
 
-            {publishedUnhanded && isReinspection && (
+            {showSettlementContent && publishedUnhanded && isReinspection && (
               <Alert severity="info" sx={{ borderRadius: '10px' }}>
                 {t(
                   'This is a re-inspection deliverable verifying previous repair work. Findings verification has been recorded directly to the linked maintenance work order.',
@@ -239,18 +234,20 @@ export default function CustomerReportDeliverablePage() {
               </Alert>
             )}
 
-            <ReportDeliverableTabs
-              inspectionId={inspectionId}
-              versions={versions.data}
-              openVersion={openVersion}
-              onSelectVersion={setOpenVersionId}
-              findings={findings.data ?? []}
-              evidenceList={evidence.data ?? []}
-              reinspectionVerifications={reinspectionVerifications.data}
-              assetName={inspectionQuery.data?.assetName}
-              droneSummary={resolvedDroneSummary}
-              flightPermitFileName={resolvedPermitFileName}
-            />
+            {showReportContent && (
+              <ReportDeliverableTabs
+                inspectionId={inspectionId}
+                versions={versions.data}
+                openVersion={openVersion}
+                onSelectVersion={setOpenVersionId}
+                findings={findings.data ?? []}
+                evidenceList={evidence.data ?? []}
+                reinspectionVerifications={reinspectionVerifications.data}
+                assetName={inspectionQuery.data?.assetName}
+                droneSummary={resolvedDroneSummary}
+                flightPermitFileName={resolvedPermitFileName}
+              />
+            )}
           </Stack>
         )}
       </QueryState>

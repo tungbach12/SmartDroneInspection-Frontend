@@ -40,9 +40,15 @@ import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getSectionPath, PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
-import type { InspectionStatus } from '../api/inspectionApi';
 import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { AirspaceFlightPlannerDialog } from '@/shared/airspace/AirspaceFlightPlannerDialog';
+import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
+import {
+  resolveOverviewGuidance,
+  type InspectionRoleView,
+} from '../utils/workflowStepResolver';
+import { OverviewFinanceSection } from './OverviewFinanceSection';
+import { OverviewStakeholdersSection } from './OverviewStakeholdersSection';
 
 export interface InspectionWorkDetailDialogProps {
   open: boolean;
@@ -60,10 +66,19 @@ export function InspectionWorkDetailDialog({
   const location = useLocation();
 
   const roles = useAuthStore((state) => state.roles);
-  const canManage =
-    roles.includes('MANAGER') || roles.includes('ADMIN') || roles.includes('CUSTOMER');
-
   const portal = (location.pathname.split('/').filter(Boolean)[0] ?? PORTAL_IDS[0]) as PortalId;
+  const isManagerOrAdminPortal = portal === 'manager' || portal === 'admin';
+  const isClientPortal = portal === 'client';
+  const roleView: InspectionRoleView = isManagerOrAdminPortal
+    ? 'manager'
+    : isClientPortal
+      ? 'customer'
+      : 'inspector';
+
+  // Only Platform Manager or Admin can reschedule or cancel dispatched missions.
+  const canManage =
+    !isClientPortal && (roles.includes('MANAGER') || roles.includes('ADMIN'));
+
   const inspectionQuery = useInspection(inspectionId, open && Boolean(inspectionId));
   const inspection = inspectionQuery.data;
   const [surveyMapOpen, setSurveyMapOpen] = useState(false);
@@ -88,96 +103,10 @@ export function InspectionWorkDetailDialog({
     navigate(destination);
   };
 
-  const isManagerOrAdminPortal = portal === 'manager' || portal === 'admin';
-  const isClientPortal = portal === 'client';
-
-  const getWorkflowGuidance = (status: InspectionStatus) => {
-    if (isManagerOrAdminPortal) {
-      switch (status) {
-        case 'UNDER_REVIEW':
-          return {
-            tip: t('Report submitted. Review the submitted report, record a decision, and publish approved versions.'),
-            actionLabel: t('Review submitted report'),
-            subpath: 'review',
-          };
-        case 'COMPLETED':
-          return {
-            tip: t('Inspection report is officially published.'),
-            actionLabel: t('View published report'),
-            subpath: 'review',
-          };
-        default:
-          return {
-            tip: `${t('Inspection is in status')}: ${status}`,
-            actionLabel: t('Open inspection details'),
-            subpath: 'review',
-          };
-      }
-    }
-    if (isClientPortal) {
-      switch (status) {
-        case 'COMPLETED':
-          return {
-            tip: t('Inspection report is officially published.'),
-            actionLabel: t('View published report'),
-            subpath: 'report',
-          };
-        default:
-          return {
-            tip: `${t('Inspection is in status')}: ${status}`,
-            actionLabel: t('Track inspection progress'),
-            subpath: 'tracking',
-          };
-      }
-    }
-    switch (status) {
-      case 'SCHEDULED':
-        return {
-          tip: t('This inspection is scheduled. Upload the regulatory flight permit in the field session to unlock flight readiness.'),
-          actionLabel: t('Open field session'),
-          subpath: 'field-session',
-        };
-      case 'IN_PROGRESS':
-        return {
-          tip: t('Field session is actively in progress. Record pre-flight checklist notes or complete the flight session.'),
-          actionLabel: t('Go to field session'),
-          subpath: 'field-session',
-        };
-      case 'FIELD_COMPLETED':
-        return {
-          tip: t('Field flight completed. Upload captured drone evidence, review AI detections, confirm findings, and draft report.'),
-          actionLabel: t('Review evidence & findings'),
-          subpath: 'evidence',
-        };
-      case 'UNDER_REVIEW':
-        return {
-          tip: t('Report submitted. Awaiting reviewer approval and publication.'),
-          actionLabel: t('View submitted report'),
-          subpath: 'report',
-        };
-      case 'COMPLETED':
-        return {
-          tip: t('Inspection report is officially published.'),
-          actionLabel: t('View published report'),
-          subpath: 'report',
-        };
-      case 'CANCELLED':
-        return {
-          tip: t('This inspection has been cancelled.'),
-          actionLabel: t('Open inspection details'),
-          subpath: '',
-        };
-      default:
-        return {
-          tip: `${t('Inspection is in status')}: ${status}`,
-          actionLabel: t('Open inspection details'),
-          subpath: '',
-        };
-    }
-  };
-
   const inspectionItems = inspection?.inspectionItems ?? [];
-  const guidance = inspection ? getWorkflowGuidance(inspection.status) : null;
+  const guidance = inspection ? resolveOverviewGuidance(inspection, roleView, t) : null;
+  const meta = resolveInspectionMetadata(inspection);
+  const finance = inspectionId ? resolveInspectorFinanceBreakdown(inspectionId, null) : null;
 
   return (
     <Dialog
@@ -327,6 +256,15 @@ export function InspectionWorkDetailDialog({
                   {guidance.actionLabel}
                 </Button>
               </Paper>
+            )}
+
+            {/* Mission Stakeholders (Partner Inspector & Customer Account) for Manager / Admin */}
+            {roleView === 'manager' && (
+              <OverviewStakeholdersSection
+                inspection={inspection}
+                portal={portal}
+                onNavigateAway={onClose}
+              />
             )}
 
             {/* General Time & Location Card */}
@@ -494,6 +432,16 @@ export function InspectionWorkDetailDialog({
                 {t('Mission tasks & specifications')}
               </Typography>
               <Stack spacing={2}>
+                {meta.objective && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      {t('Mission scope')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 500, mt: 0.25 }}>
+                      {meta.objective}
+                    </Typography>
+                  </Box>
+                )}
                 <Box>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                     {t('Target components to inspect')}
@@ -516,6 +464,9 @@ export function InspectionWorkDetailDialog({
                     </Typography>
                   )}
                 </Box>
+                {finance && (
+                  <OverviewFinanceSection finance={finance} roleView={roleView} />
+                )}
               </Stack>
             </Paper>
           </Stack>

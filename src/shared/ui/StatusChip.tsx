@@ -1,4 +1,4 @@
-import { Box, Chip, type ChipProps } from '@mui/material';
+import { Chip, type ChipProps } from '@mui/material';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 
@@ -129,19 +129,6 @@ export function StatusChip({ status, size = 'small' }: StatusChipProps) {
       size={size}
       color={theme.variant}
       label={t(status)}
-      icon={
-        <Box
-          component="span"
-          sx={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            bgcolor: `${isDark ? theme.darkDot : theme.dot} !important`,
-            ml: '9px !important',
-            mr: '-4px !important',
-          }}
-        />
-      }
       sx={{
         borderRadius: '9999px',
         bgcolor: `${isDark ? theme.darkBg : theme.bg} !important`,
@@ -152,7 +139,7 @@ export function StatusChip({ status, size = 'small' }: StatusChipProps) {
         height: size === 'medium' ? '28px' : '24px',
         letterSpacing: '0.01em',
         '& .MuiChip-label': {
-          px: 1,
+          px: 1.25,
         },
       }}
     />

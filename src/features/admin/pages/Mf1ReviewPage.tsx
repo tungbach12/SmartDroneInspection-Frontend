@@ -1167,7 +1167,7 @@ export default function Mf1ReviewPage() {
               {panel !== 'Drone history' && (
                 <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
-                    Quyết định của Platform Manager
+                    {isAdmin ? 'Quyết định của Platform Admin' : 'Quyết định của Platform Manager'}
                   </Typography>
 
                   <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>

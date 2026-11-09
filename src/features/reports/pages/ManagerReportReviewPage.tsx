@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -17,6 +17,7 @@ import {
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
+  useFieldSessions,
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
@@ -26,6 +27,7 @@ import {
   useReviewReportVersion,
 } from '@/features/inspections/hooks/useInspections';
 import { PlatformSettlementInvoiceCard } from '@/features/inspections/components/PlatformSettlementInvoiceCard';
+import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -35,18 +37,17 @@ import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblem
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-const MANAGER_STATUS_BANNER: Record<string, string> = {
-  SUBMITTED: 'Waiting for a qualified reviewer to publish or return.',
-  RETURNED: 'Returned to the author for revision.',
-  PUBLISHED: 'Published. This version is immutable.',
-  SUPERSEDED: 'Superseded by a later version.',
-};
+export interface ManagerReportReviewPageProps {
+  stage?: 'audit' | 'review' | 'settlement';
+}
 
 /**
- * Dedicated Report Review page for Platform Manager (/manager/inspections/:id/review).
+ * Dedicated Report Review page for Platform Manager (/manager/inspections/:id/audit | /review | /settlement).
  * Focused strictly on reviewing submitted reports, publishing approved versions, and viewing platform commission.
  */
-export default function ManagerReportReviewPage() {
+export default function ManagerReportReviewPage({
+  stage,
+}: ManagerReportReviewPageProps = {}) {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const navigate = useNavigate();
@@ -54,12 +55,16 @@ export default function ManagerReportReviewPage() {
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const userId = useAuthStore((state) => state.userId);
+  const showAuditStage = stage === 'audit';
+  const showReviewStage = !stage || stage === 'review';
+  const showSettlementStage = !stage || stage === 'settlement';
 
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
   const [showReturnBox, setShowReturnBox] = useState(false);
 
   const inspectionQuery = useInspection(inspectionId);
+  const fieldSessionsQuery = useFieldSessions(inspectionId);
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
@@ -126,6 +131,62 @@ export default function ManagerReportReviewPage() {
         </Box>
       )}
 
+      {showAuditStage ? (
+        <Stack spacing={2.5}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              borderRadius: '10px',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { sm: 'center' },
+              justifyContent: 'space-between',
+              gap: 1.5,
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {t('Field & Evidence Audit')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {`${t('Captures')}: ${(evidence.data ?? []).filter((e) => !e.isDeleted).length} · ${t('Confirmed findings')}: ${(findings.data ?? []).filter((f) => f.status === 'CONFIRMED' && !f.isDeleted).length}`}
+              </Typography>
+            </Box>
+            <Button
+              component={RouterLink}
+              to="../review"
+              variant="contained"
+              sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
+            >
+              {t('Continue to Report Decision')}
+            </Button>
+          </Paper>
+
+          <FlightOperationsReportView
+            inspectionId={inspectionId}
+            fieldSessionId={
+              openVersion?.reportContext?.fieldSessions?.at(-1)?.id ??
+              fieldSessionsQuery.data?.at(-1)?.id ??
+              null
+            }
+            version={openVersion}
+            evidenceList={evidence.data ?? []}
+            assetName={inspectionQuery.data?.assetName}
+            droneSummary={resolvedDroneSummary}
+            flightPermitFileName={resolvedPermitFileName}
+          />
+        </Stack>
+      ) : showSettlementStage && stage === 'settlement' ? (
+        <Stack spacing={2.5}>
+          <PlatformSettlementInvoiceCard
+            inspectionId={inspectionId}
+            paymentDetails={paymentStatusQuery.data}
+          />
+        </Stack>
+      ) : (
       <QueryState
         isLoading={versions.isLoading}
         error={versions.error}
@@ -140,26 +201,7 @@ export default function ManagerReportReviewPage() {
       >
         {openVersion && (
           <Stack spacing={3}>
-            <Alert
-              severity={
-                openVersion.status === 'PUBLISHED' ||
-                (review.isSuccess && !review.variables?.reason)
-                  ? 'success'
-                  : 'info'
-              }
-              sx={{
-                borderRadius: '10px',
-                fontWeight: 500,
-                fontSize: '0.875rem',
-              }}
-            >
-              {openVersion.status === 'PUBLISHED' ||
-              (review.isSuccess && !review.variables?.reason)
-                ? `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. ${t('This version is immutable and delivered to the Customer.')}`
-                : (MANAGER_STATUS_BANNER[openVersion.status] ?? openVersion.status)}
-            </Alert>
-
-            {openVersion.status === 'SUBMITTED' && !isAuthor && (
+            {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
               <Paper
                 variant="outlined"
                 sx={{
@@ -269,26 +311,31 @@ export default function ManagerReportReviewPage() {
               </Paper>
             )}
 
-            <PlatformSettlementInvoiceCard
-              inspectionId={inspectionId}
-              paymentDetails={paymentStatusQuery.data}
-            />
+            {showSettlementStage && (
+              <PlatformSettlementInvoiceCard
+                inspectionId={inspectionId}
+                paymentDetails={paymentStatusQuery.data}
+              />
+            )}
 
-            <ReportDeliverableTabs
-              inspectionId={inspectionId}
-              versions={versions.data}
-              openVersion={openVersion}
-              onSelectVersion={setOpenVersionId}
-              findings={findings.data ?? []}
-              evidenceList={evidence.data ?? []}
-              reinspectionVerifications={reinspectionVerifications.data}
-              assetName={inspectionQuery.data?.assetName}
-              droneSummary={resolvedDroneSummary}
-              flightPermitFileName={resolvedPermitFileName}
-            />
+            {showReviewStage && (
+              <ReportDeliverableTabs
+                inspectionId={inspectionId}
+                versions={versions.data}
+                openVersion={openVersion}
+                onSelectVersion={setOpenVersionId}
+                findings={findings.data ?? []}
+                evidenceList={evidence.data ?? []}
+                reinspectionVerifications={reinspectionVerifications.data}
+                assetName={inspectionQuery.data?.assetName}
+                droneSummary={resolvedDroneSummary}
+                flightPermitFileName={resolvedPermitFileName}
+              />
+            )}
           </Stack>
         )}
       </QueryState>
+      )}
     </Box>
   );
 }

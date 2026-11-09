@@ -25,6 +25,10 @@ import { InspectionListTable } from '../components/InspectionListTable';
 import { CreateInspectionDialog } from '../components/CreateInspectionDialog';
 import type { InspectionListItem } from '../api/inspectionApi';
 import { CustomerInspectionsPage } from './CustomerInspectionsPage';
+import {
+  resolveInitialStepForRow,
+  type InspectionRoleView,
+} from '../utils/workflowStepResolver';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
 import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
@@ -79,28 +83,21 @@ export default function InspectionsPage() {
   const reportInspections = useInspectionsWithReports(listFilters, view === 'reports');
   const inspections = view === 'reports' ? reportInspections : allInspections;
 
+  const roleView: InspectionRoleView =
+    portal === 'admin' || portal === 'manager'
+      ? 'manager'
+      : portal === 'client'
+        ? 'customer'
+        : 'inspector';
+
   const openInspection = (inspectionId: string) => {
     const row = visibleItems.find((item) => item.id === inspectionId);
-    if (view === 'reports' || portal === 'admin' || portal === 'manager') {
-      const target =
-        portal !== 'admin' &&
-        portal !== 'manager' &&
-        row?.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-        row?.inspectionType !== 'RE_INSPECTION'
-          ? 'corrective'
-          : 'review';
-      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`);
-      return;
-    }
-    if (portal === 'client') {
-      if (row?.reportStatus === 'PUBLISHED') {
-        navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/report`);
-        return;
-      }
-      navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/tracking`);
-      return;
-    }
-    navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/field-session`);
+    const target = resolveInitialStepForRow(row, roleView, {
+      isReportsQueue: view === 'reports',
+    });
+    navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`, {
+      state: { autoResumeStep: true },
+    });
   };
 
   const getActionLabel = (row: InspectionListItem): string | undefined => {
@@ -177,7 +174,9 @@ export default function InspectionsPage() {
               ? view === 'reports'
                 ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
                 : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
-              : 'Review field evidence, record findings, and prepare inspection reports'
+              : portal === 'manager' || portal === 'admin'
+                ? t('Audit field operations, review submitted inspection reports, and oversee commission & partner settlement.')
+                : 'Review field evidence, record findings, and prepare inspection reports'
         }
         actions={newInspectionButton}
       />
@@ -277,9 +276,11 @@ export default function InspectionsPage() {
                   setPage(1);
                 }}
                 onOpen={openInspection}
+                onOverview={(id) => setSelectedWorkDetailId(id)}
                 getActionLabel={getActionLabel}
                 showReportColumn={view === 'reports'}
                 reviewerMode={view === 'reports'}
+                roleView={portal === 'manager' || portal === 'admin' ? 'manager' : 'inspector'}
               />
             </QueryState>
           )}

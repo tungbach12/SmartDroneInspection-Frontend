@@ -23,7 +23,6 @@ import { DashboardHeaderActions } from '../components/LyticHeaderActions';
 import { CustomerDashboardPage } from './CustomerDashboardPage';
 import { InspectorDashboardPage } from './InspectorDashboardPage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { formatLocation } from '@/shared/airspace/airspaceZones';
 
 interface FocusArea {
   label: string;
@@ -97,18 +96,16 @@ export default function DashboardPage() {
 }
 
 function OperationsAndPlatformDashboard() {
-  const { formatNumber, t } = useLocale();
+  const { t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
 
-  const isOrganization = false;
   const isAdmin =
     (portal === 'admin' || portal === 'manager') &&
     (roles.includes('ADMIN') || roles.includes('MANAGER'));
   const isInspector = portal === 'operations' && roles.includes('INSPECTOR');
   const isMaintenanceEngineer = portal === 'operations' && roles.includes('MAINTENANCE_ENGINEER');
-  const canReadAssets = isOrganization;
 
   const focusAreas = getAreas(roles, portal);
   const dashboardRoleOptions: RoleId[] =
@@ -120,15 +117,14 @@ function OperationsAndPlatformDashboard() {
           ? ['CUSTOMER']
           : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
   const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
-  const assets = useAssets({ page: 1, pageSize: 50 }, canReadAssets);
+  useAssets({ page: 1, pageSize: 50 }, false);
   const analytics = useDashboardAnalytics();
 
   // Role controls only vary presentation within roles actually assigned to the account.
-  const defaultRole: RoleId = isOrganization
-    ? 'CUSTOMER'
-    : (portal === 'manager' || portal === 'admin') &&
-        roles.includes('MANAGER') &&
-        !roles.includes('ADMIN')
+  const defaultRole: RoleId =
+    (portal === 'manager' || portal === 'admin') &&
+    roles.includes('MANAGER') &&
+    !roles.includes('ADMIN')
       ? 'MANAGER'
       : isAdmin
         ? 'ADMIN'
@@ -143,67 +139,19 @@ function OperationsAndPlatformDashboard() {
   const config = REPORT3_ROLE_DASHBOARDS[activeRole];
 
   // Headings
-  const overviewTitle = isOrganization
-    ? 'Asset overview'
-    : isAdmin
-      ? 'Platform overview'
-      : isInspector
-        ? 'Inspection workload'
-        : 'Maintenance workload';
+  const overviewTitle = isAdmin
+    ? 'Platform overview'
+    : isInspector
+      ? 'Inspection workload'
+      : 'Maintenance workload';
 
-  const overviewDescription = isOrganization
-    ? 'Recent structures registered to your organization.'
-    : isAdmin
-      ? 'Choose a workspace to review its records and activity.'
-      : isInspector
-        ? 'Open inspections, evidence, and reports assigned to you.'
-        : 'Work and follow-up assigned to your maintenance role.';
+  const overviewDescription = isAdmin
+    ? 'Choose a workspace to review its records and activity.'
+    : isInspector
+      ? 'Open inspections, evidence, and reports assigned to you.'
+      : 'Work and follow-up assigned to your maintenance role.';
 
-  // Live asset calculation
-  const assetList = assets.data?.items ?? [];
-  const activeAssetsCount = assetList.filter((a) => a.status === 'ACTIVE').length;
-  const pendingAssetsCount = assetList.filter((a) => a.status === 'PENDING_REVIEW').length;
-
-  const metrics = isOrganization
-    ? [
-        {
-          id: 'registered_assets',
-          label: 'Registered assets',
-          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber((assets.data?.totalCount ?? 0)),
-          change: '+100% paired',
-          positive: true,
-          subtext: 'in your organization',
-          iconType: 'building',
-        },
-        {
-          id: 'active_page',
-          label: 'Active on this page',
-          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber(activeAssetsCount),
-          change: 'Operational',
-          positive: true,
-          subtext: `of ${assets.data?.items.length ?? 0} shown`,
-          iconType: 'check-circle',
-        },
-        {
-          id: 'awaiting_review',
-          label: 'Awaiting review',
-          value: assets.error ? '—' : assets.isLoading ? '…' : formatNumber(pendingAssetsCount),
-          change: 'Action due',
-          positive: false,
-          subtext: `of ${assets.data?.items.length ?? 0} shown`,
-          iconType: 'alert',
-        },
-        {
-          id: 'inspection_reports',
-          label: 'Inspection reports',
-          value: '—',
-          change: '+18.5% YoY',
-          positive: true,
-          subtext: 'open Reports for available versions',
-          iconType: 'shield',
-        },
-      ]
-    : isAdmin
+  const metrics = isAdmin
       ? [
           {
             id: 'organizations',
@@ -320,18 +268,7 @@ function OperationsAndPlatformDashboard() {
             },
           ];
 
-  // Dynamic rows for live asset list
-  const tableRows = canReadAssets && assetList.length > 0
-    ? assetList.slice(0, 4).map((a) => ({
-        col1: a.name,
-        col2: formatLocation(a.locationText) || 'River district',
-        col3: a.code,
-        col4: a.status === 'ACTIVE' ? 'Active' : 'Pending Review',
-        col5: '3.2%',
-        status: (a.status === 'ACTIVE' ? 'positive' : 'warning') as 'positive' | 'warning',
-        link: '/client/assets',
-      }))
-    : config.table.rows;
+  const tableRows = config.table.rows;
 
   const liveMetrics = analytics.data?.summaryCards && analytics.data.summaryCards.length > 0
     ? analytics.data.summaryCards.map((m) => ({
@@ -354,7 +291,7 @@ function OperationsAndPlatformDashboard() {
     : tableRows;
   const dynamicTableHeaders = analytics.data?.queueTable?.headers && analytics.data.queueTable.headers.length > 0
     ? analytics.data.queueTable.headers
-    : (canReadAssets ? ['Asset', 'Location', 'Code', 'Status', 'Action'] : config.table.headers);
+    : config.table.headers;
   const dynamicTableTitle = analytics.data?.queueTable?.title ?? overviewTitle;
   const dynamicTableSubtitle = analytics.data?.queueTable?.subtitle ?? overviewDescription;
   const dynamicViewAllLink = analytics.data?.queueTable?.viewAllLink ?? config.table.viewAllLink;
@@ -399,7 +336,6 @@ function OperationsAndPlatformDashboard() {
           availableRoles={availableDashboardRoles}
           onRoleChange={handleRoleChange}
           onRefresh={() => {
-            if (canReadAssets) void assets.refetch();
             void analytics.refetch();
           }}
           onExport={() => {

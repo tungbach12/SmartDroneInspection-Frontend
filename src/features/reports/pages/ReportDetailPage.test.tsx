@@ -469,8 +469,9 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage('/manager/inspections/inspection-1/review');
 
     expect(
-      await screen.findByText(/Published version 1\. This version is immutable/i),
+      await screen.findByRole('tab', { name: /1\. Inspection Findings Report/i }),
     ).toBeTruthy();
+    expect(screen.queryByText(/Published version 1\. This version is immutable/i)).toBeNull();
     expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();
   });
