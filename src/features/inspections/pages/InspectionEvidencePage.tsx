@@ -412,7 +412,7 @@ export default function InspectionEvidencePage() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {queue.length === 0
-                  ? t('Select inspection photos, videos, or documents to upload.')
+                  ? t('Upload photos, videos, or documents.')
                   : `${queue.length} ${t('file(s) staged')}`}
               </Typography>
             </Box>
@@ -424,10 +424,10 @@ export default function InspectionEvidencePage() {
                 size="small"
                 disabled={!canUploadEvidence}
                 startIcon={<CloudUploadOutlined fontSize="small" />}
-                aria-label={t('Choose evidence files')}
+                aria-label={canUploadEvidence ? t('Choose files') : t('Choose files (locked)')}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                {t('Choose evidence files')}
+                {canUploadEvidence ? t('Choose files') : t('Choose files (locked)')}
                 {canUploadEvidence && (
                   <input
                     hidden
@@ -451,21 +451,25 @@ export default function InspectionEvidencePage() {
                 onClick={() => void uploadQueue()}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
               >
-                {uploading ? t('Uploading…') : t('Upload staged files')}
+                {uploading ? t('Uploading files…') : t('Upload')}
               </Button>
             </Stack>
           </Stack>
 
           {evidenceLocked && (
             <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
-              {t(
-                'Evidence is locked while the report is submitted or after publication. Withdraw the submission if it has not been reviewed, or ask the reviewer to return it before making changes.',
-              )}
+              {currentVersion?.status === 'SUBMITTED'
+                ? t(
+                    'Evidence is locked while the report is submitted for review. Withdraw the unreviewed submission or ask the reviewer to return it before making changes.',
+                  )
+                : t(
+                    'Evidence is locked because the report is approved or published.',
+                  )}
             </Alert>
           )}
           {isReturnedRevision && (
             <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
-              {t('This report was returned for revision. Update evidence as requested, then verify and resubmit the report.')}
+              {t('Returned for revision. Update evidence, then reconfirm findings and resubmit the report.')}
             </Alert>
           )}
 
@@ -576,7 +580,7 @@ export default function InspectionEvidencePage() {
           empty={
             <EmptyState
               title={t('No evidence recorded')}
-              description={t('Upload captures above; they appear here with previews and provenance.')}
+              description={t('Upload captures above to review them here.')}
             />
           }
         >
@@ -744,7 +748,7 @@ export default function InspectionEvidencePage() {
                               sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
                             >
                               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                🎬 {t('Video Evidence Extraction & AI YOLO11 Scanner')}
+                                {t('Video tools')}
                               </Typography>
                               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                                 <Button
@@ -754,7 +758,7 @@ export default function InspectionEvidencePage() {
                                   onClick={handleOpenCropFromVideo}
                                   sx={{ textTransform: 'none', fontWeight: 600 }}
                                 >
-                                  {t('Capture & Crop Frame to Evidence')}
+                                  {t('Capture frame')}
                                 </Button>
                                 <LoadingButton
                                   size="small"
@@ -765,8 +769,8 @@ export default function InspectionEvidencePage() {
                                   sx={{ textTransform: 'none', fontWeight: 600 }}
                                 >
                                   {autoDetectingVideo
-                                    ? t('Scanning video with YOLO11…')
-                                    : t('Auto-Detect Defects from Video (YOLO11)')}
+                                    ? t('Scanning video…')
+                                    : t('Scan video for defects')}
                                 </LoadingButton>
                               </Stack>
                             </Stack>
@@ -781,7 +785,7 @@ export default function InspectionEvidencePage() {
                               <Alert severity="success" onClose={() => setVideoDetectResult(null)}>
                                 <Stack spacing={1}>
                                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                    {`AI YOLO11 extracted ${videoDetectResult.extractedEvidenceCount} defect frame(s) into Evidence and created ${videoDetectResult.createdFindingsCount} pending Finding(s).`}
+                                    {`AI extracted ${videoDetectResult.extractedEvidenceCount} frame(s) into Evidence and proposed ${videoDetectResult.createdFindingsCount} unconfirmed finding(s).`}
                                   </Typography>
                                   {videoDetectResult.keyframes.length > 0 && (
                                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
@@ -808,7 +812,7 @@ export default function InspectionEvidencePage() {
                                         color="success"
                                         sx={{ textTransform: 'none', fontWeight: 600, ml: 1 }}
                                       >
-                                        {t('Review AI Findings')}
+                                        {t('Review findings')}
                                       </Button>
                                     </Stack>
                                   )}

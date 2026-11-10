@@ -342,9 +342,7 @@ export default function AssetCatalogPage() {
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
         title={t('Asset catalog & Flight checklists')}
-        subtitle={t(
-          'Admin-managed building categories, standard structural inspection items, and pre-flight / post-flight safety checklists',
-        )}
+        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
       />
 
       <Tabs

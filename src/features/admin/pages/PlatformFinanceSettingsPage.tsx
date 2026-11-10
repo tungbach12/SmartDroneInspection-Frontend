@@ -121,7 +121,7 @@ export default function PlatformFinanceSettingsPage() {
     <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       <PageHeader
         title={t('Inspection Finance Settings')}
-        subtitle={t('Configure platform commission, VAT, and PIT withholding rates for inspection contracts.')}
+        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('Finance settings') }]}
       />
 
       <QueryState

@@ -4,10 +4,8 @@ import {
   Alert,
   Box,
   Button,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { FactCheckOutlined, TaskAltOutlined } from '@mui/icons-material';
@@ -66,6 +64,7 @@ export default function InspectionsPage() {
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -114,14 +113,28 @@ export default function InspectionsPage() {
   const visibleItems = inspections.data?.items ?? EMPTY_ITEMS;
   const items = visibleItems;
   const displayedItems = useMemo(() => {
-    if (statusFilter === 'ALL') return visibleItems;
-    if (statusFilter === 'UNDER_REVIEW') {
-      return visibleItems.filter(
-        (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+    let result = visibleItems;
+    if (statusFilter !== 'ALL') {
+      if (statusFilter === 'UNDER_REVIEW') {
+        result = result.filter(
+          (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
+        );
+      } else {
+        result = result.filter((item) => item.status === statusFilter);
+      }
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (item) =>
+          (item.assetName && item.assetName.toLowerCase().includes(q)) ||
+          (item.assetCode && item.assetCode.toLowerCase().includes(q)) ||
+          (item.assetLocation && item.assetLocation.toLowerCase().includes(q)) ||
+          (item.objective && item.objective.toLowerCase().includes(q)),
       );
     }
-    return visibleItems.filter((item) => item.status === statusFilter);
-  }, [visibleItems, statusFilter]);
+    return result;
+  }, [visibleItems, statusFilter, searchQuery]);
 
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
@@ -229,20 +242,19 @@ export default function InspectionsPage() {
           title={
             isOrganizationAdmin
               ? view === 'reports'
-                ? 'Report review queue'
-                : 'Organization inspections'
-              : 'Inspections'
+                ? t('Report review queue')
+                : t('Organization inspections')
+              : t('Inspections')
           }
-          subtitle={
-            isOrganizationAdmin
-              ? view === 'reports'
-                ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
-                : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
-              : portal === 'manager' || portal === 'admin'
-                ? t('Audit field operations, review submitted inspection reports, and oversee commission & partner settlement.')
-                : 'Review field evidence, record findings, and prepare inspection reports'
-          }
-          actions={newInspectionButton}
+          breadcrumbs={[
+            { label: 'Home', to: getSectionPath(portal, 'dashboard') },
+            {
+              label:
+                isOrganizationAdmin && view === 'reports'
+                  ? t('Report review queue')
+                  : t('Inspections'),
+            },
+          ]}
         />
       )}
 
@@ -272,36 +284,6 @@ export default function InspectionsPage() {
               </Paper>
             </Stack>
           )}
-          {view !== 'calendar' && (
-            <Stack
-              direction="row"
-              spacing={2}
-              sx={{
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                flexWrap: 'wrap',
-                gap: 1.5,
-              }}
-            >
-              <TextField
-                select
-                size="small"
-                label={t('Status filter')}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                sx={{ minWidth: 180 }}
-              >
-                <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-                <MenuItem value="SCHEDULED">{t('Scheduled')}</MenuItem>
-                <MenuItem value="IN_PROGRESS">{t('In Progress')}</MenuItem>
-                <MenuItem value="FIELD_COMPLETED">{t('Field Completed')}</MenuItem>
-                <MenuItem value="UNDER_REVIEW">{t('Under Review')}</MenuItem>
-                <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
-                <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
-              </TextField>
-            </Stack>
-          )}
-
           {view === 'calendar' ? (
             <InspectorScheduleCalendar onSelectInspection={(id) => setSelectedWorkDetailId(id)} />
           ) : (
@@ -343,9 +325,15 @@ export default function InspectionsPage() {
                 onOpen={openInspection}
                 onOverview={(id) => setSelectedWorkDetailId(id)}
                 getActionLabel={getActionLabel}
-                showReportColumn={view === 'reports'}
-                reviewerMode={view === 'reports'}
-                roleView={portal === 'manager' || portal === 'admin' ? 'manager' : 'inspector'}
+                showReportColumn={view === 'reports' || isReviewer}
+                reviewerMode={isReviewer && view === 'reports'}
+                roleView={roleView === 'customer' ? 'inspector' : roleView}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                searchPlaceholder={t('Search by asset name, code, or location…')}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                actions={newInspectionButton}
               />
             </QueryState>
           )}

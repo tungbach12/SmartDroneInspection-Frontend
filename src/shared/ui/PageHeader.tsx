@@ -1,20 +1,22 @@
 import { Box, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
+import { PageBreadcrumbs, type BreadcrumbItem } from './PageBreadcrumbs';
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  breadcrumbs?: readonly BreadcrumbItem[];
 }
 
-export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeaderProps) {
   return (
     <Box
       component="header"
       sx={{
         display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        alignItems: { xs: 'stretch', sm: 'center' },
+        flexDirection: { xs: 'column-reverse', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
         justifyContent: 'space-between',
         gap: { xs: 1.5, sm: 2 },
         mb: 3,
@@ -24,11 +26,11 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         <Typography
           component="h1"
           sx={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
+            fontSize: '1.625rem',
+            fontWeight: 700,
             color: 'text.primary',
-            letterSpacing: '-0.01em',
-            lineHeight: '2rem',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.2,
           }}
         >
           {title}
@@ -49,18 +51,31 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           </Typography>
         )}
       </Box>
-      {actions && (
+      {(actions || breadcrumbs) && (
         <Box
           sx={{
             display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: 1.5,
-            alignItems: 'center',
-            justifyContent: { xs: 'stretch', sm: 'flex-end' },
-            '& > *': { flex: { xs: 1, sm: 'initial' } },
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+            flexWrap: 'wrap',
             flexShrink: 0,
           }}
         >
-          {actions}
+          {breadcrumbs && <PageBreadcrumbs items={breadcrumbs} sx={{ mb: 0 }} />}
+          {actions && (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1.5,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              {actions}
+            </Box>
+          )}
         </Box>
       )}
     </Box>

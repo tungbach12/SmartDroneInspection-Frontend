@@ -22,7 +22,9 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
@@ -283,38 +285,13 @@ export default function ContractsPage() {
       ) : (
         /* VIEW 2: MASTER TABLE VIEW (Giống màn hình Organization inspections) */
         <Stack spacing={3}>
-          {/* Header Row */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}
-          >
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {t('Inspection service requests')}
-              </Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
-                {t('Manage request progress, commercial terms, service contracts, and inspection occurrence dispatch.')}
-              </Typography>
-            </Box>
-
-            {isCustomer && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setCreateDialogOpen(true)}
-                sx={{
-                  borderRadius: '8px',
-                  px: 2.5,
-                  py: 1,
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                }}
-              >
-                {t('New service request')}
-              </Button>
-            )}
-          </Stack>
+          <PageHeader
+            title={t('Inspection service requests')}
+            breadcrumbs={[
+              { label: 'Home', to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
+              { label: t('Service requests') },
+            ]}
+          />
 
           {/* Summary Metric Cards (Phong cách giống ảnh Organization inspections) */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -385,73 +362,108 @@ export default function ContractsPage() {
             </Paper>
           </Stack>
 
-          {/* Filter Bar */}
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}
-          >
-            <TextField
-              size="small"
-              placeholder={t('Search requests, scope of work...')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
-                  sx: { borderRadius: '8px', minWidth: { xs: '100%', sm: 300 } },
-                },
-              }}
-            />
-
-            <TextField
-              select
-              size="small"
-              label={t('Filter by status')}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ minWidth: 200, width: { xs: '100%', sm: 'auto' } }}
-            >
-              <MenuItem value="ALL">{t('All statuses')}</MenuItem>
-              <MenuItem value="OPEN">{t('Open')} (OPEN)</MenuItem>
-              <MenuItem value="QUOTED">{t('Quoted')} (QUOTED)</MenuItem>
-              <MenuItem value="ACCEPTED">{t('Accepted')} (ACCEPTED)</MenuItem>
-              <MenuItem value="CONTRACT_SIGNED">{t('Contract Signed')} (CONTRACT_SIGNED)</MenuItem>
-              <MenuItem value="ASSIGNED">{t('Assigned')} (ASSIGNED)</MenuItem>
-            </TextField>
-          </Stack>
-
-          {/* Main DataTable (Phong cách Organization inspections) */}
+          {/* Main DataTable (NextAdmin card) */}
           <Paper
             variant="outlined"
             sx={{
-              borderRadius: '10px',
+              borderRadius: '12px',
               borderColor: 'divider',
               overflow: 'hidden',
               bgcolor: 'background.paper',
+              boxShadow: 'none',
             }}
           >
+            {/* Card Toolbar */}
             <Box
               sx={{
                 p: 2,
                 px: 2.5,
-                borderBottom: 1,
+                borderBottom: '1px solid',
                 borderColor: 'divider',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1.5,
               }}
             >
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Service requests')}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {filteredRequests.length} {t('total record(s)')}
-              </Typography>
+              <TextField
+                size="small"
+                placeholder={t('Search by id, name, or description…')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" sx={{ color: '#71717A' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={{
+                  width: { xs: '100%', sm: 280, md: 320 },
+                  '& .MuiOutlinedInput-root': {
+                    height: 40,
+                    borderRadius: '8px',
+                    bgcolor: 'background.paper',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                <TextField
+                  select
+                  size="small"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    minWidth: 160,
+                    '& .MuiOutlinedInput-root': {
+                      height: 40,
+                      borderRadius: '8px',
+                      bgcolor: 'background.paper',
+                      fontSize: '0.875rem',
+                    },
+                  }}
+                >
+                  <MenuItem value="ALL">{t('All statuses')}</MenuItem>
+                  <MenuItem value="OPEN">{t('Open')}</MenuItem>
+                  <MenuItem value="QUOTED">{t('Quoted')}</MenuItem>
+                  <MenuItem value="ACCEPTED">{t('Accepted')}</MenuItem>
+                  <MenuItem value="CONTRACT_SIGNED">{t('Contract Signed')}</MenuItem>
+                  <MenuItem value="ASSIGNED">{t('Assigned')}</MenuItem>
+                </TextField>
+
+                {isCustomer && (
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setCreateDialogOpen(true)}
+                    sx={{
+                      borderRadius: '8px',
+                      px: 2,
+                      py: 1,
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                    }}
+                  >
+                    {t('New service request')}
+                  </Button>
+                )}
+              </Box>
             </Box>
 
             {filteredRequests.length === 0 ? (

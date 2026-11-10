@@ -26,6 +26,8 @@ export interface FieldSession {
   abortReason: string | null;
   outcomeNotes: string | null;
   flightVideoEvidenceId?: string | null;
+  telemetrySource?: string | null;
+  hasFlightReport?: boolean;
 }
 
 export const fieldSessionKeys = {

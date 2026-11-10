@@ -278,40 +278,40 @@ export default function PlatformUsersPage() {
     },
   ];
 
+  const newAccountButton = (
+    <Button
+      variant="contained"
+      color="primary"
+      startIcon={<PersonAddAlt />}
+      onClick={() => {
+        if (isManager) {
+          setActorZone('INSPECTOR_PARTNER');
+          setRoles(['INSPECTOR']);
+        }
+        setCreateOpen(true);
+      }}
+      sx={{
+        borderRadius: '8px',
+        px: 2,
+        py: 0.875,
+        fontSize: '0.875rem',
+        fontWeight: 600,
+        textTransform: 'none',
+        boxShadow: 'none',
+      }}
+    >
+      {isManager ? t('New partner inspector') : t('New account')}
+    </Button>
+  );
+
   return (
     <Box className="workspace-page workspace-page--admin-users">
       <PageHeader
         title={isManager ? t('Partner workforce') : t('Platform accounts')}
-        subtitle={
-          isManager
-            ? t('Manage partner Inspector accounts.')
-            : t('Manage platform administrators, managers, customer organizations, and field workforce.')
-        }
-        actions={
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<PersonAddAlt />}
-            onClick={() => {
-              if (isManager) {
-                setActorZone('INSPECTOR_PARTNER');
-                setRoles(['INSPECTOR']);
-              }
-              setCreateOpen(true);
-            }}
-            sx={{
-              borderRadius: '10px',
-              px: 2.5,
-              py: 1,
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              boxShadow: 'none',
-            }}
-          >
-            {isManager ? t('New partner inspector') : t('New account')}
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Home', to: isManager ? '/manager/dashboard' : '/admin/dashboard' },
+          { label: isManager ? t('Partner workforce') : t('Platform accounts') },
+        ]}
       />
 
       {!isManager && (
@@ -415,16 +415,16 @@ export default function PlatformUsersPage() {
           }
         >
           <DataTable
-            title={t('Accounts')}
             columns={columns}
             rows={items}
             rowKey={(user) => user.id}
             searchable
-            searchPlaceholder={t('Search by name or email…')}
+            searchPlaceholder={t('Search by id, name, or email…')}
             searchPredicate={(user, query) =>
               user.fullName.toLowerCase().includes(query) ||
               user.email.toLowerCase().includes(query)
             }
+            actions={newAccountButton}
           />
         </QueryState>
       </Box>

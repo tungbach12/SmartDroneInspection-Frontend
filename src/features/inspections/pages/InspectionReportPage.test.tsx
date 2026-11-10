@@ -92,7 +92,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-import InspectionDraftPage from './InspectionDraftPage';
+import InspectionReportPage from './InspectionReportPage';
 
 function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   useAuthStore.getState().setSession({
@@ -108,7 +108,7 @@ function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
   });
 }
 
-describe('InspectionDraftPage', () => {
+describe('InspectionReportPage', () => {
   beforeEach(() => {
     cleanup();
     signInAs('INSPECTOR');
@@ -136,14 +136,14 @@ describe('InspectionDraftPage', () => {
   });
 
   it('keeps draft submission blocked until findings have been confirmed', () => {
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.queryByText(/Accept the evidence set/)).toBeNull();
   });
 
   it('keeps report draft submission disabled until findings have been confirmed', () => {
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     expect(mocks.createDraft.mutate).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Go to Findings' })).toBeTruthy();
@@ -158,7 +158,7 @@ describe('InspectionDraftPage', () => {
       isLoading: false,
       error: null,
     };
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     const submitBtn = screen.getByRole('button', { name: 'Submit for review' });
     expect(submitBtn).toBeTruthy();
@@ -172,16 +172,16 @@ describe('InspectionDraftPage', () => {
 
   it('shows truthful pending copy without simulated drafting stages or percentages', () => {
     mocks.createDraft.isPending = true;
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
-    expect(screen.getByText('Compiling inspection report')).toBeTruthy();
+    expect(screen.getByText('Preparing report')).toBeTruthy();
     expect(screen.queryByText(/Progress stages are not available/)).toBeNull();
     expect(screen.queryByText(/Data Collection|% estimated|Typical time/)).toBeNull();
   });
 
   it('animates the draft wait state without implying a stage or an estimate', () => {
     mocks.createDraft.isPending = true;
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     const figures = screen.getAllByRole('img', { name: 'Compiling report in progress' });
     expect(figures.length).toBeGreaterThan(0);
@@ -189,20 +189,20 @@ describe('InspectionDraftPage', () => {
       expect(figure.getAttribute('src')).toContain('/images/ai-motion/');
     }
 
-    const waitState = screen.getByText('Compiling inspection report').closest('.MuiCard-root');
+    const waitState = screen.getByText('Preparing report').closest('.MuiCard-root');
     expect(waitState?.textContent ?? '').not.toMatch(/\d+\s*%|%|\b\d+\s*(s|sec|seconds|min|minutes)\b/i);
   });
 
   it('keeps the draft motion still until generation is requested', () => {
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     expect(screen.queryByRole('img', { name: 'Compiling report in progress' })).toBeNull();
   });
 
   it('shows the empty report state until a version exists', () => {
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
-    expect(screen.getByText('No report version yet')).toBeTruthy();
+    expect(screen.getByText('Report not ready')).toBeTruthy();
   });
 
   it('renders report details and allows resubmitting when a version was returned', () => {
@@ -237,7 +237,7 @@ describe('InspectionDraftPage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     expect(screen.getByText('Report details')).toBeTruthy();
 
@@ -275,7 +275,7 @@ describe('InspectionDraftPage', () => {
       refetch: vi.fn(),
     };
 
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     const withdrawBtn = screen.getByRole('button', { name: 'Withdraw submission and revise' });
     fireEvent.click(withdrawBtn);
@@ -308,7 +308,7 @@ describe('InspectionDraftPage', () => {
       refetch: vi.fn(),
     };
 
-    renderWithRouter(<InspectionDraftPage />);
+    renderWithRouter(<InspectionReportPage />);
 
     expect(screen.getByText(/The report has been published/)).toBeTruthy();
   });

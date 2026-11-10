@@ -13,9 +13,7 @@ export default function PlatformAiSettingsPage() {
     <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       <PageHeader
         title={t('AI Configuration & Model Performance')}
-        subtitle={t(
-          'Configure confidence threshold for automatic finding confirmation and monitor AI model precision.',
-        )}
+        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('AI settings') }]}
       />
 
       <QueryState

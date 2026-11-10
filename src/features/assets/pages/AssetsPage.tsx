@@ -155,8 +155,7 @@ export function AssetsPage() {
     <Box className="workspace-page workspace-page--assets">
       <PageHeader
         title={t('Assets')}
-        subtitle={t('Infrastructure assets registered for inspection')}
-        actions={newAssetButton}
+        breadcrumbs={[{ label: 'Home', to: '/client/dashboard' }, { label: t('Assets') }]}
       />
       {/* 4 Lytic KPI Metric Cards */}
       {isClient && (
@@ -217,15 +216,15 @@ export function AssetsPage() {
         }
       >
         <DataTable
-          title={t('Asset records')}
           columns={columns}
           rows={items}
           rowKey={(asset) => asset.id}
           searchable
-          searchPlaceholder={t('Search by name or code…')}
+          searchPlaceholder={t('Search by id, name, or code…')}
           searchPredicate={(asset, query) =>
             asset.name.toLowerCase().includes(query) || asset.code.toLowerCase().includes(query)
           }
+          actions={newAssetButton}
           onRowClick={(asset) => setSelected(asset)}
         />
       </QueryState>

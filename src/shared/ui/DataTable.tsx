@@ -2,18 +2,19 @@ import { useState, type ReactNode } from 'react';
 import {
   Box,
   InputAdornment,
+  Pagination,
   Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
 
 export interface DataTableColumn<T> {
   id: string;
@@ -56,7 +57,7 @@ export function DataTable<T>({
   stickyHeader = false,
 }: DataTableProps<T>) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const rowsPerPage = 10;
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -92,7 +93,36 @@ export function DataTable<T>({
             borderColor: 'divider',
           }}
         >
-          {title ? (
+          {searchable ? (
+            <TextField
+              size="small"
+              placeholder={searchPlaceholder}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(0);
+              }}
+              slotProps={{
+                htmlInput: { 'aria-label': searchPlaceholder },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                width: { xs: '100%', sm: 280, md: 320 },
+                '& .MuiOutlinedInput-root': {
+                  height: 40,
+                  borderRadius: '8px',
+                  bgcolor: 'background.paper',
+                  fontSize: '0.875rem',
+                },
+              }}
+            />
+          ) : title ? (
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
               {title}
             </Typography>
@@ -100,38 +130,7 @@ export function DataTable<T>({
             <Box />
           )}
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-            {searchable && (
-              <TextField
-                size="small"
-                placeholder={searchPlaceholder}
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(0);
-                }}
-                slotProps={{
-                  htmlInput: { 'aria-label': searchPlaceholder },
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-                sx={{
-                  width: { xs: '100%', sm: 240 },
-                  '& .MuiOutlinedInput-root': {
-                    height: 36,
-                    borderRadius: '8px',
-                    bgcolor: 'background.paper',
-                    fontSize: '0.875rem',
-                    borderColor: 'divider',
-                  },
-                }}
-              />
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
             {actions}
           </Box>
         </Box>
@@ -155,12 +154,11 @@ export function DataTable<T>({
                   width={column.width}
                   align={column.align}
                   sx={{
-                    bgcolor: 'rgba(244, 244, 245, 0.5)',
+                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                     color: '#71717A',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    letterSpacing: '0.02em',
-                    textTransform: 'uppercase',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.01em',
                     py: dense ? 1.25 : 1.5,
                     px: dense ? 1.5 : 2.5,
                     borderBottom: '1px solid',
@@ -168,7 +166,12 @@ export function DataTable<T>({
                     whiteSpace: column.noWrap ? 'nowrap' : 'normal',
                   }}
                 >
-                  {column.label}
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    {column.label}
+                    {column.id !== 'actions' && column.id !== 'action' && column.label !== '' && (
+                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                    )}
+                  </Box>
                 </TableCell>
               ))}
             </TableRow>
@@ -234,28 +237,50 @@ export function DataTable<T>({
         </Table>
       </TableContainer>
 
-      <TablePagination
-        component="div"
-        count={filtered.length}
-        page={page}
-        onPageChange={(_, nextPage) => setPage(nextPage)}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={(event) => {
-          setRowsPerPage(parseInt(event.target.value, 10));
-          setPage(0);
-        }}
-        rowsPerPageOptions={[10, 25, 50, 100]}
+      <Box
         sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: { xs: 2, sm: 2.5 },
+          py: 1.5,
           borderTop: '1px solid',
           borderColor: 'divider',
-          color: 'text.secondary',
-          px: 2,
-          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-            fontSize: '0.82rem',
-            color: 'text.secondary',
-          },
+          flexWrap: 'wrap',
+          gap: 1.5,
         }}
-      />
+      >
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+          {filtered.length > 0
+            ? `Showing ${page * rowsPerPage + 1}–${Math.min((page + 1) * rowsPerPage, filtered.length)} From ${filtered.length}`
+            : 'Showing 0 From 0'}
+        </Typography>
+
+        <Pagination
+          count={Math.max(1, Math.ceil(filtered.length / rowsPerPage))}
+          page={page + 1}
+          onChange={(_, nextPage) => setPage(nextPage - 1)}
+          shape="rounded"
+          size="small"
+          sx={{
+            '& .MuiPaginationItem-root': {
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              color: 'text.primary',
+            },
+            '& .MuiPaginationItem-page.Mui-selected': {
+              bgcolor: 'primary.main',
+              color: '#FFFFFF',
+              '&:hover': { bgcolor: 'primary.dark' },
+            },
+            '& .MuiPaginationItem-previousNext': {
+              border: '1px solid',
+              borderColor: 'divider',
+            },
+          }}
+        />
+      </Box>
     </Paper>
   );
 }

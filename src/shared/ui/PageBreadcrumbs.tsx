@@ -1,5 +1,5 @@
-import { Box, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Box, Typography, type SxProps, type Theme } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface BreadcrumbItem {
@@ -10,10 +10,12 @@ export interface BreadcrumbItem {
 
 export interface PageBreadcrumbsProps {
   items: readonly BreadcrumbItem[];
+  sx?: SxProps<Theme>;
 }
 
-export function PageBreadcrumbs({ items }: PageBreadcrumbsProps) {
+export function PageBreadcrumbs({ items, sx }: PageBreadcrumbsProps) {
   const { t } = useLocale();
+  const navigate = useNavigate();
 
   return (
     <Box
@@ -25,6 +27,7 @@ export function PageBreadcrumbs({ items }: PageBreadcrumbsProps) {
         flexWrap: 'wrap',
         gap: 0.75,
         mb: 1,
+        ...sx,
       }}
     >
       <Box
@@ -90,8 +93,23 @@ export function PageBreadcrumbs({ items }: PageBreadcrumbsProps) {
                 </Typography>
               ) : item.to ? (
                 <Box
-                  component={RouterLink}
-                  to={item.to}
+                  component="a"
+                  href={item.to}
+                  onClick={(e) => {
+                    if (item.onClick) {
+                      item.onClick();
+                      return;
+                    }
+                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      if (navigate) {
+                        navigate(item.to!);
+                      } else {
+                        window.history.pushState({}, '', item.to);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }
+                    }
+                  }}
                   sx={{
                     fontSize: '0.875rem',
                     fontWeight: 500,

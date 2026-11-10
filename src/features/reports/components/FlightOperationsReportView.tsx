@@ -21,7 +21,6 @@ import {
 } from '@mui/material';
 import BatteryChargingFullRounded from '@mui/icons-material/BatteryChargingFullRounded';
 import CameraAltRounded from '@mui/icons-material/CameraAltRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import LayersRounded from '@mui/icons-material/LayersRounded';
@@ -91,13 +90,14 @@ function fmtNum(val: number | null | undefined, digits = 1): string {
 }
 
 function fmtDuration(seconds: number | null | undefined): string {
-  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return '0m 00s';
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return '—';
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
   return `${mins}m ${String(secs).padStart(2, '0')}s`;
 }
 
-function fmtOffsetSec(sec: number): string {
+function fmtOffsetSec(sec: number | null | undefined): string {
+  if (sec == null || !Number.isFinite(sec)) return '—';
   const s = Math.max(0, Math.round(sec));
   const m = Math.floor(s / 60);
   const rem = s % 60;
@@ -135,87 +135,93 @@ export function FlightOperationsReportView({
     [report?.flightTrace],
   );
 
-  // Enrich each trace sample with elapsed seconds, interpolated battery, and mode
   const enrichedSamples = useMemo(() => {
-    const startBat =
-      report?.startBatteryPercent ??
-      trace.find((p) => p.batteryPercent != null)?.batteryPercent ??
-      100;
-    const endBat =
-      report?.endBatteryPercent ??
-      [...trace].reverse().find((p) => p.batteryPercent != null)?.batteryPercent ??
-      startBat;
-    const totalDur = Math.max(1, report?.durationSeconds ?? trace.length * 3);
-    const t0Ms = trace[0]?.recordedAt ? new Date(trace[0].recordedAt).getTime() : 0;
+    const firstRecordedAt = trace
+      .map((point) => point.recordedAt)
+      .find((value) => value != null && Number.isFinite(Date.parse(value)));
+    const firstRecordedAtMs = firstRecordedAt ? Date.parse(firstRecordedAt) : null;
 
-    return trace.map((pt, idx) => {
-      const ratio = idx / Math.max(1, trace.length - 1);
-      const rawElapsed =
-        t0Ms && pt.recordedAt
-          ? (new Date(pt.recordedAt).getTime() - t0Ms) / 1000
-          : ratio * totalDur;
+    return trace.map((point, idx) => {
+      const recordedAtMs = point.recordedAt ? Date.parse(point.recordedAt) : Number.NaN;
       const elapsedSec =
-        Number.isFinite(rawElapsed) && rawElapsed >= 0
-          ? Math.round(rawElapsed)
-          : Math.round(ratio * totalDur);
-      const bat =
-        pt.batteryPercent ?? Math.round(startBat - ratio * (startBat - endBat));
-      const mode = (
-        pt.flightMode || (idx === trace.length - 1 ? 'LAND' : 'GUIDED')
-      ).toUpperCase();
+        firstRecordedAtMs != null && Number.isFinite(recordedAtMs) && recordedAtMs >= firstRecordedAtMs
+          ? Math.round((recordedAtMs - firstRecordedAtMs) / 1000)
+          : null;
+      const battery = point.batteryPercent ?? null;
       return {
-        ...pt,
+        ...point,
         idx,
         elapsedSec,
-        altitude: pt.altitudeMeters ?? 0,
-        speed: pt.groundSpeedMps ?? 0,
-        battery: Math.max(0, Math.min(100, bat)),
-        mode,
+        altitude: point.altitudeMeters,
+        speed: point.groundSpeedMps,
+        battery,
+        batteryAvailable: battery != null,
+        mode: point.flightMode?.trim() ? point.flightMode.trim().toUpperCase() : '—',
       };
     });
-  }, [trace, report]);
+  }, [trace]);
+
+  const gpsSamples = useMemo(
+    () =>
+      enrichedSamples.filter(
+        (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+      ),
+    [enrichedSamples],
+  );
+  const hasAltitudeSamples = useMemo(
+    () => enrichedSamples.some((point) => point.altitude != null && Number.isFinite(point.altitude)),
+    [enrichedSamples],
+  );
+  const hasSpeedSamples = useMemo(
+    () => enrichedSamples.some((point) => point.speed != null && Number.isFinite(point.speed)),
+    [enrichedSamples],
+  );
 
   const metrics = useMemo(() => {
-    const alts = enrichedSamples.map((p) => p.altitude);
-    const speeds = enrichedSamples.map((p) => p.speed);
-
+    const altitudes = enrichedSamples
+      .map((point) => point.altitudeMeters)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    const speeds = enrichedSamples
+      .map((point) => point.groundSpeedMps)
+      .filter((value): value is number => value != null && Number.isFinite(value));
     const maxAlt =
-      report?.maxAltitudeMeters ?? (alts.length > 0 ? Math.max(...alts) : 0);
+      report?.maxAltitudeMeters ?? (altitudes.length > 0 ? Math.max(...altitudes) : null);
     const avgAlt =
-      alts.length > 0 ? alts.reduce((a, b) => a + b, 0) / alts.length : 0;
-    const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : 0;
+      altitudes.length > 0
+        ? altitudes.reduce((total, value) => total + value, 0) / altitudes.length
+        : null;
+    const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : null;
     const avgSpeed =
-      speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+      speeds.length > 0
+        ? speeds.reduce((total, value) => total + value, 0) / speeds.length
+        : null;
 
-    const startBat =
-      report?.startBatteryPercent ?? enrichedSamples[0]?.battery ?? 100;
-    const endBat =
-      report?.endBatteryPercent ?? enrichedSamples.at(-1)?.battery ?? startBat;
-    const batUsed = Math.max(0, startBat - endBat);
-    const durationMin = Math.max((report?.durationSeconds ?? 60) / 60, 0.25);
-    const drainRatePerMin = batUsed / durationMin;
+    const firstBattery = enrichedSamples.find((sample) => sample.batteryAvailable)?.battery ?? null;
+    const lastBattery = [...enrichedSamples].reverse().find((sample) => sample.batteryAvailable)?.battery ?? null;
+    const startBat = report?.startBatteryPercent ?? firstBattery;
+    const endBat = report?.endBatteryPercent ?? lastBattery;
+    const batUsed = startBat == null || endBat == null ? null : Math.max(0, startBat - endBat);
+    const durationMin =
+      report?.durationSeconds != null && report.durationSeconds > 0
+        ? report.durationSeconds / 60
+        : null;
+    const drainRatePerMin =
+      batUsed == null || durationMin == null ? null : batUsed / durationMin;
 
-    // Fixed categorical slot order (never cycled)
     const slotOrder = [pal.series1, pal.series2, pal.series3, pal.series4];
     const modeCounts: Record<string, number> = {};
-    enrichedSamples.forEach((pt) => {
-      modeCounts[pt.mode] = (modeCounts[pt.mode] ?? 0) + 1;
+    enrichedSamples.forEach((point) => {
+      if (point.mode !== '—') {
+        modeCounts[point.mode] = (modeCounts[point.mode] ?? 0) + 1;
+      }
     });
-    const totalPts = Math.max(1, enrichedSamples.length);
-    const modeBreakdown = Object.entries(modeCounts).map(([mode, count], i) => ({
+    const totalModes = Object.values(modeCounts).reduce((total, count) => total + count, 0);
+    const modeBreakdown = Object.entries(modeCounts).map(([mode, count], index) => ({
       mode,
       count,
-      pct: Math.round((count / totalPts) * 100),
-      color: slotOrder[i % slotOrder.length]!,
+      pct: Math.round((count / totalModes) * 100),
+      color: slotOrder[index % slotOrder.length]!,
     }));
-    if (modeBreakdown.length === 0) {
-      modeBreakdown.push({
-        mode: 'GUIDED',
-        count: 1,
-        pct: 100,
-        color: pal.series1,
-      });
-    }
 
     return {
       maxAlt,
@@ -245,10 +251,34 @@ export function FlightOperationsReportView({
       .filter(Boolean)
       .join(' · ') ||
     '—';
-  const resolvedPermit =
-    flightPermitFileName ??
-    context?.flightPermitFileName ??
-    'Verified on-site permit';
+  const resolvedPermit = flightPermitFileName ?? context?.flightPermitFileName ?? null;
+  const telemetrySourceLabel =
+    report?.telemetrySource === 'MISSION_PLANNER_MAVLINK'
+      ? t('MAVLink telemetry')
+      : report?.telemetrySource === 'SMARTDRONEHUB_SIMULATION'
+        ? t('Simulation telemetry')
+        : report?.telemetrySource === 'MANUAL_DECLARATION'
+          ? t('Manual declaration')
+          : report?.telemetrySource.startsWith('IMPORTED_LOG_')
+            ? `${t('Imported flight log')} (${report.telemetrySource.replace('IMPORTED_LOG_', '')})`
+            : t('Telemetry source unavailable');
+  const isSimulationSource = report?.telemetrySource === 'SMARTDRONEHUB_SIMULATION';
+  const isImportedSource = Boolean(report?.telemetrySource.startsWith('IMPORTED_LOG_'));
+  const isLiveMavlink = report?.telemetrySource === 'MISSION_PLANNER_MAVLINK';
+  const reportedFinalState =
+    report?.finalState && report.finalState !== 'UNKNOWN' ? report.finalState : null;
+  const hasFlightTrace = trace.length > 0;
+  const isManualDeclaration = report?.telemetrySource === 'MANUAL_DECLARATION';
+  const hasAnyReportData = Boolean(
+    report &&
+      (hasFlightTrace ||
+        (report.durationSeconds != null && report.durationSeconds > 0) ||
+        (report.distanceFlownMeters != null && report.distanceFlownMeters > 0) ||
+        report.maxAltitudeMeters != null ||
+        report.startBatteryPercent != null ||
+        report.endBatteryPercent != null ||
+        report.note),
+  );
 
   if (!fieldSessionId) {
     return (
@@ -263,19 +293,41 @@ export function FlightOperationsReportView({
       isLoading={flightReportQuery.isLoading}
       error={flightReportQuery.error}
       onRetry={() => void flightReportQuery.refetch()}
-      loadingLabel={t(
-        'Compiling automated Flight Operations Report from telemetry…',
-      )}
+      loadingLabel={t('Loading recorded flight data…')}
     >
-      {report &&
-      (report.telemetrySource === 'NONE' ||
-        report.note?.startsWith('Persisted from field session telemetry log') ||
-        (trace.length === 0 && (report.distanceFlownMeters ?? 0) <= 0)) ? (
+      {report && isManualDeclaration ? (
+        <Stack spacing={1.5}>
+          <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+            {t('This flight summary is an Inspector declaration; no telemetry trace was imported or recorded.')}
+          </Alert>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: '10px' }}>
+            <Stack spacing={1}>
+              <Chip
+                color="warning"
+                variant="outlined"
+                label={t('Manual declaration · no telemetry')}
+                sx={{ alignSelf: 'flex-start' }}
+              />
+              {reportedFinalState && (
+                <MetaItem label={t('Reported state')} value={reportedFinalState} />
+              )}
+              <MetaItem
+                label={t('Estimated flight duration')}
+                value={fmtDuration(report.durationSeconds)}
+              />
+              <MetaItem
+                label={t('Estimated maximum altitude')}
+                value={report.maxAltitudeMeters == null ? '—' : `${fmtNum(report.maxAltitudeMeters, 1)} m`}
+              />
+              <MetaItem label={t('Inspector field note')} value={report.note ?? '—'} />
+            </Stack>
+          </Paper>
+        </Stack>
+      ) : report?.telemetrySource === 'NONE' ? (
         <Alert severity="info" sx={{ borderRadius: '10px' }}>
-          {t('No MAVLink flight telemetry was recorded for this field session.')}
+          {t('No flight telemetry or imported flight log was recorded for this field session.')}
         </Alert>
-      ) : (
-        report && (
+      ) : report && hasAnyReportData ? (
         <Stack spacing={2.5}>
           {/* 1. Flight Sortie & Compliance Header */}
           <Paper
@@ -307,10 +359,14 @@ export function FlightOperationsReportView({
                 <FlightTakeoffRounded color="primary" />
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                    {t('Automated Flight Operations & Telemetry Audit Report')}
+                    {isImportedSource
+                      ? t('Imported flight log summary')
+                      : isSimulationSource
+                        ? t('Simulated flight telemetry')
+                        : t('Flight report')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {`REF: SDI-FLT-${fieldSessionId.slice(0, 8).toUpperCase()} · ${t('100% Derived from MAVLink Telemetry (Zero Manual Input)')}`}
+                    {`REF: SDI-FLT-${fieldSessionId.slice(0, 8).toUpperCase()} · ${telemetrySourceLabel}`}
                   </Typography>
                 </Box>
               </Stack>
@@ -321,21 +377,31 @@ export function FlightOperationsReportView({
               >
                 <Chip
                   size="small"
-                  color="success"
-                  icon={<CheckCircleRounded />}
+                  color={
+                    isLiveMavlink
+                      ? 'success'
+                      : isSimulationSource
+                        ? 'warning'
+                        : 'info'
+                  }
+                  variant={isSimulationSource ? 'outlined' : 'filled'}
                   label={
-                    report.telemetrySource === 'MISSION_PLANNER_MAVLINK'
-                      ? t('Verified MAVLink Telemetry')
-                      : t('SmartDroneHub Telemetry')
+                    isLiveMavlink
+                      ? `${t('Real telemetry')} · ${telemetrySourceLabel}`
+                      : isSimulationSource
+                        ? `${t('Simulation')} · ${telemetrySourceLabel}`
+                        : `${t('Real log')} · ${telemetrySourceLabel}`
                   }
                   sx={{ fontWeight: 700 }}
                 />
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`${t('Final State')}: ${report.finalState}`}
-                  sx={{ fontWeight: 700 }}
-                />
+                {reportedFinalState && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`${t('Reported state')}: ${reportedFinalState}`}
+                    sx={{ fontWeight: 700 }}
+                  />
+                )}
                 <Button
                   size="small"
                   variant="outlined"
@@ -366,7 +432,7 @@ export function FlightOperationsReportView({
                   variant="caption"
                   sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}
                 >
-                  {t('Flight Permit Gate')}
+                  {t('Permit document')}
                 </Typography>
                 <Stack
                   direction="row"
@@ -377,35 +443,37 @@ export function FlightOperationsReportView({
                     variant="body2"
                     sx={{ fontWeight: 600, color: 'text.primary', wordBreak: 'break-word' }}
                   >
-                    {resolvedPermit}
+                    {resolvedPermit ?? t('No permit document details available')}
                   </Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
-                    onClick={() => setPermitDialogOpen(true)}
-                    sx={{
-                      height: 22,
-                      px: 1,
-                      fontSize: '0.75rem',
-                      fontWeight: 650,
-                      textTransform: 'none',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    {t('View permit')}
-                  </Button>
+                  {resolvedPermit && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
+                      onClick={() => setPermitDialogOpen(true)}
+                      sx={{
+                        height: 22,
+                        px: 1,
+                        fontSize: '0.75rem',
+                        fontWeight: 650,
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      {t('View document')}
+                    </Button>
+                  )}
                 </Stack>
               </Box>
               <MetaItem
-                label={t('Takeoff / Started At')}
+                label={t('Started at')}
                 value={report.startedAt ? formatDateTime(report.startedAt) : '—'}
               />
               <MetaItem
-                label={t('Landed / Ended At')}
+                label={t('Ended at')}
                 value={report.endedAt ? formatDateTime(report.endedAt) : '—'}
               />
-              <MetaItem label={t('Telemetry Audit Note')} value={report.note} />
+              <MetaItem label={t('Flight data note')} value={report.note ?? '—'} />
             </Box>
           </Paper>
 
@@ -413,12 +481,19 @@ export function FlightOperationsReportView({
             open={permitDialogOpen}
             onClose={() => setPermitDialogOpen(false)}
             inspectionId={inspectionId}
-            fileName={resolvedPermit}
+            fileName={resolvedPermit ?? undefined}
             uploadedAt={context?.flightPermitUploadedAt}
             assetName={resolvedAsset !== '—' ? resolvedAsset : null}
             droneSummary={resolvedDrone !== '—' ? resolvedDrone : null}
           />
 
+          <Alert severity="info" sx={{ borderRadius: '10px' }}>
+            {report.telemetrySource === 'IMPORTED_LOG_SRT'
+              ? t('SRT records a video segment; it does not establish the full flight duration or milestones.')
+              : isSimulationSource
+                ? t('This view shows simulated telemetry from SmartDroneHub rather than aircraft hardware sensors.')
+                : t('This report summarizes the available recorded segment. Missing telemetry fields are shown as unavailable.')}
+          </Alert>
           {/* 2. Automated 6 KPI Stat Tiles */}
           <Box
             sx={{
@@ -432,32 +507,38 @@ export function FlightOperationsReportView({
             }}
           >
             <StatTile
-              label={t('Flight duration')}
+              label={t('Recorded duration')}
               value={fmtDuration(report.durationSeconds)}
-              sub={`${report.durationSeconds}s total sortie`}
+              sub={
+                report.durationSeconds == null || report.durationSeconds <= 0
+                  ? t('Duration unavailable in this source')
+                  : report.telemetrySource === 'IMPORTED_LOG_SRT'
+                    ? t('Recorded video segment only; not the full flight')
+                    : t('Duration supplied by this source')
+              }
             />
             <StatTile
-              label={t('Distance flown')}
-              value={`${fmtNum(report.distanceFlownMeters, 1)} m`}
-              sub={t('Cumulative GPS Haversine')}
+              label={t('Recorded GPS distance')}
+              value={report.distanceFlownMeters == null ? '—' : `${fmtNum(report.distanceFlownMeters, 1)} m`}
+              sub={t('Calculated from recorded GPS points')}
             />
             <StatTile
-              label={t('Peak altitude AGL')}
-              value={`${fmtNum(metrics.maxAlt, 1)} m`}
-              sub={`${t('Avg')}: ${fmtNum(metrics.avgAlt, 1)} m AGL`}
+              label={t('Maximum recorded altitude')}
+              value={metrics.maxAlt == null ? '—' : `${fmtNum(metrics.maxAlt, 1)} m`}
+              sub={metrics.avgAlt == null ? t('Altitude data unavailable') : `${t('Average recorded')}: ${fmtNum(metrics.avgAlt, 1)} m`}
             />
             <StatTile
               label={t('Peak ground speed')}
-              value={`${fmtNum(metrics.maxSpeed, 1)} m/s`}
-              sub={`${t('Avg')}: ${fmtNum(metrics.avgSpeed, 1)} m/s`}
+              value={trace.some((point) => point.groundSpeedMps != null) ? `${fmtNum(metrics.maxSpeed, 1)} m/s` : '—'}
+              sub={trace.some((point) => point.groundSpeedMps != null) ? `${t('Avg')}: ${fmtNum(metrics.avgSpeed, 1)} m/s` : t('Speed data not included in this log')}
             />
             <StatTile
               label={t('Battery consumption')}
-              value={`${metrics.startBat}% → ${metrics.endBat}%`}
-              sub={`-${metrics.batUsed}% (${fmtNum(metrics.drainRatePerMin, 1)}%/min)`}
+              value={metrics.startBat == null || metrics.endBat == null ? '—' : `${metrics.startBat}% → ${metrics.endBat}%`}
+              sub={metrics.batUsed == null ? t('Battery data not included in this log') : `-${metrics.batUsed}% (${fmtNum(metrics.drainRatePerMin, 1)}%/min)`}
             />
             <StatTile
-              label={t('Telemetry samples')}
+              label={t('Recorded samples')}
               value={`${enrichedSamples.length}`}
               sub={`${evidenceList.length} ${t('geotagged captures')}`}
             />
@@ -471,65 +552,95 @@ export function FlightOperationsReportView({
               gap: 2,
             }}
           >
-            <GpsTrajectoryMapCard
-              samples={enrichedSamples}
-              evidenceList={evidenceList}
-              pal={pal}
-              hoverIdx={hoverIdx}
-              onHoverIdx={setHoverIdx}
-            />
+            {gpsSamples.length > 0 ? (
+              <GpsTrajectoryMapCard
+                samples={gpsSamples}
+                evidenceList={evidenceList}
+                pal={pal}
+                hoverIdx={hoverIdx}
+                onHoverIdx={setHoverIdx}
+              />
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: '10px', alignSelf: 'start' }}>
+                {t('No GPS trajectory points were supplied in this source.')}
+              </Alert>
+            )}
 
-            <SingleSeriesTimelineCard
-              icon={<TerrainRounded fontSize="small" color="primary" />}
-              title={t('Altitude Profile (m)')}
-              summaryLabel={`Avg ${fmtNum(metrics.avgAlt, 1)} m · Peak ${fmtNum(metrics.maxAlt, 1)} m`}
-              unit="m"
-              color={pal.series1}
-              samples={enrichedSamples}
-              getValue={(s) => s.altitude}
-              maxValue={Math.max(10, Math.ceil(metrics.maxAlt * 1.15))}
-              pal={pal}
-              hoverIdx={hoverIdx}
-              onHoverIdx={setHoverIdx}
-            />
+            {hasAltitudeSamples && metrics.maxAlt != null && metrics.avgAlt != null ? (
+              <SingleSeriesTimelineCard
+                icon={<TerrainRounded fontSize="small" color="primary" />}
+                title={t('Altitude Profile (m)')}
+                summaryLabel={`Avg ${fmtNum(metrics.avgAlt, 1)} m · Peak ${fmtNum(metrics.maxAlt, 1)} m`}
+                unit="m"
+                color={pal.series1}
+                samples={enrichedSamples}
+                getValue={(s) => s.altitude}
+                maxValue={Math.max(10, Math.ceil(metrics.maxAlt * 1.15))}
+                pal={pal}
+                hoverIdx={hoverIdx}
+                onHoverIdx={setHoverIdx}
+              />
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: '10px', alignSelf: 'start' }}>
+                {t('Altitude data not included in this log')}
+              </Alert>
+            )}
 
-            <SingleSeriesTimelineCard
-              icon={<SpeedRounded fontSize="small" color="primary" />}
-              title={t('Ground Speed (m/s)')}
-              summaryLabel={`Avg ${fmtNum(metrics.avgSpeed, 1)} m/s · Peak ${fmtNum(metrics.maxSpeed, 1)} m/s`}
-              unit="m/s"
-              color={pal.series2}
-              samples={enrichedSamples}
-              getValue={(s) => s.speed}
-              maxValue={Math.max(5, Math.ceil(metrics.maxSpeed * 1.2))}
-              pal={pal}
-              hoverIdx={hoverIdx}
-              onHoverIdx={setHoverIdx}
-            />
+            {hasSpeedSamples && metrics.maxSpeed != null && metrics.avgSpeed != null ? (
+              <SingleSeriesTimelineCard
+                icon={<SpeedRounded fontSize="small" color="primary" />}
+                title={t('Ground Speed (m/s)')}
+                summaryLabel={`Avg ${fmtNum(metrics.avgSpeed, 1)} m/s · Peak ${fmtNum(metrics.maxSpeed, 1)} m/s`}
+                unit="m/s"
+                color={pal.series2}
+                samples={enrichedSamples}
+                getValue={(s) => s.speed}
+                maxValue={Math.max(5, Math.ceil(metrics.maxSpeed * 1.2))}
+                pal={pal}
+                hoverIdx={hoverIdx}
+                onHoverIdx={setHoverIdx}
+              />
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: '10px', alignSelf: 'start' }}>
+                {t('Speed data not included in this log')}
+              </Alert>
+            )}
 
-            <BatteryAndModeSummaryCard
-              samples={enrichedSamples}
-              startBat={metrics.startBat}
-              endBat={metrics.endBat}
-              modeBreakdown={metrics.modeBreakdown}
-              pal={pal}
-              hoverIdx={hoverIdx}
-              onHoverIdx={setHoverIdx}
-            />
+            {metrics.startBat == null || metrics.endBat == null ? (
+              <Alert severity="info" sx={{ borderRadius: '10px', alignSelf: 'start' }}>
+                {t('Battery data not included in this log')}
+              </Alert>
+            ) : (
+              <BatteryAndModeSummaryCard
+                samples={enrichedSamples}
+                startBat={metrics.startBat}
+                endBat={metrics.endBat}
+                modeBreakdown={metrics.modeBreakdown}
+                pal={pal}
+                hoverIdx={hoverIdx}
+                onHoverIdx={setHoverIdx}
+              />
+            )}
           </Box>
 
-          {/* 4. Automated Flight Milestone & Evidence Geotag Log Table */}
-          <AutomatedEventLogTable
-            samples={enrichedSamples}
-            evidenceList={evidenceList}
-            startedAt={report.startedAt}
-            endedAt={report.endedAt}
-            startBat={metrics.startBat}
-            endBat={metrics.endBat}
-          />
+          {/* 4. Recorded Telemetry Milestones & Evidence Geotag Log Table */}
+          {report.telemetrySource === 'MISSION_PLANNER_MAVLINK' && (
+            <AutomatedEventLogTable
+              samples={enrichedSamples}
+              evidenceList={evidenceList}
+              startedAt={report.startedAt}
+              endedAt={report.endedAt}
+              startBat={metrics.startBat}
+              endBat={metrics.endBat}
+            />
+          )}
         </Stack>
+        ) : (
+          <Alert severity="info" sx={{ borderRadius: '10px' }}>
+            {t('No flight telemetry or imported flight log was recorded for this field session.')}
+          </Alert>
         )
-      )}
+      }
     </QueryState>
   );
 }
@@ -605,10 +716,11 @@ function StatTile({
 
 interface EnrichedSample extends SmartDroneHubFlightTracePoint {
   idx: number;
-  elapsedSec: number;
-  altitude: number;
-  speed: number;
-  battery: number;
+  elapsedSec: number | null;
+  altitude: number | null;
+  speed: number | null;
+  battery: number | null;
+  batteryAvailable: boolean;
   mode: string;
 }
 
@@ -626,10 +738,15 @@ function GpsTrajectoryMapCard({
   onHoverIdx: (idx: number | null) => void;
 }) {
   const { t } = useLocale();
+  const hasAltitudeFor3d = useMemo(
+    () => samples.some((sample) => sample.altitude != null && Number.isFinite(sample.altitude)),
+    [samples],
+  );
   const [expanded, setExpanded] = useState(false);
-  const [viewDimension, setViewDimension] = useState<'2d' | '3d'>('3d');
+  const [viewDimension, setViewDimension] = useState<'2d' | '3d'>(hasAltitudeFor3d ? '3d' : '2d');
   const [mapStyle, setMapStyle] = useState<'street' | 'satellite'>('street');
   const [lockedIdx, setLockedIdx] = useState<number | null>(null);
+  const effectiveDimension = hasAltitudeFor3d ? viewDimension : '2d';
 
   const geoEvidence = useMemo(
     () =>
@@ -674,13 +791,14 @@ function GpsTrajectoryMapCard({
             {activeSample && (
               <Chip
                 size="small"
-                label={`${fmtOffsetSec(activeSample.elapsedSec)} · ${activeSample.altitude.toFixed(1)} m`}
+                label={`${fmtOffsetSec(activeSample.elapsedSec)} · ${activeSample.altitude == null ? '—' : `${activeSample.altitude.toFixed(1)} m`}`}
                 sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
               />
             )}
             <Button
               size="small"
-              variant={viewDimension === '3d' ? 'contained' : 'outlined'}
+              variant={effectiveDimension === '3d' ? 'contained' : 'outlined'}
+              disabled={!hasAltitudeFor3d}
               onClick={() =>
                 setViewDimension((d) => (d === '2d' ? '3d' : '2d'))
               }
@@ -693,7 +811,7 @@ function GpsTrajectoryMapCard({
                 textTransform: 'none',
               }}
             >
-              {viewDimension === '3d' ? '3D' : '2D'}
+              {effectiveDimension === '3d' ? '3D' : '2D'}
             </Button>
             <Button
               size="small"
@@ -732,7 +850,7 @@ function GpsTrajectoryMapCard({
           samples={samples}
           geoEvidence={geoEvidence}
           height={235}
-          viewDimension={viewDimension}
+          viewDimension={effectiveDimension}
           mapStyle={mapStyle}
           activeIdx={activeIdx}
           onSelectIdx={setLockedIdx}
@@ -765,14 +883,15 @@ function GpsTrajectoryMapCard({
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Button
               size="small"
-              variant={viewDimension === '3d' ? 'contained' : 'outlined'}
+              variant={effectiveDimension === '3d' ? 'contained' : 'outlined'}
+              disabled={!hasAltitudeFor3d}
               startIcon={<ViewInArRounded fontSize="small" />}
               onClick={() =>
                 setViewDimension((d) => (d === '2d' ? '3d' : '2d'))
               }
               sx={{ textTransform: 'none', fontWeight: 600 }}
             >
-              {viewDimension === '3d' ? '3D View' : '2D View'}
+              {effectiveDimension === '3d' ? '3D View' : '2D View'}
             </Button>
             <Button
               size="small"
@@ -796,7 +915,7 @@ function GpsTrajectoryMapCard({
             geoEvidence={geoEvidence}
             height={560}
             isDialog
-            viewDimension={viewDimension}
+            viewDimension={effectiveDimension}
             mapStyle={mapStyle}
             activeIdx={activeIdx}
             onSelectIdx={setLockedIdx}
@@ -827,7 +946,7 @@ function SingleSeriesTimelineCard({
   unit: string;
   color: string;
   samples: EnrichedSample[];
-  getValue: (s: EnrichedSample) => number;
+  getValue: (s: EnrichedSample) => number | null;
   maxValue: number;
   pal: typeof VIZ_PALETTE.light;
   hoverIdx: number | null;
@@ -843,17 +962,24 @@ function SingleSeriesTimelineCard({
   const plotH = h - padT - padB;
 
   const coords = useMemo(() => {
-    if (samples.length === 0) return [];
-    return samples.map((s, idx) => {
+    const validSamples = samples
+      .map((sample) => {
+        const raw = getValue(sample);
+        if (raw == null || !Number.isFinite(raw)) return null;
+        return { sample, val: Math.max(0, raw) };
+      })
+      .filter((entry): entry is { sample: EnrichedSample; val: number } => entry != null);
+
+    if (validSamples.length === 0) return [];
+    return validSamples.map(({ sample, val }, idx) => {
       const x =
-        padL + (idx / Math.max(1, samples.length - 1)) * plotW;
-      const val = Math.max(0, getValue(s));
+        padL + (idx / Math.max(1, validSamples.length - 1)) * plotW;
       const y = padT + plotH - (Math.min(val, maxValue) / maxValue) * plotH;
       return {
         x: Math.round(x * 10) / 10,
         y: Math.round(y * 10) / 10,
         val,
-        sample: s,
+        sample,
       };
     });
   }, [samples, getValue, maxValue, plotW, plotH]);
@@ -873,7 +999,7 @@ function SingleSeriesTimelineCard({
   }, [coords]);
 
   const hoveredCoord =
-    hoverIdx != null && coords[hoverIdx] ? coords[hoverIdx] : null;
+    hoverIdx != null ? coords.find((coord) => coord.sample.idx === hoverIdx) ?? null : null;
 
   return (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: '10px' }}>
@@ -991,11 +1117,11 @@ function SingleSeriesTimelineCard({
           )}
 
           {/* Synchronized vertical hover crosshair */}
-          {hoverIdx != null && coords[hoverIdx] && (
+          {hoveredCoord && (
             <line
-              x1={coords[hoverIdx]!.x}
+              x1={hoveredCoord.x}
               y1={padT}
-              x2={coords[hoverIdx]!.x}
+              x2={hoveredCoord.x}
               y2={padT + plotH}
               stroke={pal.axisText}
               strokeWidth="1"
@@ -1018,14 +1144,14 @@ function SingleSeriesTimelineCard({
 
           {/* Data markers with 2px surface ring & wide hit targets */}
           {coords.map((c, idx) => {
-            const isHovered = hoverIdx === idx;
+            const isHovered = hoverIdx === c.sample.idx;
             const isEndpoint = idx === 0 || idx === coords.length - 1;
-            const isPeak = peakCoord?.sample.idx === idx;
+            const isPeak = peakCoord?.sample.idx === c.sample.idx;
             return (
               <g
-                key={`pt-${idx}`}
+                key={`pt-${c.sample.idx}`}
                 style={{ cursor: 'pointer' }}
-                onMouseEnter={() => onHoverIdx(idx)}
+                onMouseEnter={() => onHoverIdx(c.sample.idx)}
               >
                 {(isHovered || isEndpoint || isPeak) && (
                   <circle
@@ -1063,8 +1189,8 @@ function BatteryAndModeSummaryCard({
   onHoverIdx,
 }: {
   samples: EnrichedSample[];
-  startBat: number;
-  endBat: number;
+  startBat: number | null;
+  endBat: number | null;
   modeBreakdown: Array<{ mode: string; count: number; pct: number; color: string }>;
   pal: typeof VIZ_PALETTE.light;
   hoverIdx: number | null;
@@ -1081,14 +1207,19 @@ function BatteryAndModeSummaryCard({
   const plotH = h - padT - padB;
 
   const coords = useMemo(() => {
-    if (samples.length === 0) return [];
-    return samples.map((s, idx) => {
-      const x = padL + (idx / Math.max(1, samples.length - 1)) * plotW;
-      const y = padT + plotH - (s.battery / 100) * plotH;
+    const validSamples = samples.filter(
+      (sample): sample is EnrichedSample & { battery: number } =>
+        sample.batteryAvailable && sample.battery != null && Number.isFinite(sample.battery),
+    );
+    if (validSamples.length === 0) return [];
+    return validSamples.map((s, idx) => {
+      const clampedBattery = Math.max(0, Math.min(100, s.battery));
+      const x = padL + (idx / Math.max(1, validSamples.length - 1)) * plotW;
+      const y = padT + plotH - (clampedBattery / 100) * plotH;
       return {
         x: Math.round(x * 10) / 10,
         y: Math.round(y * 10) / 10,
-        bat: s.battery,
+        bat: clampedBattery,
         sample: s,
       };
     });
@@ -1102,7 +1233,8 @@ function BatteryAndModeSummaryCard({
       ? `${linePath} L ${coords.at(-1)!.x} ${padT + plotH} L ${coords[0]!.x} ${padT + plotH} Z`
       : '';
   const rthY = padT + plotH - 0.2 * plotH;
-  const hovered = hoverIdx != null && coords[hoverIdx] ? coords[hoverIdx] : null;
+  const hovered =
+    hoverIdx != null ? coords.find((coord) => coord.sample.idx === hoverIdx) ?? null : null;
 
   return (
     <Paper
@@ -1136,8 +1268,10 @@ function BatteryAndModeSummaryCard({
             variant="outlined"
             label={
               hovered
-                ? `${fmtOffsetSec(hovered.sample.elapsedSec)} · ${hovered.bat}% · ${hovered.sample.mode}`
-                : `${startBat}% → ${endBat}% (-${Math.max(0, startBat - endBat)}%)`
+                ? `${fmtOffsetSec(hovered.sample.elapsedSec)} · ${hovered.sample.batteryAvailable ? `${hovered.bat}%` : '—'} · ${hovered.sample.mode}`
+                : startBat == null || endBat == null
+                  ? t('Battery data not included in this log')
+                  : `${startBat}% → ${endBat}% (-${Math.max(0, startBat - endBat)}%)`
             }
             sx={{ fontWeight: 600, height: 22, fontSize: '0.75rem' }}
           />
@@ -1221,12 +1355,12 @@ function BatteryAndModeSummaryCard({
 
             {coords.map((c, idx) => {
               const isEndpoint = idx === 0 || idx === coords.length - 1;
-              const isHovered = hoverIdx === idx;
+              const isHovered = hoverIdx === c.sample.idx;
               return (
                 <g
-                  key={`bat-pt-${idx}`}
+                  key={`bat-pt-${c.sample.idx}`}
                   style={{ cursor: 'pointer' }}
-                  onMouseEnter={() => onHoverIdx(idx)}
+                  onMouseEnter={() => onHoverIdx(c.sample.idx)}
                 >
                   {(isEndpoint || isHovered) && (
                     <circle
@@ -1244,48 +1378,52 @@ function BatteryAndModeSummaryCard({
           </Box>
         </Box>
 
-        <Box
-          sx={{
-            display: 'flex',
-            width: '100%',
-            height: 24,
-            gap: '2px',
-            bgcolor: pal.surface,
-            mb: 1,
-          }}
-        >
-          {modeBreakdown.map((item) => (
+        {modeBreakdown.length > 0 && (
+          <>
             <Box
-              key={item.mode}
               sx={{
-                flexGrow: Math.max(item.pct, 4),
-                flexBasis: 0,
-                bgcolor: item.color,
-                borderRadius: '5px',
                 display: 'flex',
-                alignItems: 'center',
-                px: 1,
-                color: '#ffffff',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
+                width: '100%',
+                height: 24,
+                gap: '2px',
+                bgcolor: pal.surface,
+                mb: 1,
               }}
-              title={`${item.mode}: ${item.pct}%`}
             >
-              {item.pct >= 22 ? `${item.pct}%` : ''}
+              {modeBreakdown.map((item) => (
+                <Box
+                  key={item.mode}
+                  sx={{
+                    flexGrow: Math.max(item.pct, 4),
+                    flexBasis: 0,
+                    bgcolor: item.color,
+                    borderRadius: '5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    px: 1,
+                    color: '#ffffff',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={`${item.mode}: ${item.pct}%`}
+                >
+                  {item.pct >= 22 ? `${item.pct}%` : ''}
+                </Box>
+              ))}
             </Box>
-          ))}
-        </Box>
 
-        <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-          {modeBreakdown.map((item) => (
-            <LegendSwatch
-              key={item.mode}
-              color={item.color}
-              label={`${item.mode} (${item.pct}%)`}
-            />
-          ))}
-        </Stack>
+            <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+              {modeBreakdown.map((item) => (
+                <LegendSwatch
+                  key={item.mode}
+                  color={item.color}
+                  label={`${item.mode} (${item.pct}%)`}
+                />
+              ))}
+            </Stack>
+          </>
+        )}
       </Box>
     </Paper>
   );
@@ -1323,10 +1461,10 @@ function AutomatedEventLogTable({
 }: {
   samples: EnrichedSample[];
   evidenceList: EvidenceItem[];
-  startedAt: string;
-  endedAt: string | null;
-  startBat: number;
-  endBat: number;
+  startedAt: string | null | undefined;
+  endedAt: string | null | undefined;
+  startBat: number | null;
+  endBat: number | null;
 }) {
   const { t, formatDateTime } = useLocale();
 
@@ -1334,7 +1472,7 @@ function AutomatedEventLogTable({
     const list: Array<{
       id: string;
       event: string;
-      timestamp: string;
+      timestamp: string | null | undefined;
       gps: string;
       altitude: string;
       speed: string;
@@ -1342,33 +1480,52 @@ function AutomatedEventLogTable({
       mode: string;
     }> = [];
 
-    const first = samples[0];
-    list.push({
-      id: 'evt-takeoff',
-      event: 'Takeoff / Mission Start',
-      timestamp: first?.recordedAt ?? startedAt,
-      gps: first
-        ? `${first.latitude.toFixed(6)}, ${first.longitude.toFixed(6)}`
-        : '—',
-      altitude: first ? `${first.altitude.toFixed(1)} m` : '0.0 m',
-      speed: first ? `${first.speed.toFixed(1)} m/s` : '0.0 m/s',
-      battery: `${first?.battery ?? startBat}%`,
-      mode: first?.mode ?? 'GUIDED',
-    });
+    const fmtPointGps = (point: EnrichedSample | undefined) =>
+      point && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
+        ? `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`
+        : '—';
+    const fmtAlt = (value: number | null | undefined) =>
+      value != null && Number.isFinite(value) ? `${value.toFixed(1)} m` : '—';
+    const fmtSpd = (value: number | null | undefined) =>
+      value != null && Number.isFinite(value) ? `${value.toFixed(1)} m/s` : '—';
+    const fmtBat = (point: EnrichedSample | undefined, fallback: number | null) =>
+      point?.battery != null
+        ? `${point.battery}%`
+        : fallback != null
+          ? `${fallback}%`
+          : '—';
 
-    if (samples.length > 2) {
-      const peak = samples.reduce(
+    const first = samples[0];
+    if (first || startedAt) {
+      list.push({
+        id: 'evt-takeoff',
+        event: t('First recorded sample'),
+        timestamp: first?.recordedAt ?? startedAt ?? null,
+        gps: fmtPointGps(first),
+        altitude: fmtAlt(first?.altitude),
+        speed: fmtSpd(first?.speed),
+        battery: fmtBat(first, startBat),
+        mode: first?.mode ?? '—',
+      });
+    }
+
+    const altitudeSamples = samples.filter(
+      (sample): sample is EnrichedSample & { altitude: number } =>
+        sample.altitude != null && Number.isFinite(sample.altitude),
+    );
+    if (samples.length > 2 && altitudeSamples.length > 0) {
+      const peak = altitudeSamples.reduce(
         (best, cur) => (cur.altitude > best.altitude ? cur : best),
-        samples[0]!,
+        altitudeSamples[0]!,
       );
       list.push({
         id: 'evt-peak',
-        event: 'Peak Altitude Reached',
-        timestamp: peak.recordedAt,
-        gps: `${peak.latitude.toFixed(6)}, ${peak.longitude.toFixed(6)}`,
-        altitude: `${peak.altitude.toFixed(1)} m`,
-        speed: `${peak.speed.toFixed(1)} m/s`,
-        battery: `${peak.battery}%`,
+        event: t('Maximum altitude recorded'),
+        timestamp: peak.recordedAt ?? null,
+        gps: fmtPointGps(peak),
+        altitude: fmtAlt(peak.altitude),
+        speed: fmtSpd(peak.speed),
+        battery: fmtBat(peak, null),
         mode: peak.mode,
       });
     }
@@ -1380,41 +1537,41 @@ function AutomatedEventLogTable({
         list.push({
           id: `evt-ev-${ev.id}`,
           event: `Evidence #${idx + 1}: ${ev.fileName}`,
-          timestamp: ev.captureTime ?? startedAt,
+          timestamp: ev.captureTime ?? startedAt ?? null,
           gps:
             ev.latitude != null && ev.longitude != null
               ? `${Number(ev.latitude).toFixed(6)}, ${Number(ev.longitude).toFixed(6)}`
               : '—',
           altitude: '—',
-          speed: 'Station Hover',
+          speed: '—',
           battery: '—',
-          mode: 'GUIDED',
+          mode: '—',
         });
       });
 
     const last = samples.at(-1);
-    list.push({
-      id: 'evt-land',
-      event: 'Landing / Session Completed',
-      timestamp: endedAt ?? last?.recordedAt ?? startedAt,
-      gps: last
-        ? `${last.latitude.toFixed(6)}, ${last.longitude.toFixed(6)}`
-        : '—',
-      altitude: last ? `${last.altitude.toFixed(1)} m` : '0.0 m',
-      speed: '0.0 m/s',
-      battery: `${last?.battery ?? endBat}%`,
-      mode: last?.mode ?? 'LAND',
-    });
+    if (last || endedAt) {
+      list.push({
+        id: 'evt-land',
+        event: t('Last recorded sample'),
+        timestamp: endedAt ?? last?.recordedAt ?? null,
+        gps: fmtPointGps(last),
+        altitude: fmtAlt(last?.altitude),
+        speed: fmtSpd(last?.speed),
+        battery: fmtBat(last, endBat),
+        mode: last?.mode ?? '—',
+      });
+    }
 
     return list;
-  }, [samples, evidenceList, startedAt, endedAt, startBat, endBat]);
+  }, [samples, evidenceList, startedAt, endedAt, startBat, endBat, t]);
 
   return (
     <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '10px' }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <CameraAltRounded fontSize="small" color="primary" />
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-          {t('Automated Flight Milestone & Evidence Geotag Log')}
+          {t('Recorded telemetry samples & evidence geotags')}
         </Typography>
       </Stack>
 

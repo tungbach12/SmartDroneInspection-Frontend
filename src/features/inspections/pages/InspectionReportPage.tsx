@@ -55,7 +55,7 @@ const NEXT_STEP: Record<string, string> = {
  * Step 7: Report Synthesis — automated compilation from confirmed findings,
  * submission for Platform Manager review, and version history.
  */
-export default function InspectionDraftPage() {
+export default function InspectionReportPage() {
   const { t } = useLocale();
   const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
     | { onReportDirtyChange?: (dirty: boolean) => void }
@@ -145,13 +145,13 @@ export default function InspectionDraftPage() {
           ? 'FAIR'
           : 'GOOD';
     const assetLabel = inspectionData?.assetName || t('the inspected structure');
-    const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${t('Recorded')} ${reportable.length} ${t('confirmed defect(s) and')} ${(evidence.data ?? []).length} ${t('field evidence capture(s).')}`;
+    const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${reportable.length} ${t('confirmed defects')}; ${(evidence.data ?? []).length} ${t('evidence captures')}.`;
 
     return {
       id: `preview-${inspectionId}`,
       inspectionReportId: `preview-${inspectionId}`,
       versionNo: 1,
-      status: 'SUBMITTED',
+      status: 'DRAFT',
       authorUserId: userId ?? '',
       submittedAt: null,
       reviewerUserId: null,
@@ -173,7 +173,7 @@ export default function InspectionDraftPage() {
         conclusionsRecommendations:
           reportable.length > 0
             ? `${t('Recommend forwarding')} ${reportable.length} ${t('confirmed defect finding(s) to Maintenance for corrective repair planning.')}`
-            : t('Structure is in serviceable condition; no critical defects observed during this survey.'),
+            : t('No confirmed defects in the reviewed evidence. This does not certify the structure as safe or defect-free.'),
       },
       reportContext: {
         organizationName: null,
@@ -322,7 +322,7 @@ export default function InspectionDraftPage() {
                   </Button>
                 }
               >
-                {t('Confirm the reviewed findings in Step 6 (Findings) before compiling the inspection report.')}
+                {t('Confirm the reviewed findings before compiling the report.')}
               </Alert>
             ) : sourcesChangedAfterVersion ? (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -364,7 +364,7 @@ export default function InspectionDraftPage() {
                 isError
                 fallbackMessage={
                   isConflict(submit.error)
-                    ? t('The server refused this submission. Confirm findings in Step 6 (Findings) and generate a new report version if evidence or findings changed.')
+                    ? t('Submission blocked. Confirm findings and create a new report version if evidence or findings changed.')
                     : t('Could not submit this report.')
                 }
               />
@@ -380,7 +380,7 @@ export default function InspectionDraftPage() {
         </Paper>
       )}
 
-      {createDraft.isPending && (
+      {createDraft.isPending && versionList.length === 0 && (
         <Paper
           variant="outlined"
           sx={{
@@ -396,6 +396,9 @@ export default function InspectionDraftPage() {
 
       {!createDraft.isPending && versionList.length === 0 ? (
         <Stack spacing={2}>
+          <Alert severity="info" sx={{ borderRadius: '10px' }}>
+            {t('Report preview · not submitted')}
+          </Alert>
           <Paper
             variant="outlined"
             sx={{
@@ -412,12 +415,12 @@ export default function InspectionDraftPage() {
             >
               <Box>
                 <Typography variant="h6" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
-                  {findingsConfirmed ? t('Ready to Submit Inspection & Flight Reports') : t('No report version yet')}
+                  {findingsConfirmed ? t('Review reports') : t('Report not ready')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {findingsConfirmed
-                    ? t('Review the two auto-compiled deliverables below: (1) Inspection Findings Report and (2) Flight Operations Report before submitting for review.')
-                    : t('Once findings are confirmed in Step 6 (Findings), the inspection report and flight operations report can be compiled and submitted.')}
+                    ? t('Check both reports before submitting.')
+                    : t('Confirm findings before compiling the reports.')}
                 </Typography>
               </Box>
 
@@ -438,7 +441,7 @@ export default function InspectionDraftPage() {
                     flexShrink: 0,
                   }}
                 >
-                  {createDraft.isPending ? t('Compiling & Submitting…') : t('Submit for review')}
+                  {isSubmitting ? t('Submitting…') : t('Submit for review')}
                 </Button>
               )}
 
@@ -474,14 +477,14 @@ export default function InspectionDraftPage() {
                   value="inspection"
                   icon={<PictureAsPdfRounded fontSize="small" />}
                   iconPosition="start"
-                  label={t('1. Inspection Findings Report')}
+                  label={t('Findings report')}
                   sx={{ textTransform: 'none', fontWeight: 700 }}
                 />
                 <Tab
                   value="flight"
                   icon={<FlightTakeoffRounded fontSize="small" />}
                   iconPosition="start"
-                  label={t('2. Flight Operations Report (Auto-Generated)')}
+                  label={t('Flight operations')}
                   sx={{ textTransform: 'none', fontWeight: 700 }}
                 />
               </Tabs>
@@ -533,14 +536,14 @@ export default function InspectionDraftPage() {
                   value="inspection"
                   icon={<PictureAsPdfRounded fontSize="small" />}
                   iconPosition="start"
-                  label={t('1. Inspection Findings Report')}
+                  label={t('Findings report')}
                   sx={{ textTransform: 'none', fontWeight: 700 }}
                 />
                 <Tab
                   value="flight"
                   icon={<FlightTakeoffRounded fontSize="small" />}
                   iconPosition="start"
-                  label={t('2. Flight Operations Report (Auto-Generated)')}
+                  label={t('Flight operations')}
                   sx={{ textTransform: 'none', fontWeight: 700 }}
                 />
               </Tabs>
@@ -606,7 +609,7 @@ export default function InspectionDraftPage() {
             </Typography>
             <Typography variant="body2">
               {t(
-                'As the inspecting author, by submitting this deliverable package you certify that both the Inspection Findings Report and the automated Flight Operations Report have been reviewed and verified.',
+                'By submitting, I confirm I reviewed both reports and take responsibility for their contents.',
               )}
             </Typography>
           </Alert>
@@ -617,7 +620,7 @@ export default function InspectionDraftPage() {
             </Typography>
             <Typography variant="body2">
               {t(
-                'Upon submission, this report version, along with all associated evidence, findings, and flight telemetry records, will be locked from further edits while awaiting Platform Manager review.',
+                'Reports and source records are locked during Manager review.',
               )}
             </Typography>
           </Alert>

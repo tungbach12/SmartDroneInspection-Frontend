@@ -552,14 +552,14 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       // ignore
     }
   }
-  const hasFlown =
-    liveHasFlown ||
-    Boolean(
-      openSession?.id &&
-        typeof sessionStorage !== 'undefined' &&
-        sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
-    );
-  const canProceedToPostFlight = hasFlown;
+  const hasFlightReport = Boolean(openSession?.hasFlightReport);
+  const hasFlown = liveHasFlown || Boolean(
+    openSession?.id &&
+      typeof sessionStorage !== 'undefined' &&
+      sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
+  );
+  const hasFlightRecord = hasFlown || hasFlightReport;
+  const canProceedToPostFlight = hasFlightRecord;
 
   const allRequiredPreFlightChecked =
     requiredPreFlightItems.length > 0 &&
@@ -1405,7 +1405,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 variant="outlined"
                 sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px', bgcolor: 'background.paper' }}
               >
-                {openSession && hasFlown ? (
+                {openSession && hasFlightRecord ? (
                   <form
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -1766,7 +1766,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       itemCodePrefix="PO"
                     />
                   </Stack>
-                ) : openSession && !hasFlown ? (
+                ) : openSession && !hasFlightRecord ? (
                   <Stack spacing={2}>
                     <Alert
                       severity="info"
@@ -1782,7 +1782,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       }
                     >
                       {t(
-                        'Connect to SmartDroneHub (Connect Flight Operations) and perform the flight survey in Step 3 before completing the post-flight checklist.',
+                        'Record the flight using live telemetry, an imported flight log, or a manual declaration before completing the post-flight checklist.',
                       )}
                     </Alert>
                     {assetInspectionItems.length > 0 && (
@@ -2030,18 +2030,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                 {openSession?.status === 'IN_PROGRESS' && (
                   <>
-                    {stage === 'flight' && !canProceedToPostFlight && (
-                      <Alert severity="info" sx={{ borderRadius: '10px', py: 1 }}>
-                        {t(
-                          'Connect to SmartDroneHub (Connect Flight Operations) and perform the flight survey before continuing to Post-flight & Items.',
-                        )}
-                      </Alert>
-                    )}
                     <SmartDroneHubTelemetryPanel
                       inspectionId={inspectionId}
                       fieldSessionId={openSession.id}
                       sessionActive
-                      canViewFlightReport={false}
+                      hasFlightReport={hasFlightReport}
+                      telemetrySource={openSession.telemetrySource}
                       onTelemetryChange={setLiveTelemetry}
                     />
                     {assetInspectionItems.length > 0 && (
@@ -2069,7 +2063,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               {t('Target Building Inspection Items')}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                              {t('Reference list of structural checkpoints to capture during flight.')}
+                              {t('Checkpoints to capture during flight.')}
                             </Typography>
                           </Box>
                           <Chip

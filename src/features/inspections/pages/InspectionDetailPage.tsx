@@ -119,8 +119,8 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     step: 7,
     value: 'report',
     label: 'Report',
-    title: 'Inspection Report',
-    sublabel: 'Compile & Submit',
+    title: 'Review & Submit',
+    sublabel: 'Review & Submit',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -176,8 +176,8 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
     step: 6,
     value: 'report',
     label: 'Report',
-    title: 'Verification Report',
-    sublabel: 'Sign-off & Submit',
+    title: 'Verify & Submit',
+    sublabel: 'Verify & Submit',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -313,11 +313,12 @@ export default function InspectionDetailPage() {
   const latestSession = sessionsQuery.data?.at(-1);
   const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
 
-  const hasFlownInActiveSession = Boolean(
+  const hasLiveFlightInActiveSession = Boolean(
     openSession?.id &&
       typeof sessionStorage !== 'undefined' &&
       sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
   );
+  const hasFlightRecordInActiveSession = Boolean(openSession?.hasFlightReport);
 
   const visibleSteps = isCustomer
     ? CUSTOMER_STEPS.filter((step) => {
@@ -462,7 +463,7 @@ export default function InspectionDetailPage() {
     Boolean(inspection?.flightPermitFileName) ||
     ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
   const hasSessionStarted =
-    isFieldWorkComplete || hasFlownInActiveSession;
+    isFieldWorkComplete || hasLiveFlightInActiveSession || hasFlightRecordInActiveSession;
   const hasEvidence =
     activeEvidenceCount > 0 ||
     ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
@@ -524,9 +525,9 @@ export default function InspectionDetailPage() {
       return null;
     }
     if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
-    if (step.value === 'post-flight' && !hasSessionStarted) return t('Connect to SmartDroneHub and perform the flight survey in Step 3 before completing the post-flight checklist.');
-    if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
-    if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
+    if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
+    if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
+    if (step.value === 'findings' && !hasEvidence) return t('Upload evidence to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
     if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
     return null;
@@ -535,7 +536,6 @@ export default function InspectionDetailPage() {
   const currentStep = visibleSteps.find((step) => step.value === tabValue);
   const currentStepIndex = visibleSteps.findIndex((step) => step.value === tabValue);
   const currentStepState = currentStep ? readinessFor(currentStep) : 'pending';
-  const currentBlocker = currentStep ? blockedReason(currentStep) : null;
 
   const autoResumeStep = Boolean(
     (location.state as { autoResumeStep?: boolean } | null)?.autoResumeStep,
@@ -845,7 +845,7 @@ export default function InspectionDetailPage() {
                       {isCompleted ? (
                         <CheckRounded sx={{ fontSize: 18 }} />
                       ) : (
-                        step.step
+                        idx + 1
                       )}
                     </Box>
                     <Box
@@ -885,26 +885,21 @@ export default function InspectionDetailPage() {
                     >
                       {t(step.title)}
                     </Typography>
-                    <Typography
-                      component="span"
-                      sx={{
-                        display: 'block',
-                        mt: 0.3,
-                        color: isCompleted
-                          ? completeGreen
-                          : isCurrent && state === 'active'
-                            ? activePrimary
-                            : 'text.secondary',
-                        fontSize: '0.75rem',
-                        fontWeight: isCurrent ? 700 : 500,
-                        lineHeight: 1.2,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {t(STEP_STATE_COPY[state])}
-                    </Typography>
+                    {isCurrent && state === 'active' && (
+                      <Typography
+                        component="span"
+                        sx={{
+                          display: 'block',
+                          mt: 0.3,
+                          color: activePrimary,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {t(STEP_STATE_COPY[state])}
+                      </Typography>
+                    )}
                   </Box>
                 </ButtonBase>
               );
@@ -960,7 +955,7 @@ export default function InspectionDetailPage() {
                           fontSize: '0.75rem',
                         }}
                       >
-                        {isCompleted ? <CheckRounded sx={{ fontSize: 16 }} /> : step.step}
+                        {isCompleted ? <CheckRounded sx={{ fontSize: 16 }} /> : idx + 1}
                       </ButtonBase>
                       {idx < visibleSteps.length - 1 && (
                         <Box
@@ -984,12 +979,6 @@ export default function InspectionDetailPage() {
       </Box>
 
       <Box className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
-        {currentBlocker && (
-          <Alert severity="info" icon={false} sx={{ mb: 1.5, borderRadius: '5px' }}>
-            <Typography variant="body2"><strong>{t('This stage is open for review')}:</strong> {currentBlocker}</Typography>
-            <Typography variant="caption">{t('Navigation stays available; the required action becomes available when the prerequisite is met.')}</Typography>
-          </Alert>
-        )}
         <Outlet context={{ onReportDirtyChange: setReportDirty }} />
       </Box>
 

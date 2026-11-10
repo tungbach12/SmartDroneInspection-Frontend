@@ -1,6 +1,6 @@
 ﻿import { useState, type MouseEvent } from 'react';
 import { Badge, IconButton, Tooltip } from '@mui/material';
-import NotificationsOutlined from '@mui/icons-material/NotificationsOutlined';
+import { NextAdminBellIcon } from '@/shared/ui/NextAdminIcons';
 import type { PortalId } from '@/app/permissions/accessPolicy';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useUnreadChatSummary } from '@/features/contracts/hooks/useContracts';
@@ -53,7 +53,7 @@ export function NotificationBell({ portal }: NotificationBellProps) {
             max={99}
             overlap="circular"
           >
-            <NotificationsOutlined fontSize="small" />
+            <NextAdminBellIcon width={18} height={18} />
           </Badge>
         </IconButton>
       </Tooltip>

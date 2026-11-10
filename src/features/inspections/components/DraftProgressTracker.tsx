@@ -36,13 +36,13 @@ export function DraftProgressTracker() {
               />
             ))}
             <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-              {t('Compiling inspection report')}
+              {t('Preparing report')}
             </Typography>
           </Stack>
           <LinearProgress sx={{ borderRadius: 4 }} />
           <Alert severity="info" sx={{ borderRadius: '8px' }}>
             {t(
-              'Compiling report automatically from confirmed findings and evidence records. The report will appear when ready for review.',
+              'Preparing the report from confirmed findings and evidence.',
             )}
           </Alert>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

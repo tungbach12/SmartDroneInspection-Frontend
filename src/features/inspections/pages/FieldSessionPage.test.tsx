@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -11,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   abort: vi.fn(),
   getById: vi.fn(),
   uploadFlightPermit: vi.fn(),
+  importFlightLog: vi.fn(),
+  declareManualFlight: vi.fn(),
 }));
 
 vi.mock('../api/fieldSessionApi', async (importOriginal) => {
@@ -42,6 +45,18 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
 
 import FieldSessionPage from './FieldSessionPage';
 
+vi.mock('../api/smartDroneHubApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/smartDroneHubApi')>();
+  return {
+    ...actual,
+    smartDroneHubApi: {
+      ...actual.smartDroneHubApi,
+      importFlightLog: mocks.importFlightLog,
+      declareManualFlight: mocks.declareManualFlight,
+    },
+  };
+});
+
 const SESSION = {
   id: 'session-1',
   inspectionId: 'inspection-1',
@@ -52,6 +67,8 @@ const SESSION = {
   postponementReason: null,
   abortReason: null,
   outcomeNotes: null,
+  telemetrySource: null,
+  hasFlightReport: false,
 };
 
 const INSPECTION = {
@@ -100,6 +117,9 @@ describe('FieldSessionPage', () => {
 
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
+    localStorage.clear();
+    useAuthStore.setState({ roles: [] });
   });
 
   it('keeps the field-session screen focused on permit and session actions', async () => {
@@ -240,6 +260,84 @@ describe('FieldSessionPage', () => {
     expect(
       await screen.findByText(/North and south spans fully photographed\./),
     ).toBeTruthy();
+  });
+
+  it('unlocks the post-flight step from persisted imported-log state after reload', async () => {
+    mocks.list.mockResolvedValue([{ ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' }]);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/operations/inspections/inspection-1/post-flight']}>
+          <Routes>
+            <Route path="/operations/inspections/:inspectionId/post-flight" element={<FieldSessionPage stage="post-flight" />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Post-flight & Inspection Items')).toBeTruthy();
+    expect(screen.queryByText(/Record the flight using live telemetry/)).toBeNull();
+  });
+
+  it('shows one inclusive blocker when post-flight is opened before any flight record exists', async () => {
+    mocks.list.mockResolvedValue([SESSION]);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/operations/inspections/inspection-1/post-flight']}>
+          <Routes>
+            <Route path="/operations/inspections/:inspectionId/post-flight" element={<FieldSessionPage stage="post-flight" />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        'Record the flight using live telemetry, an imported flight log, or a manual declaration before completing the post-flight checklist.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('invalidates field sessions on flight log import so the flight step enables Continue to Post-flight & Items', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.list
+      .mockResolvedValueOnce([SESSION])
+      .mockResolvedValueOnce([{ ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' }]);
+    mocks.importFlightLog.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      telemetrySource: 'IMPORTED_LOG_SRT',
+      startedAt: null,
+      endedAt: null,
+      durationSeconds: null,
+      distanceFlownMeters: null,
+      maxAltitudeMeters: null,
+      startBatteryPercent: null,
+      endBatteryPercent: null,
+      finalState: 'UNKNOWN',
+      note: 'Imported SRT',
+      flightTrace: [],
+    });
+
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/operations/inspections/inspection-1/field-session']}>
+          <Routes>
+            <Route path="/operations/inspections/:inspectionId/field-session" element={<FieldSessionPage stage="flight" />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const continueButton = (await screen.findByRole('button', { name: 'Continue to Post-flight & Items' })) as HTMLButtonElement;
+    expect(continueButton.disabled).toBe(true);
+
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [new File(['srt'], 'flight.srt', { type: 'text/plain' })] },
+    });
+
+    await waitFor(() => expect(continueButton.disabled).toBe(false));
+    expect(sessionStorage.getItem('sdi_has_flown_session-1')).toBeNull();
   });
 
   it('does not offer session start after the inspection has left the ready state', async () => {
