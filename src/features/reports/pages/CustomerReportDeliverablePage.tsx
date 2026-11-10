@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -50,6 +50,7 @@ export default function CustomerReportDeliverablePage({
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const showReportContent = !stage || stage === 'report';
   const showSettlementContent = !stage || stage === 'settlement';
 

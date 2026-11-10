@@ -521,7 +521,6 @@ export default function Mf1ReviewPage() {
                             </Typography>
                             {droneApp.inspectorPilotLicenseNumber && (
                               <Chip
-                              <Chip
                                 label={`${tr('Bằng lái', 'License')}: ${droneApp.inspectorPilotLicenseNumber}${droneApp.inspectorPilotLicenseClass ? ` (${droneApp.inspectorPilotLicenseClass === 'CLASS_A' ? 'Hạng A < 2 kg' : 'Hạng B ≥ 2 kg'})` : ''}`}
                                 size="small"
                                 color="info"
@@ -600,7 +599,6 @@ export default function Mf1ReviewPage() {
                           color="primary"
                           startIcon={<FactCheckOutlined />}
                           onClick={() => void openReview(droneApp)}
-                          color="primary"
                           sx={{
                             px: 3,
                             py: 1,
@@ -825,7 +823,6 @@ export default function Mf1ReviewPage() {
                 color="primary"
                 startIcon={<PersonAddAlt />}
                 onClick={() => setCreateInspectorOpen(true)}
-                color="primary"
                 sx={{
                   textTransform: 'none',
                   fontWeight: 650,

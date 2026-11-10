@@ -246,9 +246,6 @@ export default function InspectionReportPage() {
     workflow.data,
     fieldSessionItems,
     t,
-    isReinspection,
-    executiveSummary,
-    conclusionsRecommendations,
   ]);
 
   const activeEvidenceList = useMemo(
