@@ -639,6 +639,43 @@ export function useReviewReportVersion(inspectionId: string | null) {
   });
 }
 
+export function useRequestReportClarification(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ versionId, reason }: { versionId: string; reason: string }) =>
+      inspectionApi.requestReportClarification(inspectionId!, versionId, reason),
+    onSuccess: () => {
+      showToast('Clarification request sent; report returned for revision.');
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not submit clarification request.'), 'error'),
+  });
+}
+
+export function useCreateDirectReinspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (input: { repairNotes?: string; repairProofUrl?: string }) =>
+      inspectionApi.createDirectReinspection(inspectionId!, input),
+    onSuccess: () => {
+      showToast('Re-inspection mission scheduled with target defects.');
+      client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+      client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not schedule re-inspection.'), 'error'),
+  });
+}
+
 export function useWithdrawReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
@@ -888,6 +925,15 @@ export function useUpdateReinspectionVerification(inspectionId: string | null | 
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: inspectionKeys.reinspectionVerifications(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.evidence(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.workflowState(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.detail(inspectionId),
         });
       }
       showToast('Cập nhật xác minh lỗi thành công');

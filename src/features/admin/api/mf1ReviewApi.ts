@@ -32,6 +32,7 @@ export interface DroneRegistrationApplication {
   inspectorFullName?: string | null;
   inspectorEmail?: string | null;
   inspectorPilotLicenseNumber?: string | null;
+  inspectorPilotLicenseClass?: string | null;
   serialNumber: string;
   model: string | null;
   manufacturer: string | null;

@@ -435,6 +435,8 @@ export interface ReinspectionVerificationItem {
   newEvidenceFileKey?: string | null;
   resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
   inspectorNotes?: string | null;
+  ragReferenceStandards?: string[] | null;
+  ragVerificationGuidance?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -803,6 +805,38 @@ export const inspectionApi = {
     api
       .post<void>(
         `/inspections/${inspectionId}/report/versions/${versionId}/accept`,
+      )
+      .then((response) => response.data),
+
+  /** Customer requests clarification/revision on a published report before commercial acceptance. */
+  requestReportClarification: (
+    inspectionId: string,
+    versionId: string,
+    reason: string,
+  ) =>
+    api
+      .post<ReportReviewResult>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/clarification`,
+        null,
+        { params: { reason } },
+      )
+      .then((response) => response.data),
+
+  /** Customer or Manager spawns a linked RE_INSPECTION mission directly from a published report. */
+  createDirectReinspection: (
+    inspectionId: string,
+    input: { repairNotes?: string; repairProofUrl?: string },
+  ) =>
+    api
+      .post<InspectionDetail>(
+        `/inspections/${inspectionId}/reinspections`,
+        null,
+        {
+          params: {
+            repairNotes: input.repairNotes,
+            repairProofUrl: input.repairProofUrl,
+          },
+        },
       )
       .then((response) => response.data),
 

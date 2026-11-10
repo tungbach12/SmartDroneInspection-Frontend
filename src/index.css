@@ -1,16 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-
 :root {
-  --lytic-font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --lytic-bg-page: #f9fafb;
+  --lytic-font: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --lytic-bg-page: #f6f8f9;
   --lytic-bg-card: #ffffff;
-  --lytic-border: #e5e7eb;
-  --lytic-border-light: #f3f4f6;
-  --lytic-title: #1f2937;
-  --lytic-text: #6b7280;
-  --lytic-primary: #3758f9;
-  --lytic-primary-hover: #2237ee;
-  --lytic-primary-light: #eff3ff;
+  --lytic-border: #d9e2e6;
+  --lytic-border-light: #eef2f5;
+  --lytic-title: #18242c;
+  --lytic-text: #5d707b;
+  --lytic-primary: #087e8b;
+  --lytic-primary-hover: #066670;
+  --lytic-primary-light: #e6f4f5;
   --lytic-success-bg: #dcfce7;
   --lytic-success-text: #16a34a;
   --lytic-error-bg: #fee2e2;

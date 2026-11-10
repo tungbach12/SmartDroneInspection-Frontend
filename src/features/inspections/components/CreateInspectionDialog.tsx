@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import { useDroneSelection } from '@/features/assets/hooks/useDrones';
+import { classifyDroneByMtow } from '@/features/assets/utils/droneClassification';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { useCreateInspection } from '../hooks/useInspections';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -126,11 +127,14 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
             onChange={(event) => setDroneId(event.target.value)}
             helperText={t('Select the drone to dispatch for this mission')}
           >
-            {drones.map((drone) => (
-              <MenuItem key={drone.id} value={drone.id}>
-                {drone.serialNumber} {drone.model ? `(${drone.model})` : ''} - {drone.serviceability}
-              </MenuItem>
-            ))}
+            {drones.map((drone) => {
+              const tier = classifyDroneByMtow(drone.model);
+              return (
+                <MenuItem key={drone.id} value={drone.id}>
+                  {drone.serialNumber} {drone.model ? `(${drone.model})` : ''} · {tier.shortLabel} ({tier.requiredLicenseLabel}) - {drone.serviceability}
+                </MenuItem>
+              );
+            })}
           </TextField>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>

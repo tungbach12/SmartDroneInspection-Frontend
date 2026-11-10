@@ -156,6 +156,7 @@ export interface WorkLog {
   asLeftCondition: string | null;
   testReadings: string | null;
   status: WorkLogStatus;
+  repairProofUrl?: string | null;
 }
 
 export interface ChangeOrder {
@@ -303,6 +304,7 @@ export interface RecordWorkLogInput {
   hours: number;
   asLeftCondition?: string | null;
   testReadings?: string | null;
+  repairProofUrl?: string | null;
 }
 
 export interface CreateChangeOrderInput {
@@ -471,6 +473,17 @@ export const maintenanceApi = {
     api
       .post<WorkLog>(`/maintenance/work-orders/${workOrderId}/work-logs`, input)
       .then((r) => r.data),
+
+  uploadRepairProof: (workOrderId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api
+      .post<{ repairProofUrl: string; fileName: string }>(
+        `/maintenance/work-orders/${workOrderId}/repair-proof`,
+        formData,
+      )
+      .then((r) => r.data);
+  },
 
   submitWorkLog: (workOrderId: string, workLogId: string) =>
     api
