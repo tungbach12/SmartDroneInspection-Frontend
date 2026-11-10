@@ -25,26 +25,16 @@ const strongPasswordField = z
     },
   );
 
-export const firstAssetSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(1, 'Asset code is required.')
-    .max(64, 'Asset code must be 64 characters or fewer.'),
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Asset name is required.')
-    .max(200, 'Asset name must be 200 characters or fewer.'),
-  categoryId: z.string().min(1, 'Asset category is required.'),
-  locationText: z
-    .string()
-    .trim()
-    .min(1, 'Location description is required.')
-    .max(500, 'Location must be 500 characters or fewer.'),
-  latitude: z.number().min(-90, 'Latitude must be >= -90.').max(90, 'Latitude must be <= 90.'),
-  longitude: z.number().min(-180, 'Longitude must be >= -180.').max(180, 'Longitude must be <= 180.'),
-});
+export const firstAssetSchema = z
+  .object({
+    code: z.string().trim().max(64, 'Asset code must be 64 characters or fewer.').optional(),
+    name: z.string().trim().max(200, 'Asset name must be 200 characters or fewer.').optional(),
+    categoryId: z.string().optional(),
+    locationText: z.string().trim().max(500, 'Location must be 500 characters or fewer.').optional(),
+    latitude: z.number().min(-90, 'Latitude must be >= -90.').max(90, 'Latitude must be <= 90.').optional().or(z.nan()),
+    longitude: z.number().min(-180, 'Longitude must be >= -180.').max(180, 'Longitude must be <= 180.').optional().or(z.nan()),
+  })
+  .optional();
 
 export const organizationRegistrationSchema = z
   .object({
@@ -69,7 +59,7 @@ export const organizationRegistrationSchema = z
     phoneNumber: z.string().trim().max(32).optional(),
     password: strongPasswordField,
     confirmPassword: z.string(),
-    firstAsset: firstAssetSchema,
+    firstAsset: firstAssetSchema.optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ['confirmPassword'],

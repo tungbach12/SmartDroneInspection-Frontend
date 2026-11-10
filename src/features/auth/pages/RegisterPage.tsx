@@ -34,6 +34,7 @@ import {
   getAuthErrorMessage,
   registerOrganization,
   type AirspaceEvaluationResponse,
+  type FirstAssetRegistrationInput,
 } from '../api/authApi';
 import {
   organizationRegistrationSchema,
@@ -54,19 +55,19 @@ const authInputSx = {
       transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     },
     '&:hover fieldset': {
-      borderColor: '#96BDB5',
+      borderColor: 'text.secondary',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#087E8B',
+      borderColor: 'primary.main',
       borderWidth: '1.5px',
-      boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
+      boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.14)',
     },
   },
   '& .MuiInputLabel-root': {
-    color: '#5F7872',
+    color: 'text.secondary',
     fontSize: '14px',
     '&.Mui-focused': {
-      color: '#087E8B',
+      color: 'primary.main',
     },
   },
   '& .MuiInputBase-input': {
@@ -84,6 +85,39 @@ const authInputSx = {
     mt: 0.5,
   },
 };
+
+function toFirstAssetPayload(
+  asset?: {
+    code?: string | undefined;
+    name?: string | undefined;
+    categoryId?: string | undefined;
+    locationText?: string | undefined;
+    latitude?: number | undefined;
+    longitude?: number | undefined;
+  } | undefined,
+): FirstAssetRegistrationInput | undefined {
+  if (
+    !asset ||
+    !asset.code?.trim() ||
+    !asset.name?.trim() ||
+    !asset.categoryId?.trim() ||
+    !asset.locationText?.trim() ||
+    typeof asset.latitude !== 'number' ||
+    Number.isNaN(asset.latitude) ||
+    typeof asset.longitude !== 'number' ||
+    Number.isNaN(asset.longitude)
+  ) {
+    return undefined;
+  }
+  return {
+    code: asset.code.trim(),
+    name: asset.name.trim(),
+    categoryId: asset.categoryId.trim(),
+    locationText: asset.locationText.trim(),
+    latitude: asset.latitude,
+    longitude: asset.longitude,
+  };
+}
 
 export default function RegisterPage() {
   const { t } = useLocale();
@@ -148,8 +182,8 @@ export default function RegisterPage() {
         name: '',
         categoryId: '',
         locationText: '',
-        latitude: Number.NaN,
-        longitude: Number.NaN,
+        latitude: undefined,
+        longitude: undefined,
       },
     },
   });
@@ -215,6 +249,7 @@ export default function RegisterPage() {
       try {
         const result = await registerOrganization({
           ...values,
+          firstAsset: toFirstAssetPayload(values.firstAsset),
           phoneNumber: phoneNumber.trim() || undefined,
         });
         if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
@@ -301,6 +336,7 @@ export default function RegisterPage() {
     try {
       const result = await registerOrganization({
         ...pendingFormValues,
+        firstAsset: toFirstAssetPayload(pendingFormValues.firstAsset),
         phoneNumber: phoneNumber.trim() || undefined,
         otpChallengeToken: challengeToken,
         otpCode: otpCode.trim(),
@@ -584,16 +620,16 @@ export default function RegisterPage() {
           sx={{
             minHeight: 46,
             borderRadius: '8px',
-            bgcolor: '#087E8B',
+            bgcolor: 'primary.main',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+            boxShadow: 'none',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#066B70',
-              boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+              bgcolor: 'primary.dark',
+              boxShadow: 'none',
             },
           }}
         >

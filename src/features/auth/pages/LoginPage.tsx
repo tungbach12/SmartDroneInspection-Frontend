@@ -315,19 +315,19 @@ export default function LoginPage() {
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
       },
       '&:hover fieldset': {
-        borderColor: '#96BDB5',
+        borderColor: 'text.secondary',
       },
       '&.Mui-focused fieldset': {
-        borderColor: '#087E8B',
+        borderColor: 'primary.main',
         borderWidth: '1.5px',
-        boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
+        boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.14)',
       },
     },
     '& .MuiInputLabel-root': {
-      color: '#5F7872',
+      color: 'text.secondary',
       fontSize: '14px',
       '&.Mui-focused': {
-        color: '#087E8B',
+        color: 'primary.main',
       },
     },
     '& .MuiInputBase-input': {
@@ -661,12 +661,12 @@ export default function LoginPage() {
             sx={{
               minHeight: 50,
               borderRadius: '8px',
-              bgcolor: '#087E8B',
+              bgcolor: 'primary.main',
               color: '#FFFFFF',
-              boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+              boxShadow: 'none',
               '&:hover': {
-                bgcolor: '#066B70',
-                boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+                bgcolor: 'primary.dark',
+                boxShadow: 'none',
               },
             }}
           >
@@ -800,16 +800,16 @@ export default function LoginPage() {
           sx={{
             minHeight: 46,
             borderRadius: '8px',
-            bgcolor: '#087E8B',
+            bgcolor: 'primary.main',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+            boxShadow: 'none',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#066B70',
-              boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+              bgcolor: 'primary.dark',
+              boxShadow: 'none',
             },
           }}
         >

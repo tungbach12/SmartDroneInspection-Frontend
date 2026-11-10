@@ -1,5 +1,5 @@
 import { Box, Typography, type SxProps, type Theme } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useInRouterContext, useNavigate } from 'react-router-dom';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface BreadcrumbItem {
@@ -13,9 +13,76 @@ export interface PageBreadcrumbsProps {
   sx?: SxProps<Theme>;
 }
 
+function RouterBreadcrumbLink({ item }: { item: BreadcrumbItem }) {
+  const navigate = useNavigate();
+
+  return (
+    <Box
+      component="a"
+      href={item.to}
+      onClick={(e) => {
+        if (item.onClick) {
+          item.onClick();
+          return;
+        }
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+          e.preventDefault();
+          navigate(item.to!);
+        }
+      }}
+      sx={{
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        color: 'text.secondary',
+        textDecoration: 'none',
+        '&:hover': { color: 'primary.main' },
+      }}
+    >
+      {item.label}
+    </Box>
+  );
+}
+
+function FallbackBreadcrumbLink({ item }: { item: BreadcrumbItem }) {
+  return (
+    <Box
+      component="a"
+      href={item.to}
+      onClick={(e) => {
+        if (item.onClick) {
+          item.onClick();
+          return;
+        }
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+          e.preventDefault();
+          window.history.pushState({}, '', item.to);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      }}
+      sx={{
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        color: 'text.secondary',
+        textDecoration: 'none',
+        '&:hover': { color: 'primary.main' },
+      }}
+    >
+      {item.label}
+    </Box>
+  );
+}
+
+function BreadcrumbLink({ item }: { item: BreadcrumbItem }) {
+  const inRouter = useInRouterContext();
+
+  if (inRouter) {
+    return <RouterBreadcrumbLink item={item} />;
+  }
+  return <FallbackBreadcrumbLink item={item} />;
+}
+
 export function PageBreadcrumbs({ items, sx }: PageBreadcrumbsProps) {
   const { t } = useLocale();
-  const navigate = useNavigate();
 
   return (
     <Box
@@ -92,34 +159,7 @@ export function PageBreadcrumbs({ items, sx }: PageBreadcrumbsProps) {
                   {item.label}
                 </Typography>
               ) : item.to ? (
-                <Box
-                  component="a"
-                  href={item.to}
-                  onClick={(e) => {
-                    if (item.onClick) {
-                      item.onClick();
-                      return;
-                    }
-                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
-                      e.preventDefault();
-                      if (navigate) {
-                        navigate(item.to!);
-                      } else {
-                        window.history.pushState({}, '', item.to);
-                        window.dispatchEvent(new PopStateEvent('popstate'));
-                      }
-                    }
-                  }}
-                  sx={{
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: 'text.secondary',
-                    textDecoration: 'none',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {item.label}
-                </Box>
+                <BreadcrumbLink item={item} />
               ) : item.onClick ? (
                 <Box
                   component="button"
