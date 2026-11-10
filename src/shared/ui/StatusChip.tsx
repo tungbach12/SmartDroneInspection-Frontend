@@ -17,45 +17,45 @@ interface ThemeInfo {
 const THEMES: Record<StatusVariant, ThemeInfo> = {
   success: {
     variant: 'success',
-    bg: '#ECFDF3',
-    text: '#027A48',
-    dot: '#12B76A',
+    bg: '#F0FDF4',
+    text: '#15803D',
+    dot: '#16A34A',
     darkBg: 'rgba(16, 185, 129, 0.16)',
     darkText: '#6EE7B7',
     darkDot: '#34D399',
   },
   warning: {
     variant: 'warning',
-    bg: '#FFFAEB',
-    text: '#B54708',
-    dot: '#F79009',
+    bg: '#FFFBEB',
+    text: '#B45309',
+    dot: '#F59E0B',
     darkBg: 'rgba(245, 158, 11, 0.16)',
     darkText: '#FCD34D',
     darkDot: '#FBBF24',
   },
   error: {
     variant: 'error',
-    bg: '#FEF3F2',
-    text: '#B42318',
-    dot: '#F04438',
+    bg: '#FEF2F2',
+    text: '#B91C1C',
+    dot: '#EF4444',
     darkBg: 'rgba(239, 68, 68, 0.16)',
     darkText: '#FCA5A5',
     darkDot: '#F87171',
   },
   info: {
     variant: 'info',
-    bg: '#EFF8FF',
-    text: '#175CD3',
-    dot: '#2E90FA',
+    bg: '#EFF3FF',
+    text: '#3758F9',
+    dot: '#3758F9',
     darkBg: 'rgba(59, 130, 246, 0.16)',
     darkText: '#93C5FD',
     darkDot: '#60A5FA',
   },
   default: {
     variant: 'default',
-    bg: '#F2F4F7',
-    text: '#344054',
-    dot: '#667085',
+    bg: '#F4F4F5',
+    text: '#374151',
+    dot: '#71717A',
     darkBg: 'rgba(148, 163, 184, 0.16)',
     darkText: '#CBD5E1',
     darkDot: '#94A3B8',
@@ -108,6 +108,32 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   superseded: 'default',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  in_progress: 'In Progress',
+  field_completed: 'Field Completed',
+  under_review: 'Under Review',
+  pending_review: 'Pending Review',
+  ready_for_flight: 'Ready for Flight',
+  report_draft: 'Report Draft',
+  reschedule_required: 'Reschedule Required',
+  cost_reconciled: 'Cost Reconciled',
+  submitted_for_acceptance: 'Submitted for Acceptance',
+  reinspection_required: 'Re-inspection Required',
+  paused_for_change: 'Paused for Change',
+  repair_pending: 'Repair Pending',
+  rework_required: 'Rework Required',
+  work_completed: 'Work Completed',
+  scheduled: 'Scheduled',
+  completed: 'Completed',
+  published: 'Published',
+  submitted: 'Submitted',
+  returned: 'Returned',
+  aborted: 'Aborted',
+  cancelled: 'Cancelled',
+  draft: 'Draft',
+  closed: 'Closed',
+};
+
 export interface StatusChipProps {
   status: string;
   size?: ChipProps['size'];
@@ -123,17 +149,19 @@ export function StatusChip({ status, size = 'small' }: StatusChipProps) {
   const normalized = status.toLowerCase().replace(/[\s-]/g, '_');
   const variant = STATUS_MAP[normalized] ?? 'default';
   const theme = THEMES[variant];
+  const displayLabel = STATUS_LABELS[normalized] ?? status;
 
   return (
     <Chip
       size={size}
       color={theme.variant}
-      label={t(status)}
+      label={t(displayLabel)}
+      data-status={status}
       sx={{
-        borderRadius: '9999px',
+        borderRadius: '6px',
         bgcolor: `${isDark ? theme.darkBg : theme.bg} !important`,
         color: `${isDark ? theme.darkText : theme.text} !important`,
-        fontWeight: 600,
+        fontWeight: 500,
         fontSize: size === 'medium' ? '13px' : '12px',
         border: 'none',
         height: size === 'medium' ? '28px' : '24px',

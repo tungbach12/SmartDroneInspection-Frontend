@@ -19,8 +19,8 @@ describe('authentication form validation', () => {
       organizationName: 'Example Organization',
       organizationCode: 'example_1',
       email: 'client@example.com',
-      password: 'a much longer secure password',
-      confirmPassword: 'a much longer secure password',
+      password: 'A much longer secure password 1!',
+      confirmPassword: 'A much longer secure password 1!',
       firstAsset: {
         code: 'AST-001',
         name: 'Saigon Bridge',
@@ -73,8 +73,8 @@ describe('authentication form validation', () => {
     expect(
       passwordSetupSchema.safeParse({
         currentPassword: 'temporary',
-        password: 'a much longer secure password',
-        confirmPassword: 'a much longer secure password',
+        password: 'A much longer secure password 1!',
+        confirmPassword: 'A much longer secure password 1!',
       }).success,
     ).toBe(true);
     expect(

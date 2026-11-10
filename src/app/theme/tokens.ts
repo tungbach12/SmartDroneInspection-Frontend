@@ -1,20 +1,27 @@
+export const fontStack =
+  'Inter, "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
 export const paletteTokens = {
-  ink: '#253746',
-  harbor: '#17364A',
-  harborLight: '#234C62',
-  steel: '#E7EEF1',
-  paper: '#F7F9FA',
+  ink: '#18181B',
+  harbor: '#18181B',
+  harborLight: '#52525B',
+  steel: '#E8E8E8',
+  paper: '#F4F4F5',
+  insetSurface: '#FCFCFD',
   white: '#FFFFFF',
-  teal: '#5750F1',
-  tealSoft: '#EEF2FF',
-  amber: '#A96012',
-  // Enterprise dark reference (Linear / GitHub Primer / Stripe dark slate hierarchy):
-  // Deep carbon canvas (#0B0F17) with elevated slate cards (#111827) and crisp #F1F5F9 text.
-  darkCanvas: '#0B0F17',
-  darkSurface: '#111827',
-  darkRaised: '#1E293B',
-  darkText: '#F1F5F9',
-  darkMuted: '#94A3B8',
+  teal: '#3758F9',
+  tealDark: '#2237EE',
+  tealLight: '#06B6D4',
+  tealSoft: '#EFF3FF',
+  textSecondary: '#52525B',
+  textTertiary: '#71717A',
+  amber: '#CA8A04',
+  darkCanvas: '#09090B',
+  darkInset: '#111827',
+  darkSurface: '#18181B',
+  darkRaised: '#27272A',
+  darkText: '#F4F4F5',
+  darkMuted: '#A1A1AA',
 } as const;
 
 export const layoutTokens = {
@@ -22,16 +29,16 @@ export const layoutTokens = {
   contentMaxWidth: 1440,
   sectionGap: { xs: 3, md: 4 },
   cardGap: { xs: 1.25, md: 1.75 },
-  controlRadius: 1.25,
-  cardRadius: 2,
+  controlRadius: 1,
+  cardRadius: 1.5,
   pillRadius: 999,
-  shellRailWidth: 272,
-  shellHeaderHeight: 72,
+  shellRailWidth: 270,
+  shellHeaderHeight: 73,
 } as const;
 
 export const statusTokens = {
-  success: { light: '#176B52', dark: '#7BD3AE' },
-  warning: { light: '#8C520B', dark: '#F0C16F' },
-  error: { light: '#A8323B', dark: '#F08C8B' },
-  info: { light: '#225F85', dark: '#8BC7ED' },
+  success: { light: '#16A34A', dark: '#22C55E' },
+  warning: { light: '#CA8A04', dark: '#EAB308' },
+  error: { light: '#DC2626', dark: '#EF4444' },
+  info: { light: '#0284C7', dark: '#38BDF8' },
 } as const;

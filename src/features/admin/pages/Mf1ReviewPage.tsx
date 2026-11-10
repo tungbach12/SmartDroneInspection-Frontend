@@ -13,7 +13,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -49,6 +48,7 @@ import { useCreatePlatformUser } from '../hooks/usePlatformUsers';
 import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const ALL_PANELS = [
   'Drone registrations',
@@ -68,6 +68,10 @@ interface EvidenceDoc {
 }
 
 export default function Mf1ReviewPage() {
+  const { locale } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
+  const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
+
   const roles = useAuthStore((state) => state.roles);
   const isAdmin = roles.includes('ADMIN');
 
@@ -166,17 +170,17 @@ export default function Mf1ReviewPage() {
       const documentsToFetch = isDroneApp
         ? [
             {
-              label: 'Giấy chứng nhận đăng ký drone',
+              label: tr('Giấy chứng nhận đăng ký drone', 'Drone registration certificate'),
               type: 'REGISTRATION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'REGISTRATION'),
             },
             {
-              label: 'Giấy tờ sở hữu / Hóa đơn tài chính',
+              label: tr('Giấy tờ sở hữu / Hóa đơn tài chính', 'Ownership proof / Financial invoice'),
               type: 'OWNERSHIP',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'OWNERSHIP'),
             },
             {
-              label: 'Giấy kiểm định / Chứng nhận an toàn kỹ thuật',
+              label: tr('Giấy kiểm định / Chứng nhận an toàn kỹ thuật', 'Airworthiness & technical safety certificate'),
               type: 'INSPECTION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'INSPECTION'),
             },
@@ -207,7 +211,7 @@ export default function Mf1ReviewPage() {
           return res.value;
         }
         return {
-          label: documentsToFetch[index]?.label ?? 'Tài liệu',
+          label: documentsToFetch[index]?.label ?? tr('Tài liệu', 'Document'),
           type: documentsToFetch[index]?.type ?? 'UNKNOWN',
           url: '',
           isPdf: false,
@@ -217,7 +221,12 @@ export default function Mf1ReviewPage() {
 
       setEvidenceDocs(docs);
     } catch {
-      setError('Không thể tải tài liệu hình ảnh. Vui lòng thử lại sau.');
+      setError(
+        tr(
+          'Không thể tải tài liệu hình ảnh. Vui lòng thử lại sau.',
+          'Could not load document evidence. Please try again later.',
+        ),
+      );
     } finally {
       setEvidenceLoading(false);
     }
@@ -226,11 +235,21 @@ export default function Mf1ReviewPage() {
   const review = async () => {
     if (!selected) return;
     if (action === 'reject' && !reviewNote.trim()) {
-      setError('Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.');
+      setError(
+        tr(
+          'Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.',
+          'Please provide a clear rejection reason so the applicant can resubmit.',
+        ),
+      );
       return;
     }
     if (panel === 'Customer airspace' && action === 'approve' && !reviewNote.trim()) {
-      setError('Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.');
+      setError(
+        tr(
+          'Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.',
+          'A review note is required when approving customer airspace.',
+        ),
+      );
       return;
     }
 
@@ -250,7 +269,12 @@ export default function Mf1ReviewPage() {
       ]);
       closeDialog();
     } catch {
-      setError('Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.');
+      setError(
+        tr(
+          'Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.',
+          'Could not save review decision. Please reload and try again.',
+        ),
+      );
     } finally {
       setPending(false);
     }
@@ -258,7 +282,12 @@ export default function Mf1ReviewPage() {
 
   const handleCreateInspector = async () => {
     if (!createEmail.trim() || !createFullName.trim()) {
-      setCreateError('Vui lòng nhập đầy đủ họ tên và email đối tác.');
+      setCreateError(
+        tr(
+          'Vui lòng nhập đầy đủ họ tên và email đối tác.',
+          'Please enter both the partner inspector full name and email.',
+        ),
+      );
       return;
     }
     setCreateError(null);
@@ -278,7 +307,12 @@ export default function Mf1ReviewPage() {
       await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Không thể tạo đối tác Inspector. Vui lòng thử lại.';
+        err instanceof Error
+          ? err.message
+          : tr(
+              'Không thể tạo đối tác Inspector. Vui lòng thử lại.',
+              'Could not create partner inspector account. Please try again.',
+            );
       setCreateError(message);
     }
   };
@@ -286,18 +320,18 @@ export default function Mf1ReviewPage() {
   const getTabLabel = (name: Panel) => {
     if (name === 'Drone registrations') {
       const count = drones.data?.length ?? 0;
-      return `Đăng ký Drone chờ duyệt (${count})`;
+      return tr(`Đăng ký Drone chờ duyệt (${count})`, `Partner Drone Registrations (${count})`);
     }
     if (name === 'Drone history') {
       const count = droneHistory.data?.length ?? 0;
-      return `Lịch sử thẩm định Drone (${count})`;
+      return tr(`Lịch sử thẩm định Drone (${count})`, `Drone Review History (${count})`);
     }
     if (name === 'Inspector partners') {
       const count = inspectorProfiles.data?.length ?? 0;
-      return `Hồ sơ đối tác Inspector (${count})`;
+      return tr(`Hồ sơ đối tác Inspector (${count})`, `Partner Inspector Applications (${count})`);
     }
     const count = customers.data?.length ?? 0;
-    return `Vùng bay khách hàng (${count})`;
+    return tr(`Vùng bay khách hàng (${count})`, `Customer Airspace & Assets (${count})`);
   };
 
   const getTabIcon = (name: Panel) => {
@@ -312,21 +346,14 @@ export default function Mf1ReviewPage() {
   return (
     <Box className="workspace-page" sx={{ maxWidth: 1200, mx: 'auto', pb: 6 }}>
       <PageHeader
-        title="Xét duyệt hồ sơ Onboarding (MF1)"
-        subtitle="Quản lý hồ sơ đối tác Inspector, thẩm định phương tiện bay và lịch sử phê duyệt drone."
+        title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
+        subtitle={tr(
+          'Quản lý hồ sơ đối tác Inspector, thẩm định phương tiện bay và lịch sử phê duyệt drone.',
+          'Review partner inspector profiles, drone airworthiness documentation, and customer airspace compliance.',
+        )}
       />
 
-      <Paper
-        variant="outlined"
-        sx={{
-          mt: 2.5,
-          borderRadius: '16px',
-          bgcolor: 'background.paper',
-          overflow: 'hidden',
-          borderColor: '#eaecf0',
-          boxShadow: '0 1px 3px rgba(16, 24, 40, 0.05)',
-        }}
-      >
+      <Box sx={{ mt: 2.5 }}>
         <Tabs
           value={panel}
           onChange={(_, value: Panel) => setPanel(value)}
@@ -335,13 +362,12 @@ export default function Mf1ReviewPage() {
           sx={{
             borderBottom: 1,
             borderColor: 'divider',
-            px: 2,
-            bgcolor: '#fafafa',
+            mb: 2.5,
             '& .MuiTab-root': {
-              minHeight: 52,
+              minHeight: 48,
               fontWeight: 650,
               textTransform: 'none',
-              fontSize: '14.5px',
+              fontSize: '0.875rem',
               gap: 1,
             },
           }}
@@ -357,25 +383,33 @@ export default function Mf1ReviewPage() {
           ))}
         </Tabs>
 
-        {/* ===================== TAB 1: ĐĂNG KÝ DRONE CHỜ DUYỆT ===================== */}
+        {/* ===================== TAB 1: PARTNER DRONE REGISTRATIONS ===================== */}
         {panel === 'Drone registrations' && (
-          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box>
             {drones.isLoading ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
                 <CircularProgress size={26} />
-                <Typography color="text.secondary">Đang tải danh sách chờ thẩm định…</Typography>
+                <Typography color="text.secondary">
+                  {tr('Đang tải danh sách chờ thẩm định…', 'Loading pending drone registrations…')}
+                </Typography>
               </Box>
             ) : (drones.data ?? []).length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8, px: 2 }}>
-                <VerifiedUserOutlined sx={{ fontSize: 48, color: '#98a2b3', mb: 1.5 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#344054' }}>
-                  Không có hồ sơ đăng ký drone nào đang chờ duyệt
+              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
+                <VerifiedUserOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+                  {tr(
+                    'Không có hồ sơ đăng ký drone nào đang chờ duyệt',
+                    'No drone registration records pending review',
+                  )}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Tất cả các hồ sơ đăng ký đã được thẩm định xong. Xem lại các drone đã duyệt tại tab{' '}
-                  <strong>Lịch sử thẩm định Drone</strong>.
+                  {tr(
+                    'Tất cả các hồ sơ đăng ký đã được thẩm định xong. Xem lại các drone đã duyệt tại tab ',
+                    'All submitted drone registration records have been reviewed. View past decisions in ',
+                  )}
+                  <strong>{tr('Lịch sử thẩm định Drone', 'Drone Review History')}</strong>.
                 </Typography>
-              </Box>
+              </Card>
             ) : (
               <Stack spacing={2}>
                 {(drones.data ?? []).map((droneApp) => (
@@ -383,12 +417,11 @@ export default function Mf1ReviewPage() {
                     key={droneApp.id}
                     variant="outlined"
                     sx={{
-                      borderRadius: '12px',
-                      borderColor: '#e2e8f0',
-                      transition: 'all 0.2s ease',
+                      borderRadius: '10px',
+                      borderColor: 'divider',
+                      transition: 'border-color 0.2s ease',
                       '&:hover': {
-                        borderColor: '#94a3b8',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                        borderColor: 'primary.main',
                       },
                     }}
                   >
@@ -404,38 +437,38 @@ export default function Mf1ReviewPage() {
                       >
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.75 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
-                              {droneApp.model ?? 'Thiết bị Drone'}
+                            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                              {droneApp.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
                             </Typography>
                             {droneApp.manufacturer && (
                               <Chip
-                                label={`Hãng: ${droneApp.manufacturer}`}
+                                label={`${tr('Hãng', 'Make')}: ${droneApp.manufacturer}`}
                                 size="small"
-                                sx={{ fontWeight: 600, bgcolor: '#f1f5f9' }}
+                                variant="outlined"
+                                sx={{ fontWeight: 600 }}
                               />
                             )}
                             <Chip
-                              label="Chờ duyệt giấy tờ"
+                              label={tr('Chờ duyệt giấy tờ', 'Pending document review')}
                               size="small"
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: '#fef3c7',
-                                color: '#b45309',
-                                border: '1px solid #fde68a',
-                              }}
+                              color="warning"
+                              variant="outlined"
+                              sx={{ fontWeight: 600 }}
                             />
                           </Box>
 
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-                            <Typography variant="body2" sx={{ color: '#334155', fontSize: '13.5px' }}>
-                              👤 <strong>Người gửi đơn:</strong> {droneApp.inspectorFullName || 'Inspector'} ({droneApp.inspectorEmail || '—'})
+                            <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.875rem' }}>
+                              <strong>{tr('Người gửi đơn:', 'Applicant:')}</strong>{' '}
+                              {droneApp.inspectorFullName || 'Inspector'} ({droneApp.inspectorEmail || '—'})
                             </Typography>
                             {droneApp.inspectorPilotLicenseNumber && (
                               <Chip
-                                label={`Bằng lái: ${droneApp.inspectorPilotLicenseNumber}`}
+                                label={`${tr('Bằng lái', 'License')}: ${droneApp.inspectorPilotLicenseNumber}`}
                                 size="small"
+                                color="info"
                                 variant="outlined"
-                                sx={{ height: 20, fontSize: '11px', color: '#0284c7', borderColor: '#bae6fd' }}
+                                sx={{ height: 22, fontSize: '0.75rem' }}
                               />
                             )}
                           </Box>
@@ -447,33 +480,42 @@ export default function Mf1ReviewPage() {
                               gap: 1.5,
                               mt: 1.5,
                               p: 1.5,
-                              bgcolor: '#f8fafc',
+                              bgcolor: 'background.default',
                               borderRadius: '8px',
                             }}
                           >
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Số Serial:</span>{' '}
-                              <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Số Serial:', 'Serial Number:')}
+                              </Box>{' '}
+                              <Box component="strong" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
                                 {droneApp.serialNumber}
-                              </strong>
+                              </Box>
                             </Typography>
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Số đăng ký:</span>{' '}
-                              <strong style={{ color: '#0f172a' }}>{droneApp.registrationNumber}</strong>
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Số đăng ký:', 'Registration No.:')}
+                              </Box>{' '}
+                              <Box component="strong" sx={{ color: 'text.primary' }}>
+                                {droneApp.registrationNumber}
+                              </Box>
                             </Typography>
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Hạn đăng ký:</span>{' '}
-                              <strong style={{ color: '#0f172a' }}>
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Hạn đăng ký:', 'Expires:')}
+                              </Box>{' '}
+                              <Box component="strong" sx={{ color: 'text.primary' }}>
                                 {droneApp.registrationExpiresAt
-                                  ? new Date(droneApp.registrationExpiresAt).toLocaleDateString('vi-VN')
+                                  ? new Date(droneApp.registrationExpiresAt).toLocaleDateString(dateLocale)
                                   : '—'}
-                              </strong>
+                              </Box>
                             </Typography>
                           </Box>
                         </Box>
 
                         <Button
                           variant="contained"
+                          color="primary"
                           startIcon={<FactCheckOutlined />}
                           onClick={() => void openReview(droneApp)}
                           sx={{
@@ -482,13 +524,10 @@ export default function Mf1ReviewPage() {
                             borderRadius: '8px',
                             textTransform: 'none',
                             fontWeight: 650,
-                            bgcolor: '#3758F9',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                            '&:hover': { bgcolor: '#2b45cb' },
                           }}
                         >
-                          Thẩm định hồ sơ
+                          {tr('Thẩm định hồ sơ', 'Review application')}
                         </Button>
                       </Box>
                     </CardContent>
@@ -499,12 +538,15 @@ export default function Mf1ReviewPage() {
           </Box>
         )}
 
-        {/* ===================== TAB 2: LỊCH SỬ THẨM ĐỊNH DRONE ===================== */}
+        {/* ===================== TAB 2: DRONE REVIEW HISTORY ===================== */}
         {panel === 'Drone history' && (
-          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1e293b' }}>
-                Lịch sử các phương tiện Drone đã qua thẩm định
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                {tr(
+                  'Lịch sử các phương tiện Drone đã qua thẩm định',
+                  'Reviewed Drone Registration History',
+                )}
               </Typography>
               <Button
                 size="small"
@@ -513,25 +555,30 @@ export default function Mf1ReviewPage() {
                 disabled={droneHistory.isFetching}
                 sx={{ textTransform: 'none' }}
               >
-                Làm mới
+                {tr('Làm mới', 'Refresh')}
               </Button>
             </Box>
 
             {droneHistory.isLoading ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
                 <CircularProgress size={26} />
-                <Typography color="text.secondary">Đang tải lịch sử thẩm định drone…</Typography>
+                <Typography color="text.secondary">
+                  {tr('Đang tải lịch sử thẩm định drone…', 'Loading drone review history…')}
+                </Typography>
               </Box>
             ) : (droneHistory.data ?? []).length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8, px: 2 }}>
-                <HistoryRounded sx={{ fontSize: 48, color: '#98a2b3', mb: 1.5 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#344054' }}>
-                  Chưa có lịch sử thẩm định drone nào
+              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
+                <HistoryRounded sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+                  {tr('Chưa có lịch sử thẩm định drone nào', 'No drone review history yet')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Các hồ sơ sau khi được phê duyệt hoặc từ chối sẽ được lưu trữ đầy đủ tại đây.
+                  {tr(
+                    'Các hồ sơ sau khi được phê duyệt hoặc từ chối sẽ được lưu trữ đầy đủ tại đây.',
+                    'Approved and rejected drone registration applications will be archived here.',
+                  )}
                 </Typography>
-              </Box>
+              </Card>
             ) : (
               <Stack spacing={2}>
                 {(droneHistory.data ?? []).map((app) => (
@@ -539,9 +586,9 @@ export default function Mf1ReviewPage() {
                     key={app.id}
                     variant="outlined"
                     sx={{
-                      borderRadius: '12px',
-                      borderColor: app.status === 'APPROVED' ? '#bbf7d0' : '#fecaca',
-                      bgcolor: app.status === 'APPROVED' ? '#f0fdf4' : '#fef2f2',
+                      borderRadius: '10px',
+                      borderColor: app.status === 'APPROVED' ? 'success.main' : 'error.main',
+                      bgcolor: 'background.paper',
                     }}
                   >
                     <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
@@ -556,27 +603,33 @@ export default function Mf1ReviewPage() {
                       >
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.75 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
-                              {app.model ?? 'Thiết bị Drone'}
+                            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                              {app.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
                             </Typography>
                             {app.manufacturer && (
                               <Chip
-                                label={`Hãng: ${app.manufacturer}`}
+                                label={`${tr('Hãng', 'Make')}: ${app.manufacturer}`}
                                 size="small"
-                                sx={{ fontWeight: 600, bgcolor: '#ffffff' }}
+                                variant="outlined"
+                                sx={{ fontWeight: 600 }}
                               />
                             )}
                             <Chip
                               icon={app.status === 'APPROVED' ? <CheckCircleRounded /> : <HighlightOffRounded />}
-                              label={app.status === 'APPROVED' ? 'ĐÃ PHÊ DUYỆT' : 'ĐÃ TỪ CHỐI'}
+                              label={
+                                app.status === 'APPROVED'
+                                  ? tr('ĐÃ PHÊ DUYỆT', 'APPROVED')
+                                  : tr('ĐÃ TỪ CHỐI', 'REJECTED')
+                              }
                               color={app.status === 'APPROVED' ? 'success' : 'error'}
                               size="small"
                               sx={{ fontWeight: 700 }}
                             />
                           </Box>
 
-                          <Typography variant="body2" sx={{ color: '#334155', fontSize: '13.5px', mb: 1 }}>
-                            👤 <strong>Người nộp đơn:</strong> {app.inspectorFullName || 'Inspector'} ({app.inspectorEmail || '—'})
+                          <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.875rem', mb: 1 }}>
+                            <strong>{tr('Người nộp đơn:', 'Applicant:')}</strong>{' '}
+                            {app.inspectorFullName || 'Inspector'} ({app.inspectorEmail || '—'})
                           </Typography>
 
                           <Box
@@ -585,41 +638,52 @@ export default function Mf1ReviewPage() {
                               gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
                               gap: 1.5,
                               p: 1.5,
-                              bgcolor: '#ffffff',
+                              bgcolor: 'background.default',
                               borderRadius: '8px',
-                              border: '1px solid #e2e8f0',
+                              border: 1,
+                              borderColor: 'divider',
                             }}
                           >
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Số Serial:</span>{' '}
-                              <strong style={{ fontFamily: 'monospace' }}>{app.serialNumber}</strong>
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Số Serial:', 'Serial Number:')}
+                              </Box>{' '}
+                              <Box component="strong" sx={{ fontFamily: 'monospace' }}>
+                                {app.serialNumber}
+                              </Box>
                             </Typography>
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Số đăng ký:</span>{' '}
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Số đăng ký:', 'Registration No.:')}
+                              </Box>{' '}
                               <strong>{app.registrationNumber}</strong>
                             </Typography>
                             <Typography variant="body2">
-                              <span style={{ color: '#64748b' }}>Hạn kiểm định:</span>{' '}
+                              <Box component="span" sx={{ color: 'text.secondary' }}>
+                                {tr('Hạn kiểm định:', 'Inspection Expiry:')}
+                              </Box>{' '}
                               <strong>
                                 {app.registrationExpiresAt
-                                  ? new Date(app.registrationExpiresAt).toLocaleDateString('vi-VN')
+                                  ? new Date(app.registrationExpiresAt).toLocaleDateString(dateLocale)
                                   : '—'}
                               </strong>
                             </Typography>
                           </Box>
 
                           <Box sx={{ mt: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: '#475569' }}>
-                              🛡️ <strong>Thẩm định bởi:</strong> {app.reviewerFullName || 'Platform Manager'}
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              <strong>{tr('Thẩm định bởi:', 'Reviewed by:')}</strong>{' '}
+                              {app.reviewerFullName || 'Platform Manager'}
                             </Typography>
                             {app.reviewedAt && (
-                              <Typography variant="caption" sx={{ color: '#475569' }}>
-                                🕒 <strong>Thời gian duyệt:</strong> {new Date(app.reviewedAt).toLocaleString('vi-VN')}
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                <strong>{tr('Thời gian duyệt:', 'Reviewed at:')}</strong>{' '}
+                                {new Date(app.reviewedAt).toLocaleString(dateLocale)}
                               </Typography>
                             )}
                             {app.reviewNote && (
-                              <Typography variant="caption" sx={{ color: '#b91c1c' }}>
-                                📝 <strong>Ghi chú:</strong> {app.reviewNote}
+                              <Typography variant="caption" sx={{ color: 'error.main' }}>
+                                <strong>{tr('Ghi chú:', 'Note:')}</strong> {app.reviewNote}
                               </Typography>
                             )}
                           </Box>
@@ -630,9 +694,9 @@ export default function Mf1ReviewPage() {
                           size="small"
                           startIcon={<OpenInNewRounded />}
                           onClick={() => void openReview(app)}
-                          sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+                          sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px' }}
                         >
-                          Xem lại hồ sơ scan
+                          {tr('Xem lại hồ sơ scan', 'View scanned documents')}
                         </Button>
                       </Box>
                     </CardContent>
@@ -643,9 +707,9 @@ export default function Mf1ReviewPage() {
           </Box>
         )}
 
-        {/* ===================== TAB 3: HỒ SƠ ĐỐI TÁC INSPECTOR ===================== */}
+        {/* ===================== TAB 3: PARTNER INSPECTOR APPLICATIONS ===================== */}
         {panel === 'Inspector partners' && (
-          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box>
             <Box
               sx={{
                 display: 'flex',
@@ -655,55 +719,62 @@ export default function Mf1ReviewPage() {
                 gap: 1.5,
                 mb: 2.5,
                 p: 2,
-                bgcolor: '#f8fafc',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
+                bgcolor: 'background.default',
+                borderRadius: '10px',
+                border: 1,
+                borderColor: 'divider',
               }}
             >
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                  Quản lý hồ sơ đối tác Inspector
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                  {tr('Danh sách đối tác Inspector', 'Partner Inspector Roster')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Theo quy trình MF1: Manager trực tiếp tạo đối tác sau khi ký hợp đồng giấy offline, lưu scan bằng lái, quản lý giờ bay và chứng chỉ drone.
+                  {tr(
+                    'Quản lý thông tin bằng lái, giờ bay tích lũy và dòng thiết bị drone được chứng nhận.',
+                    'Manage pilot licenses, accumulated flight hours, and certified drone models.',
+                  )}
                 </Typography>
               </Box>
 
               <Button
                 variant="contained"
+                color="primary"
                 startIcon={<PersonAddAlt />}
                 onClick={() => setCreateInspectorOpen(true)}
                 sx={{
-                  bgcolor: '#3758F9',
                   textTransform: 'none',
                   fontWeight: 650,
                   borderRadius: '8px',
                   px: 2.5,
                   py: 1,
                   whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                  '&:hover': { bgcolor: '#2b45cb' },
                 }}
               >
-                + Thêm mới đối tác Inspector
+                {tr('+ Thêm mới đối tác Inspector', '+ Add Partner Inspector')}
               </Button>
             </Box>
 
             {inspectorProfiles.isLoading ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
                 <CircularProgress size={26} />
-                <Typography color="text.secondary">Đang tải danh sách phi công đối tác…</Typography>
+                <Typography color="text.secondary">
+                  {tr('Đang tải danh sách phi công đối tác…', 'Loading partner inspectors…')}
+                </Typography>
               </Box>
             ) : (inspectorProfiles.data ?? []).length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8, px: 2 }}>
-                <BadgeOutlined sx={{ fontSize: 48, color: '#98a2b3', mb: 1.5 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#344054' }}>
-                  Chưa có đối tác Inspector nào
+              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
+                <BadgeOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+                  {tr('Chưa có đối tác Inspector nào', 'No partner inspector profiles yet')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-                  Bấm nút bên trên để tạo tài khoản và hồ sơ đối tác Inspector đầu tiên.
+                  {tr(
+                    'Bấm nút bên trên để tạo tài khoản và hồ sơ đối tác Inspector đầu tiên.',
+                    'Use the button above to provision the first partner inspector account and profile.',
+                  )}
                 </Typography>
-              </Box>
+              </Card>
             ) : (
               <Stack spacing={2}>
                 {(inspectorProfiles.data ?? []).map((insp: InspectorProfile) => (
@@ -711,12 +782,11 @@ export default function Mf1ReviewPage() {
                     key={insp.id}
                     variant="outlined"
                     sx={{
-                      borderRadius: '12px',
-                      borderColor: '#e2e8f0',
-                      transition: 'all 0.2s ease',
+                      borderRadius: '10px',
+                      borderColor: 'divider',
+                      transition: 'border-color 0.2s ease',
                       '&:hover': {
-                        borderColor: '#94a3b8',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                        borderColor: 'primary.main',
                       },
                     }}
                   >
@@ -734,18 +804,22 @@ export default function Mf1ReviewPage() {
                           <Avatar
                             src={insp.avatarUrl ?? undefined}
                             alt={insp.fullName}
-                            sx={{ width: 48, height: 48, bgcolor: '#3758F9', fontWeight: 700 }}
+                            sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontWeight: 700 }}
                           >
                             {insp.fullName.slice(0, 1) || 'I'}
                           </Avatar>
 
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.5 }}>
-                              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
+                              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                                 {insp.fullName}
                               </Typography>
                               <Chip
-                                label={insp.status === 'ACTIVE' ? 'Đang hoạt động' : insp.status}
+                                label={
+                                  insp.status === 'ACTIVE'
+                                    ? tr('Đang hoạt động', 'Active')
+                                    : insp.status
+                                }
                                 size="small"
                                 color={insp.status === 'ACTIVE' ? 'success' : 'default'}
                                 sx={{ fontWeight: 600 }}
@@ -753,12 +827,18 @@ export default function Mf1ReviewPage() {
                               <Chip
                                 label={
                                   insp.licenseExpirationStatus === 'VALID'
-                                    ? `Bằng lái: Còn hạn ${insp.licenseRemainingDays ?? 0} ngày`
+                                    ? tr(
+                                        `Bằng lái: Còn hạn ${insp.licenseRemainingDays ?? 0} ngày`,
+                                        `License: Valid (${insp.licenseRemainingDays ?? 0}d left)`,
+                                      )
                                     : insp.licenseExpirationStatus === 'EXPIRING_SOON'
-                                      ? `Bằng lái: Sắp hết hạn (${insp.licenseRemainingDays ?? 0} ngày)`
+                                      ? tr(
+                                          `Bằng lái: Sắp hết hạn (${insp.licenseRemainingDays ?? 0} ngày)`,
+                                          `License: Expiring soon (${insp.licenseRemainingDays ?? 0}d)`,
+                                        )
                                       : insp.licenseExpirationStatus === 'EXPIRED'
-                                        ? 'Bằng lái: ĐÃ HẾT HẠN'
-                                        : 'Bằng lái: Chưa cập nhật hạn'
+                                        ? tr('Bằng lái: ĐÃ HẾT HẠN', 'License: EXPIRED')
+                                        : tr('Bằng lái: Chưa cập nhật hạn', 'License: Expiry not set')
                                 }
                                 size="small"
                                 color={
@@ -773,7 +853,11 @@ export default function Mf1ReviewPage() {
                                 sx={{ fontWeight: 600 }}
                               />
                               <Chip
-                                label={insp.hasLicenseScan ? 'Scan MinIO: Đã lưu' : 'Scan MinIO: Chưa tải'}
+                                label={
+                                  insp.hasLicenseScan
+                                    ? tr('Bản scan GPLX: Đã lưu', 'License scan: Uploaded')
+                                    : tr('Bản scan GPLX: Chưa tải', 'License scan: Missing')
+                                }
                                 size="small"
                                 variant="outlined"
                                 color={insp.hasLicenseScan ? 'success' : 'default'}
@@ -781,8 +865,8 @@ export default function Mf1ReviewPage() {
                               />
                             </Box>
 
-                            <Typography variant="body2" sx={{ color: '#475569', mb: 1 }}>
-                              ✉️ {insp.email} {insp.phoneNumber && `· 📞 ${insp.phoneNumber}`}
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+                              {insp.email} {insp.phoneNumber && `· ${insp.phoneNumber}`}
                             </Typography>
 
                             <Box
@@ -791,31 +875,41 @@ export default function Mf1ReviewPage() {
                                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
                                 gap: 1.5,
                                 p: 1.5,
-                                bgcolor: '#f8fafc',
+                                bgcolor: 'background.default',
                                 borderRadius: '8px',
                               }}
                             >
                               <Typography variant="body2">
-                                <span style={{ color: '#64748b' }}>Số GPLX:</span>{' '}
-                                <strong>{insp.pilotLicenseNumber || 'Chưa cập nhật'}</strong>
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('Số GPLX:', 'License No.:')}
+                                </Box>{' '}
+                                <strong>{insp.pilotLicenseNumber || tr('Chưa cập nhật', 'Not set')}</strong>
                               </Typography>
                               <Typography variant="body2">
-                                <span style={{ color: '#64748b' }}>Tổng giờ bay:</span>{' '}
-                                <strong style={{ color: '#0284c7' }}>{insp.totalFlightHours} giờ</strong>{' '}
-                                <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                  ({insp.priorFlightHours}h trước + {insp.companyFlightHours}h cty)
-                                </span>
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('Tổng giờ bay:', 'Total flight hours:')}
+                                </Box>{' '}
+                                <Box component="strong" sx={{ color: 'info.main' }}>
+                                  {insp.totalFlightHours} {tr('giờ', 'hrs')}
+                                </Box>{' '}
+                                <Box component="span" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                  ({insp.priorFlightHours}h {tr('trước', 'prior')} + {insp.companyFlightHours}h{' '}
+                                  {tr('cty', 'platform')})
+                                </Box>
                               </Typography>
                               <Typography variant="body2">
-                                <span style={{ color: '#64748b' }}>Chứng chỉ Drone:</span>{' '}
-                                <strong>{insp.certifiedDroneModels || 'Chưa cập nhật'}</strong>
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('Chứng chỉ Drone:', 'Certified models:')}
+                                </Box>{' '}
+                                <strong>{insp.certifiedDroneModels || tr('Chưa cập nhật', 'Not set')}</strong>
                               </Typography>
                             </Box>
                           </Box>
                         </Box>
 
                         <Button
-                          variant="contained"
+                          variant="outlined"
+                          color="primary"
                           startIcon={<FlightTakeoffRounded />}
                           onClick={() => {
                             setSelectedInspectorId(insp.id);
@@ -827,13 +921,10 @@ export default function Mf1ReviewPage() {
                             borderRadius: '8px',
                             textTransform: 'none',
                             fontWeight: 650,
-                            bgcolor: '#3758F9',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                            '&:hover': { bgcolor: '#2b45cb' },
                           }}
                         >
-                          Hồ sơ phi công & MinIO Scan
+                          {tr('Hồ sơ phi công', 'Pilot profile')}
                         </Button>
                       </Box>
                     </CardContent>
@@ -844,37 +935,47 @@ export default function Mf1ReviewPage() {
           </Box>
         )}
 
-        {/* ===================== TAB 4: VÙNG BAY KHÁCH HÀNG (ADMIN ONLY) ===================== */}
+        {/* ===================== TAB 4: CUSTOMER AIRSPACE & ASSETS (ADMIN ONLY) ===================== */}
         {panel === 'Customer airspace' && isAdmin && (
-          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Box>
             {customers.isLoading ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
                 <CircularProgress size={26} />
-                <Typography color="text.secondary">Đang tải danh sách vùng bay…</Typography>
-              </Box>
-            ) : (customers.data ?? []).length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8, px: 2 }}>
-                <ApartmentOutlined sx={{ fontSize: 48, color: '#98a2b3', mb: 1.5 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#344054' }}>
-                  Không có vùng bay khách hàng nào chờ duyệt
+                <Typography color="text.secondary">
+                  {tr('Đang tải danh sách vùng bay…', 'Loading customer airspace reviews…')}
                 </Typography>
               </Box>
+            ) : (customers.data ?? []).length === 0 ? (
+              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
+                <ApartmentOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+                  {tr(
+                    'Không có vùng bay khách hàng nào chờ duyệt',
+                    'No customer airspace records pending review',
+                  )}
+                </Typography>
+              </Card>
             ) : (
               <Stack spacing={2}>
                 {(customers.data ?? []).map((customerApp) => (
-                  <Card key={customerApp.id} variant="outlined" sx={{ borderRadius: '12px', borderColor: '#e2e8f0' }}>
+                  <Card key={customerApp.id} variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider' }}>
                     <CardContent sx={{ p: 2.5 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
                             {customerApp.organizationName}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Tài sản: {customerApp.assetName} · Vùng bay: {customerApp.airspaceClassification}
+                            {tr('Tài sản:', 'Asset:')} {customerApp.assetName} · {tr('Vùng bay:', 'Airspace:')}{' '}
+                            {customerApp.airspaceClassification}
                           </Typography>
                         </Box>
-                        <Button variant="outlined" onClick={() => void openReview(customerApp)}>
-                          Thẩm định
+                        <Button
+                          variant="outlined"
+                          onClick={() => void openReview(customerApp)}
+                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {tr('Thẩm định', 'Review')}
                         </Button>
                       </Box>
                     </CardContent>
@@ -884,28 +985,33 @@ export default function Mf1ReviewPage() {
             )}
           </Box>
         )}
-      </Paper>
+      </Box>
 
-      {/* ===================== DIALOG TẠO ĐỐI TÁC INSPECTOR MỚI ===================== */}
+      {/* ===================== DIALOG: CREATE PARTNER INSPECTOR ===================== */}
       <Dialog
         open={createInspectorOpen}
         onClose={() => setCreateInspectorOpen(false)}
         fullWidth
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+        slotProps={{ paper: { sx: { borderRadius: '10px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Thêm mới Đối tác Inspector</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {tr('Thêm mới Đối tác Inspector', 'Add Partner Inspector')}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Nhập thông tin phi công đối tác sau khi ký hợp đồng offline. Hệ thống sẽ tạo tài khoản, kích hoạt và gửi mật khẩu tạm qua email cho đối tác.
+            {tr(
+              'Nhập thông tin phi công đối tác sau khi ký hợp đồng offline. Hệ thống sẽ tạo tài khoản, kích hoạt và gửi mật khẩu tạm qua email cho đối tác.',
+              'Enter partner pilot details after offline contract signing. The platform will create the account and issue a one-time password.',
+            )}
           </Typography>
 
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               required
               fullWidth
-              label="Họ và tên Inspector"
-              placeholder="VD: Nguyễn Văn Bay"
+              label={tr('Họ và tên Inspector', 'Inspector full name')}
+              placeholder={tr('VD: Nguyễn Văn Bay', 'e.g. Nguyen Van Bay')}
               value={createFullName}
               onChange={(e) => setCreateFullName(e.target.value)}
             />
@@ -913,8 +1019,8 @@ export default function Mf1ReviewPage() {
               required
               fullWidth
               type="email"
-              label="Email liên hệ (Nhận mật khẩu tạm)"
-              placeholder="VD: bay.pilot@gmail.com"
+              label={tr('Email liên hệ (Nhận mật khẩu tạm)', 'Contact email (Receives temporary password)')}
+              placeholder="bay.pilot@example.com"
               value={createEmail}
               onChange={(e) => setCreateEmail(e.target.value)}
             />
@@ -924,52 +1030,59 @@ export default function Mf1ReviewPage() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setCreateInspectorOpen(false)} disabled={createPlatformUser.isPending}>
-            Hủy
+            {tr('Hủy', 'Cancel')}
           </Button>
           <Button
             variant="contained"
+            color="primary"
             disabled={createPlatformUser.isPending || !createEmail.trim() || !createFullName.trim()}
             onClick={() => void handleCreateInspector()}
-            sx={{ bgcolor: '#3758F9', '&:hover': { bgcolor: '#2b45cb' } }}
           >
-            {createPlatformUser.isPending ? 'Đang tạo…' : 'Tạo đối tác & Gửi email'}
+            {createPlatformUser.isPending
+              ? tr('Đang tạo…', 'Creating…')
+              : tr('Tạo đối tác & Gửi email', 'Create partner & send email')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ===================== MODAL MẬT KHẨU TẠM ===================== */}
+      {/* ===================== DIALOG: TEMPORARY PASSWORD ===================== */}
       <Dialog
         open={Boolean(issuedPassword)}
         onClose={() => setIssuedPassword(null)}
         fullWidth
         maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+        slotProps={{ paper: { sx: { borderRadius: '10px', p: 1 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700 }}>Tài khoản Inspector đã tạo</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {tr('Tài khoản Inspector đã tạo', 'Partner Inspector Account Created')}
+        </DialogTitle>
         <DialogContent>
           <Alert severity="success" sx={{ mb: 2 }}>
-            Tài khoản Inspector đã được kích hoạt. Thông tin đăng nhập đã được gửi tới email đối tác.
+            {tr(
+              'Tài khoản Inspector đã được kích hoạt. Thông tin đăng nhập đã được gửi tới email đối tác.',
+              'Partner inspector account is active. Sign-in credentials have been issued.',
+            )}
           </Alert>
           <Typography variant="body2" sx={{ mb: 1 }}>
             <strong>Email:</strong> {issuedPassword?.email}
           </Typography>
-          <Box sx={{ p: 1.5, bgcolor: '#f1f5f9', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+          <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: '8px', border: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Mật khẩu tạm thời:
+              {tr('Mật khẩu tạm thời:', 'Temporary password:')}
             </Typography>
-            <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>
+            <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem', color: 'text.primary' }}>
               {issuedPassword?.temporaryPassword}
             </Typography>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button variant="contained" onClick={() => setIssuedPassword(null)} sx={{ bgcolor: '#3758F9' }}>
-            Đã hiểu
+          <Button variant="contained" color="primary" onClick={() => setIssuedPassword(null)}>
+            {tr('Đã hiểu', 'Done')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* ===================== MODAL HỒ SƠ PHI CÔNG CHI TIẾT (4 TABS) ===================== */}
+      {/* ===================== DIALOG: INSPECTOR PROFILE ===================== */}
       {selectedInspectorId && (
         <InspectorProfileDialog
           inspectorId={selectedInspectorId}
@@ -982,28 +1095,32 @@ export default function Mf1ReviewPage() {
         />
       )}
 
-      {/* ===================== MODAL THẨM ĐỊNH HỒ SƠ & GIẤY TỜ SCAN ===================== */}
+      {/* ===================== DIALOG: APPLICATION & EVIDENCE REVIEW ===================== */}
       <Dialog
         open={Boolean(selected)}
         onClose={closeDialog}
         maxWidth="md"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '16px', overflow: 'hidden' } } }}
+        slotProps={{ paper: { sx: { borderRadius: '10px', overflow: 'hidden' } } }}
       >
         <DialogTitle
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            bgcolor: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
+            bgcolor: 'background.default',
+            borderBottom: 1,
+            borderColor: 'divider',
             py: 2,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
             {panel === 'Drone history'
-              ? 'Chi tiết Hồ sơ Phương tiện Drone (Đã thẩm định)'
-              : 'Thẩm định hồ sơ Phương tiện Drone'}
+              ? tr(
+                  'Chi tiết Hồ sơ Phương tiện Drone (Đã thẩm định)',
+                  'Drone Registration Record Details (Reviewed)',
+                )
+              : tr('Thẩm định hồ sơ Phương tiện Drone', 'Review Compliance Application')}
           </Typography>
           <IconButton size="small" onClick={closeDialog} disabled={pending}>
             <CloseRounded />
@@ -1013,30 +1130,62 @@ export default function Mf1ReviewPage() {
         <DialogContent sx={{ p: 3 }}>
           {selected && (
             <Stack spacing={2.5}>
-              {/* Thông tin người nộp */}
-              <Box sx={{ p: 2, bgcolor: '#f1f5f9', borderRadius: '10px' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1 }}>
-                  👤 Thông tin Người nộp đơn (Inspector đối tác)
-                </Typography>
-                {'inspectorFullName' in selected && (
+              {'organizationName' in selected ? (
+                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px' }}>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
+                    {tr(
+                      'Thông tin Tổ chức & Tài sản đăng ký',
+                      'Organization & Registered Asset Information',
+                    )}
+                  </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
                     <Typography variant="body2">
-                      Họ và tên: <strong>{selected.inspectorFullName || 'Inspector'}</strong>
+                      {tr('Tổ chức:', 'Organization:')}{' '}
+                      <strong>
+                        {selected.organizationName} ({selected.organizationCode})
+                      </strong>
                     </Typography>
                     <Typography variant="body2">
-                      Email liên hệ: <strong>{selected.inspectorEmail || '—'}</strong>
+                      {tr('Tài sản:', 'Asset:')}{' '}
+                      <strong>
+                        {selected.assetName} ({selected.assetCode})
+                      </strong>
+                    </Typography>
+                    <Typography variant="body2">
+                      {tr('Phân loại vùng bay:', 'Airspace classification:')}{' '}
+                      <strong>{selected.airspaceClassification}</strong>
                     </Typography>
                   </Box>
-                )}
-              </Box>
+                </Box>
+              ) : (
+                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px' }}>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
+                    {tr(
+                      'Thông tin Người nộp đơn (Inspector đối tác)',
+                      'Applicant Information (Partner Inspector)',
+                    )}
+                  </Typography>
+                  {'inspectorFullName' in selected && (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                      <Typography variant="body2">
+                        {tr('Họ và tên:', 'Full name:')}{' '}
+                        <strong>{selected.inspectorFullName || 'Inspector'}</strong>
+                      </Typography>
+                      <Typography variant="body2">
+                        {tr('Email liên hệ:', 'Contact email:')}{' '}
+                        <strong>{selected.inspectorEmail || '—'}</strong>
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
-              {/* Thông số kỹ thuật drone */}
               {'model' in selected && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 0.5 }}>
-                    Thông tin kỹ thuật & Khai báo pháp lý
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 0.5 }}>
+                    {tr('Thông tin kỹ thuật & Khai báo pháp lý', 'Technical Specifications & Legal Declaration')}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#475569', mb: 1.5 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
                     {selected.model}
                   </Typography>
                   <Box
@@ -1045,129 +1194,166 @@ export default function Mf1ReviewPage() {
                       gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
                       gap: 1.5,
                       p: 1.5,
-                      bgcolor: '#f8fafc',
+                      bgcolor: 'background.default',
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: 1,
+                      borderColor: 'divider',
                     }}
                   >
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Hãng sản xuất:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{selected.manufacturer || '—'}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Hãng sản xuất:', 'Manufacturer:')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {selected.manufacturer || '—'}
+                      </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Số Serial thân máy:</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Số Serial thân máy:', 'Airframe serial number:')}
+                      </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
                         {selected.serialNumber}
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Số đăng ký cơ quan cấp:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{selected.registrationNumber}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Số đăng ký cơ quan cấp:', 'Official registration number:')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {selected.registrationNumber}
+                      </Typography>
                     </Box>
                   </Box>
                 </Box>
               )}
 
-              {/* HÌNH ẢNH GIẤY TỜ THẨM ĐỊNH (SCAN MINIO) */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
-                  Tài liệu hình ảnh giấy tờ bắt buộc (Lưu trữ an toàn MinIO)
-                </Typography>
+              {'model' in selected && (
+                <Box>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
+                    {tr('Tài liệu hình ảnh giấy tờ đính kèm', 'Attached Supporting Documents')}
+                  </Typography>
 
-                {evidenceLoading ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6, gap: 1.5 }}>
-                    <CircularProgress size={24} />
-                    <Typography variant="body2" color="text.secondary">Đang tải bản scan tài liệu từ MinIO…</Typography>
-                  </Box>
-                ) : evidenceDocs.length === 0 ? (
-                  <Alert severity="warning">Không tìm thấy tài liệu đính kèm cho đơn đăng ký này.</Alert>
-                ) : (
-                  <Box sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-                    <Tabs
-                      value={activeDocIndex}
-                      onChange={(_, i: number) => setActiveDocIndex(i)}
-                      variant="scrollable"
-                      sx={{ bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
-                    >
-                      {evidenceDocs.map((doc) => (
-                        <Tab
-                          key={doc.type}
-                          label={`📄 ${doc.label}`}
-                          sx={{ textTransform: 'none', fontWeight: 600, fontSize: '13px' }}
-                        />
-                      ))}
-                    </Tabs>
+                  {evidenceLoading ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6, gap: 1.5 }}>
+                      <CircularProgress size={24} />
+                      <Typography variant="body2" color="text.secondary">
+                        {tr('Đang tải bản scan tài liệu từ MinIO…', 'Loading scanned documents from storage…')}
+                      </Typography>
+                    </Box>
+                  ) : evidenceDocs.length === 0 ? (
+                    <Alert severity="warning">
+                      {tr(
+                        'Không tìm thấy tài liệu đính kèm cho đơn đăng ký này.',
+                        'No supporting documents found for this registration application.',
+                      )}
+                    </Alert>
+                  ) : (
+                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: '10px', overflow: 'hidden' }}>
+                      <Tabs
+                        value={activeDocIndex}
+                        onChange={(_, i: number) => setActiveDocIndex(i)}
+                        variant="scrollable"
+                        sx={{ bgcolor: 'background.default', borderBottom: 1, borderColor: 'divider' }}
+                      >
+                        {evidenceDocs.map((doc) => (
+                          <Tab
+                            key={doc.type}
+                            label={doc.label}
+                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem' }}
+                          />
+                        ))}
+                      </Tabs>
 
-                    <Box sx={{ p: 2, bgcolor: '#ffffff', textAlign: 'center', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      {activeDoc && (
-                        <Box sx={{ width: '100%' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1e293b' }}>
-                              {activeDoc.label}
-                            </Typography>
-                            {activeDoc.url && (
-                              <Box sx={{ display: 'flex', gap: 1 }}>
-                                {!activeDoc.isPdf && (
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: 'background.paper',
+                          textAlign: 'center',
+                          minHeight: 300,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {activeDoc && (
+                          <Box sx={{ width: '100%' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                {activeDoc.label}
+                              </Typography>
+                              {activeDoc.url && (
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  {!activeDoc.isPdf && (
+                                    <Button
+                                      size="small"
+                                      startIcon={<ZoomInRounded />}
+                                      onClick={() => setZoomUrl(activeDoc.url)}
+                                      sx={{ textTransform: 'none' }}
+                                    >
+                                      {tr('Phóng to', 'Zoom in')}
+                                    </Button>
+                                  )}
                                   <Button
                                     size="small"
-                                    startIcon={<ZoomInRounded />}
-                                    onClick={() => setZoomUrl(activeDoc.url)}
+                                    startIcon={<OpenInNewRounded />}
+                                    component="a"
+                                    href={activeDoc.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     sx={{ textTransform: 'none' }}
                                   >
-                                    Phóng to
+                                    {tr('Mở tab mới', 'Open in new tab')}
                                   </Button>
+                                </Box>
+                              )}
+                            </Box>
+
+                            {activeDoc.failed ? (
+                              <Alert severity="error">
+                                {tr(
+                                  'Không thể hiển thị tài liệu này từ máy chủ lưu trữ MinIO.',
+                                  'Could not display this document from storage.',
                                 )}
-                                <Button
-                                  size="small"
-                                  startIcon={<OpenInNewRounded />}
-                                  component="a"
-                                  href={activeDoc.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  sx={{ textTransform: 'none' }}
-                                >
-                                  Mở tab mới
-                                </Button>
-                              </Box>
+                              </Alert>
+                            ) : activeDoc.isPdf ? (
+                              <iframe
+                                src={activeDoc.url}
+                                title={activeDoc.label}
+                                style={{ width: '100%', height: '400px', border: 'none', borderRadius: '8px' }}
+                              />
+                            ) : (
+                              <Box
+                                component="img"
+                                src={activeDoc.url}
+                                alt={activeDoc.label}
+                                sx={{
+                                  maxHeight: 380,
+                                  maxWidth: '100%',
+                                  objectFit: 'contain',
+                                  borderRadius: '8px',
+                                  border: 1,
+                                  borderColor: 'divider',
+                                  cursor: 'zoom-in',
+                                }}
+                                onClick={() => setZoomUrl(activeDoc.url)}
+                              />
                             )}
                           </Box>
-
-                          {activeDoc.failed ? (
-                            <Alert severity="error">Không thể hiển thị tài liệu này từ máy chủ lưu trữ MinIO.</Alert>
-                          ) : activeDoc.isPdf ? (
-                            <iframe
-                              src={activeDoc.url}
-                              title={activeDoc.label}
-                              style={{ width: '100%', height: '400px', border: 'none', borderRadius: '8px' }}
-                            />
-                          ) : (
-                            <Box
-                              component="img"
-                              src={activeDoc.url}
-                              alt={activeDoc.label}
-                              sx={{
-                                maxHeight: 380,
-                                maxWidth: '100%',
-                                objectFit: 'contain',
-                                borderRadius: '8px',
-                                border: '1px solid #f1f5f9',
-                                cursor: 'zoom-in',
-                              }}
-                              onClick={() => setZoomUrl(activeDoc.url)}
-                            />
-                          )}
-                        </Box>
-                      )}
+                        )}
+                      </Box>
                     </Box>
-                  </Box>
-                )}
-              </Box>
+                  )}
+                </Box>
+              )}
 
-              {/* KHU VỰC QUYẾT ĐỊNH THẨM ĐỊNH (CHỈ KHI CHƯA DUYỆT) */}
               {panel !== 'Drone history' && (
-                <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', mb: 1 }}>
-                    {isAdmin ? 'Quyết định của Platform Admin' : 'Quyết định của Platform Manager'}
+                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
+                    {isAdmin
+                      ? tr('Quyết định của Platform Admin', 'Platform Admin Decision')
+                      : tr('Quyết định của Platform Manager', 'Platform Manager Decision')}
                   </Typography>
 
                   <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
@@ -1178,30 +1364,42 @@ export default function Mf1ReviewPage() {
                       onClick={() => setAction('approve')}
                       sx={{ textTransform: 'none', fontWeight: 650 }}
                     >
-                      Phê duyệt đạt chuẩn
+                      {tr('Phê duyệt đạt chuẩn', 'Approve application')}
                     </Button>
                     <Button
                       variant={action === 'reject' ? 'contained' : 'outlined'}
                       color="error"
                       startIcon={<HighlightOffRounded />}
                       onClick={() => setAction('reject')}
-                      sx={{ textTransform: 'none', fontWeight: 650 }}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
                     >
-                      Từ chối / Yêu cầu bổ sung
+                      {tr('Từ chối / Yêu cầu bổ sung', 'Reject / Request changes')}
                     </Button>
                   </Box>
 
-                  {action === 'approve' ? (
+                  {action === 'approve' && panel !== 'Customer airspace' ? (
                     <Alert severity="success">
-                      <strong>Xác nhận phê duyệt:</strong> Số Serial, số đăng ký và thông số kỹ thuật trùng khớp với hình ảnh Giấy đăng ký, Giấy tờ sở hữu và Giấy kiểm định an toàn hợp lệ theo Luật Phòng không nhân dân 2024 & Nghị định 288/2025/NĐ-CP.
+                      <strong>{tr('Xác nhận phê duyệt:', 'Approval confirmation:')}</strong>{' '}
+                      {tr(
+                        'Thông số kỹ thuật trùng khớp với hồ sơ đăng ký, sở hữu và kiểm định an toàn hợp lệ.',
+                        'Technical specifications match valid registration, ownership, and safety inspection records.',
+                      )}
                     </Alert>
                   ) : (
                     <TextField
                       fullWidth
                       multiline
                       rows={2}
-                      label="Lý do từ chối / Hướng dẫn bổ sung hồ sơ"
-                      placeholder="VD: Ảnh chụp giấy kiểm định bị mờ số Serial, yêu cầu chụp lại rõ nét..."
+                      label={
+                        action === 'approve'
+                          ? tr('Ghi chú phê duyệt vùng bay', 'Airspace approval note')
+                          : tr('Lý do từ chối / Hướng dẫn bổ sung hồ sơ', 'Rejection reason / Resubmission instructions')
+                      }
+                      placeholder={
+                        action === 'approve'
+                          ? tr('Nhập ghi chú xác nhận an toàn vùng bay...', 'Enter airspace compliance verification note...')
+                          : tr('Nhập lý do từ chối hoặc yêu cầu bổ sung...', 'Enter rejection reason or required corrections...')
+                      }
                       value={reviewNote}
                       onChange={(e) => setReviewNote(e.target.value)}
                     />
@@ -1216,7 +1414,7 @@ export default function Mf1ReviewPage() {
 
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={closeDialog} disabled={pending}>
-            Đóng
+            {tr('Đóng', 'Close')}
           </Button>
           {panel !== 'Drone history' && (
             <Button
@@ -1226,13 +1424,17 @@ export default function Mf1ReviewPage() {
               disabled={pending}
               sx={{ px: 3, fontWeight: 650 }}
             >
-              {pending ? 'Đang lưu…' : action === 'approve' ? 'Xác nhận phê duyệt' : 'Xác nhận từ chối'}
+              {pending
+                ? tr('Đang lưu…', 'Saving…')
+                : action === 'approve'
+                  ? tr('Xác nhận phê duyệt', 'Confirm approval')
+                  : tr('Xác nhận từ chối', 'Confirm rejection')}
             </Button>
           )}
         </DialogActions>
       </Dialog>
 
-      {/* MODAL ZOOM ẢNH SCAN */}
+      {/* DIALOG: ZOOM SCAN */}
       <Dialog open={Boolean(zoomUrl)} onClose={() => setZoomUrl(null)} maxWidth="lg">
         <DialogTitle sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
           <IconButton size="small" onClick={() => setZoomUrl(null)}>

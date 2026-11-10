@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link as RouterLink, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link as RouterLink, useParams, useLocation } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -14,8 +14,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { canPerform } from '@/app/permissions/capability';
 import {
   getSectionPath,
@@ -63,7 +63,6 @@ const NEXT_STEP: Record<string, string> = {
 export default function ReportDetailPage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
-  const navigate = useNavigate();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
@@ -76,6 +75,31 @@ export default function ReportDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!inspectionId || typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(`sdi_report_dispute_${inspectionId}`);
+      if (!raw) {
+        setDisputeSubmitted(false);
+        setDisputeReason('');
+        setDisputeSubmittedAt(null);
+        return;
+      }
+      const parsed = JSON.parse(raw) as { reason?: string; submittedAt?: string };
+      if (parsed && typeof parsed.reason === 'string') {
+        setDisputeReason(parsed.reason);
+        setDisputeSubmittedAt(typeof parsed.submittedAt === 'string' ? parsed.submittedAt : null);
+        setDisputeSubmitted(true);
+      } else {
+        setDisputeReason(raw);
+        setDisputeSubmitted(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, [inspectionId]);
 
   const inspectionQuery = useInspection(inspectionId);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
@@ -186,22 +210,16 @@ export default function ReportDetailPage() {
       {/* Top Navigation & Header: shown only when rendered standalone at /:portal/reports/:id */}
       {!isEmbeddedInInspectionWorkspace && (
         <Box sx={{ mb: 3 }}>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Button
-              startIcon={<ArrowBackRounded />}
-              onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                textTransform: 'none',
-                borderRadius: '8px',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              {canReview && !canAuthor ? 'Back to review queue' : 'Back to reports list'}
-            </Button>
-          </Box>
+          <PageBreadcrumbs
+            items={[
+              { label: t('Dashboard'), to: getSectionPath(portal, 'dashboard') },
+              {
+                label: canReview && !canAuthor ? t('Review queue') : t('Reports'),
+                to: `${getSectionPath(portal, 'inspections')}?view=reports`,
+              },
+              { label: t('Inspection Report') },
+            ]}
+          />
           <Typography
             component="h1"
             sx={{
@@ -235,7 +253,7 @@ export default function ReportDetailPage() {
               variant="outlined"
               sx={{
                 p: 2,
-                borderRadius: '16px',
+                borderRadius: '10px',
                 border: '1px solid',
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
@@ -297,7 +315,7 @@ export default function ReportDetailPage() {
                   variant="outlined"
                   sx={{
                     p: 2.5,
-                    borderRadius: '16px',
+                    borderRadius: '10px',
                     border: '1px solid',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
@@ -377,7 +395,12 @@ export default function ReportDetailPage() {
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                           {t('Review the submitted report')}
                         </Typography>
-                        <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
+                        <ReportAiSummaryCard
+                          inspectionId={inspectionId}
+                          versionId={openVersion.id}
+                          summary={openVersion.summary}
+                          findings={findings.data ?? []}
+                        />
                         {reportReadLoading ? (
                           <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
                             {findings.error || evidence.error
@@ -478,6 +501,8 @@ export default function ReportDetailPage() {
                   inspectionId={inspectionId}
                   versionId={openVersion.id}
                   versionNo={openVersion.versionNo}
+                  summary={openVersion.summary}
+                  findings={findings.data ?? []}
                   isPaid={isPaid}
                   isReportAccepted={isReportAccepted}
                   isPaymentCancelled={isPaymentCancelled}
@@ -486,6 +511,8 @@ export default function ReportDetailPage() {
                   payosPending={payosLink.isPending}
                   vnpayPending={vnpayLink.isPending}
                   disputeSubmitted={disputeSubmitted}
+                  disputeReason={disputeReason.trim() || null}
+                  disputeSubmittedAt={disputeSubmittedAt}
                   onAcceptReport={() =>
                     acceptReport.mutate(openVersion.id, {
                       onSuccess: () => {
@@ -514,7 +541,7 @@ export default function ReportDetailPage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
                     display: 'flex',
@@ -579,7 +606,7 @@ export default function ReportDetailPage() {
         onClose={() => setDisputeOpen(false)}
         maxWidth="sm"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+        slotProps={{ paper: { sx: { borderRadius: '10px', p: 1 } } }}
       >
         <DialogTitle sx={{ fontWeight: 700 }}>
           {t('File a dispute / Request clarification')}
@@ -612,6 +639,19 @@ export default function ReportDetailPage() {
             color="warning"
             disabled={!disputeReason.trim()}
             onClick={() => {
+              const timestamp = new Date().toISOString();
+              try {
+                localStorage.setItem(
+                  `sdi_report_dispute_${inspectionId}`,
+                  JSON.stringify({
+                    reason: disputeReason.trim(),
+                    submittedAt: timestamp,
+                  }),
+                );
+              } catch {
+                // ignore
+              }
+              setDisputeSubmittedAt(timestamp);
               setDisputeSubmitted(true);
               setDisputeOpen(false);
             }}

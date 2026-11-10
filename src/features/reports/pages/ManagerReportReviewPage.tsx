@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -9,7 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import {
   getSectionPath,
   PORTAL_IDS,
@@ -50,7 +50,6 @@ export default function ManagerReportReviewPage({
 }: ManagerReportReviewPageProps = {}) {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
-  const navigate = useNavigate();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
@@ -101,22 +100,16 @@ export default function ManagerReportReviewPage({
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
       {!isEmbeddedInInspectionWorkspace && (
         <Box sx={{ mb: 3 }}>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Button
-              startIcon={<ArrowBackRounded />}
-              onClick={() => navigate(`${getSectionPath(portal, 'inspections')}?view=reports`)}
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                textTransform: 'none',
-                borderRadius: '8px',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              Back to review queue
-            </Button>
-          </Box>
+          <PageBreadcrumbs
+            items={[
+              { label: t('Dashboard'), to: getSectionPath(portal, 'dashboard') },
+              {
+                label: t('Review queue'),
+                to: `${getSectionPath(portal, 'inspections')}?view=reports`,
+              },
+              { label: t('Inspection Report') },
+            ]}
+          />
           <Typography
             component="h1"
             sx={{
@@ -206,7 +199,7 @@ export default function ManagerReportReviewPage({
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: '16px',
+                  borderRadius: '10px',
                   border: '1px solid',
                   borderColor: 'divider',
                   bgcolor: 'background.paper',
@@ -220,7 +213,12 @@ export default function ManagerReportReviewPage({
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                     {t('Review the submitted report')}
                   </Typography>
-                  <ReportAiSummaryCard inspectionId={inspectionId} versionId={openVersion.id} />
+                  <ReportAiSummaryCard
+                    inspectionId={inspectionId}
+                    versionId={openVersion.id}
+                    summary={openVersion.summary}
+                    findings={findings.data ?? []}
+                  />
                   {reportReadLoading ? (
                     <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
                       {findings.error || evidence.error

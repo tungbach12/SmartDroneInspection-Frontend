@@ -1,8 +1,17 @@
 import { api } from '@/shared/api/client';
 import type { EvidenceItem } from './inspectionApi';
 
-export type SmartDroneHubMissionState = 'READY' | 'IN_FLIGHT' | 'RETURNING' | 'LANDED' | 'ABORTED';
-export type SmartDroneHubSource = 'MISSION_PLANNER_MAVLINK' | 'SMARTDRONEHUB_SIMULATION';
+export type SmartDroneHubMissionState =
+  | 'READY'
+  | 'IN_FLIGHT'
+  | 'RETURNING'
+  | 'LANDED'
+  | 'ABORTED'
+  | 'NO_FLIGHT';
+export type SmartDroneHubSource =
+  | 'MISSION_PLANNER_MAVLINK'
+  | 'SMARTDRONEHUB_SIMULATION'
+  | 'NONE';
 
 export interface SmartDroneHubFlightTracePoint {
   latitude: number;

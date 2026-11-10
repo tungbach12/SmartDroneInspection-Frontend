@@ -51,13 +51,13 @@ export function OccurrencesPanel({
     <Card
       variant="outlined"
       sx={{
-        borderRadius: '16px',
+        borderRadius: '10px',
         borderColor: 'divider',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
       }}
     >
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1.5 }}>
           {t('Occurrences and assignment')}
         </Typography>
 
@@ -128,12 +128,18 @@ function OccurrenceCard({
   const isAssigned = status === 'ASSIGNED';
   const assignedInspectorName =
     (inspectors.data ?? []).find((item) => item.id === inspectorId)?.fullName ??
-    (inspectorId ? `${t('Partner Pilot')} #${inspectorId.slice(0, 8)}` : null);
+    (inspectorId
+      ? manager
+        ? `${t('Partner Pilot')} #${inspectorId.slice(0, 8)}`
+        : t('Assigned partner pilot')
+      : null);
   const assignedDroneRecord = (drones.data ?? []).find((item) => item.id === droneId);
   const assignedDroneLabel = assignedDroneRecord
     ? `${assignedDroneRecord.model} (${assignedDroneRecord.serialNumber})`
     : droneId
-      ? `${t('Drone')} #${droneId.slice(0, 8)}`
+      ? manager
+        ? `${t('Drone')} #${droneId.slice(0, 8)}`
+        : t('Assigned inspection drone')
       : null;
 
   const feeVnd = totalPrice != null && totalPrice > 0 ? `${formatNumber(totalPrice)} ₫` : null;

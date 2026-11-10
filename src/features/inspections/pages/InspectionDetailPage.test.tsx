@@ -144,9 +144,15 @@ describe('InspectionDetailPage', () => {
   it('offers a way back to the list', () => {
     renderInspectionPage();
 
-    const back = screen.getByRole('button', { name: /back to inspections/i });
-    back.click();
-    expect(navigateMock).toHaveBeenCalledWith(-1);
+    const back = screen.getByRole('link', { name: /inspections/i });
+    expect(back.getAttribute('href')).toBe('/operations/inspections');
+  });
+
+  it('preserves Waiting status on a blocked step when navigated to directly', () => {
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/evidence' });
+
+    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')).toBeTruthy();
   });
 
   it('renders a Platform Manager review workspace on manager portal with 3 review stages and returns to the review queue', () => {
@@ -158,8 +164,8 @@ describe('InspectionDetailPage', () => {
     expect(managerNav.querySelector('a[aria-label*="Field & Evidence Audit"]')).toBeTruthy();
     expect(managerNav.querySelector('a[aria-label*="Report Decision"]')).toBeTruthy();
     expect(managerNav.querySelector('a[aria-label*="Commission & Settlement"]')).toBeTruthy();
-    screen.getByRole('button', { name: 'Back to review queue' }).click();
-    expect(navigateMock).toHaveBeenCalledWith('/manager/inspections?view=reports');
+    const backToQueue = screen.getByRole('link', { name: 'Review queue' });
+    expect(backToQueue.getAttribute('href')).toBe('/manager/inspections?view=reports');
   });
 
   it('does not show Maintenance Handoff tab for Platform Manager even after publication, and marks Customer Corrective Action complete only after forwarding', () => {
@@ -237,8 +243,9 @@ describe('InspectionDetailPage', () => {
     expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
     expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
     expect(stageNav.querySelector('a[aria-label*="Acceptance & Payment"]')).toBeTruthy();
-    screen.getByRole('button', { name: 'Back to inspections' }).click();
-    expect(navigateMock).toHaveBeenCalledWith('/client/inspections');
+    expect(screen.getByRole('link', { name: /inspections/i }).getAttribute('href')).toBe(
+      '/client/inspections',
+    );
   });
 
   it('shows Findings as complete only while its confirmation is current', () => {

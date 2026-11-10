@@ -63,8 +63,8 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
               sx={{
                 fontSize: '0.75rem',
                 fontWeight: isActive ? 600 : 500,
-                color: isActive ? 'primary.contrastText' : 'text.secondary',
-                bgcolor: isActive ? 'primary.main' : 'transparent',
+                color: isActive ? '#FFFFFF' : '#71717A',
+                bgcolor: isActive ? '#3758F9' : 'transparent',
                 borderRadius: '8px',
                 px: 1.25,
                 py: 0.5,
@@ -72,7 +72,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
                 textTransform: 'none',
                 boxShadow: 'none',
                 '&:hover': {
-                  bgcolor: isActive ? 'primary.dark' : 'action.hover',
+                  bgcolor: isActive ? '#4338CA' : 'action.hover',
                 },
               }}
             >
@@ -108,30 +108,34 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
         </IconButton>
       </Tooltip>
 
-      {/* Date Range Picker Button */}
-      <Button
+      {/* Reporting Period Badge */}
+      <Box
+        role="region"
         aria-label={t('Reporting period')}
-        startIcon={<CalendarTodayOutlined sx={{ fontSize: 16 }} />}
         sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 1,
           height: 40,
           px: 1.75,
           borderRadius: '8px',
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
-          color: 'text.primary',
+          color: 'text.secondary',
           fontSize: '0.875rem',
-          fontWeight: 500,
-          textTransform: 'none',
-          boxShadow: 'none',
-          '&:hover': { bgcolor: 'action.hover' },
+          fontWeight: 600,
         }}
       >
-        {`${t('Year')} ${new Date().getFullYear()} (01/01 - ${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')})`}
-      </Button>
+        <CalendarTodayOutlined sx={{ fontSize: 15 }} />
+        <span>
+          {`${t('Year')} ${new Date().getFullYear()} (01/01 - ${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')})`}
+        </span>
+      </Box>
 
       {/* Export Button */}
       <Button
+        variant="outlined"
         onClick={onExport}
         aria-label={t('Export dashboard')}
         startIcon={<FileDownloadOutlined sx={{ fontSize: 18 }} />}
@@ -139,13 +143,14 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
           height: 40,
           px: 2,
           borderRadius: '8px',
-          bgcolor: 'primary.main',
-          color: 'primary.contrastText',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          color: 'text.primary',
           fontSize: '0.875rem',
-          fontWeight: 500,
+          fontWeight: 600,
           textTransform: 'none',
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-          '&:hover': { bgcolor: 'primary.dark' },
+          boxShadow: 'none',
+          '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' },
         }}
       >
         {t('Export')}

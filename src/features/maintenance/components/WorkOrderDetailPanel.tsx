@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Stack, Tab, Tabs } from '@mui/material';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import { Stack, Tab, Tabs } from '@mui/material';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -49,20 +49,12 @@ export function WorkOrderDetailPanel({
 
   return (
     <Stack spacing={2.5}>
-      <Button
-        startIcon={<ArrowBackRounded />}
-        onClick={onClose}
-        sx={{
-          color: 'text.secondary',
-          fontWeight: 600,
-          fontSize: '0.875rem',
-          textTransform: 'none',
-          borderRadius: '8px',
-          alignSelf: 'flex-start',
-        }}
-      >
-        {t('Back to work orders')}
-      </Button>
+      <PageBreadcrumbs
+        items={[
+          { label: t('Maintenance'), onClick: onClose },
+          { label: workOrder.correctiveScope },
+        ]}
+      />
 
       <PageHeader
         title={workOrder.correctiveScope}

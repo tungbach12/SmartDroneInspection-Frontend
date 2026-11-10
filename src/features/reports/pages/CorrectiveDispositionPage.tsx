@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -18,11 +18,11 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import EngineeringOutlined from '@mui/icons-material/EngineeringOutlined';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
@@ -122,14 +122,15 @@ export default function CorrectiveDispositionPage() {
 
   return (
     <Stack spacing={2}>
-      <Button
-        component={RouterLink}
-        to={isClientPortal ? '../report' : '../review'}
-        startIcon={<ArrowBackRounded />}
-        sx={{ alignSelf: 'flex-start', color: 'text.secondary', fontWeight: 500, textTransform: 'none' }}
-      >
-        {isClientPortal ? t('Back to official report') : t('Back to report review')}
-      </Button>
+      <PageBreadcrumbs
+        items={[
+          {
+            label: isClientPortal ? t('Official Report') : t('Report review'),
+            to: isClientPortal ? '../report' : '../review',
+          },
+          { label: t('Send to Maintenance') },
+        ]}
+      />
 
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>

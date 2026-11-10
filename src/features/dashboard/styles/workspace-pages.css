@@ -1,4 +1,28 @@
-/* Clean workspace styling aligned with light and dark enterprise color schemes */
+/* Clean workspace styling aligned with NextAdmin light and dark color schemes */
+
+:root {
+  --nextadmin-primary: #3758F9;
+  --nextadmin-primary-dark: #2237EE;
+  --nextadmin-primary-light: #06B6D4;
+  --nextadmin-primary-soft: #EFF3FF;
+  --nextadmin-canvas: #F4F4F5;
+  --nextadmin-inset: #FCFCFD;
+  --nextadmin-card: #FFFFFF;
+  --nextadmin-border: #E8E8E8;
+  --nextadmin-text-primary: #18181B;
+  --nextadmin-text-secondary: #52525B;
+  --nextadmin-text-tertiary: #71717A;
+}
+
+[data-mui-color-scheme="dark"] {
+  --nextadmin-canvas: #09090B;
+  --nextadmin-inset: #111827;
+  --nextadmin-card: #18181B;
+  --nextadmin-border: #27272A;
+  --nextadmin-text-primary: #F4F4F5;
+  --nextadmin-text-secondary: #A1A1AA;
+  --nextadmin-text-tertiary: #71717A;
+}
 
 .workspace-page > header {
   position: relative;
@@ -8,27 +32,27 @@
 }
 
 .workspace-page > header h1 {
-  font-size: clamp(1.6rem, 2.2vw, 2rem);
+  font-size: 1.625rem;
   font-weight: 700;
-  letter-spacing: -0.035em;
-  color: var(--mui-palette-text-primary, #101828);
+  letter-spacing: -0.025em;
+  color: var(--mui-palette-text-primary);
 }
 
 .workspace-page > header p {
   margin-top: 4px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--mui-palette-text-secondary, #667085);
+  color: var(--mui-palette-text-secondary);
 }
 
 /* Card and Paper containers */
 .workspace-page .MuiCard-root,
 .workspace-page .MuiPaper-root.MuiPaper-outlined {
   overflow: hidden;
-  border: 1px solid var(--mui-palette-divider, #eaecf0);
-  border-radius: 16px;
-  background-color: var(--mui-palette-background-paper, #ffffff);
-  box-shadow: 0 1px 3px 0 rgba(16, 24, 40, 0.05), 0 1px 2px 0 rgba(16, 24, 40, 0.03);
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: 12px;
+  background-color: var(--mui-palette-background-paper);
+  box-shadow: none;
 }
 
 .workspace-page .MuiCardContent-root {
@@ -46,23 +70,23 @@
 }
 
 .workspace-page .MuiTableHead-root .MuiTableCell-root {
-  background-color: var(--mui-palette-background-default, #fafbfc);
-  color: var(--mui-palette-text-secondary, #667085);
-  font-size: 0.725rem;
+  background-color: var(--mui-palette-background-default);
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
   padding: 12px 20px;
-  border-bottom: 1px solid var(--mui-palette-divider, #eaecf0);
+  border-bottom: 1px solid var(--mui-palette-divider);
   border-top: 0;
 }
 
 .workspace-page .MuiTableBody-root .MuiTableCell-root {
   padding: 16px 20px;
   font-size: 0.875rem;
-  color: var(--mui-palette-text-primary, #344054);
-  border-bottom: 1px solid var(--mui-palette-divider, #f2f4f7);
+  color: var(--mui-palette-text-primary);
+  border-bottom: 1px solid var(--mui-palette-divider);
 }
 
 .workspace-page .MuiTableBody-root .MuiTableRow-root:last-child .MuiTableCell-root {
@@ -70,56 +94,56 @@
 }
 
 .workspace-page .MuiTableRow-hover:hover {
-  background-color: var(--mui-palette-action-hover, #f9fafb) !important;
+  background-color: var(--mui-palette-action-hover) !important;
 }
 
 /* Clean Input & Controls */
 .workspace-page .MuiOutlinedInput-root {
-  border-radius: 10px;
-  background-color: var(--mui-palette-background-paper, #ffffff);
+  border-radius: 8px;
+  background-color: var(--mui-palette-background-paper);
   font-size: 0.875rem;
   transition: all 0.15s ease;
 }
 
 .workspace-page .MuiOutlinedInput-notchedOutline {
-  border-color: var(--mui-palette-divider, #d0d5dd);
+  border-color: var(--mui-palette-divider);
 }
 
 .workspace-page .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: var(--mui-palette-text-secondary, #98a2b3);
+  border-color: var(--mui-palette-text-secondary);
 }
 
 .workspace-page .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--mui-palette-primary-main, #3758f9);
+  border-color: var(--mui-palette-primary-main);
   border-width: 1.5px;
 }
 
 .workspace-page .MuiAlert-root {
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
 }
 
 .workspace-page .MuiButton-root {
-  border-radius: 9px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 500;
   text-transform: none;
   box-shadow: none;
 }
 
 .workspace-page .MuiButton-containedPrimary {
-  background-color: var(--mui-palette-primary-main, #3758f9);
-  color: #ffffff;
+  background-color: var(--mui-palette-primary-main);
+  color: var(--mui-palette-primary-contrastText);
 }
 
 .workspace-page .MuiButton-containedPrimary:hover {
-  background-color: var(--mui-palette-primary-dark, #2b45cb);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  background-color: var(--mui-palette-primary-dark);
+  box-shadow: none;
 }
 
 .workspace-page .MuiTablePagination-root {
-  color: var(--mui-palette-text-secondary, #667085);
+  color: var(--mui-palette-text-secondary);
   font-size: 0.875rem;
-  border-top: 1px solid var(--mui-palette-divider, #eaecf0);
+  border-top: 1px solid var(--mui-palette-divider);
 }
 
 @media (max-width: 600px) {

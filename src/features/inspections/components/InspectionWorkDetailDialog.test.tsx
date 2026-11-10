@@ -101,7 +101,7 @@ describe('InspectionWorkDetailDialog', () => {
 
     // Header & Status
     expect(screen.getAllByText('Thu Thiem Bridge No. 2').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('SCHEDULED')).toBeTruthy();
+    expect(screen.getByText('Scheduled')).toBeTruthy();
 
     // Asset & Location
     expect(screen.getByText('10.7769° N, 106.7009° E')).toBeTruthy();

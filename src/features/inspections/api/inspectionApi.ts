@@ -29,6 +29,8 @@ export interface InspectionReport {
   returnReason: string | null;
   publishedAt: string | null;
   createdAt: string;
+  /** Auto-generated executive summary persisted when the report version is created. */
+  summary?: string | null;
   /** Why no automated drafting contributed, present on manual drafts only. */
   omissionDisclosure: string | null;
   /** Full raw JSON snapshot containing structured report fields & custom enterprise schemas. */
@@ -241,6 +243,63 @@ export interface ReportAiSummary {
   keyHighlights: string[];
   recommendedActions: string;
   overallRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface PlatformAiModelStat {
+  modelName: string;
+  totalDetections: number;
+  confirmedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  acceptanceRatePercent: number;
+  avgConfidencePercent: number;
+}
+
+export interface PlatformAiDefectStat {
+  defectLabel: string;
+  totalDetections: number;
+  confirmedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  avgConfidencePercent: number;
+}
+
+export interface PlatformAiConfidenceBucket {
+  bucketLabel: string;
+  minPercent: number;
+  maxPercent: number;
+  totalCount: number;
+  confirmedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+}
+
+export interface PlatformAiAnalytics {
+  autoConfirmEnabled: boolean;
+  autoConfirmThreshold: number;
+  totalAiDetections: number;
+  confirmedAiFindings: number;
+  autoConfirmedFindings: number;
+  pendingAiFindings: number;
+  rejectedAiFindings: number;
+  removedConfirmedAiFindings: number;
+  rejectedPendingFindings: number;
+  manualFindingsCount: number;
+  acceptanceRatePercent: number;
+  rejectionRatePercent: number;
+  averageConfidencePercent: number;
+  averageConfirmedConfidencePercent: number;
+  updatedAt: string;
+  modelBreakdown: PlatformAiModelStat[];
+  defectBreakdown: PlatformAiDefectStat[];
+  confidenceBuckets: PlatformAiConfidenceBucket[];
+  newlyAutoConfirmedCount: number;
+}
+
+export interface UpdatePlatformAiSettingsInput {
+  autoConfirmEnabled: boolean;
+  autoConfirmThreshold: number;
+  applyToPending?: boolean;
 }
 
 export type InspectionStatus =
@@ -610,12 +669,22 @@ export const inspectionApi = {
     api.delete<void>(`/inspections/${inspectionId}/findings/${findingId}`)
       .then((response) => response.data),
 
+  getAiSettingsAndAnalytics: () =>
+    api
+      .get<PlatformAiAnalytics>('/inspections/ai-settings')
+      .then((response) => response.data),
+
+  updateAiSettings: (input: UpdatePlatformAiSettingsInput) =>
+    api
+      .put<PlatformAiAnalytics>('/inspections/ai-settings', input)
+      .then((response) => response.data),
+
   // MF3-07 to MF3-11 report workflow.
-  generateDraft: (inspectionId: string) =>
+  generateDraft: (inspectionId: string, summary?: string | null) =>
     api
       .post<InspectionReport>(
         `/inspections/${inspectionId}/report/draft`,
-        undefined,
+        summary ? { summary } : undefined,
         { timeout: 110_000 },
       )
       .then((response) => response.data),

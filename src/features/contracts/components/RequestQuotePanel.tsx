@@ -12,7 +12,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { type IssueServiceQuoteInput, type ServiceRequest } from '../api/contractApi';
 import { dateTimeInputToInstant } from '../api/scheduleTime';
 import {
@@ -37,6 +39,7 @@ export function RequestQuotePanel({
   onChanged,
   onError,
 }: RequestQuotePanelProps) {
+  const { locale, t } = useLocale();
   const latest = request.quotes[0];
   const accept = useAcceptServiceQuote(request.id);
   const issue = useIssueServiceQuote(request.id);
@@ -49,9 +52,13 @@ export function RequestQuotePanel({
   const [inspectorId, setInspectorId] = useState('');
   const [droneId, setDroneId] = useState('');
   const [price, setPrice] = useState('11000000');
+  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
 
   const availableDrones = (drones.data ?? []).filter((drone) => drone.inspectorOwnerId === inspectorId);
   const selectedDroneId = availableDrones.some((drone) => drone.id === droneId) ? droneId : '';
+  const hasDispatchedOccurrence = request.occurrences.some(
+    (o) => o.status === 'ASSIGNED' || (o.status as string) === 'COMPLETED',
+  );
 
   const issueQuote = async () => {
     if (!scope.trim()) {
@@ -80,8 +87,8 @@ export function RequestQuotePanel({
         firstOccurrenceEndAt: endAt,
         inspectorId,
         droneId: selectedDroneId,
-        pricePerOccurrenceVnd: amount,
-        pricePerOccurrenceUsd: amount,
+        pricePerOccurrenceVnd: Math.round(amount),
+        pricePerOccurrenceUsd: Math.round((amount / 25000) * 100) / 100,
       } satisfies IssueServiceQuoteInput);
       onChanged();
     } catch (error) {
@@ -94,6 +101,7 @@ export function RequestQuotePanel({
     if (!latest) return;
     try {
       await accept.mutateAsync(latest.versionNo);
+      setConfirmAcceptOpen(false);
       onChanged();
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unable to accept quote.';
@@ -101,25 +109,45 @@ export function RequestQuotePanel({
     }
   };
 
+  const formatQuotePrice = (quote: ServiceRequest['quotes'][number]) =>
+    quote.currency === 'VND' || (quote.pricePerOccurrenceVnd != null && quote.pricePerOccurrenceVnd > 0)
+      ? `${Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} VND / ${locale === 'vi' ? 'đợt' : 'occurrence'}`
+      : `$${quote.pricePerOccurrenceUsd.toFixed(2)} USD / occurrence`;
+
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <Card variant="outlined" sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1.5 }}>
           Quotes
         </Typography>
 
         <Stack spacing={1.5} sx={{ mb: 2 }}>
           {request.quotes.length === 0 ? (
-            <Typography color="text.secondary">No quote issued yet.</Typography>
+            <Typography color="text.secondary">
+              {hasDispatchedOccurrence
+                ? t('Commercial terms settled under active dispatch schedule.')
+                : 'No quote issued yet.'}
+            </Typography>
           ) : (
             request.quotes.map((quote) => {
               const isLatest = quote.versionNo === latest?.versionNo;
+              const matchedInspector = (inspectors.data ?? []).find((i) => i.id === quote.inspectorId);
+              const matchedDrone = (drones.data ?? []).find((d) => d.id === quote.droneId);
+              const inspectorLabel =
+                matchedInspector?.fullName ??
+                (quote.inspectorId ? t('Assigned partner pilot') : t('Unassigned'));
+              const droneLabel = matchedDrone
+                ? `${matchedDrone.model} (${matchedDrone.serialNumber})`
+                : quote.droneId
+                  ? t('Assigned inspection drone')
+                  : t('Unassigned');
+
               return (
                 <Box
                   key={quote.id}
                   sx={{
                     p: 2,
-                    borderRadius: 2,
+                    borderRadius: '8px',
                     border: '1.5px solid',
                     borderColor: isLatest ? 'primary.main' : 'divider',
                     bgcolor: isLatest ? 'primary.50' : 'background.paper',
@@ -133,11 +161,7 @@ export function RequestQuotePanel({
                     <Chip
                       size="small"
                       color="primary"
-                      label={
-                        quote.currency === 'VND' || (quote.pricePerOccurrenceVnd != null && quote.pricePerOccurrenceVnd > 0)
-                          ? `${Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd).toLocaleString('vi-VN')} VND / đợt`
-                          : `$${quote.pricePerOccurrenceUsd.toFixed(2)} USD / occurrence`
-                      }
+                      label={formatQuotePrice(quote)}
                       sx={{ fontWeight: 700 }}
                     />
                   </Stack>
@@ -148,7 +172,7 @@ export function RequestQuotePanel({
                     First occurrence proposal: {new Date(quote.firstOccurrenceStartAt).toLocaleString()} –{' '}
                     {new Date(quote.firstOccurrenceEndAt).toLocaleString()}
                     {manager && (quote.inspectorId || quote.droneId)
-                      ? ` · Inspector ${quote.inspectorId ?? 'Unassigned'} · Drone ${quote.droneId ?? 'Unassigned'}`
+                      ? ` · ${t('Inspector')}: ${inspectorLabel} · ${t('Drone')}: ${droneLabel}`
                       : ''}
                   </Typography>
                   {customer && request.status === 'QUOTED' && isLatest && (
@@ -157,8 +181,8 @@ export function RequestQuotePanel({
                         loading={accept.isPending}
                         variant="contained"
                         color="success"
-                        onClick={() => void acceptLatest()}
-                        sx={{ fontWeight: 700, borderRadius: 2 }}
+                        onClick={() => setConfirmAcceptOpen(true)}
+                        sx={{ fontWeight: 700, borderRadius: '8px' }}
                       >
                         Accept latest quote
                       </LoadingButton>
@@ -243,19 +267,23 @@ export function RequestQuotePanel({
                 </FormControl>
               </Stack>
               <TextField
-                label="Price per occurrence (VND/USD)"
+                label={locale === 'vi' ? 'Đơn giá mỗi đợt bay (VND)' : 'Price per occurrence (VND)'}
                 type="number"
                 size="small"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                helperText="Ví dụ: 11000000 VND"
+                helperText={
+                  locale === 'vi'
+                    ? 'Ví dụ: 11.000.000 VND (tự động quy đổi USD tương đương)'
+                    : 'e.g. 11,000,000 VND (automatically converted to USD equivalent)'
+                }
               />
               <Box sx={{ pt: 0.5 }}>
                 <LoadingButton
                   loading={issue.isPending}
                   variant="contained"
                   onClick={() => void issueQuote()}
-                  sx={{ borderRadius: 2, fontWeight: 700 }}
+                  sx={{ borderRadius: '8px', fontWeight: 700 }}
                 >
                   Issue new quote version
                 </LoadingButton>
@@ -263,6 +291,24 @@ export function RequestQuotePanel({
             </Stack>
           </Box>
         )}
+
+        <ConfirmDialog
+          open={confirmAcceptOpen}
+          title={t('Confirm Quote Acceptance')}
+          message={
+            latest
+              ? locale === 'vi'
+                ? `Bạn xác nhận đồng ý Báo giá Phiên bản ${latest.versionNo} (${formatQuotePrice(latest)})? Bước tiếp theo: hai bên ký hợp đồng giấy ngoại tuyến và Quản lý sàn sẽ tải bản scan hợp đồng đã ký lên hệ thống.`
+                : `Confirm acceptance of Quote Version ${latest.versionNo} (${formatQuotePrice(latest)})? Next step: both parties sign the paper contract offline and the Platform Manager uploads the signed contract scan before flight dispatch.`
+              : ''
+          }
+          confirmLabel={t('Accept quote')}
+          cancelLabel={t('Cancel')}
+          confirmColor="success"
+          loading={accept.isPending}
+          onCancel={() => setConfirmAcceptOpen(false)}
+          onConfirm={() => void acceptLatest()}
+        />
       </CardContent>
     </Card>
   );

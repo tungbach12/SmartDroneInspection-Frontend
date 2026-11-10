@@ -10,11 +10,9 @@ import {
   TableCell,
   Button,
 } from '@mui/material';
-import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import { Link as RouterLink } from 'react-router-dom';
-import { alpha, useTheme } from '@mui/material/styles';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { Link as RouterLink } from 'react-router-dom';
 
 export interface LyticQueueTableProps {
   title: string;
@@ -42,29 +40,28 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
   viewAllText,
 }) => {
   const { t } = useLocale();
-  const theme = useTheme();
   const getBadgeStyle = (status: 'positive' | 'warning' | 'negative' | 'neutral') => {
     switch (status) {
       case 'positive':
         return {
-          bg: alpha(theme.palette.success.main, 0.12),
-          text: 'success.main',
+          bg: '#F0FDF4',
+          text: '#15803D',
         };
       case 'warning':
         return {
-          bg: alpha(theme.palette.warning.main, 0.14),
-          text: 'warning.main',
+          bg: '#FFFBEB',
+          text: '#B45309',
         };
       case 'negative':
         return {
-          bg: alpha(theme.palette.error.main, 0.12),
-          text: 'error.main',
+          bg: '#FEF2F2',
+          text: '#B91C1C',
         };
       case 'neutral':
       default:
         return {
-          bg: 'action.hover',
-          text: 'text.secondary',
+          bg: '#F4F4F5',
+          text: '#374151',
         };
     }
   };
@@ -73,11 +70,12 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
     <Box
       sx={{
         bgcolor: 'background.paper',
-        border: 1,
+        border: '1px solid',
         borderColor: 'divider',
         borderRadius: '12px',
+        p: '20px',
         overflow: 'hidden',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -89,8 +87,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          px: 2.5,
-          py: 2,
+          mb: 2,
         }}
       >
         <Box>
@@ -98,7 +95,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
             component="h2"
             sx={{
               color: 'text.primary',
-              fontSize: '16px',
+              fontSize: '1rem',
               fontWeight: 600,
               mb: 0.5,
             }}
@@ -107,29 +104,33 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           </Typography>
           <Typography
             sx={{
-              color: 'text.secondary',
-              fontSize: '14px',
+              color: '#71717A',
+              fontSize: '0.875rem',
             }}
           >
             {t(subtitle)}
           </Typography>
         </Box>
-
-        <IconButton
-          size="small"
-          aria-label={t('Table options')}
+        <Box
           sx={{
-            color: 'text.secondary',
-            p: 0.75,
-            '&:hover': { bgcolor: 'action.hover' },
+            color: '#9CA3AF',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0.5,
+            flexShrink: 0,
           }}
         >
-          <MoreHorizRounded fontSize="small" />
-        </IconButton>
+          <svg width="18" height="4" viewBox="0 0 18 4" fill="none">
+            <path d="M4 2C4 3.10457 3.10457 4 2 4C0.89543 4 0 3.10457 0 2C0 0.89543 0.89543 0 2 0C3.10457 0 4 0.89543 4 2Z" fill="currentColor" />
+            <path d="M11 2C11 3.10457 10.1046 4 9 4C7.89543 4 7 3.10457 7 2C7 0.89543 7.89543 0 9 0C10.1046 0 11 0.89543 11 2Z" fill="currentColor" />
+            <path d="M18 2C18 3.10457 17.1046 4 16 4C14.8954 4 14 3.10457 14 2C14 0.89543 14.8954 0 16 0C17.1046 0 18 0.89543 18 2Z" fill="currentColor" />
+          </svg>
+        </Box>
       </Box>
 
       {/* Table Container */}
-      <Box sx={{ overflowX: 'auto', flexGrow: 1 }}>
+      <Box sx={{ overflowX: 'auto', flexGrow: 1, mx: '-20px' }}>
         <Table sx={{ minWidth: 500, borderTop: 1, borderColor: 'divider' }}>
           <TableHead>
             <TableRow sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -140,14 +141,14 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                   sx={{
                     px: 2.5,
                     py: 1.5,
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: 'text.primary',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: '#71717A',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.02em',
                     borderBottom: 1,
                     borderColor: 'divider',
-                    bgcolor: 'transparent',
+                    bgcolor: 'rgba(244, 244, 245, 0.5)',
                   }}
                 >
                   {t(h)}
@@ -163,26 +164,26 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                   key={idx}
                   hover
                   sx={{
-                    height: 56,
+                    height: 54,
                     borderBottom: 1,
                     borderColor: 'divider',
                     '&:last-child td': { borderBottom: 0 },
                     '&:hover': { bgcolor: 'action.hover' },
                   }}
                 >
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col1)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col2)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col3)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.75, fontSize: '13px', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col4)}
                   </TableCell>
-                  <TableCell align="right" sx={{ px: 2.5, py: 1.75, borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell align="right" sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
                       <Box
                         component="span"
@@ -190,16 +191,15 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 0.75,
-                          borderRadius: '9999px',
+                          borderRadius: '6px',
                           fontWeight: 500,
                           py: '2px',
                           px: '8px',
-                          fontSize: '11px',
+                          fontSize: '0.75rem',
                           bgcolor: badge.bg,
                           color: badge.text,
                         }}
                       >
-                        <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'currentColor' }} />
                         {row.col5}
                       </Box>
                       {row.link && (
@@ -209,7 +209,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                           size="small"
                           aria-label={`Open ${row.col1}`}
                           sx={{
-                            color: 'text.secondary',
+                            color: '#71717A',
                             p: 0.5,
                             '&:hover': { color: 'primary.main' },
                           }}
@@ -228,17 +228,17 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
 
       {/* Optional Footer Link */}
       {viewAllLink && (
-        <Box sx={{ p: 1.5, px: 2.5, borderTop: 1, borderColor: 'divider', bgcolor: 'transparent' }}>
+        <Box sx={{ pt: 2, mt: 1, borderTop: 1, borderColor: 'divider', bgcolor: 'transparent' }}>
           <Button
             component={RouterLink}
             to={viewAllLink}
             size="small"
             endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
             sx={{
-              color: 'primary.main',
+              color: '#3758F9',
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: '13px',
+              fontSize: '0.875rem',
               p: 0,
               '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
             }}

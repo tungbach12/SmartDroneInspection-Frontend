@@ -81,7 +81,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
     <Card
       variant="outlined"
       sx={{
-        borderRadius: 3,
+        borderRadius: '10px',
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
@@ -114,7 +114,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               size="small"
               color="secondary"
               variant="outlined"
-              sx={{ fontWeight: 650, fontSize: '0.72rem' }}
+              sx={{ fontWeight: 650, fontSize: '0.75rem' }}
             />
             <Chip
               size="small"
@@ -215,10 +215,10 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       size="small"
                       color={isAiBot ? 'secondary' : isManager ? 'info' : 'default'}
                       variant="outlined"
-                      sx={{ height: 18, fontSize: '0.68rem', fontWeight: 600 }}
+                      sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
                     />
                   )}
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 </Stack>
@@ -228,7 +228,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                   sx={{
                     px: 2,
                     py: 1.25,
-                    borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    borderRadius: isMe ? '10px 10px 5px 10px' : '10px 10px 10px 5px',
                     bgcolor: (theme) =>
                       isMe
                         ? 'primary.main'
@@ -236,9 +236,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                           ? theme.palette.mode === 'dark'
                             ? 'rgba(156, 39, 176, 0.18)'
                             : '#f3e5f5'
-                          : theme.palette.mode === 'dark'
-                            ? 'background.paper'
-                            : '#ffffff',
+                          : 'background.paper',
                     color: isMe ? 'primary.contrastText' : 'text.primary',
                     border: isMe ? 'none' : '1px solid',
                     borderColor: isAiBot ? 'secondary.light' : 'divider',
@@ -253,7 +251,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                       lineHeight: 1.55,
-                      fontSize: '0.88rem',
+                      fontSize: '0.875rem',
                     }}
                   >
                     {message.body}
@@ -271,7 +269,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               gap: 1.25,
               p: 1.5,
               px: 2,
-              borderRadius: '16px 16px 16px 4px',
+              borderRadius: '10px 10px 10px 5px',
               bgcolor: (theme) =>
                 theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.15)' : '#f3e5f5',
               border: '1px solid',
@@ -310,13 +308,14 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             }}
             slotProps={{
               input: {
-                sx: { borderRadius: 2, fontSize: '0.9rem' },
+                sx: { borderRadius: '8px', fontSize: '0.875rem' },
               },
             }}
           />
           <LoadingButton
             variant="contained"
             color="primary"
+            aria-label="Send message"
             loading={post.isPending}
             disabled={!body.trim()}
             onClick={() => void send()}
@@ -324,14 +323,14 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               minWidth: 44,
               width: 44,
               height: 40,
-              borderRadius: 2,
+              borderRadius: '8px',
               p: 0,
             }}
           >
             <SendRoundedIcon fontSize="small" />
           </LoadingButton>
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.75rem' }}>
           💡 Mẹo: Bấm <strong>Enter</strong> để gửi tin nhắn, <strong>Shift + Enter</strong> để xuống dòng.
         </Typography>
       </Box>

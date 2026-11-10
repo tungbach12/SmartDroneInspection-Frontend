@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material/styles';
-import { layoutTokens, paletteTokens, statusTokens } from './tokens';
+import { fontStack, layoutTokens, paletteTokens, statusTokens } from './tokens';
 
 export const theme = createTheme({
   cssVariables: {
@@ -10,14 +10,14 @@ export const theme = createTheme({
       palette: {
         primary: {
           main: paletteTokens.teal,
-          light: '#7B75F5',
-          dark: '#463EC5',
+          light: paletteTokens.tealLight,
+          dark: paletteTokens.tealDark,
           contrastText: '#FFFFFF',
         },
         secondary: {
           main: paletteTokens.harbor,
-          light: '#42687C',
-          dark: '#102B3A',
+          light: paletteTokens.harborLight,
+          dark: '#09090B',
           contrastText: '#FFFFFF',
         },
         background: {
@@ -26,9 +26,9 @@ export const theme = createTheme({
         },
         text: {
           primary: paletteTokens.ink,
-          secondary: '#5D707B',
+          secondary: paletteTokens.textSecondary,
         },
-        divider: '#D9E2E6',
+        divider: paletteTokens.steel,
         success: { main: statusTokens.success.light },
         warning: { main: statusTokens.warning.light },
         error: { main: statusTokens.error.light },
@@ -38,16 +38,16 @@ export const theme = createTheme({
     dark: {
       palette: {
         primary: {
-          main: '#818CF8',
-          light: '#A5B4FC',
-          dark: '#6366F1',
+          main: paletteTokens.teal,
+          light: paletteTokens.tealLight,
+          dark: paletteTokens.tealDark,
           contrastText: '#FFFFFF',
         },
         secondary: {
-          main: '#94A3B8',
-          light: '#CBD5E1',
-          dark: '#64748B',
-          contrastText: '#0F172A',
+          main: paletteTokens.darkMuted,
+          light: '#D4D4D8',
+          dark: '#71717A',
+          contrastText: '#09090B',
         },
         background: {
           default: paletteTokens.darkCanvas,
@@ -57,37 +57,37 @@ export const theme = createTheme({
           primary: paletteTokens.darkText,
           secondary: paletteTokens.darkMuted,
         },
-        divider: '#1E293B',
+        divider: paletteTokens.darkRaised,
         success: { main: statusTokens.success.dark },
         warning: { main: statusTokens.warning.dark },
         error: { main: statusTokens.error.dark },
         info: { main: statusTokens.info.dark },
         action: {
-          active: '#CBD5E1',
-          hover: 'rgba(148, 163, 184, 0.08)',
-          selected: 'rgba(129, 140, 248, 0.16)',
-          disabled: 'rgba(148, 163, 184, 0.35)',
-          disabledBackground: 'rgba(148, 163, 184, 0.12)',
-          focus: 'rgba(129, 140, 248, 0.24)',
+          active: '#E4E4E7',
+          hover: 'rgba(255, 255, 255, 0.04)',
+          selected: 'rgba(255, 255, 255, 0.08)',
+          disabled: 'rgba(161, 161, 170, 0.35)',
+          disabledBackground: 'rgba(161, 161, 170, 0.12)',
+          focus: 'rgba(87, 80, 241, 0.24)',
         },
       },
     },
   },
-  shape: { borderRadius: 10 },
+  shape: { borderRadius: 12 },
   typography: {
-    fontFamily: '"Geist Sans", "Helvetica Neue", Arial, sans-serif',
-    h1: { fontSize: '2.5rem', lineHeight: 1.1, fontWeight: 650, letterSpacing: '-0.045em' },
-    h2: { fontSize: '2rem', lineHeight: 1.15, fontWeight: 650, letterSpacing: '-0.035em' },
-    h3: { fontSize: '1.625rem', lineHeight: 1.2, fontWeight: 650, letterSpacing: '-0.025em' },
-    h4: { fontSize: '1.375rem', lineHeight: 1.25, fontWeight: 650, letterSpacing: '-0.018em' },
-    h5: { fontSize: '1.125rem', lineHeight: 1.35, fontWeight: 620 },
-    h6: { fontSize: '1rem', lineHeight: 1.4, fontWeight: 620 },
-    subtitle1: { fontSize: '0.95rem', lineHeight: 1.45, fontWeight: 580 },
+    fontFamily: fontStack,
+    h1: { fontSize: '2.5rem', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.03em' },
+    h2: { fontSize: '2rem', lineHeight: 1.15, fontWeight: 700, letterSpacing: '-0.025em' },
+    h3: { fontSize: '1.625rem', lineHeight: 1.2, fontWeight: 700, letterSpacing: '-0.02em' },
+    h4: { fontSize: '1.375rem', lineHeight: 1.25, fontWeight: 600, letterSpacing: '-0.015em' },
+    h5: { fontSize: '1.125rem', lineHeight: 1.35, fontWeight: 600 },
+    h6: { fontSize: '1rem', lineHeight: 1.4, fontWeight: 600 },
+    subtitle1: { fontSize: '0.95rem', lineHeight: 1.45, fontWeight: 500 },
     subtitle2: { fontSize: '0.875rem', lineHeight: 1.4, fontWeight: 600 },
-    body1: { fontSize: '0.94rem', lineHeight: 1.55 },
+    body1: { fontSize: '0.9375rem', lineHeight: 1.55 },
     body2: { fontSize: '0.875rem', lineHeight: 1.55 },
     caption: { fontSize: '0.75rem', lineHeight: 1.5 },
-    button: { fontSize: '0.875rem', fontWeight: 600, letterSpacing: 0, textTransform: 'none' },
+    button: { fontSize: '0.875rem', fontWeight: 500, letterSpacing: 0, textTransform: 'none' },
   },
   transitions: {
     duration: { enteringScreen: 180, leavingScreen: 120 },
@@ -107,11 +107,11 @@ export const theme = createTheme({
           background: 'transparent',
         },
         '*::-webkit-scrollbar-thumb': {
-          backgroundColor: 'rgba(148, 163, 184, 0.3)',
+          backgroundColor: 'rgba(113, 113, 122, 0.3)',
           borderRadius: 4,
         },
         '*::-webkit-scrollbar-thumb:hover': {
-          backgroundColor: 'rgba(148, 163, 184, 0.55)',
+          backgroundColor: 'rgba(113, 113, 122, 0.55)',
         },
       },
     },
@@ -144,6 +144,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+          borderRadius: 12,
+          borderColor: 'var(--mui-palette-divider)',
         },
       },
     },
@@ -167,7 +169,7 @@ export const theme = createTheme({
         head: {
           color: 'var(--mui-palette-text-secondary)',
           fontSize: '0.75rem',
-          fontWeight: 650,
+          fontWeight: 600,
           backgroundColor: 'var(--mui-palette-background-default)',
           borderBottomColor: 'var(--mui-palette-divider)',
           whiteSpace: 'nowrap',

@@ -38,6 +38,11 @@ import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDial
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import type { FieldSession } from '../api/fieldSessionApi';
+import { useQuery } from '@tanstack/react-query';
+import {
+  smartDroneHubApi,
+  type SmartDroneHubTelemetry,
+} from '../api/smartDroneHubApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface PreFlightChecklistSpecItem {
@@ -146,10 +151,10 @@ function CircleSign({ state }: { state: 'checked' | 'unchecked' | 'skipped' }) {
         display: 'grid',
         placeItems: 'center',
         border: '1.5px solid',
-        borderColor: isChecked ? '#228b6e' : isSkipped ? 'warning.main' : 'divider',
-        bgcolor: isChecked ? '#228b6e' : 'transparent',
+        borderColor: isChecked ? '#176B52' : isSkipped ? 'warning.main' : 'divider',
+        bgcolor: isChecked ? '#176B52' : 'transparent',
         color: isChecked ? '#ffffff' : isSkipped ? 'warning.main' : 'transparent',
-        fontSize: '0.7rem',
+        fontSize: '0.75rem',
         fontWeight: 700,
         lineHeight: 1,
         transition: 'all 140ms ease',
@@ -164,22 +169,28 @@ function ChecklistNoteDisplay({
   title,
   rawNote,
   fallbackItems,
+  itemCodePrefix,
+  pendingUnchecked,
 }: {
   title: string;
   rawNote: string;
   fallbackItems?: readonly string[];
+  itemCodePrefix?: string;
+  pendingUnchecked?: boolean;
 }) {
   const { t } = useLocale();
   const parsed = parseChecklistNote(rawNote);
-  const checkedItems =
-    parsed.checkedItems.length > 0 || parsed.skippedItems.length > 0
-      ? parsed.checkedItems
-      : fallbackItems
-        ? fallbackItems.map((item) => t(item))
-        : [];
+  const hasRecorded = parsed.checkedItems.length > 0 || parsed.skippedItems.length > 0;
+  const fallbackList = fallbackItems ? fallbackItems.map((item) => t(item)) : [];
+  const checkedItems = hasRecorded
+    ? parsed.checkedItems
+    : pendingUnchecked
+      ? []
+      : fallbackList;
+  const uncheckedItems = !hasRecorded && pendingUnchecked ? fallbackList : [];
   const skippedItems = parsed.skippedItems;
   const remark = parsed.remark;
-  const totalCount = checkedItems.length + skippedItems.length;
+  const totalCount = checkedItems.length + uncheckedItems.length + skippedItems.length;
 
   if (totalCount === 0) {
     return (
@@ -195,76 +206,159 @@ function ChecklistNoteDisplay({
   }
 
   return (
-    <Box>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: '12px',
+        bgcolor: 'background.default',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
       <Stack
         direction="row"
         spacing={1}
-        sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
+        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+        <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
           {title}
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-          {checkedItems.length}/{totalCount}
-        </Typography>
+        <Chip
+          size="small"
+          label={`${checkedItems.length}/${totalCount}`}
+          color={checkedItems.length === totalCount ? 'success' : 'default'}
+          variant="outlined"
+        />
       </Stack>
 
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-          gap: 1,
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+          gap: 1.5,
         }}
       >
         {checkedItems.map((item, idx) => (
-          <Paper
+          <Box
             key={`ok-${idx}`}
-            variant="outlined"
             sx={{
-              px: 1.5,
-              py: 1.1,
-              borderRadius: '8px',
+              minHeight: 68,
+              px: 2,
+              py: 1.5,
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
-              gap: 1.25,
-              borderColor: 'rgba(34, 139, 110, 0.35)',
-              bgcolor: 'rgba(34, 139, 110, 0.03)',
+              gap: 1.5,
+              border: '1px solid',
+              borderColor: 'rgba(22, 163, 74, 0.35)',
+              bgcolor: 'background.paper',
             }}
           >
             <CircleSign state="checked" />
-            <Typography variant="body2" sx={{ fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}>
-              {item}
-            </Typography>
-          </Paper>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              {itemCodePrefix && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#16A34A',
+                    mb: 0.25,
+                  }}
+                >
+                  {`${itemCodePrefix}-${String(idx + 1).padStart(2, '0')}`}
+                </Typography>
+              )}
+              <Typography variant="body2" sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}>
+                {item}
+              </Typography>
+            </Box>
+          </Box>
         ))}
-        {skippedItems.map((item, idx) => (
-          <Paper
-            key={`skip-${idx}`}
-            variant="outlined"
+        {uncheckedItems.map((item, idx) => (
+          <Box
+            key={`pending-${idx}`}
             sx={{
-              px: 1.5,
-              py: 1.1,
-              borderRadius: '8px',
+              minHeight: 68,
+              px: 2,
+              py: 1.5,
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
-              gap: 1.25,
+              gap: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
               bgcolor: 'background.paper',
+            }}
+          >
+            <CircleSign state="unchecked" />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              {itemCodePrefix && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    mb: 0.25,
+                  }}
+                >
+                  {`${itemCodePrefix}-${String(idx + 1).padStart(2, '0')}`}
+                </Typography>
+              )}
+              <Typography variant="body2" sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}>
+                {item}
+              </Typography>
+            </Box>
+          </Box>
+        ))}
+        {skippedItems.map((item, idx) => (
+          <Box
+            key={`skip-${idx}`}
+            sx={{
+              minHeight: 68,
+              px: 2,
+              py: 1.5,
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              bgcolor: 'background.paper',
+              border: '1px solid',
               borderColor: 'warning.main',
             }}
           >
             <CircleSign state="skipped" />
-            <Typography variant="body2" sx={{ fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}>
-              {item}
-            </Typography>
-          </Paper>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              {itemCodePrefix && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'warning.main',
+                    mb: 0.25,
+                  }}
+                >
+                  {`${itemCodePrefix}-${String(checkedItems.length + idx + 1).padStart(2, '0')}`}
+                </Typography>
+              )}
+              <Typography variant="body2" sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}>
+                {item}
+              </Typography>
+            </Box>
+          </Box>
         ))}
       </Box>
 
       {remark && (
         <Box
           sx={{
-            mt: 1.5,
-            pt: 1.25,
+            mt: 2,
+            pt: 1.5,
             borderTop: '1px dashed',
             borderColor: 'divider',
           }}
@@ -307,7 +401,20 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     kind: 'abort' | 'complete';
   } | null>(null);
   const [postFlightChecked, setPostFlightChecked] = useState<string[]>([]);
-  const [inspectedAssetItems, setInspectedAssetItems] = useState<string[]>([]);
+  const [inspectedAssetItems, setInspectedAssetItems] = useState<string[]>(() => {
+    if (!inspectionId) return [];
+    try {
+      const raw = sessionStorage.getItem(`sdi_inspected_items_${inspectionId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === 'string');
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+  const [liveTelemetry, setLiveTelemetry] = useState<SmartDroneHubTelemetry | null>(null);
   const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
   const abortReasonInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -396,10 +503,63 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   };
 
   const toggleInspectedAssetItem = (item: string) => {
-    setInspectedAssetItems((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item],
-    );
+    setInspectedAssetItems((prev) => {
+      const next = prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item];
+      try {
+        if (inspectionId) {
+          sessionStorage.setItem(`sdi_inspected_items_${inspectionId}`, JSON.stringify(next));
+        }
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
+
+  const updateInspectedAssetItems = (next: string[]) => {
+    setInspectedAssetItems(next);
+    try {
+      if (inspectionId) {
+        sessionStorage.setItem(`sdi_inspected_items_${inspectionId}`, JSON.stringify(next));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const sessionTelemetryQuery = useQuery({
+    queryKey: ['smartdronehub', 'telemetry', inspectionId, openSession?.id],
+    queryFn: () => smartDroneHubApi.telemetry(inspectionId, openSession!.id),
+    enabled: Boolean(inspectionId && openSession?.id && stage === 'post-flight'),
+    retry: false,
+  });
+
+  const resolvedTelemetry = liveTelemetry ?? sessionTelemetryQuery.data ?? null;
+
+  const liveHasFlown = Boolean(
+    resolvedTelemetry &&
+      resolvedTelemetry.connected &&
+      ((resolvedTelemetry.distanceFlownMeters ?? 0) > 0 ||
+        (resolvedTelemetry.altitudeMeters ?? 0) > 0.5 ||
+        resolvedTelemetry.missionState === 'IN_FLIGHT' ||
+        resolvedTelemetry.missionState === 'RETURNING' ||
+        resolvedTelemetry.missionState === 'LANDED'),
+  );
+  if (liveHasFlown && openSession?.id && typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.setItem(`sdi_has_flown_${openSession.id}`, 'true');
+    } catch {
+      // ignore
+    }
+  }
+  const hasFlown =
+    liveHasFlown ||
+    Boolean(
+      openSession?.id &&
+        typeof sessionStorage !== 'undefined' &&
+        sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
+    );
+  const canProceedToPostFlight = hasFlown;
 
   const allRequiredPreFlightChecked =
     requiredPreFlightItems.length > 0 &&
@@ -458,17 +618,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const showFlightStage = !stage || stage === 'flight';
   const showPostFlightStage = stage === 'post-flight';
 
-  const stageTitle =
-    stage === 'permit'
-      ? t('Flight Permit')
-      : stage === 'pre-flight'
-        ? t('Pre-flight Safety Checklist')
-        : stage === 'post-flight'
-          ? t('Post-flight & Target Building Inspection Items')
-          : t('On-site session');
-
   return (
-    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace" sx={{ maxWidth: 1040, mx: 'auto' }}>
+    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace">
       <Stack spacing={2}>
         {isReinspection && showFlightStage && (
           <TargetFlightShotList
@@ -479,15 +630,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           />
         )}
 
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {stageTitle}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {inspection?.assetName ?? t('Field session')}
-          </Typography>
-        </Box>
-
         {showPermitSection && (
         <QueryState
           isLoading={inspectionQuery.isLoading}
@@ -495,143 +637,220 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           onRetry={() => void inspectionQuery.refetch()}
           loadingLabel={t('Loading inspection…')}
         >
-          {inspection && !hasPermit && inspection.status === 'SCHEDULED' ? (
-            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    {t('Flight permit')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t(
-                      'Upload the mission flight document. This records the file only; it does not verify validity or grant permission to fly.',
-                    )}
-                  </Typography>
-                </Box>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ alignItems: { sm: 'center' } }}>
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    startIcon={<UploadFileRounded />}
-                    sx={{ alignSelf: { sm: 'flex-start' }, maxWidth: '100%' }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    >
-                      {permitFile?.name ?? t('Choose permit file')}
-                    </Box>
-                    <input
-                      aria-label={t('Choose permit file')}
-                      type="file"
-                      hidden
-                      accept=".pdf,image/png,image/jpeg,image/webp"
-                      onChange={(event) => setPermitFile(event.target.files?.[0] ?? null)}
-                    />
-                  </Button>
-                  {permitFile && (
-                    <Button
-                      variant="outlined"
-                      startIcon={<VisibilityOutlined />}
-                      onClick={() => setPermitPreviewOpen(true)}
-                      sx={{ textTransform: 'none', fontWeight: 600 }}
-                    >
-                      {t('Preview file')}
-                    </Button>
-                  )}
-                  <LoadingButton
-                    variant="contained"
-                    disabled={!permitFile}
-                    loading={uploadPermit.isPending}
-                    onClick={() => {
-                      if (!permitFile) return;
-                      uploadPermit.mutate(permitFile, {
-                        onSuccess: () => {
-                          setPermitFile(null);
-                          if (stage === 'permit') {
-                            navigate('../pre-flight');
-                          }
-                        },
-                      });
-                    }}
-                  >
-                    {t('Upload flight permit')}
-                  </LoadingButton>
-                </Stack>
-                <MutationProblemAlert
-                  error={uploadPermit.error}
-                  isError={uploadPermit.isError}
-                  fallbackMessage={t('Could not upload flight permit.')}
-                />
-              </Stack>
-            </Paper>
-          ) : inspection && hasPermit ? (
+          {inspection && (hasPermit || inspection.status === 'SCHEDULED' || stage === 'permit') ? (
             <Paper
               className="trace-stage-panel"
               variant="outlined"
               sx={{
-                p: stage === 'permit' ? { xs: 2, sm: 2.5 } : 1.5,
-                borderRadius: 2,
+                p: stage === 'permit' ? { xs: 2.5, sm: 3.5 } : { xs: 2, sm: 2.5 },
+                borderRadius: '12px',
+                bgcolor: 'background.paper',
               }}
             >
-              <Stack spacing={stage === 'permit' ? 2 : 0}>
+              <Stack spacing={stage === 'permit' ? 3 : 2}>
                 <Stack
-                  direction="row"
-                  spacing={1.25}
-                  sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.25 }}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ alignItems: { sm: 'flex-start' }, justifyContent: 'space-between' }}
                 >
-                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
-                    <CheckCircleRounded color="success" />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 650 }}>
-                        {t('Flight document recorded')}
+                  <Box>
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="subtitle1" sx={{ fontSize: '1.0625rem', fontWeight: 600, color: 'text.primary' }}>
+                        {t('Flight permit')}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {inspection.flightPermitFileName}
-                        {inspection.flightPermitUploadedAt
-                          ? ` · ${formatDateTime(new Date(inspection.flightPermitUploadedAt))}`
-                          : ''}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<VisibilityOutlined fontSize="small" />}
-                      onClick={() => setPermitPreviewOpen(true)}
-                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px' }}
-                    >
-                      {t('View permit')}
-                    </Button>
-                    <Chip size="small" label={t('On file')} color="success" variant="outlined" />
-                    {stage === 'permit' && (
-                      <Button
-                        component={RouterLink}
-                        to="../pre-flight"
-                        variant="contained"
+                      <Chip
                         size="small"
-                        sx={{ textTransform: 'none', fontWeight: 650 }}
-                      >
-                        {t('Continue to Pre-flight Check')}
-                      </Button>
+                        label={hasPermit ? t('On file') : t('Required')}
+                        color={hasPermit ? 'success' : 'warning'}
+                        variant="outlined"
+                      />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {t(
+                        'Upload the mission flight document. This records the file only; it does not verify validity or grant permission to fly.',
+                      )}
+                    </Typography>
+                    {!stage && inspection.assetName && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                        {inspection.assetName}
+                      </Typography>
                     )}
-                  </Stack>
+                  </Box>
+
+                  {hasPermit && stage === 'permit' && (
+                    <Button
+                      component={RouterLink}
+                      to="../pre-flight"
+                      variant="contained"
+                      size="medium"
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        px: 2.5,
+                        py: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {t('Continue to Pre-flight Check')}
+                    </Button>
+                  )}
                 </Stack>
 
-                {stage === 'permit' && inspection.status === 'SCHEDULED' && (
-                  <Box sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                      {t('Need to replace the recorded flight permit document before starting the session?')}
-                    </Typography>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ alignItems: { sm: 'center' } }}>
+                {hasPermit && (
+                  <Box
+                    sx={{
+                      p: { xs: 2, sm: 2.5 },
+                      borderRadius: '12px',
+                      bgcolor: 'background.default',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 2,
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
+                      <Box
+                        sx={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: '10px',
+                          bgcolor: 'rgba(22, 163, 74, 0.12)',
+                          color: 'success.main',
+                          display: 'grid',
+                          placeItems: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <CheckCircleRounded sx={{ fontSize: 24 }} />
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+                          {t('Flight document recorded')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+                          {inspection.flightPermitFileName}
+                          {inspection.flightPermitUploadedAt
+                            ? ` · ${formatDateTime(new Date(inspection.flightPermitUploadedAt))}`
+                            : ''}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Button
+                        size="medium"
+                        variant="outlined"
+                        startIcon={<VisibilityOutlined fontSize="small" />}
+                        onClick={() => setPermitPreviewOpen(true)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          borderRadius: '8px',
+                          bgcolor: 'background.paper',
+                          px: 2,
+                          py: 0.875,
+                        }}
+                      >
+                        {t('View permit')}
+                      </Button>
+                    </Stack>
+                  </Box>
+                )}
+
+                {(!hasPermit || stage === 'permit') && (
+                  <Box
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const droppedFile = event.dataTransfer.files?.[0];
+                      if (droppedFile) {
+                        setPermitFile(droppedFile);
+                      }
+                    }}
+                    sx={{
+                      minHeight: stage === 'permit' ? 240 : 180,
+                      p: { xs: 3, sm: 4.5 },
+                      borderRadius: '12px',
+                      border: '2px dashed',
+                      borderColor: permitFile ? 'primary.main' : 'divider',
+                      bgcolor: permitFile ? 'rgba(55, 88, 249, 0.04)' : 'background.default',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      gap: 1.5,
+                      transition: 'border-color 160ms ease, background-color 160ms ease',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'rgba(55, 88, 249, 0.025)',
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: '12px',
+                        bgcolor: '#EFF3FF',
+                        color: '#3758F9',
+                        display: 'grid',
+                        placeItems: 'center',
+                        mb: 0.5,
+                      }}
+                    >
+                      <UploadFileRounded sx={{ fontSize: 28 }} />
+                    </Box>
+
+                    <Box sx={{ maxWidth: 520 }}>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
+                        {permitFile
+                          ? permitFile.name
+                          : hasPermit
+                            ? t('Upload or replace flight permit document')
+                            : t('Drag and drop flight permit file here, or click to browse')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {t(
+                          'Supported formats: PDF, PNG, JPG, WEBP (Max 25 MB) · Official CAAV / Military Operations Flight Clearance',
+                        )}
+                      </Typography>
+                    </Box>
+
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1.5}
+                      sx={{ alignItems: 'center', justifyContent: 'center', mt: 1 }}
+                    >
                       <Button
                         component="label"
-                        size="small"
                         variant="outlined"
+                        size="medium"
                         startIcon={<UploadFileRounded />}
+                        sx={{
+                          borderRadius: '8px',
+                          px: 2.5,
+                          py: 1,
+                          fontWeight: 600,
+                          bgcolor: 'background.paper',
+                          maxWidth: '100%',
+                        }}
                       >
-                        {permitFile?.name ?? t('Choose replacement permit file')}
+                        <Box
+                          component="span"
+                          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {permitFile?.name ??
+                            (hasPermit ? t('Choose replacement permit file') : t('Choose permit file'))}
+                        </Box>
                         <input
                           aria-label={t('Choose permit file')}
                           type="file"
@@ -640,28 +859,64 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           onChange={(event) => setPermitFile(event.target.files?.[0] ?? null)}
                         />
                       </Button>
+
                       {permitFile && (
-                        <LoadingButton
-                          size="small"
-                          variant="contained"
-                          loading={uploadPermit.isPending}
-                          onClick={() => {
-                            if (!permitFile) return;
-                            uploadPermit.mutate(permitFile, {
-                              onSuccess: () => setPermitFile(null),
-                            });
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          startIcon={<VisibilityOutlined />}
+                          onClick={() => setPermitPreviewOpen(true)}
+                          sx={{
+                            borderRadius: '8px',
+                            px: 2,
+                            py: 1,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: 'background.paper',
                           }}
                         >
-                          {t('Upload flight permit')}
-                        </LoadingButton>
+                          {t('Preview file')}
+                        </Button>
                       )}
+
+                      <LoadingButton
+                        variant="contained"
+                        size="medium"
+                        disabled={!permitFile}
+                        loading={uploadPermit.isPending}
+                        onClick={() => {
+                          if (!permitFile) return;
+                          uploadPermit.mutate(permitFile, {
+                            onSuccess: () => {
+                              setPermitFile(null);
+                              if (stage === 'permit') {
+                                navigate('../pre-flight');
+                              }
+                            },
+                          });
+                        }}
+                        sx={{
+                          borderRadius: '8px',
+                          px: 2.5,
+                          py: 1,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t('Upload flight permit')}
+                      </LoadingButton>
                     </Stack>
+
+                    <MutationProblemAlert
+                      error={uploadPermit.error}
+                      isError={uploadPermit.isError}
+                      fallbackMessage={t('Could not upload flight permit.')}
+                    />
                   </Box>
                 )}
               </Stack>
             </Paper>
           ) : inspection && inspection.status !== 'SCHEDULED' && !hasPermit ? (
-            <Alert severity="warning" sx={{ borderRadius: 2 }}>
+            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
           ) : null}
@@ -709,55 +964,94 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   className="trace-stage-panel"
                   variant="outlined"
                   sx={{
-                    p: { xs: 2, sm: 2.5 },
-                    borderRadius: '10px',
+                    p: { xs: 2.5, sm: 3.5 },
+                    borderRadius: '12px',
                     bgcolor: 'background.paper',
                   }}
                 >
-                  <Stack spacing={2.5}>
+                  <Stack spacing={3}>
                     <Stack
                       direction={{ xs: 'column', sm: 'row' }}
-                      spacing={1.5}
+                      spacing={2}
                       sx={{
                         alignItems: { sm: 'center' },
                         justifyContent: 'space-between',
-                        pb: 1.75,
+                        pb: 2,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                       }}
                     >
-                      <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-                          {isCompletedPreFlight
-                            ? t('Pre-flight checklist completed')
-                            : t('Pre-flight safety checklist')}
-                        </Typography>
-                        {(openSession ?? latestSession)?.startedAt && (
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDateTime(new Date((openSession ?? latestSession)!.startedAt!))}
-                          </Typography>
-                        )}
-                      </Box>
+                      <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: '10px',
+                            bgcolor: isCompletedPreFlight ? 'rgba(22, 163, 74, 0.12)' : '#EFF3FF',
+                            color: isCompletedPreFlight ? '#16A34A' : '#3758F9',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CheckCircleRounded sx={{ fontSize: 22 }} />
+                        </Box>
+                        <Box>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle1" sx={{ fontSize: '1.0625rem', fontWeight: 600, lineHeight: 1.25 }}>
+                              {isCompletedPreFlight
+                                ? t('Pre-flight checklist completed')
+                                : t('Pre-flight safety checklist')}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={`${requiredCheckedCount + optionalCheckedCount}/${requiredPreFlightItems.length + optionalPreFlightItems.length} ${t('verified')}`}
+                              color={isCompletedPreFlight ? 'success' : 'default'}
+                              variant="outlined"
+                            />
+                          </Stack>
+                          {(openSession ?? latestSession)?.startedAt && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                              {formatDateTime(new Date((openSession ?? latestSession)!.startedAt!))}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Stack>
 
                       {isCompletedPreFlight ? (
                         <Button
                           component={RouterLink}
                           to="../field-session"
                           variant="contained"
-                          sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
+                          size="medium"
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderRadius: '8px',
+                            px: 2.5,
+                            py: 1,
+                            flexShrink: 0,
+                          }}
                         >
                           {t('Continue to Flight Operation')}
                         </Button>
                       ) : (
                         <Button
-                          size="small"
+                          size="medium"
                           variant="outlined"
                           onClick={() =>
                             setPreFlightChecked(
                               allPreFlightChecked ? [] : [...preFlightItems],
                             )
                           }
-                          sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderRadius: '8px',
+                            px: 2,
+                            py: 0.875,
+                            flexShrink: 0,
+                          }}
                         >
                           {allPreFlightChecked ? t('Clear all') : t('Check all')}
                         </Button>
@@ -783,160 +1077,248 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     )}
 
                     {/* Group 1: Required */}
-                    <Box>
+                    <Box
+                      sx={{
+                        p: { xs: 2, sm: 2.5 },
+                        borderRadius: '12px',
+                        bgcolor: 'background.default',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
                       <Stack
                         direction="row"
-                        sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
+                        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {t('Required')}
-                        </Typography>
-                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                            {requiredCheckedCount}/{requiredPreFlightItems.length}
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+                            {t('Required')}
                           </Typography>
-                          {!isCompletedPreFlight && (
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={() => {
-                                const reqLabels = requiredPreFlightItems.map((i) => i.label);
-                                if (allRequiredPreFlightChecked) {
-                                  setPreFlightChecked((prev) => prev.filter((x) => !reqLabels.includes(x)));
-                                } else {
-                                  setPreFlightChecked((prev) => Array.from(new Set([...prev, ...reqLabels])));
-                                }
-                              }}
-                              sx={{ textTransform: 'none', fontWeight: 600, py: 0, minWidth: 0, fontSize: '0.75rem' }}
-                            >
-                              {allRequiredPreFlightChecked ? t('Clear all') : t('Check all')}
-                            </Button>
-                          )}
+                          <Chip
+                            size="small"
+                            label={`${requiredCheckedCount}/${requiredPreFlightItems.length}`}
+                            color={requiredCheckedCount === requiredPreFlightItems.length ? 'success' : 'default'}
+                            variant="outlined"
+                          />
                         </Stack>
+                        {!isCompletedPreFlight && (
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                              const reqLabels = requiredPreFlightItems.map((i) => i.label);
+                              if (allRequiredPreFlightChecked) {
+                                setPreFlightChecked((prev) => prev.filter((x) => !reqLabels.includes(x)));
+                              } else {
+                                setPreFlightChecked((prev) => Array.from(new Set([...prev, ...reqLabels])));
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 600, py: 0.25, minWidth: 0, fontSize: '0.8125rem' }}
+                          >
+                            {allRequiredPreFlightChecked ? t('Clear all') : t('Check all')}
+                          </Button>
+                        )}
                       </Stack>
 
                       <Box
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                          gap: 1,
+                          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                          gap: 1.5,
                         }}
                       >
                         {requiredPreFlightItems.map((spec) => {
                           const checked = isCompletedPreFlight || preFlightChecked.includes(spec.label);
                           return (
-                            <Paper
+                            <Box
                               key={spec.code}
-                              variant="outlined"
+                              role={isCompletedPreFlight ? undefined : 'checkbox'}
+                              aria-checked={isCompletedPreFlight ? undefined : checked}
+                              tabIndex={isCompletedPreFlight ? undefined : 0}
                               onClick={
                                 isCompletedPreFlight
                                   ? undefined
                                   : () => togglePreFlightItem(spec.label)
                               }
+                              onKeyDown={
+                                isCompletedPreFlight
+                                  ? undefined
+                                  : (e) => {
+                                      if (e.key === ' ' || e.key === 'Enter') {
+                                        e.preventDefault();
+                                        togglePreFlightItem(spec.label);
+                                      }
+                                    }
+                              }
                               sx={{
-                                px: 1.5,
-                                py: 1.1,
-                                borderRadius: '8px',
+                                minHeight: 68,
+                                px: 2,
+                                py: 1.5,
+                                borderRadius: '10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 1.25,
-                                borderColor: checked ? 'rgba(34, 139, 110, 0.35)' : 'divider',
-                                bgcolor: checked ? 'rgba(34, 139, 110, 0.03)' : 'background.paper',
+                                gap: 1.5,
+                                border: '1px solid',
+                                borderColor: checked ? 'rgba(22, 163, 74, 0.35)' : 'divider',
+                                bgcolor: 'background.paper',
                                 cursor: isCompletedPreFlight ? 'default' : 'pointer',
                                 transition: 'all 140ms ease',
                                 '&:hover': isCompletedPreFlight
                                   ? undefined
-                                  : { borderColor: '#228b6e', bgcolor: 'action.hover' },
+                                  : { borderColor: '#16A34A', bgcolor: 'action.hover' },
+                                '&:focus-visible': {
+                                  outline: '2px solid',
+                                  outlineColor: 'primary.main',
+                                  outlineOffset: 2,
+                                },
                               }}
                             >
                               <CircleSign state={checked ? 'checked' : 'unchecked'} />
-                              <Typography
-                                variant="body2"
-                                sx={{ flex: 1, fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}
-                              >
-                                {t(spec.label)}
-                              </Typography>
-                            </Paper>
+                              <Box sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    display: 'block',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: checked ? '#16A34A' : 'text.secondary',
+                                    mb: 0.25,
+                                  }}
+                                >
+                                  {spec.code}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
+                                >
+                                  {t(spec.label)}
+                                </Typography>
+                              </Box>
+                            </Box>
                           );
                         })}
                       </Box>
                     </Box>
 
                     {/* Group 2: Optional */}
-                    <Box>
+                    <Box
+                      sx={{
+                        p: { xs: 2, sm: 2.5 },
+                        borderRadius: '12px',
+                        bgcolor: 'background.default',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
                       <Stack
                         direction="row"
-                        sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
+                        sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                          {t('Optional')}
-                        </Typography>
-                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                            {optionalCheckedCount}/{optionalPreFlightItems.length}
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+                            {t('Optional')}
                           </Typography>
-                          {!isCompletedPreFlight && (
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={() => {
-                                const optLabels = optionalPreFlightItems.map((i) => i.label);
-                                if (allOptionalPreFlightChecked) {
-                                  setPreFlightChecked((prev) => prev.filter((x) => !optLabels.includes(x)));
-                                } else {
-                                  setPreFlightChecked((prev) => Array.from(new Set([...prev, ...optLabels])));
-                                }
-                              }}
-                              sx={{ textTransform: 'none', fontWeight: 600, py: 0, minWidth: 0, fontSize: '0.75rem' }}
-                            >
-                              {allOptionalPreFlightChecked ? t('Clear all') : t('Check all')}
-                            </Button>
-                          )}
+                          <Chip
+                            size="small"
+                            label={`${optionalCheckedCount}/${optionalPreFlightItems.length}`}
+                            color={optionalCheckedCount === optionalPreFlightItems.length ? 'success' : 'default'}
+                            variant="outlined"
+                          />
                         </Stack>
+                        {!isCompletedPreFlight && (
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                              const optLabels = optionalPreFlightItems.map((i) => i.label);
+                              if (allOptionalPreFlightChecked) {
+                                setPreFlightChecked((prev) => prev.filter((x) => !optLabels.includes(x)));
+                              } else {
+                                setPreFlightChecked((prev) => Array.from(new Set([...prev, ...optLabels])));
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 600, py: 0.25, minWidth: 0, fontSize: '0.8125rem' }}
+                          >
+                            {allOptionalPreFlightChecked ? t('Clear all') : t('Check all')}
+                          </Button>
+                        )}
                       </Stack>
 
                       <Box
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                          gap: 1,
+                          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+                          gap: 1.5,
                         }}
                       >
                         {optionalPreFlightItems.map((spec) => {
                           const checked = isCompletedPreFlight || preFlightChecked.includes(spec.label);
                           return (
-                            <Paper
+                            <Box
                               key={spec.code}
-                              variant="outlined"
+                              role={isCompletedPreFlight ? undefined : 'checkbox'}
+                              aria-checked={isCompletedPreFlight ? undefined : checked}
+                              tabIndex={isCompletedPreFlight ? undefined : 0}
                               onClick={
                                 isCompletedPreFlight
                                   ? undefined
                                   : () => togglePreFlightItem(spec.label)
                               }
+                              onKeyDown={
+                                isCompletedPreFlight
+                                  ? undefined
+                                  : (e) => {
+                                      if (e.key === ' ' || e.key === 'Enter') {
+                                        e.preventDefault();
+                                        togglePreFlightItem(spec.label);
+                                      }
+                                    }
+                              }
                               sx={{
-                                px: 1.5,
-                                py: 1.1,
-                                borderRadius: '8px',
+                                minHeight: 68,
+                                px: 2,
+                                py: 1.5,
+                                borderRadius: '10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 1.25,
-                                borderColor: checked ? 'rgba(34, 139, 110, 0.35)' : 'divider',
-                                bgcolor: checked ? 'rgba(34, 139, 110, 0.03)' : 'background.paper',
+                                gap: 1.5,
+                                border: '1px solid',
+                                borderColor: checked ? 'rgba(22, 163, 74, 0.35)' : 'divider',
+                                bgcolor: 'background.paper',
                                 cursor: isCompletedPreFlight ? 'default' : 'pointer',
                                 transition: 'all 140ms ease',
                                 '&:hover': isCompletedPreFlight
                                   ? undefined
                                   : { borderColor: 'text.secondary', bgcolor: 'action.hover' },
+                                '&:focus-visible': {
+                                  outline: '2px solid',
+                                  outlineColor: 'primary.main',
+                                  outlineOffset: 2,
+                                },
                               }}
                             >
                               <CircleSign state={checked ? 'checked' : 'unchecked'} />
-                              <Typography
-                                variant="body2"
-                                sx={{ flex: 1, fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}
-                              >
-                                {t(spec.label)}
-                              </Typography>
-                            </Paper>
+                              <Box sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    display: 'block',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    color: checked ? '#16A34A' : 'text.secondary',
+                                    mb: 0.25,
+                                  }}
+                                >
+                                  {spec.code}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
+                                >
+                                  {t(spec.label)}
+                                </Typography>
+                              </Box>
+                            </Box>
                           );
                         })}
                       </Box>
@@ -1023,7 +1405,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 variant="outlined"
                 sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px', bgcolor: 'background.paper' }}
               >
-                {openSession ? (
+                {openSession && hasFlown ? (
                   <form
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -1085,140 +1467,220 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       </Stack>
 
                       {assetInspectionItems.length > 0 && (
-                        <Box>
-                          <Stack
-                            direction="row"
-                            sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
-                          >
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {t('Target Building Inspection Items')}
-                            </Typography>
-                            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                {inspectedAssetItems.length}/{assetInspectionItems.length}
-                              </Typography>
-                              <Button
-                                size="small"
-                                variant="text"
-                                onClick={() =>
-                                  setInspectedAssetItems(
-                                    inspectedAssetItems.length === assetInspectionItems.length
-                                      ? []
-                                      : [...assetInspectionItems],
-                                  )
-                                }
-                                sx={{ textTransform: 'none', fontWeight: 600, py: 0, minWidth: 0, fontSize: '0.75rem' }}
-                              >
-                                {inspectedAssetItems.length === assetInspectionItems.length
-                                  ? t('Clear all')
-                                  : t('Check all')}
-                              </Button>
-                            </Stack>
-                          </Stack>
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                              gap: 1,
-                            }}
-                          >
-                            {assetInspectionItems.map((item, idx) => {
-                              const checked = inspectedAssetItems.includes(item);
-                              return (
-                                <Paper
-                                  key={idx}
-                                  variant="outlined"
-                                  onClick={() => toggleInspectedAssetItem(item)}
-                                  sx={{
-                                    px: 1.5,
-                                    py: 1.1,
-                                    borderRadius: '8px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1.25,
-                                    cursor: 'pointer',
-                                    borderColor: checked ? 'rgba(34, 139, 110, 0.35)' : 'divider',
-                                    bgcolor: checked ? 'rgba(34, 139, 110, 0.03)' : 'background.paper',
-                                    transition: 'all 140ms ease',
-                                    '&:hover': { borderColor: '#228b6e', bgcolor: 'action.hover' },
-                                  }}
-                                >
-                                  <CircleSign state={checked ? 'checked' : 'unchecked'} />
-                                  <Typography
-                                    variant="body2"
-                                    sx={{ flex: 1, fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}
-                                  >
-                                    {item}
-                                  </Typography>
-                                </Paper>
-                              );
-                            })}
-                          </Box>
-                        </Box>
-                      )}
-
-                      <Box>
+                      <Box
+                        sx={{
+                          p: { xs: 2, sm: 2.5 },
+                          borderRadius: '12px',
+                          bgcolor: 'background.default',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
                         <Stack
                           direction="row"
-                          sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
+                          sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}
                         >
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                            {t('Post-flight completion checklist')}
-                          </Typography>
-                          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                              {postFlightChecked.length}/{postFlightItems.length}
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+                              {t('Target Building Inspection Items')}
                             </Typography>
-                            <Button
+                            <Chip
                               size="small"
-                              variant="text"
-                              onClick={() =>
-                                setPostFlightChecked(
-                                  allPostFlightChecked ? [] : [...postFlightItems],
-                                )
-                              }
-                              sx={{ textTransform: 'none', fontWeight: 600, py: 0, minWidth: 0, fontSize: '0.75rem' }}
-                            >
-                              {allPostFlightChecked ? t('Clear all') : t('Check all')}
-                            </Button>
+                              label={`${inspectedAssetItems.length}/${assetInspectionItems.length}`}
+                              color={inspectedAssetItems.length === assetInspectionItems.length ? 'success' : 'default'}
+                              variant="outlined"
+                            />
                           </Stack>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() =>
+                              updateInspectedAssetItems(
+                                inspectedAssetItems.length === assetInspectionItems.length
+                                  ? []
+                                  : [...assetInspectionItems],
+                              )
+                            }
+                            sx={{ textTransform: 'none', fontWeight: 600, py: 0.25, minWidth: 0, fontSize: '0.8125rem' }}
+                          >
+                            {inspectedAssetItems.length === assetInspectionItems.length
+                              ? t('Clear all')
+                              : t('Check all')}
+                          </Button>
                         </Stack>
                         <Box
                           sx={{
                             display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                            gap: 1,
+                            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                            gap: 1.5,
                           }}
                         >
-                          {postFlightItems.map((item) => {
-                            const checked = postFlightChecked.includes(item);
+                          {assetInspectionItems.map((item, idx) => {
+                            const checked = inspectedAssetItems.includes(item);
                             return (
-                              <Paper
-                                key={item}
-                                variant="outlined"
-                                onClick={() => togglePostFlightItem(item)}
+                              <Box
+                                key={idx}
+                                role="checkbox"
+                                aria-checked={checked}
+                                tabIndex={0}
+                                onClick={() => toggleInspectedAssetItem(item)}
+                                onKeyDown={(e) => {
+                                  if (e.key === ' ' || e.key === 'Enter') {
+                                    e.preventDefault();
+                                    toggleInspectedAssetItem(item);
+                                  }
+                                }}
                                 sx={{
-                                  px: 1.5,
-                                  py: 1.1,
-                                  borderRadius: '8px',
+                                  minHeight: 68,
+                                  px: 2,
+                                  py: 1.5,
+                                  borderRadius: '10px',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 1.25,
+                                  gap: 1.5,
                                   cursor: 'pointer',
-                                  borderColor: checked ? 'rgba(34, 139, 110, 0.35)' : 'divider',
-                                  bgcolor: checked ? 'rgba(34, 139, 110, 0.03)' : 'background.paper',
+                                  border: '1px solid',
+                                  borderColor: checked ? 'rgba(22, 163, 74, 0.35)' : 'divider',
+                                  bgcolor: 'background.paper',
                                   transition: 'all 140ms ease',
-                                  '&:hover': { borderColor: '#228b6e', bgcolor: 'action.hover' },
+                                  '&:hover': { borderColor: '#16A34A', bgcolor: 'action.hover' },
+                                  '&:focus-visible': {
+                                    outline: '2px solid',
+                                    outlineColor: 'primary.main',
+                                    outlineOffset: 2,
+                                  },
                                 }}
                               >
                                 <CircleSign state={checked ? 'checked' : 'unchecked'} />
-                                <Typography
-                                  variant="body2"
-                                  sx={{ flex: 1, fontSize: '0.84rem', fontWeight: 500, lineHeight: 1.35 }}
-                                >
-                                  {t(item)}
-                                </Typography>
-                              </Paper>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: 'block',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      color: checked ? '#16A34A' : 'text.secondary',
+                                      mb: 0.25,
+                                    }}
+                                  >
+                                    {`ITEM-${String(idx + 1).padStart(2, '0')}`}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
+                                  >
+                                    {item}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                      )}
+
+                      <Box
+                        sx={{
+                          p: { xs: 2, sm: 2.5 },
+                          borderRadius: '12px',
+                          bgcolor: 'background.default',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <Stack
+                          direction="row"
+                          sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}
+                        >
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+                              {t('Post-flight completion checklist')}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={`${postFlightChecked.length}/${postFlightItems.length}`}
+                              color={postFlightChecked.length === postFlightItems.length ? 'success' : 'default'}
+                              variant="outlined"
+                            />
+                          </Stack>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() =>
+                              setPostFlightChecked(
+                                allPostFlightChecked ? [] : [...postFlightItems],
+                              )
+                            }
+                            sx={{ textTransform: 'none', fontWeight: 600, py: 0.25, minWidth: 0, fontSize: '0.8125rem' }}
+                          >
+                            {allPostFlightChecked ? t('Clear all') : t('Check all')}
+                          </Button>
+                        </Stack>
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                            gap: 1.5,
+                          }}
+                        >
+                          {postFlightItems.map((item, idx) => {
+                            const checked = postFlightChecked.includes(item);
+                            return (
+                              <Box
+                                key={item}
+                                role="checkbox"
+                                aria-checked={checked}
+                                tabIndex={0}
+                                onClick={() => togglePostFlightItem(item)}
+                                onKeyDown={(e) => {
+                                  if (e.key === ' ' || e.key === 'Enter') {
+                                    e.preventDefault();
+                                    togglePostFlightItem(item);
+                                  }
+                                }}
+                                sx={{
+                                  minHeight: 68,
+                                  px: 2,
+                                  py: 1.5,
+                                  borderRadius: '10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1.5,
+                                  cursor: 'pointer',
+                                  border: '1px solid',
+                                  borderColor: checked ? 'rgba(22, 163, 74, 0.35)' : 'divider',
+                                  bgcolor: 'background.paper',
+                                  transition: 'all 140ms ease',
+                                  '&:hover': { borderColor: '#16A34A', bgcolor: 'action.hover' },
+                                  '&:focus-visible': {
+                                    outline: '2px solid',
+                                    outlineColor: 'primary.main',
+                                    outlineOffset: 2,
+                                  },
+                                }}
+                              >
+                                <CircleSign state={checked ? 'checked' : 'unchecked'} />
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: 'block',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                      color: checked ? '#16A34A' : 'text.secondary',
+                                      mb: 0.25,
+                                    }}
+                                  >
+                                    {`PO-${String(idx + 1).padStart(2, '0')}`}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.4, color: 'text.primary' }}
+                                  >
+                                    {t(item)}
+                                  </Typography>
+                                </Box>
+                              </Box>
                             );
                           })}
                         </Box>
@@ -1293,6 +1755,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         title={t('Target Building Inspection Items')}
                         rawNote=""
                         fallbackItems={assetInspectionItems}
+                        itemCodePrefix="ITEM"
                       />
                     )}
 
@@ -1300,6 +1763,43 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       title={t('Post-flight completion checklist')}
                       rawNote={latestSession?.outcomeNotes ?? ''}
                       fallbackItems={postFlightItems}
+                      itemCodePrefix="PO"
+                    />
+                  </Stack>
+                ) : openSession && !hasFlown ? (
+                  <Stack spacing={2}>
+                    <Alert
+                      severity="info"
+                      action={
+                        <Button
+                          component={RouterLink}
+                          to="../field-session"
+                          color="inherit"
+                          size="small"
+                        >
+                          {t('Go to Flight Operation')}
+                        </Button>
+                      }
+                    >
+                      {t(
+                        'Connect to SmartDroneHub (Connect Flight Operations) and perform the flight survey in Step 3 before completing the post-flight checklist.',
+                      )}
+                    </Alert>
+                    {assetInspectionItems.length > 0 && (
+                      <ChecklistNoteDisplay
+                        title={t('Target Building Inspection Items')}
+                        rawNote=""
+                        fallbackItems={assetInspectionItems}
+                        itemCodePrefix="ITEM"
+                        pendingUnchecked
+                      />
+                    )}
+                    <ChecklistNoteDisplay
+                      title={t('Post-flight completion checklist')}
+                      rawNote=""
+                      fallbackItems={postFlightItems}
+                      itemCodePrefix="PO"
+                      pendingUnchecked
                     />
                   </Stack>
                 ) : (
@@ -1324,8 +1824,17 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         title={t('Target Building Inspection Items')}
                         rawNote=""
                         fallbackItems={assetInspectionItems}
+                        itemCodePrefix="ITEM"
+                        pendingUnchecked
                       />
                     )}
+                    <ChecklistNoteDisplay
+                      title={t('Post-flight completion checklist')}
+                      rawNote=""
+                      fallbackItems={postFlightItems}
+                      itemCodePrefix="PO"
+                      pendingUnchecked
+                    />
                   </Stack>
                 )}
               </Paper>
@@ -1341,68 +1850,143 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           loadingLabel={t('Loading field sessions…')}
         >
           {inspection && (
-            <Paper className="trace-stage-panel" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px' }}>
-              <Stack spacing={2}>
+            <Paper
+              className="trace-stage-panel"
+              variant="outlined"
+              sx={{
+                p: { xs: 2.5, sm: 3.5 },
+                borderRadius: '12px',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Stack spacing={3}>
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1.5}
-                  sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+                  spacing={2}
+                  sx={{
+                    alignItems: { sm: 'center' },
+                    justifyContent: 'space-between',
+                    pb: 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  }}
                 >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {openSession
-                        ? t('Session in progress')
-                        : canContinueToEvidence
-                          ? t('Field session complete')
-                          : t('No active session')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {openSession?.startedAt
-                        ? `${t('Started')} ${formatDateTime(new Date(openSession.startedAt))}`
-                        : canContinueToEvidence
-                          ? latestSession?.outcomeNotes && !latestSession.outcomeNotes.includes('[✓]')
-                            ? latestSession.outcomeNotes
-                            : t('The latest field session is complete.')
-                          : !hasPermit
-                            ? t('Record the mission flight document before starting the session.')
-                            : t('Enter the required on-site pre-flight note to start this session.')}
-                    </Typography>
-                  </Box>
+                  <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center' }}>
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: '10px',
+                        bgcolor: openSession
+                          ? '#EFF3FF'
+                          : canContinueToEvidence
+                            ? 'rgba(22, 163, 74, 0.12)'
+                            : 'background.default',
+                        color: openSession
+                          ? '#3758F9'
+                          : canContinueToEvidence
+                            ? '#16A34A'
+                            : 'text.secondary',
+                        display: 'grid',
+                        placeItems: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CheckCircleRounded sx={{ fontSize: 22 }} />
+                    </Box>
+                    <Box>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Typography variant="subtitle1" sx={{ fontSize: '1.0625rem', fontWeight: 600, color: 'text.primary' }}>
+                          {openSession
+                            ? t('Session in progress')
+                            : canContinueToEvidence
+                              ? t('Field session complete')
+                              : t('No active session')}
+                        </Typography>
+                        {openSession && (
+                          <Chip
+                            size="small"
+                            label={t('Active')}
+                            color="primary"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                        {openSession?.startedAt
+                          ? `${t('Started')} ${formatDateTime(new Date(openSession.startedAt))}`
+                          : canContinueToEvidence
+                            ? latestSession?.outcomeNotes && !latestSession.outcomeNotes.includes('[✓]')
+                              ? latestSession.outcomeNotes
+                              : t('The latest field session is complete.')
+                            : !hasPermit
+                              ? t('Record the mission flight document before starting the session.')
+                              : t('Enter the required on-site pre-flight note to start this session.')}
+                      </Typography>
+                    </Box>
+                  </Stack>
 
                   {openSession ? (
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                      {stage === 'flight' && (
+                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
+                      {stage === 'flight' ? (
                         <Button
-                          component={RouterLink}
-                          to="../post-flight"
                           variant="contained"
+                          size="medium"
                           color="primary"
+                          disabled={!canProceedToPostFlight}
+                          onClick={() => navigate('../post-flight')}
+                          sx={{
+                            borderRadius: '8px',
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            textTransform: 'none',
+                          }}
                         >
                           {t('Continue to Post-flight & Items')}
                         </Button>
+                      ) : (
+                        <Button
+                          variant="contained"
+                          size="medium"
+                          color="success"
+                          onClick={() => openOutcomeDialog(openSession, 'complete')}
+                          sx={{
+                            borderRadius: '8px',
+                            px: 2.5,
+                            py: 1,
+                            fontWeight: 600,
+                            textTransform: 'none',
+                          }}
+                        >
+                          {t('Complete session')}
+                        </Button>
                       )}
                       <Button
-                        variant={stage === 'flight' ? 'outlined' : 'contained'}
-                        color="success"
-                        onClick={() => openOutcomeDialog(openSession, 'complete')}
-                      >
-                        {t('Complete session')}
-                      </Button>
-                      <Button
                         variant="outlined"
+                        size="medium"
                         color="error"
                         onClick={() => openOutcomeDialog(openSession, 'abort')}
+                        sx={{
+                          borderRadius: '8px',
+                          px: 2,
+                          py: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                        }}
                       >
                         {t('Abort session')}
                       </Button>
                     </Stack>
                   ) : canContinueToEvidence ? (
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
                       {stage === 'flight' && (
                         <Button
                           component={RouterLink}
                           to="../post-flight"
                           variant="outlined"
+                          size="medium"
+                          sx={{ borderRadius: '8px', px: 2, py: 1, fontWeight: 600, textTransform: 'none' }}
                         >
                           {t('View Post-flight & Items')}
                         </Button>
@@ -1411,26 +1995,32 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         component={RouterLink}
                         to={isReinspection ? '../findings' : '../evidence'}
                         variant="contained"
+                        size="medium"
+                        sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
                       >
                         {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
                       </Button>
                     </Stack>
                   ) : (
-                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
                       {stage === 'flight' && (
                         <Button
                           component={RouterLink}
                           to={hasPermit ? '../pre-flight' : '../permit'}
                           variant="outlined"
+                          size="medium"
+                          sx={{ borderRadius: '8px', px: 2, py: 1, fontWeight: 600, textTransform: 'none' }}
                         >
                           {hasPermit ? t('Go to Pre-flight Check') : t('Upload Flight Permit')}
                         </Button>
                       )}
                       <LoadingButton
                         variant="contained"
+                        size="medium"
                         loading={startSession.isPending}
                         disabled={!canStart}
                         onClick={handleOpenStart}
+                        sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
                       >
                         {t('Start session')}
                       </LoadingButton>
@@ -1440,102 +2030,123 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                 {openSession?.status === 'IN_PROGRESS' && (
                   <>
+                    {stage === 'flight' && !canProceedToPostFlight && (
+                      <Alert severity="info" sx={{ borderRadius: '10px', py: 1 }}>
+                        {t(
+                          'Connect to SmartDroneHub (Connect Flight Operations) and perform the flight survey before continuing to Post-flight & Items.',
+                        )}
+                      </Alert>
+                    )}
                     <SmartDroneHubTelemetryPanel
                       inspectionId={inspectionId}
                       fieldSessionId={openSession.id}
                       sessionActive
                       canViewFlightReport={false}
+                      onTelemetryChange={setLiveTelemetry}
                     />
-                    {!stage && assetInspectionItems.length > 0 && (
-                      <Paper
-                        variant="outlined"
+                    {assetInspectionItems.length > 0 && (
+                      <Box
                         sx={{
-                          p: 1.75,
-                          borderRadius: 2,
+                          p: { xs: 2, sm: 2.5 },
+                          borderRadius: '12px',
                           bgcolor: 'background.default',
+                          border: '1px solid',
+                          borderColor: 'divider',
                         }}
                       >
                         <Stack
                           direction="row"
-                          spacing={1}
+                          spacing={1.5}
                           sx={{
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            mb: 1,
+                            mb: 2,
                             flexWrap: 'wrap',
                           }}
                         >
                           <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {t('Target Building Inspection Items')} ({inspectedAssetItems.length}/{assetInspectionItems.length})
+                            <Typography variant="subtitle2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+                              {t('Target Building Inspection Items')}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {t('Check off each structural item as you fly and capture evidence.')}
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                              {t('Reference list of structural checkpoints to capture during flight.')}
                             </Typography>
                           </Box>
-                          <Button
+                          <Chip
                             size="small"
-                            variant="text"
-                            onClick={() =>
-                              setInspectedAssetItems(
-                                inspectedAssetItems.length === assetInspectionItems.length
-                                  ? []
-                                  : [...assetInspectionItems],
-                              )
-                            }
-                            sx={{ textTransform: 'none', fontWeight: 600, py: 0 }}
-                          >
-                            {inspectedAssetItems.length === assetInspectionItems.length
-                              ? t('Clear all')
-                              : t('Check all')}
-                          </Button>
+                            variant="outlined"
+                            label={`${assetInspectionItems.length} ${t('items')}`}
+                            sx={{ fontWeight: 600 }}
+                          />
                         </Stack>
                         <Box
                           sx={{
                             display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                            gap: 1,
+                            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                            gap: 1.5,
                           }}
                         >
-                          {assetInspectionItems.map((item, idx) => {
-                            const checked = inspectedAssetItems.includes(item);
-                            return (
-                              <Paper
-                                key={idx}
-                                variant="outlined"
-                                onClick={() => toggleInspectedAssetItem(item)}
+                          {assetInspectionItems.map((item, idx) => (
+                            <Box
+                              key={idx}
+                              sx={{
+                                minHeight: 68,
+                                px: 2,
+                                py: 1.5,
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.5,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                bgcolor: 'background.paper',
+                              }}
+                            >
+                              <Box
+                                component="span"
                                 sx={{
-                                  px: 1.25,
-                                  py: 0.75,
-                                  borderRadius: 1.5,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  cursor: 'pointer',
-                                  borderColor: checked ? 'success.main' : 'divider',
-                                  bgcolor: checked ? 'action.selected' : 'background.paper',
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: '8px',
+                                  bgcolor: '#EFF3FF',
+                                  color: '#3758F9',
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  fontFamily: 'monospace',
+                                  flexShrink: 0,
                                 }}
                               >
-                                <CheckCircleRounded
-                                  color={checked ? 'success' : 'disabled'}
-                                  sx={{ fontSize: 18, mr: 1, flexShrink: 0, opacity: checked ? 1 : 0.35 }}
-                                />
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    fontSize: '0.82rem',
-                                    fontWeight: checked ? 600 : 400,
-                                    lineHeight: 1.3,
-                                  }}
-                                >
-                                  {item}
-                                </Typography>
-                              </Paper>
-                            );
-                          })}
+                                {String(idx + 1).padStart(2, '0')}
+                              </Box>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  flex: 1,
+                                  fontSize: '0.9375rem',
+                                  fontWeight: 500,
+                                  lineHeight: 1.4,
+                                  color: 'text.primary',
+                                }}
+                              >
+                                {item}
+                              </Typography>
+                            </Box>
+                          ))}
                         </Box>
-                      </Paper>
+                      </Box>
                     )}
                   </>
+                )}
+                {!openSession && stage === 'flight' && assetInspectionItems.length > 0 && (
+                  <ChecklistNoteDisplay
+                    title={t('Target Building Inspection Items')}
+                    rawNote=""
+                    fallbackItems={assetInspectionItems}
+                    itemCodePrefix="ITEM"
+                    pendingUnchecked={!canContinueToEvidence}
+                  />
                 )}
                 {!openSession &&
                   latestSession?.startedAt &&
@@ -1585,7 +2196,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 />
 
                 {!openSession && latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED' && (
-                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                  <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       {t('Previous flight session was aborted')}
                     </Typography>
@@ -1611,7 +2222,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             </Typography>
             <Stack spacing={1} sx={{ pt: 1.5 }}>
               {items.slice(0, -1).reverse().map((session) => (
-                <Paper key={session.id} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
+                <Paper key={session.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
                   <Stack spacing={0.5}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -1662,7 +2273,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           <DialogTitle sx={{ fontWeight: 700 }}>{t('Start a field session')}</DialogTitle>
           <DialogContent>
             <Stack spacing={1.75} sx={{ mt: 0.5 }}>
-              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
                 <Stack
                   direction="row"
                   sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
@@ -1772,7 +2383,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
               {outcomeTarget?.kind === 'complete' ? (
                 <Stack spacing={1.5}>
                   {assetInspectionItems.length > 0 && (
-                    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
                       <Stack
                         direction="row"
                         sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
@@ -1784,7 +2395,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           size="small"
                           variant="text"
                           onClick={() =>
-                            setInspectedAssetItems(
+                            updateInspectedAssetItems(
                               inspectedAssetItems.length === assetInspectionItems.length
                                 ? []
                                 : [...assetInspectionItems],
@@ -1820,7 +2431,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     </Paper>
                   )}
 
-                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                  <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
                     <Stack
                       direction="row"
                       sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}
@@ -1868,7 +2479,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   </Paper>
 
                   {requiresCompletionExplanation && (
-                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                         {t('Incomplete checklist — explanation required in Session notes')}
                       </Typography>

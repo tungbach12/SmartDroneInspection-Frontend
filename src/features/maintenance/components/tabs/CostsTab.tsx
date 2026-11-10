@@ -69,8 +69,8 @@ export function CostsTab({
 
   return (
     <Stack spacing={2.5}>
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
           {t('Cost reconciliation')}
         </Typography>
         {!hasApprovedBaseline ? (
@@ -150,7 +150,7 @@ export function CostsTab({
             sx={{
               mt: 2,
               p: 2,
-              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+              bgcolor: 'background.default',
               borderRadius: '8px',
               border: '1px solid',
               borderColor: 'divider',
@@ -280,8 +280,8 @@ export function CostsTab({
         ) : null}
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
           {t('Acceptance decisions')}
         </Typography>
         <QueryState
@@ -307,7 +307,7 @@ export function CostsTab({
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: '8px',
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                  bgcolor: 'background.default',
                 }}
               >
                 <Stack
@@ -366,7 +366,7 @@ export function CostsTab({
                           : 'secondary'
                     }
                     size="small"
-                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                    sx={{ fontWeight: 700, fontSize: '0.75rem' }}
                   />
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                     {t('Target flight verification on file')}
@@ -405,7 +405,7 @@ export function CostsTab({
           <Box
             sx={{
               p: 2,
-              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f0f9ff'),
+              bgcolor: 'background.default',
               borderRadius: '8px',
               border: '1px solid',
               borderColor: 'info.light',
@@ -447,7 +447,7 @@ export function CostsTab({
                     alignItems: 'center',
                     p: 1.25,
                     bgcolor: 'background.paper',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     border: '1px solid',
                     borderColor: 'divider',
                   }}
@@ -464,7 +464,7 @@ export function CostsTab({
                     size="small"
                     label={check.resultStatus}
                     color={check.resultStatus === 'PASSED' ? 'success' : 'warning'}
-                    sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
                   />
                 </Box>
               ))}
@@ -489,7 +489,7 @@ export function CostsTab({
             sx={{
               mt: 2,
               p: 2,
-              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+              bgcolor: 'background.default',
               borderRadius: '8px',
               border: '1px solid',
               borderColor: 'divider',

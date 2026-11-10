@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   MenuItem,
   Paper,
@@ -63,7 +61,7 @@ export function TargetFlightShotList({
       sx={{
         p: { xs: 2, sm: 2.5 },
         mb: 2.5,
-        borderRadius: '16px',
+        borderRadius: '10px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
@@ -109,10 +107,10 @@ export function TargetFlightShotList({
                 label={t('Re-inspection')}
                 size="small"
                 variant="outlined"
-                sx={{ fontWeight: 600, fontSize: '0.7rem', height: 20 }}
+                sx={{ fontWeight: 600, fontSize: '0.75rem', height: 20 }}
               />
             </Stack>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.84rem' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.875rem' }}>
               {mode === 'flight-guidance'
                 ? t('Review target defect locations and capture requirements before initiating the flight session.')
                 : t('Match fresh flight captures to each repaired defect location before proceeding to verification.')}
@@ -163,7 +161,7 @@ export function TargetFlightShotList({
             gap: 1.5,
           }}
         >
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.84rem' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
             {allLinked
               ? t('All targets have linked captures')
               : t('Some targets are still awaiting captures')}
@@ -229,165 +227,164 @@ function TargetShotItemCard({
   const isLinked = Boolean(item.newEvidenceId || selectedEvId);
 
   return (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        borderRadius: '12px',
+        borderRadius: '10px',
         bgcolor: 'background.default',
+        border: '1px solid',
         borderColor: 'divider',
+        p: { xs: 1.5, sm: 1.75 },
       }}
     >
-      <CardContent sx={{ p: { xs: 1.5, sm: 1.75 } }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          {/* Target Metadata & Original Snapshot */}
-          <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
-            {/* Original Defect Image Thumbnail */}
-            <Box
-              sx={{
-                width: 80,
-                height: 80,
-                borderRadius: '8px',
-                overflow: 'hidden',
-                bgcolor: '#000000',
-                flexShrink: 0,
-                display: 'grid',
-                placeItems: 'center',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              {item.sourceEvidenceId ? (
-                <AuthenticatedImage
-                  src={inspectionApi.evidenceContentUrl(
-                    sourceInspectionId ?? inspectionId,
-                    item.sourceEvidenceId,
-                  )}
-                  alt="Original Defect"
-                  maxHeight={80}
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem' }}>
-                  {t('No photo')}
-                </Typography>
-              )}
-            </Box>
-
-            {/* Target Details */}
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                  #{index + 1}
-                </Typography>
-                {item.sourceSeverity && (
-                  <Chip
-                    label={item.sourceSeverity}
-                    size="small"
-                    variant="outlined"
-                    sx={{ height: 20, fontSize: '0.68rem', fontWeight: 600 }}
-                  />
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={2}
+        sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+      >
+        {/* Target Metadata & Original Snapshot */}
+        <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
+          {/* Original Defect Image Thumbnail */}
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              bgcolor: '#000000',
+              flexShrink: 0,
+              display: 'grid',
+              placeItems: 'center',
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {item.sourceEvidenceId ? (
+              <AuthenticatedImage
+                src={inspectionApi.evidenceContentUrl(
+                  sourceInspectionId ?? inspectionId,
+                  item.sourceEvidenceId,
                 )}
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {item.sourceDefectLabel ?? t('Target Defect')}
-                </Typography>
-              </Stack>
-
-              {/* Location & GPS Info */}
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-                  <FmdGoodOutlined sx={{ fontSize: 15, color: 'text.secondary' }} />
-                  <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                    {item.sourceLocationDescription || t('Asset location')}
-                  </Typography>
-                </Box>
-
-                {item.sourceLatitude != null && item.sourceLongitude != null && (
-                  <Chip
-                    label={`GPS: ${Number(item.sourceLatitude).toFixed(5)}, ${Number(item.sourceLongitude).toFixed(5)}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ height: 18, fontSize: '0.68rem' }}
-                  />
-                )}
-              </Stack>
-
-              {/* Technical notes from initial inspection */}
-              {item.sourceTechnicalNotes && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: 'text.secondary',
-                    display: 'block',
-                    mt: 0.5,
-                    fontStyle: 'italic',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: 450,
-                  }}
-                >
-                  {item.sourceTechnicalNotes}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-
-          {/* Action or Linking Controls */}
-          {mode === 'flight-guidance' ? (
-            <Box
-              sx={{
-                p: 1.25,
-                bgcolor: 'background.paper',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: 'divider',
-                maxWidth: 300,
-              }}
-            >
-              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', display: 'block' }}>
-                {t('Pilot Flight Guidance')}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.78rem' }}>
-                {t('Fly drone to close proximity of this target location to capture clear post-repair evidence.')}
-              </Typography>
-            </Box>
-          ) : (
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: { xs: '100%', md: 240 } }}>
-              <TextField
-                select
-                size="small"
-                fullWidth
-                disabled={readOnly || linking}
-                label={t('Link flight capture')}
-                value={selectedEvId}
-                onChange={(e) => handleSelectEvidence(e.target.value)}
-                slotProps={{ input: { sx: { borderRadius: '6px', fontSize: '0.84rem' } } }}
-              >
-                <MenuItem value="">
-                  <em>{t('None')}</em>
-                </MenuItem>
-                {evidenceList.map((ev) => (
-                  <MenuItem key={ev.id} value={ev.id} sx={{ fontSize: '0.84rem' }}>
-                    {ev.fileName}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <Chip
-                icon={isLinked ? <CheckCircleOutlineRounded fontSize="small" /> : <HourglassEmptyRounded fontSize="small" />}
-                label={isLinked ? t('Captured & Linked') : t('Awaiting capture link')}
-                variant="outlined"
-                size="small"
-                sx={{ fontWeight: 600, height: 24, fontSize: '0.72rem', flexShrink: 0 }}
+                alt="Original Defect"
+                maxHeight={80}
+                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
+            ) : (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem' }}>
+                {t('No photo')}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Target Details */}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                #{index + 1}
+              </Typography>
+              {item.sourceSeverity && (
+                <Chip
+                  label={item.sourceSeverity}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
+                />
+              )}
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {item.sourceDefectLabel ?? t('Target Defect')}
+              </Typography>
             </Stack>
-          )}
+
+            {/* Location & GPS Info */}
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                <FmdGoodOutlined sx={{ fontSize: 15, color: 'text.secondary' }} />
+                <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                  {item.sourceLocationDescription || t('Asset location')}
+                </Typography>
+              </Box>
+
+              {item.sourceLatitude != null && item.sourceLongitude != null && (
+                <Chip
+                  label={`GPS: ${Number(item.sourceLatitude).toFixed(5)}, ${Number(item.sourceLongitude).toFixed(5)}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 18, fontSize: '0.75rem' }}
+                />
+              )}
+            </Stack>
+
+            {/* Technical notes from initial inspection */}
+            {item.sourceTechnicalNotes && (
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'text.secondary',
+                  display: 'block',
+                  mt: 0.5,
+                  fontStyle: 'italic',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 450,
+                }}
+              >
+                {item.sourceTechnicalNotes}
+              </Typography>
+            )}
+          </Box>
         </Stack>
-      </CardContent>
-    </Card>
+
+        {/* Action or Linking Controls */}
+        {mode === 'flight-guidance' ? (
+          <Box
+            sx={{
+              p: 1.25,
+              bgcolor: 'background.paper',
+              borderRadius: '8px',
+              border: '1px solid',
+              borderColor: 'divider',
+              maxWidth: 300,
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', display: 'block' }}>
+              {t('Pilot Flight Guidance')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.75rem' }}>
+              {t('Fly drone to close proximity of this target location to capture clear post-repair evidence.')}
+            </Typography>
+          </Box>
+        ) : (
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: { xs: '100%', md: 240 } }}>
+            <TextField
+              select
+              size="small"
+              fullWidth
+              disabled={readOnly || linking}
+              label={t('Link flight capture')}
+              value={selectedEvId}
+              onChange={(e) => handleSelectEvidence(e.target.value)}
+              slotProps={{ input: { sx: { borderRadius: '8px', fontSize: '0.875rem' } } }}
+            >
+              <MenuItem value="">
+                <em>{t('None')}</em>
+              </MenuItem>
+              {evidenceList.map((ev) => (
+                <MenuItem key={ev.id} value={ev.id} sx={{ fontSize: '0.875rem' }}>
+                  {ev.fileName}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <Chip
+              icon={isLinked ? <CheckCircleOutlineRounded fontSize="small" /> : <HourglassEmptyRounded fontSize="small" />}
+              label={isLinked ? t('Captured & Linked') : t('Awaiting capture link')}
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 600, height: 24, fontSize: '0.75rem', flexShrink: 0 }}
+            />
+          </Stack>
+        )}
+      </Stack>
+    </Box>
   );
 }

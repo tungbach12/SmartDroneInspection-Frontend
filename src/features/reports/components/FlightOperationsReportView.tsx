@@ -267,14 +267,22 @@ export function FlightOperationsReportView({
         'Compiling automated Flight Operations Report from telemetry…',
       )}
     >
-      {report && (
+      {report &&
+      (report.telemetrySource === 'NONE' ||
+        report.note?.startsWith('Persisted from field session telemetry log') ||
+        (trace.length === 0 && (report.distanceFlownMeters ?? 0) <= 0)) ? (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          {t('No MAVLink flight telemetry was recorded for this field session.')}
+        </Alert>
+      ) : (
+        report && (
         <Stack spacing={2.5}>
           {/* 1. Flight Sortie & Compliance Header */}
           <Paper
             variant="outlined"
             sx={{
               p: 2.5,
-              borderRadius: '12px',
+              borderRadius: '10px',
               bgcolor: 'background.paper',
               borderColor: 'divider',
             }}
@@ -379,10 +387,10 @@ export function FlightOperationsReportView({
                     sx={{
                       height: 22,
                       px: 1,
-                      fontSize: '0.7rem',
+                      fontSize: '0.75rem',
                       fontWeight: 650,
                       textTransform: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                     }}
                   >
                     {t('View permit')}
@@ -520,6 +528,7 @@ export function FlightOperationsReportView({
             endBat={metrics.endBat}
           />
         </Stack>
+        )
       )}
     </QueryState>
   );
@@ -576,7 +585,7 @@ function StatTile({
       </Typography>
       <Typography
         sx={{
-          fontSize: '1.15rem',
+          fontSize: '1rem',
           fontWeight: 700,
           color: 'text.primary',
           lineHeight: 1.2,
@@ -636,7 +645,7 @@ function GpsTrajectoryMapCard({
 
   return (
     <>
-      <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px' }}>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: '10px' }}>
         <Stack
           direction="row"
           spacing={1}
@@ -666,7 +675,7 @@ function GpsTrajectoryMapCard({
               <Chip
                 size="small"
                 label={`${fmtOffsetSec(activeSample.elapsedSec)} · ${activeSample.altitude.toFixed(1)} m`}
-                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }}
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
               />
             )}
             <Button
@@ -679,7 +688,7 @@ function GpsTrajectoryMapCard({
                 minWidth: 38,
                 height: 24,
                 px: 1,
-                fontSize: '0.72rem',
+                fontSize: '0.75rem',
                 fontWeight: 700,
                 textTransform: 'none',
               }}
@@ -695,7 +704,7 @@ function GpsTrajectoryMapCard({
               sx={{
                 height: 24,
                 px: 1,
-                fontSize: '0.72rem',
+                fontSize: '0.75rem',
                 fontWeight: 600,
                 textTransform: 'none',
               }}
@@ -711,7 +720,7 @@ function GpsTrajectoryMapCard({
                 height: 24,
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             >
               <OpenInFullRounded sx={{ fontSize: 14 }} />
@@ -867,7 +876,7 @@ function SingleSeriesTimelineCard({
     hoverIdx != null && coords[hoverIdx] ? coords[hoverIdx] : null;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: '12px' }}>
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: '10px' }}>
       <Stack
         direction="row"
         spacing={1}
@@ -892,7 +901,7 @@ function SingleSeriesTimelineCard({
               ? `${fmtOffsetSec(hoveredCoord.sample.elapsedSec)} · ${hoveredCoord.val.toFixed(1)} ${unit}`
               : summaryLabel
           }
-          sx={{ fontWeight: 600, height: 22, fontSize: '0.72rem' }}
+          sx={{ fontWeight: 600, height: 22, fontSize: '0.75rem' }}
         />
       </Stack>
 
@@ -1100,7 +1109,7 @@ function BatteryAndModeSummaryCard({
       variant="outlined"
       sx={{
         p: 2,
-        borderRadius: '12px',
+        borderRadius: '10px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -1130,7 +1139,7 @@ function BatteryAndModeSummaryCard({
                 ? `${fmtOffsetSec(hovered.sample.elapsedSec)} · ${hovered.bat}% · ${hovered.sample.mode}`
                 : `${startBat}% → ${endBat}% (-${Math.max(0, startBat - endBat)}%)`
             }
-            sx={{ fontWeight: 600, height: 22, fontSize: '0.72rem' }}
+            sx={{ fontWeight: 600, height: 22, fontSize: '0.75rem' }}
           />
         </Stack>
 
@@ -1252,12 +1261,12 @@ function BatteryAndModeSummaryCard({
                 flexGrow: Math.max(item.pct, 4),
                 flexBasis: 0,
                 bgcolor: item.color,
-                borderRadius: '4px',
+                borderRadius: '5px',
                 display: 'flex',
                 alignItems: 'center',
                 px: 1,
                 color: '#ffffff',
-                fontSize: '0.72rem',
+                fontSize: '0.75rem',
                 fontWeight: 700,
                 whiteSpace: 'nowrap',
               }}
@@ -1401,7 +1410,7 @@ function AutomatedEventLogTable({
   }, [samples, evidenceList, startedAt, endedAt, startBat, endBat]);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '12px' }}>
+    <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '10px' }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
         <CameraAltRounded fontSize="small" color="primary" />
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -1432,7 +1441,7 @@ function AutomatedEventLogTable({
                   {r.timestamp ? formatDateTime(r.timestamp) : '—'}
                 </TableCell>
                 <TableCell
-                  sx={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+                  sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
                 >
                   {r.gps}
                 </TableCell>
@@ -1450,7 +1459,7 @@ function AutomatedEventLogTable({
                     size="small"
                     variant="outlined"
                     label={r.mode}
-                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
                   />
                 </TableCell>
               </TableRow>

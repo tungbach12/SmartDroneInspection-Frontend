@@ -71,7 +71,7 @@ export function OverviewTab({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
       <Stack spacing={2.5}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5 }}>
           <DetailField label={t('Acceptance criteria')} value={workOrder.acceptanceCriteria} />

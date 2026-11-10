@@ -175,7 +175,7 @@ describe('MaintenancePage', () => {
     renderWithClient();
 
     expect(await screen.findByText('Replace corroded girder splice on span 4')).toBeTruthy();
-    expect(screen.getByText('IN_PROGRESS')).toBeTruthy();
+    expect(screen.getAllByText('In Progress').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Total Work Orders: 1')).toBeTruthy();
   });
 

@@ -47,7 +47,7 @@ export function FloatingNegotiationChat({
   onSelectRequest,
   onError,
 }: FloatingNegotiationChatProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isAiReplying, setIsAiReplying] = useState(false);
@@ -178,7 +178,12 @@ export function FloatingNegotiationChat({
         }, 1500);
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Không thể gửi tin nhắn.';
+      const msg =
+        error instanceof Error
+          ? error.message
+          : locale === 'vi'
+            ? 'Không thể gửi tin nhắn.'
+            : 'Unable to send message.';
       onError(msg);
     }
   };
@@ -189,7 +194,11 @@ export function FloatingNegotiationChat({
     const latestIncoming = [...currentRequest.messages]
       .reverse()
       .find((m) => m.authorUserId !== currentUser?.id);
-    const questionText = latestIncoming ? latestIncoming.body : 'Tư vấn quy trình kiểm định';
+    const questionText = latestIncoming
+      ? latestIncoming.body
+      : locale === 'vi'
+        ? 'Tư vấn quy trình kiểm định'
+        : 'Inspection workflow consultation';
 
     setIsAiReplying(true);
     try {
@@ -197,12 +206,29 @@ export function FloatingNegotiationChat({
       await post.mutateAsync(aiReply);
       markAsRead(chatRequestId);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Trợ lý AI chưa thể phản hồi.';
+      const msg =
+        error instanceof Error
+          ? error.message
+          : locale === 'vi'
+            ? 'Trợ lý AI chưa thể phản hồi.'
+            : 'AI Assistant could not respond.';
       onError(msg);
     } finally {
       setIsAiReplying(false);
     }
   };
+
+  const fabLabel = isOpen
+    ? locale === 'vi'
+      ? 'Thu nhỏ chat đàm phán'
+      : 'Minimize negotiation chat'
+    : totalUnread > 0
+      ? locale === 'vi'
+        ? `Bạn có ${totalUnread} tin nhắn mới chưa phản hồi`
+        : `You have ${totalUnread} unread message(s)`
+      : locale === 'vi'
+        ? 'Mở kênh đàm phán hợp đồng'
+        : t('Open contract negotiation chat');
 
   return (
     <>
@@ -215,32 +241,24 @@ export function FloatingNegotiationChat({
           zIndex: 1300,
         }}
       >
-        <Tooltip
-          title={
-            isOpen
-              ? 'Thu nhỏ chat đàm phán'
-              : totalUnread > 0
-                ? `Bạn có ${totalUnread} tin nhắn mới chưa phản hồi`
-                : 'Mở kênh đàm phán hợp đồng'
-          }
-          placement="left"
+        <Badge
+          badgeContent={totalUnread}
+          color="error"
+          max={99}
+          invisible={totalUnread === 0}
+          sx={{
+            '& .MuiBadge-badge': {
+              fontWeight: 800,
+              fontSize: '0.75rem',
+              minWidth: 20,
+              height: 20,
+            },
+          }}
         >
-          <Badge
-            badgeContent={totalUnread}
-            color="error"
-            max={99}
-            invisible={totalUnread === 0}
-            sx={{
-              '& .MuiBadge-badge': {
-                fontWeight: 800,
-                fontSize: '0.75rem',
-                minWidth: 20,
-                height: 20,
-              },
-            }}
-          >
+          <Tooltip title={fabLabel} placement="left">
             <Fab
               color="primary"
+              aria-label={fabLabel}
               onClick={() => {
                 if (isOpen && isMinimized) {
                   setIsMinimized(false);
@@ -265,8 +283,8 @@ export function FloatingNegotiationChat({
             >
               <ForumRoundedIcon />
             </Fab>
-          </Badge>
-        </Tooltip>
+          </Tooltip>
+        </Badge>
       </Box>
 
       {/* Floating Chat Modal / Window */}
@@ -280,7 +298,7 @@ export function FloatingNegotiationChat({
             width: { xs: 'calc(100vw - 32px)', sm: 430 },
             height: isMinimized ? 'auto' : 580,
             maxHeight: 'calc(100vh - 120px)',
-            borderRadius: 2.5,
+            borderRadius: '10px',
             zIndex: 1300,
             display: 'flex',
             flexDirection: 'column',
@@ -327,16 +345,40 @@ export function FloatingNegotiationChat({
 
             <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
               {chatRequestId && (unreadPerRequest[chatRequestId] ?? 0) > 0 && (
-                <Tooltip title="Đánh dấu đã xem cuộc hội thoại này">
-                  <IconButton size="small" onClick={() => markAsRead(chatRequestId)}>
+                <Tooltip
+                  title={
+                    locale === 'vi'
+                      ? 'Đánh dấu đã xem cuộc hội thoại này'
+                      : 'Mark conversation as read'
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    aria-label={
+                      locale === 'vi'
+                        ? 'Đánh dấu đã xem cuộc hội thoại này'
+                        : 'Mark conversation as read'
+                    }
+                    onClick={() => markAsRead(chatRequestId)}
+                  >
                     <DoneAllRoundedIcon fontSize="small" color="primary" />
                   </IconButton>
                 </Tooltip>
               )}
-              <IconButton size="small" onClick={() => setIsMinimized(!isMinimized)} title="Thu nhỏ">
+              <IconButton
+                size="small"
+                onClick={() => setIsMinimized(!isMinimized)}
+                title={locale === 'vi' ? 'Thu nhỏ' : 'Minimize'}
+                aria-label={locale === 'vi' ? 'Thu nhỏ' : 'Minimize'}
+              >
                 <MinimizeRoundedIcon fontSize="small" />
               </IconButton>
-              <IconButton size="small" onClick={() => setIsOpen(false)} title="Đóng">
+              <IconButton
+                size="small"
+                onClick={() => setIsOpen(false)}
+                title={locale === 'vi' ? 'Đóng' : 'Close'}
+                aria-label={locale === 'vi' ? 'Đóng' : 'Close'}
+              >
                 <CloseRoundedIcon fontSize="small" />
               </IconButton>
             </Stack>
@@ -348,7 +390,7 @@ export function FloatingNegotiationChat({
               <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderBottom: 1, borderColor: 'divider' }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <FormControl fullWidth size="small">
-                    <InputLabel id="chat-request-selector-label" sx={{ fontSize: '0.8rem' }}>
+                    <InputLabel id="chat-request-selector-label" sx={{ fontSize: '0.875rem' }}>
                       {t('Select service request')}
                     </InputLabel>
                     <Select
@@ -360,15 +402,15 @@ export function FloatingNegotiationChat({
                         setChatRequestId(newId);
                         markAsRead(newId);
                       }}
-                      sx={{ fontSize: '0.8125rem', bgcolor: 'background.paper', borderRadius: 1.5 }}
+                      sx={{ fontSize: '0.875rem', bgcolor: 'background.paper', borderRadius: '8px' }}
                     >
                       {requests.map((req) => {
                         const unreadInReq = unreadPerRequest[req.id] || 0;
 
                         return (
-                          <MenuItem key={req.id} value={req.id} sx={{ fontSize: '0.8125rem' }}>
+                          <MenuItem key={req.id} value={req.id} sx={{ fontSize: '0.875rem' }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                              <Typography noWrap sx={{ maxWidth: 210, fontSize: '0.8125rem', fontWeight: unreadInReq > 0 ? 750 : 600 }}>
+                              <Typography noWrap sx={{ maxWidth: 210, fontSize: '0.875rem', fontWeight: unreadInReq > 0 ? 750 : 600 }}>
                                 {req.description}
                               </Typography>
                               <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
@@ -377,14 +419,14 @@ export function FloatingNegotiationChat({
                                     label={`${unreadInReq} ${t('New')}`}
                                     size="small"
                                     color="error"
-                                    sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800 }}
+                                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 800 }}
                                   />
                                 )}
                                 <Chip
                                   label={req.status.replaceAll('_', ' ')}
                                   size="small"
                                   variant="outlined"
-                                  sx={{ height: 18, fontSize: '0.65rem' }}
+                                  sx={{ height: 20, fontSize: '0.75rem' }}
                                 />
                               </Stack>
                             </Stack>
@@ -395,9 +437,20 @@ export function FloatingNegotiationChat({
                   </FormControl>
 
                   {onSelectRequest && chatRequestId && (
-                    <Tooltip title="Xem chi tiết yêu cầu này ở màn hình chính">
+                    <Tooltip
+                      title={
+                        locale === 'vi'
+                          ? 'Xem chi tiết yêu cầu này ở màn hình chính'
+                          : 'Open request in main workspace'
+                      }
+                    >
                       <IconButton
                         size="small"
+                        aria-label={
+                          locale === 'vi'
+                            ? 'Xem chi tiết yêu cầu này ở màn hình chính'
+                            : 'Open request in main workspace'
+                        }
                         onClick={() => onSelectRequest(chatRequestId)}
                         sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider' }}
                       >
@@ -478,8 +531,23 @@ export function FloatingNegotiationChat({
                               <PersonOutlineRoundedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                             )
                           )}
-                          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.72rem' }}>
-                            {isMe ? 'Bạn' : isAiBot ? 'Trợ lý AI' : message.authorName || (isMsgManager ? 'Quản lý sàn' : 'Khách hàng')}
+                          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                            {isMe
+                              ? locale === 'vi'
+                                ? 'Bạn'
+                                : 'You'
+                              : isAiBot
+                                ? locale === 'vi'
+                                  ? 'Trợ lý AI'
+                                  : 'AI Assistant'
+                                : message.authorName ||
+                                  (isMsgManager
+                                    ? locale === 'vi'
+                                      ? 'Quản lý sàn'
+                                      : 'Platform Manager'
+                                    : locale === 'vi'
+                                      ? 'Khách hàng'
+                                      : 'Customer')}
                           </Typography>
                           {!isMe && (
                             <Chip
@@ -487,10 +555,10 @@ export function FloatingNegotiationChat({
                               size="small"
                               color={isAiBot ? 'secondary' : isMsgManager ? 'info' : 'default'}
                               variant="outlined"
-                              sx={{ height: 16, fontSize: '0.62rem', fontWeight: 600, px: 0.5 }}
+                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 600, px: 0.5 }}
                             />
                           )}
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                             {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </Typography>
                         </Stack>
@@ -499,7 +567,7 @@ export function FloatingNegotiationChat({
                           sx={{
                             p: 1.25,
                             px: 1.75,
-                            borderRadius: 2,
+                            borderRadius: '8px',
                             bgcolor: isMe
                               ? 'primary.main'
                               : isAiBot
@@ -516,7 +584,7 @@ export function FloatingNegotiationChat({
                             sx={{
                               whiteSpace: 'pre-wrap',
                               wordBreak: 'break-word',
-                              fontSize: '0.8125rem',
+                              fontSize: '0.875rem',
                               lineHeight: 1.45,
                             }}
                           >
@@ -535,7 +603,7 @@ export function FloatingNegotiationChat({
                       gap: 1,
                       p: 1.25,
                       px: 1.75,
-                      borderRadius: 2,
+                      borderRadius: '8px',
                       bgcolor: (theme) =>
                         theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.15)' : '#f3e5f5',
                       border: '1px solid',
@@ -547,9 +615,11 @@ export function FloatingNegotiationChat({
                     <SmartToyOutlinedIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
                     <Typography
                       variant="caption"
-                      sx={{ color: 'secondary.main', fontStyle: 'italic', fontWeight: 600 }}
+                      sx={{ color: 'secondary.main', fontStyle: 'italic', fontWeight: 600, fontSize: '0.75rem' }}
                     >
-                      Trợ lý AI SmartDrone đang soạn phản hồi...
+                      {locale === 'vi'
+                        ? 'Trợ lý AI SmartDrone đang soạn phản hồi...'
+                        : 'SmartDrone AI Assistant is composing a reply...'}
                     </Typography>
                   </Box>
                 )}
@@ -572,7 +642,7 @@ export function FloatingNegotiationChat({
                   <Typography
                     variant="caption"
                     color="text.secondary"
-                    sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: '0.72rem', fontWeight: 600 }}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: '0.75rem', fontWeight: 600 }}
                   >
                     <SupportAgentRoundedIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                     {t('Direct negotiation with customer')}
@@ -582,7 +652,7 @@ export function FloatingNegotiationChat({
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.72rem' }}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}
                     >
                       <SmartToyOutlinedIcon sx={{ fontSize: 14, color: 'secondary.main' }} />
                       {t('Need quick answers?')}
@@ -594,11 +664,11 @@ export function FloatingNegotiationChat({
                       disabled={isAiReplying}
                       onClick={() => void handleAskAiAssistant()}
                       sx={{
-                        fontSize: '0.72rem',
+                        fontSize: '0.75rem',
                         textTransform: 'none',
                         py: 0.25,
                         px: 0.75,
-                        borderRadius: 1,
+                        borderRadius: '8px',
                         fontWeight: 600,
                       }}
                     >
@@ -627,17 +697,18 @@ export function FloatingNegotiationChat({
                     }}
                     slotProps={{
                       input: {
-                        sx: { borderRadius: 2, fontSize: '0.8125rem' },
+                        sx: { borderRadius: '8px', fontSize: '0.875rem' },
                       },
                     }}
                   />
                   <LoadingButton
                     variant="contained"
                     size="small"
+                    aria-label={locale === 'vi' ? 'Gửi tin nhắn' : 'Send message'}
                     loading={post.isPending}
                     disabled={!body.trim()}
                     onClick={() => void handleSend()}
-                    sx={{ minWidth: 40, width: 40, height: 40, borderRadius: 2, p: 0 }}
+                    sx={{ minWidth: 40, width: 40, height: 40, borderRadius: '8px', p: 0 }}
                   >
                     <SendRoundedIcon fontSize="small" />
                   </LoadingButton>

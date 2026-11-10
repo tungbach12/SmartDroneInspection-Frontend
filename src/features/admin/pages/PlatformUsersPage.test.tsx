@@ -134,6 +134,13 @@ describe('PlatformUsersPage', () => {
     if (!first) throw new Error('expected a reset button');
     fireEvent.click(first);
 
+    const dialog = await screen.findByRole('dialog');
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Reset password'),
+    );
+    if (!confirmBtn) throw new Error('expected confirm reset button');
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => expect(mocks.resetPassword).toHaveBeenCalled());
   });
 
@@ -144,6 +151,13 @@ describe('PlatformUsersPage', () => {
     const first = suspendButtons[0];
     if (!first) throw new Error('expected a suspend button');
     fireEvent.click(first);
+
+    const dialog = await screen.findByRole('dialog');
+    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Suspend'),
+    );
+    if (!confirmBtn) throw new Error('expected confirm suspend button');
+    fireEvent.click(confirmBtn);
 
     await waitFor(() =>
       expect(mocks.updateStatus).toHaveBeenCalledWith(expect.any(String), {

@@ -22,11 +22,14 @@ import {
   Typography,
 } from '@mui/material';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import LogoutRounded from '@mui/icons-material/LogoutRounded';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import {
   getAuthErrorMessage,
   changePassword,
+  logoutCurrentSession,
   logoutAllSessions,
   updateVisionFallbackPreference,
   updatePilotLicense,
@@ -38,14 +41,21 @@ import {
 } from '../schemas/authSchemas';
 import { useAuthStore } from '../store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
+import { clearNotificationCache } from '@/features/notifications/hooks/useNotifications';
+import { NextAdminMoonIcon, NextAdminSunIcon } from '@/shared/ui/NextAdminIcons';
 
 export default function AccountSecurityPage() {
   const { locale, setLocale, t } = useLocale();
+  const { toggle: toggleColorMode } = useColorMode();
+  const isDark = useIsDarkMode();
   const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [signingOutSession, setSigningOutSession] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [preferencePending, setPreferencePending] = useState(false);
   const visionFallbackEnabled = user?.visionFallbackEnabled ?? true;
@@ -113,10 +123,26 @@ export default function AccountSecurityPage() {
     }
   };
 
+  const handleSignOutCurrentSession = async () => {
+    setErrorMessage(null);
+    setSigningOutSession(true);
+    try {
+      await logoutCurrentSession();
+      clearNotificationCache(queryClient);
+      clearSession();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setSigningOutSession(false);
+    }
+  };
+
   const onLogoutAll = async () => {
     setErrorMessage(null);
     try {
       await logoutAllSessions();
+      clearNotificationCache(queryClient);
       clearSession();
       navigate('/login', { replace: true });
     } catch (error) {
@@ -149,7 +175,7 @@ export default function AccountSecurityPage() {
             p: { xs: 2, sm: 3 },
             border: 1,
             borderColor: 'divider',
-            borderRadius: 3,
+            borderRadius: '12px',
             bgcolor: 'background.paper',
           }}
         >
@@ -181,7 +207,7 @@ export default function AccountSecurityPage() {
                   ))}
                 </Stack>
               </Stack>
-              <Box>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                 <Button
                   variant="outlined"
                   component="label"
@@ -202,7 +228,28 @@ export default function AccountSecurityPage() {
                     }}
                   />
                 </Button>
-              </Box>
+                <Button
+                  variant="contained"
+                  disabled={signingOutSession}
+                  onClick={handleSignOutCurrentSession}
+                  startIcon={<LogoutRounded />}
+                  size="small"
+                  sx={{
+                    bgcolor: '#3758F9',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '&:hover': { bgcolor: '#463FD8' },
+                  }}
+                >
+                  {signingOutSession
+                    ? locale === 'vi'
+                      ? 'Đang đăng xuất…'
+                      : 'Signing out…'
+                    : locale === 'vi'
+                      ? 'Đăng xuất'
+                      : t('Sign out')}
+                </Button>
+              </Stack>
             </Stack>
             {avatarError && <Alert severity="error">{avatarError}</Alert>}
             {avatarSuccess && <Alert severity="success">{avatarSuccess}</Alert>}
@@ -215,17 +262,17 @@ export default function AccountSecurityPage() {
             p: { xs: 2, sm: 3 },
             border: 1,
             borderColor: 'divider',
-            borderRadius: 3,
+            borderRadius: '12px',
             bgcolor: 'background.paper',
           }}
         >
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
                 {t('Language & display')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {t('Choose your preferred language for the application interface.')}
+                {t('Choose your preferred language and color theme for the application interface.')}
               </Typography>
             </Box>
             <Stack
@@ -253,6 +300,65 @@ export default function AccountSecurityPage() {
                 sx={{ fontWeight: 600, alignSelf: { xs: 'flex-start', sm: 'center' } }}
               />
             </Stack>
+
+            <Divider />
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.9375rem', color: 'text.primary' }}>
+                  {locale === 'vi' ? 'Chế độ giao diện (Sáng / Tối)' : 'Appearance (Light / Dark mode)'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {isDark
+                    ? locale === 'vi'
+                      ? 'Đang bật giao diện tối (Dark mode).'
+                      : 'Dark mode is currently active.'
+                    : locale === 'vi'
+                      ? 'Đang bật giao diện sáng (Light mode).'
+                      : 'Light mode is currently active.'}
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant={!isDark ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => {
+                    if (isDark) toggleColorMode();
+                  }}
+                  startIcon={<NextAdminSunIcon />}
+                  aria-label="Use light mode"
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 1.75,
+                  }}
+                >
+                  {locale === 'vi' ? 'Sáng (Light)' : 'Light'}
+                </Button>
+                <Button
+                  variant={isDark ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => {
+                    if (!isDark) toggleColorMode();
+                  }}
+                  startIcon={<NextAdminMoonIcon />}
+                  aria-label="Use dark mode"
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 1.75,
+                  }}
+                >
+                  {locale === 'vi' ? 'Tối (Dark)' : 'Dark'}
+                </Button>
+              </Stack>
+            </Stack>
           </Stack>
         </Box>
 
@@ -262,7 +368,7 @@ export default function AccountSecurityPage() {
               p: { xs: 2, sm: 3 },
               border: 1,
               borderColor: 'divider',
-              borderRadius: 3,
+              borderRadius: '12px',
               bgcolor: 'background.paper',
             }}
           >
@@ -378,7 +484,7 @@ export default function AccountSecurityPage() {
               p: { xs: 2, sm: 3 },
               border: 1,
               borderColor: 'divider',
-              borderRadius: 3,
+              borderRadius: '12px',
               bgcolor: 'background.paper',
             }}
           >
@@ -416,7 +522,7 @@ export default function AccountSecurityPage() {
               p: { xs: 2, sm: 3 },
               border: 1,
               borderColor: 'divider',
-              borderRadius: 3,
+              borderRadius: '12px',
               bgcolor: 'background.paper',
             }}
           >
@@ -464,7 +570,7 @@ export default function AccountSecurityPage() {
             p: { xs: 2, sm: 3 },
             border: 1,
             borderColor: 'divider',
-            borderRadius: 3,
+            borderRadius: '12px',
             bgcolor: 'background.paper',
           }}
         >
@@ -520,7 +626,7 @@ export default function AccountSecurityPage() {
             p: { xs: 2, sm: 3 },
             border: 1,
             borderColor: 'divider',
-            borderRadius: 3,
+            borderRadius: '12px',
             bgcolor: 'background.paper',
           }}
         >
@@ -540,14 +646,36 @@ export default function AccountSecurityPage() {
                 {t('Revoke all active sessions for this account, including this one.')}
               </Typography>
             </Box>
-            <Button
-              color="error"
-              variant="outlined"
-              onClick={() => setLogoutDialogOpen(true)}
-              sx={{ flexShrink: 0 }}
-            >
-              {t('Sign out everywhere')}
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ flexShrink: 0 }}>
+              <Button
+                variant="contained"
+                disabled={signingOutSession}
+                onClick={handleSignOutCurrentSession}
+                startIcon={<LogoutRounded />}
+                sx={{
+                  bgcolor: '#3758F9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: '#463FD8' },
+                }}
+              >
+                {signingOutSession
+                  ? locale === 'vi'
+                    ? 'Đang đăng xuất…'
+                    : 'Signing out…'
+                  : locale === 'vi'
+                    ? 'Đăng xuất'
+                    : t('Sign out')}
+              </Button>
+              <Button
+                color="error"
+                variant="outlined"
+                onClick={() => setLogoutDialogOpen(true)}
+                sx={{ flexShrink: 0 }}
+              >
+                {t('Sign out everywhere')}
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       </Stack>

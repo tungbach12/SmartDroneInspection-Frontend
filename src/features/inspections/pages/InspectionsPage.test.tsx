@@ -140,7 +140,7 @@ describe('InspectionsPage', () => {
     renderPage();
 
     expect(await screen.findByRole('row', { name: /Inspect the main span/ })).toBeTruthy();
-    expect(screen.getByText('FIELD_COMPLETED')).toBeTruthy();
+    expect(screen.getByText('Field Completed')).toBeTruthy();
     // The retired identifier field is gone; rows replace it.
     expect(screen.queryByLabelText('Inspection ID')).toBeNull();
   });

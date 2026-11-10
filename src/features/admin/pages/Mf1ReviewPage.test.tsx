@@ -92,29 +92,37 @@ describe('MF1 review queues', () => {
 
   it('renders drone registrations tab and allows opening drone review modal', async () => {
     renderPage();
-    const reviewBtn = await screen.findByRole('button', { name: /Thẩm định hồ sơ/i });
+    const reviewBtn = await screen.findByRole('button', { name: /Review application|Thẩm định hồ sơ/i });
     expect(reviewBtn).toBeTruthy();
     fireEvent.click(reviewBtn);
-    expect(await screen.findByText('Thẩm định hồ sơ Phương tiện Drone')).toBeTruthy();
+    expect(
+      await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i),
+    ).toBeTruthy();
   });
 
   it('requires a rejection note before refusing a drone application', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Thẩm định hồ sơ/i }));
-    await screen.findByText('Thẩm định hồ sơ Phương tiện Drone');
-    const rejectActionBtn = await screen.findByRole('button', { name: /Từ chối/i });
+    fireEvent.click(await screen.findByRole('button', { name: /Review application|Thẩm định hồ sơ/i }));
+    await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i);
+    const rejectActionBtn = await screen.findByRole('button', { name: /Reject|Từ chối/i });
     fireEvent.click(rejectActionBtn);
-    const confirmRejectBtn = screen.getByRole('button', { name: /Xác nhận từ chối/i });
+    const confirmRejectBtn = screen.getByRole('button', { name: /Confirm rejection|Xác nhận từ chối/i });
     fireEvent.click(confirmRejectBtn);
-    expect(await screen.findByText('Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        /Please provide a clear rejection reason so the applicant can resubmit\.|Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại\./i,
+      ),
+    ).toBeTruthy();
     expect(mf1ReviewApi.rejectDrone).not.toHaveBeenCalled();
   });
 
   it('allows switching to Customer airspace tab and opens customer review dialog', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: /Vùng bay khách hàng/i }));
+    fireEvent.click(await screen.findByRole('tab', { name: /Customer airspace|Vùng bay khách hàng/i }));
     expect(await screen.findByText('Bridge Co')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: /Thẩm định/i }));
-    expect(await screen.findByText('Thẩm định hồ sơ Phương tiện Drone')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: /Review|Thẩm định/i }));
+    expect(
+      await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i),
+    ).toBeTruthy();
   });
 });

@@ -52,7 +52,7 @@ const NEXT_STEP: Record<string, string> = {
 };
 
 /**
- * Step 4: Report Synthesis — automated compilation from confirmed findings,
+ * Step 7: Report Synthesis — automated compilation from confirmed findings,
  * submission for Platform Manager review, and version history.
  */
 export default function InspectionDraftPage() {
@@ -144,6 +144,8 @@ export default function InspectionDraftPage() {
         : severities.includes('MEDIUM')
           ? 'FAIR'
           : 'GOOD';
+    const assetLabel = inspectionData?.assetName || t('the inspected structure');
+    const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${t('Recorded')} ${reportable.length} ${t('confirmed defect(s) and')} ${(evidence.data ?? []).length} ${t('field evidence capture(s).')}`;
 
     return {
       id: `preview-${inspectionId}`,
@@ -157,19 +159,21 @@ export default function InspectionDraftPage() {
       returnReason: null,
       publishedAt: null,
       createdAt: new Date().toISOString(),
+      summary: autoSummary,
       omissionDisclosure: null,
       sections: {
-        executiveSummary: `Báo cáo kiểm định cho công trình ${inspectionData?.assetName || 'công trình'}. Đã ghi nhận ${reportable.length} khuyết tật cần theo dõi/sửa chữa và ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường.`,
+        executiveSummary: autoSummary,
         overallCondition,
-        purposeScopeCriteria:
-          'Khảo sát hiện trạng kết cấu bằng thiết bị máy bay không người lái (UAV/Drone), thu thập hình ảnh độ phân giải cao và phát hiện các khiếm khuyết bề mặt.',
+        purposeScopeCriteria: t(
+          'Aerial structural survey using UAV/Drone to capture high-resolution imagery and detect surface defects.',
+        ),
         methodEquipmentConditions: inspectionData?.droneSerialNumber
-          ? `Thiết bị bay: ${inspectionData.droneModel ?? ''} (Số hiệu: ${inspectionData.droneSerialNumber}). Kiểm tra trực quan từ xa theo quy trình chuẩn.`
-          : 'Thiết bị bay UAV chuyên dụng và camera quang học độ phân giải cao.',
+          ? `${t('Assigned UAV')}: ${inspectionData.droneModel ?? ''} (${t('Serial')}: ${inspectionData.droneSerialNumber}). ${t('Remote visual inspection conducted per standard protocol.')}`
+          : t('Specialized inspection UAV equipped with high-resolution optical camera.'),
         conclusionsRecommendations:
           reportable.length > 0
-            ? `Đề xuất chuyển giao ${reportable.length} phát hiện khuyết tật đã xác nhận sang bộ phận bảo trì (Maintenance) để lập kế hoạch sửa chữa và khắc phục.`
-            : 'Công trình trong tình trạng hoạt động tốt, không phát hiện khuyết tật nghiêm trọng tại thời điểm khảo sát.',
+            ? `${t('Recommend forwarding')} ${reportable.length} ${t('confirmed defect finding(s) to Maintenance for corrective repair planning.')}`
+            : t('Structure is in serviceable condition; no critical defects observed during this survey.'),
       },
       reportContext: {
         organizationName: null,
@@ -204,7 +208,7 @@ export default function InspectionDraftPage() {
         findingsConfirmedAt: workflow.data?.findingsConfirmedAt ?? null,
       },
     };
-  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data, fieldSessionItems]);
+  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data, fieldSessionItems, t]);
 
   const activeEvidenceList = useMemo(
     () => (evidence.data ?? []).filter((item) => !item.isDeleted),
@@ -238,7 +242,7 @@ export default function InspectionDraftPage() {
             >
               <Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                     {`${t('Version')} ${openVersion.versionNo}`}
                   </Typography>
                   <Chip
@@ -318,7 +322,7 @@ export default function InspectionDraftPage() {
                   </Button>
                 }
               >
-                {t('Confirm the reviewed findings in Step 3 before compiling the inspection report.')}
+                {t('Confirm the reviewed findings in Step 6 (Findings) before compiling the inspection report.')}
               </Alert>
             ) : sourcesChangedAfterVersion ? (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -360,7 +364,7 @@ export default function InspectionDraftPage() {
                 isError
                 fallbackMessage={
                   isConflict(submit.error)
-                    ? t('The server refused this submission. Confirm findings in Step 3 and generate a new report version if evidence or findings changed.')
+                    ? t('The server refused this submission. Confirm findings in Step 6 (Findings) and generate a new report version if evidence or findings changed.')
                     : t('Could not submit this report.')
                 }
               />
@@ -381,7 +385,7 @@ export default function InspectionDraftPage() {
           variant="outlined"
           sx={{
             p: { xs: 2.5, sm: 3 },
-            borderRadius: '16px',
+            borderRadius: '10px',
             borderColor: 'divider',
             bgcolor: 'background.paper',
           }}
@@ -396,7 +400,7 @@ export default function InspectionDraftPage() {
             variant="outlined"
             sx={{
               p: { xs: 2.5, sm: 3 },
-              borderRadius: '16px',
+              borderRadius: '10px',
               borderColor: 'divider',
               bgcolor: 'background.paper',
             }}
@@ -407,13 +411,13 @@ export default function InspectionDraftPage() {
               sx={{ alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between' }}
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
                   {findingsConfirmed ? t('Ready to Submit Inspection & Flight Reports') : t('No report version yet')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {findingsConfirmed
-                    ? t('Dưới đây là 2 bản báo cáo tổng hợp tự động: (1) Báo cáo Kiểm định & Khuyết tật và (2) Báo cáo Hành trình Bay thực tế. Vui lòng kiểm tra trước khi gửi duyệt.')
-                    : t('Once findings are confirmed in Step 3, the inspection report and flight operations report can be compiled and submitted.')}
+                    ? t('Review the two auto-compiled deliverables below: (1) Inspection Findings Report and (2) Flight Operations Report before submitting for review.')
+                    : t('Once findings are confirmed in Step 6 (Findings), the inspection report and flight operations report can be compiled and submitted.')}
                 </Typography>
               </Box>
 
@@ -455,8 +459,8 @@ export default function InspectionDraftPage() {
             <Paper
               variant="outlined"
               sx={{
-                p: { xs: 2.5, sm: 3.5 },
-                borderRadius: '16px',
+                p: { xs: 2.5, sm: 3 },
+                borderRadius: '10px',
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
               }}
@@ -516,7 +520,7 @@ export default function InspectionDraftPage() {
               sx={{
                 px: 2,
                 pt: 1,
-                borderRadius: '12px',
+                borderRadius: '10px',
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
               }}
@@ -589,7 +593,7 @@ export default function InspectionDraftPage() {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
           } else {
-            createDraft.mutate(undefined, {
+            createDraft.mutate(draftPreviewVersion.summary, {
               onSuccess: () => setConfirmSubmitOpen(false),
             });
           }

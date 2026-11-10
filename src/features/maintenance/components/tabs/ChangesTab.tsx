@@ -43,9 +43,9 @@ export function ChangesTab({
   const [delta, setDelta] = useState('');
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary' }}>
           {t('Change requests')}
         </Typography>
         {isEngineer && workOrder.status !== 'CLOSED' ? (
@@ -79,7 +79,7 @@ export function ChangesTab({
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
-                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                bgcolor: 'background.default',
               }}
             >
               <Stack

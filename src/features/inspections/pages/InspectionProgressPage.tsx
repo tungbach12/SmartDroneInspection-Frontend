@@ -23,7 +23,6 @@ import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUnchecke
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
-import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
 import AirplanemodeActiveRounded from '@mui/icons-material/AirplanemodeActiveRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
@@ -143,8 +142,8 @@ export default function InspectionProgressPage() {
       <Paper
         variant="outlined"
         sx={{
-          p: { xs: 2.5, sm: 3 },
-          borderRadius: '16px',
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: '10px',
           bgcolor: 'background.paper',
           borderColor: 'divider',
         }}
@@ -155,7 +154,7 @@ export default function InspectionProgressPage() {
             sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1 }}
           >
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                 {inspection?.assetName ?? t('Inspection Mission')}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -193,22 +192,10 @@ export default function InspectionProgressPage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(5, 1fr)' },
               gap: 2,
             }}
           >
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <PlaceOutlined color="action" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Target Asset')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.assetName ?? '-'}
-                </Typography>
-              </Box>
-            </Stack>
-
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
               <PersonOutlineRounded color="action" />
               <Box>
@@ -336,9 +323,9 @@ export default function InspectionProgressPage() {
       )}
 
       {/* 5-Step Visual Timeline */}
-      <Card variant="outlined" sx={{ borderRadius: '16px', bgcolor: 'background.paper', borderColor: 'divider' }}>
-        <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>
+      <Card variant="outlined" sx={{ borderRadius: '10px', bgcolor: 'background.paper', borderColor: 'divider' }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 800, mb: 3 }}>
             {t('Inspection Lifecycle Progress')}
           </Typography>
 

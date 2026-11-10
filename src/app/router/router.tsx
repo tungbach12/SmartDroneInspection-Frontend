@@ -101,6 +101,9 @@ const ContractsPage = lazy(
 const PlatformFinanceSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
 );
+const PlatformAiSettingsPage = lazy(
+  () => import('@/features/admin/pages/PlatformAiSettingsPage'),
+);
 const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
 );
@@ -315,6 +318,18 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           </RequireAuth>
         ),
       },
+      ...(portal === 'admin'
+        ? [
+            {
+              path: 'ai-settings',
+              element: (
+                <RequireAuth roles={['ADMIN']}>
+                  <PlatformAiSettingsPage />
+                </RequireAuth>
+              ),
+            },
+          ]
+        : []),
     ],
   };
 });
