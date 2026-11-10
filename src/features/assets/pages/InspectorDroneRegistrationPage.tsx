@@ -98,6 +98,57 @@ const REQUIRED_DOCUMENTS: Array<{
   },
 ];
 
+function classifyDroneByMtow(rawText?: string | null): {
+  categoryCode: string;
+  categoryLabel: string;
+  requiredLicenseLabel: string;
+  requiresClassB: boolean;
+} | null {
+  if (!rawText) return null;
+  const match = rawText.match(/(?:MTOW:\s*)?(\d+(?:[.,]\d+)?)\s*(?:kg)?/i);
+  if (!match?.[1]) return null;
+  const mtow = Number(match[1].replace(',', '.'));
+  if (!Number.isFinite(mtow) || mtow <= 0) return null;
+  if (mtow < 0.25) {
+    return {
+      categoryCode: 'Loại 1 (< 0.25 kg)',
+      categoryLabel: 'Loại 1 (< 0.25 kg) · Điều 4 NĐ 288/2025/NĐ-CP',
+      requiredLicenseLabel: 'Hạng A (bay kiểm định thương mại vẫn bắt buộc có Phép bay)',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 2) {
+    return {
+      categoryCode: 'Loại 2 (0.25 – < 2 kg)',
+      categoryLabel: 'Loại 2 (0.25 – < 2 kg) · Điều 4 NĐ 288/2025/NĐ-CP',
+      requiredLicenseLabel: 'Bằng lái Hạng A (VLOS) hoặc Hạng B (BVLOS)',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 25) {
+    return {
+      categoryCode: 'Loại 3 (2 – < 25 kg)',
+      categoryLabel: 'Loại 3 (2 – < 25 kg) · Điều 4 NĐ 288/2025/NĐ-CP',
+      requiredLicenseLabel: 'Bắt buộc Bằng lái Hạng B (Điều 27 NĐ 288/2025/NĐ-CP)',
+      requiresClassB: true,
+    };
+  }
+  if (mtow < 150) {
+    return {
+      categoryCode: 'Loại 4 (25 – < 150 kg)',
+      categoryLabel: 'Loại 4 (25 – < 150 kg) · Điều 4 NĐ 288/2025/NĐ-CP',
+      requiredLicenseLabel: 'Bắt buộc Bằng lái Hạng B (Điều 27 NĐ 288/2025/NĐ-CP)',
+      requiresClassB: true,
+    };
+  }
+  return {
+    categoryCode: 'Loại 5 (≥ 150 kg)',
+    categoryLabel: 'Loại 5 (≥ 150 kg) · Điều 4 NĐ 288/2025/NĐ-CP',
+    requiredLicenseLabel: 'Bắt buộc Bằng lái Hạng B (Điều 27 NĐ 288/2025/NĐ-CP)',
+    requiresClassB: true,
+  };
+}
+
 export default function InspectorDroneRegistrationPage() {
   const { locale } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
@@ -108,6 +159,12 @@ export default function InspectorDroneRegistrationPage() {
     INSPECTION: null,
   });
   const [previews, setPreviews] = useState<Record<DroneEvidenceType, string | null>>({
+    REGISTRATION: null,
+    OWNERSHIP: null,
+    INSPECTION: null,
+  });
+  const [editingApplicationId, setEditingApplicationId] = useState<string | null>(null);
+  const [existingFileKeys, setExistingFileKeys] = useState<Record<DroneEvidenceType, string | null>>({
     REGISTRATION: null,
     OWNERSHIP: null,
     INSPECTION: null,
@@ -143,14 +200,17 @@ export default function InspectorDroneRegistrationPage() {
     mutationFn: async (formData: DroneFormState) => {
       const upload = async (type: DroneEvidenceType) => {
         const file = files[type];
-        if (!file) {
-          throw new Error(
-            locale === 'vi'
-              ? `Vui lòng tải lên ${type.toLowerCase()}.`
-              : `Please upload ${type.toLowerCase()} document.`,
-          );
+        if (file) {
+          return uploadDroneEvidence(file, type);
         }
-        return uploadDroneEvidence(file, type);
+        if (existingFileKeys[type]) {
+          return existingFileKeys[type]!;
+        }
+        throw new Error(
+          locale === 'vi'
+            ? `Vui lòng tải lên ${type.toLowerCase()}.`
+            : `Please upload ${type.toLowerCase()} document.`,
+        );
       };
 
       const [registrationFileKey, ownershipFileKey, inspectionFileKey] = await Promise.all([
@@ -189,10 +249,15 @@ export default function InspectorDroneRegistrationPage() {
         inspectionFileKey,
       };
 
+      if (editingApplicationId) {
+        return mf1DroneApi.resubmit(editingApplicationId, input);
+      }
       return mf1DroneApi.submit(input);
     },
     onSuccess: async () => {
       setForm(initialForm);
+      setEditingApplicationId(null);
+      setExistingFileKeys({ REGISTRATION: null, OWNERSHIP: null, INSPECTION: null });
       Object.values(previews).forEach((url) => {
         if (url) URL.revokeObjectURL(url);
       });
@@ -243,16 +308,34 @@ export default function InspectorDroneRegistrationPage() {
     submit.mutate(form);
   };
 
-  const handleOpenRegister = (initialData?: Partial<DroneFormState>) => {
+  const handleOpenRegister = (
+    initialData?: Partial<DroneFormState>,
+    existingApp?: {
+      id: string;
+      registrationFileKey?: string | null;
+      ownershipFileKey?: string | null;
+      inspectionFileKey?: string | null;
+    },
+  ) => {
     if (initialData) {
-      setForm((prev) => ({ ...prev, ...initialData }));
+      setForm({ ...initialForm, ...initialData });
     } else {
       setForm(initialForm);
     }
+    setEditingApplicationId(existingApp?.id ?? null);
+    setExistingFileKeys({
+      REGISTRATION: existingApp?.registrationFileKey ?? null,
+      OWNERSHIP: existingApp?.ownershipFileKey ?? null,
+      INSPECTION: existingApp?.inspectionFileKey ?? null,
+    });
     setOpenRegisterDialog(true);
   };
 
-  const allDocumentsUploaded = Boolean(files.REGISTRATION && files.OWNERSHIP && files.INSPECTION);
+  const allDocumentsUploaded = Boolean(
+    (files.REGISTRATION || existingFileKeys.REGISTRATION) &&
+      (files.OWNERSHIP || existingFileKeys.OWNERSHIP) &&
+      (files.INSPECTION || existingFileKeys.INSPECTION),
+  );
 
   return (
     <Box className="workspace-page">
@@ -447,6 +530,27 @@ export default function InspectorDroneRegistrationPage() {
                               {tr('Hãng sản xuất:', 'Manufacturer:')}{' '}
                               <strong>{drone.manufacturer || tr('Chưa cập nhật', 'Not specified')}</strong>
                             </Typography>
+                            {(() => {
+                              const legalClass = classifyDroneByMtow(drone.model);
+                              if (!legalClass) return null;
+                              return (
+                                <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    color={legalClass.requiresClassB ? 'info' : 'default'}
+                                    label={legalClass.categoryCode}
+                                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                  />
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={legalClass.requiresClassB ? 'Yêu cầu Bằng Hạng B' : 'Bằng Hạng A/B'}
+                                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                  />
+                                </Stack>
+                              );
+                            })()}
                           </Box>
                           <Chip
                             icon={<VerifiedUserOutlined style={{ fontSize: 14 }} />}
@@ -482,9 +586,48 @@ export default function InspectorDroneRegistrationPage() {
                                 <EventAvailableOutlined sx={{ fontSize: 14 }} />{' '}
                                 {tr('Hạn kiểm định / đăng ký:', 'Registration / Airworthiness Expiry:')}
                               </Typography>
-                              <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
-                                {new Date(drone.registrationExpiresAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
-                              </Typography>
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.25, flexWrap: 'wrap' }}>
+                                <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                                  {new Date(drone.registrationExpiresAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
+                                </Typography>
+                                {(() => {
+                                  const daysLeft =
+                                    drone.registrationRemainingDays ??
+                                    Math.floor(
+                                      (new Date(drone.registrationExpiresAt).getTime() - Date.now()) /
+                                        (1000 * 60 * 60 * 24),
+                                    );
+                                  if (daysLeft < 0) {
+                                    return (
+                                      <Chip
+                                        size="small"
+                                        color="error"
+                                        label={tr('Đã quá hạn đăng kiểm', 'Expired')}
+                                        sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+                                      />
+                                    );
+                                  }
+                                  if (daysLeft <= 30) {
+                                    return (
+                                      <Chip
+                                        size="small"
+                                        color="warning"
+                                        label={tr(`Sắp hết hạn (${daysLeft} ngày)`, `Expiring soon (${daysLeft}d)`)}
+                                        sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+                                      />
+                                    );
+                                  }
+                                  return (
+                                    <Chip
+                                      size="small"
+                                      color="success"
+                                      variant="outlined"
+                                      label={tr(`Còn hạn (${daysLeft} ngày)`, `Valid (${daysLeft}d)`)}
+                                      sx={{ height: 20, fontSize: '0.68rem', fontWeight: 600 }}
+                                    />
+                                  );
+                                })()}
+                              </Stack>
                             </Box>
                           )}
                         </Box>
@@ -496,12 +639,30 @@ export default function InspectorDroneRegistrationPage() {
                           variant="outlined"
                           startIcon={<BuildCircleOutlined />}
                           onClick={() => {
-                            handleOpenRegister({
-                              droneName: drone.model?.split('[')[0]?.trim() || '',
-                              manufacturer: drone.manufacturer || '',
-                              serialNumber: drone.serialNumber || '',
-                              registrationNumber: drone.registrationNumber || '',
-                            });
+                            const matchedApp = applicationList.find(
+                              (a) => a.droneId === drone.id || a.serialNumber === drone.serialNumber,
+                            );
+                            const mtowMatch = drone.model?.match(/MTOW:\s*([\d.,]+)/i);
+                            handleOpenRegister(
+                              {
+                                droneName: drone.model?.split('[')[0]?.trim() || '',
+                                manufacturer: drone.manufacturer || '',
+                                serialNumber: drone.serialNumber || '',
+                                registrationNumber: drone.registrationNumber || '',
+                                registrationExpiresAt: drone.registrationExpiresAt
+                                  ? drone.registrationExpiresAt.slice(0, 10)
+                                  : '',
+                                mtowKg: mtowMatch?.[1] || (drone.mtowKg ? String(drone.mtowKg) : ''),
+                              },
+                              matchedApp
+                                ? {
+                                    id: matchedApp.id,
+                                    registrationFileKey: matchedApp.registrationFileKey ?? null,
+                                    ownershipFileKey: matchedApp.ownershipFileKey ?? null,
+                                    inspectionFileKey: matchedApp.inspectionFileKey ?? null,
+                                  }
+                                : undefined,
+                            );
                           }}
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
@@ -604,12 +765,25 @@ export default function InspectorDroneRegistrationPage() {
                             variant="outlined"
                             color="error"
                             onClick={() => {
-                              handleOpenRegister({
-                                droneName: app.model?.split('[')[0]?.trim() || '',
-                                manufacturer: app.manufacturer || '',
-                                serialNumber: app.serialNumber || '',
-                                registrationNumber: app.registrationNumber || '',
-                              });
+                              const mtowMatch = app.model?.match(/MTOW:\s*([\d.,]+)/i);
+                              handleOpenRegister(
+                                {
+                                  droneName: app.model?.split('[')[0]?.trim() || '',
+                                  manufacturer: app.manufacturer || '',
+                                  serialNumber: app.serialNumber || '',
+                                  registrationNumber: app.registrationNumber || '',
+                                  registrationExpiresAt: app.registrationExpiresAt
+                                    ? app.registrationExpiresAt.slice(0, 10)
+                                    : '',
+                                  mtowKg: mtowMatch?.[1] || '',
+                                },
+                                {
+                                  id: app.id,
+                                  registrationFileKey: app.registrationFileKey ?? null,
+                                  ownershipFileKey: app.ownershipFileKey ?? null,
+                                  inspectionFileKey: app.inspectionFileKey ?? null,
+                                },
+                              );
                             }}
                             sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem' }}
                           >
@@ -713,10 +887,27 @@ export default function InspectorDroneRegistrationPage() {
                 />
                 <TextField
                   label={tr('Trọng lượng cất cánh tối đa (MTOW)', 'Max Takeoff Weight (MTOW)')}
-                  placeholder={tr('VD: 6.47 kg', 'e.g. 6.47 kg')}
+                  placeholder={tr('VD: 4.07 kg', 'e.g. 4.07 kg')}
                   value={form.mtowKg}
                   onChange={updateField('mtowKg')}
+                  helperText="Căn cứ phân loại phương tiện bay theo Điều 4 Nghị định 288/2025/NĐ-CP"
                 />
+                {(() => {
+                  const legalInfo = classifyDroneByMtow(form.mtowKg);
+                  if (!legalInfo) return null;
+                  return (
+                    <Box sx={{ gridColumn: { xs: '1 / -1' } }}>
+                      <Alert severity={legalInfo.requiresClassB ? 'info' : 'success'} sx={{ py: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                          Phân loại pháp lý: {legalInfo.categoryLabel}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Điều kiện người điều khiển: {legalInfo.requiredLicenseLabel}
+                        </Typography>
+                      </Alert>
+                    </Box>
+                  );
+                })()}
                 <TextField
                   label={tr('Thời gian bay tối đa', 'Max Flight Endurance')}
                   placeholder={tr('VD: 55 phút', 'e.g. 55 mins')}

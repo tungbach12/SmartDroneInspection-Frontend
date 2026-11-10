@@ -6,7 +6,11 @@ const roles = vi.hoisted(() => ({ current: ['CUSTOMER'] as string[] }));
 vi.mock('@/features/auth/store/authStore', () => ({
   useAuthStore: (selector: (state: { roles: string[] }) => unknown) => selector({ roles: roles.current }),
 }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn(), useLocation: () => ({ pathname: '/client/assets' }) }));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/client/assets' }),
+  useInRouterContext: () => false,
+}));
 vi.mock('../hooks/useAssets', () => ({
   useAssets: () => ({ data: { items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0 }, isLoading: false }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),

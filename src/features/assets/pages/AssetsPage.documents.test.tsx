@@ -48,6 +48,7 @@ vi.mock('@/features/auth/store/authStore', () => ({
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
   useLocation: () => ({ pathname: '/client/assets' }),
+  useInRouterContext: () => false,
 }));
 
 vi.mock('../api/documentApi', async (importOriginal) => {

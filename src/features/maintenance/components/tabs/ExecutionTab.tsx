@@ -31,7 +31,8 @@ import {
   useWorkLogs,
   useWorkOrderTransition,
 } from '../../hooks/useMaintenance';
-import { type WorkOrder } from '../../api/maintenanceApi';
+import { maintenanceApi, type WorkOrder } from '../../api/maintenanceApi';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 
 export interface ExecutionTabProps {
   workOrder: WorkOrder;
@@ -113,6 +114,8 @@ export function ExecutionTab({
   const [logHours, setLogHours] = useState('');
   const [logCondition, setLogCondition] = useState('');
   const [logReadings, setLogReadings] = useState('');
+  const [logProofFile, setLogProofFile] = useState<File | null>(null);
+  const [logProofUploading, setLogProofUploading] = useState(false);
 
   return (
     <Stack spacing={2.5}>
@@ -267,6 +270,28 @@ export function ExecutionTab({
                   </Typography>
                   <StatusChip status={log.status} />
                 </Stack>
+                {log.repairProofUrl && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      {t('Repair proof photo (AFTER_REPAIR):')}
+                    </Typography>
+                    {log.repairProofUrl.startsWith('/api/v1/') ? (
+                      <AuthenticatedImage
+                        src={log.repairProofUrl.replace(/^\/api\/v1/, '')}
+                        alt="Repair Proof"
+                        maxHeight={140}
+                        sx={{ borderRadius: '6px', objectFit: 'contain', bgcolor: '#000' }}
+                      />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={log.repairProofUrl}
+                        alt="Repair Proof"
+                        sx={{ maxHeight: 140, borderRadius: '6px', objectFit: 'contain' }}
+                      />
+                    )}
+                  </Box>
+                )}
                 {isEngineer && (log.status === 'IN_PROGRESS' || log.status === 'DRAFT') ? (
                   <LoadingButton
                     size="small"
@@ -380,6 +405,34 @@ export function ExecutionTab({
                 value={logReadings}
                 onChange={(e) => setLogReadings(e.target.value)}
               />
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  component="label"
+                  sx={{ textTransform: 'none', borderRadius: '8px' }}
+                >
+                  {logProofFile
+                    ? `${t('Attached')}: ${logProofFile.name}`
+                    : t('Attach Repair Proof Photo (BEFORE/AFTER)')}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    onChange={(e) => setLogProofFile(e.target.files?.[0] ?? null)}
+                  />
+                </Button>
+                {logProofFile && (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() => setLogProofFile(null)}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {t('Remove')}
+                  </Button>
+                )}
+              </Stack>
               <MutationProblemAlert
                 error={recordWork.error}
                 isError={recordWork.isError}
@@ -388,23 +441,38 @@ export function ExecutionTab({
               <LoadingButton
                 size="small"
                 variant="contained"
-                loading={recordWork.isPending}
+                loading={recordWork.isPending || logProofUploading}
                 disabled={!(logTaskId || tasks.data?.[0]?.id) || !logHours || Number(logHours) <= 0}
-                onClick={() => {
+                onClick={async () => {
                   const effectiveTaskId = logTaskId || tasks.data?.[0]?.id;
                   if (!effectiveTaskId) return;
+                  let uploadedProofUrl: string | null = null;
+                  if (logProofFile) {
+                    setLogProofUploading(true);
+                    try {
+                      const uploaded = await maintenanceApi.uploadRepairProof(
+                        workOrder.id,
+                        logProofFile,
+                      );
+                      uploadedProofUrl = uploaded.repairProofUrl;
+                    } finally {
+                      setLogProofUploading(false);
+                    }
+                  }
                   recordWork.mutate(
                     {
                       taskId: effectiveTaskId,
                       hours: Number(logHours),
                       asLeftCondition: logCondition.trim() || null,
                       testReadings: logReadings.trim() || null,
+                      repairProofUrl: uploadedProofUrl,
                     },
                     {
                       onSuccess: () => {
                         setLogHours('');
                         setLogCondition('');
                         setLogReadings('');
+                        setLogProofFile(null);
                       },
                     },
                   );

@@ -41,6 +41,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { MetricCard } from '@/shared/ui/MetricCard';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import type { Asset } from '../api/assetApi';
 import { documentApi, type AssetDocument } from '../api/documentApi';
 import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments';
@@ -136,15 +137,14 @@ export function AssetsPage() {
       startIcon={<Add />}
       onClick={() => setCreateOpen(true)}
       sx={{
-        borderRadius: '10px',
-        px: 2.5,
-        py: 1,
+        borderRadius: '8px',
+        px: 2,
+        py: 0.875,
         bgcolor: 'primary.main',
         fontSize: '0.875rem',
         fontWeight: 600,
         textTransform: 'none',
         boxShadow: 'none',
-        '&:hover': { bgcolor: 'primary.dark', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
       }}
     >
       {t('New asset')}
@@ -239,7 +239,20 @@ export function AssetsPage() {
             ? getErrorMessage(createAsset.error, 'Could not create the asset.')
             : null
         }
-        onSubmit={(input) => createAsset.mutate(input, { onSuccess: () => setCreateOpen(false) })}
+        onSubmit={(input, initialPhoto) =>
+          createAsset.mutate(input, {
+            onSuccess: async (created) => {
+              if (initialPhoto && created?.id) {
+                try {
+                  await documentApi.upload(created.id, initialPhoto, 'OWNERSHIP');
+                } catch {
+                  // Photo can still be uploaded from the detail drawer
+                }
+              }
+              setCreateOpen(false);
+            },
+          })
+        }
       />
 
       <AssetDetailDrawer
@@ -263,16 +276,19 @@ interface CreateAssetDialogProps {
   categories: { id: string; name: string; active: boolean }[];
   pending: boolean;
   errorMessage: string | null;
-  onSubmit: (input: {
-    name: string;
-    code: string;
-    description: string | null;
-    categoryId: string;
-    locationText: string;
-    latitude: number | null;
-    longitude: number | null;
-    inspectionItems: string[];
-  }) => void;
+  onSubmit: (
+    input: {
+      name: string;
+      code: string;
+      description: string | null;
+      categoryId: string;
+      locationText: string;
+      latitude: number | null;
+      longitude: number | null;
+      inspectionItems: string[];
+    },
+    initialPhoto?: File | null,
+  ) => void;
 }
 
 function generateRandomAssetCode(): string {
@@ -300,9 +316,19 @@ function CreateAssetDialogForm({
   const [latitudeText, setLatitudeText] = useState('10.7789');
   const [longitudeText, setLongitudeText] = useState('106.7082');
   const [description, setDescription] = useState('');
+  const [initialPhoto, setInitialPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsFeedback, setGpsFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
 
   const handleGetCurrentGpsLocation = () => {
     setGpsFeedback(null);
@@ -353,16 +379,19 @@ function CreateAssetDialogForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    onSubmit({
-      code,
-      name,
-      categoryId,
-      locationText,
-      latitude: parsedLat,
-      longitude: parsedLon,
-      description: description || null,
-      inspectionItems: [],
-    });
+    onSubmit(
+      {
+        code,
+        name,
+        categoryId,
+        locationText,
+        latitude: parsedLat,
+        longitude: parsedLon,
+        description: description || null,
+        inspectionItems: [],
+      },
+      initialPhoto,
+    );
   };
 
   return (
@@ -556,6 +585,71 @@ function CreateAssetDialogForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+
+          <Box
+            sx={{
+              p: 1.75,
+              borderRadius: '10px',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.default',
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 650, color: 'text.primary' }}>
+                  {t('Asset photo (optional)')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Attach a reference photo of the structure so reviewers and pilots can identify it visually.')}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                component="label"
+                startIcon={<CloudUploadOutlined />}
+                sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+              >
+                {initialPhoto ? initialPhoto.name : t('Choose image')}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] ?? null;
+                    if (photoPreviewUrl) {
+                      URL.revokeObjectURL(photoPreviewUrl);
+                    }
+                    setInitialPhoto(nextFile);
+                    setPhotoPreviewUrl(nextFile ? URL.createObjectURL(nextFile) : null);
+                  }}
+                />
+              </Button>
+            </Stack>
+            {photoPreviewUrl && (
+              <Box sx={{ mt: 1.5 }}>
+                <Box
+                  component="img"
+                  src={photoPreviewUrl}
+                  alt={name || t('Asset preview')}
+                  sx={{
+                    width: '100%',
+                    maxHeight: 200,
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    display: 'block',
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -905,8 +999,21 @@ function AssetDetailDrawer({
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
   const [documentDate, setDocumentDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+      }
+    };
+  }, [filePreviewUrl]);
+
+  const primaryImageDoc = (documents.data ?? []).find((doc) =>
+    doc.contentType?.toLowerCase().startsWith('image/'),
+  );
   // A blob URL outlives this component unless it is revoked, and a download that resolves after the
   // drawer closed must not write state that no longer has a home.
   const liveObjectUrls = useRef<Set<string>>(new Set());
@@ -996,6 +1103,25 @@ function AssetDetailDrawer({
           {asset?.code} · {formatLocation(asset?.locationText ?? null)}
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
+        {asset && primaryImageDoc && (
+          <Box
+            sx={{
+              my: 1.5,
+              borderRadius: '10px',
+              overflow: 'hidden',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.default',
+            }}
+          >
+            <AuthenticatedImage
+              src={`/assets/${asset.id}/documents/${primaryImageDoc.id}/content`}
+              alt={asset.name}
+              maxHeight={220}
+              sx={{ width: '100%', height: 220, objectFit: 'cover', borderRadius: 0 }}
+            />
+          </Box>
+        )}
         {asset?.status === 'RETIRED' && (
           <Alert severity="info" sx={{ my: 1.5, borderRadius: '8px', fontSize: '0.875rem' }}>
             {t(
@@ -1097,9 +1223,36 @@ function AssetDetailDrawer({
                     hidden
                     type="file"
                     accept="image/png,image/jpeg,image/webp,application/pdf"
-                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                    onChange={(event) => {
+                      const selectedFile = event.target.files?.[0] ?? null;
+                      if (filePreviewUrl) {
+                        URL.revokeObjectURL(filePreviewUrl);
+                      }
+                      setFile(selectedFile);
+                      setFilePreviewUrl(
+                        selectedFile && selectedFile.type.startsWith('image/')
+                          ? URL.createObjectURL(selectedFile)
+                          : null,
+                      );
+                    }}
                   />
                 </Button>
+                {filePreviewUrl && (
+                  <Box
+                    component="img"
+                    src={filePreviewUrl}
+                    alt={file?.name ?? 'Selected image preview'}
+                    sx={{
+                      width: '100%',
+                      maxHeight: 180,
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      display: 'block',
+                    }}
+                  />
+                )}
                 {upload.isError && (
                   <Alert severity="error">{getErrorMessage(upload.error, 'Upload failed.')}</Alert>
                 )}
@@ -1114,7 +1267,15 @@ function AssetDetailDrawer({
                         documentType,
                         ...(documentDate ? { documentDate } : {}),
                       },
-                      { onSuccess: () => setFile(null) },
+                      {
+                        onSuccess: () => {
+                          if (filePreviewUrl) {
+                            URL.revokeObjectURL(filePreviewUrl);
+                          }
+                          setFile(null);
+                          setFilePreviewUrl(null);
+                        },
+                      },
                     );
                   }}
                 >

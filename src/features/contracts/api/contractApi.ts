@@ -248,6 +248,30 @@ export const contractApi = {
     return data;
   },
 
+  async confirmOccurrencePayment(
+    requestId: string,
+    occurrenceId: string,
+    input: { paymentReference: string; amount: number },
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/confirm-payment`,
+      input,
+    );
+    return data;
+  },
+
+  async recordOccurrencePayout(
+    requestId: string,
+    occurrenceId: string,
+    input: { payoutReference: string },
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/record-payout`,
+      input,
+    );
+    return data;
+  },
+
   async listPartnerInspectors(): Promise<PartnerInspector[]> {
     const { data } = await api.get<PartnerInspector[]>('/contracts/partners/inspectors');
     return data;

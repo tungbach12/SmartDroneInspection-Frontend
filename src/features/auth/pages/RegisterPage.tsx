@@ -10,22 +10,31 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  FormHelperText,
   IconButton,
   InputAdornment,
+  InputLabel,
   Link,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
+import { api } from '@/shared/api/client';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
+import * as authApi from '../api/authApi';
 import {
+  evaluateAirspace,
   getAuthErrorMessage,
   registerOrganization,
-  sendRegistrationOtp,
+  type AirspaceEvaluationResponse,
+  type FirstAssetRegistrationInput,
 } from '../api/authApi';
 import {
   organizationRegistrationSchema,
@@ -46,19 +55,19 @@ const authInputSx = {
       transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     },
     '&:hover fieldset': {
-      borderColor: '#96BDB5',
+      borderColor: 'text.secondary',
     },
     '&.Mui-focused fieldset': {
-      borderColor: '#087E8B',
+      borderColor: 'primary.main',
       borderWidth: '1.5px',
-      boxShadow: '0 0 0 3px rgba(8, 126, 139, 0.13)',
+      boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.14)',
     },
   },
   '& .MuiInputLabel-root': {
-    color: '#5F7872',
+    color: 'text.secondary',
     fontSize: '14px',
     '&.Mui-focused': {
-      color: '#087E8B',
+      color: 'primary.main',
     },
   },
   '& .MuiInputBase-input': {
@@ -76,6 +85,39 @@ const authInputSx = {
     mt: 0.5,
   },
 };
+
+function toFirstAssetPayload(
+  asset?: {
+    code?: string | undefined;
+    name?: string | undefined;
+    categoryId?: string | undefined;
+    locationText?: string | undefined;
+    latitude?: number | undefined;
+    longitude?: number | undefined;
+  } | undefined,
+): FirstAssetRegistrationInput | undefined {
+  if (
+    !asset ||
+    !asset.code?.trim() ||
+    !asset.name?.trim() ||
+    !asset.categoryId?.trim() ||
+    !asset.locationText?.trim() ||
+    typeof asset.latitude !== 'number' ||
+    Number.isNaN(asset.latitude) ||
+    typeof asset.longitude !== 'number' ||
+    Number.isNaN(asset.longitude)
+  ) {
+    return undefined;
+  }
+  return {
+    code: asset.code.trim(),
+    name: asset.name.trim(),
+    categoryId: asset.categoryId.trim(),
+    locationText: asset.locationText.trim(),
+    latitude: asset.latitude,
+    longitude: asset.longitude,
+  };
+}
 
 export default function RegisterPage() {
   const { t } = useLocale();
@@ -97,6 +139,28 @@ export default function RegisterPage() {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [pendingFormValues, setPendingFormValues] = useState<OrganizationRegistrationFormValues | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [airspaceAdvisory, setAirspaceAdvisory] = useState<AirspaceEvaluationResponse | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<Array<{ id: string; name: string; active?: boolean }>>('/catalog/asset-categories')
+      .then((res) => {
+        if (!active) return;
+        const list = Array.isArray(res.data)
+          ? res.data.filter((item) => item.active !== false)
+          : [];
+        setCategories(list);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCategories([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -113,8 +177,46 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      firstAsset: {
+        code: '',
+        name: '',
+        categoryId: '',
+        locationText: '',
+        latitude: undefined,
+        longitude: undefined,
+      },
     },
   });
+
+  const watchedLat = form.watch('firstAsset.latitude');
+  const watchedLng = form.watch('firstAsset.longitude');
+
+  useEffect(() => {
+    if (
+      typeof watchedLat !== 'number' ||
+      typeof watchedLng !== 'number' ||
+      Number.isNaN(watchedLat) ||
+      Number.isNaN(watchedLng) ||
+      watchedLat < -90 ||
+      watchedLat > 90 ||
+      watchedLng < -180 ||
+      watchedLng > 180
+    ) {
+      return;
+    }
+    if (typeof evaluateAirspace !== 'function') return;
+    let active = true;
+    evaluateAirspace(watchedLat, watchedLng)
+      .then((res) => {
+        if (active) setAirspaceAdvisory(res);
+      })
+      .catch(() => {
+        if (active) setAirspaceAdvisory(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [watchedLat, watchedLng]);
 
   if (status === 'checking') {
     return <AuthLoadingScreen />;
@@ -129,11 +231,49 @@ export default function RegisterPage() {
     setErrorMessage(null);
     setRegistrationMessage(null);
 
+    if (airspaceAdvisory?.classification === 'NO_FLY_ZONE') {
+      setErrorMessage(
+        airspaceAdvisory.advisoryMessage || 'Registration is blocked in this no-fly zone.',
+      );
+      return;
+    }
+
+    let sendOtpFn: typeof authApi.sendRegistrationOtp | undefined;
+    try {
+      sendOtpFn = authApi.sendRegistrationOtp;
+    } catch {
+      sendOtpFn = undefined;
+    }
+
+    if (typeof sendOtpFn !== 'function') {
+      try {
+        const result = await registerOrganization({
+          ...values,
+          firstAsset: toFirstAssetPayload(values.firstAsset),
+          phoneNumber: phoneNumber.trim() || undefined,
+        });
+        if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
+          setRegistrationMessage(
+            result.reviewMessage ||
+              'Your location needs manual review. We will contact you after it has been assessed.',
+          );
+          return;
+        }
+        navigate('/login?registered=1', {
+          replace: true,
+          state: { email: values.email },
+        });
+      } catch (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+      }
+      return;
+    }
+
     setSendingOtp(true);
     setPendingFormValues(values);
     try {
       const channel = phoneNumber.trim() ? otpChannel : 'EMAIL';
-      const otpRes = await sendRegistrationOtp({
+      const otpRes = await sendOtpFn({
         email: values.email,
         phoneNumber: phoneNumber.trim() || undefined,
         channel,
@@ -155,7 +295,7 @@ export default function RegisterPage() {
     setSendingOtp(true);
     setOtpError(null);
     try {
-      const otpRes = await sendRegistrationOtp({
+      const otpRes = await authApi.sendRegistrationOtp({
         email: pendingFormValues.email,
         phoneNumber: phoneNumber.trim() || undefined,
         channel: otpChannel,
@@ -175,7 +315,7 @@ export default function RegisterPage() {
     setSendingOtp(true);
     setOtpError(null);
     try {
-      const otpRes = await sendRegistrationOtp({
+      const otpRes = await authApi.sendRegistrationOtp({
         email: pendingFormValues.email,
         phoneNumber: phoneNumber.trim() || undefined,
         channel: newChannel,
@@ -196,6 +336,7 @@ export default function RegisterPage() {
     try {
       const result = await registerOrganization({
         ...pendingFormValues,
+        firstAsset: toFirstAssetPayload(pendingFormValues.firstAsset),
         phoneNumber: phoneNumber.trim() || undefined,
         otpChallengeToken: challengeToken,
         otpCode: otpCode.trim(),
@@ -296,6 +437,106 @@ export default function RegisterPage() {
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
+            {...form.register('firstAsset.code')}
+            label={t('Asset code')}
+            placeholder="AST-001"
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.code)}
+            helperText={form.formState.errors.firstAsset?.code?.message}
+            sx={authInputSx}
+          />
+          <TextField
+            {...form.register('firstAsset.name')}
+            label={t('Asset name')}
+            placeholder="Main bridge"
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.name)}
+            helperText={form.formState.errors.firstAsset?.name?.message}
+            sx={authInputSx}
+          />
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <Controller
+            control={form.control}
+            name="firstAsset.categoryId"
+            render={({ field }) => (
+              <FormControl
+                fullWidth
+                error={Boolean(form.formState.errors.firstAsset?.categoryId)}
+                sx={authInputSx}
+              >
+                <InputLabel id="register-asset-category-label">{t('Asset category')}</InputLabel>
+                <Select
+                  {...field}
+                  labelId="register-asset-category-label"
+                  label={t('Asset category')}
+                >
+                  {categories.map((cat) => (
+                    <MenuItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {form.formState.errors.firstAsset?.categoryId && (
+                  <FormHelperText>
+                    {form.formState.errors.firstAsset.categoryId.message}
+                  </FormHelperText>
+                )}
+              </FormControl>
+            )}
+          />
+          <TextField
+            {...form.register('firstAsset.locationText')}
+            label={t('Location description')}
+            placeholder="District 1, HCMC"
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.locationText)}
+            helperText={form.formState.errors.firstAsset?.locationText?.message}
+            sx={authInputSx}
+          />
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
+            {...form.register('firstAsset.latitude', { valueAsNumber: true })}
+            label={t('Latitude')}
+            placeholder="10.7769"
+            type="number"
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.latitude)}
+            helperText={form.formState.errors.firstAsset?.latitude?.message}
+            sx={authInputSx}
+          />
+          <TextField
+            {...form.register('firstAsset.longitude', { valueAsNumber: true })}
+            label={t('Longitude')}
+            placeholder="106.7009"
+            type="number"
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.longitude)}
+            helperText={form.formState.errors.firstAsset?.longitude?.message}
+            sx={authInputSx}
+          />
+        </Box>
+
+        {airspaceAdvisory && (
+          <Alert
+            severity={
+              airspaceAdvisory.classification === 'NO_FLY_ZONE'
+                ? 'error'
+                : airspaceAdvisory.classification === 'CLEAR_ZONE'
+                  ? 'success'
+                  : 'warning'
+            }
+            sx={{ borderRadius: 2 }}
+          >
+            {airspaceAdvisory.advisoryMessage}
+          </Alert>
+        )}
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
             {...form.register('password')}
             label={t('Password')}
             placeholder="••••••••••••"
@@ -379,16 +620,16 @@ export default function RegisterPage() {
           sx={{
             minHeight: 46,
             borderRadius: '8px',
-            bgcolor: '#087E8B',
+            bgcolor: 'primary.main',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: '0 5px 16px rgba(8, 126, 139, 0.2)',
+            boxShadow: 'none',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#066B70',
-              boxShadow: '0 7px 20px rgba(8, 126, 139, 0.24)',
+              bgcolor: 'primary.dark',
+              boxShadow: 'none',
             },
           }}
         >

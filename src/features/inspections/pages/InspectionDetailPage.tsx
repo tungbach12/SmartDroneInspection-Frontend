@@ -496,21 +496,13 @@ export default function InspectionDetailPage() {
     if (step.value === 'report' && !findingsComplete) return 'blocked';
     if (step.value === 'corrective' && !hasPublishedVersion) return 'blocked';
     if (tabValue === step.value) return 'active';
-    if (
-      step.value === 'permit' ||
-      step.value === 'pre-flight' ||
-      step.value === 'field-session' ||
-      step.value === 'post-flight' ||
-      step.value === 'evidence' ||
-      step.value === 'findings' ||
-      step.value === 'report' ||
-      step.value === 'corrective' ||
-      step.value === 'audit' ||
-      step.value === 'review' ||
-      step.value === 'settlement'
-    ) {
-      return 'ready';
-    }
+    if (step.value === 'permit' || step.value === 'field-session' || step.value === 'audit' || step.value === 'review' || step.value === 'settlement') return 'ready';
+    if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
+    if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
+    if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
+    if (step.value === 'findings') return (isReinspection ? isFieldWorkComplete : hasEvidence) ? 'ready' : 'blocked';
+    if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
+    if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
     return 'pending';
   };
 
@@ -527,7 +519,8 @@ export default function InspectionDetailPage() {
     if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
-    if (step.value === 'findings' && !hasEvidence) return t('Upload evidence to review findings.');
+    if (step.value === 'findings' && isReinspection && !isFieldWorkComplete) return t('Complete the re-inspection flight session before verifying target defects.');
+    if (step.value === 'findings' && !isReinspection && !hasEvidence) return t('Upload evidence to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
     if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
     return null;

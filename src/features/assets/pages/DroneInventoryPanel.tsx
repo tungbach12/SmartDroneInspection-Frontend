@@ -30,6 +30,7 @@ import {
   useDrones,
   useUpdateDroneServiceability,
 } from '../hooks/useDrones';
+import { classifyDroneByMtow } from '../utils/droneClassification';
 
 const SERVICEABILITY_VALUES: DroneServiceability[] = [
   'ACTIVE',
@@ -64,6 +65,29 @@ export function DroneInventoryPanel() {
       render: (drone) => drone.serialNumber,
     },
     { id: 'model', label: 'Model', render: (drone) => drone.model || '—' },
+    {
+      id: 'category',
+      label: 'MTOW Category (NĐ 288)',
+      render: (drone) => {
+        const tier = classifyDroneByMtow(
+          [drone.model, drone.payloadMetadata].filter(Boolean).join(' '),
+        );
+        return (
+          <Stack spacing={0.25}>
+            <Chip
+              size="small"
+              label={tier.shortLabel}
+              color={tier.requiresClassB ? 'warning' : 'success'}
+              variant="outlined"
+              sx={{ width: 'fit-content', fontWeight: 600, fontSize: '0.72rem' }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {tier.requiredLicenseLabel}
+            </Typography>
+          </Stack>
+        );
+      },
+    },
     {
       id: 'manufacturer',
       label: 'Manufacturer',

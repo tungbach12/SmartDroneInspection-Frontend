@@ -37,6 +37,10 @@ export interface DroneRegistrationApplication {
   model: string | null;
   manufacturer: string | null;
   registrationNumber: string;
+  registrationFileKey?: string | null;
+  registrationExpiresAt?: string | null;
+  ownershipFileKey?: string | null;
+  inspectionFileKey?: string | null;
   status: string;
   reviewNote: string | null;
   droneId: string | null;
@@ -54,6 +58,11 @@ export interface InspectorDrone {
   inspectorOwnerId?: string | null;
   inspectorFullName?: string | null;
   inspectorEmail?: string | null;
+  mtowKg?: number | null;
+  legalCategory?: string | null;
+  requiredLicenseClass?: string | null;
+  registrationExpirationStatus?: string | null;
+  registrationRemainingDays?: number | null;
 }
 
 function unwrap<T>(value: T | { data: T }): T {
@@ -65,6 +74,8 @@ function unwrap<T>(value: T | { data: T }): T {
 export const mf1DroneApi = {
   submit: (input: DroneRegistrationInput) =>
     api.post<DroneRegistrationApplication | { data: DroneRegistrationApplication }>('/drone-registration-applications', input).then((response) => unwrap(response.data)),
+  resubmit: (id: string, input: DroneRegistrationInput) =>
+    api.post<DroneRegistrationApplication | { data: DroneRegistrationApplication }>(`/drone-registration-applications/${id}/resubmit`, input).then((response) => unwrap(response.data)),
   mine: () =>
     api.get<DroneRegistrationApplication[] | { data: DroneRegistrationApplication[] }>('/drone-registration-applications/mine').then((response) => unwrap(response.data)),
   drones: () =>

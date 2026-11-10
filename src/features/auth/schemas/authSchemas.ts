@@ -11,26 +11,30 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password.').max(128),
 });
 
-export const firstAssetSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(1, 'Asset code is required.')
-    .max(64, 'Asset code must be 64 characters or fewer.'),
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Asset name is required.')
-    .max(200, 'Asset name must be 200 characters or fewer.'),
-  categoryId: z.string().min(1, 'Asset category is required.'),
-  locationText: z
-    .string()
-    .trim()
-    .min(1, 'Location description is required.')
-    .max(500, 'Location must be 500 characters or fewer.'),
-  latitude: z.number().min(-90, 'Latitude must be >= -90.').max(90, 'Latitude must be <= 90.'),
-  longitude: z.number().min(-180, 'Longitude must be >= -180.').max(180, 'Longitude must be <= 180.'),
-});
+const strongPasswordField = z
+  .string()
+  .min(8, 'Use at least 8 characters.')
+  .max(128, 'Password must be 128 characters or fewer.')
+  .refine(
+    (val) =>
+      val.length >= 20 ||
+      (/[A-Z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)),
+    {
+      message:
+        'Password must be at least 20 characters or contain uppercase, number, and special character.',
+    },
+  );
+
+export const firstAssetSchema = z
+  .object({
+    code: z.string().trim().max(64, 'Asset code must be 64 characters or fewer.').optional(),
+    name: z.string().trim().max(200, 'Asset name must be 200 characters or fewer.').optional(),
+    categoryId: z.string().optional(),
+    locationText: z.string().trim().max(500, 'Location must be 500 characters or fewer.').optional(),
+    latitude: z.number().min(-90, 'Latitude must be >= -90.').max(90, 'Latitude must be <= 90.').optional().or(z.nan()),
+    longitude: z.number().min(-180, 'Longitude must be >= -180.').max(180, 'Longitude must be <= 180.').optional().or(z.nan()),
+  })
+  .optional();
 
 export const organizationRegistrationSchema = z
   .object({
@@ -53,13 +57,7 @@ export const organizationRegistrationSchema = z
       ),
     email: emailField,
     phoneNumber: z.string().trim().max(32).optional(),
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    password: strongPasswordField,
     confirmPassword: z.string(),
     firstAsset: firstAssetSchema.optional(),
   })
@@ -71,13 +69,7 @@ export const organizationRegistrationSchema = z
 export const passwordSetupSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter the temporary password.'),
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    password: strongPasswordField,
     confirmPassword: z.string(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -88,13 +80,7 @@ export const passwordSetupSchema = z
 export const passwordChangeSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter your current password.'),
-    newPassword: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    newPassword: strongPasswordField,
     confirmPassword: z.string(),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

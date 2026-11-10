@@ -285,7 +285,7 @@ export function AuthPageLayout({
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
-                    color: '#087E8B',
+                    color: 'primary.main',
                     mb: 0.5,
                   }}
                 >
@@ -298,7 +298,7 @@ export function AuthPageLayout({
                   fontSize: { xs: '28px', sm: '34px' },
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
-                  color: '#173B36',
+                  color: 'text.primary',
                   lineHeight: 1.2,
                   mb: 0.75,
                 }}
@@ -310,7 +310,7 @@ export function AuthPageLayout({
                 <Typography
                   sx={{
                     fontSize: '14px',
-                    color: '#5F7872',
+                    color: 'text.secondary',
                     lineHeight: 1.5,
                   }}
                 >
@@ -321,10 +321,10 @@ export function AuthPageLayout({
                       to={subtitleLinkTo}
                       underline="hover"
                       sx={{
-                        color: '#087E8B',
+                        color: 'primary.main',
                         fontWeight: 600,
                         transition: 'color 0.2s ease',
-                        '&:hover': { color: '#066B70' },
+                        '&:hover': { color: 'primary.dark' },
                       }}
                     >
                       {subtitleLinkText}

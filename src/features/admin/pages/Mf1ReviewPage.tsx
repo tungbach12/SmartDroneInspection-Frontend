@@ -50,6 +50,63 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
+function classifyDroneLegalTier(rawText?: string | null): {
+  categoryLabel: string;
+  requiredPilotLicenseLabel: string;
+  requiresClassB: boolean;
+} {
+  const text = (rawText ?? '').toLowerCase();
+  const match = rawText?.match(/(?:MTOW:\s*)?(\d+(?:[.,]\d+)?)\s*(?:kg)?/i);
+  const parsedMtow = match?.[1] ? Number(match[1].replace(',', '.')) : NaN;
+  const mtow =
+    Number.isFinite(parsedMtow) && parsedMtow > 0
+      ? parsedMtow
+      : text.includes('matrice') ||
+          text.includes('m300') ||
+          text.includes('m350') ||
+          text.includes('m30') ||
+          text.includes('inspire') ||
+          text.includes('agras')
+        ? 9.2
+        : text.includes('mini')
+          ? 0.249
+          : 0.92;
+
+  if (mtow < 0.25) {
+    return {
+      categoryLabel: 'Loại 1 (< 0.25 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng A',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 2) {
+    return {
+      categoryLabel: 'Loại 2 (0.25 – < 2 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng A / B',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 25) {
+    return {
+      categoryLabel: 'Loại 3 (2 – < 25 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+      requiresClassB: true,
+    };
+  }
+  if (mtow < 150) {
+    return {
+      categoryLabel: 'Loại 4 (25 – < 150 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+      requiresClassB: true,
+    };
+  }
+  return {
+    categoryLabel: 'Loại 5 (≥ 150 kg)',
+    requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+    requiresClassB: true,
+  };
+}
+
 const ALL_PANELS = [
   'Drone registrations',
   'Drone history',
@@ -464,14 +521,38 @@ export default function Mf1ReviewPage() {
                             </Typography>
                             {droneApp.inspectorPilotLicenseNumber && (
                               <Chip
-                                label={`${tr('Bằng lái', 'License')}: ${droneApp.inspectorPilotLicenseNumber}`}
+                                label={`${tr('Bằng lái', 'License')}: ${droneApp.inspectorPilotLicenseNumber}${droneApp.inspectorPilotLicenseClass ? ` (${droneApp.inspectorPilotLicenseClass === 'CLASS_A' ? 'Hạng A < 2 kg' : 'Hạng B ≥ 2 kg'})` : ''}`}
                                 size="small"
                                 color="info"
                                 variant="outlined"
                                 sx={{ height: 22, fontSize: '0.75rem' }}
                               />
                             )}
+                            {(() => {
+                              const tier = classifyDroneLegalTier(droneApp.model);
+                              return (
+                                <Chip
+                                  label={`${tier.categoryLabel} · Yêu cầu ${tier.requiredPilotLicenseLabel}`}
+                                  size="small"
+                                  color={tier.requiresClassB ? 'warning' : 'success'}
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '11px', fontWeight: 600 }}
+                                />
+                              );
+                            })()}
                           </Box>
+
+                          {(() => {
+                            const tier = classifyDroneLegalTier(droneApp.model);
+                            if (tier.requiresClassB && droneApp.inspectorPilotLicenseClass === 'CLASS_A') {
+                              return (
+                                <Alert severity="warning" sx={{ mb: 1.5, py: 0.5 }}>
+                                  <strong>Lưu ý pháp lý (Điều 27 NĐ 288/2025/NĐ-CP):</strong> Thiết bị thuộc {tier.categoryLabel} (MTOW ≥ 2 kg, bắt buộc <strong>Bằng lái Hạng B</strong>), nhưng hồ sơ của Inspector hiện đang khai báo <strong>Bằng Hạng A (&lt; 2 kg)</strong>. Cần cập nhật Bằng Hạng B trước khi điều phối bay ở WF-02.
+                                </Alert>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           <Box
                             sx={{
