@@ -443,7 +443,7 @@ describe('ReportDetailPage MF3 gates', () => {
     setRole(['CUSTOMER']);
     renderPage('/client/reports/inspection-1');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to review queue' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Review queue' }));
 
     expect(screen.getByTestId('location').textContent).toBe(
       '/client/inspections?view=reports',

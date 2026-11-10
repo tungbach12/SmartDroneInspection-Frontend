@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import {
   Link as RouterLink,
   Outlet,
@@ -10,45 +14,27 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
-  Divider,
+  Dialog,
   Drawer,
   IconButton,
-  InputAdornment,
+  InputBase,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
-  OutlinedInput,
-  Stack,
   Toolbar,
   Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import ApartmentIcon from '@mui/icons-material/Apartment';
-import CategoryIcon from '@mui/icons-material/Category';
-import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import FlightRounded from '@mui/icons-material/FlightRounded';
-import FactCheckIcon from '@mui/icons-material/FactCheck';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import BuildIcon from '@mui/icons-material/Build';
-import MenuIcon from '@mui/icons-material/Menu';
-import MenuOpenRounded from '@mui/icons-material/MenuOpenRounded';
-import GroupsIcon from '@mui/icons-material/Groups';
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
-import SearchRounded from '@mui/icons-material/SearchRounded';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import {
   canAccessSection,
   getAvailablePortals,
-  getPageLabel,
   getPortalLabel,
   getSectionLabel,
   getSectionPath,
@@ -56,16 +42,31 @@ import {
   type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { layoutTokens } from '@/app/theme/tokens';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   getAuthErrorMessage,
   logoutCurrentSession,
 } from '@/features/auth/api/authApi';
 import { useToastStore } from '@/shared/ui/Toast';
-import { ColorModeToggle } from '@/shared/ui/ColorModeToggle';
+import {
+  NextAdminCalendarIcon,
+  NextAdminChartsIcon,
+  NextAdminChevronDownIcon,
+  NextAdminFormsIcon,
+  NextAdminHomeIcon,
+  NextAdminInvoiceIcon,
+  NextAdminLogoMark,
+  NextAdminPagesIcon,
+  NextAdminProfileIcon,
+  NextAdminSearchIcon,
+  NextAdminSidebarToggleIcon,
+  NextAdminTablesIcon,
+  NextAdminTaskIcon,
+  NextAdminTeamIcon,
+} from '@/shared/ui/NextAdminIcons';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { LocaleToggle } from '@/shared/i18n/LocaleToggle';
 import { useQueryClient } from '@tanstack/react-query';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import {
@@ -76,18 +77,20 @@ import {
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
 const NAV_ITEMS = [
-  { section: 'dashboard', icon: <DashboardIcon /> },
-  { section: 'contracts', icon: <AssignmentIcon /> },
-  { section: 'schedule', icon: <CalendarMonthOutlinedIcon />, path: '/operations/inspections?view=calendar' },
-  { section: 'assets', icon: <ApartmentIcon /> },
-  { section: 'asset-catalog', icon: <CategoryIcon /> },
-  { section: 'inspections', icon: <FlightTakeoffIcon /> },
-  { section: 'inspector-drones', icon: <FlightRounded /> },
-  { section: 'onboarding-reviews', icon: <FactCheckIcon /> },
-  { section: 'maintenance', icon: <BuildIcon /> },
-  { section: 'workforce', icon: <GroupsIcon /> },
-  { section: 'platform-users', icon: <ManageAccountsIcon /> },
-  { section: 'settings', icon: <SettingsOutlined /> },
+  { section: 'dashboard', icon: <NextAdminHomeIcon /> },
+  { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
+  { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
+  { section: 'assets', icon: <NextAdminTablesIcon /> },
+  { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
+  { section: 'inspections', icon: <NextAdminTaskIcon /> },
+  { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
+  { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
+  { section: 'maintenance', icon: <NextAdminTaskIcon /> },
+  { section: 'workforce', icon: <NextAdminTeamIcon /> },
+  { section: 'platform-users', icon: <NextAdminProfileIcon /> },
+  { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
+  { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },
+  { section: 'settings', icon: <NextAdminProfileIcon /> },
 ] as const;
 
 interface AppShellProps {
@@ -97,6 +100,7 @@ interface AppShellProps {
 export function AppShell({ portal }: AppShellProps) {
   const { locale, t } = useLocale();
   const theme = useTheme();
+  const isDark = useIsDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -112,6 +116,8 @@ export function AppShell({ portal }: AppShellProps) {
       return true;
     }
   });
+
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleNav = () => {
     if (isDesktop) {
@@ -139,8 +145,11 @@ export function AppShell({ portal }: AppShellProps) {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const hasMatchMedia = typeof window !== 'undefined' && typeof window.matchMedia === 'function';
+  const isNavOpen = !hasMatchMedia || isDesktop ? navVisible : mobileOpen;
+  const [navFilter, setNavFilter] = useState('');
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [activeSearchIdx, setActiveSearchIdx] = useState(0);
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const roles = useAuthStore((state) => state.roles);
@@ -149,15 +158,91 @@ export function AppShell({ portal }: AppShellProps) {
   const email = useAuthStore((state) => state.email);
   const clearSession = useAuthStore((state) => state.clearSession);
   const showToast = useToastStore((state) => state.showToast);
-  const visibleNavigation = NAV_ITEMS.filter(({ section }) =>
-    section === 'schedule'
-      ? portal === 'operations' &&
-        roles.includes('INSPECTOR') &&
-        t('Inspection Schedule').toLowerCase().includes(search.trim().toLowerCase())
-      : canAccessSection(portal, section, roles) &&
-        getSectionLabel(section, locale, portal).toLowerCase().includes(search.trim().toLowerCase()),
-  );
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setActiveSearchIdx(0);
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const roleFilteredNavigation = NAV_ITEMS.filter(({ section }) => {
+    if (section === 'schedule') {
+      return portal === 'operations' && roles.includes('INSPECTOR');
+    }
+    if (section === 'ai-settings') {
+      return portal === 'admin' && roles.includes('ADMIN');
+    }
+    return canAccessSection(portal, section, roles);
+  }).map((item) => {
+    const { section, icon } = item;
+    const path =
+      section === 'schedule'
+        ? '/operations/inspections?view=calendar'
+        : section === 'ai-settings'
+          ? '/admin/ai-settings'
+          : getSectionPath(
+              portal,
+              section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
+            );
+    const label =
+      section === 'schedule'
+        ? t('Inspection Schedule')
+        : section === 'ai-settings'
+          ? locale === 'vi'
+            ? 'Cấu hình AI'
+            : 'AI configuration'
+          : getSectionLabel(section, locale, portal);
+    return {
+      section,
+      icon,
+      path,
+      label,
+      parentLabel: section === 'dashboard' ? 'Dashboard' : undefined,
+      title: section === 'dashboard' ? getPortalLabel(portal, locale) : label,
+    };
+  });
+
+  const visibleNavigation = roleFilteredNavigation.filter((item) => {
+    const query = navFilter.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      item.label.toLowerCase().includes(query) ||
+      item.title.toLowerCase().includes(query) ||
+      (item.parentLabel !== undefined && item.parentLabel.toLowerCase().includes(query)) ||
+      item.path.toLowerCase().includes(query)
+    );
+  });
+
+  const handleSearchKeyDown = (e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSearchIdx((prev) => (prev + 1) % Math.max(1, visibleNavigation.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSearchIdx(
+        (prev) => (prev - 1 + Math.max(1, visibleNavigation.length)) % Math.max(1, visibleNavigation.length),
+      );
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const selectedItem = visibleNavigation[activeSearchIdx] ?? visibleNavigation[0];
+      if (selectedItem) {
+        navigate(selectedItem.path);
+        setSearchModalOpen(false);
+        setMobileOpen(false);
+      }
+    }
+  };
+
   const availablePortals = getAvailablePortals(roles);
+  const primaryRole = roles[0] ?? '';
+  const showSidebarToggleInDrawer = isDesktop ? navVisible : mobileOpen;
+  const showSidebarToggleInHeader = !showSidebarToggleInDrawer;
 
   const signOut = async () => {
     setSigningOut(true);
@@ -176,51 +261,125 @@ export function AppShell({ portal }: AppShellProps) {
   };
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', height: '100%', minHeight: 0, flexDirection: 'column' }}>
-      <Box sx={{ height: 64, px: 2.5, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        height: '100%',
+        minHeight: 0,
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Box
+        sx={{
+          px: 2,
+          pt: 3,
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}
+      >
         <Box
           component={RouterLink}
           to={getSectionPath(portal, 'dashboard')}
-          sx={{ display: 'flex', alignItems: 'center', gap: 1.25, color: 'text.primary', textDecoration: 'none', minWidth: 0 }}
-        >
-          <Box sx={{ width: 40, height: 40, overflow: 'hidden', display: 'grid', flexShrink: 0, placeItems: 'center', bgcolor: '#050605', borderRadius: 1.5 }}>
-            <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
-          </Box>
-          <Typography variant="subtitle2" noWrap sx={{ fontWeight: 650, letterSpacing: '-.025em' }}>
-            SDI
-          </Typography>
-        </Box>
-      </Box>
-
-      <Box sx={{ px: 2, pt: 1.5, pb: 2 }}>
-        <OutlinedInput
-          fullWidth
-          size="small"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t('Search')}
-          inputProps={{ 'aria-label': 'Search workspace navigation' }}
-          startAdornment={<InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment>}
           sx={{
-            height: 40,
-            bgcolor: 'action.hover',
-            fontSize: 13,
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            color: 'text.primary',
+            textDecoration: 'none',
+            minWidth: 0,
+            flex: 1,
           }}
-        />
+        >
+          <NextAdminLogoMark width={34} height={34} style={{ flexShrink: 0 }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.15 }}>
+            <Typography
+              component="span"
+              variant="subtitle2"
+              sx={{
+                fontSize: '0.9375rem',
+                fontWeight: 700,
+                letterSpacing: '-0.025em',
+                color: 'text.primary',
+                lineHeight: 1.15,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              SmartDrone
+            </Typography>
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: '#3758F9',
+                lineHeight: 1.2,
+                mt: 0.25,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              INSPECTION
+            </Typography>
+          </Box>
+        </Box>
+
+        {showSidebarToggleInDrawer && (
+          <IconButton
+            aria-label={isNavOpen ? t('Hide sidebar') : t('Show sidebar')}
+            onClick={toggleNav}
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: '8px',
+              color: 'text.secondary',
+              '&:hover': {
+                bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                color: 'text.primary',
+              },
+            }}
+          >
+            <NextAdminSidebarToggleIcon />
+          </IconButton>
+        )}
       </Box>
 
-      <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto' }}>
-        <Typography variant="caption" sx={{ px: 2.5, pb: 1, display: 'block', color: 'text.secondary' }}>
-          {getPortalLabel(portal, locale)}
+      <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto', px: 1.5, pt: 1 }}>
+        <Typography
+          component="div"
+          sx={{
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            color: '#71717A',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            px: 1.5,
+            mb: 1,
+          }}
+        >
+          MAIN MENU
         </Typography>
-        <List component="nav" aria-label={`${getPortalLabel(portal, locale)} navigation`} sx={{ px: 1.25, py: 0 }}>
+
+        <List
+          component="nav"
+          aria-label={`${getPortalLabel(portal, locale)} navigation`}
+          sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}
+        >
           {visibleNavigation.map((item) => {
             const { section, icon } = item;
-            const path = section === 'schedule'
-              ? '/operations/inspections?view=calendar'
-              : getSectionPath(portal, section as Exclude<typeof section, 'schedule'>);
+            const path =
+              section === 'schedule'
+                ? '/operations/inspections?view=calendar'
+                : section === 'ai-settings'
+                  ? '/admin/ai-settings'
+                  : getSectionPath(
+                      portal,
+                      section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
+                    );
             const isCalendarView =
               location.pathname.startsWith('/operations/inspections') &&
               new URLSearchParams(location.search).get('view') === 'calendar';
@@ -230,6 +389,14 @@ export function AppShell({ portal }: AppShellProps) {
                 : section === 'inspections'
                   ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) && !isCalendarView
                   : location.pathname === path;
+            const navLabel =
+              section === 'schedule'
+                ? t('Inspection Schedule')
+                : section === 'ai-settings'
+                  ? locale === 'vi'
+                    ? 'Cấu hình AI'
+                    : 'AI configuration'
+                  : getSectionLabel(section, locale, portal);
             return (
               <ListItemButton
                 key={section}
@@ -238,24 +405,57 @@ export function AppShell({ portal }: AppShellProps) {
                 selected={selected}
                 onClick={() => setMobileOpen(false)}
                 sx={{
-                  minHeight: 40,
-                  mb: 0.25,
-                  px: 1.25,
-                  borderRadius: 1.5,
-                  color: selected ? 'primary.main' : 'text.secondary',
-                  '& .MuiListItemIcon-root': { minWidth: 34, color: 'inherit' },
-                  '&.Mui-selected': {
-                    bgcolor: 'action.selected',
-                    color: 'primary.main',
-                    '&:hover': { bgcolor: 'action.selected' },
+                  borderRadius: '8px',
+                  py: '8px',
+                  px: '12px',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: selected ? 'text.primary' : 'text.secondary',
+                  bgcolor: selected
+                    ? isDark
+                      ? 'rgba(255,255,255,0.08)'
+                      : '#E4E4E7'
+                    : 'transparent',
+                  '& .MuiListItemIcon-root': {
+                    minWidth: 30,
+                    color: 'inherit',
                   },
-                  '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
+                  '&.Mui-selected': {
+                    bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E4E7',
+                    color: 'text.primary',
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.12)' : '#D4D4D8',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: selected
+                      ? isDark
+                        ? 'rgba(255,255,255,0.12)'
+                        : '#D4D4D8'
+                      : isDark
+                        ? 'rgba(255,255,255,0.04)'
+                        : 'rgba(0,0,0,0.04)',
+                    color: 'text.primary',
+                  },
+                  '&:focus-visible': {
+                    outline: '2px solid',
+                    outlineColor: 'primary.main',
+                    outlineOffset: 1,
+                  },
                 }}
               >
                 <ListItemIcon>{icon}</ListItemIcon>
                 <ListItemText
-                  primary={section === 'schedule' ? t('Inspection Schedule') : getSectionLabel(section, locale, portal)}
-                  slotProps={{ primary: { variant: 'body2', sx: { fontWeight: selected ? 650 : 500 } } }}
+                  primary={navLabel}
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        color: 'inherit',
+                      },
+                    },
+                  }}
                 />
               </ListItemButton>
             );
@@ -268,132 +468,141 @@ export function AppShell({ portal }: AppShellProps) {
         </List>
       </Box>
 
-      <Box sx={{ px: 1.5, pb: 1.25, flexShrink: 0 }}>
-        <Divider sx={{ mb: 1 }} />
-        {availablePortals.length > 1 && (
-          <Button component={RouterLink} to="/portals" fullWidth color="inherit" size="small" sx={{ justifyContent: 'flex-start', px: 1, mb: 0.5 }}>
-            {t('Switch workspace')}
-          </Button>
-        )}
+      <Box
+        sx={{
+          mx: 1.5,
+          mb: 2,
+          mt: 1.5,
+          p: 1,
+          borderRadius: '12px',
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider',
+          flexShrink: 0,
+        }}
+      >
         <Button
-          fullWidth
           color="inherit"
+          fullWidth
           aria-label={`${userName ?? 'Account'} ${email ?? ''}`.trim()}
           aria-haspopup="menu"
           aria-expanded={Boolean(accountMenuAnchor)}
           onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
-          sx={{ minHeight: 52, justifyContent: 'flex-start', gap: 1.25, px: 1, textAlign: 'left' }}
+          sx={{
+            p: 0.75,
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: 1.25,
+            textTransform: 'none',
+            textAlign: 'left',
+            color: 'text.primary',
+            '&:hover': {
+              bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#F4F4F5',
+            },
+          }}
         >
-          <Avatar src={user?.avatarUrl ?? undefined} aria-hidden="true" sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: 13, fontWeight: 650 }}>
-            {userName?.trim().charAt(0).toUpperCase() ?? <AccountCircleOutlined fontSize="small" />}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography component="span" variant="body2" noWrap sx={{ display: 'block', fontWeight: 650, color: 'text.primary' }}>
-              {userName ?? 'Signed-in user'}
-            </Typography>
-            <Typography component="span" variant="caption" noWrap sx={{ display: 'block', color: 'text.secondary' }}>
-              {email}
-            </Typography>
-          </Box>
-          <AccountCircleOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-        </Button>
-
-        <Divider sx={{ mb: 1 }} />
-
-        <Stack spacing={0.5}>
-          <Button
-            fullWidth
-            color="inherit"
-            startIcon={<LogoutRounded fontSize="small" />}
-            onClick={signOut}
-            disabled={signingOut}
-            aria-label={t('Sign out')}
+          <Avatar
+            src={user?.avatarUrl ?? undefined}
+            aria-hidden="true"
+            variant="rounded"
             sx={{
-              justifyContent: 'flex-start',
-              gap: 1.25,
-              px: 1,
-              minHeight: 40,
-              color: 'text.secondary',
-              fontSize: '0.8125rem',
+              width: 40,
+              height: 40,
+              borderRadius: '8px',
+              bgcolor: '#EFF3FF',
+              color: '#3758F9',
+              fontSize: '0.875rem',
               fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': { bgcolor: 'action.hover', color: 'error.main' },
+              flexShrink: 0,
             }}
           >
-            {signingOut ? t('Signing out…') : t('Sign out')}
+            {userName?.trim().charAt(0).toUpperCase() ?? (
+              <AccountCircleOutlined fontSize="small" />
+            )}
+          </Avatar>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              component="div"
+              noWrap
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'text.primary',
+                lineHeight: 1.3,
+              }}
+            >
+              {userName ?? 'Signed-in user'}
+            </Typography>
+            <Typography
+              component="div"
+              noWrap
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                lineHeight: 1.3,
+              }}
+            >
+              {email ?? primaryRole}
+            </Typography>
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              color: 'text.secondary',
+              flexShrink: 0,
+            }}
+          >
+            <NextAdminChevronDownIcon />
+          </Box>
+        </Button>
+
+        {availablePortals.length > 1 && (
+          <Button
+            component={RouterLink}
+            to="/portals"
+            fullWidth
+            variant="outlined"
+            size="small"
+            sx={{
+              mt: 0.75,
+              borderRadius: '8px',
+              py: 0.625,
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              borderColor: 'divider',
+              color: 'text.primary',
+            }}
+          >
+            {t('Switch workspace')}
           </Button>
-        </Stack>
+        )}
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="fixed"
-        color="inherit"
-        sx={{
-          zIndex: (t) => (isDesktop ? t.zIndex.drawer + 1 : t.zIndex.drawer - 1),
-          left: { xs: 0, sm: navVisible ? `${DRAWER_WIDTH}px` : 0 },
-          width: { xs: '100%', sm: navVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' },
-          transition: 'left 200ms ease, width 200ms ease',
-          height: layoutTokens.shellHeaderHeight,
-          bgcolor: 'background.paper',
-          borderBottom: 1,
-          borderColor: 'divider',
-          backdropFilter: 'blur(14px)',
-          boxShadow: '0 8px 30px rgba(17, 53, 51, .04)',
-        }}
-      >
-        <Toolbar sx={{ minHeight: `${layoutTokens.shellHeaderHeight}px !important`, px: { xs: 1.5, md: 3 } }}>
-          <IconButton
-            edge="start"
-            aria-label={navVisible ? 'Hide sidebar' : 'Show sidebar'}
-            onClick={toggleNav}
-            sx={{ mr: 1, color: 'text.primary' }}
-          >
-            {navVisible ? <MenuOpenRounded /> : <MenuIcon />}
-          </IconButton>
-          <Typography component="h1" variant="h6" noWrap sx={{ flexGrow: 1, ml: { xs: 0.5, md: 0 }, fontSize: 16, fontWeight: 600 }}>
-            {getPageLabel(location.pathname, portal, locale)}
-          </Typography>
-          {roles.length > 0 && (
-            <Chip
-              label={roles[0]}
-              size="small"
-              sx={{
-                mr: 1.25,
-                height: 24,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '.04em',
-                bgcolor: 'action.selected',
-                color: 'primary.main',
-              }}
-            />
-          )}
-          <NotificationBell portal={portal} />
-          <LocaleToggle />
-          <ColorModeToggle />
-        </Toolbar>
-      </AppBar>
-
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>
       <Drawer
-        variant={isDesktop ? 'persistent' : 'temporary'}
-        open={isDesktop ? navVisible : mobileOpen}
+        variant={!hasMatchMedia || isDesktop ? 'persistent' : 'temporary'}
+        open={!hasMatchMedia || isDesktop ? navVisible : mobileOpen}
         onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
           width: isDesktop ? (navVisible ? DRAWER_WIDTH : 0) : undefined,
           flexShrink: 0,
           transition: 'width 200ms ease',
-          zIndex: (t) => (isDesktop ? undefined : t.zIndex.drawer + 2),
+          zIndex: (tTheme) => (isDesktop ? undefined : tTheme.zIndex.drawer + 2),
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
+            height: '100vh',
             boxSizing: 'border-box',
-            bgcolor: 'background.paper',
-            borderRightColor: 'divider',
-            boxShadow: '8px 0 30px rgba(17, 53, 51, .025)',
+            bgcolor: 'background.default',
+            borderRight: 'none',
+            boxShadow: 'none',
             transform: isDesktop && !navVisible ? `translateX(-${DRAWER_WIDTH}px)` : 'none',
             transition: 'transform 200ms ease',
           },
@@ -403,18 +612,178 @@ export function AppShell({ portal }: AppShellProps) {
       </Drawer>
 
       <Box
-        component="main"
         sx={{
-          flexGrow: 1,
+          flex: 1,
           minWidth: 0,
-          minHeight: '100vh',
-          pt: `${layoutTokens.shellHeaderHeight + 24}px`,
-          px: layoutTokens.pageGutter,
-          pb: { xs: 4, md: 6 },
+          height: '100vh',
+          overflow: 'hidden',
+          p: { xs: 0, md: '16px 16px 16px 0' },
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }}>
-          <Outlet />
+        <Box
+          sx={{
+            height: '100%',
+            borderRadius: { xs: 0, md: '16px' },
+            border: {
+              xs: 'none',
+              md: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
+            },
+            bgcolor: isDark ? '#111827' : '#FCFCFD',
+            boxShadow: {
+              xs: 'none',
+              md: '0 3px 6px -2px rgba(0,0,0,0.02), 0 1px 1px 0 rgba(0,0,0,0.04)',
+            },
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <AppBar
+            position="sticky"
+            color="inherit"
+            sx={{
+              height: 73,
+              flexShrink: 0,
+              bgcolor: isDark ? '#111827' : '#FCFCFD',
+              borderBottom: isDark ? '1px solid #27272A' : '1px solid #E8E8E8',
+              boxShadow: 'none',
+              px: { xs: 2, lg: 2.5 },
+            }}
+          >
+            <Toolbar
+              disableGutters
+              sx={{
+                minHeight: '73px !important',
+                height: 73,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flex: 1 }}>
+                {showSidebarToggleInHeader && (
+                  <IconButton
+                    edge="start"
+                    aria-label={isNavOpen ? t('Hide sidebar') : t('Show sidebar')}
+                    onClick={toggleNav}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                    }}
+                  >
+                    <NextAdminSidebarToggleIcon />
+                  </IconButton>
+                )}
+
+                <Box
+                  onClick={() => {
+                    setActiveSearchIdx(0);
+                    setSearchModalOpen(true);
+                  }}
+                  sx={{
+                    display: { xs: 'none', sm: 'flex' },
+                    alignItems: 'center',
+                    width: { sm: 240, md: 300 },
+                    height: 40,
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    px: 1.5,
+                    gap: 1,
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Box component="span" sx={{ display: 'inline-flex', color: '#71717A', flexShrink: 0 }}>
+                    <NextAdminSearchIcon />
+                  </Box>
+                  <InputBase
+                    value={navFilter}
+                    onChange={(event) => {
+                      setNavFilter(event.target.value);
+                      setActiveSearchIdx(0);
+                    }}
+                    onClick={() => {
+                      setActiveSearchIdx(0);
+                      setSearchModalOpen(true);
+                    }}
+                    placeholder={t('Search pages...')}
+                    inputProps={{ 'aria-label': t('Filter navigation') }}
+                    sx={{
+                      flex: 1,
+                      fontSize: '0.875rem',
+                      color: 'text.primary',
+                      cursor: 'pointer',
+                      '& input': { cursor: 'pointer' },
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      borderRadius: '6px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.default',
+                      px: 0.875,
+                      py: 0.25,
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      color: 'text.secondary',
+                      lineHeight: 1.2,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ⌘ K
+                  </Box>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexShrink: 0 }}>
+                <Box
+                  sx={{
+                    '& .MuiIconButton-root': {
+                      width: 40,
+                      height: 40,
+                      mr: 0,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.secondary',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        color: 'text.primary',
+                      },
+                    },
+                  }}
+                >
+                  <NotificationBell portal={portal} />
+                </Box>
+              </Box>
+            </Toolbar>
+          </AppBar>
+
+          <Box
+            component="main"
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              overflowY: 'auto',
+              px: layoutTokens.pageGutter,
+              py: { xs: 2.5, md: 3 },
+            }}
+          >
+            <Box sx={{ width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }}>
+              <Outlet />
+            </Box>
+          </Box>
         </Box>
       </Box>
 
@@ -422,17 +791,338 @@ export function AppShell({ portal }: AppShellProps) {
         anchorEl={accountMenuAnchor}
         open={Boolean(accountMenuAnchor)}
         onClose={() => setAccountMenuAnchor(null)}
-        slotProps={{ paper: { sx: { minWidth: 250, mt: 1, borderRadius: 1.5 } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 240,
+              mt: 1,
+              borderRadius: '12px',
+              border: '1px solid',
+              borderColor: 'divider',
+            },
+          },
+        }}
       >
-        <MenuItem component={RouterLink} to={`${PORTAL_CONFIG[portal].path}/settings`} onClick={() => { setAccountMenuAnchor(null); setMobileOpen(false); }}>
-          <ListItemIcon><SettingsOutlined fontSize="small" /></ListItemIcon>
+        <MenuItem
+          component={RouterLink}
+          to={`${PORTAL_CONFIG[portal].path}/settings`}
+          onClick={() => {
+            setAccountMenuAnchor(null);
+            setMobileOpen(false);
+          }}
+        >
+          <ListItemIcon>
+            <SettingsOutlined fontSize="small" />
+          </ListItemIcon>
           {t('Settings')}
         </MenuItem>
         <MenuItem onClick={signOut} disabled={signingOut}>
-          <ListItemIcon><LogoutRounded fontSize="small" /></ListItemIcon>
+          <ListItemIcon>
+            <LogoutRounded fontSize="small" />
+          </ListItemIcon>
           {signingOut ? 'Signing out…' : 'Sign out'}
         </MenuItem>
       </Menu>
+
+      <Dialog
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '16px',
+              maxWidth: 600,
+              width: '100%',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+              overflow: 'hidden',
+              backgroundImage: 'none',
+            },
+          },
+        }}
+      >
+        <Box sx={{ p: '14px 16px', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              height: 46,
+              px: 1.75,
+              borderRadius: '10px',
+              border: '1.5px solid #3758F9',
+              boxShadow: '0 0 0 4px rgba(55, 88, 249, 0.15)',
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Box component="span" sx={{ display: 'inline-flex', color: '#71717A' }}>
+              <NextAdminSearchIcon />
+            </Box>
+            <InputBase
+              autoFocus
+              fullWidth
+              value={navFilter}
+              onChange={(e) => {
+                setNavFilter(e.target.value);
+                setActiveSearchIdx(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t('Search pages...')}
+              inputProps={{ 'aria-label': t('Search pages') }}
+              sx={{ fontSize: '0.9375rem', color: 'text.primary' }}
+            />
+            <Box
+              component="button"
+              type="button"
+              onClick={() => setSearchModalOpen(false)}
+              sx={{
+                borderRadius: '6px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                px: 1.25,
+                py: 0.4,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+                cursor: 'pointer',
+                lineHeight: 1.2,
+              }}
+            >
+              ESC
+            </Box>
+          </Box>
+        </Box>
+
+        <Box sx={{ maxHeight: 380, overflowY: 'auto', p: 2 }}>
+          <Typography
+            sx={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: '#71717A',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              px: 1.5,
+              mb: 1,
+            }}
+          >
+            MAIN MENU
+          </Typography>
+
+          <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {visibleNavigation.map((item, idx) => (
+              <ListItemButton
+                key={item.section}
+                selected={idx === activeSearchIdx}
+                onMouseEnter={() => setActiveSearchIdx(idx)}
+                onClick={() => {
+                  navigate(item.path);
+                  setSearchModalOpen(false);
+                  setMobileOpen(false);
+                }}
+                sx={{
+                  borderRadius: '10px',
+                  px: 1.5,
+                  py: 1.125,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  bgcolor:
+                    idx === activeSearchIdx
+                      ? isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : '#F9FAFB'
+                      : 'transparent',
+                  '&.Mui-selected': {
+                    bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#F9FAFB',
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#F9FAFB',
+                  },
+                }}
+              >
+                {item.section === 'dashboard' ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <Typography component="span" sx={{ fontSize: '0.9375rem', color: '#71717A', mr: 0.5 }}>
+                      Dashboard /
+                    </Typography>
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: '0.9375rem', fontWeight: 500, color: 'text.primary' }}
+                      noWrap
+                    >
+                      {getPortalLabel(portal, locale)}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 18,
+                        height: 18,
+                        color: 'text.primary',
+                        flexShrink: 0,
+                        '& svg': { width: 18, height: 18 },
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: '0.9375rem', fontWeight: 500, color: 'text.primary' }}
+                      noWrap
+                    >
+                      {item.label}
+                    </Typography>
+                  </Box>
+                )}
+
+                <Typography
+                  component="span"
+                  sx={{
+                    fontSize: '0.875rem',
+                    color: '#71717A',
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.path}
+                </Typography>
+              </ListItemButton>
+            ))}
+
+            {visibleNavigation.length === 0 && (
+              <Typography role="status" variant="body2" color="text.secondary" sx={{ px: 1.5, py: 2 }}>
+                {t('No matching sections.')}
+              </Typography>
+            )}
+          </List>
+        </Box>
+
+        <Box
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            bgcolor: isDark ? '#111827' : '#FCFCFD',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                component="span"
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '5px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  display: 'inline-grid',
+                  placeItems: 'center',
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                }}
+              >
+                ↑
+              </Box>
+              <Box
+                component="span"
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '5px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  display: 'inline-grid',
+                  placeItems: 'center',
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                }}
+              >
+                ↓
+              </Box>
+              <Typography component="span" sx={{ fontSize: '0.8125rem', color: '#71717A', ml: 0.5 }}>
+                {t('Navigate')}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+              <Box
+                component="span"
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '5px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  display: 'inline-grid',
+                  placeItems: 'center',
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                }}
+              >
+                ↵
+              </Box>
+              <Typography component="span" sx={{ fontSize: '0.8125rem', color: '#71717A', ml: 0.5 }}>
+                {t('Select')}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box
+            component="button"
+            type="button"
+            onClick={() => setSearchModalOpen(false)}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              border: 0,
+              bgcolor: 'transparent',
+              p: 0,
+              cursor: 'pointer',
+              color: 'text.secondary',
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                borderRadius: '5px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                px: 0.875,
+                py: 0.2,
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+              }}
+            >
+              ESC
+            </Box>
+            <Typography component="span" sx={{ fontSize: '0.8125rem', color: 'text.secondary', fontWeight: 500 }}>
+              {t('Close')}
+            </Typography>
+          </Box>
+        </Box>
+      </Dialog>
     </Box>
   );
 }

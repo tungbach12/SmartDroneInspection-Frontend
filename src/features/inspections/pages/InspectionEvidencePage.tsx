@@ -418,16 +418,17 @@ export default function InspectionEvidencePage() {
             </Box>
 
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-              {canUploadEvidence && (
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="small"
-                  startIcon={<CloudUploadOutlined fontSize="small" />}
-                  aria-label={t('Choose evidence files')}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                >
-                  {t('Choose evidence files')}
+              <Button
+                component={canUploadEvidence ? 'label' : 'button'}
+                variant="outlined"
+                size="small"
+                disabled={!canUploadEvidence}
+                startIcon={<CloudUploadOutlined fontSize="small" />}
+                aria-label={t('Choose evidence files')}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              >
+                {t('Choose evidence files')}
+                {canUploadEvidence && (
                   <input
                     hidden
                     type="file"
@@ -441,8 +442,8 @@ export default function InspectionEvidencePage() {
                       event.target.value = '';
                     }}
                   />
-                </Button>
-              )}
+                )}
+              </Button>
               <Button
                 variant="contained"
                 size="small"
@@ -509,7 +510,7 @@ export default function InspectionEvidencePage() {
           sx={{ alignItems: { lg: 'center' }, justifyContent: 'space-between', mb: 2 }}
         >
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
               {t('Evidence register')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -700,7 +701,7 @@ export default function InspectionEvidencePage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     border: '1px solid',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',

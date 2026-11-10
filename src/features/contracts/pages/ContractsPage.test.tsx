@@ -348,6 +348,8 @@ describe('ContractsPage', () => {
     const acceptBtn = screen.getByRole('button', { name: 'Accept latest quote' });
     expect(acceptBtn).toBeTruthy();
     fireEvent.click(acceptBtn);
+    expect(screen.getByText('Confirm Quote Acceptance')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept quote' }));
     expect(mutateAsync).toHaveBeenCalledWith(2);
   });
 

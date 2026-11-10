@@ -72,7 +72,7 @@ function ReadOnlyField({
     <Box>
       <Typography
         variant="caption"
-        sx={{ color: '#64748b', display: 'block', fontSize: '0.72rem', fontWeight: 500 }}
+        sx={{ color: 'text.secondary', display: 'block', fontSize: '0.75rem', fontWeight: 500 }}
       >
         {label}
       </Typography>
@@ -81,7 +81,7 @@ function ReadOnlyField({
         component="div"
         sx={{
           fontWeight: 600,
-          color: '#0f172a',
+          color: 'text.primary',
           mt: 0.25,
           fontFamily: monospace ? 'monospace' : 'inherit',
           wordBreak: 'break-word',
@@ -177,9 +177,10 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
-              borderRadius: '12px',
-              bgcolor: '#ffffff',
-              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -188,7 +189,7 @@ export function OverviewStakeholdersSection({
               transition: 'border-color 0.15s ease, background-color 0.15s ease',
               '&:hover': {
                 borderColor: '#228b6e',
-                bgcolor: '#f8fafc',
+                bgcolor: 'action.hover',
               },
             }}
           >
@@ -201,18 +202,18 @@ export function OverviewStakeholdersSection({
                 {inspectorName.slice(0, 1)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', lineHeight: 1.2 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', lineHeight: 1.2 }}>
                   {t('Partner Inspector')}
                 </Typography>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: '#0f172a', mt: 0.15 }}>
+                <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: 'text.primary', mt: 0.15 }}>
                   {inspectorName}
                 </Typography>
-                <Typography variant="caption" noWrap sx={{ color: '#64748b', display: 'block' }}>
+                <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
                   {inspectorEmail}
                 </Typography>
               </Box>
             </Stack>
-            <ArrowForwardRoundedIcon sx={{ fontSize: 18, color: '#64748b', flexShrink: 0 }} />
+            <ArrowForwardRoundedIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
           </Paper>
         </Grid>
 
@@ -232,9 +233,10 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
-              borderRadius: '12px',
-              bgcolor: '#ffffff',
-              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -243,7 +245,7 @@ export function OverviewStakeholdersSection({
               transition: 'border-color 0.15s ease, background-color 0.15s ease',
               '&:hover': {
                 borderColor: '#2563eb',
-                bgcolor: '#f8fafc',
+                bgcolor: 'action.hover',
               },
             }}
           >
@@ -256,18 +258,18 @@ export function OverviewStakeholdersSection({
                 {customerName.slice(0, 1)}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', lineHeight: 1.2 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', lineHeight: 1.2 }}>
                   {t('Customer')}
                 </Typography>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: '#0f172a', mt: 0.15 }}>
+                <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: 'text.primary', mt: 0.15 }}>
                   {customerName}
                 </Typography>
-                <Typography variant="caption" noWrap sx={{ color: '#64748b', display: 'block' }}>
+                <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
                   {customerEmail}
                 </Typography>
               </Box>
             </Stack>
-            <ArrowForwardRoundedIcon sx={{ fontSize: 18, color: '#64748b', flexShrink: 0 }} />
+            <ArrowForwardRoundedIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
           </Paper>
         </Grid>
       </Grid>
@@ -285,8 +287,9 @@ export function OverviewStakeholdersSection({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            bgcolor: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
+            bgcolor: 'background.default',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
@@ -297,7 +300,7 @@ export function OverviewStakeholdersSection({
             />
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: '#0f172a' }}>
+                <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {inspectorName}
                 </Typography>
                 <Chip
@@ -305,14 +308,14 @@ export function OverviewStakeholdersSection({
                   label={inspectorProfile?.status || 'ACTIVE'}
                   sx={{
                     height: 20,
-                    fontSize: '0.68rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     bgcolor: '#ecfdf3',
                     color: '#027a48',
                   }}
                 />
               </Stack>
-              <Typography variant="caption" noWrap sx={{ color: '#64748b', display: 'block' }}>
+              <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
                 {t('Partner Drone Inspector')} · {inspectorEmail}
               </Typography>
             </Box>
@@ -330,7 +333,7 @@ export function OverviewStakeholdersSection({
                 variant="caption"
                 sx={{
                   fontWeight: 700,
-                  color: '#475569',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   display: 'block',
@@ -375,7 +378,7 @@ export function OverviewStakeholdersSection({
                 variant="caption"
                 sx={{
                   fontWeight: 700,
-                  color: '#475569',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   display: 'block',
@@ -407,7 +410,7 @@ export function OverviewStakeholdersSection({
                           }
                           sx={{
                             height: 18,
-                            fontSize: '0.68rem',
+                            fontSize: '0.75rem',
                             fontWeight: 700,
                             bgcolor: '#ecfdf3',
                             color: '#027a48',
@@ -464,7 +467,7 @@ export function OverviewStakeholdersSection({
                 variant="caption"
                 sx={{
                   fontWeight: 700,
-                  color: '#475569',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   display: 'block',
@@ -514,7 +517,7 @@ export function OverviewStakeholdersSection({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider', justifyContent: 'space-between' }}>
           <Button
             size="small"
             color="inherit"
@@ -552,8 +555,9 @@ export function OverviewStakeholdersSection({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            bgcolor: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
+            bgcolor: 'background.default',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
@@ -564,7 +568,7 @@ export function OverviewStakeholdersSection({
             />
             <Box sx={{ minWidth: 0 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: '#0f172a' }}>
+                <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {customerName}
                 </Typography>
                 <Chip
@@ -572,14 +576,14 @@ export function OverviewStakeholdersSection({
                   label="CUSTOMER"
                   sx={{
                     height: 20,
-                    fontSize: '0.68rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     bgcolor: '#eff6ff',
                     color: '#1d4ed8',
                   }}
                 />
               </Stack>
-              <Typography variant="caption" noWrap sx={{ color: '#64748b', display: 'block' }}>
+              <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
                 {t('Customer Organization Representative')} · {customerEmail}
               </Typography>
             </Box>
@@ -597,7 +601,7 @@ export function OverviewStakeholdersSection({
                 variant="caption"
                 sx={{
                   fontWeight: 700,
-                  color: '#475569',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   display: 'block',
@@ -641,7 +645,7 @@ export function OverviewStakeholdersSection({
                 variant="caption"
                 sx={{
                   fontWeight: 700,
-                  color: '#475569',
+                  color: 'text.secondary',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   display: 'block',
@@ -691,7 +695,7 @@ export function OverviewStakeholdersSection({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider', justifyContent: 'space-between' }}>
           <Button
             size="small"
             color="inherit"

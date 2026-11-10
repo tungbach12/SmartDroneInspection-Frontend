@@ -107,6 +107,9 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
   if (section === 'security') {
     return locale === 'vi' ? 'Cài đặt' : 'Settings';
   }
+  if (section === 'ai-settings') {
+    return locale === 'vi' ? 'Cấu hình AI' : 'AI configuration';
+  }
   if (section && section in SECTION_LABELS) {
     return section === 'dashboard'
       ? (locale === 'vi' ? 'Tổng quan' : 'Overview')

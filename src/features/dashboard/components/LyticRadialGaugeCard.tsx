@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -63,11 +62,11 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
     <Box
       sx={{
         bgcolor: 'background.paper',
-        border: 1,
+        border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '16px',
-        p: { xs: 2.5, sm: 3 },
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        borderRadius: '12px',
+        p: '20px',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -79,35 +78,39 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
           <Typography
             sx={{
               color: 'text.primary',
-              fontSize: '16px',
+              fontSize: '1rem',
               fontWeight: 600,
-              lineHeight: 1.3,
+              lineHeight: 1.4,
             }}
           >
             {t(title)}
           </Typography>
           <Typography
             sx={{
-              color: 'text.secondary',
-              fontSize: '14px',
+              color: '#71717A',
+              fontSize: '0.875rem',
               mt: 0.5,
             }}
           >
             {t(subtitle)}
           </Typography>
         </Box>
-
-        <IconButton
-          size="small"
-          aria-label={t('Gauge options')}
+        <Box
           sx={{
-            color: 'text.secondary',
-            p: 0.75,
-            '&:hover': { bgcolor: 'action.hover' },
+            color: '#9CA3AF',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0.5,
+            flexShrink: 0,
           }}
         >
-          <MoreHorizRounded fontSize="small" />
-        </IconButton>
+          <svg width="18" height="4" viewBox="0 0 18 4" fill="none">
+            <path d="M4 2C4 3.10457 3.10457 4 2 4C0.89543 4 0 3.10457 0 2C0 0.89543 0.89543 0 2 0C3.10457 0 4 0.89543 4 2Z" fill="currentColor" />
+            <path d="M11 2C11 3.10457 10.1046 4 9 4C7.89543 4 7 3.10457 7 2C7 0.89543 7.89543 0 9 0C10.1046 0 11 0.89543 11 2Z" fill="currentColor" />
+            <path d="M18 2C18 3.10457 17.1046 4 16 4C14.8954 4 14 3.10457 14 2C14 0.89543 14.8954 0 16 0C17.1046 0 18 0.89543 18 2Z" fill="currentColor" />
+          </svg>
+        </Box>
       </Box>
 
       {/* Semi-circle Gauge Centerpiece */}
@@ -126,7 +129,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
             <path
               d={progressArc}
               fill="none"
-              stroke={theme.palette.primary.main}
+              stroke="#3758F9"
               strokeWidth={strokeWidth}
               strokeLinecap="round"
             />
@@ -145,8 +148,8 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
             <Typography
               sx={{
                 color: 'text.primary',
-                fontSize: '24px',
-                fontWeight: 700,
+                fontSize: '1.5rem',
+                fontWeight: 600,
                 letterSpacing: '-0.02em',
                 lineHeight: 1.1,
               }}
@@ -155,8 +158,8 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
             </Typography>
             <Typography
               sx={{
-                color: 'text.secondary',
-                fontSize: '12px',
+                color: '#71717A',
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 mt: 0.25,
               }}
@@ -179,12 +182,12 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
           gap: 2.5,
         }}
       >
-        {subMetrics.map((item) => (
+        {subMetrics.map((item, idx) => (
           <Box key={item.label}>
             <Typography
               sx={{
-                color: 'text.secondary',
-                fontSize: '14px',
+                color: '#71717A',
+                fontSize: '0.875rem',
                 mb: 1,
               }}
             >
@@ -194,7 +197,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
               <Typography
                 sx={{
                   color: 'text.primary',
-                  fontSize: '16px',
+                  fontSize: '1rem',
                   fontWeight: 600,
                   flexShrink: 0,
                 }}
@@ -219,7 +222,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
                       left: 0,
                       height: '100%',
                       width: `${item.percentage}%`,
-                      bgcolor: 'primary.main',
+                      bgcolor: idx === 0 ? '#3758F9' : '#06B6D4',
                       borderRadius: '9999px',
                       transition: 'width 0.3s ease',
                     }}
@@ -227,8 +230,8 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
                 </Box>
                 <Typography
                   sx={{
-                    color: 'text.secondary',
-                    fontSize: '12px',
+                    color: '#71717A',
+                    fontSize: '0.75rem',
                     fontWeight: 500,
                     width: 32,
                     textAlign: 'right',

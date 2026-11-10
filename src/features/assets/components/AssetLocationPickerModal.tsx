@@ -303,9 +303,9 @@ export function AssetLocationPickerModal({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PlaceRounded sx={{ color: '#ef4444', fontSize: 24 }} />
+          <PlaceRounded sx={{ color: 'error.main', fontSize: 24 }} />
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', lineHeight: 1.2 }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', lineHeight: 1.2 }}>
               {t('Chọn tọa độ công trình trên bản đồ')}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -314,7 +314,7 @@ export function AssetLocationPickerModal({
             </Typography>
           </Box>
         </Box>
-        <IconButton size="small" onClick={onClose}>
+        <IconButton size="small" onClick={onClose} aria-label={t('Đóng')}>
           <CloseRounded />
         </IconButton>
       </DialogTitle>
@@ -373,7 +373,7 @@ export function AssetLocationPickerModal({
           {gpsMessage && (
             <Alert
               severity={gpsMessage.startsWith('✓') ? 'success' : 'info'}
-              sx={{ py: 0.25, px: 1.5, fontSize: '0.8rem', borderRadius: '8px' }}
+              sx={{ py: 0.25, px: 1.5, fontSize: '0.875rem', borderRadius: '8px' }}
               onClose={() => setGpsMessage(null)}
             >
               {gpsMessage}
@@ -393,8 +393,9 @@ export function AssetLocationPickerModal({
               width: '100%',
               bgcolor: '#e5e7eb',
               overflow: 'hidden',
-              borderRadius: '12px',
-              border: '1.5px solid #cbd5e1',
+              borderRadius: '10px',
+              border: '1.5px solid',
+              borderColor: 'divider',
               cursor: dragRef.current.active ? 'grabbing' : 'grab',
               userSelect: 'none',
             }}
@@ -430,12 +431,6 @@ export function AssetLocationPickerModal({
                 flexDirection: 'column',
                 alignItems: 'center',
                 filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.35))',
-                animation: 'bouncePin 0.4s ease-out',
-                '@keyframes bouncePin': {
-                  '0%': { transform: 'translate(-50%, -140%)' },
-                  '60%': { transform: 'translate(-50%, -90%)' },
-                  '100%': { transform: 'translate(-50%, -100%)' },
-                },
               }}
             >
               {/* Badge Label above pin */}
@@ -445,8 +440,8 @@ export function AssetLocationPickerModal({
                   color: '#ffffff',
                   px: 1,
                   py: 0.35,
-                  borderRadius: '6px',
-                  fontSize: '11px',
+                  borderRadius: '8px',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   whiteSpace: 'nowrap',
                   mb: 0.5,
@@ -519,8 +514,8 @@ export function AssetLocationPickerModal({
                 color: '#f8fafc',
                 px: 1.25,
                 py: 0.5,
-                borderRadius: '6px',
-                fontSize: '11.5px',
+                borderRadius: '8px',
+                fontSize: '0.75rem',
                 pointerEvents: 'none',
                 zIndex: 30,
                 backdropFilter: 'blur(4px)',
@@ -534,11 +529,11 @@ export function AssetLocationPickerModal({
                 position: 'absolute',
                 bottom: 4,
                 right: 6,
-                fontSize: '10px',
+                fontSize: '0.75rem',
                 color: 'rgba(0,0,0,0.6)',
                 bgcolor: 'rgba(255,255,255,0.7)',
                 px: 0.5,
-                borderRadius: '2px',
+                borderRadius: '5px',
                 pointerEvents: 'none',
               }}
             >
@@ -552,7 +547,7 @@ export function AssetLocationPickerModal({
             sx={{
               p: 1.5,
               borderRadius: '10px',
-              bgcolor: '#f8fafc',
+              bgcolor: 'background.default',
               display: 'flex',
               flexDirection: { xs: 'column', sm: 'row' },
               justifyContent: 'space-between',
@@ -564,7 +559,7 @@ export function AssetLocationPickerModal({
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                 {t('Tọa độ kim ghim đã chọn:')}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: '#0f172a', fontSize: '0.95rem' }}>
+              <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: 'text.primary', fontSize: '0.875rem' }}>
                 Vĩ độ (Lat): <strong>{pinLat.toFixed(6)}°N</strong> · Kinh độ (Lon): <strong>{pinLon.toFixed(6)}°E</strong>
               </Typography>
             </Box>
@@ -576,11 +571,11 @@ export function AssetLocationPickerModal({
               sx={{
                 borderRadius: '8px',
                 px: 2.5,
-                bgcolor: '#087E8B',
+                bgcolor: 'primary.main',
                 fontWeight: 700,
                 textTransform: 'none',
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#066B70' },
+                '&:hover': { bgcolor: 'primary.dark' },
               }}
             >
               {t('Xác nhận tọa độ này')}

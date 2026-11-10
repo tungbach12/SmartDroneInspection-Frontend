@@ -37,6 +37,7 @@ import {
   type UpdateInspectorProfileInput,
   type CreateInspectorFlightLogInput,
 } from '../api/inspectorProfileApi';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -45,6 +46,10 @@ interface InspectorProfileDialogProps {
 }
 
 export function InspectorProfileDialog({ open, onClose, inspectorId }: InspectorProfileDialogProps) {
+  const { locale } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
+  const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
+
   const queryClient = useQueryClient();
   const [currentTab, setCurrentTab] = useState(0);
 
@@ -164,7 +169,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
     onSuccess: (updated) => {
       queryClient.setQueryData(['inspector-profile', inspectorId], updated);
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
-      setSuccessMessage('Đã cập nhật hồ sơ phi công Inspector thành công!');
+      setSuccessMessage(
+        tr(
+          'Đã cập nhật hồ sơ phi công Inspector thành công!',
+          'Inspector pilot profile updated successfully.',
+        ),
+      );
       setTimeout(() => setSuccessMessage(null), 4000);
     },
   });
@@ -177,7 +187,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
     },
     onSuccess: async (updated) => {
       queryClient.setQueryData(['inspector-profile', inspectorId], updated);
-      setSuccessMessage('Đã tải lên và lưu trữ bản scan giấy phép bay trên MinIO thành công!');
+      setSuccessMessage(
+        tr(
+          'Đã tải lên và lưu trữ bản scan giấy phép bay trên MinIO thành công!',
+          'Pilot license scan uploaded and stored successfully.',
+        ),
+      );
       setTimeout(() => setSuccessMessage(null), 4000);
       if (inspectorId) {
         setLicenseScanLoading(true);
@@ -215,7 +230,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
         safetyIncident: false,
         notes: '',
       });
-      setSuccessMessage('Đã ghi nhận nhiệm vụ bay vào lịch sử thành công!');
+      setSuccessMessage(
+        tr(
+          'Đã ghi nhận nhiệm vụ bay vào lịch sử thành công!',
+          'Flight mission recorded in log history.',
+        ),
+      );
       setTimeout(() => setSuccessMessage(null), 4000);
     },
   });
@@ -249,25 +269,39 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   return (
     <>
       <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <DialogTitle
+          sx={{
+            m: 0,
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            bgcolor: 'background.default',
+            borderBottom: 1,
+            borderColor: 'divider',
+          }}
+        >
           <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               src={profile?.avatarUrl ?? undefined}
               alt={profile?.fullName ?? 'Inspector'}
-              sx={{ width: 44, height: 44, bgcolor: '#3758F9', fontWeight: 700 }}
+              sx={{ width: 44, height: 44, bgcolor: 'primary.main', fontWeight: 700 }}
             >
               {profile?.fullName?.slice(0, 1) || 'I'}
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>
-                Hồ sơ Đối tác Inspector & Kinh nghiệm bay
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                {tr(
+                  'Hồ sơ Đối tác Inspector & Kinh nghiệm bay',
+                  'Partner Inspector Profile & Flight Experience',
+                )}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {profile?.fullName} · {profile?.email}
               </Typography>
             </Box>
           </Box>
-          <IconButton onClick={onClose} size="small" sx={{ color: '#64748b' }}>
+          <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
             <CloseRounded />
           </IconButton>
         </DialogTitle>
@@ -279,47 +313,87 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
             </Box>
           ) : !profile ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="text.secondary">Không tìm thấy thông tin Inspector.</Typography>
+              <Typography color="text.secondary">
+                {tr('Không tìm thấy thông tin Inspector.', 'Inspector profile not found.')}
+              </Typography>
             </Box>
           ) : (
             <Box>
               {/* TOP STATS BAR */}
-              <Box sx={{ px: 3, py: 2, bgcolor: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+              <Box sx={{ px: 3, py: 2, bgcolor: 'background.default', borderBottom: 1, borderColor: 'divider' }}>
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
-                  <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'background.paper',
+                      borderRadius: '8px',
+                      border: 1,
+                      borderColor: 'divider',
+                      textAlign: 'center',
+                    }}
+                  >
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                      Tổng giờ bay tích lũy
+                      {tr('Tổng giờ bay tích lũy', 'Total Flight Hours')}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#1e293b' }}>
-                      {profile.totalFlightHours} <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>giờ</span>
+                    <Typography variant="h5" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                      {profile.totalFlightHours}{' '}
+                      <Box component="span" sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                        {tr('giờ', 'hrs')}
+                      </Box>
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      (Trước đây: {profile.priorFlightHours}h + Tại cty: {profile.companyFlightHours}h)
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      ({tr('Trước đây:', 'Prior:')} {profile.priorFlightHours}h + {tr('Tại cty:', 'Platform:')}{' '}
+                      {profile.companyFlightHours}h)
                     </Typography>
                   </Box>
 
-                  <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'background.paper',
+                      borderRadius: '8px',
+                      border: 1,
+                      borderColor: 'divider',
+                      textAlign: 'center',
+                    }}
+                  >
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                      Nhiệm vụ bay tại công ty
+                      {tr('Nhiệm vụ bay tại công ty', 'Platform Flight Missions')}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#0284c7' }}>
-                      {profile.companyFlightsCount} <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>chuyến bay</span>
+                    <Typography variant="h5" component="div" sx={{ fontWeight: 800, color: 'info.main' }}>
+                      {profile.companyFlightsCount}{' '}
+                      <Box component="span" sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                        {tr('chuyến bay', 'missions')}
+                      </Box>
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                      Thời lượng: {profile.companyFlightHours} giờ hoạt động
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {tr('Thời lượng:', 'Duration:')} {profile.companyFlightHours}{' '}
+                      {tr('giờ hoạt động', 'active hours')}
                     </Typography>
                   </Box>
 
-                  <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      bgcolor: 'background.paper',
+                      borderRadius: '8px',
+                      border: 1,
+                      borderColor: 'divider',
+                      textAlign: 'center',
+                    }}
+                  >
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                      Giấy phép bay UAV
+                      {tr('Giấy phép bay UAV', 'UAV Pilot License')}
                     </Typography>
                     <Box sx={{ mt: 0.5 }}>
                       {profile.licenseExpirationStatus === 'VALID' ? (
                         <Chip
                           size="small"
                           icon={<CheckCircleRounded />}
-                          label={`CÒN HẠN (${profile.licenseRemainingDays} ngày)`}
+                          label={tr(
+                            `CÒN HẠN (${profile.licenseRemainingDays} ngày)`,
+                            `VALID (${profile.licenseRemainingDays}d left)`,
+                          )}
                           color="success"
                           sx={{ fontWeight: 700 }}
                         />
@@ -327,7 +401,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <Chip
                           size="small"
                           icon={<WarningAmberRounded />}
-                          label={`SẮP HẾT HẠN (Còn ${profile.licenseRemainingDays} ngày)`}
+                          label={tr(
+                            `SẮP HẾT HẠN (Còn ${profile.licenseRemainingDays} ngày)`,
+                            `EXPIRING SOON (${profile.licenseRemainingDays}d)`,
+                          )}
                           color="warning"
                           sx={{ fontWeight: 700 }}
                         />
@@ -335,16 +412,16 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <Chip
                           size="small"
                           icon={<ErrorOutlineRounded />}
-                          label="ĐÃ HẾT HẠN"
+                          label={tr('ĐÃ HẾT HẠN', 'EXPIRED')}
                           color="error"
                           sx={{ fontWeight: 700 }}
                         />
                       ) : (
-                        <Chip size="small" label="Chưa cập nhật bằng" color="default" />
+                        <Chip size="small" label={tr('Chưa cập nhật bằng', 'License not set')} color="default" />
                       )}
                     </Box>
-                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#64748b' }}>
-                      Số: {profile.pilotLicenseNumber || '—'}
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
+                      {tr('Số:', 'No.:')} {profile.pilotLicenseNumber || '—'}
                     </Typography>
                   </Box>
                 </Box>
@@ -358,61 +435,87 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
 
               {/* TABS NAVIGATION */}
               <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
-                <Tabs value={currentTab} onChange={(_, val) => setCurrentTab(val)}>
-                  <Tab icon={<BadgeOutlined />} iconPosition="start" label="1. Thông tin cá nhân & Nhân sự" sx={{ textTransform: 'none', fontWeight: 600 }} />
-                  <Tab icon={<FlightTakeoffRounded />} iconPosition="start" label="2. Giấy phép & Bản Scan" sx={{ textTransform: 'none', fontWeight: 600 }} />
-                  <Tab icon={<HistoryEduRounded />} iconPosition="start" label="3. Kinh nghiệm bay" sx={{ textTransform: 'none', fontWeight: 600 }} />
-                  <Tab icon={<FlightTakeoffRounded />} iconPosition="start" label={`4. Lịch sử bay tại công ty (${profile.companyFlightsCount})`} sx={{ textTransform: 'none', fontWeight: 600 }} />
+                <Tabs value={currentTab} onChange={(_, val) => setCurrentTab(val)} variant="scrollable">
+                  <Tab
+                    icon={<BadgeOutlined />}
+                    iconPosition="start"
+                    label={tr('1. Thông tin cá nhân & Nhân sự', '1. Personal & Personnel Info')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<FlightTakeoffRounded />}
+                    iconPosition="start"
+                    label={tr('2. Giấy phép & Bản Scan', '2. Pilot License & Scan')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<HistoryEduRounded />}
+                    iconPosition="start"
+                    label={tr('3. Kinh nghiệm bay', '3. Flight Experience')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<FlightTakeoffRounded />}
+                    iconPosition="start"
+                    label={tr(
+                      `4. Lịch sử bay tại công ty (${profile.companyFlightsCount})`,
+                      `4. Platform Flight Log (${profile.companyFlightsCount})`,
+                    )}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
                 </Tabs>
               </Box>
 
-              {/* TAB 0: THÔNG TIN CÁ NHÂN */}
+              {/* TAB 0: PERSONAL INFO */}
               {currentTab === 0 && (
                 <Box component="form" onSubmit={handleSaveProfile} sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: '#1e293b' }}>
-                    Thông tin định danh và liên hệ nhân sự
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 2, color: 'text.primary' }}>
+                    {tr('Thông tin định danh và liên hệ nhân sự', 'Identity & Contact Information')}
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                     <TextField
                       fullWidth
                       required
-                      label="Họ và tên"
+                      label={tr('Họ và tên', 'Full name')}
                       value={form.fullName}
                       onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                     />
                     <TextField
                       fullWidth
                       disabled
-                      label="Email đăng nhập"
+                      label={tr('Email đăng nhập', 'Sign-in email')}
                       value={profile.email}
-                      helperText="Email do hệ thống quản lý, không thể thay đổi trực tiếp"
+                      helperText={tr(
+                        'Email do hệ thống quản lý, không thể thay đổi trực tiếp',
+                        'System-managed email address cannot be modified directly',
+                      )}
                     />
                     <TextField
                       fullWidth
-                      label="Số điện thoại liên hệ"
-                      placeholder="VD: 0912 345 678"
+                      label={tr('Số điện thoại liên hệ', 'Phone number')}
+                      placeholder="0912 345 678"
                       value={form.phoneNumber || ''}
                       onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
                     />
                     <TextField
                       fullWidth
-                      label="Số CCCD / Hộ chiếu"
-                      placeholder="VD: 001092008899"
+                      label={tr('Số CCCD / Hộ chiếu', 'National ID / Passport')}
+                      placeholder="001092008899"
                       value={form.citizenId || ''}
                       onChange={(e) => setForm({ ...form, citizenId: e.target.value })}
                     />
                     <TextField
                       fullWidth
                       type="date"
-                      label="Ngày tháng năm sinh"
+                      label={tr('Ngày tháng năm sinh', 'Date of birth')}
                       slotProps={{ inputLabel: { shrink: true } }}
                       value={form.dateOfBirth || ''}
                       onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
                     />
                     <TextField
                       fullWidth
-                      label="Địa chỉ thường trú / Công tác"
-                      placeholder="VD: Ba Đình, Hà Nội"
+                      label={tr('Địa chỉ thường trú / Công tác', 'Operating address')}
+                      placeholder={tr('VD: Ba Đình, Hà Nội', 'e.g. Ba Dinh, Hanoi')}
                       value={form.address || ''}
                       onChange={(e) => setForm({ ...form, address: e.target.value })}
                     />
@@ -421,8 +524,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         fullWidth
                         multiline
                         rows={2}
-                        label="Ghi chú nội bộ về nhân sự"
-                        placeholder="Nhận xét của Manager về tác phong, kỹ luật, sức khỏe bay..."
+                        label={tr('Ghi chú nội bộ về nhân sự', 'Internal personnel notes')}
+                        placeholder={tr(
+                          'Nhận xét của Manager về tác phong, kỹ luật, sức khỏe bay...',
+                          'Manager notes on professionalism, safety compliance, medical readiness...',
+                        )}
                         value={form.notes || ''}
                         onChange={(e) => setForm({ ...form, notes: e.target.value })}
                       />
@@ -433,36 +539,47 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     <Button
                       type="submit"
                       variant="contained"
+                      color="primary"
                       disabled={updateMutation.isPending}
-                      sx={{ bgcolor: '#3758F9', textTransform: 'none', fontWeight: 600, px: 3 }}
+                      sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
                     >
-                      {updateMutation.isPending ? 'Đang lưu…' : 'Lưu thông tin cá nhân'}
+                      {updateMutation.isPending
+                        ? tr('Đang lưu…', 'Saving…')
+                        : tr('Lưu thông tin cá nhân', 'Save personal info')}
                     </Button>
                   </Box>
                 </Box>
               )}
 
-              {/* TAB 1: GIẤY PHÉP BAY & BẢN SCAN */}
+              {/* TAB 1: PILOT LICENSE & SCAN */}
               {currentTab === 1 && (
                 <Box component="form" onSubmit={handleSaveProfile} sx={{ p: 3 }}>
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' }, gap: 3 }}>
-                    {/* Cột trái: Thông tin bằng lái */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5, color: '#1e293b' }}>
-                        Thông tin Giấy phép điều khiển tàu bay không người lái (UAV)
+                      <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 0.5, color: 'text.primary' }}>
+                        {tr(
+                          'Thông tin Giấy phép điều khiển tàu bay không người lái (UAV)',
+                          'UAV Remote Pilot License Details',
+                        )}
                       </Typography>
                       <TextField
                         fullWidth
-                        label="Số hiệu bằng lái / Chứng chỉ phi công"
-                        placeholder="VD: VN-UAV-2025-00892"
+                        label={tr('Số hiệu bằng lái / Chứng chỉ phi công', 'Pilot license / Certificate number')}
+                        placeholder="VN-UAV-2025-00892"
                         value={form.pilotLicenseNumber || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseNumber: e.target.value })}
-                        helperText="Số cấp phép chính thức từ cơ quan quản lý hàng không"
+                        helperText={tr(
+                          'Số cấp phép chính thức từ cơ quan quản lý hàng không',
+                          'Official permit number issued by aviation authority',
+                        )}
                       />
                       <TextField
                         fullWidth
-                        label="Hạng bằng lái / Loại chứng chỉ"
-                        placeholder="VD: Hạng 2 (Trọng lượng 2-25kg), BVLOS - Ngoài tầm nhìn"
+                        label={tr('Hạng bằng lái / Loại chứng chỉ', 'License class / Rating')}
+                        placeholder={tr(
+                          'VD: Hạng 2 (Trọng lượng 2-25kg), BVLOS - Ngoài tầm nhìn',
+                          'e.g. Class 2 (2-25kg), BVLOS rating',
+                        )}
                         value={form.pilotLicenseClass || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseClass: e.target.value })}
                       />
@@ -470,7 +587,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <TextField
                           fullWidth
                           type="date"
-                          label="Ngày cấp bằng"
+                          label={tr('Ngày cấp bằng', 'Issue date')}
                           slotProps={{ inputLabel: { shrink: true } }}
                           value={form.pilotLicenseIssuedDate || ''}
                           onChange={(e) => setForm({ ...form, pilotLicenseIssuedDate: e.target.value })}
@@ -478,7 +595,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <TextField
                           fullWidth
                           type="date"
-                          label="Ngày hết hạn bằng lái"
+                          label={tr('Ngày hết hạn bằng lái', 'Expiration date')}
                           slotProps={{ inputLabel: { shrink: true } }}
                           value={form.pilotLicenseExpiresAt || ''}
                           onChange={(e) => setForm({ ...form, pilotLicenseExpiresAt: e.target.value })}
@@ -486,8 +603,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       </Box>
                       <TextField
                         fullWidth
-                        label="Cơ quan / Đơn vị cấp phép"
-                        placeholder="VD: Cục Tác chiến - Bộ Tổng Tham mưu / Cục Hàng không Việt Nam"
+                        label={tr('Cơ quan / Đơn vị cấp phép', 'Issuing authority')}
+                        placeholder={tr(
+                          'VD: Cục Tác chiến - Bộ Tổng Tham mưu / Cục Hàng không Việt Nam',
+                          'e.g. Operations Department / Civil Aviation Authority of Vietnam',
+                        )}
                         value={form.pilotLicenseAuthority || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseAuthority: e.target.value })}
                       />
@@ -496,45 +616,49 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <Button
                           type="submit"
                           variant="contained"
+                          color="primary"
                           disabled={updateMutation.isPending}
-                          sx={{ bgcolor: '#3758F9', textTransform: 'none', fontWeight: 600, px: 3 }}
+                          sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
                         >
-                          {updateMutation.isPending ? 'Đang lưu…' : 'Lưu thông tin giấy phép'}
+                          {updateMutation.isPending
+                            ? tr('Đang lưu…', 'Saving…')
+                            : tr('Lưu thông tin giấy phép', 'Save license info')}
                         </Button>
                       </Box>
                     </Box>
 
-                    {/* Cột phải: Bản scan giấy phép bay MinIO */}
+                    {/* Right column: License scan */}
                     <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: '#1e293b' }}>
-                        Bản scan giấy phép bay (Lưu trữ MinIO)
+                      <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 1, color: 'text.primary' }}>
+                        {tr('Bản scan giấy phép bay (Lưu trữ MinIO)', 'Scanned Pilot License (MinIO Storage)')}
                       </Typography>
                       <Paper
                         variant="outlined"
                         sx={{
                           p: 2,
                           textAlign: 'center',
-                          borderRadius: '12px',
-                          border: profile.hasLicenseScan ? '1.5px solid #10b981' : '1px dashed #94a3b8',
-                          bgcolor: profile.hasLicenseScan ? '#f0fdf4' : '#f8fafc',
+                          borderRadius: '10px',
+                          borderStyle: profile.hasLicenseScan ? 'solid' : 'dashed',
+                          borderColor: profile.hasLicenseScan ? 'success.main' : 'divider',
+                          bgcolor: 'background.default',
                         }}
                       >
                         {licenseScanLoading ? (
                           <Box sx={{ py: 6 }}>
                             <CircularProgress size={28} />
-                            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#64748b' }}>
-                              Đang tải bản scan từ MinIO…
+                            <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                              {tr('Đang tải bản scan từ MinIO…', 'Loading license scan…')}
                             </Typography>
                           </Box>
                         ) : licenseScanBlobUrl ? (
                           <Box>
-                            <Card variant="outlined" sx={{ position: 'relative', mb: 1.5 }}>
+                            <Card variant="outlined" sx={{ position: 'relative', mb: 1.5, borderRadius: '8px' }}>
                               <CardMedia
                                 component="img"
                                 height="180"
                                 image={licenseScanBlobUrl}
-                                alt="Bản scan bằng lái"
-                                sx={{ objectFit: 'contain', bgcolor: '#0000000a' }}
+                                alt={tr('Bản scan bằng lái', 'Pilot license scan')}
+                                sx={{ objectFit: 'contain', bgcolor: 'action.hover' }}
                               />
                               <IconButton
                                 size="small"
@@ -543,8 +667,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                                   position: 'absolute',
                                   top: 6,
                                   right: 6,
-                                  bgcolor: 'rgba(255, 255, 255, 0.9)',
-                                  '&:hover': { bgcolor: '#ffffff' },
+                                  bgcolor: 'background.paper',
+                                  '&:hover': { bgcolor: 'background.default' },
                                 }}
                               >
                                 <ZoomInRounded fontSize="small" />
@@ -558,7 +682,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                                 onClick={() => setZoomScanOpen(true)}
                                 sx={{ textTransform: 'none' }}
                               >
-                                Xem phóng to
+                                {tr('Xem phóng to', 'Zoom in')}
                               </Button>
                               <Button
                                 size="small"
@@ -568,18 +692,18 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                                 download={`Scan-Bang-Lai-${profile.fullName.replace(/\s+/g, '_')}.png`}
                                 sx={{ textTransform: 'none' }}
                               >
-                                Tải về
+                                {tr('Tải về', 'Download')}
                               </Button>
                             </Box>
                           </Box>
                         ) : (
                           <Box sx={{ py: 4 }}>
-                            <BadgeOutlined sx={{ fontSize: 44, color: '#94a3b8', mb: 1 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>
-                              Chưa có bản scan giấy phép
+                            <BadgeOutlined sx={{ fontSize: 44, color: 'text.secondary', mb: 1 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                              {tr('Chưa có bản scan giấy phép', 'No license scan uploaded yet')}
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 2 }}>
-                              Hỗ trợ định dạng PDF, JPG, PNG hoặc WebP
+                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
+                              {tr('Hỗ trợ định dạng PDF, JPG, PNG hoặc WebP', 'Supports PDF, JPG, PNG, or WebP')}
                             </Typography>
                           </Box>
                         )}
@@ -595,10 +719,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                           sx={{ textTransform: 'none', fontWeight: 600 }}
                         >
                           {uploadScanMutation.isPending
-                            ? 'Đang tải lên MinIO…'
+                            ? tr('Đang tải lên MinIO…', 'Uploading…')
                             : profile.hasLicenseScan
-                              ? 'Tải lên bản scan mới thay thế'
-                              : 'Chọn tệp scan để tải lên'}
+                              ? tr('Tải lên bản scan mới thay thế', 'Replace license scan')
+                              : tr('Chọn tệp scan để tải lên', 'Upload license scan')}
                           <input
                             hidden
                             type="file"
@@ -612,11 +736,14 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                 </Box>
               )}
 
-              {/* TAB 2: KINH NGHIỆM BAY */}
+              {/* TAB 2: FLIGHT EXPERIENCE */}
               {currentTab === 2 && (
                 <Box component="form" onSubmit={handleSaveProfile} sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: '#1e293b' }}>
-                    Kinh nghiệm bay, loại thiết bị và lĩnh vực kiểm định chuyên môn
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 2, color: 'text.primary' }}>
+                    {tr(
+                      'Kinh nghiệm bay, loại thiết bị và lĩnh vực kiểm định chuyên môn',
+                      'Flight Experience, Certified Aircraft & Inspection Specializations',
+                    )}
                   </Typography>
 
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
@@ -624,32 +751,54 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       fullWidth
                       type="number"
                       slotProps={{ htmlInput: { step: '0.5', min: '0' } }}
-                      label="Số giờ bay tích lũy trước khi vào công ty (giờ)"
-                      placeholder="VD: 150.5"
+                      label={tr(
+                        'Số giờ bay tích lũy trước khi vào công ty (giờ)',
+                        'Prior flight hours before joining platform (hrs)',
+                      )}
+                      placeholder="150.5"
                       value={form.priorFlightHours ?? 0}
                       onChange={(e) => setForm({ ...form, priorFlightHours: parseFloat(e.target.value) || 0 })}
-                      helperText="Tổng giờ bay tích lũy trên các dự án trước đây"
+                      helperText={tr(
+                        'Tổng giờ bay tích lũy trên các dự án trước đây',
+                        'Total verified flight hours from prior projects',
+                      )}
                     />
                     <TextField
                       fullWidth
                       disabled
-                      label="Số giờ bay tại công ty (giờ)"
-                      value={`${profile.companyFlightHours} giờ (từ ${profile.companyFlightsCount} nhiệm vụ)`}
-                      helperText="Tự động tính từ các chuyến bay nội bộ đã ghi nhận"
+                      label={tr('Số giờ bay tại công ty (giờ)', 'Platform flight hours (hrs)')}
+                      value={tr(
+                        `${profile.companyFlightHours} giờ (từ ${profile.companyFlightsCount} nhiệm vụ)`,
+                        `${profile.companyFlightHours} hrs (across ${profile.companyFlightsCount} missions)`,
+                      )}
+                      helperText={tr(
+                        'Tự động tính từ các chuyến bay nội bộ đã ghi nhận',
+                        'Automatically calculated from recorded platform flight missions',
+                      )}
                     />
                     <Box sx={{ gridColumn: { xs: 'span 1', sm: 'span 2' } }}>
                       <TextField
                         fullWidth
-                        label="Các dòng Drone đã thành thạo / Có chứng chỉ bay"
-                        placeholder="VD: DJI Matrice 350 RTK, Mavic 3 Enterprise / Thermal, Autel EVO Max 4T, Flyability Elios 3"
+                        label={tr(
+                          'Các dòng Drone đã thành thạo / Có chứng chỉ bay',
+                          'Certified / Proficient Drone Models',
+                        )}
+                        placeholder="DJI Matrice 350 RTK, Mavic 3 Enterprise / Thermal, Autel EVO Max 4T"
                         value={form.certifiedDroneModels || ''}
                         onChange={(e) => setForm({ ...form, certifiedDroneModels: e.target.value })}
-                        helperText="Phân tách bằng dấu phẩy"
+                        helperText={tr('Phân tách bằng dấu phẩy', 'Comma-separated list')}
                       />
                       {form.certifiedDroneModels && (
                         <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
                           {form.certifiedDroneModels.split(',').map((model, idx) => (
-                            <Chip key={idx} size="small" label={model.trim()} sx={{ fontWeight: 600, bgcolor: '#e0e7ff', color: '#3730a3' }} />
+                            <Chip
+                              key={idx}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              label={model.trim()}
+                              sx={{ fontWeight: 600 }}
+                            />
                           ))}
                         </Box>
                       )}
@@ -657,16 +806,29 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     <Box sx={{ gridColumn: { xs: 'span 1', sm: 'span 2' } }}>
                       <TextField
                         fullWidth
-                        label="Lĩnh vực / Chuyên môn kiểm định hạ tầng"
-                        placeholder="VD: Đường dây tải điện cao thế, Cánh quạt tuabin gió, Trang trại điện mặt trời, Cầu đường & hầm chui"
+                        label={tr(
+                          'Lĩnh vực / Chuyên môn kiểm định hạ tầng',
+                          'Infrastructure Inspection Specializations',
+                        )}
+                        placeholder={tr(
+                          'VD: Đường dây tải điện cao thế, Cánh quạt tuabin gió, Trang trại điện mặt trời',
+                          'e.g. High-voltage power lines, Wind turbine blades, Solar farms',
+                        )}
                         value={form.specializations || ''}
                         onChange={(e) => setForm({ ...form, specializations: e.target.value })}
-                        helperText="Phân tách bằng dấu phẩy"
+                        helperText={tr('Phân tách bằng dấu phẩy', 'Comma-separated list')}
                       />
                       {form.specializations && (
                         <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
                           {form.specializations.split(',').map((spec, idx) => (
-                            <Chip key={idx} size="small" label={spec.trim()} sx={{ fontWeight: 600, bgcolor: '#f0fdf4', color: '#166534' }} />
+                            <Chip
+                              key={idx}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              label={spec.trim()}
+                              sx={{ fontWeight: 600 }}
+                            />
                           ))}
                         </Box>
                       )}
@@ -676,8 +838,14 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         fullWidth
                         multiline
                         rows={3}
-                        label="Tóm tắt kinh nghiệm bay & Đánh giá năng lực"
-                        placeholder="Mô tả quá trình đào tạo, các dự án tiêu biểu đã tham gia, kỹ năng xử lý gió mạnh, bay gần nguồn từ trường cao thế..."
+                        label={tr(
+                          'Tóm tắt kinh nghiệm bay & Đánh giá năng lực',
+                          'Flight Experience Summary & Competency Assessment',
+                        )}
+                        placeholder={tr(
+                          'Mô tả quá trình đào tạo, các dự án tiêu biểu đã tham gia, kỹ năng xử lý gió mạnh, bay gần nguồn từ trường cao thế...',
+                          'Describe training background, key projects, high-wind handling, EMI corridor experience...',
+                        )}
                         value={form.experienceSummary || ''}
                         onChange={(e) => setForm({ ...form, experienceSummary: e.target.value })}
                       />
@@ -688,35 +856,45 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     <Button
                       type="submit"
                       variant="contained"
+                      color="primary"
                       disabled={updateMutation.isPending}
-                      sx={{ bgcolor: '#3758F9', textTransform: 'none', fontWeight: 600, px: 3 }}
+                      sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
                     >
-                      {updateMutation.isPending ? 'Đang lưu…' : 'Lưu thông tin kinh nghiệm'}
+                      {updateMutation.isPending
+                        ? tr('Đang lưu…', 'Saving…')
+                        : tr('Lưu thông tin kinh nghiệm', 'Save experience')}
                     </Button>
                   </Box>
                 </Box>
               )}
 
-              {/* TAB 3: LỊCH SỬ BAY TẠI CÔNG TY */}
+              {/* TAB 3: PLATFORM FLIGHT LOGS */}
               {currentTab === 3 && (
                 <Box sx={{ p: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
-                        Nhật ký các nhiệm vụ bay nội bộ tại công ty
+                      <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary' }}>
+                        {tr(
+                          'Nhật ký các nhiệm vụ bay nội bộ tại công ty',
+                          'Platform Flight Mission Logbook',
+                        )}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Ghi nhận thời gian bay, dòng drone sử dụng và kết quả thực hiện nhiệm vụ.
+                        {tr(
+                          'Ghi nhận thời gian bay, dòng drone sử dụng và kết quả thực hiện nhiệm vụ.',
+                          'Record flight duration, aircraft used, and mission safety outcomes.',
+                        )}
                       </Typography>
                     </Box>
                     <Button
                       variant="contained"
+                      color="primary"
                       size="small"
                       startIcon={<AddCircleOutlineRounded />}
                       onClick={() => setLogOpen(true)}
-                      sx={{ bgcolor: '#3758F9', textTransform: 'none', fontWeight: 600 }}
+                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                     >
-                      + Ghi nhận chuyến bay mới
+                      {tr('+ Ghi nhận chuyến bay mới', '+ Record Flight Mission')}
                     </Button>
                   </Box>
 
@@ -725,13 +903,22 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       <CircularProgress size={24} />
                     </Box>
                   ) : (flightLogsQuery.data ?? []).length === 0 ? (
-                    <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '12px', bgcolor: '#f8fafc' }}>
-                      <FlightTakeoffRounded sx={{ fontSize: 40, color: '#94a3b8', mb: 1 }} />
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>
-                        Chưa có chuyến bay nào được ghi nhận cho phi công này
+                    <Paper
+                      variant="outlined"
+                      sx={{ p: 4, textAlign: 'center', borderRadius: '10px', bgcolor: 'background.default' }}
+                    >
+                      <FlightTakeoffRounded sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        {tr(
+                          'Chưa có chuyến bay nào được ghi nhận cho phi công này',
+                          'No flight missions recorded for this pilot yet',
+                        )}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Bấm nút "+ Ghi nhận chuyến bay mới" để thêm thông tin chuyến bay đầu tiên.
+                        {tr(
+                          'Bấm nút "+ Ghi nhận chuyến bay mới" để thêm thông tin chuyến bay đầu tiên.',
+                          'Use "+ Record Flight Mission" to log the first mission.',
+                        )}
                       </Typography>
                     </Paper>
                   ) : (
@@ -743,7 +930,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                           sx={{
                             p: 2,
                             borderRadius: '10px',
-                            border: '1px solid #e2e8f0',
+                            borderColor: 'divider',
                             display: 'flex',
                             flexDirection: { xs: 'column', sm: 'row' },
                             justifyContent: 'space-between',
@@ -753,38 +940,62 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         >
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                              <Typography sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
+                              <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9375rem' }}>
                                 {log.missionTitle}
                               </Typography>
-                              <Chip size="small" label={log.flightCode} sx={{ height: 20, fontSize: 11, fontWeight: 700, bgcolor: '#e2e8f0' }} />
+                              <Chip
+                                size="small"
+                                label={log.flightCode}
+                                variant="outlined"
+                                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                              />
                               <Chip
                                 size="small"
                                 label={log.inspectionType}
                                 color="primary"
                                 variant="outlined"
-                                sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+                                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                               />
                             </Box>
 
-                            <Typography variant="body2" sx={{ color: '#475569' }}>
-                              Thiết bị: <strong>{log.droneModel}</strong> {log.droneSerialNumber && `(S/N: ${log.droneSerialNumber})`} · Địa điểm: <strong>{log.location}</strong>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {tr('Thiết bị:', 'Aircraft:')} <strong>{log.droneModel}</strong>{' '}
+                              {log.droneSerialNumber && `(S/N: ${log.droneSerialNumber})`} ·{' '}
+                              {tr('Địa điểm:', 'Location:')} <strong>{log.location}</strong>
                             </Typography>
 
-                            <Typography variant="caption" sx={{ color: '#64748b' }}>
-                              Ngày bay: {new Date(log.flightDate).toLocaleDateString('vi-VN')} · Thời lượng: <strong>{log.flightDurationMinutes} phút</strong> ({log.flightDurationHours} giờ)
-                              {log.notes && ` · Ghi chú: ${log.notes}`}
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {tr('Ngày bay:', 'Flight date:')}{' '}
+                              {new Date(log.flightDate).toLocaleDateString(dateLocale)} ·{' '}
+                              {tr('Thời lượng:', 'Duration:')}{' '}
+                              <strong>
+                                {log.flightDurationMinutes} {tr('phút', 'min')}
+                              </strong>{' '}
+                              ({log.flightDurationHours} {tr('giờ', 'hrs')})
+                              {log.notes && ` · ${tr('Ghi chú:', 'Note:')} ${log.notes}`}
                             </Typography>
                           </Box>
 
                           <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>
                             {log.safetyIncident ? (
-                              <Chip size="small" label="Có sự cố" color="error" sx={{ fontWeight: 700 }} />
+                              <Chip
+                                size="small"
+                                label={tr('Có sự cố', 'Incident')}
+                                color="error"
+                                sx={{ fontWeight: 700 }}
+                              />
                             ) : (
-                              <Chip size="small" label="An toàn" color="success" sx={{ fontWeight: 700 }} />
+                              <Chip
+                                size="small"
+                                label={tr('An toàn', 'Safe')}
+                                color="success"
+                                sx={{ fontWeight: 700 }}
+                              />
                             )}
                             <IconButton
                               size="small"
                               color="error"
+                              aria-label={tr('Xóa nhật ký bay', 'Delete flight log')}
                               onClick={() => deleteLogMutation.mutate(log.id)}
                               disabled={deleteLogMutation.isPending}
                             >
@@ -801,23 +1012,25 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
           <Button onClick={onClose} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Đóng
+            {tr('Đóng', 'Close')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* DIALOG GHI NHẬN CHUYẾN BAY MỚI */}
+      {/* DIALOG: RECORD NEW FLIGHT MISSION */}
       <Dialog open={logOpen} onClose={() => setLogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 700 }}>Ghi nhận Chuyến bay / Nhiệm vụ bay mới</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {tr('Ghi nhận Chuyến bay / Nhiệm vụ bay mới', 'Record New Flight Mission')}
+        </DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             <TextField
               fullWidth
               required
-              label="Mã chuyến bay / Ký hiệu"
-              placeholder="VD: FL-2026-105"
+              label={tr('Mã chuyến bay / Ký hiệu', 'Flight code')}
+              placeholder="FL-2026-105"
               value={logForm.flightCode}
               onChange={(e) => setLogForm({ ...logForm, flightCode: e.target.value })}
             />
@@ -825,7 +1038,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
               fullWidth
               required
               type="date"
-              label="Ngày thực hiện bay"
+              label={tr('Ngày thực hiện bay', 'Flight date')}
               slotProps={{ inputLabel: { shrink: true } }}
               value={logForm.flightDate}
               onChange={(e) => setLogForm({ ...logForm, flightDate: e.target.value })}
@@ -833,31 +1046,37 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
             <TextField
               fullWidth
               required
-              label="Tên nhiệm vụ / Công trình kiểm định"
-              placeholder="VD: Khảo sát đường dây 500kV đoạn Nho Quan - Thường Tín"
+              label={tr('Tên nhiệm vụ / Công trình kiểm định', 'Mission title / Inspected asset')}
+              placeholder={tr(
+                'VD: Khảo sát đường dây 500kV đoạn Nho Quan - Thường Tín',
+                'e.g. 500kV transmission line inspection',
+              )}
               value={logForm.missionTitle}
               onChange={(e) => setLogForm({ ...logForm, missionTitle: e.target.value })}
             />
             <TextField
               fullWidth
               required
-              label="Dòng Drone sử dụng"
-              placeholder="VD: DJI Matrice 350 RTK"
+              label={tr('Dòng Drone sử dụng', 'Drone model')}
+              placeholder="DJI Matrice 350 RTK"
               value={logForm.droneModel}
               onChange={(e) => setLogForm({ ...logForm, droneModel: e.target.value })}
             />
             <TextField
               fullWidth
-              label="Số Serial Drone (tùy chọn)"
-              placeholder="VD: 1581F5GJD2203001"
+              label={tr('Số Serial Drone (tùy chọn)', 'Drone serial number (optional)')}
+              placeholder="1581F5GJD2203001"
               value={logForm.droneSerialNumber || ''}
               onChange={(e) => setLogForm({ ...logForm, droneSerialNumber: e.target.value })}
             />
             <TextField
               fullWidth
               required
-              label="Địa điểm / Khu vực bay"
-              placeholder="VD: Cột 125-132, Huyện Phú Xuyên, Hà Nội"
+              label={tr('Địa điểm / Khu vực bay', 'Location / Operating sector')}
+              placeholder={tr(
+                'VD: Cột 125-132, Huyện Phú Xuyên, Hà Nội',
+                'e.g. Towers 125-132, Phu Xuyen, Hanoi',
+              )}
               value={logForm.location}
               onChange={(e) => setLogForm({ ...logForm, location: e.target.value })}
             />
@@ -866,16 +1085,21 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
               required
               type="number"
               slotProps={{ htmlInput: { min: '1' } }}
-              label="Thời lượng bay (phút)"
-              placeholder="VD: 75"
+              label={tr('Thời lượng bay (phút)', 'Flight duration (minutes)')}
+              placeholder="75"
               value={logForm.flightDurationMinutes}
-              onChange={(e) => setLogForm({ ...logForm, flightDurationMinutes: parseInt(e.target.value, 10) || 0 })}
+              onChange={(e) =>
+                setLogForm({ ...logForm, flightDurationMinutes: parseInt(e.target.value, 10) || 0 })
+              }
             />
             <TextField
               fullWidth
               required
-              label="Loại hình kiểm định"
-              placeholder="VD: Đường dây điện cao thế / Pin mặt trời / Tuabin gió"
+              label={tr('Loại hình kiểm định', 'Inspection type')}
+              placeholder={tr(
+                'VD: Đường dây điện cao thế / Pin mặt trời / Tuabin gió',
+                'e.g. High-voltage power line / Solar / Wind turbine',
+              )}
               value={logForm.inspectionType}
               onChange={(e) => setLogForm({ ...logForm, inspectionType: e.target.value })}
             />
@@ -883,8 +1107,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
               fullWidth
               multiline
               rows={2}
-              label="Ghi chú chuyến bay"
-              placeholder="Tình trạng thời tiết, gió, chất lượng dữ liệu thu thập..."
+              label={tr('Ghi chú chuyến bay', 'Flight notes')}
+              placeholder={tr(
+                'Tình trạng thời tiết, gió, chất lượng dữ liệu thu thập...',
+                'Weather conditions, wind speed, evidence capture quality...',
+              )}
               value={logForm.notes || ''}
               onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
             />
@@ -892,10 +1119,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setLogOpen(false)} sx={{ textTransform: 'none' }}>
-            Hủy
+            {tr('Hủy', 'Cancel')}
           </Button>
           <Button
             variant="contained"
+            color="primary"
             disabled={
               recordLogMutation.isPending ||
               !logForm.flightCode.trim() ||
@@ -905,27 +1133,30 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
               logForm.flightDurationMinutes <= 0
             }
             onClick={() => recordLogMutation.mutate(logForm)}
-            sx={{ bgcolor: '#3758F9', textTransform: 'none', fontWeight: 600 }}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            {recordLogMutation.isPending ? 'Đang lưu…' : 'Lưu chuyến bay'}
+            {recordLogMutation.isPending ? tr('Đang lưu…', 'Saving…') : tr('Lưu chuyến bay', 'Save mission')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* DIALOG PHÓNG TO BẢN SCAN GIẤY PHÉP */}
+      {/* DIALOG: ZOOM LICENSE SCAN */}
       <Dialog open={zoomScanOpen} onClose={() => setZoomScanOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography sx={{ fontWeight: 700 }}>Bản scan Giấy phép bay - {profile?.fullName}</Typography>
+          <Typography sx={{ fontWeight: 700 }}>
+            {tr('Bản scan Giấy phép bay', 'Pilot License Scan')} - {profile?.fullName}
+          </Typography>
           <IconButton onClick={() => setZoomScanOpen(false)} size="small">
             <CloseRounded />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 1, bgcolor: '#0f172a', textAlign: 'center' }}>
+        <DialogContent sx={{ p: 1, bgcolor: 'background.default', textAlign: 'center' }}>
           {licenseScanBlobUrl && (
-            <img
+            <Box
+              component="img"
               src={licenseScanBlobUrl}
-              alt="Scan giấy phép bay"
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+              alt={tr('Scan giấy phép bay', 'Pilot license scan')}
+              sx={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
             />
           )}
         </DialogContent>

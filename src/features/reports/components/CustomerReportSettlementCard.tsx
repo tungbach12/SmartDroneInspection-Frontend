@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Alert,
   Box,
@@ -16,15 +17,18 @@ import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRou
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
-import type { ReportPaymentStatusDetails } from '@/features/inspections/api/inspectionApi';
+import type { Finding, ReportPaymentStatusDetails } from '@/features/inspections/api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 interface CustomerReportSettlementCardProps {
   inspectionId: string;
   versionId: string;
   versionNo: number;
+  summary?: string | null | undefined;
+  findings?: Finding[] | undefined;
   isPaid: boolean;
   isReportAccepted: boolean;
   isPaymentCancelled?: boolean;
@@ -33,6 +37,8 @@ interface CustomerReportSettlementCardProps {
   payosPending: boolean;
   vnpayPending?: boolean;
   disputeSubmitted: boolean;
+  disputeReason?: string | null;
+  disputeSubmittedAt?: string | null;
   onAcceptReport: () => void;
   onProceedToPayOS: () => void;
   onProceedToVnPay?: () => void;
@@ -52,6 +58,8 @@ export function CustomerReportSettlementCard({
   inspectionId,
   versionId,
   versionNo,
+  summary,
+  findings,
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
@@ -60,12 +68,15 @@ export function CustomerReportSettlementCard({
   payosPending,
   vnpayPending = false,
   disputeSubmitted,
+  disputeReason,
+  disputeSubmittedAt,
   onAcceptReport,
   onProceedToPayOS,
   onProceedToVnPay,
   onOpenDispute,
 }: CustomerReportSettlementCardProps) {
-  const { formatNumber, t } = useLocale();
+  const { formatDateTime, formatNumber, t } = useLocale();
+  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
   const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;
@@ -113,7 +124,7 @@ export function CustomerReportSettlementCard({
       variant="outlined"
       sx={{
         p: 2.5,
-        borderRadius: '16px',
+        borderRadius: '10px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
@@ -150,7 +161,7 @@ export function CustomerReportSettlementCard({
                 label={invoiceRef}
                 sx={{
                   height: 22,
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontWeight: 650,
                   fontFamily: 'monospace',
                 }}
@@ -163,12 +174,12 @@ export function CustomerReportSettlementCard({
           </Box>
 
           {amountVnd && (
-            <Paper
-              variant="outlined"
+            <Box
               sx={{
                 p: 1.75,
                 minWidth: { sm: 290 },
                 borderRadius: '10px',
+                border: '1px solid',
                 borderColor: isPaid ? '#176B52' : 'divider',
                 bgcolor: 'background.default',
               }}
@@ -226,7 +237,7 @@ export function CustomerReportSettlementCard({
                 spacing={2}
                 sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 0.25 }}
               >
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
                   {isPaid ? t('Total paid') : t('Amount to pay')}
                 </Typography>
                 <Typography
@@ -240,7 +251,7 @@ export function CustomerReportSettlementCard({
                   {amountVnd}
                 </Typography>
               </Stack>
-            </Paper>
+            </Box>
           )}
         </Stack>
 
@@ -255,12 +266,12 @@ export function CustomerReportSettlementCard({
           {steps.map((step) => {
             const Icon = step.icon;
             return (
-              <Paper
+              <Box
                 key={step.title}
-                variant="outlined"
                 sx={{
                   p: 1.5,
                   borderRadius: '10px',
+                  border: '1px solid',
                   borderColor: step.active ? 'primary.main' : 'divider',
                   bgcolor: step.active ? 'action.hover' : 'background.default',
                   display: 'flex',
@@ -300,7 +311,7 @@ export function CustomerReportSettlementCard({
                     {step.subtitle}
                   </Typography>
                 </Box>
-              </Paper>
+              </Box>
             );
           })}
         </Box>
@@ -410,14 +421,19 @@ export function CustomerReportSettlementCard({
               </Typography>
             </Box>
 
-            <ReportAiSummaryCard inspectionId={inspectionId} versionId={versionId} />
+            <ReportAiSummaryCard
+              inspectionId={inspectionId}
+              versionId={versionId}
+              summary={summary}
+              findings={findings}
+            />
 
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Button
                 variant="contained"
                 color="success"
                 disabled={acceptPending}
-                onClick={onAcceptReport}
+                onClick={() => setConfirmAcceptOpen(true)}
                 sx={{
                   fontWeight: 650,
                   borderRadius: '8px',
@@ -444,11 +460,40 @@ export function CustomerReportSettlementCard({
 
             {disputeSubmitted && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                {t(
-                  'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {t(
+                    'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+                  )}
+                </Typography>
+                {disputeReason && (
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    <strong>{t('Dispute reason')}:</strong> {disputeReason}
+                  </Typography>
+                )}
+                {disputeSubmittedAt && (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
+                    {t('Submitted')}: {formatDateTime(new Date(disputeSubmittedAt))}
+                  </Typography>
                 )}
               </Alert>
             )}
+
+            <ConfirmDialog
+              open={confirmAcceptOpen}
+              title={t('Confirm Report Acceptance')}
+              message={t(
+                'Accepting the official inspection report locks your deliverable acceptance and proceeds to service invoice settlement. Would you like to accept this report?',
+              )}
+              confirmLabel={t('Confirm & Accept Report')}
+              cancelLabel={t('Cancel')}
+              confirmColor="success"
+              loading={acceptPending}
+              onCancel={() => setConfirmAcceptOpen(false)}
+              onConfirm={() => {
+                setConfirmAcceptOpen(false);
+                onAcceptReport();
+              }}
+            />
           </Stack>
         )}
       </Stack>

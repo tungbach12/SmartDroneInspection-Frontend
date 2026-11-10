@@ -40,6 +40,21 @@
   border-top: 1px solid var(--mui-palette-divider) !important;
 }
 
+.inspection-detail-page {
+  width: 100%;
+  max-width: none;
+}
+
+.inspection-detail-page .trace-ledger-header,
+.inspection-detail-page .inspection-trace-context,
+.inspection-detail-page .inspection-stage-rail,
+.inspection-detail-page .trace-stage-panel,
+.inspection-detail-page .trace-filter-panel,
+.inspection-detail-page .trace-confirmation-gate {
+  width: 100%;
+  max-width: none;
+}
+
 .trace-stage-panel--findings .MuiChip-root {
   border-radius: 4px;
 }
@@ -53,7 +68,7 @@
 }
 
 .trace-ledger-workspace :is(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid var(--mui-palette-divider);
+  outline: 2px solid var(--mui-palette-primary-main, #3758F9);
   outline-offset: 2px;
 }
 

@@ -8,7 +8,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -73,7 +72,12 @@ export default function ManagerPartnerInspectorsPage() {
       render: (user) => (
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
           {user.roles.map((role) => (
-            <Chip key={role} size="small" label={role} sx={{ height: 20, fontSize: 10 }} />
+            <Chip
+              key={role}
+              size="small"
+              label={role}
+              sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+            />
           ))}
         </Stack>
       ),
@@ -87,7 +91,8 @@ export default function ManagerPartnerInspectorsPage() {
         <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
           <Button
             size="small"
-            variant="contained"
+            variant="outlined"
+            color="primary"
             startIcon={<FlightTakeoffRounded />}
             onClick={() => {
               setSelectedInspectorId(user.id);
@@ -98,10 +103,9 @@ export default function ManagerPartnerInspectorsPage() {
               fontWeight: 600,
               fontSize: '0.75rem',
               borderRadius: '8px',
-              boxShadow: 'none',
             }}
           >
-            {t('Hồ sơ phi công')}
+            {t('Pilot profile')}
           </Button>
         </Stack>
       ),
@@ -156,15 +160,7 @@ export default function ManagerPartnerInspectorsPage() {
         }
       />
 
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: '16px',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-        }}
-      >
+      <Box>
         <MutationProblemAlert
           error={createUser.error}
           isError={createUser.isError}
@@ -199,7 +195,6 @@ export default function ManagerPartnerInspectorsPage() {
           }
         >
           <DataTable
-            title={t('Partner workforce')}
             columns={columns}
             rows={items}
             rowKey={(user) => user.id}
@@ -211,7 +206,7 @@ export default function ManagerPartnerInspectorsPage() {
             }
           />
         </QueryState>
-      </Paper>
+      </Box>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
         <form onSubmit={handleCreate}>

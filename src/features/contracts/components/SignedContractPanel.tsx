@@ -73,9 +73,9 @@ export function SignedContractPanel({
   };
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1.5 }}>
           Paper contract evidence
         </Typography>
 
@@ -84,13 +84,13 @@ export function SignedContractPanel({
             variant="outlined"
             sx={{
               p: 2.5,
-              borderRadius: 2.5,
+              borderRadius: '10px',
               bgcolor: 'success.50',
               borderColor: 'success.light',
             }}
           >
             <Stack spacing={2}>
-              <Alert severity="success" sx={{ borderRadius: 2 }}>
+              <Alert severity="success" sx={{ borderRadius: '8px' }}>
                 Signed scan recorded: {request.contractFileName} · {request.contractContentType} · {request.contractSizeBytes} bytes
               </Alert>
               <Box>
@@ -100,7 +100,7 @@ export function SignedContractPanel({
                   startIcon={<FileDownloadOutlinedIcon />}
                   loading={download.isPending}
                   onClick={() => void downloadContract()}
-                  sx={{ borderRadius: 2, fontWeight: 700 }}
+                  sx={{ borderRadius: '8px', fontWeight: 700 }}
                 >
                   Download signed contract
                 </LoadingButton>
@@ -108,12 +108,12 @@ export function SignedContractPanel({
             </Stack>
           </Paper>
         ) : manager && request.status === 'ACCEPTED' ? (
-          <Box sx={{ p: 2.5, bgcolor: 'action.hover', borderRadius: 2 }}>
+          <Box sx={{ p: 2.5, bgcolor: 'action.hover', borderRadius: '10px' }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Upload the scan after both parties sign the paper contract offline. No online signature or payment is collected here.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
-              <Button component="label" variant="outlined" startIcon={<CloudUploadOutlinedIcon />} sx={{ borderRadius: 2 }}>
+              <Button component="label" variant="outlined" startIcon={<CloudUploadOutlinedIcon />} sx={{ borderRadius: '8px' }}>
                 {file?.name ?? 'Choose signed contract scan'}
                 <input
                   hidden
@@ -128,7 +128,7 @@ export function SignedContractPanel({
                 loading={upload.isPending}
                 disabled={!file}
                 onClick={() => void submit()}
-                sx={{ borderRadius: 2, fontWeight: 700 }}
+                sx={{ borderRadius: '8px', fontWeight: 700 }}
               >
                 Upload signed scan
               </LoadingButton>

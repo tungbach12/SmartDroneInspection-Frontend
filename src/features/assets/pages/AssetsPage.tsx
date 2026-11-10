@@ -91,6 +91,7 @@ export function AssetsPage() {
   const totalCount = data?.totalCount ?? items.length;
   const activeCount = items.filter((a) => a.status === 'ACTIVE').length;
   const pendingCount = items.filter((a) => a.status === 'PENDING_REVIEW').length;
+  const checkpointsConfiguredCount = items.filter((a) => (a.inspectionItems?.length ?? 0) > 0).length;
 
   const columns: DataTableColumn<Asset>[] = [
     {
@@ -138,12 +139,12 @@ export function AssetsPage() {
         borderRadius: '10px',
         px: 2.5,
         py: 1,
-        bgcolor: '#3758F9',
-        fontSize: '14px',
+        bgcolor: 'primary.main',
+        fontSize: '0.875rem',
         fontWeight: 600,
         textTransform: 'none',
         boxShadow: 'none',
-        '&:hover': { bgcolor: '#2b45cb', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
+        '&:hover': { bgcolor: 'primary.dark', boxShadow: '0 1px 2px rgba(16,24,40,0.05)' },
       }}
     >
       {t('New asset')}
@@ -170,7 +171,7 @@ export function AssetsPage() {
           <MetricCard
             label={t('Total Assets')}
             value={isLoading ? '…' : formatNumber(totalCount)}
-            change={t('+100% paired')}
+            change={t('Catalog')}
             positive
             subtext="registered structures"
             iconType="building"
@@ -178,25 +179,25 @@ export function AssetsPage() {
           <MetricCard
             label={t('Active Assets')}
             value={isLoading ? '…' : formatNumber(activeCount)}
-            change={t('Operational')}
+            change="CLEAR"
             positive
-            subtext="ready for inspection"
+            subtext="airspace clearance verified"
             iconType="check-circle"
           />
           <MetricCard
             label={t('Pending Review')}
             value={isLoading ? '…' : formatNumber(pendingCount)}
-            change={pendingCount > 0 ? 'Action due' : 'Clear'}
+            change={pendingCount > 0 ? 'PENDING_REVIEW' : 'CLEAR'}
             positive={pendingCount === 0}
             subtext="awaiting verification"
             iconType="alert"
           />
           <MetricCard
-            label={t('Inspection Schedules')}
-            value={isLoading ? '…' : formatNumber(activeCount)}
-            change={t('Scheduled')}
+            label={t('Checkpoints Configured')}
+            value={isLoading ? '…' : formatNumber(checkpointsConfiguredCount)}
+            change={checkpointsConfiguredCount > 0 ? t('Ready') : t('Standard')}
             positive
-            subtext="active maintenance plans"
+            subtext="assets with custom checkpoints"
             iconType="shield"
           />
         </Box>
@@ -291,7 +292,7 @@ function CreateAssetDialogForm({
   onClose,
   onSubmit,
 }: CreateAssetDialogProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const isDark = useIsDarkMode();
   const [code, setCode] = useState(() => generateRandomAssetCode());
   const [name, setName] = useState('');
@@ -307,7 +308,11 @@ function CreateAssetDialogForm({
   const handleGetCurrentGpsLocation = () => {
     setGpsFeedback(null);
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGpsFeedback(t('Trình duyệt không hỗ trợ định vị GPS.'));
+      setGpsFeedback(
+        locale === 'vi'
+          ? 'Trình duyệt không hỗ trợ định vị GPS.'
+          : 'Browser does not support GPS geolocation.',
+      );
       return;
     }
     setGpsLoading(true);
@@ -318,15 +323,25 @@ function CreateAssetDialogForm({
         const lon = Number(pos.coords.longitude.toFixed(6));
         setLatitudeText(String(lat));
         setLongitudeText(String(lon));
-        setGpsFeedback(`✓ ${t('Đã lấy tọa độ GPS thiết bị của bạn:')} ${lat}°N, ${lon}°E`);
+        setGpsFeedback(
+          locale === 'vi'
+            ? `✓ Đã lấy tọa độ GPS thiết bị của bạn: ${lat}°N, ${lon}°E`
+            : `✓ Retrieved your device GPS coordinates: ${lat}°N, ${lon}°E`,
+        );
         if (!locationText || locationText === 'Chưa cập nhật địa chỉ' || locationText === 'Công trình mới') {
-          setLocationText(`Vị trí GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+          setLocationText(
+            locale === 'vi'
+              ? `Vị trí GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`
+              : `GPS Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+          );
         }
       },
       () => {
         setGpsLoading(false);
         setGpsFeedback(
-          t('Không lấy được GPS (chưa cấp quyền vị trí). Vui lòng nhập trực tiếp tọa độ bên dưới.'),
+          locale === 'vi'
+            ? 'Không lấy được GPS (chưa cấp quyền vị trí). Vui lòng nhập trực tiếp tọa độ bên dưới.'
+            : 'Could not retrieve GPS location (permission denied). Please enter coordinates manually below.',
         );
       },
       { enableHighAccuracy: true, timeout: 8000 },
@@ -370,17 +385,27 @@ function CreateAssetDialogForm({
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="AST-X7K9A"
-            helperText={t('Mã định danh tự động tạo ngẫu nhiên (có thể chỉnh sửa hoặc bấm đổi mã)')}
+            helperText={
+              locale === 'vi'
+                ? 'Mã định danh tự động tạo ngẫu nhiên (có thể chỉnh sửa hoặc bấm đổi mã)'
+                : 'Auto-generated identifier (editable or click to regenerate)'
+            }
             slotProps={{
               input: {
                 endAdornment: (
                   <InputAdornment position="end">
-                    <Tooltip title={t('Tạo lại mã ngẫu nhiên')}>
+                    <Tooltip
+                      title={
+                        locale === 'vi' ? 'Tạo lại mã ngẫu nhiên' : 'Regenerate random code'
+                      }
+                    >
                       <IconButton
                         size="small"
                         edge="end"
                         onClick={() => setCode(generateRandomAssetCode())}
-                        aria-label={t('Tạo lại mã ngẫu nhiên')}
+                        aria-label={
+                          locale === 'vi' ? 'Tạo lại mã ngẫu nhiên' : 'Regenerate random code'
+                        }
                       >
                         <ShuffleRounded sx={{ fontSize: 18, color: 'primary.main' }} />
                       </IconButton>
@@ -421,8 +446,8 @@ function CreateAssetDialogForm({
           <Box
             sx={{
               p: 1.75,
-              borderRadius: '12px',
-              bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : '#f8fafc',
+              borderRadius: '10px',
+              bgcolor: isDark ? 'rgba(30, 41, 59, 0.45)' : 'background.default',
               border: '1px solid',
               borderColor: 'divider',
             }}
@@ -450,18 +475,24 @@ function CreateAssetDialogForm({
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
-                    fontSize: '0.78rem',
+                    fontSize: '0.75rem',
                     borderRadius: '8px',
-                    borderColor: '#0284c7',
-                    color: '#0284c7',
-                    bgcolor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#e0f2fe',
+                    borderColor: 'info.main',
+                    color: 'info.main',
+                    bgcolor: 'action.hover',
                     '&:hover': {
-                      borderColor: '#0369a1',
-                      bgcolor: isDark ? 'rgba(2, 132, 199, 0.25)' : '#bae6fd',
+                      borderColor: 'info.dark',
+                      bgcolor: 'action.selected',
                     },
                   }}
                 >
-                  {gpsLoading ? t('Đang lấy GPS…') : t('📍 Lấy GPS của tôi')}
+                  {gpsLoading
+                    ? locale === 'vi'
+                      ? 'Đang lấy GPS…'
+                      : 'Locating…'
+                    : locale === 'vi'
+                      ? '📍 Lấy GPS của tôi'
+                      : '📍 Use my GPS'}
                 </Button>
                 <Button
                   size="small"
@@ -471,14 +502,14 @@ function CreateAssetDialogForm({
                   sx={{
                     textTransform: 'none',
                     fontWeight: 600,
-                    fontSize: '0.78rem',
+                    fontSize: '0.75rem',
                     borderRadius: '8px',
-                    bgcolor: '#087E8B',
+                    bgcolor: 'primary.main',
                     boxShadow: 'none',
-                    '&:hover': { bgcolor: '#066B70' },
+                    '&:hover': { bgcolor: 'primary.dark' },
                   }}
                 >
-                  {t('🗺️ Mở bản đồ cắm kim')}
+                  {locale === 'vi' ? '🗺️ Mở bản đồ cắm kim' : '🗺️ Pick on map'}
                 </Button>
               </Stack>
             </Stack>
@@ -486,7 +517,7 @@ function CreateAssetDialogForm({
             {gpsFeedback && (
               <Alert
                 severity={gpsFeedback.startsWith('✓') ? 'success' : 'info'}
-                sx={{ mb: 1.5, py: 0.25, borderRadius: '8px', fontSize: '0.78rem' }}
+                sx={{ mb: 1.5, py: 0.25, borderRadius: '8px', fontSize: '0.75rem' }}
               >
                 {gpsFeedback}
               </Alert>
@@ -553,7 +584,11 @@ function CreateAssetDialogForm({
           if (placeName && (!locationText || locationText === 'Công trình mới')) {
             setLocationText(placeName);
           }
-          setGpsFeedback(`✓ ${t('Đã chọn tọa độ trên bản đồ:')} ${lat}°N, ${lon}°E`);
+          setGpsFeedback(
+            locale === 'vi'
+              ? `✓ Đã chọn tọa độ trên bản đồ: ${lat}°N, ${lon}°E`
+              : `✓ Selected coordinates on map: ${lat}°N, ${lon}°E`,
+          );
         }}
       />
     </form>
@@ -943,10 +978,15 @@ function AssetDetailDrawer({
   };
 
   return (
-    <Drawer anchor="right" open={Boolean(asset)} onClose={onClose}>
+    <Drawer
+      anchor="right"
+      open={Boolean(asset)}
+      onClose={onClose}
+      sx={{ zIndex: (theme) => theme.zIndex.drawer + 2 }}
+    >
       <Box sx={{ width: { xs: '100vw', sm: 540 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
             {asset?.name}
           </Typography>
           <IconButton onClick={onClose} aria-label={t('Close drawer')}>
@@ -958,32 +998,11 @@ function AssetDetailDrawer({
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
         {asset?.status === 'RETIRED' && (
-          <Alert severity="info" sx={{ my: 1.5, borderRadius: 1.5, fontSize: '0.875rem' }}>
+          <Alert severity="info" sx={{ my: 1.5, borderRadius: '8px', fontSize: '0.875rem' }}>
             {t(
               'This asset has been completed and archived. Inspection history and documents remain available for audit and reference.',
             )}
           </Alert>
-        )}
-        {isClient && asset?.status === 'ACTIVE' && (
-          <Button
-            variant="outlined"
-            color="error"
-            fullWidth
-            size="small"
-            onClick={() => setConfirmRetireOpen(true)}
-            sx={{
-              mt: 1.5,
-              mb: 1.5,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              borderColor: 'error.light',
-              color: 'error.main',
-              '&:hover': { bgcolor: 'action.hover', borderColor: 'error.main' },
-            }}
-          >
-            {t('Complete & Archive Asset')}
-          </Button>
         )}
         {asset && (
           <InspectionItemsSection
@@ -1108,6 +1127,38 @@ function AssetDetailDrawer({
                 {t('Document upload is available after review.')}
               </Typography>
             )}
+          </>
+        )}
+
+        {isClient && asset?.status === 'ACTIVE' && (
+          <>
+            <Divider sx={{ my: 2.5 }} />
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+                {t('Lifecycle & Archive')}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                {t('Archive this asset when inspection and maintenance operations are complete. Historical records remain preserved.')}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                size="small"
+                onClick={() => setConfirmRetireOpen(true)}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: '8px',
+                  borderColor: 'error.light',
+                  color: 'error.main',
+                  '&:hover': { bgcolor: 'action.hover', borderColor: 'error.main' },
+                }}
+              >
+                {t('Complete & Archive Asset')}
+              </Button>
+            </Box>
           </>
         )}
       </Box>

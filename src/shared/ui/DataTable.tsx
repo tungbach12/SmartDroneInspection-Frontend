@@ -74,8 +74,8 @@ export function DataTable<T>({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '10px',
-        boxShadow: '0 1px 3px 0 rgba(16, 24, 40, 0.04)',
+        borderRadius: '12px',
+        boxShadow: 'none',
       }}
     >
       {(title || searchable || actions) && (
@@ -85,7 +85,7 @@ export function DataTable<T>({
             alignItems: 'center',
             justifyContent: 'space-between',
             px: { xs: 2, sm: 2.5 },
-            py: 1.75,
+            py: 2,
             flexWrap: 'wrap',
             gap: 1.5,
             borderBottom: '1px solid',
@@ -93,7 +93,7 @@ export function DataTable<T>({
           }}
         >
           {title ? (
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
               {title}
             </Typography>
           ) : (
@@ -115,7 +115,7 @@ export function DataTable<T>({
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
                       </InputAdornment>
                     ),
                   },
@@ -126,7 +126,7 @@ export function DataTable<T>({
                     height: 36,
                     borderRadius: '8px',
                     bgcolor: 'background.paper',
-                    fontSize: '13px',
+                    fontSize: '0.875rem',
                     borderColor: 'divider',
                   },
                 }}
@@ -155,14 +155,14 @@ export function DataTable<T>({
                   width={column.width}
                   align={column.align}
                   sx={{
-                    bgcolor: 'background.default',
-                    color: 'text.secondary',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
+                    bgcolor: 'rgba(244, 244, 245, 0.5)',
+                    color: '#71717A',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    letterSpacing: '0.02em',
                     textTransform: 'uppercase',
-                    py: dense ? 1 : 1.25,
-                    px: dense ? 1.5 : 2,
+                    py: dense ? 1.25 : 1.5,
+                    px: dense ? 1.5 : 2.5,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                     whiteSpace: column.noWrap ? 'nowrap' : 'normal',
@@ -177,7 +177,7 @@ export function DataTable<T>({
             {paged.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.88rem' }}>
+                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
                     {emptyMessage}
                   </Typography>
                 </TableCell>
@@ -215,9 +215,9 @@ export function DataTable<T>({
                       key={column.id}
                       align={column.align}
                       sx={{
-                        py: dense ? 1 : 1.25,
-                        px: dense ? 1.5 : 2,
-                        fontSize: '0.85rem',
+                        py: dense ? 1.25 : 1.75,
+                        px: dense ? 1.5 : 2.5,
+                        fontSize: '0.875rem',
                         color: 'text.primary',
                         borderBottom: '1px solid',
                         borderColor: 'divider',

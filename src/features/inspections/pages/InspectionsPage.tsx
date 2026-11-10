@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -155,31 +155,96 @@ export default function InspectionsPage() {
 
   return (
     <Box className="workspace-page workspace-page--inspections">
-      <PageHeader
-        title={
-          isOrganizationAdmin
-            ? view === 'reports'
-              ? 'Report review queue'
-              : view === 'calendar'
-                ? t('Schedule calendar')
+      {view === 'calendar' ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 2.5,
+          }}
+        >
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: '1.75rem',
+              lineHeight: '2rem',
+              fontWeight: 500,
+              color: 'text.primary',
+            }}
+          >
+            {t('Calendar')}
+          </Typography>
+          <Box component="nav" aria-label="Breadcrumb">
+            <Box
+              component="ol"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                listStyle: 'none',
+                m: 0,
+                p: 0,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+              }}
+            >
+              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  component={Link}
+                  to={`/${portal}/dashboard`}
+                  sx={{
+                    color: '#71717A',
+                    textDecoration: 'none',
+                    '&:hover': { color: 'primary.main' },
+                  }}
+                >
+                  {t('Home')}
+                </Box>
+                <Box
+                  component="svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  sx={{ color: '#71717A', flexShrink: 0 }}
+                >
+                  <path
+                    d="M9.62 18.25L15.87 12L9.62 5.75"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Box>
+              </Box>
+              <Box component="li" sx={{ color: 'text.primary' }}>
+                {t('Calendar')}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      ) : (
+        <PageHeader
+          title={
+            isOrganizationAdmin
+              ? view === 'reports'
+                ? 'Report review queue'
                 : 'Organization inspections'
-            : view === 'calendar'
-              ? t('Schedule calendar')
               : 'Inspections'
-        }
-        subtitle={
-          view === 'calendar'
-            ? t('Track scheduled inspection missions, view calendar timeline, and inspect task details.')
-            : isOrganizationAdmin
+          }
+          subtitle={
+            isOrganizationAdmin
               ? view === 'reports'
                 ? 'Prioritize submitted reports for independent review, publish approved versions, and follow up on corrective outcomes.'
                 : 'Monitor progress, assigned Inspectors, and report states across your organization. Open the review queue for decisions and publication.'
               : portal === 'manager' || portal === 'admin'
                 ? t('Audit field operations, review submitted inspection reports, and oversee commission & partner settlement.')
                 : 'Review field evidence, record findings, and prepare inspection reports'
-        }
-        actions={newInspectionButton}
-      />
+          }
+          actions={newInspectionButton}
+        />
+      )}
 
       {!canBrowse ? (
         <Alert severity="info">
@@ -195,7 +260,7 @@ export default function InspectionsPage() {
               and the corrective outcome is recorded after publication.
             </Alert>
           )}
-          {isOrganizationAdmin && (
+          {isOrganizationAdmin && view !== 'calendar' && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
                 <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
@@ -207,17 +272,17 @@ export default function InspectionsPage() {
               </Paper>
             </Stack>
           )}
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              flexWrap: 'wrap',
-              gap: 1.5,
-            }}
-          >
-            {view !== 'calendar' && (
+          {view !== 'calendar' && (
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                flexWrap: 'wrap',
+                gap: 1.5,
+              }}
+            >
               <TextField
                 select
                 size="small"
@@ -234,8 +299,8 @@ export default function InspectionsPage() {
                 <MenuItem value="COMPLETED">{t('Completed')}</MenuItem>
                 <MenuItem value="CANCELLED">{t('Cancelled')}</MenuItem>
               </TextField>
-            )}
-          </Stack>
+            </Stack>
+          )}
 
           {view === 'calendar' ? (
             <InspectorScheduleCalendar onSelectInspection={(id) => setSelectedWorkDetailId(id)} />

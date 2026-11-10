@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
   Stack,
   Typography,
 } from '@mui/material';
@@ -95,7 +94,7 @@ function SessionChecklistBlock({
         <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.25 }}>
           {label}
         </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.primary' }}>
+        <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.primary' }}>
           {rawNote}
         </Typography>
       </Box>
@@ -119,7 +118,7 @@ function SessionChecklistBlock({
       >
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <CheckCircleRounded color="success" sx={{ fontSize: 16 }} />
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.78rem' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.75rem' }}>
             {label}
           </Typography>
         </Stack>
@@ -130,7 +129,7 @@ function SessionChecklistBlock({
               color="success"
               variant="outlined"
               label={`${checkedItems.length} ${t('verified')}`}
-              sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+              sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
             />
           )}
           {skippedItems.length > 0 && (
@@ -139,7 +138,7 @@ function SessionChecklistBlock({
               color="warning"
               variant="outlined"
               label={`${skippedItems.length} ${t('skipped')}`}
-              sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+              sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
             />
           )}
         </Stack>
@@ -153,37 +152,38 @@ function SessionChecklistBlock({
         }}
       >
         {checkedItems.map((item, idx) => (
-          <Paper
+          <Box
             key={`chk-${idx}`}
-            variant="outlined"
             sx={{
               px: 1.15,
               py: 0.65,
-              borderRadius: '6px',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               gap: 0.85,
               bgcolor: 'background.paper',
+              borderTop: '1px solid',
+              borderColor: 'divider',
             }}
           >
             <CheckCircleRounded color="success" sx={{ fontSize: 15, flexShrink: 0 }} />
             <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.3 }}>
               {item}
             </Typography>
-          </Paper>
+          </Box>
         ))}
         {skippedItems.map((item, idx) => (
-          <Paper
+          <Box
             key={`skp-${idx}`}
-            variant="outlined"
             sx={{
               px: 1.15,
               py: 0.65,
-              borderRadius: '6px',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               gap: 0.85,
               bgcolor: 'background.paper',
+              borderTop: '1px solid',
               borderColor: 'warning.main',
             }}
           >
@@ -191,7 +191,7 @@ function SessionChecklistBlock({
             <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.3 }}>
               {item}
             </Typography>
-          </Paper>
+          </Box>
         ))}
       </Box>
 
@@ -242,7 +242,7 @@ function ReadOnlySection({
   return (
     <Box component="section" sx={{ mb: 3 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
-        <Typography component="h2" sx={{ fontSize: '0.9375rem', fontWeight: 700, color: 'text.primary' }}>
+        <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary' }}>
           {title}
         </Typography>
         {typeof count === 'number' && (
@@ -261,7 +261,7 @@ function SummaryItem({ label, value }: { label: string; value: string | null | u
       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
         {label}
       </Typography>
-      <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.8125rem', wordBreak: 'break-word' }}>
+      <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.875rem', wordBreak: 'break-word' }}>
         {value}
       </Typography>
     </Box>
@@ -276,7 +276,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
         {label}
       </Typography>
       <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.75rem', textAlign: 'right', wordBreak: 'break-word' }}>
-        {value?.trim() ? value : <Box component="span" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>{t('Not supplied')}</Box>}
+        {value?.trim() ? value : <Box component="span" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>{t('Not supplied')}</Box>}
       </Typography>
     </Box>
   );
@@ -318,9 +318,40 @@ export function ReportDerivedSections({
   const unlinkedFindings = reportableFindings.filter(
     (finding) => !evidenceList.some((item) => item.id === finding.evidenceId),
   );
+  const reportSummaryText =
+    version.summary?.trim() || version.sections?.executiveSummary?.trim() || null;
 
   return (
     <Box>
+      {reportSummaryText && (
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary', mb: 1.25 }}
+          >
+            {t('Summary')}
+          </Typography>
+          <Box
+            sx={{
+              p: 1.75,
+              borderRadius: '10px',
+              bgcolor: (theme) =>
+                theme.palette.mode === 'dark'
+                  ? 'rgba(14, 165, 233, 0.08)'
+                  : 'rgba(240, 249, 255, 0.85)',
+              borderTop: '1px solid',
+              borderColor: 'primary.light',
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.primary', lineHeight: 1.6, fontWeight: 500 }}
+            >
+              {reportSummaryText}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       <ReadOnlySection title={t('Identification')}>
         <Box
           sx={{
@@ -372,7 +403,7 @@ export function ReportDerivedSections({
                     sx={{
                       color: 'text.primary',
                       fontWeight: 500,
-                      fontSize: '0.8125rem',
+                      fontSize: '0.875rem',
                       wordBreak: 'break-word',
                     }}
                   >
@@ -386,10 +417,10 @@ export function ReportDerivedSections({
                     sx={{
                       height: 22,
                       px: 1,
-                      fontSize: '0.7rem',
+                      fontSize: '0.75rem',
                       fontWeight: 650,
                       textTransform: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                     }}
                   >
                     {t('View permit')}
@@ -432,13 +463,11 @@ export function ReportDerivedSections({
               sx={{ mt: 2, pt: 1.75, borderTop: '1px solid', borderColor: 'divider' }}
             >
               {context.fieldSessions.map((session) => (
-                <Paper
+                <Box
                   key={session.id}
-                  variant="outlined"
                   sx={{
-                    p: 1.5,
-                    borderRadius: '10px',
-                    bgcolor: 'background.paper',
+                    pt: 1.5,
+                    borderTop: '1px solid',
                     borderColor: 'divider',
                   }}
                 >
@@ -468,7 +497,7 @@ export function ReportDerivedSections({
                           }
                           variant="outlined"
                           label={session.status}
-                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                          sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
                         />
                       </Stack>
 
@@ -517,7 +546,7 @@ export function ReportDerivedSections({
                       </Typography>
                     )}
                   </Stack>
-                </Paper>
+                </Box>
               ))}
             </Stack>
           )}
@@ -580,7 +609,7 @@ export function ReportDerivedSections({
                           ? 'error'
                           : 'warning'
                     }
-                    sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
                   />
                 </Stack>
                 {item.sourceSeverity && (
@@ -595,7 +624,7 @@ export function ReportDerivedSections({
                       src={inspectionApi.evidenceContentUrl(inspectionId, item.newEvidenceId)}
                       alt="Verified Evidence"
                       maxHeight={140}
-                      sx={{ borderRadius: '6px', border: '1px solid', borderColor: 'divider' }}
+                      sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}
                     />
                   </Box>
                 )}
@@ -607,14 +636,14 @@ export function ReportDerivedSections({
 
       <ReadOnlySection title={t('Evidence register')} count={evidenceList.length}>
         {evidenceList.length === 0 && unlinkedFindings.length === 0 ? (
-          <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', fontSize: '0.875rem' }}>
             {t('No evidence was linked to this version.')}
           </Typography>
         ) : (
           <Box>
             {evidenceList.length > 0 && (
               <Box sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                   {reportableFindings.length} {t('confirmed findings across')} {evidenceList.length} {t('captures')}
                 </Typography>
               </Box>
@@ -649,14 +678,14 @@ export function ReportDerivedSections({
                           src={inspectionApi.evidenceContentUrl(inspectionId, item.id)}
                           alt={item.fileName}
                           maxHeight={160}
-                          sx={{ borderRadius: '6px', border: '1px solid', borderColor: 'divider', mb: 1.25 }}
+                          sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 1.25 }}
                         />
                       )}
                       <Typography
                         variant="body2"
                         sx={{
                           fontWeight: 650,
-                          fontSize: '0.8125rem',
+                          fontSize: '0.875rem',
                           mb: 0.5,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -700,7 +729,7 @@ export function ReportDerivedSections({
                               color="success"
                               variant="outlined"
                               label={`${linkedFindings.length} ${t('confirmed')}`}
-                              sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }}
+                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700 }}
                             />
                           )}
                         </Stack>
@@ -708,7 +737,7 @@ export function ReportDerivedSections({
                         {linkedFindings.length === 0 ? (
                           <Typography
                             variant="caption"
-                            sx={{ color: 'text.disabled', fontStyle: 'italic', display: 'block', mb: 0.5 }}
+                            sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block', mb: 0.5 }}
                           >
                             {t('No confirmed findings')}
                           </Typography>
@@ -726,7 +755,7 @@ export function ReportDerivedSections({
                                       ? 'warning'
                                       : 'default'
                                 }
-                                sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                                sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
                               />
                             ))}
                           </Stack>
@@ -786,14 +815,14 @@ export function ReportDerivedSections({
                       }}
                     >
                       <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-                        <Typography sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>{finding.defectLabel}</Typography>
-                        <Chip size="small" label={finding.severity} sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }} />
-                        <Chip size="small" color="success" label={t('Inspector-confirmed')} sx={{ height: 18, fontSize: '0.65rem' }} />
+                        <Typography sx={{ fontWeight: 700, fontSize: '0.875rem' }}>{finding.defectLabel}</Typography>
+                        <Chip size="small" label={finding.severity} sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700 }} />
+                        <Chip size="small" color="success" label={t('Inspector-confirmed')} sx={{ height: 18, fontSize: '0.75rem' }} />
                       </Stack>
-                      <Typography variant="caption" sx={{ display: 'block', color: finding.technicalNotes?.trim() ? 'text.secondary' : 'text.disabled', fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic' }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic' }}>
                         <b>{t('Technical notes')}:</b> {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
                       </Typography>
-                      <Typography variant="caption" sx={{ display: 'block', color: finding.recommendedAction?.trim() ? 'text.secondary' : 'text.disabled', fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic' }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic' }}>
                         <b>{t('Recommended action')}:</b> {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
                       </Typography>
                     </Box>
@@ -811,7 +840,7 @@ export function ReportDerivedSections({
         onClose={() => setSelectedModalEvidence(null)}
         maxWidth="md"
         fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '12px' } } }}
+        slotProps={{ paper: { sx: { borderRadius: '10px' } } }}
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
           <Box sx={{ minWidth: 0 }}>
@@ -869,13 +898,13 @@ export function ReportDerivedSections({
                       <Typography sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
                         {finding.defectLabel}
                       </Typography>
-                      <Chip size="small" label={finding.severity} sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+                      <Chip size="small" label={finding.severity} sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
                       {finding.status === 'CONFIRMED' && (
                         <Chip
                           size="small"
                           color="success"
                           label={t('Inspector-confirmed')}
-                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                          sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
                         />
                       )}
                     </Stack>
@@ -883,7 +912,7 @@ export function ReportDerivedSections({
                       variant="caption"
                       sx={{
                         display: 'block',
-                        color: finding.technicalNotes?.trim() ? 'text.secondary' : 'text.disabled',
+                        color: 'text.secondary',
                         fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic',
                         mt: 0.5,
                         fontSize: '0.75rem',
@@ -896,7 +925,7 @@ export function ReportDerivedSections({
                       variant="caption"
                       sx={{
                         display: 'block',
-                        color: finding.recommendedAction?.trim() ? 'text.secondary' : 'text.disabled',
+                        color: 'text.secondary',
                         fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic',
                         mt: 0.25,
                         fontSize: '0.75rem',

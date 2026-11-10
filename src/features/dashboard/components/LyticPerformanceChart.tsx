@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticPerformanceChartProps {
@@ -24,17 +23,14 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   headlineValue,
   trendBadge,
   series1Name,
-  series1Color = '#3758F9',
   series1Data,
   series2Name,
-  series2Color = '#F97316',
   series2Data,
   months,
   yTicks,
   maxVal = 100000,
 }) => {
-  const { formatNumber } = useLocale();
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const theme = useTheme();
 
@@ -49,13 +45,28 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   const chartWidth = svgWidth - paddingLeft - paddingRight;
   const chartHeight = svgHeight - paddingTop - paddingBottom;
 
-  const getX = (index: number) => paddingLeft + (index / (months.length - 1)) * chartWidth;
-  const getY = (val: number) => paddingTop + chartHeight - (val / maxVal) * chartHeight;
+  const divisor = Math.max(months.length - 1, 1);
+  const getX = (index: number) => paddingLeft + (index / divisor) * chartWidth;
+  const getY = (val: number) => paddingTop + chartHeight - (val / (maxVal || 1)) * chartHeight;
 
-  // Build SVG Paths
+  // Build smooth cubic bezier spline SVG path matching NextAdmin ApexCharts smooth area curve
   const buildSmoothPath = (data: number[]) => {
     if (!data.length) return '';
-    return data.map((val, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx).toFixed(1)} ${getY(val).toFixed(1)}`).join(' ');
+    const points = data.map((val, idx) => ({ x: getX(idx), y: getY(val) }));
+    if (points.length === 1) {
+      return `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
+    }
+    let d = `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const curr = points[i]!;
+      const next = points[i + 1]!;
+      const cpx1 = (curr.x + (next.x - curr.x) * 0.45).toFixed(1);
+      const cpy1 = curr.y.toFixed(1);
+      const cpx2 = (next.x - (next.x - curr.x) * 0.45).toFixed(1);
+      const cpy2 = next.y.toFixed(1);
+      d += ` C ${cpx1} ${cpy1}, ${cpx2} ${cpy2}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`;
+    }
+    return d;
   };
 
   const buildAreaPath = (data: number[]) => {
@@ -70,90 +81,202 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
   const series1Path = buildSmoothPath(series1Data);
   const series1Area = buildAreaPath(series1Data);
   const series2Path = buildSmoothPath(series2Data);
-  const series2Area = buildAreaPath(series2Data);
+
+  const series2Total = series2Data.reduce((acc, v) => acc + v, 0);
+  const secondaryHeadline = formatNumber(Math.round(series2Total * 10) / 10);
 
   return (
     <Box
       sx={{
         bgcolor: 'background.paper',
-        border: 1,
+        border: '1px solid',
         borderColor: 'divider',
         borderRadius: '12px',
-        p: { xs: 2, sm: 2.5 },
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        p: '20px',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
       }}
     >
-      {/* Header */}
+      {/* Top Header Row */}
       <Box
         sx={{
+          mb: 3,
           display: 'flex',
-          alignItems: 'flex-start',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
-          borderBottom: 1,
-          borderColor: 'divider',
-          pb: 2,
-          mb: 2,
+          gap: 3,
         }}
       >
-        <Box>
-          <Typography
-            sx={{
-              color: 'text.secondary',
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              mb: 0.5,
-            }}
-          >
-            {t(headerLabel)}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            <Typography
-              component="span"
-              sx={{
-                color: 'text.primary',
-                fontSize: { xs: '22px', sm: '24px' },
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-              }}
-            >
-              {t(headlineValue)}
-            </Typography>
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: '9999px',
-                fontWeight: 500,
-                py: '2px',
-                px: '8px',
-                fontSize: '12px',
-                bgcolor: alpha(theme.palette.success.main, 0.12),
-                color: 'success.main',
-              }}
-            >
-              {t(trendBadge)}
+        {/* Left: Two side-by-side KPI callout blocks */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 2, sm: 4 },
+          }}
+        >
+          {/* Block 1 */}
+          <Box>
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '2px',
+                  bgcolor: '#3758F9',
+                  flexShrink: 0,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'text.secondary',
+                }}
+              >
+                {t(series1Name)}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: { xs: '1.25rem', md: '1.5rem' },
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {t(headlineValue)}
+              </Typography>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#16A34A',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                <span>{t(trendBadge)}</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Box>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: '0.875rem',
+                  color: 'text.secondary',
+                }}
+              >
+                {t(headerLabel)}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Block 2 */}
+          <Box>
+            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '2px',
+                  bgcolor: '#06B6D4',
+                  flexShrink: 0,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'text.secondary',
+                }}
+              >
+                {t(series2Name)}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: { xs: '1.25rem', md: '1.5rem' },
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {secondaryHeadline}
+              </Typography>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#16A34A',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                <span>+8.2%</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Box>
             </Box>
           </Box>
         </Box>
 
-        <IconButton
-          size="small"
-          aria-label={t('Revenue performance options')}
+        {/* Right: NextAdmin "Monthly ⌄" selector pill */}
+        <Box
           sx={{
-            color: 'text.secondary',
-            p: 0.75,
-            '&:hover': { bgcolor: 'action.hover' },
+            height: 34,
+            px: 1.5,
+            borderRadius: '8px',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 1,
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            color: 'text.primary',
+            boxShadow: '0 1px 2px 0 rgba(16,24,40,0.05)',
+            flexShrink: 0,
+            userSelect: 'none',
           }}
         >
-          <MoreHorizRounded fontSize="small" />
-        </IconButton>
+          <span>{t('Monthly')}</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M4 6L8 10L12 6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Box>
       </Box>
 
       {/* SVG Responsive Chart */}
@@ -164,19 +287,15 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           style={{ width: '100%', height: '100%', overflow: 'visible' }}
         >
           <defs>
-            <linearGradient id="lyticBlueGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={series1Color} stopOpacity="0.35" />
-              <stop offset="100%" stopColor={series1Color} stopOpacity="0.0" />
-            </linearGradient>
-            <linearGradient id="lyticOrangeGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={series2Color} stopOpacity="0.30" />
-              <stop offset="100%" stopColor={series2Color} stopOpacity="0.0" />
+            <linearGradient id="nextadminAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3758F9" stopOpacity="0.2" />
+              <stop offset="95%" stopColor="#3758F9" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          {/* Dotted Horizontal Grid Lines & Y-Axis Labels */}
+          {/* Horizontal Dashed Gridlines & Y-Axis Labels */}
           {yTicks.map((tick, i) => {
-            const y = paddingTop + chartHeight - (i / (yTicks.length - 1)) * chartHeight;
+            const y = paddingTop + chartHeight - (i / Math.max(yTicks.length - 1, 1)) * chartHeight;
             return (
               <g key={tick}>
                 <line
@@ -184,17 +303,17 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke={theme.palette.divider}
-                  strokeDasharray="4 4"
+                  stroke="#E5E7EB"
+                  strokeDasharray="3 3"
                   strokeWidth="1"
                 />
                 <text
                   x={paddingLeft - 10}
                   y={y + 4}
                   textAnchor="end"
-                  fill={theme.palette.text.secondary}
+                  fill="#71717A"
                   fontSize="12"
-                  fontFamily={theme.typography.fontFamily}
+                  fontFamily="Inter, sans-serif"
                   fontWeight="400"
                 >
                   {t(tick)}
@@ -203,15 +322,14 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
             );
           })}
 
-          {/* Area Fills */}
-          <path d={series1Area} fill="url(#lyticBlueGradient)" />
-          <path d={series2Area} fill="url(#lyticOrangeGradient)" />
+          {/* Area Fill for Series 1 */}
+          <path d={series1Area} fill="url(#nextadminAreaGrad)" />
 
-          {/* Line Strokes */}
+          {/* Smooth Spline Strokes */}
           <path
             d={series1Path}
             fill="none"
-            stroke={series1Color}
+            stroke="#3758F9"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -219,7 +337,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           <path
             d={series2Path}
             fill="none"
-            stroke={series2Color}
+            stroke="#06B6D4"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -233,7 +351,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 y1={paddingTop}
                 x2={getX(hoverIndex)}
                 y2={paddingTop + chartHeight}
-                stroke={theme.palette.text.secondary}
+                stroke="#71717A"
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
@@ -241,7 +359,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 cx={getX(hoverIndex)}
                 cy={getY(series1Data[hoverIndex] ?? 0)}
                 r="4.5"
-                fill={series1Color}
+                fill="#3758F9"
                 stroke={theme.palette.background.paper}
                 strokeWidth="2"
               />
@@ -249,7 +367,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 cx={getX(hoverIndex)}
                 cy={getY(series2Data[hoverIndex] ?? 0)}
                 r="4.5"
-                fill={series2Color}
+                fill="#06B6D4"
                 stroke={theme.palette.background.paper}
                 strokeWidth="2"
               />
@@ -265,9 +383,9 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 x={x}
                 y={svgHeight - 12}
                 textAnchor="middle"
-                fill={theme.palette.text.secondary}
+                fill="#71717A"
                 fontSize="12"
-                fontFamily={theme.typography.fontFamily}
+                fontFamily="Inter, sans-serif"
                 fontWeight="400"
               >
                 {t(m)}
@@ -277,8 +395,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
 
           {/* Transparent Hover Hit Areas */}
           {months.map((_, idx) => {
-            const x = getX(idx) - (chartWidth / (months.length - 1)) / 2;
-            const width = chartWidth / (months.length - 1);
+            const x = getX(idx) - (chartWidth / divisor) / 2;
+            const width = chartWidth / divisor;
             return (
               <rect
                 key={idx}
@@ -316,11 +434,11 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               {t(months[hoverIndex] ?? '')} {t('Performance')}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series1Color }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#3758F9' }} />
               <span>{t(series1Name)}: {(series1Data[hoverIndex] == null ? undefined : formatNumber(series1Data[hoverIndex]))}</span>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: series2Color }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#06B6D4' }} />
               <span>{t(series2Name)}: {(series2Data[hoverIndex] == null ? undefined : formatNumber(series2Data[hoverIndex]))}</span>
             </Box>
           </Box>

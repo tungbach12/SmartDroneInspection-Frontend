@@ -118,9 +118,11 @@ export function InspectionWorkDetailDialog({
       slotProps={{
         paper: {
           sx: {
-            borderRadius: '16px',
+            borderRadius: '10px',
             overflow: 'hidden',
-            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.16)',
+            boxShadow: 'none',
+            border: '1px solid',
+            borderColor: 'divider',
           },
         },
       }}
@@ -179,7 +181,7 @@ export function InspectionWorkDetailDialog({
         </Stack>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, bgcolor: '#f8fafc' }}>
+      <DialogContent sx={{ p: 3, bgcolor: 'background.default' }}>
         {inspectionQuery.isLoading ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
             <CircularProgress size={36} />
@@ -199,7 +201,7 @@ export function InspectionWorkDetailDialog({
           <Stack spacing={2.5}>
             {/* Aborted flight warning alert */}
             {wasAborted && (
-              <Alert severity="warning" sx={{ borderRadius: '12px' }}>
+              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                   {t('Previous flight session was aborted')}
                 </Typography>
@@ -221,10 +223,10 @@ export function InspectionWorkDetailDialog({
                 elevation={0}
                 sx={{
                   p: 2,
-                  borderRadius: '12px',
-                  bgcolor: '#ffffff',
+                  borderRadius: '10px',
+                  bgcolor: 'background.paper',
                   border: '1px solid',
-                  borderColor: '#e2e8f0',
+                  borderColor: 'divider',
                   display: 'flex',
                   flexDirection: { xs: 'column', sm: 'row' },
                   alignItems: { sm: 'center' },
@@ -236,7 +238,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {t('Current mission stage')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#1e293b', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', mt: 0.5 }}>
                     {guidance.tip}
                   </Typography>
                 </Box>
@@ -272,13 +274,13 @@ export function InspectionWorkDetailDialog({
               elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: '12px',
-                bgcolor: '#ffffff',
+                borderRadius: '10px',
+                bgcolor: 'background.paper',
                 border: '1px solid',
-                borderColor: '#e2e8f0',
+                borderColor: 'divider',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CalendarMonthOutlinedIcon fontSize="small" color="primary" />
                 {t('Planned work schedule')}
               </Typography>
@@ -287,7 +289,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Planned Start')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {inspection.plannedStartAt ? formatDateTime(new Date(inspection.plannedStartAt)) : t('Not scheduled')}
                   </Typography>
                 </Grid>
@@ -295,7 +297,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Planned End')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {inspection.plannedEndAt ? formatDateTime(new Date(inspection.plannedEndAt)) : t('Not specified')}
                   </Typography>
                 </Grid>
@@ -307,14 +309,14 @@ export function InspectionWorkDetailDialog({
               elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: '12px',
-                bgcolor: '#ffffff',
+                borderRadius: '10px',
+                bgcolor: 'background.paper',
                 border: '1px solid',
-                borderColor: '#e2e8f0',
+                borderColor: 'divider',
               }}
             >
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <LocationOnOutlinedIcon fontSize="small" color="primary" />
                   {t('Infrastructure Asset')}
                 </Typography>
@@ -330,14 +332,14 @@ export function InspectionWorkDetailDialog({
                     borderRadius: '8px',
                     borderColor: 'primary.main',
                     color: 'primary.main',
-                    bgcolor: 'rgba(55, 88, 249, 0.05)',
+                    bgcolor: 'action.selected',
                     '&:hover': {
                       borderColor: 'primary.dark',
-                      bgcolor: 'rgba(55, 88, 249, 0.12)',
+                      bgcolor: 'action.hover',
                     },
                   }}
                 >
-                  {t('🗺️ Xem Bản đồ khảo sát vùng bay & Điểm cất cánh')}
+                  {t('View Airspace Survey Map & Takeoff Point')}
                 </Button>
               </Stack>
               <Grid container spacing={2}>
@@ -345,7 +347,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Asset Name')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {inspection.assetName || `${t('Asset')} #${inspection.assetId.slice(0, 8)}`}
                   </Typography>
                 </Grid>
@@ -353,7 +355,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Asset Location')}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#334155' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {formatLocation(inspection.locationText) || t('No specific location coordinates recorded')}
                   </Typography>
                 </Grid>
@@ -365,13 +367,13 @@ export function InspectionWorkDetailDialog({
               elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: '12px',
-                bgcolor: '#ffffff',
+                borderRadius: '10px',
+                bgcolor: 'background.paper',
                 border: '1px solid',
-                borderColor: '#e2e8f0',
+                borderColor: 'divider',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <FlightOutlinedIcon fontSize="small" color="primary" />
                 {t('Equipment & Flight Permits')}
               </Typography>
@@ -380,7 +382,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Assigned Drone')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {inspection.droneSerialNumber
                       ? `${inspection.droneSerialNumber} ${inspection.droneModel ? `(${inspection.droneModel})` : ''}`
                       : t('Unassigned Drone')}
@@ -394,8 +396,8 @@ export function InspectionWorkDetailDialog({
                         height: 20,
                         fontSize: '0.6875rem',
                         fontWeight: 700,
-                        bgcolor: inspection.droneServiceability === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        color: inspection.droneServiceability === 'ACTIVE' ? 'success.dark' : 'error.dark',
+                        bgcolor: inspection.droneServiceability === 'ACTIVE' ? 'rgba(23, 107, 82, 0.12)' : 'rgba(168, 50, 59, 0.12)',
+                        color: inspection.droneServiceability === 'ACTIVE' ? 'success.main' : 'error.main',
                       }}
                     />
                   )}
@@ -404,7 +406,7 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Regulatory Flight Permit')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {inspection.flightPermitFileName || t('Awaiting Permit Upload')}
                   </Typography>
                   {inspection.flightPermitUploadedAt && (
@@ -421,13 +423,13 @@ export function InspectionWorkDetailDialog({
               elevation={0}
               sx={{
                 p: 2.5,
-                borderRadius: '12px',
-                bgcolor: '#ffffff',
+                borderRadius: '10px',
+                bgcolor: 'background.paper',
                 border: '1px solid',
-                borderColor: '#e2e8f0',
+                borderColor: 'divider',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <AssignmentOutlinedIcon fontSize="small" color="primary" />
                 {t('Mission tasks & specifications')}
               </Typography>
@@ -437,7 +439,7 @@ export function InspectionWorkDetailDialog({
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                       {t('Mission scope')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 500, mt: 0.25 }}>
+                    <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500, mt: 0.25 }}>
                       {meta.objective}
                     </Typography>
                   </Box>
@@ -454,12 +456,12 @@ export function InspectionWorkDetailDialog({
                           label={comp}
                           size="small"
                           icon={<TaskAltOutlinedIcon fontSize="small" />}
-                          sx={{ bgcolor: '#f1f5f9', fontWeight: 500 }}
+                          sx={{ bgcolor: 'action.hover', fontWeight: 500 }}
                         />
                       ))}
                     </Stack>
                   ) : (
-                    <Typography variant="body2" sx={{ color: '#475569', mt: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                       {t('Standard full physical inspection covering all accessible structures')}
                     </Typography>
                   )}
@@ -542,7 +544,7 @@ export function InspectionWorkDetailDialog({
         <AirspaceFlightPlannerDialog
           open={surveyMapOpen}
           onClose={() => setSurveyMapOpen(false)}
-          assetName={inspection.assetName || 'Công trình kiểm định'}
+          assetName={inspection.assetName || t('Inspected Asset')}
           locationText={inspection.locationText}
           inspectionItems={inspection.inspectionItems ?? []}
         />

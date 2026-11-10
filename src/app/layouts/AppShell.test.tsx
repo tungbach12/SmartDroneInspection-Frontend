@@ -1,4 +1,4 @@
-﻿import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -128,7 +128,9 @@ describe('AppShell with NotificationBell integration', () => {
       wrapper: createWrapper(queryClient),
     });
 
-    const signOutBtn = screen.getByLabelText(/sign out/i);
+    const userMenuBtn = screen.getByRole('button', { name: /Inspector One/i });
+    fireEvent.click(userMenuBtn);
+    const signOutBtn = await screen.findByRole('menuitem', { name: /sign out/i });
     fireEvent.click(signOutBtn);
 
     await waitFor(() => {

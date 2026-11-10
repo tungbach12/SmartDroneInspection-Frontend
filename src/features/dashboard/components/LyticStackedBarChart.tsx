@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
-import { useTheme } from '@mui/material/styles';
+import { Box, Typography } from '@mui/material';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface LyticStackedBarChartProps {
@@ -23,7 +21,6 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
 }) => {
   const { t } = useLocale();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const theme = useTheme();
 
   const svgWidth = 520;
   const svgHeight = 260;
@@ -52,15 +49,17 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   ];
   const barWidth = Math.min(24, (chartWidth / categories.length) * 0.45);
 
+  const nextAdminColors = ['#3758F9', '#06B6D4', '#0EA5E9', '#93C5FD'] as const;
+
   return (
     <Box
       sx={{
         bgcolor: 'background.paper',
-        border: 1,
+        border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '16px',
-        p: { xs: 2, sm: 2.5 },
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        borderRadius: '12px',
+        p: '20px',
+        boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -77,18 +76,22 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
         >
           {t(title)}
         </Typography>
-
-        <IconButton
-          size="small"
-          aria-label={t('Acquisition channels options')}
+        <Box
           sx={{
-            color: 'text.secondary',
-            p: 0.75,
-            '&:hover': { bgcolor: 'action.hover' },
+            color: '#9CA3AF',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0.5,
+            flexShrink: 0,
           }}
         >
-          <MoreHorizRounded fontSize="small" />
-        </IconButton>
+          <svg width="18" height="4" viewBox="0 0 18 4" fill="none">
+            <path d="M4 2C4 3.10457 3.10457 4 2 4C0.89543 4 0 3.10457 0 2C0 0.89543 0.89543 0 2 0C3.10457 0 4 0.89543 4 2Z" fill="currentColor" />
+            <path d="M11 2C11 3.10457 10.1046 4 9 4C7.89543 4 7 3.10457 7 2C7 0.89543 7.89543 0 9 0C10.1046 0 11 0.89543 11 2Z" fill="currentColor" />
+            <path d="M18 2C18 3.10457 17.1046 4 16 4C14.8954 4 14 3.10457 14 2C14 0.89543 14.8954 0 16 0C17.1046 0 18 0.89543 18 2Z" fill="currentColor" />
+          </svg>
+        </Box>
       </Box>
 
       {/* Legend Row */}
@@ -101,10 +104,17 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
           mb: 2,
         }}
       >
-        {channels.map((ch) => (
+        {channels.map((ch, idx) => (
           <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '999px', bgcolor: ch.color }} />
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '2px',
+                bgcolor: nextAdminColors[idx % nextAdminColors.length] ?? ch.color,
+              }}
+            />
+            <Typography sx={{ color: '#71717A', fontSize: '0.75rem', fontWeight: 500 }}>
               {t(ch.name)}
             </Typography>
           </Box>
@@ -128,17 +138,17 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   y1={y}
                   x2={svgWidth - paddingRight}
                   y2={y}
-                  stroke={theme.palette.divider}
-                  strokeDasharray="4 4"
+                  stroke="#E5E7EB"
+                  strokeDasharray="3 3"
                   strokeWidth="1"
                 />
                 <text
                   x={paddingLeft - 8}
                   y={y + 4}
                   textAnchor="end"
-                  fill={theme.palette.text.secondary}
+                  fill="#71717A"
                   fontSize="12"
-                  fontFamily={theme.typography.fontFamily}
+                  fontFamily="Inter, sans-serif"
                   fontWeight="400"
                 >
                   {tick}
@@ -161,6 +171,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   const segmentHeight = (val / effectiveMax) * chartHeight;
                   const y = paddingTop + chartHeight - (runningSum / effectiveMax) * chartHeight;
                   const isTop = chIdx === channels.length - 1;
+                  const segColor = nextAdminColors[chIdx % nextAdminColors.length] ?? ch.color;
 
                   return (
                     <rect
@@ -169,7 +180,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                       y={y}
                       width={barWidth}
                       height={Math.max(0, segmentHeight)}
-                      fill={ch.color}
+                      fill={segColor}
                       rx={isTop ? 4 : 0}
                       ry={isTop ? 4 : 0}
                     />
@@ -181,9 +192,9 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
                   x={groupX}
                   y={svgHeight - 10}
                   textAnchor="middle"
-                  fill={theme.palette.text.secondary}
+                  fill="#71717A"
                   fontSize="12"
-                  fontFamily={theme.typography.fontFamily}
+                  fontFamily="Inter, sans-serif"
                   fontWeight="400"
                 >
                   {t(cat)}
@@ -225,9 +236,16 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
             <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', mb: 0.5 }}>
               {categories[hoverIdx]}
             </Typography>
-            {channels.map((ch) => (
+            {channels.map((ch, idx) => (
               <Box key={ch.name} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '999px', bgcolor: ch.color }} />
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '2px',
+                    bgcolor: nextAdminColors[idx % nextAdminColors.length] ?? ch.color,
+                  }}
+                />
                 <span>{ch.name}: {ch.data[hoverIdx]}</span>
               </Box>
             ))}

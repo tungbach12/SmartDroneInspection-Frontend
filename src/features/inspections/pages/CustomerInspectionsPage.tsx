@@ -93,7 +93,7 @@ export function CustomerInspectionsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
 
-  const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
+  const listFilters = useMemo(() => ({ page: 1, pageSize: 100 }), []);
   const inspections = useInspections(listFilters, true);
   const assetsQuery = useAssets({ page: 1, pageSize: 100 }, true);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -242,6 +242,11 @@ export function CustomerInspectionsPage() {
     });
   }, [enrichedItems, quickFilter, searchQuery]);
 
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return displayedItems.slice(start, start + pageSize);
+  }, [displayedItems, page, pageSize]);
+
   const openPrimaryDestination = (row: EnrichedCustomerInspection) => {
     const targetStep = resolveInitialStepForRow(row, 'customer', {
       resolvedReportAccepted: row.resolvedReportAccepted,
@@ -302,8 +307,10 @@ export function CustomerInspectionsPage() {
           variant="outlined"
           sx={{
             p: 1.25,
-            borderRadius: '10px',
+            borderRadius: '12px',
+            border: '1px solid',
             borderColor: 'divider',
+            boxShadow: 'none',
             bgcolor: 'background.paper',
           }}
         >
@@ -339,7 +346,10 @@ export function CustomerInspectionsPage() {
                     key={tab.id}
                     size="small"
                     variant={active ? 'contained' : 'text'}
-                    onClick={() => setQuickFilter(tab.id)}
+                    onClick={() => {
+                      setQuickFilter(tab.id);
+                      setPage(1);
+                    }}
                     sx={{
                       borderRadius: '8px',
                       textTransform: 'none',
@@ -368,8 +378,15 @@ export function CustomerInspectionsPage() {
                 size="small"
                 placeholder={t('Search asset, code, or scope…')}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ width: { xs: '100%', md: 240 }, flexShrink: 0 }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                sx={{
+                  width: { xs: '100%', md: 240 },
+                  flexShrink: 0,
+                  '& .MuiOutlinedInput-root': { borderRadius: '8px' },
+                }}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -409,12 +426,12 @@ export function CustomerInspectionsPage() {
               bgcolor: 'background.paper',
               border: '1px solid',
               borderColor: 'divider',
-              borderRadius: '10px',
+              borderRadius: '12px',
               boxShadow: 'none',
             }}
           >
             {/* Desktop Table (`md+`) */}
-            <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer sx={{ display: { xs: 'none', md: 'block' }, overflowX: 'auto' }}>
               <Table aria-label={t('Inspections table')}>
                 <TableHead>
                   <TableRow>
@@ -427,8 +444,8 @@ export function CustomerInspectionsPage() {
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         py: 1.5,
-                        px: 2.5,
-                        minWidth: 280,
+                        px: 1.5,
+                        minWidth: 200,
                       }}
                     >
                       {t('Asset')}
@@ -442,8 +459,8 @@ export function CustomerInspectionsPage() {
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         py: 1.5,
-                        px: 2,
-                        width: 190,
+                        px: 1.5,
+                        width: 130,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -458,8 +475,8 @@ export function CustomerInspectionsPage() {
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         py: 1.5,
-                        px: 2,
-                        width: 195,
+                        px: 1.5,
+                        width: 145,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -474,8 +491,8 @@ export function CustomerInspectionsPage() {
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         py: 1.5,
-                        px: 2,
-                        width: 165,
+                        px: 1.5,
+                        width: 125,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -491,8 +508,8 @@ export function CustomerInspectionsPage() {
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         py: 1.5,
-                        px: 2.5,
-                        width: 195,
+                        px: 1.5,
+                        width: 140,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -502,7 +519,7 @@ export function CustomerInspectionsPage() {
                 </TableHead>
 
                 <TableBody>
-                  {displayedItems.map((row) => {
+                  {pagedItems.map((row) => {
                     const isPublished = row.reportStatus === 'PUBLISHED';
                     const feeDisplay = formatVnd(row.resolvedPaymentAmount);
                     const locationLabel = parseLocationLabel(row.assetLocation);
@@ -548,7 +565,7 @@ export function CustomerInspectionsPage() {
                         }}
                       >
                         {/* Col 1: Asset & Location (Clean 2 lines) */}
-                        <TableCell sx={{ py: 1.75, px: 2.5 }}>
+                        <TableCell sx={{ py: 1.75, px: 1.5 }}>
                           <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                             <Stack
                               direction="row"
@@ -563,7 +580,7 @@ export function CustomerInspectionsPage() {
                                   fontWeight: 650,
                                   color: 'text.primary',
                                   fontSize: '0.875rem',
-                                  maxWidth: { md: 320, lg: 420 },
+                                  maxWidth: { md: 210, lg: 260 },
                                 }}
                               >
                                 {row.resolvedAssetName}
@@ -575,8 +592,8 @@ export function CustomerInspectionsPage() {
                                   variant="outlined"
                                   sx={{
                                     height: 18,
-                                    borderRadius: '4px',
-                                    fontSize: '0.7rem',
+                                    borderRadius: '5px',
+                                    fontSize: '0.75rem',
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
                                     flexShrink: 0,
@@ -590,8 +607,8 @@ export function CustomerInspectionsPage() {
                                   label={t('Re-inspection')}
                                   sx={{
                                     height: 18,
-                                    borderRadius: '4px',
-                                    fontSize: '0.7rem',
+                                    borderRadius: '5px',
+                                    fontSize: '0.75rem',
                                     fontWeight: 650,
                                     flexShrink: 0,
                                   }}
@@ -606,7 +623,7 @@ export function CustomerInspectionsPage() {
                               sx={{
                                 color: 'text.secondary',
                                 display: 'block',
-                                maxWidth: { md: 320, lg: 420 },
+                                maxWidth: { md: 210, lg: 260 },
                               }}
                             >
                               {locationLabel ?? row.resolvedObjective}
@@ -615,14 +632,14 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 2: Schedule */}
-                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
                           <Stack spacing={0.25}>
                             <Typography
                               variant="body2"
                               sx={{
                                 fontWeight: 600,
                                 color: 'text.primary',
-                                fontSize: '0.84rem',
+                                fontSize: '0.875rem',
                                 fontVariantNumeric: 'tabular-nums',
                               }}
                             >
@@ -643,14 +660,14 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 3: Stage & Status */}
-                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
                           <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
                             <StatusChip status={isPublished ? 'PUBLISHED' : row.status} />
                             <Typography
                               variant="caption"
                               sx={{
                                 color: 'text.secondary',
-                                fontSize: '0.72rem',
+                                fontSize: '0.75rem',
                                 fontWeight: 500,
                                 pl: 0.25,
                               }}
@@ -661,7 +678,7 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 4: Service Fee */}
-                        <TableCell sx={{ py: 1.75, px: 2, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
                           <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
                             <Typography
                               variant="body2"
@@ -678,7 +695,7 @@ export function CustomerInspectionsPage() {
                               variant="caption"
                               sx={{
                                 fontWeight: 600,
-                                fontSize: '0.72rem',
+                                fontSize: '0.75rem',
                                 color:
                                   row.resolvedPaymentStatus === 'PAID'
                                     ? '#176B52'
@@ -699,10 +716,10 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 5: Actions (Clean 2 buttons: Overview + Open) */}
-                        <TableCell align="right" sx={{ py: 1.75, px: 2.5, whiteSpace: 'nowrap' }}>
+                        <TableCell align="right" sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
                           <Stack
                             direction="row"
-                            spacing={1}
+                            spacing={0.75}
                             sx={{ justifyContent: 'flex-end', alignItems: 'center' }}
                           >
                             <Button
@@ -717,7 +734,7 @@ export function CustomerInspectionsPage() {
                                 borderColor: 'divider',
                                 color: 'text.secondary',
                                 fontWeight: 600,
-                                fontSize: '12px',
+                                fontSize: '0.75rem',
                                 textTransform: 'none',
                                 px: 1.25,
                                 py: 0.5,
@@ -745,9 +762,9 @@ export function CustomerInspectionsPage() {
                                 borderColor: 'divider',
                                 color: 'text.primary',
                                 fontWeight: 600,
-                                fontSize: '12px',
+                                fontSize: '0.75rem',
                                 textTransform: 'none',
-                                px: 1.5,
+                                px: 1.25,
                                 py: 0.5,
                                 boxShadow: 'none',
                                 whiteSpace: 'nowrap',
@@ -758,7 +775,7 @@ export function CustomerInspectionsPage() {
                                 },
                               }}
                             >
-                              {t('Open')}
+                              {isPublished ? t('View report') : t('Open')}
                             </Button>
                           </Stack>
                         </TableCell>
@@ -774,7 +791,7 @@ export function CustomerInspectionsPage() {
                divider={<Divider />}
               sx={{ display: { xs: 'flex', md: 'none' } }}
             >
-              {displayedItems.map((row) => {
+              {pagedItems.map((row) => {
                 const isPublished = row.reportStatus === 'PUBLISHED';
                 const feeDisplay = formatVnd(row.resolvedPaymentAmount);
 
@@ -886,7 +903,7 @@ export function CustomerInspectionsPage() {
                               px: 1.5,
                             }}
                           >
-                            {t('Open')}
+                            {isPublished ? t('View report') : t('Open')}
                           </Button>
                         </Stack>
                       </Stack>
@@ -898,10 +915,10 @@ export function CustomerInspectionsPage() {
 
             <TablePagination
               component="div"
-              count={inspections.data?.totalCount ?? displayedItems.length}
-              page={Math.max((inspections.data?.page ?? page) - 1, 0)}
+              count={displayedItems.length}
+              page={Math.max(0, Math.min(page - 1, Math.max(Math.ceil(displayedItems.length / pageSize) - 1, 0)))}
               onPageChange={(_e, nextPage) => setPage(nextPage + 1)}
-              rowsPerPage={inspections.data?.pageSize ?? pageSize}
+              rowsPerPage={pageSize}
               onRowsPerPageChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setPage(1);

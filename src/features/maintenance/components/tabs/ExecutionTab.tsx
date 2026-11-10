@@ -116,8 +116,8 @@ export function ExecutionTab({
 
   return (
     <Stack spacing={2.5}>
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
           {t('Repair team')}
         </Typography>
         <QueryState
@@ -142,7 +142,7 @@ export function ExecutionTab({
                     : member.engineerUserId}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  <Chip size="small" label={member.memberRole} sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }} />
+                  <Chip size="small" label={member.memberRole} sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }} />
                   <StatusChip status={member.active ? 'ACTIVE' : 'INACTIVE'} />
                 </Stack>
               </Stack>
@@ -155,9 +155,9 @@ export function ExecutionTab({
         )}
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Tasks')}
           </Typography>
           {isEngineer && workOrder.status !== 'CLOSED' ? (
@@ -189,7 +189,7 @@ export function ExecutionTab({
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: '8px',
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                  bgcolor: 'background.default',
                 }}
               >
                 <Stack
@@ -213,9 +213,9 @@ export function ExecutionTab({
         ) : null}
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {t('Work logs')}
           </Typography>
           {isEngineer && (logs.data ?? []).some((l) => l.status === 'SUBMITTED') ? (
@@ -254,7 +254,7 @@ export function ExecutionTab({
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: '8px',
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                  bgcolor: 'background.default',
                 }}
               >
                 <Stack
@@ -338,7 +338,7 @@ export function ExecutionTab({
             sx={{
               mt: 2,
               p: 2,
-              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f1f5f9'),
+              bgcolor: 'background.default',
               borderRadius: '8px',
               border: '1px solid',
               borderColor: 'divider',

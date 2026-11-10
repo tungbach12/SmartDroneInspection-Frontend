@@ -116,8 +116,8 @@ export function InspectorDashboardPage() {
     totalNet > 0 ? Math.round((totalDisbursed / totalNet) * 100) : 100;
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={2.5}>
+    <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto' }}>
+      <Stack spacing={3}>
         {/* Header Bar */}
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -128,15 +128,25 @@ export function InspectorDashboardPage() {
             <Typography
               component="h1"
               sx={{
-                fontSize: { xs: '1.25rem', sm: '1.5rem' },
-                fontWeight: 700,
+                fontSize: '1.5rem',
+                fontWeight: 600,
                 color: 'text.primary',
-                letterSpacing: '-0.02em',
+                letterSpacing: '-0.01em',
+                lineHeight: '2rem',
               }}
             >
               {t('Inspector Dashboard')}
             </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#71717A',
+                fontSize: '0.875rem',
+                fontWeight: 400,
+                lineHeight: '1.25rem',
+                mt: '4px',
+              }}
+            >
               {t('Personal monthly revenue, commission deductions, and flight mission overview.')}
             </Typography>
           </Box>
@@ -148,12 +158,15 @@ export function InspectorDashboardPage() {
               startIcon={<CalendarMonthOutlined sx={{ fontSize: 16 }} />}
               onClick={() => navigate('/operations/inspections?view=calendar')}
               sx={{
+                height: 38,
+                px: 1.75,
                 borderRadius: '8px',
                 borderColor: 'divider',
+                bgcolor: 'background.paper',
                 color: 'text.primary',
                 textTransform: 'none',
-                fontWeight: 650,
-                fontSize: '0.8125rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
               }}
             >
               {t('Flight Schedule')}
@@ -164,11 +177,15 @@ export function InspectorDashboardPage() {
               startIcon={<ListAltOutlined sx={{ fontSize: 16 }} />}
               onClick={() => navigate('/operations/inspections')}
               sx={{
+                height: 38,
+                px: 1.75,
                 borderRadius: '8px',
+                bgcolor: '#3758F9',
                 textTransform: 'none',
-                fontWeight: 650,
-                fontSize: '0.8125rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
                 boxShadow: 'none',
+                '&:hover': { bgcolor: '#4338CA', boxShadow: 'none' },
               }}
             >
               {t('All Inspections')}
@@ -178,6 +195,7 @@ export function InspectorDashboardPage() {
 
         {/* 3 Focused Real Metric Cards */}
         <Box
+          role="region"
           aria-label={t('Inspector summary metrics')}
           sx={{
             display: 'grid',
@@ -185,7 +203,7 @@ export function InspectorDashboardPage() {
               xs: '1fr',
               sm: 'repeat(3, 1fr)',
             },
-            gap: 2,
+            gap: 2.5,
           }}
         >
           <MetricCard
@@ -238,9 +256,11 @@ export function InspectorDashboardPage() {
           variant="outlined"
           sx={{
             borderRadius: '12px',
+            border: '1px solid',
             borderColor: 'divider',
             overflow: 'hidden',
             bgcolor: 'background.paper',
+            boxShadow: 'none',
           }}
         >
           <Box
@@ -255,10 +275,13 @@ export function InspectorDashboardPage() {
             }}
           >
             <Box>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
+              <Typography
+                component="h2"
+                sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
+              >
                 {t('Monthly Settlement Breakdown')}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              <Typography variant="caption" sx={{ color: '#71717A', fontSize: '0.875rem' }}>
                 {t('Consolidated monthly orders, platform commission, and disbursement records')}
               </Typography>
             </Box>
@@ -267,7 +290,7 @@ export function InspectorDashboardPage() {
               variant="text"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
               onClick={() => navigate('/operations/inspections')}
-              sx={{ textTransform: 'none', fontWeight: 650, fontSize: '0.8125rem' }}
+              sx={{ color: '#3758F9', textTransform: 'none', fontWeight: 600, fontSize: '0.875rem' }}
             >
               {t('View inspection orders')}
             </Button>
@@ -279,11 +302,11 @@ export function InspectorDashboardPage() {
                 <TableRow>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2.5,
                       textTransform: 'uppercase',
                     }}
@@ -292,11 +315,11 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2,
                       width: 120,
                       textTransform: 'uppercase',
@@ -306,11 +329,11 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2,
                       width: 150,
                       textTransform: 'uppercase',
@@ -320,11 +343,11 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2,
                       width: 150,
                       textTransform: 'uppercase',
@@ -334,11 +357,11 @@ export function InspectorDashboardPage() {
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2,
                       width: 160,
                       textTransform: 'uppercase',
@@ -349,11 +372,11 @@ export function InspectorDashboardPage() {
                   <TableCell
                     align="right"
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
+                      bgcolor: 'rgba(244, 244, 245, 0.5)',
+                      color: '#71717A',
                       fontSize: '0.75rem',
-                      fontWeight: 650,
-                      py: 1.25,
+                      fontWeight: 500,
+                      py: 1.5,
                       px: 2.5,
                       width: 160,
                       textTransform: 'uppercase',

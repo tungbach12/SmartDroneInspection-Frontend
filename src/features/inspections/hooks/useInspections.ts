@@ -14,8 +14,10 @@ import {
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
+  type PlatformAiAnalytics,
   type ReviewFindingInput,
   type ReportSectionsInput,
+  type UpdatePlatformAiSettingsInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
@@ -486,7 +488,7 @@ export function useGenerateReportDraft(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: () => inspectionApi.generateDraft(inspectionId!),
+    mutationFn: (summary?: string | null) => inspectionApi.generateDraft(inspectionId!, summary),
     onSuccess: () => {
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
@@ -500,12 +502,43 @@ export function useGenerateReportDraft(inspectionId: string | null) {
 export function useReportAiSummary(
   inspectionId: string | null | undefined,
   versionId: string | null | undefined,
+  options?: { enabled?: boolean },
 ) {
+  const enabled = options?.enabled ?? true;
   return useQuery({
     queryKey: ['reports', 'ai-summary', inspectionId ?? '', versionId ?? ''],
     queryFn: () => inspectionApi.getAiSummary(inspectionId!, versionId!),
-    enabled: Boolean(inspectionId && versionId),
+    enabled: Boolean(inspectionId && versionId && enabled),
     staleTime: 60_000,
+  });
+}
+
+export function usePlatformAiAnalytics(enabled = true) {
+  return useQuery<PlatformAiAnalytics>({
+    queryKey: [...inspectionKeys.all, 'ai-settings-analytics'],
+    queryFn: () => inspectionApi.getAiSettingsAndAnalytics(),
+    enabled,
+    staleTime: 15_000,
+  });
+}
+
+export function useUpdatePlatformAiSettings() {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (input: UpdatePlatformAiSettingsInput) => inspectionApi.updateAiSettings(input),
+    onSuccess: (data) => {
+      client.setQueryData([...inspectionKeys.all, 'ai-settings-analytics'], data);
+      client.invalidateQueries({ queryKey: inspectionKeys.all });
+      showToast(
+        data.newlyAutoConfirmedCount > 0
+          ? `Đã lưu ngưỡng AI (${data.autoConfirmThreshold}%) và tự động xác nhận ${data.newlyAutoConfirmedCount} finding đang chờ.`
+          : `Đã cập nhật ngưỡng tự động xác nhận AI (${data.autoConfirmThreshold}%).`,
+        'success',
+      );
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Không thể cập nhật cấu hình ngưỡng AI.'), 'error'),
   });
 }
 

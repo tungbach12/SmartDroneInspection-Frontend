@@ -60,9 +60,9 @@ export function EstimateTab({
   const [suggestedLines, setSuggestedLines] = useState<SuggestedEstimateLine[] | null>(null);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary' }}>
           {t('Estimate versions')}
         </Typography>
         {isEngineer && workOrder.status !== 'CLOSED' ? (
@@ -96,7 +96,7 @@ export function EstimateTab({
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
-                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                bgcolor: 'background.default',
               }}
             >
               <Stack
@@ -265,7 +265,7 @@ export function EstimateTab({
                 <Box
                   sx={{
                     p: 1.5,
-                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f0f9ff'),
+                    bgcolor: 'background.default',
                     borderRadius: '8px',
                     border: '1px solid',
                     borderColor: 'info.light',

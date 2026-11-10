@@ -24,12 +24,11 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         <Typography
           component="h1"
           sx={{
-            fontSize: { xs: '1.5rem', sm: '1.875rem' },
-            fontWeight: 700,
+            fontSize: '1.5rem',
+            fontWeight: 600,
             color: 'text.primary',
-            letterSpacing: '-0.025em',
-            lineHeight: 1.25,
-            mb: subtitle ? 0.5 : 0,
+            letterSpacing: '-0.01em',
+            lineHeight: '2rem',
           }}
         >
           {title}
@@ -38,10 +37,12 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
           <Typography
             variant="body2"
             sx={{
-              color: 'text.secondary',
+              color: '#71717A',
               fontSize: '0.875rem',
+              fontWeight: 400,
+              lineHeight: '1.25rem',
+              mt: '4px',
               maxWidth: 680,
-              lineHeight: 1.5,
             }}
           >
             {subtitle}

@@ -216,23 +216,32 @@ export function CustomerDashboardPage() {
           justifyContent: 'space-between',
           flexDirection: { xs: 'column', md: 'row' },
           gap: 1.5,
-          mb: 2.5,
+          mb: 3,
         }}
       >
         <Box>
           <Typography
-            component="h2"
+            component="h1"
             sx={{
               color: 'text.primary',
-              fontSize: '1.625rem',
-              fontWeight: 650,
-              letterSpacing: '-0.025em',
-              lineHeight: 1.2,
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              lineHeight: '2rem',
             }}
           >
             {t('Organization portfolio & deliverables')}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#71717A',
+              fontSize: '0.875rem',
+              fontWeight: 400,
+              lineHeight: '1.25rem',
+              mt: '4px',
+            }}
+          >
             {t('Monitor registered assets, published inspection reports, and PayOS fee settlements.')}
           </Typography>
         </Box>
@@ -245,18 +254,20 @@ export function CustomerDashboardPage() {
           <Button
             component={RouterLink}
             to="/client/contracts"
-            variant="outlined"
+            variant="contained"
+            color="primary"
             startIcon={<Add />}
             sx={{
               height: 40,
               px: 1.75,
               borderRadius: '8px',
-              borderColor: 'divider',
-              color: 'text.primary',
+              bgcolor: '#3758F9',
               fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
               whiteSpace: 'nowrap',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#4338CA', boxShadow: 'none' },
             }}
           >
             {t('New service request')}
@@ -278,15 +289,17 @@ export function CustomerDashboardPage() {
 
       {/* Row 1: 4 Distinct KPI Cards */}
       <Box
+        role="region"
         aria-label={t('Workspace metrics')}
         sx={{
           display: 'grid',
           gridTemplateColumns: {
-            xs: 'repeat(2, 1fr)',
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
             lg: 'repeat(4, 1fr)',
           },
-          gap: 2,
-          mb: 2.5,
+          gap: 2.5,
+          mb: 3,
         }}
       >
         {metrics.map((st) => (
@@ -318,16 +331,18 @@ export function CustomerDashboardPage() {
         <Paper
           variant="outlined"
           sx={{
-            borderRadius: '16px',
+            borderRadius: '12px',
+            border: '1px solid',
             borderColor: 'divider',
             bgcolor: 'background.paper',
+            boxShadow: 'none',
             overflow: 'hidden',
           }}
         >
           <Box
             sx={{
               px: 2.5,
-              py: 1.75,
+              py: 2,
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
@@ -336,7 +351,10 @@ export function CustomerDashboardPage() {
               gap: 1,
             }}
           >
-            <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
+            <Typography
+              component="h2"
+              sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
+            >
               {t('Inspections, reports & fee status')}
             </Typography>
             <Button
@@ -345,6 +363,7 @@ export function CustomerDashboardPage() {
               size="small"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
               sx={{
+                color: '#3758F9',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -371,11 +390,11 @@ export function CustomerDashboardPage() {
                     <TableRow>
                       <TableCell
                         sx={{
-                          bgcolor: 'background.default',
-                          color: 'text.secondary',
+                          bgcolor: 'rgba(244, 244, 245, 0.5)',
+                          color: '#71717A',
                           fontSize: '0.75rem',
-                          fontWeight: 650,
-                          py: 1.25,
+                          fontWeight: 500,
+                          py: 1.5,
                           px: 2.5,
                         }}
                       >
@@ -383,11 +402,11 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'background.default',
-                          color: 'text.secondary',
+                          bgcolor: 'rgba(244, 244, 245, 0.5)',
+                          color: '#71717A',
                           fontSize: '0.75rem',
-                          fontWeight: 650,
-                          py: 1.25,
+                          fontWeight: 500,
+                          py: 1.5,
                           px: 1.5,
                         }}
                       >
@@ -395,11 +414,11 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'background.default',
-                          color: 'text.secondary',
+                          bgcolor: 'rgba(244, 244, 245, 0.5)',
+                          color: '#71717A',
                           fontSize: '0.75rem',
-                          fontWeight: 650,
-                          py: 1.25,
+                          fontWeight: 500,
+                          py: 1.5,
                           px: 1.5,
                         }}
                       >
@@ -408,11 +427,11 @@ export function CustomerDashboardPage() {
                       <TableCell
                         align="right"
                         sx={{
-                          bgcolor: 'background.default',
-                          color: 'text.secondary',
+                          bgcolor: 'rgba(244, 244, 245, 0.5)',
+                          color: '#71717A',
                           fontSize: '0.75rem',
-                          fontWeight: 650,
-                          py: 1.25,
+                          fontWeight: 500,
+                          py: 1.5,
                           px: 2.5,
                         }}
                       >
@@ -615,19 +634,85 @@ export function CustomerDashboardPage() {
                         direction="row"
                         sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}
                       >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
                             {item.resolvedAssetName}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                             {item.resolvedObjective}
                           </Typography>
                         </Box>
                         <Typography
                           variant="body2"
-                          sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
+                          sx={{
+                            fontWeight: 700,
+                            fontVariantNumeric: 'tabular-nums',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}
                         >
-                          {item.resolvedAmount ? `${formatNumber(item.resolvedAmount)} ₫` : ''}
+                          {item.resolvedAmount ? `${formatNumber(item.resolvedAmount)} ₫` : t('Included')}
+                        </Typography>
+                      </Stack>
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        sx={{
+                          mt: 1,
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {isPublished ? (
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <CheckCircleRounded sx={{ fontSize: 14, color: '#176B52' }} />
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 650,
+                                color: '#176B52',
+                                fontVariantNumeric: 'tabular-nums',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              v{item.reportVersionNo ?? 1} ·{' '}
+                              {item.resolvedReportAccepted ? t('Accepted') : t('Ready')}
+                            </Typography>
+                          </Stack>
+                        ) : (
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <HourglassEmptyRounded sx={{ fontSize: 14, color: '#225F85' }} />
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 600,
+                                color: '#225F85',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {t('In review')}
+                            </Typography>
+                          </Stack>
+                        )}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color:
+                              item.resolvedPaymentStatus === 'PAID'
+                                ? '#176B52'
+                                : item.resolvedPaymentStatus === 'PAYMENT_DUE'
+                                  ? '#8C520B'
+                                  : 'text.secondary',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {item.resolvedPaymentStatus === 'PAID'
+                            ? t('Paid')
+                            : item.resolvedPaymentStatus === 'PAYMENT_DUE'
+                              ? t('Payment due')
+                              : t('Pending')}
                         </Typography>
                       </Stack>
                     </Box>
@@ -642,16 +727,18 @@ export function CustomerDashboardPage() {
         <Paper
           variant="outlined"
           sx={{
-            borderRadius: '16px',
+            borderRadius: '12px',
+            border: '1px solid',
             borderColor: 'divider',
             bgcolor: 'background.paper',
+            boxShadow: 'none',
             overflow: 'hidden',
           }}
         >
           <Box
             sx={{
               px: 2.5,
-              py: 1.75,
+              py: 2,
               borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
@@ -665,7 +752,7 @@ export function CustomerDashboardPage() {
               sx={{
                 color: 'text.primary',
                 fontSize: '1rem',
-                fontWeight: 650,
+                fontWeight: 600,
               }}
             >
               {t('Asset overview')}
@@ -676,6 +763,7 @@ export function CustomerDashboardPage() {
               size="small"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
               sx={{
+                color: '#3758F9',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -708,11 +796,11 @@ export function CustomerDashboardPage() {
                   <TableRow>
                     <TableCell
                       sx={{
-                        bgcolor: 'background.default',
-                        color: 'text.secondary',
+                        bgcolor: 'rgba(244, 244, 245, 0.5)',
+                        color: '#71717A',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        py: 1.25,
+                        fontWeight: 500,
+                        py: 1.5,
                         px: 2.5,
                       }}
                     >
@@ -720,11 +808,11 @@ export function CustomerDashboardPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'background.default',
-                        color: 'text.secondary',
+                        bgcolor: 'rgba(244, 244, 245, 0.5)',
+                        color: '#71717A',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        py: 1.25,
+                        fontWeight: 500,
+                        py: 1.5,
                         px: 1.5,
                       }}
                     >
@@ -733,11 +821,11 @@ export function CustomerDashboardPage() {
                     <TableCell
                       align="right"
                       sx={{
-                        bgcolor: 'background.default',
-                        color: 'text.secondary',
+                        bgcolor: 'rgba(244, 244, 245, 0.5)',
+                        color: '#71717A',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        py: 1.25,
+                        fontWeight: 500,
+                        py: 1.5,
                         px: 2.5,
                       }}
                     >
@@ -749,7 +837,12 @@ export function CustomerDashboardPage() {
                   {assetList.slice(0, 6).map((asset) => {
                     const counts = inspectionCountByAssetId.get(asset.id);
                     return (
-                      <TableRow key={asset.id} hover>
+                      <TableRow
+                        key={asset.id}
+                        hover
+                        onClick={() => navigate('/client/assets')}
+                        sx={{ cursor: 'pointer' }}
+                      >
                         <TableCell sx={{ py: 1.5, px: 2.5 }}>
                           <Typography
                             variant="body2"

@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   MenuItem,
   Paper,
@@ -19,6 +20,8 @@ import {
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useAssets } from '@/features/assets/hooks/useAssets';
+import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -44,11 +47,22 @@ interface RepairCandidatePanelProps {
  * finding already under repair is not a new triage decision.
  */
 export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
-  const { t } = useLocale();
+  const { formatDate, t } = useLocale();
   const candidates = useRepairCandidates();
   const createWorkOrder = useCreateWorkOrder();
   const suggestScope = useSuggestWorkOrderScope();
   const workforce = useWorkforceUsers();
+  const assetsQuery = useAssets({ page: 1, pageSize: 100 });
+  const inspectionsQuery = useInspections({ page: 1, pageSize: 100 });
+
+  const assetById = useMemo(
+    () => new Map((assetsQuery.data?.items ?? []).map((asset) => [asset.id, asset])),
+    [assetsQuery.data?.items],
+  );
+  const inspectionById = useMemo(
+    () => new Map((inspectionsQuery.data?.items ?? []).map((insp) => [insp.id, insp])),
+    [inspectionsQuery.data?.items],
+  );
 
   const [target, setTarget] = useState<RepairCandidate | null>(null);
   const [correctiveScope, setCorrectiveScope] = useState('');
@@ -85,12 +99,12 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
   const items = candidates.data ?? [];
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px', border: '1px solid #eaecf0' }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px', borderColor: 'divider', bgcolor: 'background.paper' }}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <AssignmentTurnedInOutlined color="primary" />
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#101828' }}>
+            <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {t('Repair candidates')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -121,60 +135,103 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
         </QueryState>
 
         {items.length > 0 ? (
-          <Stack spacing={1.5}>
-            {items.map((candidate) => (
-              <Box
-                key={candidate.findingId}
-                sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 1.5 }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+          <Stack divider={<Divider flexItem />} spacing={0}>
+            {items.map((candidate) => {
+              const asset = assetById.get(candidate.assetId);
+              const inspection = inspectionById.get(candidate.inspectionId) as
+                | { assetName?: string; assetCode?: string }
+                | undefined;
+              const assetName =
+                asset?.name ??
+                inspection?.assetName ??
+                (candidate.assetId ? `${t('Asset')} ${candidate.assetId.slice(0, 8)}` : t('Registered Asset'));
+              const assetCode = asset?.code ?? inspection?.assetCode ?? null;
+              const publishedDateLabel = candidate.reportPublishedAt
+                ? formatDate(new Date(candidate.reportPublishedAt))
+                : null;
+
+              return (
+                <Box
+                  key={candidate.findingId}
+                  sx={{ py: 1.75, '&:first-of-type': { pt: 0.5 }, '&:last-of-type': { pb: 0.5 } }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#101828' }}>
-                        {candidate.findingCode} · {candidate.defectLabel}
-                      </Typography>
-                      <StatusChip status={candidate.severity} />
-                    </Stack>
-                    <Typography variant="body2" sx={{ color: '#475467', mt: 0.5 }}>
-                      {candidate.technicalNotes}
-                    </Typography>
-                    {candidate.recommendedAction ? (
-                      <Typography variant="caption" sx={{ color: '#667085', display: 'block', mt: 0.5 }}>
-                        {t('Recommended:')} {candidate.recommendedAction}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={() => {
-                      setTarget(candidate);
-                      setCorrectiveScope(candidate.recommendedAction ?? '');
-                      setAcceptanceCriteria('');
-                      setPriority(
-                        candidate.severity === 'CRITICAL'
-                          ? 'URGENT'
-                          : candidate.severity === 'HIGH'
-                            ? 'HIGH'
-                            : candidate.severity === 'LOW'
-                              ? 'LOW'
-                              : 'NORMAL',
-                      );
-                      setDueAt('');
-                      setBudgetApprover(orgAdmins[0]?.userId ?? '');
-                      setStandards([]);
-                      setSuggestedTasks([]);
-                    }}
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
                   >
-                    {t('Open work order')}
-                  </Button>
-                </Stack>
-              </Box>
-            ))}
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75, mb: 0.5 }}>
+                        <Chip
+                          size="small"
+                          label={assetCode ? `${assetName} (${assetCode})` : assetName}
+                          color="primary"
+                          variant="outlined"
+                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                        />
+                        <Chip
+                          size="small"
+                          label={
+                            publishedDateLabel
+                              ? `${t('Published report')} · ${publishedDateLabel}`
+                              : t('Published report')
+                          }
+                          variant="outlined"
+                          sx={{ height: 22, fontSize: '0.75rem' }}
+                        />
+                        {candidate.component ? (
+                          <Chip
+                            size="small"
+                            label={candidate.component}
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.75rem' }}
+                          />
+                        ) : null}
+                      </Stack>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                          {candidate.findingCode} · {candidate.defectLabel}
+                        </Typography>
+                        <StatusChip status={candidate.severity} />
+                      </Stack>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                        {candidate.technicalNotes}
+                      </Typography>
+                      {candidate.recommendedAction ? (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                          {t('Recommended:')} {candidate.recommendedAction}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      sx={{ flexShrink: 0, borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                      onClick={() => {
+                        setTarget(candidate);
+                        setCorrectiveScope(candidate.recommendedAction ?? '');
+                        setAcceptanceCriteria('');
+                        setPriority(
+                          candidate.severity === 'CRITICAL'
+                            ? 'URGENT'
+                            : candidate.severity === 'HIGH'
+                              ? 'HIGH'
+                              : candidate.severity === 'LOW'
+                                ? 'LOW'
+                                : 'NORMAL',
+                        );
+                        setDueAt('');
+                        setBudgetApprover(orgAdmins[0]?.userId ?? '');
+                        setStandards([]);
+                        setSuggestedTasks([]);
+                      }}
+                    >
+                      {t('Open work order')}
+                    </Button>
+                  </Stack>
+                </Box>
+              );
+            })}
           </Stack>
         ) : null}
       </Stack>
@@ -222,6 +279,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
               />
               {target ? (
                 <Alert severity="info">
+                  {assetById.get(target.assetId)?.name ? `${assetById.get(target.assetId)?.name} — ` : ''}
                   {target.findingCode} · {target.defectLabel}
                 </Alert>
               ) : null}
@@ -232,7 +290,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
               >
                 <Typography
                   variant="caption"
-                  sx={{ fontWeight: 700, color: '#344054', textTransform: 'uppercase' }}
+                  sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}
                 >
                   {t('Corrective Specification')}
                 </Typography>
@@ -281,7 +339,7 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                   spacing={0.75}
                   sx={{ flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}
                 >
-                  <Typography variant="caption" sx={{ color: '#475467', fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                     {t('Standards:')}
                   </Typography>
                   {standards.map((std) => (
@@ -291,13 +349,13 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       size="small"
                       color="primary"
                       variant="outlined"
-                      sx={{ height: 22, fontSize: 11 }}
+                      sx={{ height: 22, fontSize: '0.75rem' }}
                     />
                   ))}
                 </Stack>
               ) : null}
               {suggestedTasks.length > 0 ? (
-                <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1.5, border: '1px solid #b9e6fe' }}>
+                <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -307,14 +365,14 @@ export function RepairCandidatePanel({ onCreated }: RepairCandidatePanelProps) {
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#026aa2' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main' }}>
                         {`${t('Tự động tạo')} ${suggestedTasks.length} ${t('hạng mục công việc gợi ý vào Work Order')}`}
                       </Typography>
                     }
                   />
                   <Stack spacing={0.5} sx={{ pl: 3.5, mt: 0.5 }}>
                     {suggestedTasks.map((task) => (
-                      <Typography key={task.taskNumber} variant="caption" sx={{ color: '#034466' }}>
+                      <Typography key={task.taskNumber} variant="caption" sx={{ color: 'text.primary' }}>
                         {task.taskNumber}. <strong>{task.name}</strong>
                         {task.method ? ` — ${task.method}` : ''}
                       </Typography>

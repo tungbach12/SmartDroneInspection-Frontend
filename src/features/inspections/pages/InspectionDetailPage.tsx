@@ -16,7 +16,6 @@ import {
 } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
@@ -26,6 +25,7 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import '../styles/trace-ledger.css';
@@ -307,8 +307,17 @@ export default function InspectionDetailPage() {
   );
 
   const sessionsQuery = useFieldSessions(inspectionId);
+  const openSession = sessionsQuery.data?.find(
+    (s) => s.status === 'IN_PROGRESS' || s.status === 'PLANNED',
+  );
   const latestSession = sessionsQuery.data?.at(-1);
   const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
+
+  const hasFlownInActiveSession = Boolean(
+    openSession?.id &&
+      typeof sessionStorage !== 'undefined' &&
+      sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
+  );
 
   const visibleSteps = isCustomer
     ? CUSTOMER_STEPS.filter((step) => {
@@ -453,8 +462,7 @@ export default function InspectionDetailPage() {
     Boolean(inspection?.flightPermitFileName) ||
     ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
   const hasSessionStarted =
-    Boolean(sessionsQuery.data?.length) ||
-    ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
+    isFieldWorkComplete || hasFlownInActiveSession;
   const hasEvidence =
     activeEvidenceCount > 0 ||
     ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
@@ -462,22 +470,46 @@ export default function InspectionDetailPage() {
   const readinessFor = (step: WorkflowStep): WorkflowStepState => {
     if (isCustomer) {
       if (isStepCompleted(step.value)) return 'complete';
+      if (
+        (step.value === 'report' || step.value === 'settlement' || step.value === 'corrective') &&
+        !hasPublishedVersion
+      ) {
+        return 'blocked';
+      }
       if (tabValue === step.value) return 'active';
-      if (step.value === 'tracking') return 'ready';
-      if (step.value === 'report') return hasPublishedVersion ? 'ready' : 'blocked';
-      if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
-      if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
+      if (
+        step.value === 'tracking' ||
+        step.value === 'report' ||
+        step.value === 'settlement' ||
+        step.value === 'corrective'
+      ) {
+        return 'ready';
+      }
       return 'pending';
     }
     if (isStepCompleted(step.value)) return 'complete';
+    if (step.value === 'pre-flight' && !hasPermitReady) return 'blocked';
+    if (step.value === 'post-flight' && !hasSessionStarted) return 'blocked';
+    if (step.value === 'evidence' && !isFieldWorkComplete) return 'blocked';
+    if (step.value === 'findings' && !hasEvidence) return 'blocked';
+    if (step.value === 'report' && !findingsComplete) return 'blocked';
+    if (step.value === 'corrective' && !hasPublishedVersion) return 'blocked';
     if (tabValue === step.value) return 'active';
-    if (step.value === 'permit' || step.value === 'field-session' || step.value === 'audit' || step.value === 'review' || step.value === 'settlement') return 'ready';
-    if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
-    if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
-    if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
-    if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
-    if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
-    if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
+    if (
+      step.value === 'permit' ||
+      step.value === 'pre-flight' ||
+      step.value === 'field-session' ||
+      step.value === 'post-flight' ||
+      step.value === 'evidence' ||
+      step.value === 'findings' ||
+      step.value === 'report' ||
+      step.value === 'corrective' ||
+      step.value === 'audit' ||
+      step.value === 'review' ||
+      step.value === 'settlement'
+    ) {
+      return 'ready';
+    }
     return 'pending';
   };
 
@@ -492,7 +524,7 @@ export default function InspectionDetailPage() {
       return null;
     }
     if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
-    if (step.value === 'post-flight' && !hasSessionStarted) return t('Start a field session before completing the post-flight checklist.');
+    if (step.value === 'post-flight' && !hasSessionStarted) return t('Connect to SmartDroneHub and perform the flight survey in Step 3 before completing the post-flight checklist.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
     if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
@@ -538,29 +570,42 @@ export default function InspectionDetailPage() {
   });
   return (
     <Box
-      className="workspace-page workspace-page--inspections trace-ledger-workspace"
+      className="workspace-page workspace-page--inspections trace-ledger-workspace inspection-detail-page"
       sx={{ width: '100%', maxWidth: '100%', mx: 'auto' }}
     >
-      <Box className="trace-ledger-header" sx={{ mb: { xs: 2.5, md: 3.5 } }}>
-        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-          <Button
-            startIcon={<ArrowBackRounded />}
-            onClick={() => {
-              if (isCustomer) {
-                navigate(getSectionPath('client', 'inspections'));
-                return;
-              }
-              if (isReviewerAdmin) {
-                navigate(`${getSectionPath(reviewerPortal, 'inspections')}?view=reports`);
-                return;
-              }
-              navigate(-1);
-            }}
-            sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'none', px: 0 }}
-          >
-            {isCustomer ? t('Back to inspections') : isReviewerAdmin ? t('Back to review queue') : t('Back to inspections')}
-          </Button>
-        </Stack>
+      <Box className="trace-ledger-header" sx={{ mb: { xs: 2, md: 2.5 } }}>
+        <PageBreadcrumbs
+          items={[
+            {
+              label: t('Dashboard'),
+              to: getSectionPath(
+                isCustomer ? 'client' : isReviewerAdmin ? reviewerPortal : 'operations',
+                'dashboard',
+              ),
+            },
+            {
+              label: isCustomer
+                ? t('Inspections')
+                : isReviewerAdmin
+                  ? t('Review queue')
+                  : t('Inspections'),
+              to: isCustomer
+                ? getSectionPath('client', 'inspections')
+                : isReviewerAdmin
+                  ? `${getSectionPath(reviewerPortal, 'inspections')}?view=reports`
+                  : getSectionPath('operations', 'inspections'),
+            },
+            {
+              label:
+                inspection?.assetName ||
+                (isCustomer
+                  ? t('Inspection detail')
+                  : isReviewerAdmin
+                    ? t('Inspection review')
+                    : t('Inspection detail')),
+            },
+          ]}
+        />
 
         <PageHeader title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')} />
 
@@ -571,7 +616,7 @@ export default function InspectionDetailPage() {
             sx={{
               mt: 1,
               px: { xs: 1.75, sm: 2.25 },
-              py: { xs: 1.5, sm: 1.75 },
+              py: { xs: 1.25, sm: 1.5 },
               borderRadius: '10px',
               border: '1px solid',
               borderColor: 'divider',
@@ -580,10 +625,10 @@ export default function InspectionDetailPage() {
             }}
           >
             <Stack
-              direction="row"
-              spacing={2}
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
               sx={{
-                alignItems: 'center',
+                alignItems: { md: 'center' },
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 rowGap: 0.75,
@@ -619,7 +664,7 @@ export default function InspectionDetailPage() {
                     }
                     sx={{
                       height: 22,
-                      fontSize: '0.72rem',
+                      fontSize: '0.75rem',
                       fontWeight: 600,
                       borderColor: 'divider',
                       color: 'text.secondary',
@@ -636,22 +681,27 @@ export default function InspectionDetailPage() {
                   </Box>
                 </Typography>
               </Stack>
+
+              {!isOrganizationAdmin && !isCustomer && (
+                <Box
+                  role="region"
+                  className="inspection-evidence-trace"
+                  aria-label={t('Inspection evidence trace')}
+                  sx={{ p: 0, border: 'none', bgcolor: 'transparent' }}
+                >
+                  <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+                    <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
+                    <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
+                    <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
+                  </Stack>
+                </Box>
+              )}
             </Stack>
           </Paper>
         )}
 
         {!isOrganizationAdmin && !isCustomer && inspection && (
-          <Box className="inspection-evidence-trace" aria-label={t('Inspection evidence trace')}>
-            <Stack direction="row" spacing={{ xs: 1.5, sm: 2.5 }} sx={{ flexWrap: 'wrap', rowGap: 0.75, mt: 1.25 }}>
-              <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
-              <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
-              <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
-            </Stack>
-          </Box>
-        )}
-
-        {!isOrganizationAdmin && !isCustomer && inspection && (
-          <Box sx={{ mt: 1.5 }}>
+          <Box sx={{ mt: 1.25 }}>
             <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
           </Box>
         )}
@@ -678,11 +728,11 @@ export default function InspectionDetailPage() {
           className="inspection-stage-rail"
           elevation={0}
           sx={{
-            mt: 2,
+            mt: 1.5,
             px: { xs: 1.5, sm: 2.5 },
-            py: { xs: 1.75, sm: 2.25 },
+            py: { xs: 1.5, sm: 2 },
             bgcolor: 'background.paper',
-            borderRadius: '12px',
+            borderRadius: '10px',
             border: '1px solid',
             borderColor: 'divider',
             boxShadow: 'none',
@@ -699,7 +749,8 @@ export default function InspectionDetailPage() {
               const prevStep = idx > 0 ? visibleSteps[idx - 1] : undefined;
               const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
               const isCompleted = state === 'complete';
-              const accentGreen = '#228b6e';
+              const completeGreen = '#176B52';
+              const activePrimary = '#3758F9';
 
               return (
                 <ButtonBase
@@ -729,7 +780,7 @@ export default function InspectionDetailPage() {
                     },
                     '&:focus-visible': {
                       outline: '2px solid',
-                      outlineColor: 'divider',
+                      outlineColor: 'primary.main',
                       outlineOffset: -2,
                     },
                   }}
@@ -751,7 +802,7 @@ export default function InspectionDetailPage() {
                           idx === 0
                             ? 'transparent'
                             : prevCompleted
-                              ? accentGreen
+                              ? completeGreen
                               : 'divider',
                         transition: 'background-color 220ms ease',
                       }}
@@ -767,24 +818,24 @@ export default function InspectionDetailPage() {
                         borderRadius: '50%',
                         border: '2px solid',
                         borderColor: isCompleted
-                          ? accentGreen
+                          ? completeGreen
                           : isCurrent
-                            ? accentGreen
+                            ? activePrimary
                             : state === 'ready'
                               ? 'text.secondary'
                               : 'divider',
                         bgcolor: isCompleted
-                          ? accentGreen
+                          ? completeGreen
                           : 'background.paper',
                         color: isCompleted
                           ? '#ffffff'
                           : isCurrent
-                            ? accentGreen
+                            ? activePrimary
                             : state === 'ready'
                               ? 'text.primary'
                               : 'text.secondary',
                         boxShadow: isCurrent
-                          ? '0 0 0 4px rgba(34, 139, 110, 0.20)'
+                          ? '0 0 0 4px rgba(55, 88, 249, 0.20)'
                           : 'none',
                         fontSize: '0.8rem',
                         fontWeight: 700,
@@ -806,7 +857,7 @@ export default function InspectionDetailPage() {
                           idx === visibleSteps.length - 1
                             ? 'transparent'
                             : isCompleted
-                              ? accentGreen
+                              ? completeGreen
                               : 'divider',
                         transition: 'background-color 220ms ease',
                       }}
@@ -824,7 +875,7 @@ export default function InspectionDetailPage() {
                           : isCompleted
                             ? 'text.primary'
                             : 'text.secondary',
-                        fontSize: '0.8125rem',
+                        fontSize: '0.875rem',
                         fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
                         lineHeight: 1.25,
                         whiteSpace: 'nowrap',
@@ -839,12 +890,12 @@ export default function InspectionDetailPage() {
                       sx={{
                         display: 'block',
                         mt: 0.3,
-                        color: isCurrent
-                          ? accentGreen
-                          : isCompleted
-                            ? accentGreen
+                        color: isCompleted
+                          ? completeGreen
+                          : isCurrent && state === 'active'
+                            ? activePrimary
                             : 'text.secondary',
-                        fontSize: '0.72rem',
+                        fontSize: '0.75rem',
                         fontWeight: isCurrent ? 700 : 500,
                         lineHeight: 1.2,
                         whiteSpace: 'nowrap',
@@ -873,7 +924,8 @@ export default function InspectionDetailPage() {
                   const state = readinessFor(step);
                   const isCurrent = tabValue === step.value;
                   const isCompleted = state === 'complete';
-                  const accentGreen = '#228b6e';
+                  const completeGreen = '#176B52';
+                  const activePrimary = '#3758F9';
                   return (
                     <Box
                       key={step.value}
@@ -886,14 +938,24 @@ export default function InspectionDetailPage() {
                         aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
                         title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
                         sx={{
-                          width: 30,
-                          height: 30,
+                          width: 44,
+                          height: 44,
+                          minWidth: 44,
+                          minHeight: 44,
                           borderRadius: '50%',
                           border: '2px solid',
-                          borderColor: isCompleted || isCurrent ? accentGreen : 'divider',
-                          bgcolor: isCompleted ? accentGreen : 'background.paper',
-                          color: isCompleted ? '#ffffff' : isCurrent ? accentGreen : 'text.secondary',
-                          boxShadow: isCurrent ? '0 0 0 3px rgba(34, 139, 110, 0.2)' : 'none',
+                          borderColor: isCompleted
+                            ? completeGreen
+                            : isCurrent
+                              ? activePrimary
+                              : 'divider',
+                          bgcolor: isCompleted ? completeGreen : 'background.paper',
+                          color: isCompleted
+                            ? '#ffffff'
+                            : isCurrent
+                              ? activePrimary
+                              : 'text.secondary',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}
@@ -906,7 +968,7 @@ export default function InspectionDetailPage() {
                           sx={{
                             flex: 1,
                             height: 2,
-                            bgcolor: isCompleted ? accentGreen : 'divider',
+                            bgcolor: isCompleted ? completeGreen : 'divider',
                           }}
                         />
                       )}

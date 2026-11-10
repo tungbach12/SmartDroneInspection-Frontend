@@ -52,6 +52,7 @@ import {
   useReinspectionVerifications,
   useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
+import { usePlatformAiAnalytics } from '@/features/admin/hooks/usePlatformAiSettings';
 import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
 import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 
@@ -67,6 +68,7 @@ export default function InspectionFindingsPage() {
     roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN');
 
   const inspectionQuery = useInspection(inspectionId);
+  const aiSettingsQuery = usePlatformAiAnalytics?.(true);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
   const reinspectionVerifications = useReinspectionVerifications(
     isReinspection ? inspectionId : null,
@@ -364,7 +366,7 @@ export default function InspectionFindingsPage() {
 
   if (!isInspector && !isReviewer) {
     return (
-      <Alert severity="info" sx={{ borderRadius: '12px' }}>
+      <Alert severity="info" sx={{ borderRadius: '10px' }}>
         You are viewing this inspection as a reader. Detection review and finding decisions belong
         to the assigned Inspector and a qualified reviewer.
       </Alert>
@@ -405,7 +407,7 @@ export default function InspectionFindingsPage() {
               sx={{
                 width: 38,
                 height: 38,
-                borderRadius: '6px',
+                borderRadius: '8px',
                 bgcolor: 'action.selected',
                 color: 'primary.main',
                 display: 'flex',
@@ -417,9 +419,20 @@ export default function InspectionFindingsPage() {
               <AutoAwesomeOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-                {t('Defect Analysis & Findings')}
-              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                  {t('Defect Analysis & Findings')}
+                </Typography>
+                {aiSettingsQuery?.data?.autoConfirmEnabled && (
+                  <Chip
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    label={`Auto-confirm ≥ ${Number(aiSettingsQuery.data.autoConfirmThreshold).toFixed(0)}%`}
+                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                  />
+                )}
+              </Stack>
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
                 {t('Run AI detection per image or across all captures. Review, adjust, and confirm defects.')}
               </Typography>
@@ -453,11 +466,11 @@ export default function InspectionFindingsPage() {
         </Stack>
 
         {isInspector && isFindingsLocked && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {latestReportVersion?.status === 'SUBMITTED'
                 ? t(
-                    'Findings are locked while the report is submitted for review. Withdraw the submission in Step 4 if you need to make changes.',
+                    'Findings are locked while the report is submitted for review. Withdraw the submission in Step 7 (Report) if you need to make changes.',
                   )
                 : t(
                     'This inspection report has been approved or published. Findings are read-only.',
@@ -467,12 +480,12 @@ export default function InspectionFindingsPage() {
         )}
 
         {isInspector && isReturnedRevision && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
             {t('This report was returned for revision. Evidence and findings are editable; update the requested content, then verify and resubmit the report.')}
           </Alert>
         )}
         {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '12px' }}>
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
             {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
           </Alert>
         )}
@@ -526,7 +539,7 @@ export default function InspectionFindingsPage() {
                       <ImageOutlined sx={{ fontSize: 20, color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: '6px' },
+                  sx: { borderRadius: '8px' },
                 },
               }}
             />
@@ -547,7 +560,7 @@ export default function InspectionFindingsPage() {
                       <SearchRounded sx={{ fontSize: 20, color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: '6px' },
+                  sx: { borderRadius: '8px' },
                 },
               }}
             />
@@ -673,13 +686,13 @@ export default function InspectionFindingsPage() {
 
       {/* 4. Hierarchical Capture List */}
       {findings.isLoading ? (
-        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '16px' }}>
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px' }}>
           <Typography color="text.secondary">{t('Loading findings…')}</Typography>
         </Paper>
       ) : findings.isError ? (
         <Alert
           severity="error"
-          sx={{ borderRadius: '12px' }}
+          sx={{ borderRadius: '10px' }}
           action={
             <Button color="inherit" onClick={() => void findings.refetch()}>
               {t('Retry')}
@@ -694,7 +707,7 @@ export default function InspectionFindingsPage() {
           sx={{
             p: 5,
             textAlign: 'center',
-            borderRadius: '16px',
+            borderRadius: '10px',
             bgcolor: 'background.paper',
             borderColor: 'divider',
           }}
@@ -812,7 +825,7 @@ export default function InspectionFindingsPage() {
           })}
 
           {confirmFinding.isError && (
-            <Alert severity="error" sx={{ borderRadius: '12px' }}>
+            <Alert severity="error" sx={{ borderRadius: '10px' }}>
               {getErrorMessage(confirmFinding.error, 'The finding was not confirmed.')}
             </Alert>
           )}
@@ -823,7 +836,7 @@ export default function InspectionFindingsPage() {
               variant="outlined"
               sx={{
                 p: 0.5,
-                borderRadius: '12px',
+                borderRadius: '10px',
                 bgcolor: 'background.paper',
                 borderColor: 'divider',
                 display: 'flex',
@@ -866,16 +879,22 @@ export default function InspectionFindingsPage() {
                   : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
             </Typography>
             {noFindings && (
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={noFindingsAcknowledged}
-                  onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
-                />
-                <Typography variant="body2">
-                  {t('No finding was observed within the scope covered by these images.')}
-                </Typography>
-              </label>
+              <FormControlLabel
+                sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5 }}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={noFindingsAcknowledged}
+                    onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
+                    sx={{ pt: 0, pb: 0 }}
+                  />
+                }
+                label={
+                  <Typography variant="body2">
+                    {t('No finding was observed within the scope covered by these images.')}
+                  </Typography>
+                }
+              />
             )}
             <Button
               variant="contained"
@@ -935,10 +954,10 @@ export default function InspectionFindingsPage() {
         <Accordion
           variant="outlined"
           sx={{
-            borderRadius: '16px !important',
+            borderRadius: '10px !important',
             borderColor: 'divider',
             '&:before': { display: 'none' },
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            boxShadow: 'none',
             overflow: 'hidden',
           }}
         >
@@ -1023,14 +1042,14 @@ function InspectorFindingRegister({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px' }}>
       <Stack spacing={1.5}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>{t('Inspector findings')}</Typography>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 800 }}>{t('Inspector findings')}</Typography>
         <Typography variant="body2" color="text.secondary">
           {t('While the report is not submitted, correct or remove a finding. Removing it keeps an audit record; retired evidence remains preserved.')}
         </Typography>
         {findings.map((finding) => (
-          <Paper key={finding.id} variant="outlined" sx={{ p: 1.75, borderRadius: '12px' }}>
+          <Box key={finding.id} sx={{ pt: 1.75, borderTop: '1px solid', borderColor: 'divider' }}>
             {editingId === finding.id ? (
               <Box component="form" onSubmit={(event) => submitEdit(event, finding)} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
                 <TextField select name="evidenceId" label={t('Evidence')} size="small" defaultValue={finding.evidenceId ?? ''} required>
@@ -1065,7 +1084,7 @@ function InspectorFindingRegister({
                 </Stack>
               </Stack>
             )}
-          </Paper>
+          </Box>
         ))}
         {error != null && <Alert severity="error">{getErrorMessage(error, 'The finding change was not saved.')}</Alert>}
       </Stack>
@@ -1101,8 +1120,8 @@ function OrganizationFindingsOverview({
         <Chip label={`${pendingFindings.length} awaiting Inspector review`} color={pendingFindings.length ? 'warning' : 'default'} variant="outlined" />
         {severitySummary.map(({ severity, count }) => <Chip key={severity} label={`${severity}: ${count}`} size="small" />)}
       </Stack>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Inspector findings')}</Typography>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px' }}>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Inspector findings')}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Only findings the Inspector confirmed are presented as official report findings. The rest
           are shown separately and cannot be accepted or edited here.
@@ -1112,7 +1131,7 @@ function OrganizationFindingsOverview({
         ) : (
           <Stack spacing={1.5}>
             {officialFindings.map((finding) => (
-              <Paper key={finding.id} variant="outlined" sx={{ p: 1.75, borderRadius: '12px' }}>
+              <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
@@ -1126,24 +1145,28 @@ function OrganizationFindingsOverview({
                   {finding.recommendedAction && <Typography variant="body2"><strong>{t('Recommended action:')}</strong> {finding.recommendedAction}</Typography>}
                   {finding.evidenceId && <Typography variant="caption" color="text.secondary">{t('Linked evidence ·')} {finding.evidenceId.slice(0, 8)}…</Typography>}
                 </Stack>
-              </Paper>
+              </Box>
             ))}
           </Stack>
         )}
       </Paper>
       {pendingFindings.length > 0 && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '16px' }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Awaiting Inspector review')}</Typography>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '10px' }}>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 800, mb: 0.5 }}>{t('Awaiting Inspector review')}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
             {t('These are not official findings. The assigned Inspector confirms or removes them.')}
           </Typography>
           <Stack spacing={1}>
             {pendingFindings.map((finding) => (
-              <Paper key={finding.id} variant="outlined" sx={{ p: 1.5, borderRadius: '12px' }}>
+              <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
                   {finding.confidence !== null && (
-                    <Chip size="small" label={`${Math.round(finding.confidence * 100)}% confidence`} />
+                    <Chip
+                      size="small"
+                      label={`${Math.round(finding.confidence * 100)}% confidence`}
+                      sx={{ fontSize: '0.75rem', color: 'text.primary', fontWeight: 600 }}
+                    />
                   )}
                   <Chip size="small" color="warning" label={t('Pending Inspector review')} />
                   {finding.modelName && (
@@ -1152,7 +1175,7 @@ function OrganizationFindingsOverview({
                     </Typography>
                   )}
                 </Stack>
-              </Paper>
+              </Box>
             ))}
           </Stack>
         </Paper>

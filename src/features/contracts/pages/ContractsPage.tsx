@@ -21,8 +21,8 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
@@ -48,25 +48,37 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : 'Unable to complete this action.';
 }
 
+function getEffectiveRequestStatus(request: ServiceRequest): ServiceRequest['status'] {
+  if (
+    request.status === 'OPEN' &&
+    request.occurrences.some(
+      (o) => o.status === 'ASSIGNED' || (o.status as string) === 'COMPLETED',
+    )
+  ) {
+    return 'ASSIGNED';
+  }
+  return request.status;
+}
+
 function getStatusChipColor(status: ServiceRequest['status']) {
   switch (status) {
     case 'OPEN':
-      return { color: 'default' as const, dotColor: '#757575' };
+      return { color: 'default' as const, dotColor: '#5D707B' };
     case 'QUOTED':
-      return { color: 'warning' as const, dotColor: '#ed6c02' };
+      return { color: 'warning' as const, dotColor: '#8C520B' };
     case 'ACCEPTED':
-      return { color: 'info' as const, dotColor: '#0288d1' };
+      return { color: 'info' as const, dotColor: '#225F85' };
     case 'CONTRACT_SIGNED':
-      return { color: 'primary' as const, dotColor: '#1976d2' };
+      return { color: 'primary' as const, dotColor: '#3758F9' };
     case 'ASSIGNED':
-      return { color: 'success' as const, dotColor: '#2e7d32' };
+      return { color: 'success' as const, dotColor: '#176B52' };
     default:
-      return { color: 'default' as const, dotColor: '#757575' };
+      return { color: 'default' as const, dotColor: '#5D707B' };
   }
 }
 
 export default function ContractsPage() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
@@ -122,25 +134,37 @@ export default function ContractsPage() {
 
   // Filter requests
   const filteredRequests = requestItems.filter((req) => {
+    const effectiveStatus = getEffectiveRequestStatus(req);
     const matchesSearch =
       !search.trim() ||
       req.description.toLowerCase().includes(search.toLowerCase()) ||
-      req.status.toLowerCase().includes(search.toLowerCase()) ||
+      effectiveStatus.toLowerCase().includes(search.toLowerCase()) ||
       req.requestType.toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus = statusFilter === 'ALL' || req.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'ALL' || effectiveStatus === statusFilter || req.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   // Summary Metrics
-  const openNegotiatingCount = requestItems.filter((r) => r.status === 'OPEN' || r.status === 'QUOTED').length;
-  const signedAssignedCount = requestItems.filter((r) => r.status === 'CONTRACT_SIGNED' || r.status === 'ASSIGNED').length;
+  const openNegotiatingCount = requestItems.filter((r) => {
+    const effectiveStatus = getEffectiveRequestStatus(r);
+    return effectiveStatus === 'OPEN' || effectiveStatus === 'QUOTED';
+  }).length;
+  const signedAssignedCount = requestItems.filter((r) => {
+    const effectiveStatus = getEffectiveRequestStatus(r);
+    return effectiveStatus === 'CONTRACT_SIGNED' || effectiveStatus === 'ASSIGNED';
+  }).length;
+
+  const currentEffectiveStatus = currentRequest
+    ? getEffectiveRequestStatus(currentRequest)
+    : 'OPEN';
 
   return (
-    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 } }}>
+    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 }, pb: { xs: 11, md: 12 } }}>
       {/* Top Banner Errors */}
       {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2.5, borderRadius: 1.5 }}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2.5, borderRadius: '8px' }}>
           {error}
         </Alert>
       )}
@@ -148,17 +172,14 @@ export default function ContractsPage() {
       {/* VIEW 1: REQUEST DETAIL WORKSPACE (When a request is selected) */}
       {selectedRequestId && currentRequest ? (
         <Stack spacing={3}>
-          {/* Back button & Action bar */}
-          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Button
-              startIcon={<ArrowBackRoundedIcon />}
-              onClick={() => setSelectedRequestId('')}
-              variant="outlined"
-              size="small"
-              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 650 }}
-            >
-              {t('Back to requests list')}
-            </Button>
+          {/* Breadcrumb & Sync bar */}
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <PageBreadcrumbs
+              items={[
+                { label: t('Service requests'), onClick: () => setSelectedRequestId('') },
+                { label: currentRequest.description },
+              ]}
+            />
             {selectedRequest.isFetching && (
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                 <CircularProgress size={16} />
@@ -171,7 +192,7 @@ export default function ContractsPage() {
           <Card
             variant="outlined"
             sx={{
-              borderRadius: 2.5,
+              borderRadius: '10px',
               borderColor: 'divider',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             }}
@@ -194,8 +215,8 @@ export default function ContractsPage() {
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <Chip
-                      label={currentRequest.status.replaceAll('_', ' ')}
-                      color={getStatusChipColor(currentRequest.status).color}
+                      label={currentEffectiveStatus.replaceAll('_', ' ')}
+                      color={getStatusChipColor(currentEffectiveStatus).color}
                       sx={{ fontWeight: 700, px: 0.5 }}
                     />
                     <Chip
@@ -207,11 +228,22 @@ export default function ContractsPage() {
                 </Stack>
 
                 {currentRequest.requestType === 'RECURRING' && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary', bgcolor: 'action.hover', p: 1, borderRadius: 1 }}>
-                    Chu kỳ: mỗi {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
-                    {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} đợt bay` : ''}
-                    {currentRequest.recurrenceEndDate ? ` · đến hết ngày ${currentRequest.recurrenceEndDate}` : ''}
-                    {' · Giá báo là đơn giá cho từng đợt bay'}
+                  <Typography variant="body2" sx={{ color: 'text.secondary', bgcolor: 'action.hover', p: 1, borderRadius: '8px' }}>
+                    {locale === 'vi' ? (
+                      <>
+                        Chu kỳ: mỗi {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
+                        {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} đợt bay` : ''}
+                        {currentRequest.recurrenceEndDate ? ` · đến hết ngày ${currentRequest.recurrenceEndDate}` : ''}
+                        {' · Giá báo là đơn giá cho từng đợt bay'}
+                      </>
+                    ) : (
+                      <>
+                        Recurrence: every {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
+                        {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} flight occurrence(s)` : ''}
+                        {currentRequest.recurrenceEndDate ? ` · until ${currentRequest.recurrenceEndDate}` : ''}
+                        {' · Quoted price is per occurrence'}
+                      </>
+                    )}
                   </Typography>
                 )}
               </Stack>
@@ -219,7 +251,7 @@ export default function ContractsPage() {
           </Card>
 
           {/* Stepper tiến trình vòng đời */}
-          <ContractLifecycleStepper status={currentRequest.status} />
+          <ContractLifecycleStepper status={currentEffectiveStatus} />
 
           {/* Hoạt động 1: Báo giá & Phê duyệt */}
           <RequestQuotePanel
@@ -260,7 +292,7 @@ export default function ContractsPage() {
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
                 {t('Inspection service requests')}
               </Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.95rem' }}>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: '0.875rem' }}>
                 {t('Manage request progress, commercial terms, service contracts, and inspection occurrence dispatch.')}
               </Typography>
             </Box>
@@ -271,7 +303,7 @@ export default function ContractsPage() {
                 startIcon={<AddIcon />}
                 onClick={() => setCreateDialogOpen(true)}
                 sx={{
-                  borderRadius: 2,
+                  borderRadius: '8px',
                   px: 2.5,
                   py: 1,
                   fontWeight: 700,
@@ -291,7 +323,7 @@ export default function ContractsPage() {
               sx={{
                 flex: 1,
                 p: 2,
-                borderRadius: 2,
+                borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
@@ -301,7 +333,7 @@ export default function ContractsPage() {
               <Box
                 sx={{
                   p: 1.25,
-                  borderRadius: 2,
+                  borderRadius: '8px',
                   bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(237, 108, 2, 0.15)' : '#fff8e1'),
                   color: 'warning.main',
                   display: 'flex',
@@ -324,7 +356,7 @@ export default function ContractsPage() {
               sx={{
                 flex: 1,
                 p: 2,
-                borderRadius: 2,
+                borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
@@ -334,7 +366,7 @@ export default function ContractsPage() {
               <Box
                 sx={{
                   p: 1.25,
-                  borderRadius: 2,
+                  borderRadius: '8px',
                   bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.15)' : '#e8f5e9'),
                   color: 'success.main',
                   display: 'flex',
@@ -371,7 +403,7 @@ export default function ContractsPage() {
                       <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
-                  sx: { borderRadius: 1.5, minWidth: { xs: '100%', sm: 300 } },
+                  sx: { borderRadius: '8px', minWidth: { xs: '100%', sm: 300 } },
                 },
               }}
             />
@@ -397,7 +429,7 @@ export default function ContractsPage() {
           <Paper
             variant="outlined"
             sx={{
-              borderRadius: 2.5,
+              borderRadius: '10px',
               borderColor: 'divider',
               overflow: 'hidden',
               bgcolor: 'background.paper',
@@ -463,7 +495,8 @@ export default function ContractsPage() {
                   </TableHead>
                   <TableBody>
                     {filteredRequests.map((req) => {
-                      const statusInfo = getStatusChipColor(req.status);
+                      const effectiveStatus = getEffectiveRequestStatus(req);
+                      const statusInfo = getStatusChipColor(effectiveStatus);
 
                       return (
                         <TableRow
@@ -483,7 +516,7 @@ export default function ContractsPage() {
                               label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
                               size="small"
                               variant="outlined"
-                              sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                             />
                           </TableCell>
 
@@ -510,16 +543,16 @@ export default function ContractsPage() {
                                   }}
                                 />
                               }
-                              label={req.status.replaceAll('_', ' ')}
+                              label={effectiveStatus.replaceAll('_', ' ')}
                               size="small"
                               color={statusInfo.color}
                               variant="outlined"
                               sx={{
                                 fontWeight: 700,
-                                fontSize: '0.72rem',
+                                fontSize: '0.75rem',
                                 border: '1px solid',
                                 bgcolor: (theme) =>
-                                  theme.palette.mode === 'dark' ? 'action.hover' : '#ffffff',
+                                  theme.palette.mode === 'dark' ? 'action.hover' : 'background.paper',
                               }}
                             />
                           </TableCell>
@@ -541,10 +574,10 @@ export default function ContractsPage() {
                               endIcon={<ArrowForwardRoundedIcon />}
                               onClick={() => setSelectedRequestId(req.id)}
                               sx={{
-                                borderRadius: 1.5,
+                                borderRadius: '8px',
                                 textTransform: 'none',
                                 fontWeight: 650,
-                                fontSize: '0.78rem',
+                                fontSize: '0.75rem',
                               }}
                             >
                               Track progress

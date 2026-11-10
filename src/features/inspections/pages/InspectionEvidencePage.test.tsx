@@ -170,7 +170,9 @@ describe('InspectionEvidencePage', () => {
     };
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     rerender(<InspectionEvidencePage />);
-    expect(screen.queryByRole('button', { name: 'Choose evidence files' })).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: 'Choose evidence files' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(screen.queryByRole('button', { name: 'Delete evidence' })).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Withdraw the submission if it has not been reviewed');
   });

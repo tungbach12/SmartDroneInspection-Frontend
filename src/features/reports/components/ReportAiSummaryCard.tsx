@@ -17,18 +17,78 @@ import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import { useReportAiSummary } from '@/features/inspections/hooks/useInspections';
+import type { Finding, ReportAiSummary } from '@/features/inspections/api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface ReportAiSummaryCardProps {
   inspectionId: string;
   versionId: string;
+  summary?: string | null | undefined;
+  findings?: Finding[] | undefined;
 }
 
-export function ReportAiSummaryCard({ inspectionId, versionId }: ReportAiSummaryCardProps) {
-  const { t } = useLocale();
-  const { data: aiSummary, isLoading, error } = useReportAiSummary(inspectionId, versionId);
+function deriveSummaryDetailsFromPersisted(
+  persistedSummary: string,
+  findings: Finding[],
+): ReportAiSummary {
+  const confirmed = findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted);
+  const hasCritical = confirmed.some((f) => f.severity === 'CRITICAL');
+  const hasHigh = confirmed.some((f) => f.severity === 'HIGH');
+  const hasMedium = confirmed.some((f) => f.severity === 'MEDIUM');
+  const overallRisk: ReportAiSummary['overallRisk'] = hasCritical
+    ? 'CRITICAL'
+    : hasHigh
+      ? 'HIGH'
+      : hasMedium
+        ? 'MEDIUM'
+        : 'LOW';
 
-  if (isLoading) {
+  const keyHighlights: string[] = [];
+  if (confirmed.length === 0) {
+    keyHighlights.push('No structural defects observed');
+  } else {
+    confirmed
+      .filter((f) => f.severity === 'CRITICAL' || f.severity === 'HIGH')
+      .forEach((f) => keyHighlights.push(`${f.defectLabel} (${f.severity})`));
+    if (keyHighlights.length === 0) {
+      keyHighlights.push(`${confirmed.length} defect(s) confirmed at moderate severity`);
+    }
+  }
+
+  const recommendedActions =
+    confirmed.length === 0
+      ? 'Routine periodic drone inspection schedule is recommended.'
+      : 'Timely maintenance intervention recommended for confirmed defects.';
+
+  return {
+    summary: persistedSummary,
+    keyHighlights,
+    recommendedActions,
+    overallRisk,
+  };
+}
+
+export function ReportAiSummaryCard({
+  inspectionId,
+  versionId,
+  summary: persistedSummary,
+  findings = [],
+}: ReportAiSummaryCardProps) {
+  const { t } = useLocale();
+  const hasPersistedSummary = Boolean(persistedSummary && persistedSummary.trim().length > 0);
+  const {
+    data: fetchedAiSummary,
+    isLoading,
+    error,
+  } = useReportAiSummary(inspectionId, versionId, {
+    enabled: !hasPersistedSummary,
+  });
+
+  const aiSummary: ReportAiSummary | undefined = hasPersistedSummary
+    ? deriveSummaryDetailsFromPersisted(persistedSummary!.trim(), findings)
+    : fetchedAiSummary;
+
+  if (!hasPersistedSummary && isLoading) {
     return (
       <Card
         variant="outlined"
@@ -49,7 +109,7 @@ export function ReportAiSummaryCard({ inspectionId, versionId }: ReportAiSummary
     );
   }
 
-  if (error || !aiSummary) {
+  if ((!hasPersistedSummary && error) || !aiSummary) {
     return null;
   }
 

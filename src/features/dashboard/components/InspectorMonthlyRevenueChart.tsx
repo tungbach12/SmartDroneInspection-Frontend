@@ -75,10 +75,12 @@ export function InspectorMonthlyRevenueChart({
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        p: '20px',
         borderRadius: '12px',
+        border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
+        boxShadow: 'none',
       }}
     >
       <Stack spacing={2}>
@@ -90,24 +92,27 @@ export function InspectorMonthlyRevenueChart({
         >
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
+              <Typography
+                component="h2"
+                sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
+              >
                 {t('Monthly Personal Revenue & Net Earnings')}
               </Typography>
               <Chip
                 size="small"
-                icon={<TrendingUpRounded sx={{ fontSize: '14px !important', color: '#176B52' }} />}
+                icon={<TrendingUpRounded sx={{ fontSize: '14px !important', color: '#15803D' }} />}
                 label={t('Year 2026')}
                 sx={{
                   height: 22,
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   fontSize: '0.75rem',
-                  fontWeight: 650,
-                  bgcolor: 'rgba(23, 107, 82, 0.08)',
-                  color: '#176B52',
+                  fontWeight: 500,
+                  bgcolor: '#F0FDF4',
+                  color: '#15803D',
                 }}
               />
             </Stack>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+            <Typography variant="caption" sx={{ color: '#71717A', display: 'block', mt: 0.25, fontSize: '0.875rem' }}>
               {t('Track monthly order revenue, 15% platform commission deductions, and net payouts received.')}
             </Typography>
           </Box>
@@ -115,14 +120,14 @@ export function InspectorMonthlyRevenueChart({
           {/* Legend */}
           <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 12, height: 12, borderRadius: '3px', bgcolor: '#176B52' }} />
-              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 600 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#3758F9' }} />
+              <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
                 {t('Net payout')}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 12, height: 12, borderRadius: '3px', bgcolor: '#8C520B' }} />
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#A855F7' }} />
+              <Typography variant="caption" sx={{ color: '#71717A', fontWeight: 500, fontSize: '0.75rem' }}>
                 {t('Platform commission (15%)')}
               </Typography>
             </Stack>
@@ -140,12 +145,12 @@ export function InspectorMonthlyRevenueChart({
             >
               <defs>
                 <linearGradient id="netPayoutGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#176B52" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#176B52" stopOpacity="0.75" />
+                  <stop offset="0%" stopColor="#3758F9" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#3758F9" stopOpacity="0.85" />
                 </linearGradient>
                 <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8C520B" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#8C520B" stopOpacity="0.65" />
+                  <stop offset="0%" stopColor="#A855F7" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#D8B4FE" stopOpacity="0.75" />
                 </linearGradient>
               </defs>
 
@@ -159,18 +164,16 @@ export function InspectorMonthlyRevenueChart({
                       y1={y}
                       x2={svgWidth - paddingRight}
                       y2={y}
-                      stroke="currentColor"
-                      strokeOpacity="0.08"
+                      stroke="#E5E7EB"
                       strokeDasharray={tickVal === 0 ? 'none' : '3 3'}
                     />
                     <text
                       x={paddingLeft - 8}
                       y={y + 4}
                       textAnchor="end"
-                      fontSize="10"
-                      fill="currentColor"
-                      opacity="0.55"
-                      fontFamily="sans-serif"
+                      fontSize="12"
+                      fill="#71717A"
+                      fontFamily="Inter, sans-serif"
                     >
                       {tickVal >= 1_000_000
                         ? `${(tickVal / 1_000_000).toFixed(0)}M`
@@ -250,9 +253,9 @@ export function InspectorMonthlyRevenueChart({
                           y={commY - 6}
                           textAnchor="middle"
                           fontSize="9.5"
-                          fontWeight="700"
-                          fill="#176B52"
-                          fontFamily="sans-serif"
+                          fontWeight="600"
+                          fill="#3758F9"
+                          fontFamily="Inter, sans-serif"
                         >
                           {formatNumber(m.netPayoutAmount)} ₫
                         </text>
@@ -275,11 +278,10 @@ export function InspectorMonthlyRevenueChart({
                       x={centerX}
                       y={svgHeight - 14}
                       textAnchor="middle"
-                      fontSize="11"
-                      fontWeight={hasData ? 650 : 500}
-                      fill="currentColor"
-                      opacity={hasData ? (isHovered ? 1 : 0.85) : 0.4}
-                      fontFamily="sans-serif"
+                      fontSize="12"
+                      fontWeight={hasData ? 600 : 400}
+                      fill={hasData ? '#18181B' : '#71717A'}
+                      fontFamily="Inter, sans-serif"
                     >
                       {m.label}
                     </text>
@@ -344,21 +346,21 @@ export function InspectorMonthlyRevenueChart({
           </Box>
         </Box>
 
-        {/* 3 Summary Badges Below Chart */}
+        {/* 3 Summary Items Below Chart (flat, non-nested) */}
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
             gap: 1.5,
-            pt: 1,
+            pt: 1.5,
+            borderTop: '1px solid',
+            borderColor: 'divider',
           }}
         >
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
               p: 1.5,
               borderRadius: '8px',
-              borderColor: 'divider',
               bgcolor: 'background.default',
             }}
           >
@@ -376,14 +378,12 @@ export function InspectorMonthlyRevenueChart({
             >
               {formatNumber(totalGross)} ₫
             </Typography>
-          </Paper>
+          </Box>
 
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
               p: 1.5,
               borderRadius: '8px',
-              borderColor: 'divider',
               bgcolor: 'background.default',
             }}
           >
@@ -401,15 +401,13 @@ export function InspectorMonthlyRevenueChart({
             >
               - {formatNumber(totalCommission)} ₫
             </Typography>
-          </Paper>
+          </Box>
 
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
               p: 1.5,
               borderRadius: '8px',
-              borderColor: 'rgba(23, 107, 82, 0.3)',
-              bgcolor: 'rgba(23, 107, 82, 0.04)',
+              bgcolor: 'rgba(23, 107, 82, 0.06)',
             }}
           >
             <Typography variant="caption" sx={{ color: '#176B52', fontWeight: 650 }}>
@@ -426,7 +424,7 @@ export function InspectorMonthlyRevenueChart({
             >
               {formatNumber(totalNet)} ₫
             </Typography>
-          </Paper>
+          </Box>
         </Box>
       </Stack>
     </Paper>

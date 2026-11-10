@@ -37,20 +37,18 @@ function AppleIcon() {
 function BrandLogo() {
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.25 }}>
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" style={{ display: 'block' }}>
+      <svg width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ display: 'block' }}>
+        <defs>
+          <linearGradient id="sdi_auth_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#3758F9" />
+            <stop offset="1" stopColor="#06B6D4" />
+          </linearGradient>
+        </defs>
         <path
-          d="M16 3L28 10V22L16 29L4 22V10L16 3Z"
-          stroke="#63BAC0"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
+          d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
+          fill="url(#sdi_auth_s_grad)"
         />
-        <circle cx="16" cy="16" r="4" fill="#FFFFFF" />
-        <path
-          d="M16 6V11M16 21V26M6 16H11M21 16H26"
-          stroke="#63BAC0"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
+        <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
       </svg>
       <Typography
         sx={{
@@ -61,7 +59,7 @@ function BrandLogo() {
           fontFamily: 'inherit',
         }}
       >
-        SDI
+        SmartDroneInspection
       </Typography>
     </Box>
   );

@@ -27,6 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -68,6 +69,7 @@ function ChecklistTemplateCrudList({
   const [newLabel, setNewLabel] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
+  const [deletingItem, setDeletingItem] = useState<ChecklistTemplate | null>(null);
 
   const items = templatesQuery.data ?? [];
 
@@ -213,7 +215,7 @@ function ChecklistTemplateCrudList({
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() => deleteTemplate.mutate(item.id)}
+                            onClick={() => setDeletingItem(item)}
                             disabled={deleteTemplate.isPending}
                             aria-label={`Delete ${item.label}`}
                           >
@@ -250,6 +252,27 @@ function ChecklistTemplateCrudList({
           </Button>
         </Stack>
       </Box>
+
+      <ConfirmDialog
+        open={Boolean(deletingItem)}
+        title={t('Delete checklist item')}
+        message={
+          deletingItem
+            ? `${t('Are you sure you want to delete')} "${deletingItem.label}"?`
+            : ''
+        }
+        confirmLabel={t('Delete')}
+        cancelLabel={t('Cancel')}
+        severity="danger"
+        loading={deleteTemplate.isPending}
+        onCancel={() => setDeletingItem(null)}
+        onConfirm={() => {
+          if (!deletingItem) return;
+          deleteTemplate.mutate(deletingItem.id, {
+            onSuccess: () => setDeletingItem(null),
+          });
+        }}
+      />
     </Box>
   );
 }
@@ -268,10 +291,15 @@ export default function AssetCatalogPage() {
   const [description, setDescription] = useState('');
 
   // Edit category form
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
+  const [editName, setEditName] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState<string | null>(null);
 
-  const selectedCategory = categories.data?.find((c) => c.id === selectedCategoryId);
+  const defaultCategory =
+    categories.data?.find((c) => !c.code.includes('TEST')) ?? categories.data?.[0];
+  const activeCategoryId = selectedCategoryId || defaultCategory?.id || '';
+  const selectedCategory = categories.data?.find((c) => c.id === activeCategoryId);
+  const resolvedEditName = editName ?? selectedCategory?.name ?? '';
+  const resolvedEditDescription = editDescription ?? selectedCategory?.description ?? '';
 
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
@@ -304,8 +332,8 @@ export default function AssetCatalogPage() {
       id: selectedCategory.id,
       input: {
         code: selectedCategory.code,
-        name: editName,
-        description: editDescription || null,
+        name: resolvedEditName,
+        description: resolvedEditDescription || null,
       },
     });
   };
@@ -342,9 +370,9 @@ export default function AssetCatalogPage() {
 
       {activeTab === 'categories' ? (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
-          <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
+          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" component="h2" gutterBottom>
                 {t('Categories')}
               </Typography>
               <QueryState
@@ -355,25 +383,38 @@ export default function AssetCatalogPage() {
                 empty={<Alert severity="info">{t('No categories yet. Create the first one below.')}</Alert>}
               >
                 <Stack spacing={1}>
-                  {categories.data?.map((category) => (
-                    <Button
-                      key={category.id}
-                      variant={category.id === selectedCategoryId ? 'contained' : 'outlined'}
-                      onClick={() => handleSelectCategory(category.id)}
-                      sx={{ justifyContent: 'space-between', textAlign: 'left' }}
-                    >
-                      <span>{category.name}</span>
-                      <Chip
-                        size="small"
-                        label={category.code}
+                  {categories.data?.map((category) => {
+                    const isSelected = category.id === activeCategoryId;
+                    return (
+                      <Button
+                        key={category.id}
+                        variant={isSelected ? 'contained' : 'outlined'}
+                        color="primary"
+                        onClick={() => handleSelectCategory(category.id)}
                         sx={{
-                          ml: 1,
-                          bgcolor:
-                            category.id === selectedCategoryId ? 'rgba(255,255,255,0.2)' : undefined,
+                          justifyContent: 'space-between',
+                          textAlign: 'left',
+                          color: isSelected ? '#FFFFFF' : 'text.primary',
+                          bgcolor: isSelected ? 'primary.main' : 'transparent',
+                          '&:hover': {
+                            bgcolor: isSelected ? 'primary.dark' : 'action.hover',
+                          },
                         }}
-                      />
-                    </Button>
-                  ))}
+                      >
+                        <span>{category.name}</span>
+                        <Chip
+                          size="small"
+                          label={category.code}
+                          sx={{
+                            ml: 1,
+                            fontWeight: 700,
+                            color: isSelected ? '#FFFFFF' : 'text.primary',
+                            bgcolor: isSelected ? 'rgba(0,0,0,0.22)' : 'action.selected',
+                          }}
+                        />
+                      </Button>
+                    );
+                  })}
                 </Stack>
               </QueryState>
 
@@ -420,9 +461,9 @@ export default function AssetCatalogPage() {
             </CardContent>
           </Card>
 
-          <Card variant="outlined" sx={{ flex: 1.3, width: '100%' }}>
+          <Card variant="outlined" sx={{ flex: 1.3, width: '100%', borderRadius: '10px' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" component="h2" gutterBottom>
                 {t('Category details')}
               </Typography>
               {!selectedCategory ? (
@@ -444,13 +485,12 @@ export default function AssetCatalogPage() {
                         size="small"
                         label={t('Category Code')}
                         value={selectedCategory.code}
-                        helperText={t('Standardized code is immutable once provisioned.')}
                       />
                       <TextField
                         required
                         size="small"
                         label={t('Name')}
-                        value={editName}
+                        value={resolvedEditName}
                         onChange={(event) => setEditName(event.target.value)}
                       />
                       <TextField
@@ -458,7 +498,7 @@ export default function AssetCatalogPage() {
                         multiline
                         rows={2}
                         label={t('Description')}
-                        value={editDescription}
+                        value={resolvedEditDescription}
                         onChange={(event) => setEditDescription(event.target.value)}
                       />
                       <Button
@@ -476,13 +516,11 @@ export default function AssetCatalogPage() {
                   <Divider />
 
                   <ChecklistTemplateCrudList
-                    title={t('Standard Inspection Items for this Category')}
-                    subtitle={t(
-                      'Admin-defined default checkpoints for this building category. Customers and Managers can also add custom items on individual assets.',
-                    )}
+                    title={t('Standard Inspection Items')}
+                    subtitle={t('Default checkpoints for this category.')}
                     templateType="CATEGORY_INSPECTION_ITEM"
                     categoryId={selectedCategory.id}
-                    placeholder={t('Add standard inspection checkpoint (e.g. Curtain wall silicone sealant)...')}
+                    placeholder={t('Add standard inspection checkpoint...')}
                   />
                 </Stack>
               )}
@@ -491,11 +529,11 @@ export default function AssetCatalogPage() {
         </Stack>
       ) : (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
-          <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
+          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
             <CardContent>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
                 <FlightTakeoffRounded color="primary" fontSize="small" />
-                <Typography variant="h6">{t('Pre-flight Safety Checklist')}</Typography>
+                <Typography variant="h6" component="h2">{t('Pre-flight Safety Checklist')}</Typography>
               </Stack>
               <ChecklistTemplateCrudList
                 title={t('Mandatory Pre-flight Checks')}
@@ -508,11 +546,11 @@ export default function AssetCatalogPage() {
             </CardContent>
           </Card>
 
-          <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
+          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
             <CardContent>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
                 <FlightLandRounded color="success" fontSize="small" />
-                <Typography variant="h6">{t('Post-flight Completion Checklist')}</Typography>
+                <Typography variant="h6" component="h2">{t('Post-flight Completion Checklist')}</Typography>
               </Stack>
               <ChecklistTemplateCrudList
                 title={t('Post-flight Verification Checks')}

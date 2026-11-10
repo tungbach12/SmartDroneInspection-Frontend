@@ -6,6 +6,9 @@ import CategoryOutlined from '@mui/icons-material/CategoryOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import BuildOutlined from '@mui/icons-material/BuildOutlined';
+import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined';
+import TuneRounded from '@mui/icons-material/TuneRounded';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useAssets } from '@/features/assets/hooks/useAssets';
@@ -15,10 +18,10 @@ import {
   type RoleId,
 } from '../data/report3DashboardData';
 import { MetricCard } from '@/shared/ui/MetricCard';
-import { LyticPerformanceChart } from '../components/LyticPerformanceChart';
-import { LyticRadialGaugeCard } from '../components/LyticRadialGaugeCard';
-import { LyticStackedBarChart } from '../components/LyticStackedBarChart';
-import { LyticQueueTable } from '../components/LyticQueueTable';
+import { LyticPerformanceChart } from '@/features/dashboard/components/LyticPerformanceChart';
+import { LyticRadialGaugeCard } from '@/features/dashboard/components/LyticRadialGaugeCard';
+import { LyticQueueTable } from '@/features/dashboard/components/LyticQueueTable';
+import { LyticStackedBarChart } from '@/features/dashboard/components/LyticStackedBarChart';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
 import { CustomerDashboardPage } from './CustomerDashboardPage';
 import { InspectorDashboardPage } from './InspectorDashboardPage';
@@ -48,10 +51,13 @@ const maintenanceAreas: FocusArea[] = [
 ];
 
 const adminAreas: FocusArea[] = [
-  { label: 'Assets', description: 'Asset records', icon: ApartmentOutlined, path: '/admin/assets' },
+  { label: 'Platform accounts', description: 'Accounts and roles', icon: ManageAccountsOutlined, path: '/admin/platform-users' },
+  { label: 'Finance settings', description: 'Commission & tax rates', icon: TuneRounded, path: '/admin/finance-settings' },
+  { label: 'AI configuration', description: 'Auto-confirm & model stats', icon: AutoAwesomeOutlined, path: '/admin/ai-settings' },
   { label: 'Asset catalog', description: 'Inspection classifications', icon: CategoryOutlined, path: '/admin/asset-catalog' },
+  { label: 'Onboarding reviews', description: 'Airspace & drone reviews', icon: FactCheckOutlined, path: '/admin/onboarding-reviews' },
+  { label: 'Assets', description: 'Asset records', icon: ApartmentOutlined, path: '/admin/assets' },
   { label: 'Inspections', description: 'Inspection records', icon: FlightTakeoffRounded, path: '/admin/inspections' },
-  { label: 'Reports', description: 'Inspection reports', icon: FactCheckOutlined, path: '/admin/reports' },
   { label: 'Maintenance', description: 'Maintenance follow-up', icon: BuildOutlined, path: '/admin/maintenance' },
 ];
 
@@ -95,8 +101,131 @@ export default function DashboardPage() {
   return <OperationsAndPlatformDashboard />;
 }
 
+const BACKEND_VI_TO_EN: Record<string, string> = {
+  'Tổng số tài sản': 'Total assets',
+  'công trình đăng ký quản lý': 'registered structures',
+  'Tổ chức khách hàng': 'Customer organizations',
+  'doanh nghiệp hạ tầng': 'infrastructure enterprises',
+  'Hồ sơ tài sản': 'Asset records',
+  'tài sản toàn hệ thống': 'platform-wide assets',
+  'Đợt kiểm tra': 'Inspections',
+  'phiên bay toàn nền tảng': 'platform flight missions',
+  'hoạt động bay drone khảo sát': 'drone survey operations',
+  'Khuyết tật ghi nhận': 'Recorded defects',
+  'phát hiện cần xử lý': 'findings requiring action',
+  'Lệnh bảo trì': 'Work orders',
+  'quy trình khắc phục sự cố': 'corrective maintenance',
+  'tiến độ khắc phục công trình': 'maintenance progress',
+  'Nhiệm vụ bay': 'Flight missions',
+  'lịch phân công kiểm định': 'assigned inspection schedule',
+  'Phát hiện khuyết tật': 'Defect findings',
+  'ghi nhận qua drone': 'captured via drone',
+  'Bằng chứng đã tải': 'Uploaded evidence',
+  '100% toàn vẹn': '100% integrity',
+  'lưu trữ bảo mật MinIO': 'MinIO secure storage',
+  'Báo cáo kiểm định': 'Inspection reports',
+  'Đã xuất bản': 'Published',
+  'bàn giao khách hàng': 'delivered to customer',
+  'Phân bổ khuyết tật theo mức độ nghiêm trọng': 'Defect distribution by severity',
+  'Nghiêm trọng (High/Critical)': 'High / Critical',
+  'Trung bình (Medium)': 'Medium',
+  'Thấp (Low)': 'Low',
+  'Lệnh công việc': 'Work orders',
+  'hạng mục được giao': 'assigned work orders',
+  'Hạng mục thi công': 'Repair tasks',
+  'Đã phân rã': 'Itemized',
+  'theo chuẩn TCVN': 'standardized tasks',
+  'Thời gian thi công': 'Logged hours',
+  'Đã xác minh': 'Verified',
+  'nhật ký hiện trường': 'verified field logs',
+  'Chi phí thực hiện': 'Actual cost',
+  'Đúng dự toán': 'On budget',
+  'đối soát thực tế': 'reconciled cost',
+  'CHI PHÍ BẢO TRÌ & QUYẾT TOÁN THỰC TẾ (VND)': 'MAINTENANCE COST & ACTUAL SETTLEMENT (VND)',
+  'KHẢO SÁT HIỆN TRƯỜNG & PHÁT HIỆN KHUYẾT TẬT': 'FIELD SURVEYS & DEFECT DETECTION',
+  '100% Hoàn thành đúng lịch': '100% On-schedule completion',
+  'Đợt kiểm tra hoàn thành': 'Completed inspections',
+  'Khuyết tật phát hiện': 'Detected defects',
+  'Chưa phát sinh chi phí': 'No incurred costs yet',
+  'Dự toán phê duyệt': 'Approved estimate',
+  'Chi phí thực tế': 'Actual cost',
+  'Hiệu suất & An toàn Bay kiểm định': 'Flight Inspection Performance & Safety',
+  'Tỷ lệ hoàn thành nhiệm vụ và lập báo cáo': 'Mission completion and reporting rate',
+  'Tiến độ Hoàn thành & An toàn': 'Completion & Safety Progress',
+  'Tỷ lệ khắc phục sự cố và nghiệm thu kỹ thuật': 'Defect remediation and technical acceptance rate',
+  'Tỷ lệ hoàn thành đúng hạn': 'On-time completion rate',
+  'Toàn vẹn bằng chứng MinIO': 'MinIO evidence integrity',
+  'Khuyết tật đã khắc phục': 'Remediated defects',
+  'Nghiệm thu kỹ thuật đạt chuẩn': 'Technical acceptance passed',
+  '100% Đạt kiểm tra': '100% Inspection passed',
+  'Đạt chuẩn': 'Compliant',
+  'Đang tiến hành': 'In progress',
+  'Khởi tạo': 'Initialized',
+  'Đợt kiểm tra được phân công gần đây': 'Recently assigned inspections',
+  'Các nhiệm vụ bay khảo sát hiện trường và lập báo cáo của bạn':
+    'Your assigned field survey missions and reporting tasks',
+  'Xem toàn bộ đợt kiểm tra': 'View all inspections',
+  'Lệnh bảo trì & Hoạt động kiểm tra thực tế': 'Maintenance work orders & field inspection activity',
+  'Các công trình đang được theo dõi và xử lý trong hệ thống':
+    'Structures actively monitored and remediated in the platform',
+  'Xem toàn bộ lệnh bảo trì': 'View all work orders',
+  'Công trình / Tài sản': 'Asset / Structure',
+  'Mã công trình': 'Asset code',
+  'Mục tiêu khảo sát': 'Survey objective',
+  'Trạng thái': 'Status',
+  'Hành động': 'Action',
+  'Bay đối soát nghiệm thu': 'Re-inspection verification flight',
+  'Khảo sát bay hiện trường drone': 'Field drone inspection survey',
+  'Đang thực hiện': 'In progress',
+  'Hoàn thành': 'Completed',
+  'Lệnh': 'Order',
+  'Khách hàng': 'Customer',
+  'Tiến độ': 'Progress',
+  'Mã': 'Code',
+  'Hạng mục': 'Scope',
+  'Chi phí / Đơn giá': 'Cost / Rate',
+  'Chờ dự toán': 'Pending estimate',
+  'Sửa chữa khuyết tật kết cấu': 'Structural defect repair',
+  'Thg 1': 'Jan',
+  'Thg 2': 'Feb',
+  'Thg 3': 'Mar',
+  'Thg 4': 'Apr',
+  'Thg 5': 'May',
+  'Thg 6': 'Jun',
+  'Thg 7': 'Jul',
+  'Thg 8': 'Aug',
+  'Thg 9': 'Sep',
+  'Thg 10': 'Oct',
+  'Thg 11': 'Nov',
+  'Thg 12': 'Dec',
+};
+
 function OperationsAndPlatformDashboard() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const localizeAnalytics = (text: string): string => {
+    if (locale === 'vi') return t(text);
+    if (BACKEND_VI_TO_EN[text]) return BACKEND_VI_TO_EN[text];
+    return text
+      .replace(' đang hoạt động', ' active')
+      .replace(' đang thực hiện', ' in progress')
+      .replace(' mức nghiêm trọng', ' critical')
+      .replace(' nghiêm trọng', ' critical')
+      .replace(' đã hoàn thành', ' completed')
+      .replace(' đang tiến hành', ' in progress')
+      .replace(' đã quyết toán', ' closed')
+      .replace(' đang mở', ' open')
+      .replace(' đang thi công', ' in progress')
+      .replace(
+        'KHẢO SÁT HIỆN TRƯỜNG & PHÁT HIỆN KHUYẾT TẬT',
+        'FIELD SURVEYS & DEFECT DETECTION',
+      )
+      .replace(' Đợt kiểm tra', ' Inspections')
+      .replace('Giải ngân ', 'Disbursed ')
+      .replace('Đã chi ', 'Spent ')
+      .replace(' Nhiệm vụ', ' Missions')
+      .replace(' Nghiệm thu', ' Accepted')
+      .replace(' Lệnh', ' Orders');
+  };
   const roles = useAuthStore((state) => state.roles);
   const location = useLocation();
   const portal = location.pathname.split('/').filter(Boolean)[0] ?? '';
@@ -270,32 +399,98 @@ function OperationsAndPlatformDashboard() {
 
   const tableRows = config.table.rows;
 
+  const nextAdminIconCycle = ['building', 'dollar', 'shield', 'users'] as const;
   const liveMetrics = analytics.data?.summaryCards && analytics.data.summaryCards.length > 0
-    ? analytics.data.summaryCards.map((m) => ({
+    ? analytics.data.summaryCards.map((m, idx) => ({
         id: m.id,
-        label: t(m.label),
+        label: localizeAnalytics(m.label),
         value: m.value,
-        change: m.change,
+        change: localizeAnalytics(m.change),
         positive: m.positive,
-        subtext: t(m.subtext),
-        iconType: m.iconType,
+        subtext: localizeAnalytics(m.subtext),
+        iconType: nextAdminIconCycle[idx % nextAdminIconCycle.length] ?? m.iconType,
       }))
-    : metrics;
+    : metrics.map((m, idx) => ({
+        ...m,
+        iconType: nextAdminIconCycle[idx % nextAdminIconCycle.length] ?? m.iconType,
+      }));
 
-  const perfChart = analytics.data?.performanceChart ?? config.performanceChart;
-  const radialGauge = analytics.data?.radialGauge ?? config.radialGauge;
-  const stackedBar = analytics.data?.stackedBarChart ?? config.stackedBarChart;
+  const rawPerfChart = analytics.data?.performanceChart ?? config.performanceChart;
+  const perfChart = {
+    ...rawPerfChart,
+    headerLabel: localizeAnalytics(rawPerfChart.headerLabel),
+    headlineValue: localizeAnalytics(rawPerfChart.headlineValue),
+    trendBadge: localizeAnalytics(rawPerfChart.trendBadge),
+    series1Name: localizeAnalytics(rawPerfChart.series1Name),
+    series2Name: localizeAnalytics(rawPerfChart.series2Name),
+    months: rawPerfChart.months.map((m) => localizeAnalytics(m)),
+  };
+  const rawRadialGauge = analytics.data?.radialGauge ?? config.radialGauge;
+  const radialGauge = {
+    ...rawRadialGauge,
+    title: localizeAnalytics(rawRadialGauge.title),
+    subtitle: localizeAnalytics(rawRadialGauge.subtitle),
+    targetValue: localizeAnalytics(rawRadialGauge.targetValue),
+    targetLabel: localizeAnalytics(rawRadialGauge.targetLabel),
+    subMetrics: rawRadialGauge.subMetrics.map((sm) => ({
+      ...sm,
+      label: localizeAnalytics(sm.label),
+      value: localizeAnalytics(sm.value),
+    })),
+  };
+  const rawStackedBar = analytics.data?.stackedBarChart ?? config.stackedBarChart;
+  const stackedBar = {
+    ...rawStackedBar,
+    title: localizeAnalytics(rawStackedBar.title),
+    categories: rawStackedBar.categories.map((c) => localizeAnalytics(c)),
+    channels: rawStackedBar.channels.map((ch) => ({
+      ...ch,
+      name: localizeAnalytics(ch.name),
+    })),
+  };
 
-  const dynamicTableRows = analytics.data?.queueTable?.rows && analytics.data.queueTable.rows.length > 0
-    ? analytics.data.queueTable.rows
-    : tableRows;
-  const dynamicTableHeaders = analytics.data?.queueTable?.headers && analytics.data.queueTable.headers.length > 0
-    ? analytics.data.queueTable.headers
-    : config.table.headers;
-  const dynamicTableTitle = analytics.data?.queueTable?.title ?? overviewTitle;
-  const dynamicTableSubtitle = analytics.data?.queueTable?.subtitle ?? overviewDescription;
-  const dynamicViewAllLink = analytics.data?.queueTable?.viewAllLink ?? config.table.viewAllLink;
-  const dynamicViewAllText = analytics.data?.queueTable?.viewAllText ?? config.table.viewAllText;
+  const normalizeQueueLink = (link?: string) => {
+    if (!link) return link;
+    if (portal === 'admin' && link.startsWith('/client/')) {
+      return link.replace('/client/', '/admin/');
+    }
+    if (portal === 'manager' && link.startsWith('/client/')) {
+      return '/manager/inspections';
+    }
+    return link;
+  };
+
+  const dynamicTableRows = (
+    analytics.data?.queueTable?.rows && analytics.data.queueTable.rows.length > 0
+      ? analytics.data.queueTable.rows
+      : tableRows
+  ).map((row) => {
+    const normalizedLink = normalizeQueueLink(row.link);
+    return {
+      col1: localizeAnalytics(row.col1),
+      col2: localizeAnalytics(row.col2),
+      col3: localizeAnalytics(row.col3),
+      col4: localizeAnalytics(row.col4),
+      col5: localizeAnalytics(row.col5),
+      status: row.status,
+      ...(normalizedLink !== undefined ? { link: normalizedLink } : {}),
+    };
+  });
+  const dynamicTableHeaders = (
+    analytics.data?.queueTable?.headers && analytics.data.queueTable.headers.length > 0
+      ? analytics.data.queueTable.headers
+      : config.table.headers
+  ).map((h) => localizeAnalytics(h));
+  const dynamicTableTitle = localizeAnalytics(analytics.data?.queueTable?.title ?? overviewTitle);
+  const dynamicTableSubtitle = localizeAnalytics(
+    analytics.data?.queueTable?.subtitle ?? overviewDescription,
+  );
+  const dynamicViewAllLink = normalizeQueueLink(
+    analytics.data?.queueTable?.viewAllLink ?? config.table.viewAllLink,
+  );
+  const dynamicViewAllText = localizeAnalytics(
+    analytics.data?.queueTable?.viewAllText ?? config.table.viewAllText ?? 'View all',
+  );
 
   return (
     <Box
@@ -321,13 +516,25 @@ function OperationsAndPlatformDashboard() {
             component="h1"
             sx={{
               color: 'text.primary',
-              fontSize: { xs: '20px', sm: '24px' },
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.2,
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              letterSpacing: '-0.01em',
+              lineHeight: '2rem',
             }}
           >
             {t('Overview')}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#71717A',
+              fontSize: '0.875rem',
+              fontWeight: 400,
+              lineHeight: '1.25rem',
+              mt: '4px',
+            }}
+          >
+            {t(overviewDescription)}
           </Typography>
         </Box>
 
@@ -344,15 +551,16 @@ function OperationsAndPlatformDashboard() {
         />
       </Box>
 
-      {/* Row 1: 4 Metric Cards */}
+      {/* Row 1: 4 NextAdmin Metric Cards */}
       <Box
+        role="region"
         aria-label={t('Workspace metrics')}
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, 1fr)',
-            xl: 'repeat(4, 1fr)',
+            lg: 'repeat(4, 1fr)',
           },
           gap: 2.5,
           mb: 3,
@@ -371,36 +579,37 @@ function OperationsAndPlatformDashboard() {
         ))}
       </Box>
 
-      {/* Row 2: Performance Area Chart + Radial Gauge */}
+      {/* Row 2: Full-width Spline Area Chart Card */}
+      <Box sx={{ mb: 3, minWidth: 0 }}>
+        <LyticPerformanceChart
+          headerLabel={perfChart.headerLabel}
+          headlineValue={perfChart.headlineValue}
+          trendBadge={perfChart.trendBadge}
+          series1Name={perfChart.series1Name}
+          series1Color={perfChart.series1Color}
+          series1Data={perfChart.series1Data}
+          series2Name={perfChart.series2Name}
+          series2Color={perfChart.series2Color}
+          series2Data={perfChart.series2Data}
+          months={perfChart.months}
+          yTicks={perfChart.yTicks}
+          maxVal={perfChart.maxVal}
+        />
+      </Box>
+
+      {/* Row 3: 2-Column Split (Radial Gauge & Stacked Bar on Left + Queue Table & Shortcuts on Right) */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-            lg: 'minmax(0, 1.85fr) minmax(320px, 1fr)',
+            lg: 'minmax(320px, 1fr) minmax(0, 1.4fr)',
           },
           gap: 2.5,
-          mb: 3,
+          alignItems: 'start',
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <LyticPerformanceChart
-            headerLabel={perfChart.headerLabel}
-            headlineValue={perfChart.headlineValue}
-            trendBadge={perfChart.trendBadge}
-            series1Name={perfChart.series1Name}
-            series1Color={perfChart.series1Color}
-            series1Data={perfChart.series1Data}
-            series2Name={perfChart.series2Name}
-            series2Color={perfChart.series2Color}
-            series2Data={perfChart.series2Data}
-            months={perfChart.months}
-            yTicks={perfChart.yTicks}
-            maxVal={perfChart.maxVal}
-          />
-        </Box>
-
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <LyticRadialGaugeCard
             title={radialGauge.title}
             subtitle={radialGauge.subtitle}
@@ -409,21 +618,7 @@ function OperationsAndPlatformDashboard() {
             percentage={radialGauge.percentage}
             subMetrics={radialGauge.subMetrics}
           />
-        </Box>
-      </Box>
 
-      {/* Row 3: Stacked Bar Chart + Table & Workspace Shortcuts */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            lg: 'repeat(2, 1fr)',
-          },
-          gap: 2.5,
-        }}
-      >
-        <Box sx={{ minWidth: 0 }}>
           <LyticStackedBarChart
             title={stackedBar.title}
             categories={stackedBar.categories}
@@ -449,12 +644,13 @@ function OperationsAndPlatformDashboard() {
                 bgcolor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: '10px',
-                p: 2.5,
+                borderRadius: '12px',
+                p: '20px',
                 boxShadow: 'none',
               }}
             >
               <Typography
+                component="h2"
                 sx={{
                   color: 'text.primary',
                   fontSize: '1rem',
@@ -489,7 +685,7 @@ function OperationsAndPlatformDashboard() {
                       textTransform: 'none',
                       '&:hover': {
                         bgcolor: 'action.hover',
-                        borderColor: 'divider',
+                        borderColor: '#3758F9',
                       },
                     }}
                     startIcon={
@@ -498,8 +694,8 @@ function OperationsAndPlatformDashboard() {
                           width: 32,
                           height: 32,
                           borderRadius: '8px',
-                          bgcolor: 'primary.light',
-                          color: 'primary.main',
+                          bgcolor: 'rgba(55, 88, 249, 0.10)',
+                          color: '#3758F9',
                           display: 'grid',
                           placeItems: 'center',
                         }}
@@ -507,13 +703,31 @@ function OperationsAndPlatformDashboard() {
                         <Icon sx={{ fontSize: 18 }} />
                       </Box>
                     }
-                    endIcon={<ArrowForwardRounded sx={{ color: 'text.secondary', fontSize: 16, ml: 'auto' }} />}
+                    endIcon={
+                      <ArrowForwardRounded
+                        sx={{ color: '#71717A', fontSize: 16, ml: 'auto' }}
+                      />
+                    }
                   >
                     <Box sx={{ minWidth: 0, flex: 1, ml: 0.5 }}>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                          color: 'text.primary',
+                        }}
+                      >
                         {t(label)}
                       </Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', lineHeight: 1.2, mt: 0.25 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.75rem',
+                          color: '#71717A',
+                          lineHeight: 1.2,
+                          mt: 0.25,
+                        }}
+                      >
                         {t(description)}
                       </Typography>
                     </Box>

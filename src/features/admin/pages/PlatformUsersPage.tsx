@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -9,29 +9,40 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import PersonAddAlt from '@mui/icons-material/PersonAddAlt';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import {
   useCreatePlatformUser,
   usePlatformUsers,
   useResetPlatformUserPassword,
   useUpdatePlatformUserStatus,
 } from '../hooks/usePlatformUsers';
-import type { ActorZone, PlatformUser, PlatformUserRole } from '../api/platformUserApi';
+import type {
+  ActorZone,
+  PlatformUser,
+  PlatformUserRole,
+  PlatformUserStatus,
+} from '../api/platformUserApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
+
+type PlatformUserRow = PlatformUser & {
+  status?: PlatformUserStatus;
+};
 
 const ZONE_LABELS: Record<string, string> = {
   PLATFORM: 'Platform',
@@ -48,17 +59,19 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
   MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
 
-/**
- * The platform administrator's accounts.
- *
- * The platform manages the administrator-managed accounts: platform admins, platform managers, and
- * the Organization Manager of each customer workspace. An organization's own workforce is
- * administered by that organization's CUSTOMER, so the Inspector and Engineer rows here show
- * the accounts the platform controls rather than a full workforce roster.
- */
+const ROLE_FILTERS: Array<{ id: 'ALL' | PlatformUserRole; label: string }> = [
+  { id: 'ALL', label: 'All roles' },
+  { id: 'ADMIN', label: 'Admin' },
+  { id: 'MANAGER', label: 'Manager' },
+  { id: 'CUSTOMER', label: 'Customer' },
+  { id: 'INSPECTOR', label: 'Inspector' },
+  { id: 'MAINTENANCE_ENGINEER', label: 'Engineer' },
+];
+
 export default function PlatformUsersPage() {
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const currentRoles = useAuthStore((state) => state.roles);
+  const currentUserId = useAuthStore((state) => state.userId);
   const isManager = currentRoles.includes('MANAGER') && !currentRoles.includes('ADMIN');
 
   const users = usePlatformUsers();
@@ -66,6 +79,7 @@ export default function PlatformUsersPage() {
   const resetPassword = useResetPlatformUserPassword();
   const updateStatus = useUpdatePlatformUserStatus();
 
+  const [roleFilter, setRoleFilter] = useState<'ALL' | PlatformUserRole>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -83,80 +97,144 @@ export default function PlatformUsersPage() {
 
   const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [confirmResetUser, setConfirmResetUser] = useState<PlatformUserRow | null>(null);
+  const [confirmSuspendUser, setConfirmSuspendUser] = useState<PlatformUserRow | null>(null);
 
-  const allItems = users.data ?? [];
-  const items = isManager
-    ? allItems.filter(
-        (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER',
-      )
-    : allItems;
+  const allItems = useMemo<PlatformUserRow[]>(() => users.data ?? [], [users.data]);
+  const scopedItems = useMemo(
+    () =>
+      isManager
+        ? allItems.filter(
+            (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER',
+          )
+        : allItems,
+    [allItems, isManager],
+  );
 
-  const columns: DataTableColumn<PlatformUser>[] = [
+  const items = useMemo(
+    () =>
+      roleFilter === 'ALL'
+        ? scopedItems
+        : scopedItems.filter((user) => user.roles.includes(roleFilter)),
+    [roleFilter, scopedItems],
+  );
+
+  const roleCounts = useMemo(() => {
+    const platformCount = scopedItems.filter(
+      (u) => u.roles.includes('ADMIN') || u.roles.includes('MANAGER'),
+    ).length;
+    const customerCount = scopedItems.filter((u) => u.roles.includes('CUSTOMER')).length;
+    const inspectorCount = scopedItems.filter((u) => u.roles.includes('INSPECTOR')).length;
+    const engineerCount = scopedItems.filter((u) =>
+      u.roles.includes('MAINTENANCE_ENGINEER'),
+    ).length;
+    return {
+      total: scopedItems.length,
+      platformCount,
+      customerCount,
+      inspectorCount,
+      engineerCount,
+    };
+  }, [scopedItems]);
+
+  const columns: DataTableColumn<PlatformUserRow>[] = [
     {
       id: 'email',
-      label: 'Account',
+      label: t('Account'),
       render: (user) => (
         <Box>
-          <Typography sx={{ fontWeight: 600, color: '#101828', fontSize: '0.875rem' }}>
-            {user.fullName}
-          </Typography>
-          <Typography sx={{ color: '#667085', fontSize: '0.75rem' }}>{user.email}</Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+              {user.fullName}
+            </Typography>
+            {currentUserId && user.id === currentUserId && (
+              <Chip
+                size="small"
+                color="primary"
+                variant="outlined"
+                label={t('You')}
+                sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
+              />
+            )}
+          </Stack>
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{user.email}</Typography>
         </Box>
       ),
     },
     {
       id: 'zone',
-      label: 'Zone',
+      label: t('Zone'),
       width: 190,
       render: (user) => (
-        <Typography sx={{ color: '#475467', fontSize: '0.8125rem' }}>
+        <Typography sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
           {ZONE_LABELS[user.actorZone] ?? user.actorZone}
         </Typography>
       ),
     },
     {
       id: 'roles',
-      label: 'Roles',
-      width: 260,
+      label: t('Roles'),
+      width: 240,
       render: (user) => (
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap' }}>
           {user.roles.map((role) => (
-            <Chip key={role} size="small" label={role} sx={{ height: 20, fontSize: 10 }} />
+            <Chip
+              key={role}
+              size="small"
+              label={role}
+              color={
+                role === 'ADMIN'
+                  ? 'primary'
+                  : role === 'MANAGER'
+                    ? 'info'
+                    : role === 'INSPECTOR'
+                      ? 'success'
+                      : 'default'
+              }
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.75rem', fontWeight: 650 }}
+            />
           ))}
         </Stack>
       ),
     },
     {
+      id: 'status',
+      label: t('Status'),
+      width: 140,
+      render: (user) => <StatusChip status={user.status ?? 'ACTIVE'} />,
+    },
+    {
       id: 'actions',
       label: '',
-      width: isManager ? 200 : 360,
+      width: isManager ? 200 : 340,
       align: 'right' as const,
-      render: (user: PlatformUser) => {
+      render: (user: PlatformUserRow) => {
         const isInspectorUser =
           user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER';
+        const isSelf = Boolean(currentUserId && user.id === currentUserId);
+        const isSuspended = user.status === 'SUSPENDED';
 
         return (
           <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
             {isInspectorUser && (
               <Button
                 size="small"
-                variant="contained"
+                variant="outlined"
+                color="primary"
                 startIcon={<FlightTakeoffRounded />}
                 onClick={() => {
                   setSelectedInspectorId(user.id);
                   setProfileDialogOpen(true);
                 }}
                 sx={{
-                  bgcolor: '#3758F9',
                   textTransform: 'none',
                   fontWeight: 600,
-                  fontSize: '12px',
+                  fontSize: '0.75rem',
                   borderRadius: '8px',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#2b45cb' },
                 }}
               >
-                {t('Hồ sơ phi công')}
+                {t('Pilot profile')}
               </Button>
             )}
             {!isManager && (
@@ -164,26 +242,34 @@ export default function PlatformUsersPage() {
                 <Button
                   size="small"
                   variant="outlined"
-                  onClick={() =>
-                    resetPassword.mutate(user.id, {
-                      onSuccess: (data) =>
-                        setIssuedPassword({
-                          email: user.email,
-                          temporaryPassword: data.temporaryPassword,
-                        }),
-                    })
-                  }
+                  onClick={() => setConfirmResetUser(user)}
+                  sx={{ textTransform: 'none', borderRadius: '8px', fontWeight: 600 }}
                 >
                   {t('Reset password')}
                 </Button>
-                <Button
-                  size="small"
-                  variant="text"
-                  color="error"
-                  onClick={() => updateStatus.mutate({ userId: user.id, status: 'SUSPENDED' })}
-                >
-                  {t('Suspend')}
-                </Button>
+                {isSuspended ? (
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="success"
+                    disabled={isSelf || updateStatus.isPending}
+                    onClick={() => updateStatus.mutate({ userId: user.id, status: 'ACTIVE' })}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {t('Activate')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="error"
+                    disabled={isSelf || updateStatus.isPending}
+                    onClick={() => setConfirmSuspendUser(user)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {t('Suspend')}
+                  </Button>
+                )}
               </>
             )}
           </Stack>
@@ -199,11 +285,12 @@ export default function PlatformUsersPage() {
         subtitle={
           isManager
             ? t('Manage partner Inspector accounts.')
-            : t('Administrator-managed accounts: platform admins and each workspace\'s Organization Manager')
+            : t('Manage platform administrators, managers, customer organizations, and field workforce.')
         }
         actions={
           <Button
             variant="contained"
+            color="primary"
             startIcon={<PersonAddAlt />}
             onClick={() => {
               if (isManager) {
@@ -216,12 +303,10 @@ export default function PlatformUsersPage() {
               borderRadius: '10px',
               px: 2.5,
               py: 1,
-              bgcolor: '#3758F9',
-              fontSize: '14px',
+              fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
               boxShadow: 'none',
-              '&:hover': { bgcolor: '#2b45cb' },
             }}
           >
             {isManager ? t('New partner inspector') : t('New account')}
@@ -229,16 +314,77 @@ export default function PlatformUsersPage() {
         }
       />
 
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: '16px',
-          border: '1px solid #eaecf0',
-          bgcolor: '#ffffff',
-          boxShadow: '0 1px 3px rgba(16, 24, 40, 0.05)',
-        }}
-      >
+      {!isManager && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 2,
+            mb: 2.5,
+          }}
+        >
+          <MetricCard
+            label={t('Total accounts')}
+            value={users.isLoading ? '…' : formatNumber(roleCounts.total)}
+            change={t('Active directory')}
+            positive
+            subtext={t('all provisioned accounts')}
+            iconType="user"
+          />
+          <MetricCard
+            label={t('Platform governance')}
+            value={users.isLoading ? '…' : formatNumber(roleCounts.platformCount)}
+            change="ADMIN / MANAGER"
+            positive
+            subtext={t('platform operators')}
+            iconType="shield"
+          />
+          <MetricCard
+            label={t('Customer accounts')}
+            value={users.isLoading ? '…' : formatNumber(roleCounts.customerCount)}
+            change="CUSTOMER"
+            positive
+            subtext={t('organization owners')}
+            iconType="building"
+          />
+          <MetricCard
+            label={t('Field workforce')}
+            value={
+              users.isLoading
+                ? '…'
+                : formatNumber(roleCounts.inspectorCount + roleCounts.engineerCount)
+            }
+            change={`${roleCounts.inspectorCount} Pilot · ${roleCounts.engineerCount} Eng`}
+            positive
+            subtext={t('inspectors & engineers')}
+            iconType="plane"
+          />
+        </Box>
+      )}
+
+      <Box>
+        {!isManager && (
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ mb: 2, flexWrap: 'wrap', gap: 1, alignItems: 'center' }}
+          >
+            {ROLE_FILTERS.map((f) => {
+              const active = roleFilter === f.id;
+              return (
+                <Chip
+                  key={f.id}
+                  label={t(f.label)}
+                  color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'}
+                  onClick={() => setRoleFilter(f.id)}
+                  sx={{ fontWeight: 650, cursor: 'pointer' }}
+                />
+              );
+            })}
+          </Stack>
+        )}
+
         <MutationProblemAlert
           error={createUser.error}
           isError={createUser.isError}
@@ -264,7 +410,7 @@ export default function PlatformUsersPage() {
           empty={
             <EmptyState
               title={t('No platform accounts')}
-              description={t('Platform and Organization Manager accounts will appear here.')}
+              description={t('Accounts matching the selected filter will appear here.')}
             />
           }
         >
@@ -281,7 +427,7 @@ export default function PlatformUsersPage() {
             }
           />
         </QueryState>
-      </Paper>
+      </Box>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
         <form
@@ -335,19 +481,8 @@ export default function PlatformUsersPage() {
               />
               {isManager ? (
                 <>
-                  <TextField
-                    label={t('Zone')}
-                    value={t('Inspector partner')}
-                    disabled
-                  />
-                  <TextField
-                    label={t('Role')}
-                    value={t('Inspector')}
-                    disabled
-                  />
-                  <Alert severity="info">
-                    {t('Platform Manager is authorized to provision partner Inspector accounts.')}
-                  </Alert>
+                  <TextField label={t('Zone')} value={t('Inspector partner')} disabled />
+                  <TextField label={t('Role')} value={t('Inspector')} disabled />
                 </>
               ) : (
                 <>
@@ -383,7 +518,6 @@ export default function PlatformUsersPage() {
                           : 'CUSTOMER')
                     }
                     onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
-                    helperText={t('The platform manages administrator-managed accounts only.')}
                   >
                     {(
                       actorZone === 'PLATFORM'
@@ -397,11 +531,6 @@ export default function PlatformUsersPage() {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <Alert severity="info">
-                    A customer-organization account needs the organization it belongs to. Provisioning
-                    one here registers the account without a workspace, so use the organization's own
-                    registration or its Organization Manager for that.
-                  </Alert>
                 </>
               )}
             </Stack>
@@ -423,36 +552,37 @@ export default function PlatformUsersPage() {
       <Dialog
         open={Boolean(issuedPassword)}
         onClose={() => setIssuedPassword(null)}
-        fullWidth maxWidth="sm"
+        fullWidth
+        maxWidth="sm"
       >
         <DialogTitle sx={{ fontWeight: 700 }}>{t('Temporary password issued')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Alert severity="warning">
-              This password is shown once and is not retrievable again. Give it to the account
-              holder directly; they must set their own password at first sign-in.
+              {t('Share this one-time password with the account holder for their initial sign-in.')}
             </Alert>
             <Box>
-              <Typography variant="caption" sx={{ color: '#667085', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                 {t('ACCOUNT')}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#344054' }}>
+              <Typography variant="body2" sx={{ color: 'text.primary' }}>
                 {issuedPassword?.email}
               </Typography>
             </Box>
             <Box>
-              <Typography variant="caption" sx={{ color: '#667085', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
                 {t('TEMPORARY PASSWORD')}
               </Typography>
               <Typography
                 sx={{
                   fontFamily: 'monospace',
                   fontSize: '0.875rem',
-                  color: '#101828',
+                  color: 'text.primary',
                   p: 1.5,
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'background.default',
                   borderRadius: 1,
-                  border: '1px solid #e2e8f0',
+                  border: 1,
+                  borderColor: 'divider',
                   wordBreak: 'break-all',
                 }}
               >
@@ -467,6 +597,57 @@ export default function PlatformUsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(confirmResetUser)}
+        title={t('Reset password')}
+        message={
+          confirmResetUser
+            ? `${t('Issue a new temporary password for')} ${confirmResetUser.fullName} (${confirmResetUser.email})?`
+            : ''
+        }
+        confirmLabel={t('Reset password')}
+        cancelLabel={t('Cancel')}
+        severity="warning"
+        loading={resetPassword.isPending}
+        onCancel={() => setConfirmResetUser(null)}
+        onConfirm={() => {
+          if (!confirmResetUser) return;
+          resetPassword.mutate(confirmResetUser.id, {
+            onSuccess: (data) => {
+              setIssuedPassword({
+                email: confirmResetUser.email,
+                temporaryPassword: data.temporaryPassword,
+              });
+              setConfirmResetUser(null);
+            },
+          });
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmSuspendUser)}
+        title={t('Suspend account')}
+        message={
+          confirmSuspendUser
+            ? `${t('Are you sure you want to suspend')} ${confirmSuspendUser.fullName} (${confirmSuspendUser.email})?`
+            : ''
+        }
+        confirmLabel={t('Suspend')}
+        cancelLabel={t('Cancel')}
+        severity="danger"
+        loading={updateStatus.isPending}
+        onCancel={() => setConfirmSuspendUser(null)}
+        onConfirm={() => {
+          if (!confirmSuspendUser) return;
+          updateStatus.mutate(
+            { userId: confirmSuspendUser.id, status: 'SUSPENDED' },
+            {
+              onSuccess: () => setConfirmSuspendUser(null),
+            },
+          );
+        }}
+      />
 
       <InspectorProfileDialog
         open={profileDialogOpen}

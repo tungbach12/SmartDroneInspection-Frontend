@@ -63,8 +63,8 @@ export function ReportTab({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
+    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}>
+      <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
         {t('Completion report versions')}
       </Typography>
 
@@ -92,7 +92,7 @@ export function ReportTab({
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
-                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+                bgcolor: 'background.default',
               }}
             >
               <Stack
@@ -215,7 +215,7 @@ export function ReportTab({
           sx={{
             mt: 2,
             p: 2,
-            bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+            bgcolor: 'background.default',
             borderRadius: '8px',
             border: '1px solid',
             borderColor: 'divider',
