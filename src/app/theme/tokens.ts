@@ -1,14 +1,14 @@
 export const paletteTokens = {
-  ink: '#253746',
+  ink: '#18242C',
   harbor: '#17364A',
   harborLight: '#234C62',
-  steel: '#E7EEF1',
-  paper: '#F7F9FA',
+  steel: '#E2E8EC',
+  paper: '#F6F8F9',
   white: '#FFFFFF',
-  teal: '#5750F1',
-  tealSoft: '#EEF2FF',
+  teal: '#087E8B',
+  tealSoft: '#E6F4F5',
   amber: '#A96012',
-  // Enterprise dark reference (Linear / GitHub Primer / Stripe dark slate hierarchy):
+  // Enterprise dark reference:
   // Deep carbon canvas (#0B0F17) with elevated slate cards (#111827) and crisp #F1F5F9 text.
   darkCanvas: '#0B0F17',
   darkSurface: '#111827',

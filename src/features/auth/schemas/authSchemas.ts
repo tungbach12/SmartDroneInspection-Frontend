@@ -11,6 +11,20 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password.').max(128),
 });
 
+const strongPasswordField = z
+  .string()
+  .min(8, 'Use at least 8 characters.')
+  .max(128, 'Password must be 128 characters or fewer.')
+  .refine(
+    (val) =>
+      val.length >= 20 ||
+      (/[A-Z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)),
+    {
+      message:
+        'Password must be at least 20 characters or contain uppercase, number, and special character.',
+    },
+  );
+
 export const firstAssetSchema = z.object({
   code: z
     .string()
@@ -53,15 +67,9 @@ export const organizationRegistrationSchema = z
       ),
     email: emailField,
     phoneNumber: z.string().trim().max(32).optional(),
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    password: strongPasswordField,
     confirmPassword: z.string(),
-    firstAsset: firstAssetSchema.optional(),
+    firstAsset: firstAssetSchema,
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ['confirmPassword'],
@@ -71,13 +79,7 @@ export const organizationRegistrationSchema = z
 export const passwordSetupSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter the temporary password.'),
-    password: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    password: strongPasswordField,
     confirmPassword: z.string(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -88,13 +90,7 @@ export const passwordSetupSchema = z
 export const passwordChangeSchema = z
   .object({
     currentPassword: z.string().min(1, 'Enter your current password.'),
-    newPassword: z
-      .string()
-      .min(8, 'Use at least 8 characters.')
-      .max(128, 'Password must be 128 characters or fewer.')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain at least one number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character.'),
+    newPassword: strongPasswordField,
     confirmPassword: z.string(),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

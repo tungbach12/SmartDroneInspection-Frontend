@@ -475,7 +475,7 @@ export default function InspectionDetailPage() {
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
-    if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
+    if (step.value === 'findings') return (isReinspection ? isFieldWorkComplete : hasEvidence) ? 'ready' : 'blocked';
     if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
     if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
     return 'pending';
@@ -494,7 +494,8 @@ export default function InspectionDetailPage() {
     if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Start a field session before completing the post-flight checklist.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete a field session before adding evidence.');
-    if (step.value === 'findings' && !hasEvidence) return t('Upload at least one capture to review findings.');
+    if (step.value === 'findings' && isReinspection && !isFieldWorkComplete) return t('Complete the re-inspection flight session before verifying target defects.');
+    if (step.value === 'findings' && !isReinspection && !hasEvidence) return t('Upload at least one capture to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
     if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
     return null;

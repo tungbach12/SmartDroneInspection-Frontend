@@ -35,7 +35,7 @@
 .trace-stage-panel,
 .trace-filter-panel,
 .trace-confirmation-gate {
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   box-shadow: none !important;
   border-top: 1px solid var(--mui-palette-divider) !important;
 }

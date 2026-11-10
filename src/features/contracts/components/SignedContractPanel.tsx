@@ -73,11 +73,31 @@ export function SignedContractPanel({
   };
 
   return (
-    <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', boxShadow: 'none' }}>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
           Paper contract evidence
         </Typography>
+        <Box
+          sx={{
+            p: 1.5,
+            mb: 2,
+            borderRadius: '8px',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.default',
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', color: 'text.primary', mb: 0.5 }}>
+            Cơ sở pháp lý & điều kiện bắt buộc của Hợp đồng dịch vụ bay khảo sát
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.55 }}>
+            • <strong>Hợp đồng dịch vụ thương mại</strong> (Điều 513–521 Bộ luật Dân sự 91/2015/QH13 & Điều 74–87 Luật Thương mại 36/2005/QH11): ghi nhận phạm vi tài sản khảo sát, số đợt bay (One-time / Recurring), đơn giá VND/đợt, thuế GTGT (VAT) và mốc nghiệm thu báo cáo trước khi thanh toán.
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.55 }}>
+            • <strong>Chế độ cấp phép bay & phân hạng phương tiện bay</strong> (Điều 4, 21, 22 & 27 Nghị định 288/2025/NĐ-CP; Luật PKND 49/2024/QH15): hồ sơ xin phép bay nộp trước tối thiểu 07 ngày làm việc; mỗi đợt bay độc lập (bao gồm cả bay kiểm tra lại sau bảo trì) phải có Giấy phép bay còn hiệu lực và phi công có hạng bằng lái phù hợp MTOW (Hạng A cho UAV &lt; 2 kg; Hạng B cho UAV ≥ 2 kg).
+          </Typography>
+        </Box>
 
         {request.contractFileName ? (
           <Paper

@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  MenuItem,
   Paper,
   Tab,
   Tabs,
@@ -460,12 +461,30 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         helperText="Số cấp phép chính thức từ cơ quan quản lý hàng không"
                       />
                       <TextField
+                        select
                         fullWidth
-                        label="Hạng bằng lái / Loại chứng chỉ"
-                        placeholder="VD: Hạng 2 (Trọng lượng 2-25kg), BVLOS - Ngoài tầm nhìn"
+                        label="Hạng bằng lái / Loại chứng chỉ (Điều 27 NĐ 288/2025/NĐ-CP)"
                         value={form.pilotLicenseClass || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseClass: e.target.value })}
-                      />
+                        helperText="Hạng A: bay trực quan VLOS (< 2 kg) · Hạng B: bay thiết bị/BVLOS & mọi Drone ≥ 2 kg"
+                      >
+                        <MenuItem value="">
+                          <em>Chưa chọn hạng bằng</em>
+                        </MenuItem>
+                        <MenuItem value="CLASS_A">
+                          Hạng A — Điều khiển trực quan VLOS (Loại 2: 0.25 – &lt; 2 kg)
+                        </MenuItem>
+                        <MenuItem value="CLASS_B">
+                          Hạng B — Điều khiển bằng thiết bị / BVLOS (Loại 3–5: ≥ 2 kg)
+                        </MenuItem>
+                        {form.pilotLicenseClass &&
+                          form.pilotLicenseClass !== 'CLASS_A' &&
+                          form.pilotLicenseClass !== 'CLASS_B' && (
+                            <MenuItem value={form.pilotLicenseClass}>
+                              {form.pilotLicenseClass}
+                            </MenuItem>
+                          )}
+                      </TextField>
                       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                         <TextField
                           fullWidth

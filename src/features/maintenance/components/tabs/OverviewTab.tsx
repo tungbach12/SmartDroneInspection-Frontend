@@ -63,7 +63,10 @@ export function OverviewTab({
       case 'resume-after-rework':
         return (
           workOrder.status !== 'REWORK_REQUIRED' &&
-          workOrder.status !== 'REINSPECTION_REQUIRED'
+          !(
+            workOrder.status === 'REINSPECTION_REQUIRED' &&
+            (!workOrder.reinspectionId || Boolean(workOrder.reinspectionReportVersionId))
+          )
         );
       default:
         return false;

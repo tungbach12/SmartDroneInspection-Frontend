@@ -104,6 +104,23 @@ export function useAssignServiceOccurrence(requestId: string, occurrenceId: stri
   return useContractMutation<AssignOccurrenceInput>(
     (input) => contractApi.assignOccurrence(requestId, occurrenceId, input),
     'Occurrence assigned.',
+    requestId,
+  );
+}
+
+export function useConfirmOccurrencePayment(requestId: string, occurrenceId: string) {
+  return useContractMutation<{ paymentReference: string; amount: number }>(
+    (input) => contractApi.confirmOccurrencePayment(requestId, occurrenceId, input),
+    'Customer payment confirmed.',
+    requestId,
+  );
+}
+
+export function useRecordOccurrencePayout(requestId: string, occurrenceId: string) {
+  return useContractMutation<{ payoutReference: string }>(
+    (input) => contractApi.recordOccurrencePayout(requestId, occurrenceId, input),
+    'Inspector partner payout settled.',
+    requestId,
   );
 }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
   Box,
@@ -18,7 +19,6 @@ import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded';
 import HelpOutlineRounded from '@mui/icons-material/HelpOutlineRounded';
 import SaveRounded from '@mui/icons-material/SaveRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import CompareArrowsRounded from '@mui/icons-material/CompareArrowsRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import FmdGoodOutlined from '@mui/icons-material/FmdGoodOutlined';
 import BuildCircleOutlined from '@mui/icons-material/BuildCircleOutlined';
@@ -54,6 +54,7 @@ export function ReinspectionVerificationSection({
 }: ReinspectionVerificationSectionProps) {
   const { t } = useLocale();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   if (items.length === 0) {
     return null;
@@ -62,14 +63,21 @@ export function ReinspectionVerificationSection({
   const resolvedCount = items.filter((it) => it.resolutionStatus === 'RESOLVED').length;
   const unresolvedCount = items.filter((it) => it.resolutionStatus === 'UNRESOLVED').length;
   const allResolved = resolvedCount === items.length;
+  const allEvaluated =
+    items.length > 0 &&
+    items.every((it) =>
+      it.resolutionStatus === 'RESOLVED'
+        ? Boolean(it.newEvidenceId)
+        : Boolean(it.newEvidenceId || it.inspectorNotes?.trim()),
+    );
 
   return (
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 2, sm: 2.75 },
+        p: { xs: 2, sm: 2.5 },
         mb: 3,
-        borderRadius: '16px',
+        borderRadius: '10px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
@@ -88,39 +96,22 @@ export function ReinspectionVerificationSection({
           mb: 2.5,
         }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: '10px',
-              bgcolor: 'action.selected',
-              color: 'text.primary',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <CompareArrowsRounded sx={{ fontSize: 24 }} />
-          </Box>
-          <Box>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
-                {t('Post-Repair Defect Verification')}
-              </Typography>
-              <Chip
-                label={t('3-Way Comparison')}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600, fontSize: '0.72rem', height: 20 }}
-              />
-            </Stack>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.84rem' }}>
-              {t('Compare original defect records, engineer repair proof, and independent drone verification imagery.')}
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
+              {t('Post-Repair Defect Verification')}
             </Typography>
-          </Box>
-        </Stack>
+            <Chip
+              label={t('3-Way Comparison')}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600, fontSize: '0.72rem', height: 20 }}
+            />
+          </Stack>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.84rem' }}>
+            {t('Compare original defect records, engineer repair proof, and independent drone verification imagery.')}
+          </Typography>
+        </Box>
 
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <Chip
@@ -189,10 +180,12 @@ export function ReinspectionVerificationSection({
         <Button
           variant="contained"
           endIcon={<ArrowForwardRounded />}
+          disabled={!readOnly && !allEvaluated}
           onClick={async () => {
-            if (!readOnly && evidenceList.length > 0) {
+            if (!readOnly && (evidenceList.length > 0 || allEvaluated)) {
               try {
                 await inspectionApi.confirmFindings(inspectionId, true);
+                await queryClient.invalidateQueries({ queryKey: ['inspections', inspectionId] });
               } catch {
                 // Already confirmed or handled on report page
               }
@@ -243,10 +236,20 @@ function DefectVerificationCard({
   const [notes, setNotes] = useState<string>(item.inspectorNotes ?? '');
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleSave = async () => {
+    setSaveError(null);
+    if (status === 'RESOLVED' && !selectedEvidenceId) {
+      setSaveError(t('A fresh re-inspection evidence capture is required to mark a defect as RESOLVED.'));
+      return;
+    }
+    if (status !== 'RESOLVED' && !selectedEvidenceId && !notes.trim()) {
+      setSaveError(t('Attach a fresh capture or enter field verification notes before saving.'));
+      return;
+    }
     setSaving(true);
     try {
       await onUpdate(item.id, {
@@ -256,6 +259,8 @@ function DefectVerificationCard({
       });
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+    } catch {
+      setSaveError(t('Could not save verification assessment.'));
     } finally {
       setSaving(false);
     }
@@ -300,7 +305,7 @@ function DefectVerificationCard({
     <Card
       variant="outlined"
       sx={{
-        borderRadius: '12px',
+        borderRadius: '10px',
         borderColor: 'divider',
         bgcolor: 'background.paper',
       }}
@@ -462,18 +467,32 @@ function DefectVerificationCard({
               </Stack>
 
               {item.repairProofUrl ? (
-                <Box
-                  component="img"
-                  src={item.repairProofUrl}
-                  alt="Repair Proof"
-                  sx={{
-                    width: '100%',
-                    maxHeight: 180,
-                    borderRadius: '6px',
-                    objectFit: 'contain',
-                    bgcolor: '#000000',
-                  }}
-                />
+                item.repairProofUrl.startsWith('/api/v1/') ? (
+                  <AuthenticatedImage
+                    src={item.repairProofUrl.replace(/^\/api\/v1/, '')}
+                    alt="Repair Proof"
+                    maxHeight={180}
+                    sx={{
+                      width: '100%',
+                      borderRadius: '6px',
+                      objectFit: 'contain',
+                      bgcolor: '#000000',
+                    }}
+                  />
+                ) : (
+                  <Box
+                    component="img"
+                    src={item.repairProofUrl}
+                    alt="Repair Proof"
+                    sx={{
+                      width: '100%',
+                      maxHeight: 180,
+                      borderRadius: '6px',
+                      objectFit: 'contain',
+                      bgcolor: '#000000',
+                    }}
+                  />
+                )
               ) : (
                 <Box
                   sx={{
@@ -631,6 +650,49 @@ function DefectVerificationCard({
           </Box>
         </Box>
 
+        {/* RAG Engineering Verification Guidance */}
+        {(item.ragVerificationGuidance ||
+          (item.ragReferenceStandards && item.ragReferenceStandards.length > 0)) && (
+          <Box
+            sx={{
+              mb: 1.5,
+              p: 1.5,
+              borderRadius: '8px',
+              border: '1px solid',
+              borderColor: 'info.light',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.75, mb: 0.5 }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {t('RAG Post-Repair Verification Criteria (Advisory)')}
+              </Typography>
+              {item.ragReferenceStandards && item.ragReferenceStandards.length > 0 && (
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                  {item.ragReferenceStandards.map((std) => (
+                    <Chip
+                      key={std}
+                      label={std}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600 }}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+            {item.ragVerificationGuidance && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.78rem' }}>
+                {item.ragVerificationGuidance}
+              </Typography>
+            )}
+          </Box>
+        )}
+
         {/* Evaluation Form / Sign-off section */}
         {!readOnly && (
           <Stack spacing={1.5} sx={{ mt: 1, p: 1.75, bgcolor: 'background.default', borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}>
@@ -679,6 +741,12 @@ function DefectVerificationCard({
               onChange={(e) => setNotes(e.target.value)}
               slotProps={{ input: { sx: { borderRadius: '6px' } } }}
             />
+
+            {saveError && (
+              <Alert severity="error" sx={{ py: 0.25, borderRadius: '6px', fontSize: '0.82rem' }}>
+                {saveError}
+              </Alert>
+            )}
 
             {savedSuccess && (
               <Alert severity="success" sx={{ py: 0.25, borderRadius: '6px', fontSize: '0.82rem' }}>

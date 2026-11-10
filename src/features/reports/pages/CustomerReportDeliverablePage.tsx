@@ -18,6 +18,7 @@ import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
+  useCreateDirectReinspection,
   useCreateInspectionPayOSLink,
   useCreateInspectionVnPayUrl,
   useInspection,
@@ -27,6 +28,7 @@ import {
   useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
+  useRequestReportClarification,
 } from '@/features/inspections/hooks/useInspections';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
@@ -56,6 +58,9 @@ export default function CustomerReportDeliverablePage({
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+  const [reinspectionOpen, setReinspectionOpen] = useState(false);
+  const [reinspectionNotes, setReinspectionNotes] = useState('');
+  const [reinspectionProofUrl, setReinspectionProofUrl] = useState('');
 
   const inspectionQuery = useInspection(inspectionId);
   const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
@@ -66,6 +71,8 @@ export default function CustomerReportDeliverablePage({
   const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const workflowState = useInspectionWorkflowState(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
+  const requestClarification = useRequestReportClarification(inspectionId);
+  const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
@@ -215,14 +222,23 @@ export default function CustomerReportDeliverablePage({
                     </Typography>
                   </Box>
                 </Stack>
-                <Button
-                  variant="contained"
-                  component={RouterLink}
-                  to={`${getSectionPath('client', 'inspections')}/${inspectionId}/corrective`}
-                  sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', flexShrink: 0 }}
-                >
-                  {t('Send findings to Maintenance')}
-                </Button>
+                <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setReinspectionOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+                  >
+                    {t('Schedule Re-inspection')}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    component={RouterLink}
+                    to={`${getSectionPath('client', 'inspections')}/${inspectionId}/corrective`}
+                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+                  >
+                    {t('Send findings to Maintenance')}
+                  </Button>
+                </Stack>
               </Paper>
             )}
 
@@ -288,14 +304,85 @@ export default function CustomerReportDeliverablePage({
           <Button
             variant="contained"
             color="warning"
-            disabled={!disputeReason.trim()}
+            disabled={!disputeReason.trim() || requestClarification.isPending}
             onClick={() => {
-              setDisputeSubmitted(true);
-              setDisputeOpen(false);
+              if (!openVersion) return;
+              requestClarification.mutate(
+                { versionId: openVersion.id, reason: disputeReason.trim() },
+                {
+                  onSuccess: () => {
+                    setDisputeSubmitted(true);
+                    setDisputeOpen(false);
+                  },
+                },
+              );
             }}
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
           >
-            {t('Submit dispute request')}
+            {requestClarification.isPending ? t('Submitting…') : t('Submit dispute request')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={reinspectionOpen}
+        onClose={() => setReinspectionOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t('Schedule Post-Repair Re-inspection')}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                'Schedule a targeted re-inspection flight to verify that all confirmed defects from this report have been remediated.',
+              )}
+            </Typography>
+            <TextField
+              label={t('Contractor repair summary / Handover notes')}
+              multiline
+              rows={3}
+              value={reinspectionNotes}
+              onChange={(e) => setReinspectionNotes(e.target.value)}
+              placeholder={t('e.g. Repaired facade cracks at 18F with epoxy injection and waterproof coating…')}
+              fullWidth
+            />
+            <TextField
+              label={t('Repair proof photo URL (optional)')}
+              value={reinspectionProofUrl}
+              onChange={(e) => setReinspectionProofUrl(e.target.value)}
+              placeholder="https://..."
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReinspectionOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={createDirectReinspection.isPending}
+            onClick={() => {
+              createDirectReinspection.mutate(
+                {
+                  ...(reinspectionNotes.trim() ? { repairNotes: reinspectionNotes.trim() } : {}),
+                  ...(reinspectionProofUrl.trim() ? { repairProofUrl: reinspectionProofUrl.trim() } : {}),
+                },
+                {
+                  onSuccess: (created) => {
+                    setReinspectionOpen(false);
+                    navigate(`${getSectionPath('client', 'inspections')}/${created.id}/tracking`);
+                  },
+                },
+              );
+            }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+          >
+            {createDirectReinspection.isPending ? t('Scheduling…') : t('Confirm Re-inspection')}
           </Button>
         </DialogActions>
       </Dialog>

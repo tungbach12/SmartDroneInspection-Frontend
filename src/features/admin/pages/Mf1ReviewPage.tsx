@@ -50,6 +50,63 @@ import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useAuthStore } from '@/features/auth/store/authStore';
 
+function classifyDroneLegalTier(rawText?: string | null): {
+  categoryLabel: string;
+  requiredPilotLicenseLabel: string;
+  requiresClassB: boolean;
+} {
+  const text = (rawText ?? '').toLowerCase();
+  const match = rawText?.match(/(?:MTOW:\s*)?(\d+(?:[.,]\d+)?)\s*(?:kg)?/i);
+  const parsedMtow = match?.[1] ? Number(match[1].replace(',', '.')) : NaN;
+  const mtow =
+    Number.isFinite(parsedMtow) && parsedMtow > 0
+      ? parsedMtow
+      : text.includes('matrice') ||
+          text.includes('m300') ||
+          text.includes('m350') ||
+          text.includes('m30') ||
+          text.includes('inspire') ||
+          text.includes('agras')
+        ? 9.2
+        : text.includes('mini')
+          ? 0.249
+          : 0.92;
+
+  if (mtow < 0.25) {
+    return {
+      categoryLabel: 'Loại 1 (< 0.25 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng A',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 2) {
+    return {
+      categoryLabel: 'Loại 2 (0.25 – < 2 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng A / B',
+      requiresClassB: false,
+    };
+  }
+  if (mtow < 25) {
+    return {
+      categoryLabel: 'Loại 3 (2 – < 25 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+      requiresClassB: true,
+    };
+  }
+  if (mtow < 150) {
+    return {
+      categoryLabel: 'Loại 4 (25 – < 150 kg)',
+      requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+      requiresClassB: true,
+    };
+  }
+  return {
+    categoryLabel: 'Loại 5 (≥ 150 kg)',
+    requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
+    requiresClassB: true,
+  };
+}
+
 const ALL_PANELS = [
   'Drone registrations',
   'Drone history',
@@ -432,13 +489,37 @@ export default function Mf1ReviewPage() {
                             </Typography>
                             {droneApp.inspectorPilotLicenseNumber && (
                               <Chip
-                                label={`Bằng lái: ${droneApp.inspectorPilotLicenseNumber}`}
+                                label={`Bằng lái: ${droneApp.inspectorPilotLicenseNumber}${droneApp.inspectorPilotLicenseClass ? ` (${droneApp.inspectorPilotLicenseClass === 'CLASS_A' ? 'Hạng A < 2 kg' : 'Hạng B ≥ 2 kg'})` : ''}`}
                                 size="small"
                                 variant="outlined"
                                 sx={{ height: 20, fontSize: '11px', color: '#0284c7', borderColor: '#bae6fd' }}
                               />
                             )}
+                            {(() => {
+                              const tier = classifyDroneLegalTier(droneApp.model);
+                              return (
+                                <Chip
+                                  label={`${tier.categoryLabel} · Yêu cầu ${tier.requiredPilotLicenseLabel}`}
+                                  size="small"
+                                  color={tier.requiresClassB ? 'warning' : 'success'}
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '11px', fontWeight: 600 }}
+                                />
+                              );
+                            })()}
                           </Box>
+
+                          {(() => {
+                            const tier = classifyDroneLegalTier(droneApp.model);
+                            if (tier.requiresClassB && droneApp.inspectorPilotLicenseClass === 'CLASS_A') {
+                              return (
+                                <Alert severity="warning" sx={{ mb: 1.5, py: 0.5 }}>
+                                  <strong>Lưu ý pháp lý (Điều 27 NĐ 288/2025/NĐ-CP):</strong> Thiết bị thuộc {tier.categoryLabel} (MTOW ≥ 2 kg, bắt buộc <strong>Bằng lái Hạng B</strong>), nhưng hồ sơ của Inspector hiện đang khai báo <strong>Bằng Hạng A (&lt; 2 kg)</strong>. Cần cập nhật Bằng Hạng B trước khi điều phối bay ở WF-02.
+                                </Alert>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           <Box
                             sx={{
@@ -476,16 +557,14 @@ export default function Mf1ReviewPage() {
                           variant="contained"
                           startIcon={<FactCheckOutlined />}
                           onClick={() => void openReview(droneApp)}
+                          color="primary"
                           sx={{
                             px: 3,
                             py: 1,
                             borderRadius: '8px',
                             textTransform: 'none',
                             fontWeight: 650,
-                            bgcolor: '#3758F9',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                            '&:hover': { bgcolor: '#2b45cb' },
                           }}
                         >
                           Thẩm định hồ sơ
@@ -673,16 +752,14 @@ export default function Mf1ReviewPage() {
                 variant="contained"
                 startIcon={<PersonAddAlt />}
                 onClick={() => setCreateInspectorOpen(true)}
+                color="primary"
                 sx={{
-                  bgcolor: '#3758F9',
                   textTransform: 'none',
                   fontWeight: 650,
                   borderRadius: '8px',
                   px: 2.5,
                   py: 1,
                   whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                  '&:hover': { bgcolor: '#2b45cb' },
                 }}
               >
                 + Thêm mới đối tác Inspector
@@ -734,7 +811,7 @@ export default function Mf1ReviewPage() {
                           <Avatar
                             src={insp.avatarUrl ?? undefined}
                             alt={insp.fullName}
-                            sx={{ width: 48, height: 48, bgcolor: '#3758F9', fontWeight: 700 }}
+                            sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontWeight: 700 }}
                           >
                             {insp.fullName.slice(0, 1) || 'I'}
                           </Avatar>
@@ -816,6 +893,7 @@ export default function Mf1ReviewPage() {
 
                         <Button
                           variant="contained"
+                          color="primary"
                           startIcon={<FlightTakeoffRounded />}
                           onClick={() => {
                             setSelectedInspectorId(insp.id);
@@ -827,10 +905,7 @@ export default function Mf1ReviewPage() {
                             borderRadius: '8px',
                             textTransform: 'none',
                             fontWeight: 650,
-                            bgcolor: '#3758F9',
                             whiteSpace: 'nowrap',
-                            boxShadow: '0 2px 6px rgba(55, 88, 249, 0.25)',
-                            '&:hover': { bgcolor: '#2b45cb' },
                           }}
                         >
                           Hồ sơ phi công & MinIO Scan

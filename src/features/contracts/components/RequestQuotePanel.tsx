@@ -22,6 +22,27 @@ import {
   usePartnerInspectors,
 } from '../hooks/useContracts';
 
+function describeDroneLegalCategory(model?: string | null): string {
+  if (!model) return 'Chưa rõ MTOW · Kiểm tra Hạng A/B';
+  const match = model.match(/mtow\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*kg/i);
+  const lower = model.toLowerCase();
+  let mtow: number | null = match?.[1] ? Number(match[1].replace(',', '.')) : null;
+  if (mtow == null) {
+    if (lower.includes('matrice 350') || lower.includes('m350') || lower.includes('matrice 300')) mtow = 9.2;
+    else if (lower.includes('matrice 30') || lower.includes('m30')) mtow = 4.07;
+    else if (lower.includes('wingtra')) mtow = 4.5;
+    else if (lower.includes('elios 3') && lower.includes('lidar')) mtow = 2.5;
+    else if (lower.includes('mavic 3') || lower.includes('m3e') || lower.includes('m3t')) mtow = 1.05;
+    else if (lower.includes('mini 4')) mtow = 0.249;
+  }
+  if (mtow == null) return 'NĐ 288/2025 · Kiểm tra MTOW';
+  if (mtow < 0.25) return `Loại 1 (${mtow} kg < 0,25 kg) · Bằng Hạng A/B`;
+  if (mtow < 2) return `Loại 2 (${mtow} kg: 0,25–<2 kg) · Bằng Hạng A/B`;
+  if (mtow < 25) return `Loại 3 (${mtow} kg: 2–<25 kg) · Bắt buộc Bằng Hạng B`;
+  if (mtow < 150) return `Loại 4 (${mtow} kg: 25–<150 kg) · Bắt buộc Bằng Hạng B`;
+  return `Loại 5 (${mtow} kg ≥ 150 kg) · Bắt buộc Bằng Hạng B`;
+}
+
 interface RequestQuotePanelProps {
   request: ServiceRequest;
   customer: boolean;
@@ -236,7 +257,7 @@ export function RequestQuotePanel({
                   >
                     {availableDrones.map((drone) => (
                       <MenuItem key={drone.id} value={drone.id}>
-                        {drone.serialNumber} · {drone.model}
+                        {drone.serialNumber} · {drone.model} ({describeDroneLegalCategory(drone.model)})
                       </MenuItem>
                     ))}
                   </Select>

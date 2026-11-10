@@ -312,7 +312,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [outcomeReason, setOutcomeReason] = useState('');
   const abortReasonInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
-  const assetInspectionItems = inspection?.inspectionItems ?? [];
+  const assetInspectionItems = isReinspection ? [] : (inspection?.inspectionItems ?? []);
 
   const preFlightTemplatesQuery = useChecklistTemplates(
     { type: 'PRE_FLIGHT' },
@@ -464,11 +464,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       : stage === 'pre-flight'
         ? t('Pre-flight Safety Checklist')
         : stage === 'post-flight'
-          ? t('Post-flight & Target Building Inspection Items')
+          ? isReinspection
+            ? t('Post-flight Completion Checklist')
+            : t('Post-flight & Target Building Inspection Items')
           : t('On-site session');
 
   return (
-    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace" sx={{ maxWidth: 1040, mx: 'auto' }}>
+    <Box className="workspace-page workspace-page--inspections trace-ledger-workspace">
       <Stack spacing={2}>
         {isReinspection && showFlightStage && (
           <TargetFlightShotList
@@ -1070,7 +1072,9 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       >
                         <Box>
                           <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-                            {t('Post-flight & Inspection Items')}
+                            {isReinspection
+                              ? t('Post-flight Completion Checklist')
+                              : t('Post-flight & Inspection Items')}
                           </Typography>
                         </Box>
                         <Button
@@ -1250,7 +1254,9 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             !((allPostFlightChecked && allAssetItemsChecked) || Boolean(outcomeReason.trim()))
                           }
                         >
-                          {t('Complete session & Continue to Evidence')}
+                          {isReinspection
+                            ? t('Complete session & Continue to Defect Verification')
+                            : t('Complete session & Continue to Evidence')}
                         </LoadingButton>
                       </Stack>
                     </Stack>
@@ -1378,7 +1384,9 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           variant="contained"
                           color="primary"
                         >
-                          {t('Continue to Post-flight & Items')}
+                          {isReinspection
+                            ? t('Continue to Post-flight Check')
+                            : t('Continue to Post-flight & Items')}
                         </Button>
                       )}
                       <Button

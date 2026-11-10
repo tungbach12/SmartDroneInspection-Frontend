@@ -136,14 +136,39 @@ export default function InspectionDraftPage() {
 
   const draftPreviewVersion: InspectionReport = useMemo(() => {
     const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
+    const verifications = reinspectionVerifications.data ?? [];
+    const isReinspection =
+      inspectionData?.inspectionType === 'RE_INSPECTION' || verifications.length > 0;
+    const resolvedVerifications = verifications.filter(
+      (v) => v.resolutionStatus === 'RESOLVED',
+    ).length;
+    const unresolvedVerifications = verifications.filter(
+      (v) => v.resolutionStatus === 'UNRESOLVED',
+    ).length;
+    const inconclusiveVerifications = verifications.filter(
+      (v) => v.resolutionStatus === 'INCONCLUSIVE',
+    ).length;
+
     const severities = reportable.map((f) => f.severity);
     const overallCondition: ReportOverallCondition = severities.includes('CRITICAL')
       ? 'CRITICAL'
-      : severities.includes('HIGH')
+      : severities.includes('HIGH') || (isReinspection && unresolvedVerifications > 0)
         ? 'POOR'
-        : severities.includes('MEDIUM')
+        : severities.includes('MEDIUM') || (isReinspection && inconclusiveVerifications > 0)
           ? 'FAIR'
           : 'GOOD';
+
+    const executiveSummary = isReinspection
+      ? `Báo cáo bay kiểm tra đối soát 3 bên sau bảo trì cho công trình ${inspectionData?.assetName || 'công trình'}. Đã đối chiếu ${verifications.length} hạng mục sửa chữa mục tiêu (${resolvedVerifications}/${verifications.length} ĐÃ KHẮC PHỤC${unresolvedVerifications > 0 ? `, ${unresolvedVerifications} CHƯA KHẮC PHỤC` : ''}${inconclusiveVerifications > 0 ? `, ${inconclusiveVerifications} CẦN KIỂM TRA THÊM` : ''}) cùng ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường mới.`
+      : `Báo cáo kiểm định cho công trình ${inspectionData?.assetName || 'công trình'}. Đã ghi nhận ${reportable.length} khuyết tật cần theo dõi/sửa chữa và ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường.`;
+
+    const conclusionsRecommendations = isReinspection
+      ? unresolvedVerifications > 0 || inconclusiveVerifications > 0
+        ? `Còn ${unresolvedVerifications + inconclusiveVerifications} hạng mục bảo trì chưa đạt yêu cầu kỹ thuật hoặc cần đánh giá bổ sung. Đề xuất chuyển trả Lệnh bảo trì sang trạng thái yêu cầu sửa chữa lại (REWORK_REQUIRED) trước khi nghiệm thu.`
+        : `Toàn bộ ${verifications.length} hạng mục khuyết tật mục tiêu trong phạm vi bảo trì đã được khắc phục đạt chuẩn kỹ thuật (RESOLVED). Đề xuất hoàn tất nghiệm thu bàn giao Lệnh bảo trì.`
+      : reportable.length > 0
+        ? `Đề xuất chuyển giao ${reportable.length} phát hiện khuyết tật đã xác nhận sang bộ phận bảo trì (Maintenance) để lập kế hoạch sửa chữa và khắc phục.`
+        : 'Công trình trong tình trạng hoạt động tốt, không phát hiện khuyết tật nghiêm trọng tại thời điểm khảo sát.';
 
     return {
       id: `preview-${inspectionId}`,
@@ -159,17 +184,15 @@ export default function InspectionDraftPage() {
       createdAt: new Date().toISOString(),
       omissionDisclosure: null,
       sections: {
-        executiveSummary: `Báo cáo kiểm định cho công trình ${inspectionData?.assetName || 'công trình'}. Đã ghi nhận ${reportable.length} khuyết tật cần theo dõi/sửa chữa và ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường.`,
+        executiveSummary,
         overallCondition,
-        purposeScopeCriteria:
-          'Khảo sát hiện trạng kết cấu bằng thiết bị máy bay không người lái (UAV/Drone), thu thập hình ảnh độ phân giải cao và phát hiện các khiếm khuyết bề mặt.',
+        purposeScopeCriteria: isReinspection
+          ? 'Bay kiểm tra độc lập đối soát 3 bên (Ảnh lỗi ban đầu — Hồ sơ thi công bảo trì — Ảnh chụp Drone hiện trường sau sửa chữa) theo tiêu chuẩn kỹ thuật áp dụng.'
+          : 'Khảo sát hiện trạng kết cấu bằng thiết bị máy bay không người lái (UAV/Drone), thu thập hình ảnh độ phân giải cao và phát hiện các khiếm khuyết bề mặt.',
         methodEquipmentConditions: inspectionData?.droneSerialNumber
           ? `Thiết bị bay: ${inspectionData.droneModel ?? ''} (Số hiệu: ${inspectionData.droneSerialNumber}). Kiểm tra trực quan từ xa theo quy trình chuẩn.`
           : 'Thiết bị bay UAV chuyên dụng và camera quang học độ phân giải cao.',
-        conclusionsRecommendations:
-          reportable.length > 0
-            ? `Đề xuất chuyển giao ${reportable.length} phát hiện khuyết tật đã xác nhận sang bộ phận bảo trì (Maintenance) để lập kế hoạch sửa chữa và khắc phục.`
-            : 'Công trình trong tình trạng hoạt động tốt, không phát hiện khuyết tật nghiêm trọng tại thời điểm khảo sát.',
+        conclusionsRecommendations,
       },
       reportContext: {
         organizationName: null,
@@ -204,7 +227,16 @@ export default function InspectionDraftPage() {
         findingsConfirmedAt: workflow.data?.findingsConfirmedAt ?? null,
       },
     };
-  }, [inspectionId, userId, findings.data, evidence.data, inspectionData, workflow.data, fieldSessionItems]);
+  }, [
+    inspectionId,
+    userId,
+    findings.data,
+    evidence.data,
+    reinspectionVerifications.data,
+    inspectionData,
+    workflow.data,
+    fieldSessionItems,
+  ]);
 
   const activeEvidenceList = useMemo(
     () => (evidence.data ?? []).filter((item) => !item.isDeleted),

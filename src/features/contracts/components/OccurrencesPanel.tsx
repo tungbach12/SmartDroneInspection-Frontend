@@ -31,7 +31,9 @@ import {
   useAssignServiceOccurrence,
   usePartnerDrones,
   usePartnerInspectors,
+  useRecordOccurrencePayout,
 } from '../hooks/useContracts';
+import { classifyDroneByMtow } from '@/features/assets/utils/droneClassification';
 
 interface OccurrencesPanelProps {
   request: ServiceRequest;
@@ -113,12 +115,14 @@ function OccurrenceCard({
   } = occurrence;
 
   const assign = useAssignServiceOccurrence(request.id, occurrenceId);
+  const recordPayout = useRecordOccurrencePayout(request.id, occurrenceId);
   const inspectors = usePartnerInspectors(manager);
   const drones = usePartnerDrones(manager);
   const [inspector, setInspector] = useState('');
   const [drone, setDrone] = useState('');
   const [customStart, setCustomStart] = useState<string | null>(null);
   const [customEnd, setCustomEnd] = useState<string | null>(null);
+  const [payoutRef, setPayoutRef] = useState('');
 
   const start = customStart ?? instantToDateTimeInput(startAt, request.timezone);
   const end = customEnd ?? instantToDateTimeInput(endAt, request.timezone);
@@ -249,10 +253,55 @@ function OccurrenceCard({
               {payment?.payosOrderCode ? ` · #${payment.payosOrderCode}` : ''}
             </Typography>
             {manager && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
-                {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
-              </Typography>
+              <>
+                {totalPrice != null && totalPrice > 0 && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t('Revenue split')}: {t('Platform fee (15%)')}{' '}
+                    <strong>{formatNumber(Math.round(totalPrice * 0.15))} ₫</strong> ·{' '}
+                    {t('Inspector net payout (85%)')}{' '}
+                    <strong style={{ color: '#0284c7' }}>
+                      {formatNumber(totalPrice - Math.round(totalPrice * 0.15))} ₫
+                    </strong>
+                  </Typography>
+                )}
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
+                  {payout?.reference ? ` · UNC: ${payout.reference}` : ''}
+                  {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
+                </Typography>
+                {isPaid &&
+                  !['PAID', 'SETTLED'].includes(payout?.status ?? occurrence.payoutStatus ?? '') && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ pt: 0.75 }}>
+                    <TextField
+                      size="small"
+                      placeholder="Nhập mã giao dịch ngân hàng (VD: UNC-VCB-20261110)"
+                      value={payoutRef}
+                      onChange={(e) => setPayoutRef(e.target.value)}
+                      sx={{ flex: 1, bgcolor: 'background.paper' }}
+                    />
+                    <LoadingButton
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      loading={recordPayout.isPending}
+                      disabled={!payoutRef.trim()}
+                      onClick={async () => {
+                        try {
+                          await recordPayout.mutateAsync({ payoutReference: payoutRef.trim() });
+                          setPayoutRef('');
+                          onChanged();
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : 'Could not settle payout.';
+                          onError(msg);
+                        }
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+                    >
+                      Tất toán thù lao Inspector
+                    </LoadingButton>
+                  </Stack>
+                )}
+              </>
             )}
           </Stack>
         </Paper>
@@ -365,11 +414,14 @@ function OccurrenceCard({
                       value={selectedDrone}
                       onChange={(e) => setDrone(e.target.value)}
                     >
-                      {availableDrones.map((item) => (
-                        <MenuItem key={item.id} value={item.id}>
-                          {item.serialNumber} · {item.model}
-                        </MenuItem>
-                      ))}
+                      {availableDrones.map((item) => {
+                        const tier = classifyDroneByMtow(item.model);
+                        return (
+                          <MenuItem key={item.id} value={item.id}>
+                            {item.serialNumber} · {item.model} ({tier.shortLabel} · {tier.requiredLicenseLabel})
+                          </MenuItem>
+                        );
+                      })}
                     </Select>
                     {inspector && availableDrones.length === 0 && !drones.isPending && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>

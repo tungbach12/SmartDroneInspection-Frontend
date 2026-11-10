@@ -12,7 +12,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import MyLocationRounded from '@mui/icons-material/MyLocationRounded';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
@@ -63,7 +62,7 @@ export function TargetFlightShotList({
       sx={{
         p: { xs: 2, sm: 2.5 },
         mb: 2.5,
-        borderRadius: '16px',
+        borderRadius: '10px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
@@ -82,43 +81,26 @@ export function TargetFlightShotList({
           borderColor: 'divider',
         }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box
-            sx={{
-              width: 38,
-              height: 38,
-              borderRadius: '10px',
-              bgcolor: 'action.selected',
-              color: 'text.primary',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <MyLocationRounded sx={{ fontSize: 20 }} />
-          </Box>
-          <Box>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
-                {mode === 'flight-guidance'
-                  ? t('Target Flight Locations')
-                  : t('Target Re-capture Checklist')}
-              </Typography>
-              <Chip
-                label={t('Re-inspection')}
-                size="small"
-                variant="outlined"
-                sx={{ fontWeight: 600, fontSize: '0.7rem', height: 20 }}
-              />
-            </Stack>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.84rem' }}>
+        <Box>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
               {mode === 'flight-guidance'
-                ? t('Review target defect locations and capture requirements before initiating the flight session.')
-                : t('Match fresh flight captures to each repaired defect location before proceeding to verification.')}
+                ? t('Target Flight Locations')
+                : t('Target Re-capture Checklist')}
             </Typography>
-          </Box>
-        </Stack>
+            <Chip
+              label={t('Re-inspection')}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600, fontSize: '0.7rem', height: 20 }}
+            />
+          </Stack>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25, fontSize: '0.84rem' }}>
+            {mode === 'flight-guidance'
+              ? t('Review target defect locations and capture requirements before initiating the flight session.')
+              : t('Match fresh flight captures to each repaired defect location before proceeding to verification.')}
+          </Typography>
+        </Box>
 
         {mode === 'evidence-assignment' && (
           <Chip
@@ -132,11 +114,10 @@ export function TargetFlightShotList({
       </Stack>
 
       {/* Targets List */}
-      <Stack spacing={1.75}>
-        {items.map((item, index) => (
+      <Stack spacing={1.5}>
+        {items.map((item) => (
           <TargetShotItemCard
             key={item.id}
-            index={index}
             item={item}
             inspectionId={inspectionId}
             sourceInspectionId={sourceInspectionId}
@@ -191,7 +172,6 @@ export function TargetFlightShotList({
 }
 
 function TargetShotItemCard({
-  index,
   item,
   inspectionId,
   sourceInspectionId,
@@ -200,7 +180,6 @@ function TargetShotItemCard({
   onLinkEvidence,
   readOnly,
 }: {
-  index: number;
   item: ReinspectionVerificationItem;
   inspectionId: string;
   sourceInspectionId?: string | null | undefined;
@@ -232,7 +211,7 @@ function TargetShotItemCard({
     <Card
       variant="outlined"
       sx={{
-        borderRadius: '12px',
+        borderRadius: '10px',
         bgcolor: 'background.default',
         borderColor: 'divider',
       }}
@@ -280,9 +259,6 @@ function TargetShotItemCard({
             {/* Target Details */}
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                  #{index + 1}
-                </Typography>
                 {item.sourceSeverity && (
                   <Chip
                     label={item.sourceSeverity}

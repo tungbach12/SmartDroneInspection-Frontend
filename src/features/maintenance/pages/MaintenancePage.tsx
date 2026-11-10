@@ -95,7 +95,7 @@ export default function MaintenancePage() {
       id: 'scope',
       label: t('Corrective scope'),
       render: (order) => (
-        <Typography sx={{ fontWeight: 600, color: '#101828', fontSize: '0.875rem' }}>
+        <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
           {order.correctiveScope}
         </Typography>
       ),
@@ -122,7 +122,7 @@ export default function MaintenancePage() {
       label: t('Due'),
       width: 130,
       render: (order) => (
-        <Typography sx={{ color: '#475467', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}>
+        <Typography sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}>
           {order.dueAt ? formatDate(new Date(order.dueAt)) : '—'}
         </Typography>
       ),

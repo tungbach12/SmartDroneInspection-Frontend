@@ -926,7 +926,7 @@ export default function InspectionFindingsPage() {
           onUpdate={(verificationId, payload) =>
             updateVerificationMutation.mutateAsync({ verificationId, payload })
           }
-          readOnly={!isInspector || isFindingsLocked}
+          readOnly={!isInspector || !analysisUnlocked}
         />
       )}
 
