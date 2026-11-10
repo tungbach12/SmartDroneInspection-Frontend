@@ -299,10 +299,10 @@ describe('InspectionDetailPage', () => {
     expect(navigation).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Findings: Waiting"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Inspection Report: Waiting"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Review & Submit: Waiting"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Flight Operation: In progress"]')).toBeTruthy();
     expect(screen.queryByRole('tablist')).toBeNull();
-    expect(navigation.querySelector('a[title="Complete a field session before adding evidence."]')).toBeTruthy();
+    expect(navigation.querySelector('a[title="Complete the field session first."]')).toBeTruthy();
   });
 
   it('keeps every workflow stage directly navigable while prerequisites are unmet', () => {
@@ -310,7 +310,7 @@ describe('InspectionDetailPage', () => {
     const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')?.getAttribute('href')).toContain('evidence');
     expect(navigation.querySelector('a[aria-label*="Defect Findings: Waiting"]')?.getAttribute('href')).toContain('findings');
-    expect(navigation.querySelector('a[aria-label*="Inspection Report: Waiting"]')?.getAttribute('href')).toContain('report');
+    expect(navigation.querySelector('a[aria-label*="Review & Submit: Waiting"]')?.getAttribute('href')).toContain('report');
     expect(navigation.querySelector('a[aria-label*="Flight Operation: In progress"]')?.getAttribute('href')).toContain('field-session');
   });
 
@@ -339,7 +339,7 @@ describe('InspectionDetailPage', () => {
     expect(navigation.querySelector('a[aria-label*="Post-flight & Items"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Field Evidence"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Findings"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Review & Submit"]')).toBeTruthy();
   });
 
   it('displays tailored step titles for re-inspection post-repair (6-step workflow)', () => {
@@ -359,7 +359,7 @@ describe('InspectionDetailPage', () => {
     expect(navigation.querySelector('a[aria-label*="Re-flight Operation"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Post-flight Check"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Verification"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Verification Report"]')).toBeTruthy();
+    expect(navigation.querySelector('a[aria-label*="Verify & Submit"]')).toBeTruthy();
     expect(screen.queryByText('Repair Evidence')).toBeNull();
   });
 

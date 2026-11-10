@@ -283,7 +283,7 @@ describe('InspectionFindingsPage', () => {
     expect(screen.queryByText('retired-span.png')).toBeNull();
     expect(screen.queryByText('Coating crack')).toBeNull();
     expect(screen.queryByRole('img', { name: 'Coating crack' })).toBeNull();
-    fireEvent.click(screen.getByLabelText(/No finding was observed within the scope/));
+    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
     expect(
       (screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement)
         .disabled,
@@ -351,7 +351,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     // Idle must be still: the motion is a signal that a request is running, not decoration.
-    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
+    await screen.findByRole('heading', { name: 'Findings' });
     expect(screen.queryByRole('img', { name: 'Advisory detection in progress' })).toBeNull();
   });
 
@@ -377,7 +377,7 @@ describe('InspectionFindingsPage', () => {
     };
     reopened.rerender(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
+    await screen.findByRole('heading', { name: 'Findings' });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
@@ -441,7 +441,7 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     expect(screen.queryByText('No defects detected')).toBeNull();
-    expect(screen.getByText('No findings yet')).toBeTruthy();
+    expect(screen.getByText('No findings')).toBeTruthy();
   });
 
   it('keeps findings editable and analysis available during report drafting', async () => {
@@ -482,7 +482,7 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Defect Analysis & Findings' });
+    await screen.findByRole('heading', { name: 'Findings' });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Analyze all images/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
@@ -495,7 +495,7 @@ describe('InspectionFindingsPage', () => {
 
     const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText(/No finding was observed within the scope/));
+    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
     expect(confirmButton.disabled).toBe(false);
     fireEvent.click(confirmButton);
     expect(mocks.confirm.mutate).toHaveBeenCalledWith(
@@ -524,9 +524,9 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     const confirmButton = screen.getByRole('button', { name: 'Confirm findings and continue' }) as HTMLButtonElement;
-    expect(screen.getByLabelText(/No finding was observed within the scope/)).toBeTruthy();
+    expect(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/)).toBeTruthy();
     expect(confirmButton.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText(/No finding was observed within the scope/));
+    fireEvent.click(screen.getByLabelText(/I checked the captures within scope and confirmed no findings/));
     fireEvent.click(confirmButton);
 
     expect(mocks.confirm.mutate).toHaveBeenCalledWith(
@@ -581,6 +581,16 @@ describe('InspectionFindingsPage', () => {
     rerender(<InspectionFindingsPage />);
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
     expect(screen.getByLabelText('Asset location description for this photo').hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/Withdraw the submission on the Report tab/i)).toBeTruthy();
+
+    mocks.reportVersionsQuery = {
+      data: [reportVersion('PUBLISHED')],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    rerender(<InspectionFindingsPage />);
+    expect(screen.getByText(/This inspection report has been approved or published/i)).toBeTruthy();
   });
 
   it('allows confirming a candidate without location prose', () => {
@@ -673,7 +683,7 @@ describe('InspectionFindingsPage', () => {
       'img[data-src*="/api/v1/inspections/inspection-1/evidence/evidence-1/content"]',
     );
     expect(photo?.getAttribute('alt')).toBe('Inspection evidence span.png');
-    expect(screen.getByText(/Defect photo capture/)).toBeTruthy();
+    expect(screen.queryByText(/Defect photo capture/)).toBeNull();
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Show detected regions' }));
     expect(document.querySelector('[aria-label="Coating crack, 82 percent confidence"]')).toBeNull();

@@ -1,8 +1,12 @@
+import type { ReactNode } from 'react';
 import {
   Box,
   Button,
   Chip,
   Divider,
+  InputAdornment,
+  MenuItem,
+  Pagination,
   Paper,
   Stack,
   Table,
@@ -10,13 +14,16 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import FilterListRounded from '@mui/icons-material/FilterListRounded';
+import SearchIcon from '@mui/icons-material/Search';
+import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import { resolveRowStageSubtitle } from '../utils/workflowStepResolver';
@@ -52,6 +59,13 @@ interface InspectionListTableProps {
   reviewerMode?: boolean;
   roleView?: 'inspector' | 'manager';
   getActionLabel?: (row: InspectionListItem) => string | undefined;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  searchPlaceholder?: string;
+  statusFilter?: string;
+  onStatusFilterChange?: (status: string) => void;
+  statusOptions?: Array<{ value: string; label: string }>;
+  actions?: ReactNode;
 }
 
 function formatDate(
@@ -105,24 +119,32 @@ function parseLocationLabel(raw?: string | null): string | null {
  * Modern Lytic-styled server-paged inspection table.
  */
 export function InspectionListTable({
-  title = 'Inspection records',
+  title: _title,
   rows,
   page,
   pageSize,
   totalCount,
   totalPages,
   onPageChange,
-  onPageSizeChange,
+  onPageSizeChange: _onPageSizeChange,
   onOpen,
   onOverview,
   showReportColumn = false,
   reviewerMode = false,
   roleView = 'inspector',
   getActionLabel,
+  searchQuery,
+  onSearchChange,
+  searchPlaceholder,
+  statusFilter,
+  onStatusFilterChange,
+  statusOptions,
+  actions,
 }: InspectionListTableProps) {
   const { t, formatDate: formatDateValue, formatNumber } = useLocale();
   const theme = useTheme();
   const isCompactViewport = useMediaQuery(theme.breakpoints.down('md'));
+
   return (
     <Paper
       variant="outlined"
@@ -135,24 +157,92 @@ export function InspectionListTable({
         boxShadow: 'none',
       }}
     >
-      {/* Card Header */}
+      {/* Card Header / NextAdmin Toolbar */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          px: { xs: 2, sm: 3 },
-          py: 2.25,
+          px: { xs: 2, sm: 2.5 },
+          py: 2,
           borderBottom: '1px solid',
           borderColor: 'divider',
+          flexWrap: 'wrap',
+          gap: 1.5,
         }}
       >
-        <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
-          {title}
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-          {totalCount} {t('total')} {totalCount === 1 ? 'record' : 'records'}
-        </Typography>
+        <TextField
+          size="small"
+          placeholder={searchPlaceholder ?? t('Search by id, name, or location…')}
+          value={searchQuery ?? ''}
+          onChange={onSearchChange ? (e) => onSearchChange(e.target.value) : undefined}
+          disabled={!onSearchChange}
+          slotProps={{
+            htmlInput: { 'aria-label': searchPlaceholder ?? t('Search inspections') },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{
+            width: { xs: '100%', sm: 280, md: 320 },
+            '& .MuiOutlinedInput-root': {
+              height: 40,
+              borderRadius: '8px',
+              bgcolor: 'background.paper',
+              fontSize: '0.875rem',
+            },
+          }}
+        />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+          {statusFilter !== undefined && onStatusFilterChange && (
+            <TextField
+              select
+              size="small"
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+              slotProps={{
+                htmlInput: { 'aria-label': t('Filter by status') },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                minWidth: 160,
+                '& .MuiOutlinedInput-root': {
+                  height: 40,
+                  borderRadius: '8px',
+                  bgcolor: 'background.paper',
+                  fontSize: '0.875rem',
+                },
+              }}
+            >
+              {(statusOptions ?? [
+                { value: 'ALL', label: t('All statuses') },
+                { value: 'SCHEDULED', label: t('Scheduled') },
+                { value: 'IN_PROGRESS', label: t('In Progress') },
+                { value: 'FIELD_COMPLETED', label: t('Field Completed') },
+                { value: 'UNDER_REVIEW', label: t('Under Review') },
+                { value: 'COMPLETED', label: t('Completed') },
+                { value: 'CANCELLED', label: t('Cancelled') },
+              ]).map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          {actions}
+        </Box>
       </Box>
 
       {isCompactViewport ? (
@@ -322,76 +412,84 @@ export function InspectionListTable({
             <TableRow>
               <TableCell
                 sx={{
-                  bgcolor: 'background.default',
-                  color: 'text.secondary',
-                  fontSize: '0.75rem',
-                  fontWeight: 650,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 1.5,
+                  px: 2,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
                   minWidth: 180,
                 }}
               >
-                {reviewerMode ? t('Inspection') : t('Asset')}
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  {reviewerMode ? t('Inspection') : t('Asset')}
+                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                </Box>
               </TableCell>
               {!reviewerMode && (
                 <>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 650,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
+                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: '#71717A',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.01em',
                       py: 1.5,
-                      px: 1.5,
+                      px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
-                      width: 120,
+                      width: 140,
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('Schedule')}
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      {t('Schedule')}
+                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                    </Box>
                   </TableCell>
                   <TableCell
                     sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 650,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
+                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: '#71717A',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.01em',
                       py: 1.5,
-                      px: 1.5,
+                      px: 2,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      width: 140,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      {t('Stage')}
+                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                    </Box>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                      color: '#71717A',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      letterSpacing: '0.01em',
+                      py: 1.5,
+                      px: 2,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
                       width: 130,
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('Stage')}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: 'background.default',
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 650,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                      py: 1.5,
-                      px: 1.5,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      width: 120,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
+                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                    </Box>
                   </TableCell>
                 </>
               )}
@@ -808,25 +906,50 @@ export function InspectionListTable({
       </TableContainer>
       )}
 
-      <TablePagination
-        component="div"
-        count={totalCount}
-        page={Math.max(0, Math.min(page - 1, Math.max(totalPages - 1, 0)))}
-        onPageChange={(_, nextPage) => onPageChange(nextPage + 1)}
-        rowsPerPage={pageSize}
-        onRowsPerPageChange={(event) => onPageSizeChange(parseInt(event.target.value, 10))}
-        rowsPerPageOptions={[10, 20, 50]}
+      <Box
         sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: { xs: 2, sm: 3 },
+          py: 1.5,
           borderTop: '1px solid',
           borderColor: 'divider',
-          color: 'text.secondary',
-          px: 2,
-          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-            fontSize: '0.875rem',
-            color: 'text.secondary',
-          },
+          flexWrap: 'wrap',
+          gap: 1.5,
         }}
-      />
+      >
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+          {totalCount > 0
+            ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} From ${totalCount}`
+            : 'Showing 0 From 0'}
+        </Typography>
+
+        <Pagination
+          count={Math.max(1, totalPages)}
+          page={page}
+          onChange={(_, nextPage) => onPageChange(nextPage)}
+          shape="rounded"
+          size="small"
+          sx={{
+            '& .MuiPaginationItem-root': {
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              color: 'text.primary',
+            },
+            '& .MuiPaginationItem-page.Mui-selected': {
+              bgcolor: 'primary.main',
+              color: '#FFFFFF',
+              '&:hover': { bgcolor: 'primary.dark' },
+            },
+            '& .MuiPaginationItem-previousNext': {
+              border: '1px solid',
+              borderColor: 'divider',
+            },
+          }}
+        />
+      </Box>
     </Paper>
   );
 }

@@ -15,6 +15,7 @@ import {
   Box,
   Button,
   Dialog,
+  Divider,
   Drawer,
   IconButton,
   InputBase,
@@ -25,10 +26,12 @@ import {
   Menu,
   MenuItem,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
 import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
@@ -42,7 +45,7 @@ import {
   type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { layoutTokens } from '@/app/theme/tokens';
-import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
+import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   getAuthErrorMessage,
@@ -57,10 +60,12 @@ import {
   NextAdminHomeIcon,
   NextAdminInvoiceIcon,
   NextAdminLogoMark,
+  NextAdminMoonIcon,
   NextAdminPagesIcon,
   NextAdminProfileIcon,
   NextAdminSearchIcon,
   NextAdminSidebarToggleIcon,
+  NextAdminSunIcon,
   NextAdminTablesIcon,
   NextAdminTaskIcon,
   NextAdminTeamIcon,
@@ -100,6 +105,7 @@ interface AppShellProps {
 export function AppShell({ portal }: AppShellProps) {
   const { locale, t } = useLocale();
   const theme = useTheme();
+  const { toggle: toggleColorMode } = useColorMode();
   const isDark = useIsDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
@@ -348,7 +354,7 @@ export function AppShell({ portal }: AppShellProps) {
         )}
       </Box>
 
-      <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto', px: 1.5, pt: 1 }}>
+      <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto', px: 1.5, pt: 1, pb: 2 }}>
         <Typography
           component="div"
           sx={{
@@ -467,120 +473,6 @@ export function AppShell({ portal }: AppShellProps) {
           )}
         </List>
       </Box>
-
-      <Box
-        sx={{
-          mx: 1.5,
-          mb: 2,
-          mt: 1.5,
-          p: 1,
-          borderRadius: '12px',
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          flexShrink: 0,
-        }}
-      >
-        <Button
-          color="inherit"
-          fullWidth
-          aria-label={`${userName ?? 'Account'} ${email ?? ''}`.trim()}
-          aria-haspopup="menu"
-          aria-expanded={Boolean(accountMenuAnchor)}
-          onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
-          sx={{
-            p: 0.75,
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: 1.25,
-            textTransform: 'none',
-            textAlign: 'left',
-            color: 'text.primary',
-            '&:hover': {
-              bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#F4F4F5',
-            },
-          }}
-        >
-          <Avatar
-            src={user?.avatarUrl ?? undefined}
-            aria-hidden="true"
-            variant="rounded"
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: '8px',
-              bgcolor: '#EFF3FF',
-              color: '#3758F9',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            {userName?.trim().charAt(0).toUpperCase() ?? (
-              <AccountCircleOutlined fontSize="small" />
-            )}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              component="div"
-              noWrap
-              sx={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'text.primary',
-                lineHeight: 1.3,
-              }}
-            >
-              {userName ?? 'Signed-in user'}
-            </Typography>
-            <Typography
-              component="div"
-              noWrap
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                lineHeight: 1.3,
-              }}
-            >
-              {email ?? primaryRole}
-            </Typography>
-          </Box>
-          <Box
-            component="span"
-            sx={{
-              display: 'inline-flex',
-              color: 'text.secondary',
-              flexShrink: 0,
-            }}
-          >
-            <NextAdminChevronDownIcon />
-          </Box>
-        </Button>
-
-        {availablePortals.length > 1 && (
-          <Button
-            component={RouterLink}
-            to="/portals"
-            fullWidth
-            variant="outlined"
-            size="small"
-            sx={{
-              mt: 0.75,
-              borderRadius: '8px',
-              py: 0.625,
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              textTransform: 'none',
-              borderColor: 'divider',
-              color: 'text.primary',
-            }}
-          >
-            {t('Switch workspace')}
-          </Button>
-        )}
-      </Box>
     </Box>
   );
 
@@ -617,21 +509,21 @@ export function AppShell({ portal }: AppShellProps) {
           minWidth: 0,
           height: '100vh',
           overflow: 'hidden',
-          p: { xs: 0, md: '16px 16px 16px 0' },
+          p: { xs: 0, lg: '16px 16px 16px 0' },
         }}
       >
         <Box
           sx={{
             height: '100%',
-            borderRadius: { xs: 0, md: '16px' },
+            borderRadius: { xs: 0, lg: '16px' },
             border: {
               xs: 'none',
-              md: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
+              lg: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
             },
-            bgcolor: isDark ? '#111827' : '#FCFCFD',
+            bgcolor: isDark ? '#111827' : '#FFFFFF',
             boxShadow: {
               xs: 'none',
-              md: '0 3px 6px -2px rgba(0,0,0,0.02), 0 1px 1px 0 rgba(0,0,0,0.04)',
+              lg: '0 3px 6px -2px rgba(0,0,0,0.02), 0 1px 1px 0 rgba(0,0,0,0.04)',
             },
             display: 'flex',
             flexDirection: 'column',
@@ -642,19 +534,19 @@ export function AppShell({ portal }: AppShellProps) {
             position="sticky"
             color="inherit"
             sx={{
-              height: 73,
+              height: 72,
               flexShrink: 0,
-              bgcolor: isDark ? '#111827' : '#FCFCFD',
+              bgcolor: isDark ? '#111827' : '#FFFFFF',
               borderBottom: isDark ? '1px solid #27272A' : '1px solid #E8E8E8',
               boxShadow: 'none',
-              px: { xs: 2, lg: 2.5 },
+              px: { xs: 2, sm: 3, lg: 3.5 },
             }}
           >
             <Toolbar
               disableGutters
               sx={{
-                minHeight: '73px !important',
-                height: 73,
+                minHeight: '72px !important',
+                height: 72,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -691,14 +583,17 @@ export function AppShell({ portal }: AppShellProps) {
                     alignItems: 'center',
                     width: { sm: 240, md: 300 },
                     height: 40,
-                    borderRadius: '8px',
+                    borderRadius: '999px',
                     border: '1px solid',
                     borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    px: 1.5,
+                    bgcolor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+                    px: 1.75,
                     gap: 1,
                     flexShrink: 0,
                     cursor: 'pointer',
+                    '&:hover': {
+                      borderColor: 'text.secondary',
+                    },
                   }}
                 >
                   <Box component="span" sx={{ display: 'inline-flex', color: '#71717A', flexShrink: 0 }}>
@@ -729,7 +624,7 @@ export function AppShell({ portal }: AppShellProps) {
                       borderRadius: '6px',
                       border: '1px solid',
                       borderColor: 'divider',
-                      bgcolor: 'background.default',
+                      bgcolor: 'background.paper',
                       px: 0.875,
                       py: 0.25,
                       fontSize: '0.75rem',
@@ -745,19 +640,42 @@ export function AppShell({ portal }: AppShellProps) {
               </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexShrink: 0 }}>
+                <Tooltip title={isDark ? t('Switch to light mode') : t('Switch to dark mode')}>
+                  <IconButton
+                    onClick={toggleColorMode}
+                    aria-label={isDark ? t('Switch to light mode') : t('Switch to dark mode')}
+                    data-testid="theme-mode-toggle"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: isDark ? '#27272A' : '#F3F4F6',
+                      color: 'text.secondary',
+                      '&:hover': {
+                        bgcolor: isDark ? '#3F3F46' : '#E5E7EB',
+                        color: 'text.primary',
+                      },
+                    }}
+                  >
+                    {isDark ? <NextAdminSunIcon width={18} height={18} /> : <NextAdminMoonIcon width={18} height={18} />}
+                  </IconButton>
+                </Tooltip>
+
                 <Box
                   sx={{
                     '& .MuiIconButton-root': {
                       width: 40,
                       height: 40,
                       mr: 0,
-                      borderRadius: '8px',
+                      borderRadius: '50%',
                       border: '1px solid',
                       borderColor: 'divider',
-                      bgcolor: 'background.paper',
+                      bgcolor: isDark ? '#27272A' : '#F3F4F6',
                       color: 'text.secondary',
                       '&:hover': {
-                        bgcolor: 'action.hover',
+                        bgcolor: isDark ? '#3F3F46' : '#E5E7EB',
                         color: 'text.primary',
                       },
                     },
@@ -765,6 +683,69 @@ export function AppShell({ portal }: AppShellProps) {
                 >
                   <NotificationBell portal={portal} />
                 </Box>
+
+                <Button
+                  color="inherit"
+                  aria-label={`${userName ?? 'Account'} ${email ?? ''}`.trim()}
+                  aria-haspopup="menu"
+                  aria-expanded={Boolean(accountMenuAnchor)}
+                  onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
+                  sx={{
+                    pl: 0.75,
+                    pr: 1.25,
+                    py: 0.5,
+                    borderRadius: '999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
+                    textTransform: 'none',
+                    color: 'text.primary',
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6',
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={user?.avatarUrl ?? undefined}
+                    aria-hidden="true"
+                    sx={{
+                      width: 38,
+                      height: 38,
+                      bgcolor: '#EFF3FF',
+                      color: '#3758F9',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {userName?.trim().charAt(0).toUpperCase() ?? (
+                      <AccountCircleOutlined fontSize="small" />
+                    )}
+                  </Avatar>
+                  <Typography
+                    component="span"
+                    noWrap
+                    sx={{
+                      display: { xs: 'none', sm: 'block' },
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      maxWidth: 160,
+                    }}
+                  >
+                    {userName ?? 'Signed-in user'}
+                  </Typography>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: { xs: 'none', sm: 'inline-flex' },
+                      color: 'text.secondary',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <NextAdminChevronDownIcon />
+                  </Box>
+                </Button>
               </Box>
             </Toolbar>
           </AppBar>
@@ -777,7 +758,7 @@ export function AppShell({ portal }: AppShellProps) {
               minWidth: 0,
               overflowY: 'auto',
               px: layoutTokens.pageGutter,
-              py: { xs: 2.5, md: 3 },
+              py: { xs: 2.5, md: 3.5 },
             }}
           >
             <Box sx={{ width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }}>
@@ -791,6 +772,8 @@ export function AppShell({ portal }: AppShellProps) {
         anchorEl={accountMenuAnchor}
         open={Boolean(accountMenuAnchor)}
         onClose={() => setAccountMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{
           paper: {
             sx: {
@@ -799,10 +782,20 @@ export function AppShell({ portal }: AppShellProps) {
               borderRadius: '12px',
               border: '1px solid',
               borderColor: 'divider',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
             },
           },
         }}
       >
+        <Box sx={{ px: 2, py: 1.25 }}>
+          <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, color: 'text.primary' }}>
+            {userName ?? 'Signed-in user'}
+          </Typography>
+          <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
+            {email ?? primaryRole}
+          </Typography>
+        </Box>
+        <Divider />
         <MenuItem
           component={RouterLink}
           to={`${PORTAL_CONFIG[portal].path}/settings`}
@@ -810,17 +803,33 @@ export function AppShell({ portal }: AppShellProps) {
             setAccountMenuAnchor(null);
             setMobileOpen(false);
           }}
+          sx={{ mt: 0.5 }}
         >
           <ListItemIcon>
             <SettingsOutlined fontSize="small" />
           </ListItemIcon>
           {t('Settings')}
         </MenuItem>
+        {availablePortals.length > 1 && (
+          <MenuItem
+            component={RouterLink}
+            to="/portals"
+            onClick={() => {
+              setAccountMenuAnchor(null);
+              setMobileOpen(false);
+            }}
+          >
+            <ListItemIcon>
+              <SwapHorizOutlined fontSize="small" />
+            </ListItemIcon>
+            {t('Switch workspace')}
+          </MenuItem>
+        )}
         <MenuItem onClick={signOut} disabled={signingOut}>
           <ListItemIcon>
             <LogoutRounded fontSize="small" />
           </ListItemIcon>
-          {signingOut ? 'Signing out…' : 'Sign out'}
+          {signingOut ? t('Signing out…') : t('Sign out')}
         </MenuItem>
       </Menu>
 

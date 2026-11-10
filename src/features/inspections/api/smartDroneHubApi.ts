@@ -7,11 +7,17 @@ export type SmartDroneHubMissionState =
   | 'RETURNING'
   | 'LANDED'
   | 'ABORTED'
-  | 'NO_FLIGHT';
+  | 'NO_FLIGHT'
+  | 'UNKNOWN';
 export type SmartDroneHubSource =
   | 'MISSION_PLANNER_MAVLINK'
   | 'SMARTDRONEHUB_SIMULATION'
-  | 'NONE';
+  | 'NONE'
+  | 'IMPORTED_LOG_SRT'
+  | 'IMPORTED_LOG_CSV'
+  | 'IMPORTED_LOG_KML'
+  | 'IMPORTED_LOG_GPX'
+  | 'MANUAL_DECLARATION';
 
 export interface SmartDroneHubFlightTracePoint {
   latitude: number;
@@ -22,7 +28,7 @@ export interface SmartDroneHubFlightTracePoint {
   batteryPercent?: number | null;
   flightMode?: string | null;
   waypoint: number | null;
-  recordedAt: string;
+  recordedAt: string | null;
 }
 
 export interface SmartDroneHubTelemetry {
@@ -48,10 +54,10 @@ export interface SmartDroneHubFlightReport {
   inspectionId: string;
   fieldSessionId: string;
   telemetrySource: SmartDroneHubSource;
-  startedAt: string;
+  startedAt: string | null;
   endedAt: string | null;
-  durationSeconds: number;
-  distanceFlownMeters: number;
+  durationSeconds: number | null;
+  distanceFlownMeters: number | null;
   maxAltitudeMeters: number | null;
   startBatteryPercent: number | null;
   endBatteryPercent: number | null;
@@ -80,6 +86,22 @@ export const smartDroneHubApi = {
         `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/telemetry`,
       )
       .then((response) => response.data),
+  importFlightLog: (inspectionId: string, sessionId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<SmartDroneHubFlightReport>(
+      `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/import-log`,
+      form,
+    ).then((response) => response.data);
+  },
+  declareManualFlight: (
+    inspectionId: string,
+    sessionId: string,
+    payload: { reasonCode: string; estimatedDurationMinutes: number; maxAltitudeMeters?: number | null; notes: string },
+  ) => api.post<SmartDroneHubFlightReport>(
+    `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/manual-declaration`,
+    payload,
+  ).then((response) => response.data),
   flightReport: (inspectionId: string, sessionId: string) =>
     api.get<SmartDroneHubFlightReport>(
       `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/flight-report`,

@@ -129,7 +129,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-            📸 {props.evidence?.fileName ?? `Evidence ${props.evidenceId.slice(0, 8)}…`}
+            {props.evidence?.fileName ?? `Evidence ${props.evidenceId.slice(0, 8)}…`}
           </Typography>
           <Chip
             size="small"
@@ -137,8 +137,8 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
             variant={hasFindings ? 'filled' : 'outlined'}
             label={
               hasFindings
-                ? `${props.findings.length} ${props.findings.length === 1 ? 'defect finding' : 'defect findings'}`
-                : t('No findings yet')
+                ? `${props.findings.length} ${props.findings.length === 1 ? 'finding' : 'findings'}`
+                : t('No findings')
             }
             sx={{ fontWeight: 600, fontSize: '0.75rem' }}
           />
@@ -237,12 +237,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   bgcolor: 'background.default',
                 }}
               >
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}
-                >
-                  {t('Defect photo capture ·')} {props.evidence.fileName}
-                </Typography>
                 <Box sx={{ position: 'relative', width: '100%', lineHeight: 0 }}>
                   <AuthenticatedMedia
                     src={inspectionApi.evidenceContentUrl(props.inspectionId, props.evidence.id)}
@@ -322,12 +316,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   bgcolor: 'background.default',
                 }}
               >
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.75 }}
-                >
-                  {t('Flight video recording ·')} {props.evidence.fileName}
-                </Typography>
                 <Box sx={{ width: '100%', lineHeight: 0 }}>
                   <AuthenticatedMedia
                     src={inspectionApi.evidenceContentUrl(props.inspectionId, props.evidence.id)}
@@ -355,10 +343,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                 }}
               >
                 <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                  {t('No defects identified on this capture.')}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                  {t('Click "Analyze image" above for AI assistance, or add a manual finding below.')}
+                  {t('No findings recorded for this capture.')}
                 </Typography>
               </Box>
             ) : (
@@ -747,7 +732,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   sx={{ alignItems: 'center', justifyContent: 'space-between', gridColumn: '1 / -1' }}
                 >
                   <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {t('Add manual defect for')} {props.evidence.fileName}
+                    {t('Add manual finding')}
                   </Typography>
                   <Button size="small" onClick={props.onCloseManualFinding}>
                     {t('Cancel')}
@@ -816,7 +801,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   color: 'text.secondary',
                 }}
               >
-                {t('+ Add manual finding for')} {props.evidence.fileName}
+                {t('Add manual finding')}
               </Button>
             )}
           </Box>

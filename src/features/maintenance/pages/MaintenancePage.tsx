@@ -143,7 +143,10 @@ export default function MaintenancePage() {
         <>
           <PageHeader
             title={t('Maintenance')}
-            subtitle={t('Repair work opened from accepted inspection findings')}
+            breadcrumbs={[
+              { label: 'Home', to: isOrgAdmin ? '/client/dashboard' : '/operations/dashboard' },
+              { label: t('Maintenance') },
+            ]}
           />
 
           {/* 4 Lytic KPI Metric Cards */}
@@ -219,7 +222,6 @@ export default function MaintenancePage() {
                   }
                 >
                   <DataTable
-                    title={t('Work orders')}
                     columns={columns}
                     rows={items}
                     rowKey={(order) => order.id}

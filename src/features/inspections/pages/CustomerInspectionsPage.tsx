@@ -6,6 +6,8 @@ import {
   Chip,
   Divider,
   InputAdornment,
+  MenuItem,
+  Pagination,
   Paper,
   Stack,
   Table,
@@ -13,7 +15,6 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -21,6 +22,7 @@ import {
 import Add from '@mui/icons-material/Add';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAssets } from '@/features/assets/hooks/useAssets';
@@ -90,7 +92,7 @@ export function CustomerInspectionsPage() {
   const [quickFilter, setQuickFilter] = useState<CustomerQuickFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
 
   const listFilters = useMemo(() => ({ page: 1, pageSize: 100 }), []);
@@ -267,140 +269,10 @@ export function CustomerInspectionsPage() {
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
         title={t('Inspections')}
-        subtitle={t('Monitor scheduled drone inspections, track field progress, review published reports, and settle service fees.')}
-        actions={
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshRounded />}
-              onClick={() => void inspections.refetch()}
-              disabled={inspections.isFetching}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-            >
-              {inspections.isFetching ? t('Loading…') : t('Refresh')}
-            </Button>
-            <Button
-              variant="contained"
-              size="medium"
-              startIcon={<Add />}
-              onClick={() => navigate('/client/contracts')}
-              sx={{
-                borderRadius: '8px',
-                px: 2,
-                bgcolor: 'primary.main',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                boxShadow: 'none',
-              }}
-            >
-              {t('New inspection request')}
-            </Button>
-          </Stack>
-        }
+        breadcrumbs={[{ label: 'Home', to: '/client/dashboard' }, { label: t('Inspections') }]}
       />
 
       <Stack spacing={2}>
-        {/* Clean Filter, Search & Financial Snapshot Bar */}
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 1.25,
-            borderRadius: '12px',
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: 'none',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.25}
-            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Stack
-              direction="row"
-              spacing={0.75}
-              sx={{
-                overflowX: 'auto',
-                pb: { xs: 0.25, md: 0 },
-                '&::-webkit-scrollbar': { display: 'none' },
-                scrollbarWidth: 'none',
-              }}
-            >
-              {(
-                [
-                  { id: 'ALL', label: `${t('All')} (${enrichedItems.length})` },
-                  { id: 'IN_PROGRESS', label: `${t('In progress')} (${inProgressCount})` },
-                  { id: 'REPORT_READY', label: `${t('Report available')} (${publishedReportsCount})` },
-                  {
-                    id: 'ACTION_NEEDED',
-                    label: `${t('Action needed')} (${actionNeededItems.length})`,
-                  },
-                ] as const
-              ).map((tab) => {
-                const active = quickFilter === tab.id;
-                return (
-                  <Button
-                    key={tab.id}
-                    size="small"
-                    variant={active ? 'contained' : 'text'}
-                    onClick={() => {
-                      setQuickFilter(tab.id);
-                      setPage(1);
-                    }}
-                    sx={{
-                      borderRadius: '8px',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      px: 1.5,
-                      py: 0.6,
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      boxShadow: 'none',
-                      color: active ? 'primary.contrastText' : 'text.secondary',
-                    }}
-                  >
-                    {tab.label}
-                  </Button>
-                );
-              })}
-            </Stack>
-
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ alignItems: 'center', width: { xs: '100%', md: 'auto' } }}
-            >
-              <TextField
-                size="small"
-                placeholder={t('Search asset, code, or scope…')}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-                sx={{
-                  width: { xs: '100%', md: 240 },
-                  flexShrink: 0,
-                  '& .MuiOutlinedInput-root': { borderRadius: '8px' },
-                }}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchRounded sx={{ fontSize: 18, color: 'text.secondary' }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-            </Stack>
-          </Stack>
-        </Paper>
-
         {/* Inspections Content: Responsive Desktop Table (`md+`) & Mobile Cards (`< md`) */}
         <QueryState
           isLoading={inspections.isLoading}
@@ -430,6 +302,121 @@ export function CustomerInspectionsPage() {
               boxShadow: 'none',
             }}
           >
+            {/* Card Header / NextAdmin Toolbar */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: { xs: 2, sm: 2.5 },
+                py: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                flexWrap: 'wrap',
+                gap: 1.5,
+              }}
+            >
+              <TextField
+                size="small"
+                placeholder={t('Search by asset, code, or scope…')}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRounded fontSize="small" sx={{ color: '#71717A' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+                sx={{
+                  width: { xs: '100%', sm: 280, md: 320 },
+                  '& .MuiOutlinedInput-root': {
+                    height: 40,
+                    borderRadius: '8px',
+                    bgcolor: 'background.paper',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                <TextField
+                  select
+                  size="small"
+                  value={quickFilter}
+                  onChange={(e) => {
+                    setQuickFilter(e.target.value as 'ALL' | 'IN_PROGRESS' | 'REPORT_READY' | 'ACTION_NEEDED');
+                    setPage(1);
+                  }}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    minWidth: 170,
+                    '& .MuiOutlinedInput-root': {
+                      height: 40,
+                      borderRadius: '8px',
+                      bgcolor: 'background.paper',
+                      fontSize: '0.875rem',
+                    },
+                  }}
+                >
+                  <MenuItem value="ALL">{t('All')} ({enrichedItems.length})</MenuItem>
+                  <MenuItem value="IN_PROGRESS">{t('In progress')} ({inProgressCount})</MenuItem>
+                  <MenuItem value="REPORT_READY">{t('Report available')} ({publishedReportsCount})</MenuItem>
+                  <MenuItem value="ACTION_NEEDED">{t('Action needed')} ({actionNeededItems.length})</MenuItem>
+                </TextField>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<RefreshRounded />}
+                  onClick={() => void inspections.refetch()}
+                  disabled={inspections.isFetching}
+                  sx={{
+                    height: 40,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 1.75,
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    '&:hover': { borderColor: 'text.secondary', bgcolor: 'transparent' },
+                  }}
+                >
+                  {inspections.isFetching ? t('Loading…') : t('Refresh')}
+                </Button>
+
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Add />}
+                  onClick={() => navigate('/client/contracts')}
+                  sx={{
+                    height: 40,
+                    borderRadius: '8px',
+                    px: 2,
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                  }}
+                >
+                  {t('New inspection request')}
+                </Button>
+              </Box>
+            </Box>
             {/* Desktop Table (`md+`) */}
             <TableContainer sx={{ display: { xs: 'none', md: 'block' }, overflowX: 'auto' }}>
               <Table aria-label={t('Inspections table')}>
@@ -913,22 +900,36 @@ export function CustomerInspectionsPage() {
               })}
             </Stack>
 
-            <TablePagination
-              component="div"
-              count={displayedItems.length}
-              page={Math.max(0, Math.min(page - 1, Math.max(Math.ceil(displayedItems.length / pageSize) - 1, 0)))}
-              onPageChange={(_e, nextPage) => setPage(nextPage + 1)}
-              rowsPerPage={pageSize}
-              onRowsPerPageChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              rowsPerPageOptions={[10, 20, 50]}
+            {/* NextAdmin Pagination Footer */}
+            <Box
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: { xs: 2, sm: 2.5 },
+                py: 1.5,
                 borderTop: '1px solid',
                 borderColor: 'divider',
+                flexWrap: 'wrap',
+                gap: 1.5,
               }}
-            />
+            >
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                {displayedItems.length === 0
+                  ? t('Showing 0 From 0')
+                  : `Showing ${Math.min((page - 1) * pageSize + 1, displayedItems.length)}–${Math.min(page * pageSize, displayedItems.length)} From ${displayedItems.length}`}
+              </Typography>
+
+              <Pagination
+                count={Math.max(1, Math.ceil(displayedItems.length / pageSize))}
+                page={page}
+                onChange={(_e, newPage) => setPage(newPage)}
+                shape="rounded"
+                size="small"
+                siblingCount={1}
+                boundaryCount={1}
+              />
+            </Box>
           </Paper>
         </QueryState>
       </Stack>

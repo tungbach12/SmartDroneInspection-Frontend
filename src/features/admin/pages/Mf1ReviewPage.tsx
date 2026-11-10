@@ -347,10 +347,10 @@ export default function Mf1ReviewPage() {
     <Box className="workspace-page" sx={{ maxWidth: 1200, mx: 'auto', pb: 6 }}>
       <PageHeader
         title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
-        subtitle={tr(
-          'Quản lý hồ sơ đối tác Inspector, thẩm định phương tiện bay và lịch sử phê duyệt drone.',
-          'Review partner inspector profiles, drone airworthiness documentation, and customer airspace compliance.',
-        )}
+        breadcrumbs={[
+          { label: 'Home', to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
+          { label: tr('Duyệt onboarding', 'Onboarding reviews') },
+        ]}
       />
 
       <Box sx={{ mt: 2.5 }}>

@@ -20,10 +20,10 @@ const WEBGL_SUPPORTED =
 
 export interface TrajectoryEnrichedSample extends SmartDroneHubFlightTracePoint {
   idx: number;
-  elapsedSec: number;
-  altitude: number;
-  speed: number;
-  battery: number;
+  elapsedSec: number | null;
+  altitude: number | null;
+  speed: number | null;
+  battery: number | null;
   mode: string;
 }
 
@@ -114,23 +114,30 @@ function buildTrajectoryGeoJson(
   samples: TrajectoryEnrichedSample[],
   activeIdx: number | null,
 ) {
-  const maxAlt = samples.reduce((m, s) => Math.max(m, s.altitude || 0), 0);
+  const gpsSamples = samples.filter(
+    (s) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude),
+  );
+  const altValues = gpsSamples
+    .map((s) => s.altitude)
+    .filter((alt): alt is number => alt != null && Number.isFinite(alt));
+  const hasAllAltitudes = gpsSamples.length > 0 && altValues.length === gpsSamples.length;
+  const maxAlt = altValues.length > 0 ? Math.max(...altValues) : 0;
   const zScale = maxAlt > 0 && maxAlt < 10 ? 12 / maxAlt : 1.0;
 
-  // 1. 2D Ground LineString
+  // 1. 2D Ground LineString (only when >= 2 GPS points)
   const lineFeature = {
     type: 'FeatureCollection' as const,
     features:
-      samples.length > 1
+      gpsSamples.length > 1
         ? [
             {
               type: 'Feature' as const,
               properties: {
-              idx: samples[Math.floor(samples.length / 2)]?.idx ?? 0,
-            },
+                idx: gpsSamples[Math.floor(gpsSamples.length / 2)]?.idx ?? 0,
+              },
               geometry: {
                 type: 'LineString' as const,
-                coordinates: samples.map((s) => [s.longitude, s.latitude]),
+                coordinates: gpsSamples.map((s) => [s.longitude, s.latitude]),
               },
             },
           ]
@@ -138,11 +145,11 @@ function buildTrajectoryGeoJson(
   };
 
   // 2. 2D Ground Points (only Start, End, and currently hovered/selected point)
-  const key2DPoints = samples
+  const key2DPoints = gpsSamples
     .map((s, idx) => ({ s, idx }))
     .filter(
       ({ s, idx }) =>
-        idx === 0 || idx === samples.length - 1 || activeIdx === s.idx,
+        idx === 0 || idx === gpsSamples.length - 1 || activeIdx === s.idx,
     );
 
   const pointsFeature = {
@@ -166,16 +173,19 @@ function buildTrajectoryGeoJson(
     })),
   };
 
-  // 3. Clean 3D Flight Path (no thick white walls, no opaque curtains)
+  // 3. Clean 3D Flight Path (only when altitudes are recorded across segments)
   const extrusions: Array<{
     type: 'Feature';
     properties: Record<string, string | number>;
     geometry: { type: 'Polygon'; coordinates: Array<Array<[number, number]>> };
   }> = [];
 
-  for (let i = 0; i < samples.length - 1; i++) {
-    const a = samples[i]!;
-    const b = samples[i + 1]!;
+  for (let i = 0; i < gpsSamples.length - 1; i++) {
+    const a = gpsSamples[i]!;
+    const b = gpsSamples[i + 1]!;
+    if (a.altitude == null || b.altitude == null) {
+      continue;
+    }
     const cosLat = Math.max(0.2, Math.cos((((a.latitude + b.latitude) / 2) * Math.PI) / 180));
     const dx = (b.longitude - a.longitude) * 111320 * cosLat;
     const dy = (b.latitude - a.latitude) * 111320;
@@ -183,7 +193,7 @@ function buildTrajectoryGeoJson(
     const dAlt = Math.abs(b.altitude - a.altitude) * zScale;
 
     if (horizDist < 0.35 && dAlt > 0.25) {
-      // Pure vertical climb / descent (e.g. Takeoff or RTL landing): draw one sleek vertical line segment
+      // Pure vertical climb / descent: draw one sleek vertical line segment
       const lowZ = Math.min(a.altitude, b.altitude) * zScale;
       const highZ = Math.max(a.altitude, b.altitude) * zScale;
       const isDescending = b.altitude < a.altitude;
@@ -243,13 +253,13 @@ function buildTrajectoryGeoJson(
     }
   }
 
-  // 3b. Only render Start, End, and currently hovered/selected node in 3D (no intermediate track dots)
-  samples.forEach((s, idx) => {
+  // 3b. Only render Start, End, and currently hovered/selected node in 3D when altitude exists
+  gpsSamples.forEach((s, idx) => {
     const isStart = idx === 0;
-    const isEnd = idx === samples.length - 1;
+    const isEnd = idx === gpsSamples.length - 1;
     const isSelected = activeIdx === s.idx;
 
-    if (!isStart && !isEnd && !isSelected) {
+    if ((!isStart && !isEnd && !isSelected) || s.altitude == null || !hasAllAltitudes) {
       return;
     }
 
@@ -327,12 +337,12 @@ export function MapLibreFlightTrajectoryCanvas({
 
   const boundsInfo = useMemo(() => {
     const allLats = [
-      ...samples.map((p) => p.latitude),
-      ...geoEvidence.map((e) => Number(e.latitude)),
+      ...samples.map((p) => p.latitude).filter(Number.isFinite),
+      ...geoEvidence.map((e) => Number(e.latitude)).filter(Number.isFinite),
     ];
     const allLons = [
-      ...samples.map((p) => p.longitude),
-      ...geoEvidence.map((e) => Number(e.longitude)),
+      ...samples.map((p) => p.longitude).filter(Number.isFinite),
+      ...geoEvidence.map((e) => Number(e.longitude)).filter(Number.isFinite),
     ];
     const minLat = allLats.length ? Math.min(...allLats) : 21.0918;
     const maxLat = allLats.length ? Math.max(...allLats) : 21.0925;
@@ -696,7 +706,7 @@ export function MapLibreFlightTrajectoryCanvas({
       >
         <Box component="svg" viewBox="0 0 400 180" sx={{ width: '100%', height: '100%' }}>
           <text x="20" y="30" fontSize="12">
-            {`TAKEOFF → LAND (${samples.length} waypoints)`}
+            {`${samples.length} GPS samples`}
           </text>
         </Box>
       </Box>

@@ -6,6 +6,7 @@ import { api } from '@/shared/api/client';
  * and a qualified CUSTOMER reviewer who is not the author decides.
  */
 export type ReportStatus =
+  | 'DRAFT'
   | 'SUBMITTED'
   | 'RETURNED'
   | 'PUBLISHED'
@@ -454,6 +455,8 @@ export interface FieldSession {
   postponementReason: string | null;
   abortReason: string | null;
   outcomeNotes: string | null;
+  telemetrySource?: string | null;
+  hasFlightReport?: boolean;
 }
 
 export const inspectionApi = {

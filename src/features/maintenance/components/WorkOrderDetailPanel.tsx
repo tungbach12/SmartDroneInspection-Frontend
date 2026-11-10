@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Stack, Tab, Tabs } from '@mui/material';
-import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -49,16 +48,12 @@ export function WorkOrderDetailPanel({
 
   return (
     <Stack spacing={2.5}>
-      <PageBreadcrumbs
-        items={[
+      <PageHeader
+        title={workOrder.correctiveScope}
+        breadcrumbs={[
           { label: t('Maintenance'), onClick: onClose },
           { label: workOrder.correctiveScope },
         ]}
-      />
-
-      <PageHeader
-        title={workOrder.correctiveScope}
-        subtitle={`${t('Work orders')} · ${t('Priority')} ${workOrder.priority}`}
         actions={<StatusChip status={workOrder.status} size="medium" />}
       />
 

@@ -76,8 +76,8 @@ const InspectionEvidencePage = lazy(
 const InspectionFindingsPage = lazy(
   () => import('@/features/inspections/pages/InspectionFindingsPage'),
 );
-const InspectionDraftPage = lazy(
-  () => import('@/features/inspections/pages/InspectionDraftPage'),
+const InspectionReportPage = lazy(
+  () => import('@/features/inspections/pages/InspectionReportPage'),
 );
 
 const FieldSessionPage = lazy(
@@ -161,7 +161,7 @@ function InspectionReportStage() {
   );
   return isReviewer
     ? <Navigate to="../review" replace />
-    : <InspectionDraftPage />;
+    : <InspectionReportPage />;
 }
 
 function PortalEntryRedirect() {

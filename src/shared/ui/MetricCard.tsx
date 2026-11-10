@@ -5,7 +5,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 export interface MetricCardProps {
   label: string;
   value: string;
-  change?: string;
+  change?: string | undefined;
   positive?: boolean;
   subtext?: string;
   iconType?: string;
@@ -156,7 +156,6 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   const iconConfig = getNextAdminIconConfig();
-  const displayChange = change ?? subtext;
 
   return (
     <Box
@@ -207,34 +206,51 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {t(value)}
       </Typography>
 
-      {/* Bottom Row: Label on left, Change with NextAdmin arrow on right */}
+      {/* Bottom Row: Label on left, Change / Subtext on right */}
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'baseline',
           justifyContent: 'space-between',
           gap: 1,
         }}
       >
-        <Typography
-          variant="body2"
-          sx={{
-            fontSize: '0.875rem',
-            lineHeight: '1.25rem',
-            fontWeight: 500,
-            color: '#71717A',
-          }}
-        >
-          {t(label)}
-        </Typography>
-
-        {displayChange && (
-          <Box
-            component="span"
+        <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
+          <Typography
+            variant="body2"
             sx={{
               fontSize: '0.875rem',
               lineHeight: '1.25rem',
               fontWeight: 500,
+              color: 'text.secondary',
+            }}
+          >
+            {t(label)}
+          </Typography>
+          {subtext && change && (
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.75rem',
+                lineHeight: '1rem',
+                color: 'text.secondary',
+                display: 'block',
+                mt: 0.25,
+                opacity: 0.8,
+              }}
+            >
+              {t(subtext)}
+            </Typography>
+          )}
+        </Box>
+
+        {change ? (
+          <Box
+            component="span"
+            sx={{
+              fontSize: '0.75rem',
+              lineHeight: '1rem',
+              fontWeight: 600,
               color: positive ? '#16A34A' : '#DC2626',
               display: 'inline-flex',
               alignItems: 'center',
@@ -242,30 +258,43 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               flexShrink: 0,
             }}
           >
-            <span>{t(displayChange)}</span>
+            <span>{t(change)}</span>
             {positive ? (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
                   stroke="currentColor"
-                  strokeWidth="1.3"
+                  strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 2.6665L8 13.3332M4 9.33317L8 13.3332L12 9.33317"
                   stroke="currentColor"
-                  strokeWidth="1.3"
+                  strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             )}
           </Box>
-        )}
+        ) : subtext ? (
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.75rem',
+              lineHeight: '1rem',
+              color: 'text.secondary',
+              flexShrink: 0,
+              opacity: 0.8,
+            }}
+          >
+            {t(subtext)}
+          </Typography>
+        ) : null}
       </Box>
     </Box>
   );

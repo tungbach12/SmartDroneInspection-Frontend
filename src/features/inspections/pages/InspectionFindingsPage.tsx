@@ -159,7 +159,7 @@ export default function InspectionFindingsPage() {
   );
 
   const pendingFindings = activeFindings.filter((finding) => finding.status === 'PENDING').length;
-  const reviewedItemCount = activeFindings.length;
+  const confirmedFindingsCount = activeFindings.filter((finding) => finding.status === 'CONFIRMED').length;
   const noFindings = activeFindings.length === 0;
   const hasActiveEvidence = activeEvidenceItems.length > 0;
   const isReturnedRevision = latestReportVersion?.status === 'RETURNED';
@@ -421,7 +421,7 @@ export default function InspectionFindingsPage() {
             <Box>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                 <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-                  {t('Defect Analysis & Findings')}
+                  {t('Findings')}
                 </Typography>
                 {aiSettingsQuery?.data?.autoConfirmEnabled && (
                   <Chip
@@ -434,7 +434,7 @@ export default function InspectionFindingsPage() {
                 )}
               </Stack>
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
-                {t('Run AI detection per image or across all captures. Review, adjust, and confirm defects.')}
+                {t('Review AI suggestions; confirm or correct findings before reporting.')}
               </Typography>
             </Box>
           </Stack>
@@ -470,7 +470,7 @@ export default function InspectionFindingsPage() {
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {latestReportVersion?.status === 'SUBMITTED'
                 ? t(
-                    'Findings are locked while the report is submitted for review. Withdraw the submission in Step 7 (Report) if you need to make changes.',
+                    'Findings are locked while the report is submitted for review. Withdraw the submission on the Report tab if you need to make changes.',
                   )
                 : t(
                     'This inspection report has been approved or published. Findings are read-only.',
@@ -481,7 +481,7 @@ export default function InspectionFindingsPage() {
 
         {isInspector && isReturnedRevision && (
           <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            {t('This report was returned for revision. Evidence and findings are editable; update the requested content, then verify and resubmit the report.')}
+            {t('Returned for revision. Update findings, reconfirm, and resubmit the report.')}
           </Alert>
         )}
         {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
@@ -671,7 +671,6 @@ export default function InspectionFindingsPage() {
       >
         <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
           {totalMatchingCaptures} {t('captures in view')} · {totalMatchingFindings} {t('findings')}
-          {pendingFindings > 0 ? ` · ${pendingFindings} ${t('awaiting Inspector review')}` : ''}
         </Typography>
         {statusFilter === 'REMOVED' && (
           <Chip
@@ -714,8 +713,8 @@ export default function InspectionFindingsPage() {
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
             {hasActiveFilters
-              ? t('No photos or defects match your current search and filters.')
-              : t('No evidence captures available for defect analysis.')}
+              ? t('No captures match your filters.')
+              : t('No captures to display.')}
           </Typography>
           {hasActiveFilters && (
             <Button
@@ -874,9 +873,9 @@ export default function InspectionFindingsPage() {
             <Typography variant="body2" color="text.secondary">
               {pendingFindings > 0
                 ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
-                : reviewedItemCount > 0
-                  ? `${reviewedItemCount} finding${reviewedItemCount === 1 ? '' : 's'} will be included in the report.`
-                  : 'No findings found yet. Confirm the inspected scope was reviewed and no finding was observed.'}
+                : confirmedFindingsCount > 0
+                  ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
+                  : t('No findings recorded. Confirm that you checked the captures within scope.')}
             </Typography>
             {noFindings && (
               <FormControlLabel
@@ -891,7 +890,7 @@ export default function InspectionFindingsPage() {
                 }
                 label={
                   <Typography variant="body2">
-                    {t('No finding was observed within the scope covered by these images.')}
+                    {t('I checked the captures within scope and confirmed no findings.')}
                   </Typography>
                 }
               />

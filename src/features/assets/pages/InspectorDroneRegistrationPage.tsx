@@ -258,46 +258,7 @@ export default function InspectorDroneRegistrationPage() {
     <Box className="workspace-page">
       <PageHeader
         title={tr('Drone của tôi', 'My Drones')}
-        subtitle={tr(
-          'Quản lý danh sách thiết bị bay của bạn đã được duyệt và theo dõi các hồ sơ đăng ký đang chờ phê duyệt.',
-          'Manage your approved inspection drones and track pending registration applications.',
-        )}
-        actions={
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshRounded />}
-              onClick={() => {
-                void applications.refetch();
-                void drones.refetch();
-              }}
-              disabled={applications.isFetching || drones.isFetching}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-            >
-              {applications.isFetching || drones.isFetching
-                ? tr('Đang làm mới…', 'Refreshing…')
-                : tr('Làm mới', 'Refresh')}
-            </Button>
-            <Button
-              variant="contained"
-              size="medium"
-              startIcon={<AddCircleOutlineRounded />}
-              onClick={() => handleOpenRegister()}
-              sx={{
-                borderRadius: '8px',
-                px: 2.5,
-                bgcolor: 'primary.main',
-                fontWeight: 600,
-                textTransform: 'none',
-                boxShadow: 'none',
-                '&:hover': { bgcolor: 'primary.dark' },
-              }}
-            >
-              {tr('Đăng ký Drone mới', 'Register New Drone')}
-            </Button>
-          </Stack>
-        }
+        breadcrumbs={[{ label: 'Home', to: '/operations/dashboard' }, { label: tr('Drone của tôi', 'My drones') }]}
       />
 
       {/* KPI METRICS OVERVIEW */}
@@ -305,21 +266,24 @@ export default function InspectorDroneRegistrationPage() {
         <MetricCard
           label={tr('Drone sẵn sàng bay', 'Flight-ready Drones')}
           value={approvedDrones.length.toString()}
-          subtext={tr('Đã thẩm định hồ sơ kỹ thuật', 'Verified technical documentation')}
+          change={approvedDrones.length > 0 ? tr('Sẵn sàng', 'Ready') : undefined}
+          subtext={tr('Đã duyệt', 'Verified docs')}
           iconType="flight"
           positive={approvedDrones.length > 0}
         />
         <MetricCard
           label={tr('Hồ sơ đang chờ duyệt', 'Pending Applications')}
           value={pendingCount.toString()}
-          subtext={tr('Manager đang xác minh', 'Under Manager verification')}
+          change={pendingCount === 0 ? tr('Ổn định', 'Clear') : tr('Chờ', 'Pending')}
+          subtext={tr('Manager xác minh', 'Verification')}
           iconType="access-time"
           positive={pendingCount === 0}
         />
         <MetricCard
           label={tr('Tổng hồ sơ đã gửi', 'Total Applications')}
           value={applicationList.length.toString()}
-          subtext={tr('Lịch sử đăng ký', 'Registration history')}
+          change={tr('Đã lưu', 'Recorded')}
+          subtext={tr('Lịch sử đăng ký', 'Registration')}
           iconType="fact-check"
           positive
         />
@@ -333,7 +297,18 @@ export default function InspectorDroneRegistrationPage() {
 
       {/* TABS CHUYỂN ĐỔI: DRONE ĐÃ ĐƯỢC DUYỆT VS HỒ SƠ ĐÃ GỬI */}
       <Box sx={{ mt: 3 }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: 1,
+            borderColor: 'divider',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            pb: 0.5,
+          }}
+        >
           <Tabs
             value={tabIndex}
             onChange={(_, val) => setTabIndex(val)}
@@ -365,6 +340,50 @@ export default function InspectorDroneRegistrationPage() {
               }
             />
           </Tabs>
+
+          <Stack direction="row" spacing={1.25} sx={{ pb: { xs: 1, sm: 0 } }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RefreshRounded />}
+              onClick={() => {
+                void applications.refetch();
+                void drones.refetch();
+              }}
+              disabled={applications.isFetching || drones.isFetching}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '8px',
+                height: 38,
+                borderColor: 'divider',
+                color: 'text.secondary',
+              }}
+            >
+              {applications.isFetching || drones.isFetching
+                ? tr('Đang làm mới…', 'Refreshing…')
+                : tr('Làm mới', 'Refresh')}
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddCircleOutlineRounded />}
+              onClick={() => handleOpenRegister()}
+              sx={{
+                borderRadius: '8px',
+                px: 2,
+                height: 38,
+                bgcolor: 'primary.main',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: 'primary.dark' },
+              }}
+            >
+              {tr('Đăng ký Drone mới', 'Register New Drone')}
+            </Button>
+          </Stack>
         </Box>
 
         <Box sx={{ pt: 2.5 }}>

@@ -135,29 +135,33 @@ export default function ManagerPartnerInspectorsPage() {
     );
   };
 
+  const newInspectorButton = (
+    <Button
+      variant="contained"
+      startIcon={<PersonAddAlt />}
+      onClick={() => setCreateOpen(true)}
+      sx={{
+        borderRadius: '8px',
+        px: 2,
+        py: 0.875,
+        fontSize: '0.875rem',
+        fontWeight: 600,
+        textTransform: 'none',
+        boxShadow: 'none',
+      }}
+    >
+      {t('New partner inspector')}
+    </Button>
+  );
+
   return (
     <Box className="workspace-page workspace-page--admin-users">
       <PageHeader
         title={t('Partner workforce')}
-        subtitle={t('Manage partner Inspector accounts.')}
-        actions={
-          <Button
-            variant="contained"
-            startIcon={<PersonAddAlt />}
-            onClick={() => setCreateOpen(true)}
-            sx={{
-              borderRadius: '10px',
-              px: 2.5,
-              py: 1,
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              boxShadow: 'none',
-            }}
-          >
-            {t('New partner inspector')}
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Home', to: '/manager/dashboard' },
+          { label: t('Partner workforce') },
+        ]}
       />
 
       <Box>
@@ -199,11 +203,12 @@ export default function ManagerPartnerInspectorsPage() {
             rows={items}
             rowKey={(user) => user.id}
             searchable
-            searchPlaceholder={t('Search by name or email…')}
+            searchPlaceholder={t('Search by id, name, or email…')}
             searchPredicate={(user, query) =>
               user.fullName.toLowerCase().includes(query) ||
               user.email.toLowerCase().includes(query)
             }
+            actions={newInspectorButton}
           />
         </QueryState>
       </Box>

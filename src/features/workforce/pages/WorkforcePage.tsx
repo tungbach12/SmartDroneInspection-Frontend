@@ -127,8 +127,7 @@ export default function WorkforcePage() {
     <Box className="workspace-page workspace-page--workforce">
       <PageHeader
         title={t('Workforce')}
-        subtitle={t('Maintenance engineers in your organization')}
-        actions={provisionButton}
+        breadcrumbs={[{ label: 'Home', to: '/operations/dashboard' }, { label: t('Workforce') }]}
       />
 
       <MutationProblemAlert
@@ -155,11 +154,12 @@ export default function WorkforcePage() {
           rows={workforceMembers}
           rowKey={(member) => member.userId}
           searchable
-          searchPlaceholder={t('Search by name or email…')}
+          searchPlaceholder={t('Search by id, name, or email…')}
           searchPredicate={(member, query) =>
             member.fullName.toLowerCase().includes(query) ||
             member.email.toLowerCase().includes(query)
           }
+          actions={provisionButton}
         />
       </QueryState>
 

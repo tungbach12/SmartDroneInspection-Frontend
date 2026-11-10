@@ -158,7 +158,7 @@ describe('InspectionEvidencePage', () => {
     };
 
     const { rerender } = renderWithRouter(<InspectionEvidencePage />);
-    expect(screen.getByRole('button', { name: 'Choose evidence files' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Choose files' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Delete evidence' })).toBeTruthy();
     expect(screen.queryByText(/Reopen Findings/)).toBeNull();
 
@@ -171,10 +171,20 @@ describe('InspectionEvidencePage', () => {
     mocks.workflowQuery = { data: { status: 'FIELD_COMPLETED' }, isLoading: false, error: null, refetch: vi.fn() };
     rerender(<InspectionEvidencePage />);
     expect(
-      (screen.getByRole('button', { name: 'Choose evidence files' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Choose files (locked)' }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(screen.queryByRole('button', { name: 'Delete evidence' })).toBeNull();
-    expect(screen.getByRole('alert').textContent).toContain('Withdraw the submission if it has not been reviewed');
+    expect(screen.getByRole('alert').textContent).toContain('Withdraw the unreviewed submission or ask the reviewer to return it');
+
+    mocks.versions = {
+      data: [{ id: 'version-1', versionNo: 1, status: 'PUBLISHED' }],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    rerender(<InspectionEvidencePage />);
+    expect(screen.getByRole('alert').textContent).toContain('report is approved or published');
+    expect(screen.getByRole('alert').textContent).not.toContain('Withdraw');
   });
 
   it('gives Organization Manager a read-only evidence register instead of Inspector intake controls', () => {
@@ -364,7 +374,7 @@ describe('InspectionEvidencePage', () => {
     fireEvent.change(document.querySelector('input[type="file"]')!, {
       target: { files: [first, second] },
     });
-    fireEvent.click(screen.getByRole('button', { name: /upload staged files/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Upload$/i }));
 
     await waitFor(() => expect(mocks.upload.mutateAsync).toHaveBeenCalledTimes(2));
     // The failed file stays in the queue with its error while the success leaves.
@@ -373,7 +383,7 @@ describe('InspectionEvidencePage', () => {
     expect(screen.getByText('span-b.png')).toBeTruthy();
 
     // Retry uploads the remaining file with a third mutation and clears the queue.
-    fireEvent.click(screen.getByRole('button', { name: /upload staged files/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Upload$/i }));
     await waitFor(() => expect(mocks.upload.mutateAsync).toHaveBeenCalledTimes(3));
     expect(screen.queryByText('span-b.png')).toBeNull();
   });
@@ -388,7 +398,7 @@ describe('InspectionEvidencePage', () => {
     mocks.workflowQuery = { data: { status: 'READY_FOR_FLIGHT' }, isLoading: false, error: null, refetch: vi.fn() };
     renderWithRouter(<InspectionEvidencePage />);
 
-    expect(screen.getByRole('button', { name: 'Choose evidence files' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Choose files' })).toBeTruthy();
   });
 
   it('renders the stored evidence register without non-persisted checksum/source fields', () => {
@@ -416,5 +426,39 @@ describe('InspectionEvidencePage', () => {
     renderWithRouter(<InspectionEvidencePage />);
 
     expect(screen.getByText(/no evidence recorded/i)).toBeTruthy();
+    expect(screen.getByText('Upload captures above to review them here.')).toBeTruthy();
+  });
+
+  it('shows concise video tools when an active video is selected', () => {
+    mocks.evidenceQuery = {
+      data: {
+        items: [
+          {
+            id: 'video-1',
+            fileName: 'flight.mp4',
+            contentType: 'video/mp4',
+            sizeBytes: 1024,
+            captureTime: '2026-10-08T08:15:00Z',
+            isDeleted: false,
+          },
+        ],
+        page: 1,
+        pageSize: 50,
+        totalCount: 1,
+        totalPages: 1,
+        activeCount: 1,
+        retiredCount: 0,
+        latestCreatedAt: '2026-10-08T08:15:00Z',
+        latestRetiredAt: null,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderWithRouter(<InspectionEvidencePage />);
+
+    expect(screen.getByText('Video tools')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Capture frame' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Scan video for defects' })).toBeTruthy();
   });
 });
