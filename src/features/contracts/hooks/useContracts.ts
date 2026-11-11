@@ -71,17 +71,37 @@ export function usePostRequestMessage(requestId: string) {
   );
 }
 
+export function useMarkMessagesRead(requestId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetRequestId: string) => contractApi.markMessagesRead(targetRequestId),
+    onSuccess: async (updatedRequest, targetRequestId) => {
+      const id = requestId ?? targetRequestId;
+      if (id) {
+        queryClient.setQueryData(contractQueryKeys.request(id), updatedRequest);
+        await queryClient.invalidateQueries({ queryKey: contractQueryKeys.request(id) });
+      }
+      queryClient.setQueryData<ServiceRequest[]>(contractQueryKeys.requests(), (old) => {
+        if (!old) return old;
+        return old.map((r) => (r.id === updatedRequest.id ? updatedRequest : r));
+      });
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
+    },
+  });
+}
+
 export function useIssueServiceQuote(requestId: string) {
   return useContractMutation<IssueServiceQuoteInput>(
-    (input) => contractApi.issueQuote(requestId, input),
-    'Quote issued.',
+    (input) => contractApi.saveQuote(requestId, input),
+    'Quote saved.',
   );
 }
 
 export function useAcceptServiceQuote(requestId: string) {
   return useContractMutation<number>(
-    (versionNo) => contractApi.acceptQuote(requestId, versionNo),
-    'Latest quote accepted.',
+    (quoteRowVersion) => contractApi.acceptQuote(requestId, quoteRowVersion),
+    'Quote accepted.',
+    requestId,
   );
 }
 
@@ -181,31 +201,17 @@ export function useUnreadChatSummary() {
       return { totalUnread: 0, items: [] as UnreadChatNotification[] };
     }
     try {
-      const saved = localStorage.getItem(`sdi_chat_read_${currentUser.id}`);
-      const lastReadMap: Record<string, string> = saved ? JSON.parse(saved) : {};
-
       const items: UnreadChatNotification[] = [];
       let totalUnread = 0;
 
       requests.forEach((req) => {
-        const lastRead = lastReadMap[req.id];
-        const incomingMessages = req.messages.filter((m) => m.authorUserId !== currentUser.id);
+        const incomingMessages = (req.messages || []).filter(
+          (m) => m.authorUserId !== currentUser.id,
+        );
         if (incomingMessages.length === 0) return;
 
-        let unreadForThis = 0;
-        if (!lastRead) {
-          unreadForThis = incomingMessages.length;
-        } else {
-          const lastReadTime = new Date(lastRead).getTime();
-          unreadForThis = incomingMessages.filter(
-            (m) => new Date(m.createdAt).getTime() > lastReadTime,
-          ).length;
-        }
-
-        const latestMsg = req.messages[req.messages.length - 1];
-        if (latestMsg && latestMsg.authorUserId === currentUser.id) {
-          unreadForThis = 0;
-        }
+        const unreadIncoming = incomingMessages.filter((m) => !m.readAt);
+        const unreadForThis = unreadIncoming.length;
 
         if (unreadForThis > 0) {
           totalUnread += unreadForThis;

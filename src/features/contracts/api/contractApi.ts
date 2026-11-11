@@ -17,11 +17,11 @@ export interface ServiceRequestMessage {
   authorRole?: string | null;
   body: string;
   createdAt: string;
+  readAt?: string | null;
 }
 
 export interface ServiceRequestQuote {
   id: string;
-  versionNo: number;
   scopeSnapshot: string;
   firstOccurrenceStartAt: string;
   firstOccurrenceEndAt: string;
@@ -32,6 +32,9 @@ export interface ServiceRequestQuote {
   pricePerOccurrenceUsd: number;
   issuedByUserId: string;
   createdAt: string;
+  updatedAt: string;
+  updatedByUserId: string;
+  rowVersion: number;
 }
 
 export interface ServiceInvoiceSummary {
@@ -111,22 +114,25 @@ export interface ServiceRequest {
   occurrenceCount: number | null;
   recurrenceEndDate: string | null;
   status: ServiceRequestStatus;
-  acceptedQuoteVersion: number | null;
+  acceptedQuoteId: string | null;
+  acceptedAt: string | null;
+  acceptedByUserId: string | null;
+  acceptedTermsSnapshot: Record<string, unknown> | null;
   contractFileName: string | null;
   contractContentType: string | null;
   contractSizeBytes: number | null;
   contractUploadedAt: string | null;
   createdAt: string;
-  quotes: ServiceRequestQuote[];
+  currentQuote: ServiceRequestQuote | null;
   occurrences: ServiceRequestOccurrence[];
   messages: ServiceRequestMessage[];
 }
 
 export interface CreateServiceRequestInput {
   assetId: string;
-  description: string;
+  description?: string;
   requestedFrom: string;
-  requestedUntil: string;
+  requestedUntil?: string;
   timezone: string;
   windowStart?: string;
   windowEnd?: string;
@@ -143,8 +149,7 @@ export interface IssueServiceQuoteInput {
   firstOccurrenceEndAt: string;
   inspectorId: string;
   droneId: string;
-  pricePerOccurrenceVnd?: number;
-  pricePerOccurrenceUsd: number;
+  pricePerOccurrenceVnd: number;
 }
 
 export interface AssignOccurrenceInput {
@@ -198,22 +203,28 @@ export const contractApi = {
     return data;
   },
 
-  async issueQuote(
+  async markMessagesRead(requestId: string): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/messages/read`,
+    );
+    return data;
+  },
+
+  async saveQuote(
     requestId: string,
     input: IssueServiceQuoteInput,
   ): Promise<ServiceRequest> {
-    const { data } = await api.post<ServiceRequest>(
-      `/contracts/requests/${requestId}/quotes`,
+    const { data } = await api.put<ServiceRequest>(
+      `/contracts/requests/${requestId}/quote`,
       input,
     );
     return data;
   },
 
-  async acceptQuote(requestId: string, versionNo: number): Promise<ServiceRequest> {
+  async acceptQuote(requestId: string, quoteRowVersion: number): Promise<ServiceRequest> {
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/accept`,
-      undefined,
-      { params: { versionNo } },
+      { quoteRowVersion },
     );
     return data;
   },
