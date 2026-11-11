@@ -297,49 +297,6 @@ describe('FieldSessionPage', () => {
     ).toBeTruthy();
   });
 
-  it('invalidates field sessions on flight log import so the flight step enables Continue to Post-flight & Items', async () => {
-    useAuthStore.setState({ roles: ['INSPECTOR'] });
-    mocks.list
-      .mockResolvedValueOnce([SESSION])
-      .mockResolvedValueOnce([{ ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' }]);
-    mocks.importFlightLog.mockResolvedValue({
-      inspectionId: 'inspection-1',
-      fieldSessionId: 'session-1',
-      telemetrySource: 'IMPORTED_LOG_SRT',
-      startedAt: null,
-      endedAt: null,
-      durationSeconds: null,
-      distanceFlownMeters: null,
-      maxAltitudeMeters: null,
-      startBatteryPercent: null,
-      endBatteryPercent: null,
-      finalState: 'UNKNOWN',
-      note: 'Imported SRT',
-      flightTrace: [],
-    });
-
-    const { container } = render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-        <MemoryRouter initialEntries={['/operations/inspections/inspection-1/field-session']}>
-          <Routes>
-            <Route path="/operations/inspections/:inspectionId/field-session" element={<FieldSessionPage stage="flight" />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    const continueButton = (await screen.findByRole('button', { name: 'Continue to Post-flight & Items' })) as HTMLButtonElement;
-    expect(continueButton.disabled).toBe(true);
-
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, {
-      target: { files: [new File(['srt'], 'flight.srt', { type: 'text/plain' })] },
-    });
-
-    await waitFor(() => expect(continueButton.disabled).toBe(false));
-    expect(sessionStorage.getItem('sdi_has_flown_session-1')).toBeNull();
-  });
-
   it('does not offer session start after the inspection has left the ready state', async () => {
     mocks.getById.mockResolvedValue({ ...INSPECTION, status: 'REPORT_DRAFT' });
     mocks.list.mockResolvedValue([

@@ -46,8 +46,8 @@ export function getWorkspaceCopy(kind: WorkspaceKind): WorkspaceCopy {
         title: 'Operations sign-in',
         description: 'Sign in to review inspection missions and manage field assignments.',
         sideLabel: 'Field Operations',
-        sideTitle: 'Field inspection & maintenance',
-        sideBody: 'Access drone capture records, review findings, and coordinate work orders.',
+        sideTitle: 'Field inspection',
+        sideBody: 'Access drone capture records and review inspection findings.',
       };
     default:
       return {

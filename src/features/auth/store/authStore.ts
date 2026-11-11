@@ -5,7 +5,6 @@ export const ROLE_CODES = [
   'MANAGER',
   'CUSTOMER',
   'INSPECTOR',
-  'MAINTENANCE_ENGINEER',
 ] as const;
 
 export const KNOWN_ROLES = ROLE_CODES;

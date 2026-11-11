@@ -17,7 +17,6 @@ const ALLOWED_INSPECTION_SUBROUTES = new Set([
   'audit',
   'review',
   'settlement',
-  'corrective',
 ]);
 
 /**
@@ -81,10 +80,6 @@ export function resolveSafeNotificationRoute(
       if (!ALLOWED_INSPECTION_SUBROUTES.has(normalizedSubroute)) {
         return null;
       }
-      // Corrective is restricted to client portal CUSTOMER; review is allowed in client, manager, and admin portals
-      if (normalizedSubroute === 'corrective' && targetPortal !== 'client') {
-        return `/${targetPortal}/inspections/${inspectionId}`;
-      }
       if (
         normalizedSubroute === 'review' &&
         targetPortal !== 'client' &&
@@ -110,13 +105,6 @@ export function resolveSafeNotificationRoute(
       return null;
     }
     return `/${targetPortal}/reports/${reportId}`;
-  }
-
-  if (first === 'maintenance') {
-    if (!canAccessSection(targetPortal, 'maintenance', userRoles)) {
-      return null;
-    }
-    return `/${targetPortal}/maintenance`;
   }
 
   if (first === 'assets') {

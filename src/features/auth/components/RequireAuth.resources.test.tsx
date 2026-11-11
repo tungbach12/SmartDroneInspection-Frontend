@@ -4,18 +4,17 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { useAuthStore } from '../store/authStore';
 import { RequireAuth } from './RequireAuth';
 
-const roles: Array<'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'INSPECTOR' | 'MAINTENANCE_ENGINEER'> = [
+const roles: Array<'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'INSPECTOR'> = [
   'ADMIN',
   'MANAGER',
   'CUSTOMER',
   'INSPECTOR',
-  'MAINTENANCE_ENGINEER',
 ];
 
 describe('RequireAuth protects MF1 customer resource paths', () => {
   afterEach(() => useAuthStore.getState().clearSession());
 
-  it.each(['/client/workforce', '/client/assets'])(
+  it.each(['/client/assets'])(
     'allows CUSTOMER at %s and redirects the other roles to forbidden',
     async (path) => {
       for (const role of roles) {
@@ -31,7 +30,6 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
           <MemoryRouter initialEntries={[path]}>
             <Routes>
               <Route
-                path="/client/workforce"
                 element={
                   <RequireAuth roles={['CUSTOMER']}>
                     <div>Workforce screen</div>
@@ -53,7 +51,7 @@ describe('RequireAuth protects MF1 customer resource paths', () => {
         );
 
         if (role === 'CUSTOMER') {
-          expect(screen.getByText(path.endsWith('workforce') ? 'Workforce screen' : 'Assets resource screen')).toBeTruthy();
+          expect(screen.getByText('Assets resource screen')).toBeTruthy();
         } else {
           expect(screen.getByText('Forbidden screen')).toBeTruthy();
         }

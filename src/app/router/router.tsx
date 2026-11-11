@@ -67,9 +67,6 @@ const InspectionProgressPage = lazy(
 const OrganizationReportReviewPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
 );
-const CorrectiveDispositionPage = lazy(
-  () => import('@/features/reports/pages/CorrectiveDispositionPage'),
-);
 const InspectionEvidencePage = lazy(
   () => import('@/features/inspections/pages/InspectionEvidencePage'),
 );
@@ -82,12 +79,6 @@ const InspectionReportPage = lazy(
 
 const FieldSessionPage = lazy(
   () => import('@/features/inspections/pages/FieldSessionPage'),
-);
-const MaintenancePage = lazy(
-  () => import('@/features/maintenance/pages/MaintenancePage'),
-);
-const WorkforcePage = lazy(
-  () => import('@/features/workforce/pages/WorkforcePage'),
 );
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
@@ -115,8 +106,6 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   'asset-catalog': <AssetCatalogPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
-  maintenance: <MaintenancePage />,
-  workforce: <WorkforcePage />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
@@ -245,17 +234,6 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                       ) : (
                         <CustomerReportDeliverablePage stage="settlement" />
                       )}
-                    </RequireAuth>
-                  ),
-                },
-                {
-                  // MF3-12: the post-publication corrective disposition is its own phase, so it
-                  // is not reachable from the report review screen where a reviewer might read it
-                  // as "editing the report".
-                  path: 'corrective',
-                  element: (
-                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
-                      <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),
                 },
