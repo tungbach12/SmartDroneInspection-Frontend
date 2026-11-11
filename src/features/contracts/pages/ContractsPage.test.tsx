@@ -347,6 +347,92 @@ describe('ContractsPage', () => {
     expect(screen.queryByRole('option', { name: /DRONE-002/ })).toBeNull();
   });
 
+  it('warns and blocks a recurring quote when the license expires before the final occurrence start', () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Platform Manager',
+      email: 'manager@test.local',
+      actorZone: 'PLATFORM',
+      organizationId: null,
+    });
+    const mutateAsync = vi.fn();
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [
+        {
+          id: 'req-recurring-expiry',
+          organizationId: 'org-1',
+          assetId: 'asset-1',
+          description: 'Recurring bridge survey',
+          requestedFrom: '2026-12-04',
+          requestedUntil: '2028-06-04',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'RECURRING',
+          recurrenceUnit: 'MONTH',
+          recurrenceInterval: 6,
+          occurrenceCount: 4,
+          recurrenceEndDate: null,
+          status: 'OPEN',
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-11-11T00:00:00Z',
+          currentQuote: null,
+          occurrences: [],
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerInspectors').mockReturnValue({
+      data: [{
+        id: 'p-insp-1',
+        fullName: 'Partner Alice',
+        partnerOrganizationId: 'partner-org',
+        licenseExpiresAt: '2028-06-04T01:00:00Z',
+      }],
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerDrones').mockReturnValue({
+      data: [
+        { id: 'p-drone-1', inspectorOwnerId: 'p-insp-1', serialNumber: 'DRONE-001', model: 'M300' },
+      ],
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useIssueServiceQuote').mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    fireEvent.mouseDown(screen.getByLabelText('Partner Inspector'));
+    fireEvent.click(screen.getByRole('option', { name: /Partner Alice/ }));
+    fireEvent.mouseDown(screen.getByLabelText('Partner drone'));
+    fireEvent.click(screen.getByRole('option', { name: /DRONE-001/ }));
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Pilot license expires before the last planned inspection.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save quote' }));
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
   it('blocks users without customer or platform manager role', () => {
     useAuthStore.setState({
       status: 'authenticated',

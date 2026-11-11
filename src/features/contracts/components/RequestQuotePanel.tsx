@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Box,
   Chip,
   FormControl,
@@ -110,6 +111,20 @@ export function RequestQuotePanel({
 
   const availableDrones = (drones.data ?? []).filter((drone) => drone.inspectorOwnerId === inspectorId);
   const selectedDroneId = availableDrones.some((drone) => drone.id === droneId) ? droneId : '';
+  const inspectorLicenseExpiresAt = inspectors.data?.find((candidate) => candidate.id === inspectorId)?.licenseExpiresAt;
+  const lastPlannedDate = recurringDates.at(-1);
+  const lastPlannedStartAt = (() => {
+    if (!lastPlannedDate) return null;
+    try {
+      return dateTimeInputToInstant(`${lastPlannedDate}T${start.slice(11, 16)}`, request.timezone);
+    } catch {
+      return null;
+    }
+  })();
+  const inspectorLicenseCoversSchedule =
+    !inspectorLicenseExpiresAt ||
+    !lastPlannedStartAt ||
+    Date.parse(inspectorLicenseExpiresAt) > Date.parse(lastPlannedStartAt);
   const hasDispatchedOccurrence = request.occurrences.some(
     (occurrence) => occurrence.status === 'ASSIGNED' || (occurrence.status as string) === 'COMPLETED',
   );
@@ -121,6 +136,10 @@ export function RequestQuotePanel({
     }
     if (!inspectorId || !selectedDroneId) {
       onError('Select a registered partner Inspector and one of their drones.');
+      return;
+    }
+    if (request.requestType === 'RECURRING' && !inspectorLicenseCoversSchedule) {
+      onError('The selected Inspector pilot license expires before the last planned occurrence. Choose another Inspector or adjust the schedule.');
       return;
     }
     const amount = Number(price);
@@ -293,6 +312,11 @@ export function RequestQuotePanel({
                     {Number(price || 0).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} VND × {recurringDates.length} = {(Number(price || 0) * recurringDates.length).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} VND
                   </Typography>
                 </Box>
+              )}
+              {request.requestType === 'RECURRING' && inspectorId && !inspectors.isPending && !inspectorLicenseCoversSchedule && (
+                <Alert severity="error" sx={{ py: 0 }}>
+                  {t('Pilot license expires before the last planned inspection. Select another Inspector or change the schedule.')}
+                </Alert>
               )}
               <Box>
                 <LoadingButton loading={save.isPending} variant="contained" onClick={() => void saveQuote()} sx={{ fontWeight: 700 }}>
