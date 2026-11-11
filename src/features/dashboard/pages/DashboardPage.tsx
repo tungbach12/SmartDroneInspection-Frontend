@@ -5,7 +5,6 @@ import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import CategoryOutlined from '@mui/icons-material/CategoryOutlined';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined';
 import TuneRounded from '@mui/icons-material/TuneRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
@@ -38,16 +37,11 @@ const clientAreas: FocusArea[] = [
   { label: 'Assets', description: 'Registered structures', icon: ApartmentOutlined, path: '/client/assets' },
   { label: 'Inspections', description: 'Evidence and inspection work', icon: FlightTakeoffRounded, path: '/client/inspections' },
   { label: 'Reports', description: 'Released findings', icon: FactCheckOutlined, path: '/client/reports' },
-  { label: 'Maintenance', description: 'Repair follow-up', icon: BuildOutlined, path: '/client/maintenance' },
 ];
 
 const inspectorAreas: FocusArea[] = [
   { label: 'Inspections', description: 'Assigned field work and evidence', icon: FlightTakeoffRounded, path: '/operations/inspections' },
   { label: 'Reports', description: 'Verify and submit reports', icon: FactCheckOutlined, path: '/operations/reports' },
-];
-
-const maintenanceAreas: FocusArea[] = [
-  { label: 'Maintenance', description: 'Assigned repair work', icon: BuildOutlined, path: '/operations/maintenance' },
 ];
 
 const adminAreas: FocusArea[] = [
@@ -58,7 +52,6 @@ const adminAreas: FocusArea[] = [
   { label: 'Onboarding reviews', description: 'Airspace & drone reviews', icon: FactCheckOutlined, path: '/admin/onboarding-reviews' },
   { label: 'Assets', description: 'Asset records', icon: ApartmentOutlined, path: '/admin/assets' },
   { label: 'Inspections', description: 'Inspection records', icon: FlightTakeoffRounded, path: '/admin/inspections' },
-  { label: 'Maintenance', description: 'Maintenance follow-up', icon: BuildOutlined, path: '/admin/maintenance' },
 ];
 
 const managerAreas: FocusArea[] = [
@@ -75,7 +68,6 @@ function getAreas(roles: readonly string[], portal: string): FocusArea[] {
   if (portal === 'operations') {
     return [
       ...(roles.includes('INSPECTOR') ? inspectorAreas : []),
-      ...(roles.includes('MAINTENANCE_ENGINEER') ? maintenanceAreas : []),
     ];
   }
   return [];
@@ -92,8 +84,7 @@ export default function DashboardPage() {
 
   if (
     portal === 'operations' &&
-    roles.includes('INSPECTOR') &&
-    !roles.includes('MAINTENANCE_ENGINEER')
+    roles.includes('INSPECTOR')
   ) {
     return <InspectorDashboardPage />;
   }
@@ -113,9 +104,6 @@ const BACKEND_VI_TO_EN: Record<string, string> = {
   'hoạt động bay drone khảo sát': 'drone survey operations',
   'Khuyết tật ghi nhận': 'Recorded defects',
   'phát hiện cần xử lý': 'findings requiring action',
-  'Lệnh bảo trì': 'Work orders',
-  'quy trình khắc phục sự cố': 'corrective maintenance',
-  'tiến độ khắc phục công trình': 'maintenance progress',
   'Nhiệm vụ bay': 'Flight missions',
   'lịch phân công kiểm định': 'assigned inspection schedule',
   'Phát hiện khuyết tật': 'Defect findings',
@@ -130,18 +118,6 @@ const BACKEND_VI_TO_EN: Record<string, string> = {
   'Nghiêm trọng (High/Critical)': 'High / Critical',
   'Trung bình (Medium)': 'Medium',
   'Thấp (Low)': 'Low',
-  'Lệnh công việc': 'Work orders',
-  'hạng mục được giao': 'assigned work orders',
-  'Hạng mục thi công': 'Repair tasks',
-  'Đã phân rã': 'Itemized',
-  'theo chuẩn TCVN': 'standardized tasks',
-  'Thời gian thi công': 'Logged hours',
-  'Đã xác minh': 'Verified',
-  'nhật ký hiện trường': 'verified field logs',
-  'Chi phí thực hiện': 'Actual cost',
-  'Đúng dự toán': 'On budget',
-  'đối soát thực tế': 'reconciled cost',
-  'CHI PHÍ BẢO TRÌ & QUYẾT TOÁN THỰC TẾ (VND)': 'MAINTENANCE COST & ACTUAL SETTLEMENT (VND)',
   'KHẢO SÁT HIỆN TRƯỜNG & PHÁT HIỆN KHUYẾT TẬT': 'FIELD SURVEYS & DEFECT DETECTION',
   '100% Hoàn thành đúng lịch': '100% On-schedule completion',
   'Đợt kiểm tra hoàn thành': 'Completed inspections',
@@ -152,11 +128,8 @@ const BACKEND_VI_TO_EN: Record<string, string> = {
   'Hiệu suất & An toàn Bay kiểm định': 'Flight Inspection Performance & Safety',
   'Tỷ lệ hoàn thành nhiệm vụ và lập báo cáo': 'Mission completion and reporting rate',
   'Tiến độ Hoàn thành & An toàn': 'Completion & Safety Progress',
-  'Tỷ lệ khắc phục sự cố và nghiệm thu kỹ thuật': 'Defect remediation and technical acceptance rate',
   'Tỷ lệ hoàn thành đúng hạn': 'On-time completion rate',
   'Toàn vẹn bằng chứng MinIO': 'MinIO evidence integrity',
-  'Khuyết tật đã khắc phục': 'Remediated defects',
-  'Nghiệm thu kỹ thuật đạt chuẩn': 'Technical acceptance passed',
   '100% Đạt kiểm tra': '100% Inspection passed',
   'Đạt chuẩn': 'Compliant',
   'Đang tiến hành': 'In progress',
@@ -165,27 +138,17 @@ const BACKEND_VI_TO_EN: Record<string, string> = {
   'Các nhiệm vụ bay khảo sát hiện trường và lập báo cáo của bạn':
     'Your assigned field survey missions and reporting tasks',
   'Xem toàn bộ đợt kiểm tra': 'View all inspections',
-  'Lệnh bảo trì & Hoạt động kiểm tra thực tế': 'Maintenance work orders & field inspection activity',
-  'Các công trình đang được theo dõi và xử lý trong hệ thống':
-    'Structures actively monitored and remediated in the platform',
-  'Xem toàn bộ lệnh bảo trì': 'View all work orders',
   'Công trình / Tài sản': 'Asset / Structure',
   'Mã công trình': 'Asset code',
   'Mục tiêu khảo sát': 'Survey objective',
   'Trạng thái': 'Status',
   'Hành động': 'Action',
-  'Bay đối soát nghiệm thu': 'Re-inspection verification flight',
   'Khảo sát bay hiện trường drone': 'Field drone inspection survey',
   'Đang thực hiện': 'In progress',
   'Hoàn thành': 'Completed',
-  'Lệnh': 'Order',
   'Khách hàng': 'Customer',
   'Tiến độ': 'Progress',
   'Mã': 'Code',
-  'Hạng mục': 'Scope',
-  'Chi phí / Đơn giá': 'Cost / Rate',
-  'Chờ dự toán': 'Pending estimate',
-  'Sửa chữa khuyết tật kết cấu': 'Structural defect repair',
   'Thg 1': 'Jan',
   'Thg 2': 'Feb',
   'Thg 3': 'Mar',
@@ -233,8 +196,6 @@ function OperationsAndPlatformDashboard() {
   const isAdmin =
     (portal === 'admin' || portal === 'manager') &&
     (roles.includes('ADMIN') || roles.includes('MANAGER'));
-  const isInspector = portal === 'operations' && roles.includes('INSPECTOR');
-  const isMaintenanceEngineer = portal === 'operations' && roles.includes('MAINTENANCE_ENGINEER');
 
   const focusAreas = getAreas(roles, portal);
   const dashboardRoleOptions: RoleId[] =
@@ -244,7 +205,7 @@ function OperationsAndPlatformDashboard() {
         ? ['ADMIN', 'MANAGER']
         : portal === 'client'
           ? ['CUSTOMER']
-          : ['INSPECTOR', 'MAINTENANCE_ENGINEER'];
+          : ['INSPECTOR'];
   const availableDashboardRoles = dashboardRoleOptions.filter((role) => roles.includes(role));
   useAssets({ page: 1, pageSize: 50 }, false);
   const analytics = useDashboardAnalytics();
@@ -257,9 +218,7 @@ function OperationsAndPlatformDashboard() {
       ? 'MANAGER'
       : isAdmin
         ? 'ADMIN'
-        : isMaintenanceEngineer && !isInspector
-          ? 'MAINTENANCE_ENGINEER'
-          : 'INSPECTOR';
+        : 'INSPECTOR';
   const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
   const activeRole =
     selectedRole && availableDashboardRoles.includes(selectedRole) ? selectedRole : defaultRole;
@@ -270,15 +229,11 @@ function OperationsAndPlatformDashboard() {
   // Headings
   const overviewTitle = isAdmin
     ? 'Platform overview'
-    : isInspector
-      ? 'Inspection workload'
-      : 'Maintenance workload';
+    : 'Inspection workload';
 
   const overviewDescription = isAdmin
     ? 'Choose a workspace to review its records and activity.'
-    : isInspector
-      ? 'Open inspections, evidence, and reports assigned to you.'
-      : 'Work and follow-up assigned to your maintenance role.';
+    : 'Open inspections, evidence, and reports assigned to you.';
 
   const metrics = isAdmin
       ? [
@@ -319,83 +274,44 @@ function OperationsAndPlatformDashboard() {
             iconType: 'check-circle',
           },
         ]
-      : isInspector
-        ? [
-            {
-              id: 'assignments',
-              label: 'Assignments',
-              value: '—',
-              change: '4 in Progress',
-              positive: true,
-              subtext: 'open Inspections to view assigned work',
-              iconType: 'plane',
-            },
-            {
-              id: 'evidence_sets',
-              label: 'Evidence sets',
-              value: '—',
-              change: '100% SHA-256',
-              positive: true,
-              subtext: 'available inside each inspection',
-              iconType: 'check-circle',
-            },
-            {
-              id: 'reports',
-              label: 'Reports',
-              value: '—',
-              change: '3 Drafts',
-              positive: false,
-              subtext: 'open Reports for a selected inspection',
-              iconType: 'shield',
-            },
-            {
-              id: 'deadlines',
-              label: 'Deadlines',
-              value: '—',
-              change: 'On Schedule',
-              positive: true,
-              subtext: 'available on assigned work',
-              iconType: 'clock',
-            },
-          ]
-        : [
-            {
-              id: 'maintenance_tasks',
-              label: 'Maintenance tasks',
-              value: '—',
-              change: 'Work orders',
-              positive: true,
-              subtext: 'open Maintenance to view assigned work',
-              iconType: 'wrench',
-            },
-            {
-              id: 'due_soon',
-              label: 'Due soon',
-              value: '—',
-              change: '< 48 Hours',
-              positive: false,
-              subtext: 'available on assigned tasks',
-              iconType: 'clock',
-            },
-            {
-              id: 'source_findings',
-              label: 'Source findings',
-              value: '—',
-              change: 'MF3 Certified',
-              positive: true,
-              subtext: 'available on assigned tasks',
-              iconType: 'shield',
-            },
-            {
-              id: 'completed',
-              label: 'Completed',
-              value: '—',
-              change: '+16.5% Closed',
-              positive: true,
-              subtext: 'available on assigned tasks',
-              iconType: 'check-circle',
-            },
-          ];
+      : [
+          {
+            id: 'assignments',
+            label: 'Assignments',
+            value: '—',
+            change: '4 in Progress',
+            positive: true,
+            subtext: 'open Inspections to view assigned work',
+            iconType: 'plane',
+          },
+          {
+            id: 'evidence_sets',
+            label: 'Evidence sets',
+            value: '—',
+            change: '100% SHA-256',
+            positive: true,
+            subtext: 'available inside each inspection',
+            iconType: 'check-circle',
+          },
+          {
+            id: 'reports',
+            label: 'Reports',
+            value: '—',
+            change: '3 Drafts',
+            positive: false,
+            subtext: 'open Reports for a selected inspection',
+            iconType: 'shield',
+          },
+          {
+            id: 'deadlines',
+            label: 'Deadlines',
+            value: '—',
+            change: 'On Schedule',
+            positive: true,
+            subtext: 'available on assigned work',
+            iconType: 'clock',
+          },
+        ];
 
   const tableRows = config.table.rows;
 

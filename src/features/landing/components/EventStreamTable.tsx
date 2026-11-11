@@ -67,13 +67,13 @@ const lifecycleSteps: LifecycleStep[] = [
   },
   {
     id: 'STEP-06',
-    name: '6. Maintenance Workorder & Closeout',
+    name: '6. Official Publication & Settlement',
     phaseLabel: 'CLOSEOUT',
-    timeLabel: 'REPAIR',
+    timeLabel: 'SETTLE',
     offsetPct: 90,
     widthPct: 10,
     status: 'pass',
-    details: 'Approved defects generate repair tickets for field engineers with before and after photo proof.',
+    details: 'Published tamper-proof PDF deliverables accepted by customers with transparent automated fee settlement.',
   },
 ];
 
@@ -118,7 +118,7 @@ export function EventStreamTable() {
               color: '#253746',
             }}
           >
-            {t('From Flight to Fix in Six Steps')}
+            {t('From Mission Request to Certified Report in Six Steps')}
           </Typography>
           <Typography
             sx={{
@@ -128,7 +128,7 @@ export function EventStreamTable() {
               maxWidth: '680px',
             }}
           >
-            {t('See how SmartDroneInspection turns complex aerial missions into certified reports and actionable repair tickets with zero human climbing risk.')}
+            {t('See how SmartDroneInspection turns complex aerial missions into certified inspection deliverables with zero human climbing risk.')}
           </Typography>
         </Box>
 

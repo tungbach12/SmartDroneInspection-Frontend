@@ -168,7 +168,7 @@ describe('InspectionDetailPage', () => {
     expect(backToQueue.getAttribute('href')).toBe('/manager/inspections?view=reports');
   });
 
-  it('does not show Maintenance Handoff tab for Platform Manager even after publication, and marks Customer Corrective Action complete only after forwarding', () => {
+  it('keeps workflow stages focused on inspection and reporting', () => {
     mocks.inspectionQuery = {
       data: {
         id: 'inspection-1',
@@ -189,7 +189,7 @@ describe('InspectionDetailPage', () => {
       refetch: vi.fn(),
     };
     mocks.findingsQuery = {
-      data: [{ id: 'f-1', status: 'CONFIRMED', isDeleted: false, forwardedToMaintenanceAt: null }],
+      data: [{ id: 'f-1', status: 'CONFIRMED', isDeleted: false }],
       isLoading: false,
       isError: false,
       error: null,
@@ -210,28 +210,10 @@ describe('InspectionDetailPage', () => {
     const customerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(customerNav.querySelector('a[aria-label="Inspection Report: Complete"]')).toBeTruthy();
     expect(customerNav.querySelector('a[aria-label="Acceptance & Payment: Complete"]')).toBeTruthy();
-    expect(customerNav.querySelector('a[aria-label="Corrective Action: Ready"]')).toBeTruthy();
+    expect(customerNav.querySelector('a[aria-label*="Corrective Action"]')).toBeNull();
     unmountCustomer();
 
-    mocks.findingsQuery = {
-      data: [
-        {
-          id: 'f-1',
-          status: 'CONFIRMED',
-          isDeleted: false,
-          forwardedToMaintenanceAt: '2026-11-07T05:00:00Z',
-        },
-      ],
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    renderInspectionPage({ route: '/client/inspections/inspection-1/report' });
-    const customerNavAfter = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(
-      customerNavAfter.querySelector('a[aria-label="Corrective Action: Complete"]'),
-    ).toBeTruthy();
+
   });
 
   it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {
@@ -323,7 +305,7 @@ describe('InspectionDetailPage', () => {
 
   it('displays tailored step titles for initial inspection', () => {
     mocks.inspectionQuery = {
-      data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS', inspectionType: 'INITIAL' },
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS' },
       isLoading: false,
       isError: false,
       error: null,
@@ -340,27 +322,6 @@ describe('InspectionDetailPage', () => {
     expect(navigation.querySelector('a[aria-label*="Field Evidence"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Defect Findings"]')).toBeTruthy();
     expect(navigation.querySelector('a[aria-label*="Review & Submit"]')).toBeTruthy();
-  });
-
-  it('displays tailored step titles for re-inspection post-repair (6-step workflow)', () => {
-    mocks.inspectionQuery = {
-      data: { id: 'inspection-1', assetId: 'asset-1', status: 'IN_PROGRESS', inspectionType: 'RE_INSPECTION' },
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-
-    renderInspectionPage();
-
-    const navigation = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(navigation.querySelector('a[aria-label*="Flight Permit"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Pre-flight Check"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Re-flight Operation"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Post-flight Check"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Defect Verification"]')).toBeTruthy();
-    expect(navigation.querySelector('a[aria-label*="Verify & Submit"]')).toBeTruthy();
-    expect(screen.queryByText('Repair Evidence')).toBeNull();
   });
 
   it('blocks leaving when report edits are dirty, allowing cancel to stay', async () => {

@@ -35,7 +35,6 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
     { id: 'ADMIN', label: 'Platform Admin' },
     { id: 'MANAGER', label: 'Platform Manager' },
     { id: 'INSPECTOR', label: 'Inspector' },
-    { id: 'MAINTENANCE_ENGINEER', label: 'Maintenance' },
   ];
 
   return (

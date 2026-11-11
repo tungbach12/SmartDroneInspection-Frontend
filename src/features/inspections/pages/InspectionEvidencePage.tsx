@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -31,11 +31,7 @@ import {
   useRetireEvidence,
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
-  useInspection,
-  useReinspectionVerifications,
-  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
-import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { VideoFrameCropDialog } from '../components/VideoFrameCropDialog';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -73,32 +69,6 @@ export default function InspectionEvidencePage() {
   const retire = useRetireEvidence(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
 
-  const inspectionQuery = useInspection(inspectionId);
-  const inspection = inspectionQuery.data;
-  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isReinspection) {
-      navigate('../findings', { replace: true });
-    }
-  }, [isReinspection, navigate]);
-
-  const reinspectionVerifications = useReinspectionVerifications(isReinspection ? inspectionId : '');
-  const updateVerificationMutation = useUpdateReinspectionVerification(inspectionId);
-
-  const handleLinkEvidence = async (verificationId: string, evidenceId: string) => {
-    const item = reinspectionVerifications.data?.find((v) => v.id === verificationId);
-    if (!item) return;
-    await updateVerificationMutation.mutateAsync({
-      verificationId,
-      payload: {
-        resolutionStatus: item.resolutionStatus,
-        newEvidenceId: evidenceId ? evidenceId : null,
-        inspectorNotes: item.inspectorNotes ?? null,
-      },
-    });
-  };
 
   const [queue, setQueue] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -371,18 +341,6 @@ export default function InspectionEvidencePage() {
 
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
-      {isReinspection && (
-        <TargetFlightShotList
-          mode="evidence-assignment"
-          inspectionId={inspectionId}
-          sourceInspectionId={inspection?.sourceInspectionId}
-          items={reinspectionVerifications.data ?? []}
-          evidenceList={currentEvidenceItems}
-          onLinkEvidence={handleLinkEvidence}
-          readOnly={!canEditEvidence}
-        />
-      )}
-
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           Review the current evidence set below. Original captures are read-only for Organization

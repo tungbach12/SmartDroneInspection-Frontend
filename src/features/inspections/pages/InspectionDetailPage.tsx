@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   ButtonBase,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,7 +23,6 @@ import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
-import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -126,63 +124,6 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   },
 ] as const;
 
-const REINSPECTION_STEPS: readonly WorkflowStep[] = [
-  {
-    step: 1,
-    value: 'permit',
-    label: 'Flight Permit',
-    title: 'Flight Permit',
-    sublabel: 'Upload & Preview',
-    to: 'permit',
-    icon: DescriptionOutlined,
-  },
-  {
-    step: 2,
-    value: 'pre-flight',
-    label: 'Pre-flight',
-    title: 'Pre-flight Check',
-    sublabel: 'Safety Checklist',
-    to: 'pre-flight',
-    icon: FactCheckOutlined,
-  },
-  {
-    step: 3,
-    value: 'field-session',
-    label: 'Field session',
-    title: 'Re-flight Operation',
-    sublabel: 'Flight & Target Site',
-    to: 'field-session',
-    icon: FlightTakeoffRounded,
-  },
-  {
-    step: 4,
-    value: 'post-flight',
-    label: 'Post-flight',
-    title: 'Post-flight Check',
-    sublabel: 'Checklist & Completion',
-    to: 'post-flight',
-    icon: PlaylistAddCheckRounded,
-  },
-  {
-    step: 5,
-    value: 'findings',
-    label: 'Findings',
-    title: 'Defect Verification',
-    sublabel: '3-Way Comparison',
-    to: 'findings',
-    icon: AutoAwesomeOutlined,
-  },
-  {
-    step: 6,
-    value: 'report',
-    label: 'Report',
-    title: 'Verify & Submit',
-    sublabel: 'Verify & Submit',
-    to: 'report',
-    icon: AssignmentTurnedInOutlined,
-  },
-] as const;
-
 /**
  * Platform Manager workspace stages (3 steps):
  * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
@@ -245,15 +186,6 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     to: 'settlement',
     icon: FactCheckOutlined,
   },
-  {
-    step: 4,
-    value: 'corrective',
-    label: 'Maintenance',
-    title: 'Corrective Action',
-    sublabel: 'Work Order Creation',
-    to: 'corrective',
-    icon: BuildOutlined,
-  },
 ] as const;
 
 export default function InspectionDetailPage() {
@@ -281,26 +213,17 @@ export default function InspectionDetailPage() {
   const isOrganizationAdmin = isReviewerAdmin;
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
-  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
   const steps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
       ? REVIEWER_STEPS
-      : isReinspection
-        ? REINSPECTION_STEPS
-        : INSPECTOR_STEPS;
+      : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
   const findingsQuery = useInspectionFindings(inspectionId);
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
-  const confirmedFindings = (findingsQuery.data ?? []).filter(
-    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
-  );
-  const hasForwardedFindings = confirmedFindings.some(
-    (item) => item.forwardedToMaintenanceAt != null,
-  );
   const versions = useReportVersions(inspectionId);
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
@@ -321,10 +244,7 @@ export default function InspectionDetailPage() {
   const hasFlightRecordInActiveSession = Boolean(openSession?.hasFlightReport);
 
   const visibleSteps = isCustomer
-    ? CUSTOMER_STEPS.filter((step) => {
-        if (step.value === 'corrective') return !isReinspection && hasPublishedVersion;
-        return true;
-      })
+    ? CUSTOMER_STEPS
     : isReviewerAdmin
       ? REVIEWER_STEPS
       : steps;
@@ -333,24 +253,17 @@ export default function InspectionDetailPage() {
   const tabValue = visibleSteps.some((step) => step.value === current)
     ? current
     : isCustomer
-      ? hasPublishedVersion && (current === 'report' || current === 'settlement' || current === 'corrective')
+      ? hasPublishedVersion && (current === 'report' || current === 'settlement')
         ? current
         : 'tracking'
       : isReviewerAdmin
         ? reviewerSourceRoutes.includes(current)
           ? 'review'
           : visibleSteps[0]?.value ?? 'review'
-        : isReinspection && current === 'evidence'
-          ? 'findings'
-          : 'field-session';
+        : 'field-session';
 
-  // Guard against Customer directly visiting forbidden operational or reviewer URLs,
-  // and guard against Platform Manager landing on Customer-only corrective routes.
+  // Guard against Customer directly visiting forbidden operational or reviewer URLs.
   useEffect(() => {
-    if (isReviewerAdmin && current === 'corrective') {
-      navigate(`${getSectionPath(reviewerPortal, 'inspections')}/${inspectionId}/review`, { replace: true });
-      return;
-    }
     if (isCustomer && !versions.isLoading) {
       const forbiddenForCustomer = [
         'permit',
@@ -367,7 +280,7 @@ export default function InspectionDetailPage() {
         navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/${dest}`, { replace: true });
       } else if (
         !hasPublishedVersion &&
-        (current === 'report' || current === 'settlement' || current === 'corrective')
+        (current === 'report' || current === 'settlement')
       ) {
         navigate(`${getSectionPath('client', 'inspections')}/${inspectionId}/tracking`, { replace: true });
       }
@@ -388,9 +301,6 @@ export default function InspectionDetailPage() {
           hasPublishedVersion &&
           (status === 'COMPLETED' || inspection?.status === 'COMPLETED')
         );
-      }
-      if (stepValue === 'corrective') {
-        return hasPublishedVersion && hasForwardedFindings;
       }
       return false;
     }
@@ -472,7 +382,7 @@ export default function InspectionDetailPage() {
     if (isCustomer) {
       if (isStepCompleted(step.value)) return 'complete';
       if (
-        (step.value === 'report' || step.value === 'settlement' || step.value === 'corrective') &&
+        (step.value === 'report' || step.value === 'settlement') &&
         !hasPublishedVersion
       ) {
         return 'blocked';
@@ -481,8 +391,7 @@ export default function InspectionDetailPage() {
       if (
         step.value === 'tracking' ||
         step.value === 'report' ||
-        step.value === 'settlement' ||
-        step.value === 'corrective'
+        step.value === 'settlement'
       ) {
         return 'ready';
       }
@@ -494,15 +403,13 @@ export default function InspectionDetailPage() {
     if (step.value === 'evidence' && !isFieldWorkComplete) return 'blocked';
     if (step.value === 'findings' && !hasEvidence) return 'blocked';
     if (step.value === 'report' && !findingsComplete) return 'blocked';
-    if (step.value === 'corrective' && !hasPublishedVersion) return 'blocked';
     if (tabValue === step.value) return 'active';
     if (step.value === 'permit' || step.value === 'field-session' || step.value === 'audit' || step.value === 'review' || step.value === 'settlement') return 'ready';
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
-    if (step.value === 'findings') return (isReinspection ? isFieldWorkComplete : hasEvidence) ? 'ready' : 'blocked';
+    if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
     if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
-    if (step.value === 'corrective') return hasPublishedVersion ? 'ready' : 'blocked';
     return 'pending';
   };
 
@@ -511,18 +418,13 @@ export default function InspectionDetailPage() {
       if ((step.value === 'report' || step.value === 'settlement') && !hasPublishedVersion) {
         return t('The official report is being reviewed and has not been published yet. Please track progress.');
       }
-      if (step.value === 'corrective' && !hasPublishedVersion) {
-        return t('Publish the report before sending findings to Maintenance.');
-      }
       return null;
     }
     if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
-    if (step.value === 'findings' && isReinspection && !isFieldWorkComplete) return t('Complete the re-inspection flight session before verifying target defects.');
-    if (step.value === 'findings' && !isReinspection && !hasEvidence) return t('Upload evidence to review findings.');
+    if (step.value === 'findings' && !hasEvidence) return t('Upload evidence to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
-    if (step.value === 'corrective' && !hasPublishedVersion) return t('Publish the report before sending findings to Maintenance.');
     return null;
   };
 
@@ -636,35 +538,7 @@ export default function InspectionDetailPage() {
                   {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                 </Typography>
 
-                {inspection.inspectionType === 'RE_INSPECTION' && (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={
-                      inspection.workOrderId
-                        ? `${t('Re-inspection')} · WO #${inspection.workOrderId.slice(0, 8)}`
-                        : t('Re-inspection')
-                    }
-                    onClick={
-                      inspection.workOrderId
-                        ? () => navigate('/operations/maintenance')
-                        : undefined
-                    }
-                    title={
-                      inspection.workOrderId
-                        ? t('Linked to Maintenance Work Order. Click to view.')
-                        : undefined
-                    }
-                    sx={{
-                      height: 22,
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      borderColor: 'divider',
-                      color: 'text.secondary',
-                      cursor: inspection.workOrderId ? 'pointer' : 'default',
-                    }}
-                  />
-                )}
+
 
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {t('Drone')}:{' '}

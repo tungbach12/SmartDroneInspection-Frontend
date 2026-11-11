@@ -35,15 +35,6 @@ describe('resolveSafeNotificationRoute', () => {
     ).toBe('/operations/inspections/insp-100/field-session');
   });
 
-  it('translates maintenance paths when user has maintenance section access', () => {
-    const route = resolveSafeNotificationRoute(
-      '/maintenance/work-orders/wo-42',
-      'operations',
-      ['MAINTENANCE_ENGINEER'],
-    );
-    expect(route).toBe('/operations/maintenance');
-  });
-
   it('translates reports paths when user has reports section access', () => {
     const route = resolveSafeNotificationRoute(
       '/reports/insp-100',

@@ -261,7 +261,7 @@ export function AirspaceNoFlyMap({
   const activeLat = isAdjustingTarget && draftTarget ? draftTarget.lat : savedLat;
   const activeLon = isAdjustingTarget && draftTarget ? draftTarget.lon : savedLon;
 
-  // Normalize inspection checkpoints or defect repair locations around the asset structure
+  // Normalize inspection checkpoints or defect locations around the asset structure
   const normalizedItems: InspectionCheckpointItem[] = (inspectionItems ?? []).map((item, idx) => {
     if (typeof item === 'string') {
       return {
@@ -1424,7 +1424,7 @@ export function AirspaceNoFlyMap({
               </text>
             </g>
 
-            {/* Checkpoints & Defect Repair Locations on Structure */}
+            {/* Checkpoints & Defect Locations on Structure */}
             {checkpointPositions.map((chk) => {
               const chkX = lonToWorldX(chk.lon, zoom) - topLeftWorldX;
               const chkY = latToWorldY(chk.lat, zoom) - topLeftWorldY;

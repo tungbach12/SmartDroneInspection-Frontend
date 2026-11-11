@@ -210,8 +210,7 @@ export function CustomerInspectionsPage() {
   const actionNeededItems = enrichedItems.filter(
     (item) =>
       item.resolvedPaymentStatus === 'PAYMENT_DUE' ||
-      (item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted) ||
-      (item.pendingAction === 'CORRECTIVE_DISPOSITION' && item.inspectionType !== 'RE_INSPECTION'),
+      (item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted)
   );
 
   const displayedItems = useMemo(() => {
@@ -221,9 +220,7 @@ export function CustomerInspectionsPage() {
       if (quickFilter === 'ACTION_NEEDED') {
         const needsAction =
           item.resolvedPaymentStatus === 'PAYMENT_DUE' ||
-          (item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted) ||
-          (item.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-            item.inspectionType !== 'RE_INSPECTION');
+          (item.reportStatus === 'PUBLISHED' && !item.resolvedReportAccepted);
         if (!needsAction) return false;
       }
 
@@ -583,20 +580,6 @@ export function CustomerInspectionsPage() {
                                     fontSize: '0.75rem',
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
-                                    flexShrink: 0,
-                                  }}
-                                />
-                              )}
-                              {row.inspectionType === 'RE_INSPECTION' && (
-                                <Chip
-                                  size="small"
-                                  color="secondary"
-                                  label={t('Re-inspection')}
-                                  sx={{
-                                    height: 18,
-                                    borderRadius: '5px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 650,
                                     flexShrink: 0,
                                   }}
                                 />

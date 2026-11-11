@@ -5,7 +5,7 @@ export const PORTAL_ROLE_ACCESS = {
   admin: ['ADMIN'],
   manager: ['MANAGER'],
   client: ['CUSTOMER'],
-  operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+  operations: ['INSPECTOR'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type PortalId = keyof typeof PORTAL_ROLE_ACCESS;
@@ -26,8 +26,6 @@ export const SECTION_IDS = [
   'asset-catalog',
   'inspections',
   'reports',
-  'maintenance',
-  'workforce',
   'platform-users',
   'finance-settings',
   'onboarding-reviews',
@@ -44,8 +42,6 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   'asset-catalog': 'Asset catalog',
   inspections: 'Inspections',
   reports: 'Reports',
-  maintenance: 'Maintenance',
-  workforce: 'Workforce',
   'platform-users': 'Platform accounts',
   'finance-settings': 'Finance settings',
   'onboarding-reviews': 'Onboarding reviews',
@@ -71,8 +67,6 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   'asset-catalog': 'Danh mục tài sản',
   inspections: 'Đợt kiểm tra',
   reports: 'Báo cáo',
-  maintenance: 'Bảo trì',
-  workforce: 'Nhân sự',
   'platform-users': 'Tài khoản nền tảng',
   'finance-settings': 'Cấu hình tài chính',
   'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
@@ -126,9 +120,6 @@ const SECTION_ROLE_ACCESS = {
     'asset-catalog': ['ADMIN'],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
-    maintenance: ['ADMIN'],
-    // Workforce is a customer-organization function; the platform workspace does not expose it.
-    workforce: [],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
     'finance-settings': ['ADMIN'],
@@ -143,8 +134,6 @@ const SECTION_ROLE_ACCESS = {
     'asset-catalog': [],
     inspections: ['MANAGER'],
     reports: ['MANAGER'],
-    maintenance: [],
-    workforce: [],
     'platform-users': ['MANAGER'],
     'finance-settings': [],
     'onboarding-reviews': ['MANAGER'],
@@ -158,9 +147,6 @@ const SECTION_ROLE_ACCESS = {
     'asset-catalog': [],
     inspections: ['CUSTOMER'],
     reports: ['CUSTOMER'],
-    maintenance: ['CUSTOMER'],
-    // Workforce provisioning is limited to the organization CUSTOMER account.
-    workforce: ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
     'finance-settings': [],
@@ -169,19 +155,17 @@ const SECTION_ROLE_ACCESS = {
     settings: ['CUSTOMER'],
   },
   operations: {
-    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR'],
     contracts: [],
     assets: [],
     'asset-catalog': [],
     inspections: ['INSPECTOR'],
     reports: ['INSPECTOR'],
-    maintenance: ['MAINTENANCE_ENGINEER'],
-    workforce: [],
     'platform-users': [],
     'finance-settings': [],
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
-    settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    settings: ['INSPECTOR'],
   },
 } as const satisfies Record<
   PortalId,
