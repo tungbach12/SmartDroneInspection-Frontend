@@ -98,6 +98,9 @@ const ManagerPartnerInspectorsPage = lazy(
 const ContractsPage = lazy(
   () => import('@/features/contracts/pages/ContractsPage'),
 );
+const ContractInboxPage = lazy(
+  () => import('@/features/contracts/pages/ContractInboxPage'),
+);
 const PlatformFinanceSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
 );
@@ -111,6 +114,7 @@ const Mf1ReviewPage = lazy(
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   contracts: <ContractsPage />,
+  messages: <ContractInboxPage />,
   assets: <AssetsPage />,
   'asset-catalog': <AssetCatalogPage />,
   inspections: <InspectionsPage />,

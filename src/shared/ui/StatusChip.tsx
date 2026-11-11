@@ -136,6 +136,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 export interface StatusChipProps {
   status: string;
+  label?: string;
+  tone?: StatusVariant;
   size?: ChipProps['size'];
 }
 
@@ -143,11 +145,11 @@ export interface StatusChipProps {
  * Modern status pill with a colored dot indicator, matching the Lytic dashboard design reference.
  * Wraps MUI Chip to preserve class names and accessibility in tests.
  */
-export function StatusChip({ status, size = 'small' }: StatusChipProps) {
+export function StatusChip({ status, label, tone, size = 'small' }: StatusChipProps) {
   const { t } = useLocale();
   const isDark = useIsDarkMode();
   const normalized = status.toLowerCase().replace(/[\s-]/g, '_');
-  const variant = STATUS_MAP[normalized] ?? 'default';
+  const variant = tone ?? STATUS_MAP[normalized] ?? 'default';
   const theme = THEMES[variant];
   const displayLabel = STATUS_LABELS[normalized] ?? status;
 
@@ -155,7 +157,7 @@ export function StatusChip({ status, size = 'small' }: StatusChipProps) {
     <Chip
       size={size}
       color={theme.variant}
-      label={t(displayLabel)}
+      label={t(label ?? displayLabel)}
       data-status={status}
       sx={{
         borderRadius: '6px',
