@@ -82,7 +82,7 @@ const SECTION_DETAILS: Record<AuthoredReportSection, SectionDetails> = {
   },
   conclusionsRecommendations: {
     title: 'Conclusions and recommendations',
-    description: 'Conclusions within the inspected scope and recommended follow-up or maintenance actions.',
+    description: 'Conclusions within the inspected scope and recommended follow-up actions.',
     maxLength: MAX_SECTION,
     rows: 3,
   },

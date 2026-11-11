@@ -21,7 +21,6 @@ import {
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
-  useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
   useReviewReportVersion,
@@ -67,7 +66,6 @@ export default function ManagerReportReviewPage({
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
-  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
 
@@ -324,7 +322,6 @@ export default function ManagerReportReviewPage({
                 onSelectVersion={setOpenVersionId}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
-                reinspectionVerifications={reinspectionVerifications.data}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}

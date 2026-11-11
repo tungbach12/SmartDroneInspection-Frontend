@@ -14,7 +14,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { canPerform } from '@/app/permissions/capability';
 import {
@@ -33,10 +32,9 @@ import {
   useReportVersions,
   useInspectionFindings,
   useInspectionEvidence,
-  useSaveReportSections,
   useInspectionWorkflowState,
-  useReinspectionVerifications,
   useInspection,
+  useSaveReportSections,
   useReportPaymentStatus,
 } from '@/features/inspections/hooks/useInspections';
 import ManagerReportReviewPage from './ManagerReportReviewPage';
@@ -101,16 +99,15 @@ export default function ReportDetailPage() {
     }
   }, [inspectionId]);
 
-  const inspectionQuery = useInspection(inspectionId);
-  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
   const isClientPortal = portal === 'client';
   const isManagerPortal = portal === 'admin' || portal === 'manager';
-
-  const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
-  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const workflowState = useInspectionWorkflowState(inspectionId);
+  const inspectionQuery = useInspection(inspectionId);
+  const inspectionStatus = workflowState.data?.status;
+
+  const versions = useReportVersions(inspectionId);
   const submit = useSubmitReportVersion(inspectionId);
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
@@ -140,17 +137,6 @@ export default function ReportDetailPage() {
     null;
 
   const isAuthor = Boolean(openVersion && userId === openVersion.authorUserId);
-  const inspectionStatus = workflowState.data?.status;
-  const confirmedFindingsList = (findings.data ?? []).filter(
-    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
-  );
-  const hasForwardedFindings = confirmedFindingsList.some(
-    (item) => item.forwardedToMaintenanceAt != null,
-  );
-  const publishedUnhanded =
-    openVersion?.status === 'PUBLISHED' &&
-    (inspectionStatus === 'COMPLETED' || inspectionStatus == null) &&
-    !hasForwardedFindings;
   const resolvedDroneSummary =
     [
       openVersion?.reportContext?.assignedDrone?.manufacturer,
@@ -305,7 +291,7 @@ export default function ReportDetailPage() {
                 (review.isSuccess && !review.variables?.reason)
                   ? isManagerPortal
                     ? `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. ${t('This version is immutable and delivered to the Customer.')}`
-                    : `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. The PDF is immutable; forward confirmed findings to maintenance individually when they require corrective work.`
+                    : `${t('Published version')} ${review.data?.versionNo ?? openVersion.versionNo}. The PDF is immutable.`
                   : (NEXT_STEP[openVersion.status] ?? openVersion.status)}
               </Alert>
 
@@ -534,55 +520,6 @@ export default function ReportDetailPage() {
                   roleView={isManagerPortal ? 'manager' : 'inspector'}
                 />
               )}
-
-              {/* Customer Maintenance Handoff (Customer / Organization Manager view only — never shown in Platform Manager review workspace) */}
-              {canReview && !isManagerPortal && publishedUnhanded && !isReinspection && (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 2,
-                    borderRadius: '10px',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { sm: 'center' },
-                    justifyContent: 'space-between',
-                    gap: 2,
-                  }}
-                >
-                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
-                    <BuildOutlined color="primary" sx={{ mt: 0.25 }} />
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        {t('Send to Maintenance (MF3-12)')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {t(
-                          'Select confirmed findings to forward to your maintenance team as repair candidates.',
-                        )}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Button
-                    variant="contained"
-                    component={RouterLink}
-                    to={`${getSectionPath(portal, 'inspections')}/${inspectionId}/corrective`}
-                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', flexShrink: 0 }}
-                  >
-                    {t('Send findings to Maintenance')}
-                  </Button>
-                </Paper>
-              )}
-
-              {publishedUnhanded && isReinspection && (
-                <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                  {t(
-                    'This is a re-inspection deliverable verifying previous repair work. Findings verification has been recorded directly to the linked maintenance work order.',
-                  )}
-                </Alert>
-              )}
-
               <ReportDeliverableTabs
                 inspectionId={inspectionId}
                 openVersion={openVersion}
@@ -590,7 +527,6 @@ export default function ReportDetailPage() {
                 evidenceList={evidence.data ?? []}
                 canEdit={canAuthor && canEditReturnedText}
                 onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
-                reinspectionVerifications={reinspectionVerifications.data}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}

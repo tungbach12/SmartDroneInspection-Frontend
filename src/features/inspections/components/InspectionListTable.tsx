@@ -38,7 +38,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  */
 const PENDING_ACTION_LABEL: Record<PendingAction, string> = {
   REPORT_REVIEW: 'Report review due',
-  CORRECTIVE_DISPOSITION: 'Corrective outcome due',
   NONE: 'Nothing waiting for you',
 };
 
@@ -266,13 +265,9 @@ export function InspectionListTable({
                 (reviewerMode
                   ? row.pendingAction === 'REPORT_REVIEW'
                     ? 'Review submission'
-                    : row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                      ? roleView === 'manager'
-                        ? 'Open report'
-                        : 'Record corrective outcome'
-                      : row.reportStatus === 'RETURNED'
-                        ? 'Read returned report'
-                        : 'Open report'
+                    : row.reportStatus === 'RETURNED'
+                      ? 'Read returned report'
+                      : 'Open report'
                   : 'Open');
 
               return (
@@ -616,14 +611,6 @@ export function InspectionListTable({
                               }}
                             />
                           )}
-                          {row.inspectionType === 'RE_INSPECTION' && (
-                            <Chip
-                              size="small"
-                              color="secondary"
-                              label={t('Re-inspection')}
-                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
-                            />
-                          )}
                         </Stack>
 
                         {reviewerMode ? (
@@ -809,9 +796,7 @@ export function InspectionListTable({
                               row.pendingAction === 'NONE' ? 'text.disabled' : 'text.secondary'
                             }
                           >
-                            {roleView === 'manager' && row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                              ? 'Published · Settled'
-                              : (PENDING_ACTION_LABEL[row.pendingAction] ?? row.pendingAction)}
+                            {PENDING_ACTION_LABEL[row.pendingAction] ?? row.pendingAction}
                           </Typography>
                         ) : null}
                       </TableCell>
@@ -886,13 +871,9 @@ export function InspectionListTable({
                             (reviewerMode
                               ? row.pendingAction === 'REPORT_REVIEW'
                                 ? 'Review submission'
-                                : row.pendingAction === 'CORRECTIVE_DISPOSITION'
-                                  ? roleView === 'manager'
-                                    ? 'Open report'
-                                    : 'Record corrective outcome'
-                                  : row.reportStatus === 'RETURNED'
-                                    ? 'Read returned report'
-                                    : 'Open report'
+                                : row.reportStatus === 'RETURNED'
+                                  ? 'Read returned report'
+                                  : 'Open report'
                               : 'Open')}
                         </Button>
                       </Stack>

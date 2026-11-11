@@ -17,7 +17,6 @@ describe('MF1 browser session role handling', () => {
     ['MANAGER', 'PLATFORM'],
     ['CUSTOMER', 'CUSTOMER_ORGANIZATION'],
     ['INSPECTOR', 'INSPECTOR_PARTNER'],
-    ['MAINTENANCE_ENGINEER', 'CUSTOMER_ORGANIZATION'],
   ] as const)('restores the canonical %s role and %s actor zone', async (role, actorZone) => {
     useAuthStore.getState().setStatus('checking');
     mocks.restoreBrowserSession.mockResolvedValue({

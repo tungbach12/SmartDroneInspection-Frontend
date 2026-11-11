@@ -32,7 +32,6 @@ const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER_O
   { role: 'MANAGER', path: '/manager/dashboard', actorZone: 'PLATFORM' },
   { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
   { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
-  { role: 'MAINTENANCE_ENGINEER', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
 ];
 
 function renderLogin(initialEntry = '/login') {

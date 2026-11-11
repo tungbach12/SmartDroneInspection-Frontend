@@ -89,9 +89,7 @@ vi.mock('../hooks/useInspections', () => ({
   useRetireEvidence: () => mocks.retire,
   useBulkRetireEvidence: () => mocks.bulkRetire,
   useUploadInspectionEvidence: () => mocks.upload,
-  useInspection: () => ({ data: { id: 'inspection-1', inspectionType: 'INITIAL' }, isLoading: false }),
-  useReinspectionVerifications: () => ({ data: [], isLoading: false }),
-  useUpdateReinspectionVerification: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useInspection: () => ({ data: { id: 'inspection-1' }, isLoading: false }),
 }));
 
 vi.mock('react-router-dom', async () => {

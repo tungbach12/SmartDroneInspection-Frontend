@@ -42,24 +42,7 @@ describe('MF1 guarded onboarding routes', () => {
   });
 });
 
-describe('MF1 client-only routes', () => {
-  it('matches /client/workforce as a guarded client section', () => {
-    const matches = matchRoutes(router.routes, '/client/workforce');
-
-    expect(matches?.at(-1)?.route.path).toBe('workforce');
-  });
-
-  // Workforce is granted to no role in the admin or operations workspace, so the route must not
-  // exist there. A route that exists but always denies still advertises the customer resource
-  // surface outside the workspace that owns it.
-  it.each(['/admin/workforce', '/operations/workforce'])(
-    'has no workforce route at %s',
-    (path) => {
-      const matches = matchRoutes(router.routes, path);
-      expect(matches?.at(-1)?.route.path).toBe('*');
-    },
-  );
-
+describe('existing portal routes', () => {
   it.each(['/admin/dashboard', '/operations/dashboard', '/client/assets'])(
     'still matches the existing portal section %s',
     (path) => {
@@ -69,14 +52,9 @@ describe('MF1 client-only routes', () => {
   );
 
   it.each([
-    ['/client/workforce', 'CUSTOMER'],
     ['/client/assets', 'CUSTOMER'],
-    ['/client/workforce', 'ADMIN'],
     ['/client/assets', 'ADMIN'],
-    ['/client/workforce', 'INSPECTOR'],
     ['/client/assets', 'INSPECTOR'],
-    ['/client/workforce', 'MAINTENANCE_ENGINEER'],
-    ['/client/assets', 'MAINTENANCE_ENGINEER'],
   ])('maps direct resource URL %s for %s into the guarded client tree', (path) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path).toBe(path.split('/').at(-1));

@@ -51,11 +51,11 @@ vi.mock('@/features/assets/hooks/useDrones', () => ({
   }),
 }));
 
-vi.mock('@/features/workforce/hooks/useWorkforce', () => ({
-  useWorkforceUsers: () => ({
+vi.mock('@/features/admin/hooks/usePlatformUsers', () => ({
+  usePlatformUsers: () => ({
     data: [
       {
-        userId: 'insp-1',
+        id: 'insp-1',
         email: 'alice@example.test',
         fullName: 'Inspector Alice',
         roles: ['INSPECTOR'],
@@ -125,7 +125,7 @@ describe('CreateInspectionDialog', () => {
     fireEvent.mouseDown(screen.getByLabelText(/Drone/));
     fireEvent.click(await screen.findByRole('option', { name: /DJI-001/ }));
 
-    fireEvent.change(screen.getByLabelText(/Planned Start/), {
+    fireEvent.change(screen.getByLabelText(/Planned Start Date/), {
       target: { value: '2026-11-01' },
     });
     fireEvent.change(screen.getByLabelText(/Planned End/), {
