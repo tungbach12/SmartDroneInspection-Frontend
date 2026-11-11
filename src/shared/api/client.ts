@@ -128,10 +128,16 @@ function refreshAccessToken(): Promise<string> {
 }
 
 function redirectToLogin(): void {
-  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (currentPath === '/login' || currentPath.startsWith('/login?')) {
+  const pathname = window.location.pathname;
+  if (
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname.startsWith('/login?') ||
+    pathname.startsWith('/register')
+  ) {
     return;
   }
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentPath)}`);
 }
 

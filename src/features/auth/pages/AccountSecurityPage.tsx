@@ -23,7 +23,8 @@ import {
 } from '@mui/material';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { pilotLicenseClassApi } from '../api/pilotLicenseClassApi';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -59,6 +60,11 @@ export default function AccountSecurityPage() {
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [preferencePending, setPreferencePending] = useState(false);
   const visionFallbackEnabled = user?.visionFallbackEnabled ?? true;
+  const licenseClassesQuery = useQuery({
+    queryKey: ['pilot-license-classes', 'active'],
+    queryFn: pilotLicenseClassApi.listActive,
+    staleTime: 60_000,
+  });
 
   const [licenseNumber, setLicenseNumber] = useState(user?.pilotLicenseNumber ?? '');
   const [licenseClass, setLicenseClass] = useState(user?.pilotLicenseClass ?? '');
@@ -448,13 +454,23 @@ export default function AccountSecurityPage() {
                 />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
+                    select
                     label={t('License class')}
                     size="small"
                     fullWidth
                     value={licenseClass}
                     onChange={(e) => setLicenseClass(e.target.value)}
-                    placeholder="e.g. CLASS_3 / Commercial"
-                  />
+                    disabled={licenseClassesQuery.isLoading || licenseClassesQuery.isError}
+                    helperText={licenseClassesQuery.isError ? t('Could not load license classes.') : undefined}
+                  >
+                    <MenuItem value=""><em>{t('No class selected')}</em></MenuItem>
+                    {licenseClassesQuery.data?.map((item) => (
+                      <MenuItem key={item.id} value={item.name}>{item.name}</MenuItem>
+                    ))}
+                    {licenseClass && !licenseClassesQuery.data?.some((item) => item.name === licenseClass) && (
+                      <MenuItem value={licenseClass}>{licenseClass} ({t('Inactive')})</MenuItem>
+                    )}
+                  </TextField>
                   <TextField
                     type="date"
                     label={t('Expiry date')}

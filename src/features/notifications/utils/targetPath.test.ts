@@ -81,6 +81,20 @@ describe('resolveSafeNotificationRoute', () => {
     expect(resolveSafeNotificationRoute('/api/v1/notifications', 'operations', ['INSPECTOR'])).toBeNull();
   });
 
+  it('translates partner-onboarding notifications for INSPECTOR', () => {
+    expect(resolveSafeNotificationRoute('/partner-onboarding', 'operations', ['INSPECTOR'])).toBe(
+      '/operations/partner-onboarding',
+    );
+    expect(resolveSafeNotificationRoute('/partner-onboarding', 'client', ['CUSTOMER'])).toBeNull();
+  });
+
+  it('translates onboarding-reviews notifications for MANAGER', () => {
+    expect(resolveSafeNotificationRoute('/onboarding-reviews', 'manager', ['MANAGER'])).toBe(
+      '/manager/onboarding-reviews',
+    );
+    expect(resolveSafeNotificationRoute('/onboarding-reviews', 'operations', ['INSPECTOR'])).toBeNull();
+  });
+
   it('rejects paths to sections the user cannot access in that portal', () => {
     // Operations portal has no assets section for INSPECTOR
     expect(resolveSafeNotificationRoute('/assets/asset-1', 'operations', ['INSPECTOR'])).toBeNull();
