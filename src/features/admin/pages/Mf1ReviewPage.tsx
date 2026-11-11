@@ -897,13 +897,21 @@ export default function Mf1ReviewPage() {
                               </Typography>
                               <Chip
                                 label={
-                                  insp.status === 'ACTIVE'
-                                    ? tr('Đang hoạt động', 'Active')
-                                    : insp.status
+                                  insp.onboardingStatus === 'APPROVED'
+                                    ? tr('Onboarding: Đã phê duyệt', 'Onboarding: Approved')
+                                    : insp.onboardingStatus === 'REJECTED'
+                                      ? tr('Onboarding: Yêu cầu bổ sung', 'Onboarding: Revision required')
+                                      : tr('Onboarding: Chờ Manager duyệt', 'Onboarding: Pending review')
                                 }
                                 size="small"
-                                color={insp.status === 'ACTIVE' ? 'success' : 'default'}
-                                sx={{ fontWeight: 600 }}
+                                color={
+                                  insp.onboardingStatus === 'APPROVED'
+                                    ? 'success'
+                                    : insp.onboardingStatus === 'REJECTED'
+                                      ? 'error'
+                                      : 'warning'
+                                }
+                                sx={{ fontWeight: 700 }}
                               />
                               <Chip
                                 label={
@@ -942,6 +950,20 @@ export default function Mf1ReviewPage() {
                                 size="small"
                                 variant="outlined"
                                 color={insp.hasLicenseScan ? 'success' : 'default'}
+                                sx={{ fontWeight: 600 }}
+                              />
+                              <Chip
+                                label={
+                                  insp.hasPartnerContract
+                                    ? tr(
+                                        `Hợp đồng SHA-256: ${insp.partnerContractSha256?.slice(0, 8) ?? 'Đã lưu'}…`,
+                                        `Contract SHA-256: ${insp.partnerContractSha256?.slice(0, 8) ?? 'Saved'}…`,
+                                      )
+                                    : tr('Hợp đồng: Chưa tải', 'Contract: Missing')
+                                }
+                                size="small"
+                                variant="outlined"
+                                color={insp.hasPartnerContract ? 'success' : 'warning'}
                                 sx={{ fontWeight: 600 }}
                               />
                             </Box>

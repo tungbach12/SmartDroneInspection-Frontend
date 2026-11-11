@@ -22,7 +22,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import {
+  Visibility,
+  VisibilityOff,
+  FlightTakeoffRounded,
+  ArrowForwardRounded,
+} from '@mui/icons-material';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
 import { Controller, useForm } from 'react-hook-form';
 import { api } from '@/shared/api/client';
@@ -380,6 +385,47 @@ export default function RegisterPage() {
         noValidate
         onSubmit={form.handleSubmit(onSubmit)}
       >
+        {/* DEDICATED LINK BANNER TO MULTI-STEP PARTNER INSPECTOR REGISTRATION PAGE */}
+        <Box
+          sx={{
+            p: 1.5,
+            borderRadius: '10px',
+            bgcolor: '#EEF5F3',
+            border: '1px solid #D6E4E0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FlightTakeoffRounded sx={{ color: '#087E8B', fontSize: 20 }} />
+            <Typography sx={{ fontSize: '13px', color: '#173B36', fontWeight: 600 }}>
+              Bạn là Phi công Drone đối tác?
+            </Typography>
+          </Box>
+          <Button
+            component={RouterLink}
+            to="/register-inspector"
+            size="small"
+            endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '12.5px',
+              color: '#087E8B',
+              bgcolor: '#FFFFFF',
+              border: '1px solid #B8D5CE',
+              borderRadius: '6px',
+              px: 1.5,
+              whiteSpace: 'nowrap',
+              '&:hover': { bgcolor: '#E4F1EE' },
+            }}
+          >
+            Đăng ký Inspector (4 bước)
+          </Button>
+        </Box>
+
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
             {...form.register('fullName')}
@@ -596,7 +642,7 @@ export default function RegisterPage() {
               underline="hover"
               sx={{ color: '#087E8B', fontWeight: 600 }}
             >
-              Terms & Conditions
+              Terms &amp; Conditions
             </Link>
           </Typography>
         </Box>
@@ -653,14 +699,14 @@ export default function RegisterPage() {
             <Typography variant="body2" color="text.secondary">
               Mã xác thực 6 chữ số đã được gửi tới{' '}
               <strong>
-                {otpChannel === 'SMS' && pendingFormValues?.phoneNumber
-                  ? pendingFormValues.phoneNumber
+                {otpChannel === 'SMS' && phoneNumber.trim()
+                  ? phoneNumber.trim()
                   : pendingFormValues?.email}
               </strong>
               . Vui lòng nhập mã để hoàn tất đăng ký tài khoản.
             </Typography>
 
-            {pendingFormValues?.phoneNumber && (
+            {phoneNumber.trim() && (
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                 <Chip
                   label="Gửi qua Email"

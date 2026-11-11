@@ -12,8 +12,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
   IconButton,
   Paper,
+  Radio,
+  RadioGroup,
   Stack,
   Tab,
   Tabs,
@@ -31,6 +36,8 @@ import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import BuildCircleOutlined from '@mui/icons-material/BuildCircleOutlined';
 import AppRegistrationOutlined from '@mui/icons-material/AppRegistrationOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import HandymanOutlined from '@mui/icons-material/HandymanOutlined';
+import PrecisionManufacturingOutlined from '@mui/icons-material/PrecisionManufacturingOutlined';
 import {
   mf1DroneApi,
   uploadDroneEvidence,
@@ -45,6 +52,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { MetricCard } from '@/shared/ui/MetricCard';
 
 interface DroneFormState {
+  droneOriginType: 'COMMERCIAL' | 'DIY';
   droneName: string;
   manufacturer: string;
   serialNumber: string;
@@ -57,6 +65,7 @@ interface DroneFormState {
 }
 
 const initialForm: DroneFormState = {
+  droneOriginType: 'COMMERCIAL',
   droneName: '',
   manufacturer: '',
   serialNumber: '',
@@ -68,33 +77,51 @@ const initialForm: DroneFormState = {
   safetyFeatures: '',
 };
 
-const REQUIRED_DOCUMENTS: Array<{
+const getRequiredDocuments = (originType: 'COMMERCIAL' | 'DIY'): Array<{
   type: DroneEvidenceType;
   titleVi: string;
   titleEn: string;
   descriptionVi: string;
   descriptionEn: string;
-}> = [
+}> => [
   {
     type: 'REGISTRATION',
-    titleVi: 'Ảnh Giấy chứng nhận đăng ký drone',
-    titleEn: 'Drone Registration Certificate',
-    descriptionVi: 'Chụp rõ nét giấy chứng nhận đăng ký do cơ quan chức năng cấp, thể hiện rõ số hiệu.',
-    descriptionEn: 'Clear scan or photo of the official UAV registration certificate showing the registration number.',
+    titleVi: '1. Giấy chứng nhận đăng ký phương tiện bay (Bộ Công an cấp)',
+    titleEn: '1. UAV Registration Certificate (Ministry of Public Security)',
+    descriptionVi:
+      originType === 'DIY'
+        ? 'Chụp rõ nét Giấy chứng nhận đăng ký phương tiện bay không người lái do Công an tỉnh/TP cấp sau khi mang thiết bị tự lắp ráp đến kiểm tra thực tế (Thông tư 78/2026/TT-BCA).'
+        : 'Chụp rõ nét Giấy chứng nhận đăng ký phương tiện bay không người lái do Công an tỉnh/thành phố hoặc Cục A05 cấp theo Thông tư 78/2026/TT-BCA.',
+    descriptionEn:
+      originType === 'DIY'
+        ? 'Official UAV Registration Certificate issued by Police following physical verification of the custom-built airframe (Circular 78/2026/TT-BCA).'
+        : 'Official UAV Registration Certificate issued by Provincial Police or Cyber Security Department (A05) under Circular 78/2026/TT-BCA.',
   },
   {
     type: 'OWNERSHIP',
-    titleVi: 'Ảnh Giấy tờ sở hữu / Hóa đơn tài chính',
-    titleEn: 'Proof of Ownership / Commercial Invoice',
-    descriptionVi: 'Hóa đơn VAT, tờ khai hải quan nhập khẩu hoặc văn bản chuyển nhượng quyền sở hữu hợp pháp.',
-    descriptionEn: 'VAT invoice, customs declaration, or legal transfer of ownership document.',
+    titleVi: originType === 'DIY' ? '2. Giấy tờ nguồn gốc linh kiện (Tùy chọn bổ sung)' : '2. Giấy tờ sở hữu hợp pháp / Hóa đơn (Tùy chọn bổ sung)',
+    titleEn: originType === 'DIY' ? '2. Component Origin / Invoices (Optional addition)' : '2. Proof of Legal Ownership / Invoice (Optional addition)',
+    descriptionVi:
+      originType === 'DIY'
+        ? '(Không bắt buộc nếu đã có Giấy đăng ký Công an cấp). Có thể đính kèm Hóa đơn VAT, chứng từ mua các cụm linh kiện chính hoặc bản tự kê khai.'
+        : '(Không bắt buộc nếu đã có Giấy đăng ký Công an cấp). Có thể đính kèm Hóa đơn VAT, tờ khai hải quan nhập khẩu hoặc văn bản chuyển nhượng quyền sở hữu.',
+    descriptionEn:
+      originType === 'DIY'
+        ? '(Optional if official Police Registration is provided). Optional VAT invoices or component declarations.'
+        : '(Optional if official Police Registration is provided). Optional VAT invoice, customs import declaration, or transfer contract.',
   },
   {
     type: 'INSPECTION',
-    titleVi: 'Ảnh Giấy kiểm định / Chứng nhận an toàn kỹ thuật',
-    titleEn: 'Technical Safety & Airworthiness Certificate',
-    descriptionVi: 'Biên bản kiểm định định kỳ hoặc Giấy chứng nhận chất lượng xuất xưởng (CoC/CoA) còn hạn.',
-    descriptionEn: 'Valid periodic airworthiness inspection report or Certificate of Conformity (CoC/CoA).',
+    titleVi: originType === 'DIY' ? '3. Biên bản kiểm định an toàn / Giấy thử nghiệm kỹ thuật' : '3. Giấy chứng nhận kiểm định / Xuất xưởng an toàn kỹ thuật (CoC)',
+    titleEn: originType === 'DIY' ? '3. Technical Safety Test Record / Airworthiness Verification' : '3. Technical Safety & Conformity Certificate (CoC)',
+    descriptionVi:
+      originType === 'DIY'
+        ? 'Biên bản kiểm tra an toàn kỹ thuật, phiếu thử nghiệm bay đạt tiêu chuẩn hoặc bản thuyết minh kỹ thuật đã được cơ quan chức năng xác nhận.'
+        : 'Giấy chứng nhận xuất xưởng của nhà sản xuất (CoC/CoA) hoặc biên bản kiểm định kỹ thuật an toàn phương tiện bay còn hạn.',
+    descriptionEn:
+      originType === 'DIY'
+        ? 'Official airworthiness safety inspection record, flight test report, or technical specification dossier endorsed by competent authority.'
+        : 'Valid manufacturer Certificate of Conformity (CoC) or authorized technical safety inspection record.',
   },
 ];
 
@@ -205,6 +232,10 @@ export default function InspectorDroneRegistrationPage() {
         }
         if (existingFileKeys[type]) {
           return existingFileKeys[type]!;
+        }
+        if (type === 'OWNERSHIP') {
+          // Ownership document is optional because police registration certificate already validates legal origin
+          return '';
         }
         throw new Error(
           locale === 'vi'
@@ -333,7 +364,6 @@ export default function InspectorDroneRegistrationPage() {
 
   const allDocumentsUploaded = Boolean(
     (files.REGISTRATION || existingFileKeys.REGISTRATION) &&
-      (files.OWNERSHIP || existingFileKeys.OWNERSHIP) &&
       (files.INSPECTION || existingFileKeys.INSPECTION),
   );
 
@@ -835,62 +865,115 @@ export default function InspectorDroneRegistrationPage() {
                 )}
               </Typography>
 
+              <Box sx={{ mb: 2.5, p: 2, bgcolor: '#F8FBFA', borderRadius: '8px', border: '1px solid #D6E4E0' }}>
+                <FormControl component="fieldset">
+                  <FormLabel component="legend" sx={{ fontWeight: 700, fontSize: '13.5px', color: '#173B36', mb: 1 }}>
+                    {tr('Nguồn gốc thiết bị bay (Theo Luật Phòng không nhân dân 2024 & TT 78/2026/TT-BCA):', 'Airframe Origin (Under Air Defense Law 2024 & Circular 78/2026):')}
+                  </FormLabel>
+                  <RadioGroup
+                    row
+                    value={form.droneOriginType}
+                    onChange={(e) => {
+                      const origin = e.target.value as 'COMMERCIAL' | 'DIY';
+                      setForm((current) => ({
+                        ...current,
+                        droneOriginType: origin,
+                        manufacturer: origin === 'DIY' ? (current.manufacturer || 'Tự lắp ráp (DIY / Custom-built)') : (current.manufacturer === 'Tự lắp ráp (DIY / Custom-built)' ? '' : current.manufacturer),
+                        droneName: origin === 'DIY' ? (current.droneName || 'Drone tự lắp ráp kiểm định') : current.droneName,
+                      }));
+                    }}
+                  >
+                    <FormControlLabel
+                      value="COMMERCIAL"
+                      control={<Radio size="small" sx={{ color: '#087E8B', '&.Mui-checked': { color: '#087E8B' } }} />}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <PrecisionManufacturingOutlined sx={{ fontSize: 18, color: '#087E8B' }} />
+                          <Typography sx={{ fontSize: '13.5px', fontWeight: 600 }}>
+                            {tr('Thiết bị thương mại chính hãng (DJI, Autel...)', 'Commercial Ready-to-Fly (DJI, Autel...)')}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <FormControlLabel
+                      value="DIY"
+                      control={<Radio size="small" sx={{ color: '#087E8B', '&.Mui-checked': { color: '#087E8B' } }} />}
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <HandymanOutlined sx={{ fontSize: 18, color: '#087E8B' }} />
+                          <Typography sx={{ fontSize: '13.5px', fontWeight: 600 }}>
+                            {tr('Drone tự lắp ráp / Tự chế kỹ thuật (DIY / Custom-built)', 'Custom-built / DIY Drone')}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </RadioGroup>
+                </FormControl>
+
+                {form.droneOriginType === 'DIY' && (
+                  <Alert severity="warning" sx={{ mt: 1.5, py: 0.5, fontSize: '12.5px', borderRadius: '6px' }}>
+                    <strong>Lưu ý pháp lý cho Drone tự build (Thông tư 78/2026/TT-BCA):</strong> Phương tiện bay tự lắp ráp vẫn bắt buộc phải đăng ký với cơ quan Công an để được cấp Giấy chứng nhận đăng ký, gắn tem/mã định danh quản lý bay và có biên bản kiểm định an toàn kỹ thuật trước khi được xét duyệt bay kiểm định.
+                  </Alert>
+                )}
+              </Box>
+
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <TextField
                   required
-                  label={tr('Tên Drone / Model', 'Drone Model')}
-                  placeholder={tr('VD: DJI Matrice 350 RTK, Autel EVO Max 4T', 'e.g. DJI Matrice 350 RTK, Autel EVO Max 4T')}
+                  label={form.droneOriginType === 'DIY' ? tr('Tên cấu hình Drone tự build *', 'Custom Drone Name *') : tr('Tên Drone / Model *', 'Drone Model *')}
+                  placeholder={form.droneOriginType === 'DIY' ? tr('VD: CineLifter 7-inch, VTOL Mapping DIY', 'e.g. CineLifter 7-inch, VTOL Mapping DIY') : tr('VD: DJI Matrice 350 RTK, Autel EVO Max 4T', 'e.g. DJI Matrice 350 RTK, Autel EVO Max 4T')}
                   value={form.droneName}
                   onChange={updateField('droneName')}
-                  helperText={tr('Tên thương mại đầy đủ của thiết bị', 'Full commercial model designation')}
+                  helperText={form.droneOriginType === 'DIY' ? tr('Tên định danh cấu hình phương tiện tự lắp ráp', 'Custom build project designation') : tr('Tên thương mại đầy đủ của thiết bị', 'Full commercial model designation')}
                 />
                 <TextField
                   required
-                  label={tr('Hãng sản xuất', 'Manufacturer')}
-                  placeholder={tr('VD: DJI, Autel Robotics, Skydio', 'e.g. DJI, Autel Robotics, Skydio')}
+                  label={form.droneOriginType === 'DIY' ? tr('Đơn vị / Cá nhân lắp ráp *', 'Builder / Assembler *') : tr('Hãng sản xuất *', 'Manufacturer *')}
+                  placeholder={form.droneOriginType === 'DIY' ? tr('Tự lắp ráp (DIY / Custom-built)', 'Custom-built') : tr('VD: DJI, Autel Robotics, Skydio', 'e.g. DJI, Autel Robotics, Skydio')}
                   value={form.manufacturer}
                   onChange={updateField('manufacturer')}
+                  helperText={form.droneOriginType === 'DIY' ? tr('Cá nhân hoặc xưởng cơ khí/điện tử chế tạo', 'Individual assembler or custom drone lab') : tr('Hãng chế tạo nguyên chiếc', 'Airframe manufacturer')}
                 />
                 <TextField
                   required
-                  label={tr('Số Serial thân máy (Serial number)', 'Airframe Serial Number')}
-                  placeholder={tr('VD: 1581F4B0C2301001', 'e.g. 1581F4B0C2301001')}
+                  label={form.droneOriginType === 'DIY' ? tr('Mã Serial Mạch điều khiển bay (FC Serial / MCU ID) *', 'Flight Controller (FC) Serial / MCU ID *') : tr('Số Serial thân máy (Airframe Serial Number) *', 'Airframe Serial Number *')}
+                  placeholder={form.droneOriginType === 'DIY' ? tr('VD: FC-STM32H7-0091823 hoặc Pixhawk SN', 'e.g. FC-STM32H7-0091823 or Pixhawk SN') : tr('VD: 1581F4B0C2301001', 'e.g. 1581F4B0C2301001')}
                   value={form.serialNumber}
                   onChange={updateField('serialNumber')}
-                  helperText={tr(
-                    'Mã số duy nhất in trên tem thân máy (phải khớp giấy tờ)',
-                    'Unique airframe serial number (must match official documents)',
-                  )}
+                  helperText={form.droneOriginType === 'DIY' ? tr('Mã số định danh chip/mạch FC hoặc số khung máy', 'Unique FC hardware UID or airframe serial') : tr('Mã số duy nhất in trên tem thân máy (phải khớp hóa đơn/tờ khai)', 'Unique airframe serial number')}
                 />
                 <TextField
                   required
-                  label={tr('Số đăng ký phương tiện bay', 'UAV Registration Number')}
-                  placeholder={tr('VD: VN-UAV-2026-0889', 'e.g. VN-UAV-2026-0889')}
+                  label={tr('Số Đăng ký Phương tiện bay (Bộ Công an cấp) *', 'UAV Registration Number (Police Authority) *')}
+                  placeholder={tr('VD: ĐK-2026-00892', 'e.g. DK-2026-00892')}
                   value={form.registrationNumber}
                   onChange={updateField('registrationNumber')}
                   helperText={tr(
-                    'Số đăng ký do cơ quan có thẩm quyền cấp',
-                    'Registration number issued by the civil aviation / defense authority',
+                    'Số trên Giấy chứng nhận đăng ký do Công an tỉnh/TP hoặc Cục A05 cấp',
+                    'Registration number issued by Provincial Police or Cyber Security Dept (A05)',
                   )}
                 />
                 <TextField
                   required
                   type="date"
-                  label={tr('Ngày hết hạn đăng ký / kiểm định', 'Registration / Airworthiness Expiry Date')}
+                  label={tr('Ngày hết hạn đăng ký / kiểm định *', 'Registration / Airworthiness Expiry Date *')}
                   value={form.registrationExpiresAt}
                   onChange={updateField('registrationExpiresAt')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   helperText={tr(
-                    'Thiết bị phải còn hạn đăng ký để được duyệt',
-                    'Registration must be valid at the time of review',
+                    'Thời hạn kiểm định/đăng ký phương tiện bay',
+                    'Airworthiness registration validity period',
                   )}
                 />
                 <TextField
-                  label={tr('Trọng lượng cất cánh tối đa (MTOW)', 'Max Takeoff Weight (MTOW)')}
-                  placeholder={tr('VD: 4.07 kg', 'e.g. 4.07 kg')}
+                  label={tr('Trọng lượng cất cánh tối đa MTOW (kg) *', 'Max Takeoff Weight MTOW (kg) *')}
+                  placeholder={tr('VD: 4.07', 'e.g. 4.07')}
                   value={form.mtowKg}
                   onChange={updateField('mtowKg')}
-                  helperText="Căn cứ phân loại phương tiện bay theo Điều 4 Nghị định 288/2025/NĐ-CP"
+                  helperText={tr(
+                    'Căn cứ phân Loại 1 – Loại 5 phương tiện bay theo Điều 4 Nghị định 288/2025/NĐ-CP',
+                    'Basis for Category 1 to 5 classification under Decree 288/2025/ND-CP',
+                  )}
                 />
                 {(() => {
                   const legalInfo = classifyDroneByMtow(form.mtowKg);
@@ -953,7 +1036,7 @@ export default function InspectorDroneRegistrationPage() {
               </Typography>
 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
-                {REQUIRED_DOCUMENTS.map((doc) => {
+                {getRequiredDocuments(form.droneOriginType).map((doc) => {
                   const file = files[doc.type];
                   const preview = previews[doc.type];
                   const docTitle = locale === 'vi' ? doc.titleVi : doc.titleEn;

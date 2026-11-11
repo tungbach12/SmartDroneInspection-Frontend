@@ -46,6 +46,20 @@ export interface OrganizationRegistrationRequest {
   otpCode?: string | undefined;
 }
 
+export interface InspectorRegistrationRequest {
+  email: string;
+  fullName: string;
+  phoneNumber?: string | undefined;
+  password: string;
+  citizenId?: string | undefined;
+  address?: string | undefined;
+  pilotLicenseNumber?: string | undefined;
+  pilotLicenseClass?: string | undefined;
+  pilotLicenseExpiresAt?: string | undefined;
+  otpChallengeToken?: string | undefined;
+  otpCode?: string | undefined;
+}
+
 export interface SendRegistrationOtpInput {
   email: string;
   phoneNumber?: string | undefined;
@@ -309,6 +323,16 @@ export async function registerOrganization(
     ...(data.reviewMessage !== undefined && { reviewMessage: data.reviewMessage }),
     user: parseUser(data.user),
   };
+}
+
+export async function registerInspector(
+  request: InspectorRegistrationRequest,
+): Promise<AuthUser> {
+  const { data } = await postWithBrowserCsrf<unknown>(
+    '/auth/register-inspector',
+    request,
+  );
+  return parseUser(data);
 }
 
 export interface AirspaceEvaluationResponse {

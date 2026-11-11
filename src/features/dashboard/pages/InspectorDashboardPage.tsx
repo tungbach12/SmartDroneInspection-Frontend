@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -14,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
@@ -27,6 +29,10 @@ import {
   type MonthRevenueData,
 } from '../components/InspectorMonthlyRevenueChart';
 import type { InspectionListItem } from '@/features/inspections/api/inspectionApi';
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { inspectorProfileApi } from '@/features/admin/api/inspectorProfileApi';
+import { mf1DroneApi } from '@/features/assets/api/mf1DroneApi';
+import FlightRounded from '@mui/icons-material/FlightRounded';
 
 /**
  * Partner Drone Inspector Dashboard (`/operations/dashboard`).
@@ -39,6 +45,22 @@ import type { InspectionListItem } from '@/features/inspections/api/inspectionAp
 export function InspectorDashboardPage() {
   const { formatNumber, t } = useLocale();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+
+  const profileQuery = useQuery({
+    queryKey: ['inspector-profile', user?.id],
+    queryFn: () => (user?.id ? inspectorProfileApi.get(user.id) : null),
+    enabled: Boolean(user?.id),
+  });
+  const myProfile = profileQuery.data;
+
+  const dronesQuery = useQuery({
+    queryKey: ['inspector-active-drones'],
+    queryFn: mf1DroneApi.drones,
+    enabled: Boolean(user?.id),
+  });
+  const myDrones = dronesQuery.data ?? [];
+  const droneCount = myDrones.length;
 
   const inspectionsQuery = useInspections({ page: 1, pageSize: 50 }, true);
   const items = useInspectionsQueryItems(inspectionsQuery.data?.items);
@@ -192,6 +214,94 @@ export function InspectorDashboardPage() {
             </Button>
           </Stack>
         </Stack>
+
+        {/* License Expiry / Expiration Warning Banner */}
+        {myProfile &&
+          (myProfile.licenseExpirationStatus === 'EXPIRED' ||
+            myProfile.licenseExpirationStatus === 'EXPIRING_SOON') && (
+            <Alert
+              severity={
+                myProfile.licenseExpirationStatus === 'EXPIRED'
+                  ? 'error'
+                  : (myProfile.licenseRemainingDays ?? 99) <= 7
+                    ? 'warning'
+                    : 'info'
+              }
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                  onClick={() => navigate('/operations/partner-onboarding')}
+                  sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
+                >
+                  {myProfile.licenseExpirationStatus === 'EXPIRED'
+                    ? 'Cập nhật bằng lái ngay'
+                    : 'Gia hạn / Cập nhật'}
+                </Button>
+              }
+              sx={{ borderRadius: '10px', alignItems: 'center' }}
+            >
+              {myProfile.licenseExpirationStatus === 'EXPIRED'
+                ? `Khẩn cấp: Giấy phép điều khiển UAV ${myProfile.pilotLicenseNumber || ''} của bạn đã hết hạn${
+                    myProfile.pilotLicenseExpiresAt
+                      ? ` (${new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')})`
+                      : ''
+                  }. Tài khoản tạm thời bị khóa quyền nhận lịch bay và bắt đầu chuyến bay mới cho đến khi cập nhật bằng gia hạn.`
+                : `Cảnh báo: Giấy phép điều khiển UAV ${myProfile.pilotLicenseNumber || ''} của bạn sẽ hết hạn sau ${
+                    myProfile.licenseRemainingDays ?? 0
+                  } ngày${
+                    myProfile.pilotLicenseExpiresAt
+                      ? ` (ngày ${new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')})`
+                      : ''
+                  }. Vui lòng gia hạn và tải lên bản scan mới để tránh gián đoạn lịch bay.`}
+            </Alert>
+          )}
+
+        {/* Minimal 1-line notice ONLY when onboarding is not yet approved */}
+        {myProfile && myProfile.onboardingStatus !== 'APPROVED' && (
+          <Alert
+            severity={myProfile.onboardingStatus === 'REJECTED' ? 'error' : 'warning'}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                onClick={() => navigate('/operations/partner-onboarding')}
+                sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
+              >
+                Hoàn tất hồ sơ
+              </Button>
+            }
+            sx={{ borderRadius: '10px', alignItems: 'center' }}
+          >
+            {myProfile.onboardingStatus === 'REJECTED'
+              ? `Hồ sơ cần bổ sung: ${myProfile.rejectionReason || 'Vui lòng kiểm tra lại bằng lái và hợp đồng.'}`
+              : 'Tài khoản đang chờ hoàn tất Bằng lái & Hợp đồng đối tác để bắt đầu nhận nhiệm vụ bay.'}
+          </Alert>
+        )}
+
+        {/* Notice when Inspector has no active drones registered */}
+        {!dronesQuery.isLoading && droneCount === 0 && (
+          <Alert
+            severity="info"
+            icon={<FlightRounded fontSize="inherit" />}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                onClick={() => navigate('/operations/inspector-drones')}
+                sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
+              >
+                Đăng ký Drone ngay
+              </Button>
+            }
+            sx={{ borderRadius: '10px', alignItems: 'center' }}
+          >
+            Đội bay của bạn chưa có Drone nào. Hãy đăng ký thiết bị Drone (kèm 3 giấy tờ pháp lý) để sẵn sàng được phân công nhiệm vụ bay kiểm tra.
+          </Alert>
+        )}
 
         {/* 3 Focused Real Metric Cards */}
         <Box

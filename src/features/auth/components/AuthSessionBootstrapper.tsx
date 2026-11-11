@@ -31,10 +31,8 @@ export function PublicOnly({ children }: PropsWithChildren) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  if (status === 'checking') {
-    return <AuthLoadingScreen />;
-  }
-
+  // Public pages must remain reachable while session restoration is pending. A stale
+  // refresh cookie must not block a visitor from signing up.
   if (status === 'authenticated') {
     const from = (location.state as { from?: unknown } | null)?.from;
     const returnTo = getLoginReturnTo(

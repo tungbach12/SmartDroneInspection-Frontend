@@ -89,11 +89,13 @@ const NAV_ITEMS = [
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
   { section: 'inspections', icon: <NextAdminTaskIcon /> },
   { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
+  { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
   { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
   { section: 'maintenance', icon: <NextAdminTaskIcon /> },
   { section: 'workforce', icon: <NextAdminTeamIcon /> },
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
   { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
+  { section: 'pilot-license-classes', icon: <NextAdminFormsIcon />, path: '/admin/pilot-license-classes' },
   { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },
   { section: 'settings', icon: <NextAdminProfileIcon /> },
 ] as const;
@@ -181,6 +183,9 @@ export function AppShell({ portal }: AppShellProps) {
     if (section === 'schedule') {
       return portal === 'operations' && roles.includes('INSPECTOR');
     }
+    if (section === 'partner-onboarding') {
+      return portal === 'operations' && roles.includes('INSPECTOR');
+    }
     if (section === 'ai-settings') {
       return portal === 'admin' && roles.includes('ADMIN');
     }
@@ -190,20 +195,32 @@ export function AppShell({ portal }: AppShellProps) {
     const path =
       section === 'schedule'
         ? '/operations/inspections?view=calendar'
-        : section === 'ai-settings'
-          ? '/admin/ai-settings'
-          : getSectionPath(
-              portal,
-              section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
-            );
+        : section === 'partner-onboarding'
+          ? '/operations/partner-onboarding'
+          : section === 'ai-settings'
+            ? '/admin/ai-settings'
+            : section === 'pilot-license-classes'
+              ? '/admin/pilot-license-classes'
+              : getSectionPath(
+                portal,
+                section as Exclude<typeof section, 'schedule' | 'partner-onboarding' | 'ai-settings' | 'pilot-license-classes'>,
+              );
     const label =
       section === 'schedule'
         ? t('Inspection Schedule')
-        : section === 'ai-settings'
+        : section === 'partner-onboarding'
           ? locale === 'vi'
-            ? 'Cấu hình AI'
-            : 'AI configuration'
-          : getSectionLabel(section, locale, portal);
+            ? 'Hồ sơ & Hợp đồng'
+            : 'Partner onboarding'
+          : section === 'ai-settings'
+            ? locale === 'vi'
+              ? 'Cấu hình AI'
+              : 'AI configuration'
+            : section === 'pilot-license-classes'
+              ? locale === 'vi'
+                ? 'Hạng bằng lái UAV'
+                : 'UAV license classes'
+              : getSectionLabel(section, locale, portal);
     return {
       section,
       icon,
@@ -380,12 +397,16 @@ export function AppShell({ portal }: AppShellProps) {
             const path =
               section === 'schedule'
                 ? '/operations/inspections?view=calendar'
-                : section === 'ai-settings'
-                  ? '/admin/ai-settings'
-                  : getSectionPath(
-                      portal,
-                      section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
-                    );
+                : section === 'partner-onboarding'
+                  ? '/operations/partner-onboarding'
+                  : section === 'ai-settings'
+                    ? '/admin/ai-settings'
+                    : section === 'pilot-license-classes'
+                      ? '/admin/pilot-license-classes'
+                      : getSectionPath(
+                        portal,
+                        section as Exclude<typeof section, 'schedule' | 'partner-onboarding' | 'ai-settings' | 'pilot-license-classes'>,
+                      );
             const isCalendarView =
               location.pathname.startsWith('/operations/inspections') &&
               new URLSearchParams(location.search).get('view') === 'calendar';
@@ -398,11 +419,19 @@ export function AppShell({ portal }: AppShellProps) {
             const navLabel =
               section === 'schedule'
                 ? t('Inspection Schedule')
-                : section === 'ai-settings'
+                : section === 'partner-onboarding'
                   ? locale === 'vi'
-                    ? 'Cấu hình AI'
-                    : 'AI configuration'
-                  : getSectionLabel(section, locale, portal);
+                    ? 'Hồ sơ & Hợp đồng'
+                    : 'Partner onboarding'
+                  : section === 'ai-settings'
+                    ? locale === 'vi'
+                      ? 'Cấu hình AI'
+                      : 'AI configuration'
+                    : section === 'pilot-license-classes'
+                      ? locale === 'vi'
+                        ? 'Hạng bằng lái UAV'
+                        : 'UAV license classes'
+                      : getSectionLabel(section, locale, portal);
             return (
               <ListItemButton
                 key={section}

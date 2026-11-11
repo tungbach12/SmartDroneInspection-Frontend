@@ -30,6 +30,15 @@ export interface InspectorProfile {
   certifiedDroneModels?: string | null;
   specializations?: string | null;
   experienceSummary?: string | null;
+  // Hybrid Onboarding & Partner Contract
+  onboardingStatus?: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | string;
+  partnerContractFileKey?: string | null;
+  partnerContractSha256?: string | null;
+  partnerContractUploadedAt?: string | null;
+  hasPartnerContract?: boolean;
+  approvedByUserId?: string | null;
+  approvedAt?: string | null;
+  rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,6 +117,9 @@ export const inspectorProfileApi = {
       )
       .then((r) => unwrap(r.data)),
 
+  updateLicenseClass: (input: { licenseNumber: string; licenseClass: string; expiresAt?: string | null }) =>
+    api.put('/users/me/pilot-license', input).then((r) => r.data),
+
   uploadLicenseScan: async (inspectorId: string, file: File): Promise<InspectorProfile> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -125,6 +137,56 @@ export const inspectorProfileApi = {
     const blob = response.data as Blob;
     const blobUrl = URL.createObjectURL(blob);
     return { blobUrl, contentType: blob.type };
+  },
+
+  downloadDraftPartnerContractPdf: async (inspectorId: string, fullName?: string): Promise<void> => {
+    const response = await api.get(`/platform/inspectors/${inspectorId}/partner-contract-template`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (fullName || inspectorId.slice(0, 8)).replace(/\s+/g, '_');
+    link.href = url;
+    link.download = `Du-Thao-Hop-Dong-Doi-Tac-${safeName}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  },
+
+  uploadPartnerContract: async (inspectorId: string, file: File): Promise<InspectorProfile> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post<InspectorProfile | { data: InspectorProfile }>(
+      `/platform/inspectors/${inspectorId}/partner-contract`,
+      formData,
+    );
+    return unwrap(data);
+  },
+
+  getPartnerContractBlobUrl: async (inspectorId: string): Promise<{ blobUrl: string; contentType: string }> => {
+    const response = await api.get(`/platform/inspectors/${inspectorId}/partner-contract`, {
+      responseType: 'blob',
+    });
+    const blob = response.data as Blob;
+    const blobUrl = URL.createObjectURL(blob);
+    return { blobUrl, contentType: blob.type };
+  },
+
+  approveOnboarding: async (inspectorId: string): Promise<InspectorProfile> => {
+    const { data } = await api.post<InspectorProfile | { data: InspectorProfile }>(
+      `/platform/inspectors/${inspectorId}/approve`,
+    );
+    return unwrap(data);
+  },
+
+  rejectOnboarding: async (inspectorId: string, reason: string): Promise<InspectorProfile> => {
+    const { data } = await api.post<InspectorProfile | { data: InspectorProfile }>(
+      `/platform/inspectors/${inspectorId}/reject`,
+      { reason },
+    );
+    return unwrap(data);
   },
 
   listFlightLogs: (inspectorId: string) =>

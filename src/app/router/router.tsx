@@ -34,6 +34,9 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const OAuthCallbackPage = lazy(() => import('@/features/auth/pages/OAuthCallbackPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
+const InspectorRegisterPage = lazy(
+  () => import('@/features/auth/pages/InspectorRegisterPage'),
+);
 const AccountSecurityPage = lazy(
   () => import('@/features/auth/pages/AccountSecurityPage'),
 );
@@ -44,6 +47,9 @@ const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
 const InspectorDroneRegistrationPage = lazy(
   () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
+);
+const InspectorOnboardingPage = lazy(
+  () => import('@/features/admin/pages/InspectorOnboardingPage'),
 );
 const InspectionsPage = lazy(
   () => import('@/features/inspections/pages/InspectionsPage'),
@@ -101,6 +107,9 @@ const ContractsPage = lazy(
 const PlatformFinanceSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
 );
+const PilotLicenseClassesPage = lazy(
+  () => import('@/features/admin/pages/PilotLicenseClassesPage'),
+);
 const PlatformAiSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformAiSettingsPage'),
 );
@@ -119,6 +128,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   workforce: <WorkforcePage />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
+  'pilot-license-classes': <PilotLicenseClassesPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   settings: <AccountSecurityPage />,
@@ -307,6 +317,14 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         ),
       },
       {
+        path: 'partner-onboarding',
+        element: (
+          <RequireAuth roles={['INSPECTOR']}>
+            <InspectorOnboardingPage />
+          </RequireAuth>
+        ),
+      },
+      {
         path: 'account/security',
         element: <Navigate to="../settings" replace />,
       },
@@ -371,6 +389,14 @@ export const router = createBrowserRouter([
         element: (
           <PublicOnly>
             <RegisterPage />
+          </PublicOnly>
+        ),
+      },
+      {
+        path: 'register-inspector',
+        element: (
+          <PublicOnly>
+            <InspectorRegisterPage />
           </PublicOnly>
         ),
       },
