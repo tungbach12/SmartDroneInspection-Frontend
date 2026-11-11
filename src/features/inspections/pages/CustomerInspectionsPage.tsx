@@ -139,9 +139,10 @@ export function CustomerInspectionsPage() {
     >();
     for (const req of serviceRequests) {
       const quotePriceVnd =
-        req.quotes?.find((q) => q.versionNo === req.acceptedQuoteVersion)?.pricePerOccurrenceVnd ??
-        req.quotes?.[0]?.pricePerOccurrenceVnd ??
-        null;
+        req.currentQuote?.pricePerOccurrenceVnd ??
+        (typeof req.acceptedTermsSnapshot?.pricePerOccurrenceVnd === 'number'
+          ? req.acceptedTermsSnapshot.pricePerOccurrenceVnd
+          : null);
       for (const occ of req.occurrences ?? []) {
         if (!occ.inspectionId) continue;
         map.set(occ.inspectionId, {

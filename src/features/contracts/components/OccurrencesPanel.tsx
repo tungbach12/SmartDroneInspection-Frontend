@@ -243,8 +243,8 @@ function OccurrenceCard({
         </Stack>
 
         <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-          {new Date(startAt).toLocaleString(undefined, { timeZone: request.timezone })} -{' '}
-          {new Date(endAt).toLocaleString(undefined, { timeZone: request.timezone })} · {request.timezone}
+          {new Date(startAt).toLocaleString(undefined, { timeZone: request.timezone })} –{' '}
+          {new Date(endAt).toLocaleString(undefined, { timeZone: request.timezone })}
         </Typography>
 
         <Paper variant="outlined" sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'background.default' }}>
