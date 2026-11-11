@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import ContractsPage from './ContractsPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import * as contractsHook from '../hooks/useContracts';
@@ -15,7 +16,9 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ContractsPage />
+      <MemoryRouter>
+        <ContractsPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -100,13 +103,74 @@ describe('ContractsPage', () => {
           occurrenceCount: null,
           recurrenceEndDate: null,
           status: 'OPEN',
-          acceptedQuoteVersion: null,
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
           contractFileName: null,
           contractContentType: null,
           contractSizeBytes: null,
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
-          quotes: [],
+          currentQuote: null,
+          occurrences: [],
+          messages: [],
+        },
+        {
+          id: 'req-quoted',
+          organizationId: 'org-1',
+          assetId: 'asset-1',
+          description: 'Roof survey quote',
+          requestedFrom: '2026-11-03',
+          requestedUntil: '2026-11-03',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'QUOTED',
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-10-29T00:00:00Z',
+          currentQuote: null,
+          occurrences: [],
+          messages: [],
+        },
+        {
+          id: 'req-signed',
+          organizationId: 'org-1',
+          assetId: 'asset-1',
+          description: 'Signed bridge survey',
+          requestedFrom: '2026-11-04',
+          requestedUntil: '2026-11-04',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'CONTRACT_SIGNED',
+          acceptedQuoteId: 'quote-signed',
+          acceptedAt: '2026-10-29T00:00:00Z',
+          acceptedByUserId: 'customer-1',
+          acceptedTermsSnapshot: {},
+          contractFileName: 'signed.pdf',
+          contractContentType: 'application/pdf',
+          contractSizeBytes: 1024,
+          contractUploadedAt: '2026-10-29T00:00:00Z',
+          createdAt: '2026-10-29T00:00:00Z',
+          currentQuote: null,
           occurrences: [],
           messages: [],
         },
@@ -129,8 +193,22 @@ describe('ContractsPage', () => {
     renderPage();
     expect(screen.getByText('Inspection service requests')).toBeTruthy();
     expect(screen.getByText('Crack check')).toBeTruthy();
+    const openStatusCell = screen.getByText('Open').closest('td');
+    expect(openStatusCell).toBeTruthy();
+    expect(openStatusCell?.querySelector('[data-status="OPEN"]')).toBeTruthy();
+    expect(screen.getByText('Step 1/4 · In progress')).toBeTruthy();
+    const quotedStatusCell = screen.getByText('Quoted').closest('td');
+    expect(quotedStatusCell?.querySelector('[data-status="QUOTED"]')).toBeTruthy();
+    expect(screen.getByText('Step 2/4 · Quote review')).toBeTruthy();
+    const signedStatusCell = screen.getByText('Contract Signed').closest('td');
+    expect(signedStatusCell?.querySelector('[data-status="CONTRACT_SIGNED"]')).toBeTruthy();
+    expect(screen.getByText('Step 3/4 · Signed contract')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'New service request' }));
-    expect(screen.getByRole('button', { name: 'Gửi yêu cầu dịch vụ' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Create inspection request' })).toBeTruthy();
+    expect(screen.getByText(/Select a date at least 20 days from today\. Earliest date:/)).toBeTruthy();
+    expect(screen.getAllByText(/Select a date at least 20 days from today\. Earliest date:/)).toHaveLength(1);
+    expect(screen.queryByLabelText('Phạm vi & Yêu cầu khảo sát')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Submit service request' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('allows customer to download the signed contract attachment when recorded', () => {
@@ -153,13 +231,16 @@ describe('ContractsPage', () => {
           occurrenceCount: null,
           recurrenceEndDate: null,
           status: 'CONTRACT_SIGNED',
-          acceptedQuoteVersion: 1,
+          acceptedQuoteId: 'quote-1',
+          acceptedAt: '2026-10-30T00:00:00Z',
+          acceptedByUserId: 'cust-1',
+          acceptedTermsSnapshot: { pricePerOccurrenceVnd: 11000000 },
           contractFileName: 'signed-contract.pdf',
           contractContentType: 'application/pdf',
           contractSizeBytes: 1024,
           contractUploadedAt: '2026-10-30T00:00:00Z',
           createdAt: '2026-10-29T00:00:00Z',
-          quotes: [],
+          currentQuote: null,
           occurrences: [],
           messages: [],
         },
@@ -212,13 +293,16 @@ describe('ContractsPage', () => {
           occurrenceCount: null,
           recurrenceEndDate: null,
           status: 'OPEN',
-          acceptedQuoteVersion: null,
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
           contractFileName: null,
           contractContentType: null,
           contractSizeBytes: null,
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
-          quotes: [],
+          currentQuote: null,
           occurrences: [],
           messages: [],
         },
@@ -249,8 +333,13 @@ describe('ContractsPage', () => {
 
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
-    expect(screen.getByText('Issue quote version')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Issue new quote version' })).toBeTruthy();
+    expect(screen.getByText('1. Review customer request')).toBeTruthy();
+    expect(screen.getByText('2. Prepare & discuss quote')).toBeTruthy();
+    expect(screen.getByText('3. Record signed contract')).toBeTruthy();
+    expect(screen.getByText('4. Assign inspection team')).toBeTruthy();
+    expect(screen.queryByText('Customer creates inspection request')).toBeNull();
+    expect(screen.getByText('Create quote')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save quote' })).toBeTruthy();
     fireEvent.mouseDown(screen.getByLabelText('Partner Inspector'));
     fireEvent.click(screen.getByRole('option', { name: /Partner Alice/ }));
     fireEvent.mouseDown(screen.getByLabelText('Partner drone'));
@@ -272,7 +361,7 @@ describe('ContractsPage', () => {
     expect(screen.getByText('MF2 is available to Customer and Platform Manager accounts.')).toBeTruthy();
   });
 
-  it('allows customer to accept the latest quote version when status is QUOTED', () => {
+  it('allows customer to accept the current quote when status is QUOTED', () => {
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-1', status: 'ACCEPTED' });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
@@ -292,38 +381,30 @@ describe('ContractsPage', () => {
           occurrenceCount: null,
           recurrenceEndDate: null,
           status: 'QUOTED',
-          acceptedQuoteVersion: null,
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
           contractFileName: null,
           contractContentType: null,
           contractSizeBytes: null,
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
-          quotes: [
-            {
-              id: 'quote-2',
-              versionNo: 2,
-              scopeSnapshot: 'Revised scope',
-              firstOccurrenceStartAt: '2026-11-02T01:00:00Z',
-              firstOccurrenceEndAt: '2026-11-02T03:00:00Z',
-              inspectorId: 'insp-1',
-              droneId: 'drone-1',
-              pricePerOccurrenceUsd: 150,
-              issuedByUserId: 'mgr-1',
-              createdAt: '2026-10-29T02:00:00Z',
-            },
-            {
-              id: 'quote-1',
-              versionNo: 1,
-              scopeSnapshot: 'Original scope',
-              firstOccurrenceStartAt: '2026-11-02T01:00:00Z',
-              firstOccurrenceEndAt: '2026-11-02T03:00:00Z',
-              inspectorId: 'insp-1',
-              droneId: 'drone-1',
-              pricePerOccurrenceUsd: 200,
-              issuedByUserId: 'mgr-1',
-              createdAt: '2026-10-29T01:00:00Z',
-            },
-          ],
+          currentQuote: {
+            id: 'quote-2',
+            scopeSnapshot: 'Revised scope',
+            firstOccurrenceStartAt: '2026-11-02T01:00:00Z',
+            firstOccurrenceEndAt: '2026-11-02T03:00:00Z',
+            inspectorId: 'insp-1',
+            droneId: 'drone-1',
+            pricePerOccurrenceVnd: 15000000,
+            pricePerOccurrenceUsd: 600,
+            issuedByUserId: 'mgr-1',
+            createdAt: '2026-10-29T02:00:00Z',
+            updatedAt: '2026-10-29T02:00:00Z',
+            updatedByUserId: 'mgr-1',
+            rowVersion: 2,
+          },
           occurrences: [],
           messages: [],
         },
@@ -344,8 +425,14 @@ describe('ContractsPage', () => {
 
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
-    expect(screen.getByText('Version 2 · Latest')).toBeTruthy();
-    const acceptBtn = screen.getByRole('button', { name: 'Accept latest quote' });
+    expect(screen.getByText('1. Request submitted')).toBeTruthy();
+    expect(screen.getByText('2. Review manager quote')).toBeTruthy();
+    expect(screen.getByText('3. Accept terms & sign contract')).toBeTruthy();
+    expect(screen.getByText('4. Inspection scheduled')).toBeTruthy();
+    expect(screen.queryByText('Customer creates inspection request')).toBeNull();
+    expect(screen.getByText('Current quote')).toBeTruthy();
+    expect(screen.getByText('Revised scope')).toBeTruthy();
+    const acceptBtn = screen.getByRole('button', { name: 'Accept quote' });
     expect(acceptBtn).toBeTruthy();
     fireEvent.click(acceptBtn);
     expect(screen.getByText('Confirm Quote Acceptance')).toBeTruthy();
@@ -382,13 +469,16 @@ describe('ContractsPage', () => {
           occurrenceCount: null,
           recurrenceEndDate: null,
           status: 'CONTRACT_SIGNED',
-          acceptedQuoteVersion: 1,
+          acceptedQuoteId: 'quote-1',
+          acceptedAt: '2026-10-30T00:00:00Z',
+          acceptedByUserId: 'cust-1',
+          acceptedTermsSnapshot: { pricePerOccurrenceVnd: 11000000 },
           contractFileName: 'signed.pdf',
           contractContentType: 'application/pdf',
           contractSizeBytes: 1024,
           contractUploadedAt: '2026-10-30T00:00:00Z',
           createdAt: '2026-10-29T00:00:00Z',
-          quotes: [],
+          currentQuote: null,
           occurrences: [
             {
               id: 'occ-1',

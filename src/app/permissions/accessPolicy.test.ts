@@ -25,6 +25,7 @@ const expectedAccess: Record<
   admin: {
     dashboard: ['ADMIN'],
     contracts: [],
+    messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
     inspections: ['ADMIN'],
@@ -40,6 +41,7 @@ const expectedAccess: Record<
   manager: {
     dashboard: ['MANAGER'],
     contracts: ['MANAGER'],
+    messages: ['MANAGER'],
     assets: ['MANAGER'],
     'asset-catalog': [],
     inspections: ['MANAGER'],
@@ -55,6 +57,7 @@ const expectedAccess: Record<
   client: {
     dashboard: ['CUSTOMER'],
     contracts: ['CUSTOMER'],
+    messages: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
     inspections: ['CUSTOMER'],
@@ -70,6 +73,7 @@ const expectedAccess: Record<
   operations: {
     dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
     contracts: [],
+    messages: [],
     assets: [],
     'asset-catalog': [],
     inspections: ['INSPECTOR'],
