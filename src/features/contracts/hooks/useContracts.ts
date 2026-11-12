@@ -116,6 +116,41 @@ export function useConfirmOccurrencePayment(requestId: string, occurrenceId: str
   );
 }
 
+export function useReconcileRefundHold(requestId: string, occurrenceId: string) {
+  return useContractMutation<{
+    finalPayoutAmount: number;
+    payoutReference: string;
+    reconciliationReference: string;
+    note: string;
+    inspectorPayoutReduction: number;
+    platformCommissionAdjustment: number;
+    vatAdjustment: number;
+    tncnAdjustment: number;
+    platformAbsorbedAmount: number;
+  }>(
+    (input) => contractApi.reconcileRefundHold(requestId, occurrenceId, input),
+    'Refund allocation reconciled and payout recorded.',
+    requestId,
+  );
+}
+
+export function useRecordOccurrenceRefund(requestId: string, occurrenceId: string) {
+  return useContractMutation<{
+    amount: number;
+    inspectorPayoutReduction: number;
+    platformCommissionAdjustment: number;
+    vatAdjustment: number;
+    tncnAdjustment: number;
+    platformAbsorbedAmount: number;
+    refundReference: string;
+    reason: string;
+  }>(
+    (input) => contractApi.recordOccurrenceRefund(requestId, occurrenceId, input),
+    'Customer refund and allocation recorded.',
+    requestId,
+  );
+}
+
 export function useRecordOccurrencePayout(requestId: string, occurrenceId: string) {
   return useContractMutation<{ payoutReference: string }>(
     (input) => contractApi.recordOccurrencePayout(requestId, occurrenceId, input),

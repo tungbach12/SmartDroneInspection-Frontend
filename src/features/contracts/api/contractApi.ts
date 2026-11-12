@@ -55,6 +55,27 @@ export interface InspectorPayoutSummary {
   status: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
   reference: string | null;
   recordedAt: string | null;
+  heldForRefund?: boolean;
+  finalPayoutAmount?: number | null;
+  refundReconciliationReference?: string | null;
+}
+
+export interface ServiceRefundSummary {
+  id: string;
+  amount: number;
+  inspectorPayoutReduction: number | null;
+  platformCommissionAdjustment: number | null;
+  vatAdjustment: number | null;
+  tncnAdjustment: number | null;
+  platformAbsorbedAmount: number | null;
+  reference: string | null;
+  reason: string | null;
+  recordedByUserId: string | null;
+  allocationReconciledByUserId?: string | null;
+  allocationReconciliationReference?: string | null;
+  allocationReconciliationNote?: string | null;
+  allocationReconciledAt?: string | null;
+  recordedAt: string;
 }
 
 export interface ServiceRequestOccurrence {
@@ -82,8 +103,12 @@ export interface ServiceRequestOccurrence {
   tncnRate?: number | null;
   tncnAmount?: number | null;
   inspectorNetPayout?: number | null;
+  remainingInspectorNetPayout?: number | null;
   paymentStatus?: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | string | null;
   paymentConfirmedAt?: string | null;
+  refundedAmount?: number | null;
+  refundStatus?: string | null;
+  refunds?: ServiceRefundSummary[];
   paymentMethod?: string | null;
   paymentReference?: string | null;
   payosOrderCode?: number | null;
@@ -255,6 +280,49 @@ export const contractApi = {
   ): Promise<ServiceRequest> {
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/confirm-payment`,
+      input,
+    );
+    return data;
+  },
+
+  async reconcileRefundHold(
+    requestId: string,
+    occurrenceId: string,
+    input: {
+      finalPayoutAmount: number;
+      payoutReference: string;
+      reconciliationReference: string;
+      note: string;
+      inspectorPayoutReduction: number;
+      platformCommissionAdjustment: number;
+      vatAdjustment: number;
+      tncnAdjustment: number;
+      platformAbsorbedAmount: number;
+    },
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/reconcile-refund-hold`,
+      input,
+    );
+    return data;
+  },
+
+  async recordOccurrenceRefund(
+    requestId: string,
+    occurrenceId: string,
+    input: {
+      amount: number;
+      inspectorPayoutReduction: number;
+      platformCommissionAdjustment: number;
+      vatAdjustment: number;
+      tncnAdjustment: number;
+      platformAbsorbedAmount: number;
+      refundReference: string;
+      reason: string;
+    },
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/record-refund`,
       input,
     );
     return data;
