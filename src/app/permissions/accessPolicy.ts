@@ -22,6 +22,7 @@ export const PORTAL_CONFIG = {
 export const SECTION_IDS = [
   'dashboard',
   'contracts',
+  'messages',
   'assets',
   'asset-catalog',
   'inspections',
@@ -38,6 +39,7 @@ export type SectionId = (typeof SECTION_IDS)[number];
 export const SECTION_LABELS: Record<SectionId, string> = {
   dashboard: 'Dashboard',
   contracts: 'Service requests',
+  messages: 'Messages',
   assets: 'Assets',
   'asset-catalog': 'Asset catalog',
   inspections: 'Inspections',
@@ -63,6 +65,7 @@ const PORTAL_LABELS_VI: Record<PortalId, string> = {
 const SECTION_LABELS_VI: Record<SectionId, string> = {
   dashboard: 'Bảng điều khiển',
   contracts: 'Yêu cầu dịch vụ',
+  messages: 'Tin nhắn',
   assets: 'Tài sản',
   'asset-catalog': 'Danh mục tài sản',
   inspections: 'Đợt kiểm tra',
@@ -116,6 +119,7 @@ const SECTION_ROLE_ACCESS = {
   admin: {
     dashboard: ['ADMIN'],
     contracts: [],
+    messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
     inspections: ['ADMIN'],
@@ -130,6 +134,7 @@ const SECTION_ROLE_ACCESS = {
   manager: {
     dashboard: ['MANAGER'],
     contracts: ['MANAGER'],
+    messages: ['MANAGER'],
     assets: ['MANAGER'],
     'asset-catalog': [],
     inspections: ['MANAGER'],
@@ -143,6 +148,7 @@ const SECTION_ROLE_ACCESS = {
   client: {
     dashboard: ['CUSTOMER'],
     contracts: ['CUSTOMER'],
+    messages: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
     inspections: ['CUSTOMER'],
@@ -157,6 +163,7 @@ const SECTION_ROLE_ACCESS = {
   operations: {
     dashboard: ['INSPECTOR'],
     contracts: [],
+    messages: [],
     assets: [],
     'asset-catalog': [],
     inspections: ['INSPECTOR'],

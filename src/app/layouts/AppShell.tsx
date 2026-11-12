@@ -83,6 +83,7 @@ const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <NextAdminHomeIcon /> },
   { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
+  { section: 'messages', icon: <NextAdminFormsIcon /> },
   { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <NextAdminTablesIcon /> },
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },

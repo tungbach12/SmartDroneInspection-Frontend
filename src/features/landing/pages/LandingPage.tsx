@@ -66,7 +66,7 @@ export default function LandingPage() {
   const { locale, setLocale, t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'SDI | A clearer view of every asset';
+    document.title = 'SDI';
     if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
       setLocale('en');
     }
@@ -116,8 +116,8 @@ export default function LandingPage() {
               <svg width="34" height="34" viewBox="0 0 48 48" fill="none" aria-hidden="true">
                 <defs>
                   <linearGradient id="sdi_landing_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#3758F9" />
-                    <stop offset="1" stopColor="#06B6D4" />
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#3B82F6" />
                   </linearGradient>
                 </defs>
                 <path
@@ -127,7 +127,7 @@ export default function LandingPage() {
                 <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
               </svg>
               <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
-                SmartDroneInspection
+                SDI
               </Typography>
             </Stack>
           </Link>
@@ -531,7 +531,19 @@ export default function LandingPage() {
             }}
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 44, height: 44, borderRadius: 1, objectFit: 'cover' }} />
+              <svg width="38" height="38" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="sdi_landing_footer_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#3B82F6" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
+                  fill="url(#sdi_landing_footer_grad)"
+                />
+                <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
+              </svg>
               <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
                 SDI
               </Typography>

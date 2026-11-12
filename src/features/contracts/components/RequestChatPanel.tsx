@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
-  Card,
-  CardContent,
   Chip,
-  Divider,
   Paper,
   Stack,
   TextField,
@@ -15,14 +12,13 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { type ServiceRequest } from '../api/contractApi';
-import { usePostRequestMessage } from '../hooks/useContracts';
-import { generateContextualAiBotReply, shouldAiBotAutoReply } from '../utils/aiChatAssistant';
-import { useManagerPresence } from '../utils/presence';
+import { usePostRequestMessage, useMarkMessagesRead } from '../hooks/useContracts';
 
 interface RequestChatPanelProps {
   request: ServiceRequest;
@@ -35,17 +31,25 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
   const currentUser = useAuthStore((state) => state.user);
   const userRoles = useAuthStore((state) => state.roles);
   const isManagerRole = userRoles.includes('MANAGER') || userRoles.includes('ADMIN');
-  const isManagerOnline = useManagerPresence(isManagerRole);
   const post = usePostRequestMessage(request.id);
+  const markRead = useMarkMessagesRead(request.id);
   const [body, setBody] = useState('');
-  const [botTyping, setBotTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [request.messages, botTyping]);
+  }, [request.messages]);
+
+  useEffect(() => {
+    const hasUnread = (request.messages || []).some(
+      (m) => m.authorUserId !== currentUser?.id && !m.readAt,
+    );
+    if (hasUnread) {
+      markRead.mutate(request.id);
+    }
+  }, [request.id, request.messages, currentUser?.id, markRead]);
 
   const send = async (textToSend?: string) => {
     const text = (textToSend ?? body).trim();
@@ -54,94 +58,81 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
       await post.mutateAsync(text);
       setBody('');
       onChanged();
-
-      // AUTOMATED AI BOT: ONLY trigger if Manager is currently OFFLINE and has not taken over
-      const shouldAutoReply = shouldAiBotAutoReply(request.messages, text, isManagerRole, isManagerOnline);
-      if (shouldAutoReply) {
-        setBotTyping(true);
-        window.setTimeout(async () => {
-          try {
-            const aiReply = generateContextualAiBotReply(text, request);
-            await post.mutateAsync(aiReply);
-            onChanged();
-          } catch {
-            // bot error ignored
-          } finally {
-            setBotTyping(false);
-          }
-        }, 1500);
-      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Không thể gửi tin nhắn.';
       onError(msg);
     }
   };
 
+  const otherPartyMessage = [...(request.messages || [])]
+    .reverse()
+    .find((m) => m.authorUserId !== currentUser?.id && m.authorName);
+  const partnerName =
+    otherPartyMessage?.authorName || (isManagerRole ? t('Customer') : t('Service Manager'));
+  const partnerInitial = partnerName.trim().charAt(0).toUpperCase() || 'U';
+
   return (
-    <Card
+    <Paper
       variant="outlined"
       sx={{
-        borderRadius: '10px',
+        borderRadius: '8px',
         borderColor: 'divider',
+        bgcolor: 'background.paper',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        overflow: 'hidden',
+        boxShadow: 'none',
       }}
     >
-      <CardContent sx={{ pb: 1.5 }}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main', width: 36, height: 36 }}>
-              <ForumOutlinedIcon fontSize="small" />
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Contract Negotiation & Terms')}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t('Direct channel between Customer and Service Manager for this request')}
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Chip
-              icon={<SmartToyOutlinedIcon sx={{ fontSize: '14px !important' }} />}
-              label={
-                isManagerRole
-                  ? t('Direct negotiation with customer')
-                  : t('Ask AI Assistant')
-              }
-              size="small"
-              color="secondary"
-              variant="outlined"
-              sx={{ fontWeight: 650, fontSize: '0.75rem' }}
-            />
-            <Chip
-              size="small"
-              label={`${request.messages.length} ${t('messages')}`}
-              color={request.messages.length > 0 ? 'primary' : 'default'}
-              variant="outlined"
-              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-            />
-          </Stack>
+      <Box
+        sx={{
+          px: { xs: 2, sm: 2.25 },
+          py: 1.5,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+          <Avatar
+            sx={{
+              bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)',
+              color: 'primary.main',
+              width: 36,
+              height: 36,
+              fontSize: '0.875rem',
+              fontWeight: 700,
+            }}
+          >
+            {partnerInitial}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }} noWrap>
+              {partnerName}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+              {request.description}
+            </Typography>
+          </Box>
         </Stack>
-      </CardContent>
-
-      <Divider />
+      </Box>
 
       {/* Messages Scroll Area */}
       <Box
         ref={scrollRef}
-        sx={{
+        sx={(theme) => ({
           p: { xs: 2, sm: 2.5 },
-          minHeight: 340,
-          maxHeight: { xs: 420, md: 520 },
+          minHeight: 380,
+          maxHeight: { xs: 450, md: 540 },
           overflowY: 'auto',
-          bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'background.default' : '#f8fafc'),
+          bgcolor: '#f8fafc',
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
           scrollBehavior: 'smooth',
+          ...theme.applyStyles('dark', {
+            bgcolor: 'var(--mui-palette-background-default)',
+          }),
           '&::-webkit-scrollbar': {
             width: 6,
           },
@@ -149,7 +140,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             bgcolor: 'divider',
             borderRadius: 3,
           },
-        }}
+        })}
       >
         {request.messages.length === 0 ? (
           <Box
@@ -159,137 +150,179 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
               alignItems: 'center',
               justifyContent: 'center',
               my: 'auto',
-              py: 6,
-              color: 'text.secondary',
+              py: 8,
+              textAlign: 'center',
             }}
           >
-            <ForumOutlinedIcon sx={{ fontSize: 48, opacity: 0.25, mb: 1.5 }} />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Box
+              sx={(theme) => ({
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'action.hover',
+                mb: 1.5,
+                ...theme.applyStyles('dark', {
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                }),
+              })}
+            >
+              <ForumOutlinedIcon sx={{ fontSize: 26, color: 'text.secondary', opacity: 0.6 }} />
+            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Chưa có tin nhắn đàm phán nào
             </Typography>
-            <Typography variant="caption" sx={{ maxWidth: 380, textAlign: 'center', mt: 0.75, color: 'text.secondary' }}>
-              Gửi tin nhắn hoặc chọn gợi ý nhanh bên dưới để làm rõ điều kiện bay, khung giờ và chi phí với đối tác.
+            <Typography
+              variant="caption"
+              sx={{ maxWidth: 420, mt: 0.5, color: 'text.secondary', lineHeight: 1.5 }}
+            >
+              Gửi tin nhắn để trao đổi chi tiết về phạm vi, khung giờ bay và thống nhất báo giá hợp đồng với đối tác.
             </Typography>
           </Box>
         ) : (
-          request.messages.map((message) => {
-            const isMe = currentUser?.id === message.authorUserId;
-            const authorRole = message.authorRole;
-            const isManager = authorRole === 'MANAGER' || authorRole === 'ADMIN';
-            const isAiBot = message.body.startsWith('🤖');
+          (() => {
+            const myMessages = (request.messages || []).filter((m) => m.authorUserId === currentUser?.id);
+            const lastMyMessage = myMessages[myMessages.length - 1];
 
-            return (
-              <Box
-                key={message.id}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignSelf: isMe ? 'flex-end' : 'flex-start',
-                  maxWidth: { xs: '90%', sm: '78%' },
-                }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={0.75}
+            return request.messages.map((message) => {
+              const isMe = currentUser?.id === message.authorUserId;
+              const isLastFromMe = isMe && message.id === lastMyMessage?.id;
+              const authorRole = message.authorRole;
+              const isManager = authorRole === 'MANAGER' || authorRole === 'ADMIN';
+
+              return (
+                <Box
+                  key={message.id}
                   sx={{
-                    alignItems: 'center',
-                    mb: 0.5,
+                    display: 'flex',
+                    flexDirection: 'column',
                     alignSelf: isMe ? 'flex-end' : 'flex-start',
+                    maxWidth: { xs: '90%', sm: '78%' },
                   }}
                 >
-                  {!isMe && (
-                    isAiBot ? (
-                      <SmartToyOutlinedIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
-                    ) : isManager ? (
-                      <SupportAgentRoundedIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                    ) : (
-                      <PersonOutlineRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                    )
-                  )}
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {isMe ? 'Bạn' : isAiBot ? 'Trợ lý AI SmartDrone' : message.authorName || 'Đối tác'}
-                  </Typography>
-                  {!isMe && (
-                    <Chip
-                      label={isAiBot ? 'AI Assistant' : isManager ? 'Quản lý Dịch vụ' : 'Khách hàng'}
-                      size="small"
-                      color={isAiBot ? 'secondary' : isManager ? 'info' : 'default'}
-                      variant="outlined"
-                      sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600 }}
-                    />
-                  )}
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-                    {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Typography>
-                </Stack>
-
-                <Paper
-                  elevation={0}
-                  sx={{
-                    px: 2,
-                    py: 1.25,
-                    borderRadius: isMe ? '10px 10px 5px 10px' : '10px 10px 10px 5px',
-                    bgcolor: (theme) =>
-                      isMe
-                        ? 'primary.main'
-                        : isAiBot
-                          ? theme.palette.mode === 'dark'
-                            ? 'rgba(156, 39, 176, 0.18)'
-                            : '#f3e5f5'
-                          : 'background.paper',
-                    color: isMe ? 'primary.contrastText' : 'text.primary',
-                    border: isMe ? 'none' : '1px solid',
-                    borderColor: isAiBot ? 'secondary.light' : 'divider',
-                    boxShadow: isMe
-                      ? '0 2px 6px rgba(0, 109, 119, 0.2)'
-                      : '0 1px 3px rgba(0,0,0,0.04)',
-                  }}
-                >
-                  <Typography
-                    variant="body2"
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
                     sx={{
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      lineHeight: 1.55,
-                      fontSize: '0.875rem',
+                      alignItems: 'center',
+                      mb: 0.5,
+                      alignSelf: isMe ? 'flex-end' : 'flex-start',
                     }}
                   >
-                    {message.body}
-                  </Typography>
-                </Paper>
-              </Box>
-            );
-          })
-        )}
-        {botTyping && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-              p: 1.5,
-              px: 2,
-              borderRadius: '10px 10px 10px 5px',
-              bgcolor: (theme) =>
-                theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.15)' : '#f3e5f5',
-              border: '1px solid',
-              borderColor: 'secondary.light',
-              alignSelf: 'flex-start',
-              maxWidth: '80%',
-            }}
-          >
-            <SmartToyOutlinedIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-            <Typography variant="body2" sx={{ color: 'secondary.main', fontStyle: 'italic', fontWeight: 600 }}>
-              Trợ lý AI SmartDrone đang soạn câu trả lời...
-            </Typography>
-          </Box>
+                    {!isMe && (
+                      isManager ? (
+                        <SupportAgentRoundedIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                      ) : (
+                        <PersonOutlineRoundedIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      )
+                    )}
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {isMe ? 'Bạn' : message.authorName || (isManager ? 'Quản lý Dịch vụ' : 'Khách hàng')}
+                    </Typography>
+                    {!isMe && (
+                      <Chip
+                        label={isManager ? 'Quản lý Dịch vụ' : 'Khách hàng'}
+                        size="small"
+                        color={isManager ? 'info' : 'default'}
+                        variant="outlined"
+                        sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600, borderRadius: '4px' }}
+                      />
+                    )}
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                      {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
+                  </Stack>
+
+                  <Paper
+                    elevation={0}
+                    sx={(theme) => ({
+                      px: 2,
+                      py: 1.25,
+                      borderRadius: isMe ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                      bgcolor: isMe ? 'primary.main' : 'background.paper',
+                      color: isMe ? '#ffffff' : 'text.primary',
+                      border: isMe ? 'none' : '1px solid',
+                      borderColor: 'divider',
+                      boxShadow: isMe ? '0 1px 3px rgba(55, 88, 249, 0.25)' : 'none',
+                      ...theme.applyStyles('dark', {
+                        bgcolor: isMe ? 'primary.main' : '#18181b',
+                        borderColor: isMe ? 'transparent' : 'rgba(255, 255, 255, 0.08)',
+                        color: isMe ? '#ffffff' : '#f4f4f5',
+                      }),
+                    })}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.55,
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      {message.body}
+                    </Typography>
+                  </Paper>
+
+                  {isLastFromMe && (
+                    <Stack
+                      direction="row"
+                      spacing={0.4}
+                      sx={{
+                        alignItems: 'center',
+                        alignSelf: 'flex-end',
+                        mt: 0.35,
+                        pr: 0.5,
+                      }}
+                    >
+                      {message.readAt ? (
+                        <>
+                          <DoneAllRoundedIcon sx={{ fontSize: 13, color: 'primary.main' }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: '0.6875rem',
+                              fontWeight: 600,
+                              color: 'primary.main',
+                            }}
+                          >
+                            Đã xem {new Date(message.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <CheckRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: '0.6875rem',
+                              color: 'text.secondary',
+                            }}
+                          >
+                            Đã gửi
+                          </Typography>
+                        </>
+                      )}
+                    </Stack>
+                  )}
+                </Box>
+              );
+            });
+          })()
         )}
       </Box>
 
-      <Divider />
-
       {/* Chat Input Section */}
-      <Box sx={{ p: 1.5, bgcolor: 'background.paper' }}>
+      <Box
+        sx={{
+          p: 2,
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
           <TextField
             fullWidth
@@ -308,7 +341,14 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             }}
             slotProps={{
               input: {
-                sx: { borderRadius: '8px', fontSize: '0.875rem' },
+                sx: (theme) => ({
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  bgcolor: 'background.default',
+                  ...theme.applyStyles('dark', {
+                    bgcolor: '#09090b',
+                  }),
+                }),
               },
             }}
           />
@@ -330,10 +370,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
             <SendRoundedIcon fontSize="small" />
           </LoadingButton>
         </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.75rem' }}>
-          💡 Mẹo: Bấm <strong>Enter</strong> để gửi tin nhắn, <strong>Shift + Enter</strong> để xuống dòng.
-        </Typography>
       </Box>
-    </Card>
+    </Paper>
   );
 }

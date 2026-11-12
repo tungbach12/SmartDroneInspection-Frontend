@@ -35,11 +35,12 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { type ServiceRequest } from '../api/contractApi';
 import { useServiceRequest, useServiceRequests } from '../hooks/useContracts';
 import { ContractLifecycleStepper } from '../components/ContractLifecycleStepper';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { RequestQuotePanel } from '../components/RequestQuotePanel';
 import { SignedContractPanel } from '../components/SignedContractPanel';
 import { OccurrencesPanel } from '../components/OccurrencesPanel';
 import { CreateRequestDialog } from '../components/CreateRequestDialog';
-import { FloatingNegotiationChat } from '../components/FloatingNegotiationChat';
+import { useNavigate } from 'react-router-dom';
 
 function errorText(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -62,25 +63,90 @@ function getEffectiveRequestStatus(request: ServiceRequest): ServiceRequest['sta
   return request.status;
 }
 
-function getStatusChipColor(status: ServiceRequest['status']) {
+function statusTone(status: ServiceRequest['status']): 'success' | 'warning' | 'error' | 'info' | 'default' {
+  switch (status) {
+    case 'QUOTED':
+      return 'warning';
+    case 'ACCEPTED':
+    case 'CONTRACT_SIGNED':
+      return 'info';
+    case 'ASSIGNED':
+      return 'success';
+    case 'CANCELLED':
+      return 'error';
+    default:
+      return 'default';
+  }
+}
+
+function getStatusLabel(status: ServiceRequest['status'], t: (key: string) => string): string {
   switch (status) {
     case 'OPEN':
-      return { color: 'default' as const, dotColor: '#5D707B' };
+      return t('Open');
     case 'QUOTED':
-      return { color: 'warning' as const, dotColor: '#8C520B' };
+      return t('Quoted');
     case 'ACCEPTED':
-      return { color: 'info' as const, dotColor: '#225F85' };
+      return t('Accepted');
     case 'CONTRACT_SIGNED':
-      return { color: 'primary' as const, dotColor: '#3758F9' };
+      return t('Contract Signed');
     case 'ASSIGNED':
-      return { color: 'success' as const, dotColor: '#176B52' };
+      return t('Assigned');
+    case 'CANCELLED':
+      return t('Cancelled');
     default:
-      return { color: 'default' as const, dotColor: '#5D707B' };
+      return '';
   }
+}
+
+function getRequestStageSubtitle(
+  status: ServiceRequest['status'],
+  t: (key: string) => string,
+): string {
+  switch (status) {
+    case 'OPEN':
+      return `${t('Step')} 1/4 · ${t('In progress')}`;
+    case 'QUOTED':
+      return `${t('Step')} 2/4 · ${t('Quote review')}`;
+    case 'ACCEPTED':
+      return `${t('Step')} 3/4 · ${t('Acceptance recorded')}`;
+    case 'CONTRACT_SIGNED':
+      return `${t('Step')} 3/4 · ${t('Signed contract')}`;
+    case 'ASSIGNED':
+      return `${t('Step')} 4/4 · ${t('Scheduled')}`;
+    case 'CANCELLED':
+      return '';
+    default:
+      return '';
+  }
+}
+
+function formatRecurrenceUnit(unit: string | null | undefined, locale: string): string {
+  if (!unit) return '';
+  const u = unit.toLowerCase();
+  if (locale === 'vi') {
+    if (u === 'month') return 'tháng';
+    if (u === 'week') return 'tuần';
+    if (u === 'day') return 'ngày';
+    if (u === 'year') return 'năm';
+  }
+  return u;
+}
+
+function formatFlightTime(timeStr?: string | null): string {
+  if (!timeStr) return '';
+  return timeStr.slice(0, 5);
+}
+
+function formatFlightWindow(start?: string | null, end?: string | null, t?: (key: string) => string): string {
+  const s = formatFlightTime(start) || '08:00';
+  const e = formatFlightTime(end) || '17:00';
+  const prefix = t ? t('Flight window') : 'Khung giờ bay';
+  return `${prefix}: ${s} – ${e}`;
 }
 
 export default function ContractsPage() {
   const { locale, t } = useLocale();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
@@ -211,14 +277,19 @@ export default function ContractsPage() {
                       {currentRequest.description}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {t('Requested window')}: <strong>{currentRequest.requestedFrom} – {currentRequest.requestedUntil}</strong> ·{' '}
-                      {currentRequest.timezone} · ({currentRequest.windowStart || '08:00'}–{currentRequest.windowEnd || '17:00'})
+                      {t('Requested window')}:{' '}
+                      <strong>
+                        {currentRequest.requestType === 'ONE_TIME'
+                          ? currentRequest.requestedFrom
+                          : `${currentRequest.requestedFrom} – ${currentRequest.requestedUntil}`}
+                      </strong>{' '}
+                      · {formatFlightWindow(currentRequest.windowStart, currentRequest.windowEnd, t)}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <Chip
-                      label={currentEffectiveStatus.replaceAll('_', ' ')}
-                      color={getStatusChipColor(currentEffectiveStatus).color}
+                      label={getStatusLabel(currentEffectiveStatus, t)}
+                      color={statusTone(currentEffectiveStatus)}
                       sx={{ fontWeight: 700, px: 0.5 }}
                     />
                     <Chip
@@ -233,7 +304,7 @@ export default function ContractsPage() {
                   <Typography variant="body2" sx={{ color: 'text.secondary', bgcolor: 'action.hover', p: 1, borderRadius: '8px' }}>
                     {locale === 'vi' ? (
                       <>
-                        Chu kỳ: mỗi {currentRequest.recurrenceInterval} {currentRequest.recurrenceUnit?.toLowerCase()}
+                        Chu kỳ: mỗi {currentRequest.recurrenceInterval} {formatRecurrenceUnit(currentRequest.recurrenceUnit, locale)}
                         {currentRequest.occurrenceCount ? ` · ${currentRequest.occurrenceCount} đợt bay` : ''}
                         {currentRequest.recurrenceEndDate ? ` · đến hết ngày ${currentRequest.recurrenceEndDate}` : ''}
                         {' · Giá báo là đơn giá cho từng đợt bay'}
@@ -252,16 +323,21 @@ export default function ContractsPage() {
             </CardContent>
           </Card>
 
-          {/* Stepper tiến trình vòng đời */}
-          <ContractLifecycleStepper status={currentEffectiveStatus} />
+          {/* Role-specific MF2 lifecycle progress */}
+          <ContractLifecycleStepper
+            status={currentEffectiveStatus}
+            role={isCustomer ? 'CUSTOMER' : 'MANAGER'}
+          />
 
           {/* Hoạt động 1: Báo giá & Phê duyệt */}
           <RequestQuotePanel
+            key={`${currentRequest.id}-${currentRequest.currentQuote?.id ?? 'none'}-${currentRequest.currentQuote?.rowVersion ?? 0}`}
             request={currentRequest}
             customer={isCustomer}
             manager={isManager}
             onChanged={refreshSelectedRequest}
             onError={setError}
+            onOpenInbox={(requestId) => navigate(`${isCustomer ? '/client' : '/manager'}/messages?requestId=${requestId}`)}
           />
 
           {/* Hoạt động 2: Ký hợp đồng giấy & Upload bằng chứng */}
@@ -508,7 +584,6 @@ export default function ContractsPage() {
                   <TableBody>
                     {filteredRequests.map((req) => {
                       const effectiveStatus = getEffectiveRequestStatus(req);
-                      const statusInfo = getStatusChipColor(effectiveStatus);
 
                       return (
                         <TableRow
@@ -534,39 +609,34 @@ export default function ContractsPage() {
 
                           <TableCell>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {req.requestedFrom} – {req.requestedUntil}
+                              {req.requestType === 'ONE_TIME' ? req.requestedFrom : `${req.requestedFrom} – ${req.requestedUntil}`}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {req.timezone} · ({req.windowStart || '08:00'}–{req.windowEnd || '17:00'})
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {formatFlightWindow(req.windowStart, req.windowEnd, t)}
                             </Typography>
                           </TableCell>
 
-                          <TableCell>
-                            <Chip
-                              icon={
-                                <Box
+                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                            <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
+                              <StatusChip
+                                status={effectiveStatus}
+                                label={getStatusLabel(effectiveStatus, t)}
+                                tone={statusTone(effectiveStatus)}
+                              />
+                              {getRequestStageSubtitle(effectiveStatus, t) && (
+                                <Typography
+                                  variant="caption"
                                   sx={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: '50%',
-                                    bgcolor: statusInfo.dotColor,
-                                    ml: 1,
-                                    mr: -0.5,
+                                    color: 'text.secondary',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 500,
+                                    pl: 0.25,
                                   }}
-                                />
-                              }
-                              label={effectiveStatus.replaceAll('_', ' ')}
-                              size="small"
-                              color={statusInfo.color}
-                              variant="outlined"
-                              sx={{
-                                fontWeight: 700,
-                                fontSize: '0.75rem',
-                                border: '1px solid',
-                                bgcolor: (theme) =>
-                                  theme.palette.mode === 'dark' ? 'action.hover' : 'background.paper',
-                              }}
-                            />
+                                >
+                                  {getRequestStageSubtitle(effectiveStatus, t)}
+                                </Typography>
+                              )}
+                            </Stack>
                           </TableCell>
 
                           <TableCell>
@@ -619,14 +689,6 @@ export default function ContractsPage() {
         onError={setError}
       />
 
-      {/* BONG BÓNG CHAT TỔNG ĐÀM PHÁN (FLOATING NEGOTIATION CHAT WIDGET) */}
-      {/* Cho phép nhiều Manager và Customer cùng trao đổi realtime qua từng request */}
-      <FloatingNegotiationChat
-        requests={requestItems}
-        activeRequestId={selectedRequestId}
-        onSelectRequest={(id) => setSelectedRequestId(id)}
-        onError={setError}
-      />
     </Box>
   );
 }

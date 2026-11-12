@@ -40,8 +40,8 @@ function BrandLogo() {
       <svg width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ display: 'block' }}>
         <defs>
           <linearGradient id="sdi_auth_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#3758F9" />
-            <stop offset="1" stopColor="#06B6D4" />
+            <stop stopColor="#1D4ED8" />
+            <stop offset="1" stopColor="#3B82F6" />
           </linearGradient>
         </defs>
         <path
@@ -59,7 +59,7 @@ function BrandLogo() {
           fontFamily: 'inherit',
         }}
       >
-        SmartDroneInspection
+        SDI
       </Typography>
     </Box>
   );

@@ -6,6 +6,7 @@ vi.mock('@/shared/api/client', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -20,13 +21,29 @@ describe('contractApi', () => {
     expect(api.get).toHaveBeenCalledWith('/contracts/requests');
   });
 
-  it('accepts the requested quote version as a query parameter', async () => {
-    const response = { data: { id: 'req-1', acceptedQuoteVersion: 3 } };
+  it('saves a quote via PUT /contracts/requests/:requestId/quote', async () => {
+    const input = {
+      scopeSnapshot: 'Scope',
+      firstOccurrenceStartAt: '2027-02-01T09:00:00Z',
+      firstOccurrenceEndAt: '2027-02-01T10:00:00Z',
+      inspectorId: 'insp-1',
+      droneId: 'drone-1',
+      pricePerOccurrenceVnd: 12000000,
+    };
+    const response = { data: { id: 'req-1' } };
+    vi.mocked(api.put).mockResolvedValue(response as never);
+
+    await expect(contractApi.saveQuote('req-1', input)).resolves.toBe(response.data);
+    expect(api.put).toHaveBeenCalledWith('/contracts/requests/req-1/quote', input);
+  });
+
+  it('accepts the current quote by providing its rowVersion in the request body', async () => {
+    const response = { data: { id: 'req-1', acceptedQuoteId: 'q-1' } };
     vi.mocked(api.post).mockResolvedValue(response as never);
 
-    await expect(contractApi.acceptQuote('req-1', 3)).resolves.toBe(response.data);
-    expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/accept', undefined, {
-      params: { versionNo: 3 },
+    await expect(contractApi.acceptQuote('req-1', 4)).resolves.toBe(response.data);
+    expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/accept', {
+      quoteRowVersion: 4,
     });
   });
 
