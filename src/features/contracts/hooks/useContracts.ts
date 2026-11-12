@@ -108,6 +108,16 @@ export function useAssignServiceOccurrence(requestId: string, occurrenceId: stri
   );
 }
 
+export function useOccurrenceFinance(requestId: string, occurrenceId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...contractQueryKeys.request(requestId), 'occurrences', occurrenceId, 'finance'],
+    queryFn: () => contractApi.getOccurrenceFinance(requestId, occurrenceId),
+    enabled: enabled && Boolean(requestId && occurrenceId),
+    refetchInterval: enabled ? 3000 : false,
+    refetchIntervalInBackground: false,
+  });
+}
+
 export function useConfirmOccurrencePayment(requestId: string, occurrenceId: string) {
   return useContractMutation<{ paymentReference: string; amount: number }>(
     (input) => contractApi.confirmOccurrencePayment(requestId, occurrenceId, input),
@@ -116,39 +126,38 @@ export function useConfirmOccurrencePayment(requestId: string, occurrenceId: str
   );
 }
 
-export function useReconcileRefundHold(requestId: string, occurrenceId: string) {
-  return useContractMutation<{
-    finalPayoutAmount: number;
-    payoutReference: string;
-    reconciliationReference: string;
-    note: string;
-    inspectorPayoutReduction: number;
-    platformCommissionAdjustment: number;
-    vatAdjustment: number;
-    tncnAdjustment: number;
-    platformAbsorbedAmount: number;
-  }>(
-    (input) => contractApi.reconcileRefundHold(requestId, occurrenceId, input),
-    'Refund allocation reconciled and payout recorded.',
-    requestId,
-  );
+export function useInitiateOccurrenceRefund(requestId: string, occurrenceId: string) {
+  return useContractMutation<{ amount: number; requestReference: string; reason: string; inspectorReceivableAmount: number; platformAbsorbedAmount: number }>(
+    (input) => contractApi.initiateOccurrenceRefund(requestId, occurrenceId, input),
+    'Refund initiated; payout is held until the external transfer is confirmed.', requestId);
 }
 
-export function useRecordOccurrenceRefund(requestId: string, occurrenceId: string) {
+export function useCompleteOccurrenceRefund(requestId: string, occurrenceId: string, refundId: string) {
+  return useContractMutation<{ inspectorPayoutReduction: number; platformCommissionAdjustment: number; vatAdjustment: number; tncnAdjustment: number; platformAbsorbedAmount: number; externalReference: string }>(
+    (input) => contractApi.completeOccurrenceRefund(requestId, occurrenceId, refundId, input),
+    'External refund transfer recorded.', requestId);
+}
+
+export function useCancelOccurrenceRefund(requestId: string, occurrenceId: string, refundId: string) {
+  return useContractMutation<{ reason: string }>(
+    (input) => contractApi.cancelOccurrenceRefund(requestId, occurrenceId, refundId, input.reason),
+    'Pending refund cancelled; payout hold recalculated.', requestId);
+}
+
+export function useReconcileRefundAllocation(requestId: string, occurrenceId: string, refundId: string) {
   return useContractMutation<{
-    amount: number;
-    inspectorPayoutReduction: number;
-    platformCommissionAdjustment: number;
-    vatAdjustment: number;
-    tncnAdjustment: number;
-    platformAbsorbedAmount: number;
-    refundReference: string;
-    reason: string;
-  }>(
-    (input) => contractApi.recordOccurrenceRefund(requestId, occurrenceId, input),
-    'Customer refund and allocation recorded.',
-    requestId,
-  );
+    inspectorReceivableAmount: number; platformAbsorbedPlanAmount: number;
+    inspectorPayoutReduction: number; platformCommissionAdjustment: number;
+    vatAdjustment: number; tncnAdjustment: number; platformAbsorbedAmount: number;
+    reconciliationReference: string; note: string;
+  }>((input) => contractApi.reconcileRefundAllocation(requestId, occurrenceId, refundId, input),
+    'Legacy refund allocation reconciled.', requestId);
+}
+
+export function useRecordReceivableRecovery(requestId: string, occurrenceId: string, receivableId: string) {
+  return useContractMutation<{ amount: number; externalReference: string; note: string }>(
+    (input) => contractApi.recordReceivableRecovery(requestId, occurrenceId, receivableId, input),
+    'Inspector receivable recovery recorded.', requestId);
 }
 
 export function useRecordOccurrencePayout(requestId: string, occurrenceId: string) {

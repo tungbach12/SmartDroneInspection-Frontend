@@ -50,6 +50,70 @@ describe('contractApi', () => {
     });
   });
 
+  it('posts refund initiation before external transfer and keeps its own request reference', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const input = {
+      amount: 250,
+      requestReference: 'REF-REQ-1',
+      reason: 'Service cancelled',
+      inspectorReceivableAmount: 0,
+      platformAbsorbedAmount: 0,
+    };
+
+    await contractApi.initiateOccurrenceRefund('req-1', 'occ-1', input);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds',
+      input,
+    );
+  });
+
+  it('completes an initiated refund by its ID with external transfer evidence', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const input = {
+      inspectorPayoutReduction: 100,
+      platformCommissionAdjustment: 20,
+      vatAdjustment: 10,
+      tncnAdjustment: 5,
+      platformAbsorbedAmount: 15,
+      externalReference: 'BANK-REF-1',
+    };
+
+    await contractApi.completeOccurrenceRefund('req-1', 'occ-1', 'refund-1', input);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds/refund-1/complete',
+      input,
+    );
+  });
+
+  it('reconciles one legacy refund and records a receivable recovery by ledger ID', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const allocation = {
+      inspectorReceivableAmount: 75,
+      platformAbsorbedPlanAmount: 25,
+      inspectorPayoutReduction: 75,
+      platformCommissionAdjustment: 0,
+      vatAdjustment: 0,
+      tncnAdjustment: 0,
+      platformAbsorbedAmount: 25,
+      reconciliationReference: 'LEGACY-DOC-1',
+      note: 'Matched to bank statement',
+    };
+    await contractApi.reconcileRefundAllocation('req-1', 'occ-1', 'refund-1', allocation);
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds/refund-1/reconcile-allocation',
+      allocation,
+    );
+
+    const recovery = { amount: 10, externalReference: 'RECOVERY-1', note: 'Manual collection' };
+    await contractApi.recordReceivableRecovery('req-1', 'occ-1', 'receivable-1', recovery);
+    expect(api.post).toHaveBeenLastCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/receivables/receivable-1/recover',
+      recovery,
+    );
+  });
+
   it('uploads signed contract as the file multipart field', async () => {
     const file = new File(['signed'], 'signed.pdf', { type: 'application/pdf' });
     vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);

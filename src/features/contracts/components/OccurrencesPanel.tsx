@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -30,13 +29,12 @@ import {
 import { dateTimeInputToInstant, instantToDateTimeInput } from '../api/scheduleTime';
 import {
   useAssignServiceOccurrence,
-  useReconcileRefundHold,
-  useRecordOccurrenceRefund,
   usePartnerDrones,
   usePartnerInspectors,
   useRecordOccurrencePayout,
 } from '../hooks/useContracts';
 import { classifyDroneByMtow } from '@/features/assets/utils/droneClassification';
+import { RefundControls } from './RefundControls';
 
 interface OccurrencesPanelProps {
   request: ServiceRequest;
@@ -118,8 +116,6 @@ function OccurrenceCard({
   } = occurrence;
 
   const assign = useAssignServiceOccurrence(request.id, occurrenceId);
-  const recordRefund = useRecordOccurrenceRefund(request.id, occurrenceId);
-  const reconcileRefund = useReconcileRefundHold(request.id, occurrenceId);
   const recordPayout = useRecordOccurrencePayout(request.id, occurrenceId);
   const inspectors = usePartnerInspectors(manager);
   const drones = usePartnerDrones(manager);
@@ -128,17 +124,6 @@ function OccurrenceCard({
   const [customStart, setCustomStart] = useState<string | null>(null);
   const [customEnd, setCustomEnd] = useState<string | null>(null);
   const [payoutRef, setPayoutRef] = useState('');
-  const [finalPayoutAmount, setFinalPayoutAmount] = useState('');
-  const [reconciliationRef, setReconciliationRef] = useState('');
-  const [reconciliationNote, setReconciliationNote] = useState('');
-  const [refundAmount, setRefundAmount] = useState('');
-  const [inspectorReduction, setInspectorReduction] = useState('');
-  const [commissionAdjustment, setCommissionAdjustment] = useState('');
-  const [vatAdjustment, setVatAdjustment] = useState('');
-  const [tncnAdjustment, setTncnAdjustment] = useState('');
-  const [platformAbsorbed, setPlatformAbsorbed] = useState('');
-  const [refundRef, setRefundRef] = useState('');
-  const [refundReason, setRefundReason] = useState('');
 
   const start = customStart ?? instantToDateTimeInput(startAt, request.timezone);
   const end = customEnd ?? instantToDateTimeInput(endAt, request.timezone);
@@ -294,112 +279,14 @@ function OccurrenceCard({
                     ? ` · Còn phải chi: ${formatNumber(occurrence.remainingInspectorNetPayout)} ₫`
                     : ''}
                 </Typography>
-                {isPaid && occurrence.paymentStatus === 'PAID' && (
-                  <Stack spacing={1} sx={{ pt: 0.75 }}>
-                    {payout?.heldForRefund && (
-                      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                        Đang giữ payout để đối soát hoàn tiền. Nhập lại phân bổ từ chứng từ khi chốt payout.
-                      </Alert>
-                    )}
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                      Hoàn tiền khách (chỉ ghi nhận sau khi đã chuyển tiền thực tế)
-                    </Typography>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                      <TextField size="small" label="Số tiền hoàn" type="number" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
-                      <TextField size="small" label="Giảm payout Inspector" type="number" value={inspectorReduction} onChange={(e) => setInspectorReduction(e.target.value)} />
-                      <TextField size="small" label="Điều chỉnh phí nền tảng" type="number" value={commissionAdjustment} onChange={(e) => setCommissionAdjustment(e.target.value)} />
-                    </Stack>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                      <TextField size="small" label="Điều chỉnh VAT" type="number" value={vatAdjustment} onChange={(e) => setVatAdjustment(e.target.value)} />
-                      <TextField size="small" label="Điều chỉnh TNCN" type="number" value={tncnAdjustment} onChange={(e) => setTncnAdjustment(e.target.value)} />
-                      <TextField size="small" label="Nền tảng tự chịu" type="number" value={platformAbsorbed} onChange={(e) => setPlatformAbsorbed(e.target.value)} />
-                    </Stack>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                      <TextField size="small" label="Mã giao dịch hoàn" value={refundRef} onChange={(e) => setRefundRef(e.target.value)} sx={{ flex: 1 }} />
-                      <TextField size="small" label="Lý do / căn cứ phân bổ" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} sx={{ flex: 2 }} />
-                      <LoadingButton
-                        size="small"
-                        variant="outlined"
-                        loading={recordRefund.isPending}
-                        disabled={!refundAmount || !refundRef.trim() || !refundReason.trim()}
-                        onClick={async () => {
-                          try {
-                            await recordRefund.mutateAsync({
-                              amount: Number(refundAmount),
-                              inspectorPayoutReduction: Number(inspectorReduction || 0),
-                              platformCommissionAdjustment: Number(commissionAdjustment || 0),
-                              vatAdjustment: Number(vatAdjustment || 0),
-                              tncnAdjustment: Number(tncnAdjustment || 0),
-                              platformAbsorbedAmount: Number(platformAbsorbed || 0),
-                              refundReference: refundRef.trim(),
-                              reason: refundReason.trim(),
-                            });
-                            setRefundAmount(''); setInspectorReduction(''); setCommissionAdjustment('');
-                            setVatAdjustment(''); setTncnAdjustment(''); setPlatformAbsorbed('');
-                            setRefundRef(''); setRefundReason(''); onChanged();
-                          } catch (err) {
-                            onError(err instanceof Error ? err.message : 'Không thể ghi nhận hoàn tiền.');
-                          }
-                        }}
-                      >
-                        Ghi nhận khoản hoàn đã chuyển
-                      </LoadingButton>
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      Tổng phân bổ phải bằng số tiền hoàn. Nhập số dương theo chứng từ đối soát; hệ thống không tự tính thuế/phí.
-                    </Typography>
-                    {payout?.heldForRefund && (
-                      <>
-                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                          Chốt phân bổ hoàn và payout thực tế
-                        </Typography>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                          <TextField size="small" label="Giảm phần Inspector do refund" type="number" value={inspectorReduction} onChange={(e) => setInspectorReduction(e.target.value)} />
-                          <TextField size="small" label="Payout Inspector thực chuyển" type="number" value={finalPayoutAmount} onChange={(e) => setFinalPayoutAmount(e.target.value)} />
-                          <TextField size="small" label="Điều chỉnh phí nền tảng" type="number" value={commissionAdjustment} onChange={(e) => setCommissionAdjustment(e.target.value)} />
-                          <TextField size="small" label="Điều chỉnh VAT" type="number" value={vatAdjustment} onChange={(e) => setVatAdjustment(e.target.value)} />
-                        </Stack>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                          <TextField size="small" label="Điều chỉnh TNCN" type="number" value={tncnAdjustment} onChange={(e) => setTncnAdjustment(e.target.value)} />
-                          <TextField size="small" label="Nền tảng tự chịu" type="number" value={platformAbsorbed} onChange={(e) => setPlatformAbsorbed(e.target.value)} />
-                          <TextField size="small" label="Mã đối soát" value={reconciliationRef} onChange={(e) => setReconciliationRef(e.target.value)} />
-                        </Stack>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                          <TextField size="small" label="Ghi chú / chứng từ" value={reconciliationNote} onChange={(e) => setReconciliationNote(e.target.value)} sx={{ flex: 1 }} />
-                          <TextField size="small" label="Mã UNC payout" value={payoutRef} onChange={(e) => setPayoutRef(e.target.value)} />
-                          <LoadingButton
-                            size="small"
-                            variant="contained"
-                            loading={reconcileRefund.isPending}
-                            disabled={!finalPayoutAmount || !payoutRef.trim() || !reconciliationRef.trim() || !reconciliationNote.trim()}
-                            onClick={async () => {
-                              try {
-                                await reconcileRefund.mutateAsync({
-                                  finalPayoutAmount: Number(finalPayoutAmount || 0),
-                                  payoutReference: payoutRef.trim(),
-                                  reconciliationReference: reconciliationRef.trim(),
-                                  note: reconciliationNote.trim(),
-                                  inspectorPayoutReduction: Number(inspectorReduction || 0),
-                                  platformCommissionAdjustment: Number(commissionAdjustment || 0),
-                                  vatAdjustment: Number(vatAdjustment || 0),
-                                  tncnAdjustment: Number(tncnAdjustment || 0),
-                                  platformAbsorbedAmount: Number(platformAbsorbed || 0),
-                                });
-                                onChanged();
-                              } catch (err) {
-                                onError(err instanceof Error ? err.message : 'Không thể chốt đối soát hoàn tiền.');
-                              }
-                            }}
-                          >
-                            Chốt payout và đối soát
-                          </LoadingButton>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                          Phân bổ reconciliation phải khớp tổng refund chưa phân bổ. Payout bị giới hạn theo phần Inspector còn lại sau các khoản giảm đã ghi.
-                        </Typography>
-                      </>
-                    )}
-                  </Stack>
+                {manager && isPaid && occurrence.paymentStatus === 'PAID' && (
+                  <RefundControls
+                    requestId={request.id}
+                    occurrence={occurrence}
+                    enabled={manager}
+                    onChanged={onChanged}
+                    onError={onError}
+                  />
                 )}
                 {isPaid &&
                   !payout?.heldForRefund &&

@@ -355,11 +355,15 @@ export function CustomerReportSettlementCard({
                   {t('Report accepted')}
                   {amountVnd ? ` · ${t('Payment due')}: ${amountVnd}` : ''}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                   {t(
                     'Please complete the online service payment via VNPay or PayOS (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
                   )}
                 </Typography>
+                <Alert severity="info" sx={{ mt: 1, py: 0.25, px: 1.25, fontSize: '0.75rem', borderRadius: '6px' }}>
+                  <strong>{t('Thời hạn thanh toán Net 15:')}</strong>{' '}
+                  {t('Vui lòng thanh toán trong vòng 15 ngày. File PDF tải về trước khi thanh toán sẽ mang dấu mờ "Bản xem trước" và chưa có giá trị pháp lý chính thức.')}
+                </Alert>
               </Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0 }}>
                 {onProceedToVnPay && (
