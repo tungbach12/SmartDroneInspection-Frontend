@@ -224,25 +224,47 @@ export default function Mf1ReviewPage() {
 
     try {
       const isDroneApp = panel === 'Drone registrations' || panel === 'Drone history';
-      const documentsToFetch = isDroneApp
-        ? [
+      const droneApplication = isDroneApp ? (item as DroneRegistrationApplication) : null;
+      let documentsToFetch: Array<{ label: string; type: string; load: () => Promise<Blob> }> = [];
+
+      if (droneApplication) {
+        if (droneApplication.documentFiles && Object.keys(droneApplication.documentFiles).length > 0) {
+          documentsToFetch = Object.entries(droneApplication.documentFiles).map(([code]) => ({
+            label: code,
+            type: code,
+            load: () => mf1ReviewApi.droneEvidence(item.id, code),
+          }));
+        } else {
+          documentsToFetch = [
             {
-              label: tr('Giấy chứng nhận đăng ký drone', 'Drone registration certificate'),
+              label: tr('Đăng ký drone', 'Drone registration'),
               type: 'REGISTRATION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'REGISTRATION'),
             },
             {
-              label: tr('Giấy tờ sở hữu / Hóa đơn tài chính', 'Ownership proof / Financial invoice'),
+              label: tr('Chứng từ sở hữu', 'Proof of ownership'),
               type: 'OWNERSHIP',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'OWNERSHIP'),
             },
-            {
-              label: tr('Giấy kiểm định / Chứng nhận an toàn kỹ thuật', 'Airworthiness & technical safety certificate'),
+          ];
+          if (droneApplication.inspectionFileKey) {
+            documentsToFetch.push({
+              label: tr('Kiểm định an toàn', 'Safety inspection'),
               type: 'INSPECTION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'INSPECTION'),
-            },
-          ]
-        : [];
+            });
+          }
+        }
+        if (droneApplication.imageFileKeys && droneApplication.imageFileKeys.length > 0) {
+          droneApplication.imageFileKeys.forEach((_, idx) => {
+            documentsToFetch.push({
+              label: tr(`Ảnh drone #${idx + 1}`, `Drone Photo #${idx + 1}`),
+              type: `DRONE_IMAGE_${idx}`,
+              load: () => mf1ReviewApi.droneEvidence(item.id, `DRONE_IMAGE_${idx}`),
+            });
+          });
+        }
+      }
 
       if (documentsToFetch.length === 0) {
         setEvidenceLoading(false);
@@ -1306,6 +1328,25 @@ export default function Mf1ReviewPage() {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {('maxWindResistanceMps' in selected && selected.maxWindResistanceMps) ||
+                  ('hasThermalCamera' in selected && selected.hasThermalCamera) ||
+                  ('hasRtk' in selected && selected.hasRtk) ? (
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                      {'maxWindResistanceMps' in selected && selected.maxWindResistanceMps && (
+                        <Chip size="small" variant="outlined" label={tr(`Kháng gió: ${selected.maxWindResistanceMps} m/s`, `Wind resistance: ${selected.maxWindResistanceMps} m/s`)} />
+                      )}
+                      {'opticalZoomLevel' in selected && selected.opticalZoomLevel && (
+                        <Chip size="small" variant="outlined" label={`Zoom: ${selected.opticalZoomLevel}`} />
+                      )}
+                      {'hasThermalCamera' in selected && selected.hasThermalCamera && (
+                        <Chip size="small" color="secondary" label={tr('Camera nhiệt', 'Thermal Camera')} />
+                      )}
+                      {'hasRtk' in selected && selected.hasRtk && (
+                        <Chip size="small" color="primary" label="RTK GNSS" />
+                      )}
+                    </Box>
+                  ) : null}
                 </Box>
               )}
 

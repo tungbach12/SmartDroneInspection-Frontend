@@ -13,7 +13,7 @@ import {
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import { useDroneSelection } from '@/features/assets/hooks/useDrones';
 import { classifyDroneByMtow } from '@/features/assets/utils/droneClassification';
-import { useWorkforceUsers } from '@/features/workforce/hooks/useWorkforce';
+import { usePlatformUsers } from '@/features/admin/hooks/usePlatformUsers';
 import { useCreateInspection } from '../hooks/useInspections';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -40,13 +40,13 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
   const [plannedEndAt, setPlannedEndAt] = useState('');
 
   const assetsQuery = useAssets({ page: 1, pageSize: 100 }, !preselectedAssetId);
-  const workforceQuery = useWorkforceUsers();
+  const workforceQuery = usePlatformUsers();
   const droneSelectionQuery = useDroneSelection();
   const createInspection = useCreateInspection();
 
   const activeAssets = (assetsQuery.data?.items ?? []).filter((asset) => asset.status === 'ACTIVE');
   const inspectors = (workforceQuery.data ?? []).filter(
-    (user) => user.roles.includes('INSPECTOR') && user.status === 'ACTIVE',
+    (user) => user.roles.includes('INSPECTOR'),
   );
   const drones = (droneSelectionQuery.data ?? []).filter((drone) => drone.serviceability !== 'RETIRED');
 
@@ -113,7 +113,7 @@ function InspectionForm({ preselectedAssetId, onClose, onSuccess }: InspectionFo
             helperText={t('Select the qualified remote pilot/inspector')}
           >
             {inspectors.map((inspector) => (
-              <MenuItem key={inspector.userId} value={inspector.userId}>
+              <MenuItem key={inspector.id} value={inspector.id}>
                 {inspector.fullName} ({inspector.email})
               </MenuItem>
             ))}

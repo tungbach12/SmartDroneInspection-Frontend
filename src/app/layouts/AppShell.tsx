@@ -68,7 +68,6 @@ import {
   NextAdminSunIcon,
   NextAdminTablesIcon,
   NextAdminTaskIcon,
-  NextAdminTeamIcon,
 } from '@/shared/ui/NextAdminIcons';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -91,8 +90,6 @@ const NAV_ITEMS = [
   { section: 'inspections', icon: <NextAdminTaskIcon /> },
   { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
   { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
-  { section: 'maintenance', icon: <NextAdminTaskIcon /> },
-  { section: 'workforce', icon: <NextAdminTeamIcon /> },
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
   { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
   { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },

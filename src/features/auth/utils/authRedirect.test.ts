@@ -7,9 +7,6 @@ describe('getAuthRedirectTarget', () => {
     expect(getAuthRedirectTarget(null, ['INSPECTOR'])).toBe(
       '/operations/dashboard',
     );
-    expect(getAuthRedirectTarget(null, ['MAINTENANCE_ENGINEER'])).toBe(
-      '/operations/dashboard',
-    );
     expect(getAuthRedirectTarget(null, ['ADMIN'])).toBe('/admin/dashboard');
     expect(getAuthRedirectTarget(null, ['MANAGER'])).toBe('/manager/dashboard');
   });

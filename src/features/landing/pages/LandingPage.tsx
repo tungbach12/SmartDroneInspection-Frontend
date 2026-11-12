@@ -32,9 +32,9 @@ const services = [
   },
   {
     number: '04',
-    title: 'Direct handoff to maintenance',
+    title: 'Certified tamper-proof reports',
     description:
-      'Approve repair estimates, assign maintenance work orders, and verify results with a follow-up flight.',
+      'Receive official stamped engineering deliverables accepted by regulators and insurers, with transparent fee settlement.',
     Icon: TaskAltIcon,
   },
 ];
@@ -282,7 +282,7 @@ export default function LandingPage() {
               lineHeight: 1.7,
             }}
           >
-            {t('Inspect your roofs, bridges, and tall structures without dangerous climbing or costly scaffolding. Receive detailed photo reports and clear repair steps in days, not weeks.')}
+            {t('Inspect your roofs, bridges, and tall structures without dangerous climbing or costly scaffolding. Receive detailed photo reports and certified defect findings in days, not weeks.')}
           </Typography>
           <Stack direction="row" spacing={3} sx={{ alignItems: 'center', mt: 3.5, flexWrap: 'wrap', rowGap: 2 }}>
             <Box component="a" href="/register" sx={actionSx}>
@@ -488,7 +488,7 @@ export default function LandingPage() {
                 {t('Technology brings it into view. People decide what it means.')}
               </Typography>
               <Typography sx={{ mt: 3, maxWidth: 510, color: 'rgba(255,255,255,.7)', fontSize: 14, lineHeight: 1.8 }}>
-                {t('Stop guessing damage from the ground or waiting weeks for scaffolding. Get crystal-clear aerial photos of your entire asset, reviewed by certified experts, so you only pay for the repairs you actually need.')}
+                {t('Stop guessing damage from the ground or waiting weeks for scaffolding. Get crystal-clear aerial photos of your entire asset, reviewed by certified experts, so you get accurate condition assessments you can trust.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5, alignSelf: 'flex-start' }}>
                 {t('See how the platform works')} <NorthEastIcon sx={{ fontSize: 16 }} />

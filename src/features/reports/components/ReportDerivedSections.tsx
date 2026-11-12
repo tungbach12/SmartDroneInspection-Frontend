@@ -21,7 +21,6 @@ import type {
   EvidenceItem,
   InspectionReport,
   Finding,
-  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
@@ -33,7 +32,6 @@ export interface ReportDerivedSectionsProps {
   findings: Finding[];
   evidenceList: EvidenceItem[];
   inspectionId: string;
-  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
 }
@@ -287,7 +285,6 @@ export function ReportDerivedSections({
   findings,
   evidenceList,
   inspectionId,
-  reinspectionVerifications,
   droneSummary: externalDroneSummary,
   flightPermitFileName: externalPermitFileName,
 }: ReportDerivedSectionsProps) {
@@ -563,75 +560,6 @@ export function ReportDerivedSections({
           assetName={context?.assetName}
           droneSummary={droneSummary || null}
         />
-      )}
-
-      {/* Target Defect Verifications (for Re-inspection) */}
-      {reinspectionVerifications && reinspectionVerifications.length > 0 && (
-        <ReadOnlySection
-          title={t('Target defect verifications')}
-          count={reinspectionVerifications.length}
-        >
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
-              gap: 1.5,
-              mb: 3,
-            }}
-          >
-            {reinspectionVerifications.map((item) => (
-              <Box
-                key={item.id}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: '10px',
-                  p: 1.5,
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {item.sourceFindingCode ? `${item.sourceFindingCode} · ` : ''}
-                    {item.sourceDefectLabel}
-                  </Typography>
-                  <Chip
-                    size="small"
-                    label={t(item.resolutionStatus)}
-                    color={
-                      item.resolutionStatus === 'RESOLVED'
-                        ? 'success'
-                        : item.resolutionStatus === 'UNRESOLVED'
-                          ? 'error'
-                          : 'warning'
-                    }
-                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
-                  />
-                </Stack>
-                {item.sourceSeverity && (
-                  <Field label={t('Original Severity')} value={item.sourceSeverity} />
-                )}
-                {item.inspectorNotes && (
-                  <Field label={t('Inspector Notes')} value={item.inspectorNotes} />
-                )}
-                {item.newEvidenceId && (
-                  <Box sx={{ mt: 1 }}>
-                    <AuthenticatedImage
-                      src={inspectionApi.evidenceContentUrl(inspectionId, item.newEvidenceId)}
-                      alt="Verified Evidence"
-                      maxHeight={140}
-                      sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider' }}
-                    />
-                  </Box>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </ReadOnlySection>
       )}
 
       <ReadOnlySection title={t('Evidence register')} count={evidenceList.length}>

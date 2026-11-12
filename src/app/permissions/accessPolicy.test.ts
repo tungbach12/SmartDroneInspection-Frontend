@@ -5,7 +5,6 @@ import {
   getAvailablePortals,
   getLegacySectionRedirectPath,
   getPortalEntryPath,
-  getSectionPath,
   type PortalId,
   type SectionId,
 } from './accessPolicy';
@@ -15,7 +14,6 @@ const allRoles: Role[] = [
   'MANAGER',
   'CUSTOMER',
   'INSPECTOR',
-  'MAINTENANCE_ENGINEER',
 ];
 
 const expectedAccess: Record<
@@ -30,8 +28,6 @@ const expectedAccess: Record<
     'asset-catalog': ['ADMIN'],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
-    maintenance: ['ADMIN'],
-    workforce: [],
     'platform-users': ['ADMIN'],
     'finance-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
@@ -46,8 +42,6 @@ const expectedAccess: Record<
     'asset-catalog': [],
     inspections: ['MANAGER'],
     reports: ['MANAGER'],
-    maintenance: [],
-    workforce: [],
     'platform-users': ['MANAGER'],
     'finance-settings': [],
     'onboarding-reviews': ['MANAGER'],
@@ -62,8 +56,6 @@ const expectedAccess: Record<
     'asset-catalog': [],
     inspections: ['CUSTOMER'],
     reports: ['CUSTOMER'],
-    maintenance: ['CUSTOMER'],
-    workforce: ['CUSTOMER'],
     'platform-users': [],
     'finance-settings': [],
     'onboarding-reviews': [],
@@ -71,20 +63,18 @@ const expectedAccess: Record<
     settings: ['CUSTOMER'],
   },
   operations: {
-    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR'],
     contracts: [],
     messages: [],
     assets: [],
     'asset-catalog': [],
     inspections: ['INSPECTOR'],
     reports: ['INSPECTOR'],
-    maintenance: ['MAINTENANCE_ENGINEER'],
-    workforce: [],
     'platform-users': [],
     'finance-settings': [],
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
-    settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    settings: ['INSPECTOR'],
   },
 };
 
@@ -112,9 +102,6 @@ describe('role-aware portal access policy', () => {
   it('routes each canonical user role to its matching portal entry', () => {
     expect(getPortalEntryPath(['CUSTOMER'])).toBe('/client/dashboard');
     expect(getPortalEntryPath(['INSPECTOR'])).toBe('/operations/dashboard');
-    expect(getPortalEntryPath(['MAINTENANCE_ENGINEER'])).toBe(
-      '/operations/dashboard',
-    );
     expect(getPortalEntryPath(['ADMIN'])).toBe('/admin/dashboard');
     expect(getPortalEntryPath(['MANAGER'])).toBe('/manager/dashboard');
   });
@@ -134,29 +121,8 @@ describe('role-aware portal access policy', () => {
     expect(
       getLegacySectionRedirectPath(['CUSTOMER', 'INSPECTOR'], 'inspections'),
     ).toBe('/portals?section=inspections');
-    expect(
-      getLegacySectionRedirectPath(['MAINTENANCE_ENGINEER'], 'assets'),
-    ).toBe('/forbidden');
   });
 
-  it('sends Workforce navigation to a Customer path and denies the other roles', () => {
-    expect(getSectionPath('client', 'workforce')).toBe('/client/workforce');
-    expect(getLegacySectionRedirectPath(['CUSTOMER'], 'workforce')).toBe(
-      '/client/workforce',
-    );
-    for (const role of ['ADMIN', 'MANAGER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as Role[]) {
-      expect(getLegacySectionRedirectPath([role], 'workforce')).toBe('/forbidden');
-    }
-    // A session that is not a Customer gets no Workforce entry even when it
-    // already has another workspace.
-    expect(
-      getLegacySectionRedirectPath(['INSPECTOR', 'MAINTENANCE_ENGINEER'], 'workforce'),
-    ).toBe('/forbidden');
-    // A Customer session alongside an operations role still resolves to its own organization path.
-    expect(
-      getLegacySectionRedirectPath(['CUSTOMER', 'INSPECTOR'], 'workforce'),
-    ).toBe('/client/workforce');
-  });
 
   it('denies a user with no recognized portal role', () => {
     expect(getAvailablePortals([])).toEqual([]);

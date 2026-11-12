@@ -44,8 +44,6 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
   reportVersion: (inspectionId: string, versionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-version', versionId] as const,
-  reinspectionVerifications: (inspectionId: string) =>
-    [...inspectionKeys.all, inspectionId, 'reinspection-verifications'] as const,
 };
 
 export function useInspections(filters: InspectionListFilters, enabled = true) {
@@ -660,22 +658,6 @@ export function useRequestReportClarification(inspectionId: string | null) {
   });
 }
 
-export function useCreateDirectReinspection(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (input: { repairNotes?: string; repairProofUrl?: string }) =>
-      inspectionApi.createDirectReinspection(inspectionId!, input),
-    onSuccess: () => {
-      showToast('Re-inspection mission scheduled with target defects.');
-      client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
-      client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
-    },
-    onError: (error) =>
-      showToast(getErrorMessage(error, 'Could not schedule re-inspection.'), 'error'),
-  });
-}
-
 export function useWithdrawReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
@@ -695,31 +677,6 @@ export function useWithdrawReportVersion(inspectionId: string | null) {
       client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
     },
     onError: (error) => showToast(getErrorMessage(error, 'The submission was not withdrawn.'), 'error'),
-  });
-}
-
-export function useCompleteCorrectiveHandoff(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (findingIds: string[]) =>
-      inspectionApi.completeCorrectiveHandoff(inspectionId!, findingIds),
-    onSuccess: (result) => {
-      showToast(
-        result.forwardedFindingIds.length > 0
-          ? `${result.forwardedFindingIds.length} finding(s) forwarded to Maintenance.`
-          : 'Inspection completed without forwarding findings.',
-      );
-      if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
-        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
-        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
-      }
-    },
-    onError: (error) =>
-      showToast(getErrorMessage(error, 'Failed to forward findings to Maintenance.'), 'error'),
   });
 }
 
@@ -893,53 +850,6 @@ export function useCancelInspection(inspectionId: string | null) {
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
       showToast('Inspection cancelled');
-    },
-  });
-}
-
-export function useReinspectionVerifications(inspectionId: string | null | undefined) {
-  return useQuery({
-    queryKey: inspectionKeys.reinspectionVerifications(inspectionId ?? ''),
-    queryFn: () => inspectionApi.getReinspectionVerifications(inspectionId!),
-    enabled: Boolean(inspectionId),
-  });
-}
-
-export function useUpdateReinspectionVerification(inspectionId: string | null | undefined) {
-  const client = useQueryClient();
-  const showToast = useToastStore((s) => s.showToast);
-  return useMutation({
-    mutationFn: ({
-      verificationId,
-      payload,
-    }: {
-      verificationId: string;
-      payload: import('../api/inspectionApi').UpdateDefectVerificationPayload;
-    }) =>
-      inspectionApi.updateReinspectionVerification(
-        inspectionId!,
-        verificationId,
-        payload,
-      ),
-    onSuccess: () => {
-      if (inspectionId) {
-        void client.invalidateQueries({
-          queryKey: inspectionKeys.reinspectionVerifications(inspectionId),
-        });
-        void client.invalidateQueries({
-          queryKey: inspectionKeys.evidence(inspectionId),
-        });
-        void client.invalidateQueries({
-          queryKey: inspectionKeys.workflowState(inspectionId),
-        });
-        void client.invalidateQueries({
-          queryKey: inspectionKeys.detail(inspectionId),
-        });
-      }
-      showToast('Cập nhật xác minh lỗi thành công');
-    },
-    onError: (err) => {
-      showToast(getErrorMessage(err, 'Không thể cập nhật xác minh lỗi'), 'error');
     },
   });
 }

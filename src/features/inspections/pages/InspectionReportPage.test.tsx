@@ -80,7 +80,6 @@ vi.mock('../hooks/useInspections', () => ({
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
   useInspection: () => ({ data: undefined }),
-  useReinspectionVerifications: () => ({ data: [] }),
   useFieldSessions: () => ({ data: [] }),
 }));
 

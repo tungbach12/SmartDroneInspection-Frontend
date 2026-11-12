@@ -73,7 +73,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     id: 'finding-1',
     inspectionId: 'inspection-1',
     evidenceId: evidence.id,
-    forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
     severity: 'HIGH',

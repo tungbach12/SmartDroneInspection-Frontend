@@ -135,10 +135,6 @@ export function OverviewStakeholdersSection({
   );
   const matchedCustomerUser =
     orgMembers.find((u) => u.roles.includes('CUSTOMER')) ?? orgMembers[0];
-  const orgEngineers = orgMembers.filter((u) =>
-    u.roles.includes('MAINTENANCE_ENGINEER'),
-  );
-
   const inspectorName =
     inspectorProfile?.fullName ||
     matchedInspectorUser?.fullName ||
@@ -622,16 +618,6 @@ export function OverviewStakeholdersSection({
                     label={t('Organization ID')}
                     value={inspection.organizationId}
                     monospace
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <ReadOnlyField
-                    label={t('Organization Workforce')}
-                    value={
-                      orgEngineers.length > 0
-                        ? `${orgEngineers.length} ${t('Maintenance Engineer(s)')} (${orgEngineers.map((e) => e.fullName).join(', ')})`
-                        : t('Managed by Customer Organization')
-                    }
                   />
                 </Grid>
               </Grid>

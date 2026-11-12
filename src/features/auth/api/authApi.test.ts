@@ -86,7 +86,6 @@ describe('browser auth API', () => {
             'MANAGER',
             'CUSTOMER',
             'INSPECTOR',
-            'MAINTENANCE_ENGINEER',
             'UNKNOWN_ROLE',
           ],
         },
@@ -100,7 +99,6 @@ describe('browser auth API', () => {
       'MANAGER',
       'CUSTOMER',
       'INSPECTOR',
-      'MAINTENANCE_ENGINEER',
     ]);
   });
 

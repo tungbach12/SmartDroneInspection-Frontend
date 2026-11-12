@@ -2,8 +2,7 @@ export type RoleId =
   | 'CUSTOMER'
   | 'ADMIN'
   | 'MANAGER'
-  | 'INSPECTOR'
-  | 'MAINTENANCE_ENGINEER';
+  | 'INSPECTOR';
 
 export interface DashboardMetric {
   id: string;
@@ -85,7 +84,7 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
     name: 'Organization Manager',
     badge: 'Enterprise Authority',
     report3RoleName: 'CUSTOMER',
-    roleDescription: 'Customer enterprise authority: asset registration (MF1), readiness authorization (MF2), report approvals (MF3), and repair budget reconciliation (MF4).',
+    roleDescription: 'Customer organization authority: asset registration, inspection readiness, published report acceptance, and service fee settlement.',
     overviewTitle: 'Asset overview',
     overviewSubtitle: 'Recent structures, fleet readiness, and workflow approvals registered to your organization.',
     stats: [
@@ -127,7 +126,7 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
       },
     ],
     performanceChart: {
-      headerLabel: 'REPAIR COST VARIANCE (MF4)',
+      headerLabel: 'INSPECTION REPORTS',
       headlineValue: '$64,654',
       trendBadge: '-5.6% Under Budget',
       series1Name: 'Authorized Budget (B)',
@@ -147,7 +146,7 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
       targetLabel: 'Quarter Goals',
       percentage: 82,
       subMetrics: [
-        { label: 'Preventative Maintenance Yield', value: '$54,200', percentage: 85 },
+
         { label: 'Regulatory Penalty Avoidance', value: '$35,800', percentage: 78 },
       ],
     },
@@ -468,104 +467,6 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
       ],
       viewAllLink: '/operations/inspections',
       viewAllText: 'View assigned inspections',
-    },
-  },
-
-  // 4. MAINTENANCE_ENGINEER (Maintenance Repair Lead) - Report 3 MF4
-  MAINTENANCE_ENGINEER: {
-    id: 'MAINTENANCE_ENGINEER',
-    name: 'Maintenance Engineer',
-    badge: 'Repair Work Order Lead',
-    report3RoleName: 'MAINTENANCE_ENGINEER',
-    roleDescription: 'Repair author & execution engineer: converts verified defect findings into itemized work orders (MF4), repairs defects, and reconciles costs.',
-    overviewTitle: 'Maintenance workload',
-    overviewSubtitle: 'Work and follow-up assigned to your maintenance role.',
-    stats: [
-      {
-        id: 'maintenance_tasks',
-        label: 'Maintenance tasks',
-        value: '14 Orders',
-        change: 'Assigned repair work',
-        positive: true,
-        subtext: 'open Maintenance to view assigned work',
-        iconType: 'wrench',
-      },
-      {
-        id: 'due_soon',
-        label: 'Due soon',
-        value: '3 Urgent',
-        change: '< 48 Hours',
-        positive: false,
-        subtext: 'available on assigned tasks',
-        iconType: 'clock',
-      },
-      {
-        id: 'source_findings',
-        label: 'Source findings',
-        value: '28 Defects',
-        change: 'MF3 Certified',
-        positive: true,
-        subtext: 'available on assigned tasks',
-        iconType: 'shield',
-      },
-      {
-        id: 'completed',
-        label: 'Completed',
-        value: '42 Orders',
-        change: '+16.5% Closed',
-        positive: true,
-        subtext: 'available on assigned tasks',
-        iconType: 'check-circle',
-      },
-    ],
-    performanceChart: {
-      headerLabel: 'REPAIR TURNAROUND TIME & VARIANCE (MF4)',
-      headlineValue: '3.4 Days',
-      trendBadge: '-24% MTTR',
-      series1Name: 'Authorized Estimate ($k)',
-      series1Color: '#3758F9',
-      series1Data: [24, 32, 28, 38, 36, 44, 40, 48, 45, 52, 48, 55],
-      series2Name: 'Actual Reconciled Cost ($k)',
-      series2Color: '#F97316',
-      series2Data: [22, 29, 26, 35, 33, 40, 38, 44, 42, 48, 45, 51],
-      months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      yTicks: ['60k', '48k', '36k', '24k', '12k', '0'],
-      maxVal: 60,
-    },
-    radialGauge: {
-      title: 'First-Time Repair Success Rate',
-      subtitle: 'Post-repair drone verification passing first QA check',
-      targetValue: '94%',
-      targetLabel: 'QA Passed',
-      percentage: 94,
-      subMetrics: [
-        { label: 'Surface Patch Mechanical Integrity', value: '26 / 28 Passed', percentage: 93 },
-        { label: 'Secondary Drone Telemetry Verification', value: '27 / 28 Verified', percentage: 96 },
-      ],
-    },
-    stackedBarChart: {
-      title: 'Defect Remediation by Asset Class (MF4)',
-      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-      channels: [
-        { name: 'Structural Crack Epoxy Injection', color: '#17364A', data: [12, 15, 14, 18, 16, 20, 18, 16] },
-        { name: 'Corrosion Sandblasting & Coating', color: '#3758F9', data: [18, 22, 20, 26, 24, 30, 26, 24] },
-        { name: 'Electrical Terminal Replacement', color: '#7B75F5', data: [14, 16, 15, 20, 18, 22, 20, 18] },
-        { name: 'Mechanical Gasket Resealing', color: '#EEF2FF', data: [8, 10, 9, 12, 11, 14, 12, 10] },
-      ],
-      maxStack: 90,
-    },
-    table: {
-      title: 'Maintenance workload',
-      subtitle: 'Work and follow-up assigned to your maintenance role.',
-      headers: ['WORK ORDER', 'DEFECT FINDING', 'PARTS / LABOR', 'STATUS', 'CONVERSION'],
-      rows: [
-        { col1: 'WO-2026-041', col2: 'Blade Delamination (WTG-14)', col3: 'Aero Epoxy + 8 hrs', col4: 'Active Repair', col5: '3.2%', status: 'warning', link: '/operations/maintenance' },
-        { col1: 'WO-2026-039', col2: 'Corrosion Spall (BR-014)', col3: 'Zinc Primer + 12 hrs', col4: 'Reconciled', col5: '4.1%', status: 'positive', link: '/operations/maintenance' },
-        { col1: 'WO-2026-044', col2: 'Hot-Spot Terminal (PS-012)', col3: 'Bushing Kit + 4 hrs', col4: 'Pending Parts', col5: '1.2%', status: 'negative', link: '/operations/maintenance' },
-        { col1: 'WO-2026-046', col2: 'Cable Tray Anchor Flaw', col3: 'Stainless Fasteners + 3 hrs', col4: 'Completed', col5: '3.5%', status: 'positive', link: '/operations/maintenance' },
-      ],
-      viewAllLink: '/operations/maintenance',
-      viewAllText: 'View assigned maintenance',
     },
   },
 };

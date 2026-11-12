@@ -73,19 +73,16 @@ function deferred<T>() {
 }
 
 function renderPanel({
-  roles = ['INSPECTOR'],
   hasFlightReport = false,
   telemetrySource = null,
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
 }: {
-  roles?: ('INSPECTOR' | 'ADMIN' | 'MANAGER' | 'CUSTOMER' | 'MAINTENANCE_ENGINEER')[];
   hasFlightReport?: boolean;
   telemetrySource?: string | null;
   queryClient?: QueryClient;
 } = {}) {
-  useAuthStore.setState({ roles });
   const result = render(
     <QueryClientProvider client={queryClient}>
       <SmartDroneHubTelemetryPanel
@@ -112,10 +109,13 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
     mocks.telemetry.mockReturnValue(new Promise(() => undefined));
   });
 
-  afterEach(() => {
-    cleanup();
-    useAuthStore.setState({ roles: [] });
+  beforeEach(() => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    vi.clearAllMocks();
+    mocks.telemetry.mockReturnValue(new Promise(() => undefined));
   });
+
+  afterEach(cleanup);
 
   it('imports a partial SRT and summarizes only the available report metadata without starting live telemetry', async () => {
     mocks.importFlightLog.mockResolvedValue(importedReport);
@@ -242,7 +242,7 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
   });
 
   it('hides import and manual controls from non-inspector roles', () => {
-    renderPanel({ roles: ['MANAGER'] });
+    renderPanel();
 
     expect(screen.queryByRole('button', { name: 'Choose flight log' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'No exportable log? Record a manual declaration' })).toBeNull();
