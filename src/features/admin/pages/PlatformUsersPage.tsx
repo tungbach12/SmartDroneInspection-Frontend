@@ -46,9 +46,8 @@ type PlatformUserRow = PlatformUser & {
 
 const ZONE_LABELS: Record<string, string> = {
   PLATFORM: 'Platform',
-  CUSTOMER_ORGANIZATION: 'Customer organization',
-  INSPECTOR_PARTNER: 'Inspector partner',
-  PROSPECT_CUSTOMER: 'Prospect customer',
+  CUSTOMER: 'Customer',
+  INSPECTOR: 'Inspector',
 };
 
 const ROLE_LABELS: Record<PlatformUserRole, string> = {
@@ -82,7 +81,7 @@ export default function PlatformUsersPage() {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [actorZone, setActorZone] = useState<ActorZone>(
-    isManager ? 'INSPECTOR_PARTNER' : 'PLATFORM',
+    isManager ? 'INSPECTOR' : 'PLATFORM',
   );
   const [roles, setRoles] = useState<PlatformUserRole[]>(
     isManager ? ['INSPECTOR'] : ['ADMIN'],
@@ -103,7 +102,7 @@ export default function PlatformUsersPage() {
     () =>
       isManager
         ? allItems.filter(
-            (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER',
+            (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR',
           )
         : allItems,
     [allItems, isManager],
@@ -205,7 +204,7 @@ export default function PlatformUsersPage() {
       align: 'right' as const,
       render: (user: PlatformUserRow) => {
         const isInspectorUser =
-          user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER';
+          user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR';
         const isSelf = Boolean(currentUserId && user.id === currentUserId);
         const isSuspended = user.status === 'SUSPENDED';
 
@@ -279,7 +278,7 @@ export default function PlatformUsersPage() {
       startIcon={<PersonAddAlt />}
       onClick={() => {
         if (isManager) {
-          setActorZone('INSPECTOR_PARTNER');
+          setActorZone('INSPECTOR');
           setRoles(['INSPECTOR']);
         }
         setCreateOpen(true);
@@ -427,8 +426,7 @@ export default function PlatformUsersPage() {
               {
                 email: email.trim(),
                 fullName: fullName.trim(),
-                actorZone: isManager ? 'INSPECTOR_PARTNER' : actorZone,
-                organizationId: null,
+                actorZone: isManager ? 'INSPECTOR' : actorZone,
                 roles: isManager ? ['INSPECTOR'] : roles,
               },
               {
@@ -485,7 +483,7 @@ export default function PlatformUsersPage() {
                       setActorZone(nextZone);
                       if (nextZone === 'PLATFORM') {
                         setRoles(['ADMIN']);
-                      } else if (nextZone === 'INSPECTOR_PARTNER') {
+                      } else if (nextZone === 'INSPECTOR') {
                         setRoles(['INSPECTOR']);
                       } else {
                         setRoles(['CUSTOMER']);
@@ -493,8 +491,8 @@ export default function PlatformUsersPage() {
                     }}
                   >
                     <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
-                    <MenuItem value="CUSTOMER_ORGANIZATION">{t('Customer organization')}</MenuItem>
-                    <MenuItem value="INSPECTOR_PARTNER">{t('Inspector partner')}</MenuItem>
+                    <MenuItem value="CUSTOMER">{t('Customer')}</MenuItem>
+                    <MenuItem value="INSPECTOR">{t('Inspector')}</MenuItem>
                   </TextField>
                   <TextField
                     select
@@ -503,7 +501,7 @@ export default function PlatformUsersPage() {
                       roles[0] ??
                       (actorZone === 'PLATFORM'
                         ? 'ADMIN'
-                        : actorZone === 'INSPECTOR_PARTNER'
+                        : actorZone === 'INSPECTOR'
                           ? 'INSPECTOR'
                           : 'CUSTOMER')
                     }
@@ -512,7 +510,7 @@ export default function PlatformUsersPage() {
                     {(
                       actorZone === 'PLATFORM'
                         ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
-                        : actorZone === 'INSPECTOR_PARTNER'
+                        : actorZone === 'INSPECTOR'
                           ? (['INSPECTOR'] as PlatformUserRole[])
                           : (['CUSTOMER', 'INSPECTOR'] as PlatformUserRole[])
                     ).map((role) => (

@@ -10,11 +10,7 @@ export const ROLE_CODES = [
 export const KNOWN_ROLES = ROLE_CODES;
 
 export type Role = (typeof ROLE_CODES)[number];
-export type ActorZone =
-  | 'PLATFORM'
-  | 'CUSTOMER_ORGANIZATION'
-  | 'INSPECTOR_PARTNER'
-  | 'PROSPECT_CUSTOMER';
+export type ActorZone = 'PLATFORM' | 'CUSTOMER' | 'INSPECTOR';
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous';
 
 export interface AuthUser {
@@ -23,7 +19,6 @@ export interface AuthUser {
   fullName: string;
   roles: Role[];
   actorZone: ActorZone;
-  organizationId: string | null;
   avatarUrl?: string | null | undefined;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string | undefined;
@@ -46,7 +41,6 @@ interface AuthState {
   email: string | null;
   roles: Role[];
   actorZone: ActorZone | null;
-  organizationId: string | null;
   setSession: (session: AuthSession) => void;
   setAccessToken: (accessToken: string) => void;
   setStatus: (status: AuthStatus) => void;
@@ -63,7 +57,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   email: null,
   roles: [],
   actorZone: null,
-  organizationId: null,
   setSession: ({ accessToken, user }) =>
     set({
       status: 'authenticated',
@@ -74,7 +67,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: user.email,
       roles: user.roles,
       actorZone: user.actorZone,
-      organizationId: user.organizationId,
     }),
   setAccessToken: (accessToken) => set({ accessToken }),
   setStatus: (status) => set({ status }),
@@ -86,7 +78,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: user.email,
       roles: user.roles,
       actorZone: user.actorZone,
-      organizationId: user.organizationId,
     }),
   clearSession: () =>
     set({
@@ -98,7 +89,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       email: null,
       roles: [],
       actorZone: null,
-      organizationId: null,
     }),
 }));
 

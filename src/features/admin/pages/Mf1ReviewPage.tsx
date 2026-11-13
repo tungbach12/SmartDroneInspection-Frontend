@@ -374,7 +374,7 @@ export default function Mf1ReviewPage() {
       const res = await createPlatformUser.mutateAsync({
         email: createEmail.trim(),
         fullName: createFullName.trim(),
-        actorZone: 'INSPECTOR_PARTNER',
+        actorZone: 'INSPECTOR',
         roles: ['INSPECTOR'],
       });
       setCreateInspectorOpen(false);

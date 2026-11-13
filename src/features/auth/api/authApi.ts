@@ -104,7 +104,6 @@ interface ApiUser {
   fullName: string;
   roles: unknown;
   actorZone: string;
-  organizationId: string | null;
   avatarUrl?: string | null;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string;
@@ -124,7 +123,6 @@ interface ApiAuthFlow {
 
 export interface OrganizationRegistrationResponse {
   registrationStatus?: 'ACTIVE' | 'PENDING_AIRSPACE_REVIEW' | string;
-  organizationId: string | null;
   organizationName: string;
   organizationCode: string;
   airspaceClassification?: string;
@@ -133,12 +131,7 @@ export interface OrganizationRegistrationResponse {
   user: AuthUser;
 }
 
-const VALID_ACTOR_ZONES: readonly ActorZone[] = [
-  'PLATFORM',
-  'CUSTOMER_ORGANIZATION',
-  'INSPECTOR_PARTNER',
-  'PROSPECT_CUSTOMER',
-];
+const VALID_ACTOR_ZONES: readonly ActorZone[] = ['PLATFORM', 'CUSTOMER', 'INSPECTOR'];
 
 function parseUser(value: unknown): AuthUser {
   if (!value || typeof value !== 'object') {
@@ -167,8 +160,6 @@ function parseUser(value: unknown): AuthUser {
     fullName: user.fullName,
     roles: user.roles.map(normalizeRole).filter((role): role is Role => role !== null),
     actorZone,
-    organizationId:
-      typeof user.organizationId === 'string' ? user.organizationId : null,
     avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
     visionFallbackEnabled:
       typeof user.visionFallbackEnabled === 'boolean'
@@ -286,7 +277,6 @@ export async function registerOrganization(
 ): Promise<OrganizationRegistrationResponse> {
   const { data } = await postWithBrowserCsrf<{
     registrationStatus?: string;
-    organizationId: string | null;
     organizationName: string;
     organizationCode: string;
     airspaceClassification?: string;
@@ -299,7 +289,6 @@ export async function registerOrganization(
     ...(data.registrationStatus !== undefined && {
       registrationStatus: data.registrationStatus,
     }),
-    organizationId: data.organizationId ?? null,
     organizationName: data.organizationName,
     organizationCode: data.organizationCode,
     ...(data.airspaceClassification !== undefined && {

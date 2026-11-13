@@ -78,7 +78,7 @@ function renderPage(route = '/operations/inspections') {
 function listedInspection() {
   return {
     id: 'inspection-1',
-    organizationId: 'org-1',
+    ownerCustomerId: 'org-1',
     assetId: 'asset-1',
     inspectorId: 'inspector-1',
     objective: 'Inspect the main span',
@@ -102,8 +102,7 @@ function signInAs(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'User',
       roles,
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
   });
 }

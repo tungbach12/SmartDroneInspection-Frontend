@@ -17,7 +17,7 @@ vi.mock('react-router-dom', async () => {
 
 const mockInspectionData: InspectionDetail = {
   id: 'insp-12345678-abcd',
-  organizationId: 'org-111',
+  ownerCustomerId: 'org-111',
   assetId: 'asset-999',
   assetName: 'Thu Thiem Bridge No. 2',
   locationText: '10.7769° N, 106.7009° E',

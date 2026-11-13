@@ -8,8 +8,7 @@ function makeUser(roles: Role[]): AuthUser {
     email: 'user@example.test',
     fullName: 'Test User',
     roles,
-    actorZone: 'CUSTOMER_ORGANIZATION',
-    organizationId: 'org-1',
+    actorZone: 'CUSTOMER',
   };
 }
 
