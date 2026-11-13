@@ -94,6 +94,8 @@ function toFirstAssetPayload(
     locationText?: string | undefined;
     latitude?: number | undefined;
     longitude?: number | undefined;
+    structureHeightMeters?: number | undefined;
+    footprintAreaSquareMeters?: number | undefined;
   } | undefined,
 ): FirstAssetRegistrationInput | undefined {
   if (
@@ -116,6 +118,12 @@ function toFirstAssetPayload(
     locationText: asset.locationText.trim(),
     latitude: asset.latitude,
     longitude: asset.longitude,
+    ...(typeof asset.structureHeightMeters === 'number' && !Number.isNaN(asset.structureHeightMeters)
+      ? { structureHeightMeters: asset.structureHeightMeters }
+      : {}),
+    ...(typeof asset.footprintAreaSquareMeters === 'number' && !Number.isNaN(asset.footprintAreaSquareMeters)
+      ? { footprintAreaSquareMeters: asset.footprintAreaSquareMeters }
+      : {}),
   };
 }
 
@@ -516,6 +524,29 @@ export default function RegisterPage() {
             fullWidth
             error={Boolean(form.formState.errors.firstAsset?.longitude)}
             helperText={form.formState.errors.firstAsset?.longitude?.message}
+            sx={authInputSx}
+          />
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+          <TextField
+            {...form.register('firstAsset.structureHeightMeters', { valueAsNumber: true })}
+            label={t('Structure height (m)')}
+            type="number"
+            slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.structureHeightMeters)}
+            helperText={form.formState.errors.firstAsset?.structureHeightMeters?.message ?? t('Optional. Used to check the drone maximum altitude.')}
+            sx={authInputSx}
+          />
+          <TextField
+            {...form.register('firstAsset.footprintAreaSquareMeters', { valueAsNumber: true })}
+            label={t('Footprint area (m²)')}
+            type="number"
+            slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+            fullWidth
+            error={Boolean(form.formState.errors.firstAsset?.footprintAreaSquareMeters)}
+            helperText={form.formState.errors.firstAsset?.footprintAreaSquareMeters?.message ?? t('Optional. Shown to the manager when choosing a partner.')}
             sx={authInputSx}
           />
         </Box>

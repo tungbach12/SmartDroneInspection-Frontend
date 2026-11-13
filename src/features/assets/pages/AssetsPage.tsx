@@ -32,6 +32,7 @@ import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
 import MyLocationRounded from '@mui/icons-material/MyLocationRounded';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
+import { useToastStore } from '@/shared/ui/Toast';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
@@ -48,6 +49,7 @@ import { useAssetDocuments, useUploadDocument } from '../hooks/useAssetDocuments
 import {
   useAssets,
   useCreateAsset,
+  useUpdateAsset,
   useRetireAsset,
   useUpdateAssetInspectionItems,
 } from '../hooks/useAssets';
@@ -82,6 +84,7 @@ export function AssetsPage() {
   const isClient = roles.includes('CUSTOMER');
   const { data, isLoading, error, refetch } = useAssets({ page: 1, pageSize: 50 });
   const createAsset = useCreateAsset();
+  const showToast = useToastStore((state) => state.showToast);
   const categories = useCategories();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -244,9 +247,18 @@ export function AssetsPage() {
             onSuccess: async (created) => {
               if (initialPhoto && created?.id) {
                 try {
-                  await documentApi.upload(created.id, initialPhoto, 'OWNERSHIP');
-                } catch {
-                  // Photo can still be uploaded from the detail drawer
+                  await documentApi.upload(
+                    created.id,
+                    initialPhoto,
+                    'ASSET_PHOTO',
+                    undefined,
+                    true,
+                  );
+                } catch (error) {
+                  showToast(
+                    getErrorMessage(error, t('The asset was created, but its photo could not be uploaded. Try again from the asset details.')),
+                    'error',
+                  );
                 }
               }
               setCreateOpen(false);
@@ -286,9 +298,34 @@ interface CreateAssetDialogProps {
       latitude: number | null;
       longitude: number | null;
       inspectionItems: string[];
+      structureHeightMeters: number | null;
+      footprintAreaSquareMeters: number | null;
     },
     initialPhoto?: File | null,
   ) => void;
+}
+
+/** Blank → null (not provided); a valid non-negative number → number; anything else → undefined. */
+function parseDimension(text: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function parseOptionalDimension(text: string): number | null | undefined {
+  return parseDimension(text);
+}
+
+function parseOptionalCoordinate(
+  text: string,
+  minimum: number,
+  maximum: number,
+): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= minimum && value <= maximum ? value : undefined;
 }
 
 function generateRandomAssetCode(): string {
@@ -315,6 +352,8 @@ function CreateAssetDialogForm({
   const [locationText, setLocationText] = useState('');
   const [latitudeText, setLatitudeText] = useState('10.7789');
   const [longitudeText, setLongitudeText] = useState('106.7082');
+  const [heightText, setHeightText] = useState('');
+  const [areaText, setAreaText] = useState('');
   const [description, setDescription] = useState('');
   const [initialPhoto, setInitialPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -377,8 +416,13 @@ function CreateAssetDialogForm({
   const parsedLat = latitudeText.trim() !== '' && !Number.isNaN(Number(latitudeText)) ? Number(latitudeText) : null;
   const parsedLon = longitudeText.trim() !== '' && !Number.isNaN(Number(longitudeText)) ? Number(longitudeText) : null;
 
+  const heightValue = parseDimension(heightText);
+  const areaValue = parseDimension(areaText);
+  const dimensionsInvalid = heightValue === undefined || areaValue === undefined;
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (dimensionsInvalid) return;
     onSubmit(
       {
         code,
@@ -389,6 +433,8 @@ function CreateAssetDialogForm({
         longitude: parsedLon,
         description: description || null,
         inspectionItems: [],
+        structureHeightMeters: heightValue,
+        footprintAreaSquareMeters: areaValue,
       },
       initialPhoto,
     );
@@ -578,6 +624,37 @@ function CreateAssetDialogForm({
             </Stack>
           </Box>
 
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              label={t('Structure height (m)')}
+              value={heightText}
+              onChange={(e) => setHeightText(e.target.value)}
+              fullWidth
+              error={heightValue === undefined}
+              autoComplete="off"
+              slotProps={{ htmlInput: { inputMode: 'decimal', spellCheck: false } }}
+              helperText={
+                heightValue === undefined
+                  ? t('Enter a number of 0 or more')
+                  : t('Optional. Used to check the drone maximum altitude.')
+              }
+            />
+            <TextField
+              label={t('Footprint area (m²)')}
+              value={areaText}
+              onChange={(e) => setAreaText(e.target.value)}
+              fullWidth
+              error={areaValue === undefined}
+              autoComplete="off"
+              slotProps={{ htmlInput: { inputMode: 'decimal', spellCheck: false } }}
+              helperText={
+                areaValue === undefined
+                  ? t('Enter a number of 0 or more')
+                  : t('Optional. Shown to the manager when choosing a partner.')
+              }
+            />
+          </Stack>
+
           <TextField
             label={t('Description')}
             multiline
@@ -659,7 +736,7 @@ function CreateAssetDialogForm({
         <Button
           type="submit"
           variant="contained"
-          disabled={pending}
+          disabled={pending || dimensionsInvalid}
         >
           {pending ? 'Creating…' : 'Create Asset'}
         </Button>
@@ -992,8 +1069,32 @@ function AssetDetailDrawer({
   const isClient = roles.includes('CUSTOMER');
   const canEditInspectionItems =
     roles.includes('MANAGER') || roles.includes('ADMIN');
+  const updateMutation = useUpdateAsset();
   const retireMutation = useRetireAsset();
   const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editLatitude, setEditLatitude] = useState('');
+  const [editLongitude, setEditLongitude] = useState('');
+  const [editHeight, setEditHeight] = useState('');
+  const [editArea, setEditArea] = useState('');
+  const [editAssetId, setEditAssetId] = useState<string | null>(null);
+  const editingCurrentAsset = editing && editAssetId === asset?.id;
+  const startEditing = () => {
+    if (!asset) return;
+    setEditAssetId(asset.id);
+    setEditName(asset.name);
+    setEditDescription(asset.description ?? '');
+    setEditLocation(formatLocation(asset.locationText) === '—' ? '' : formatLocation(asset.locationText));
+    setEditLatitude(asset.latitude == null ? '' : String(asset.latitude));
+    setEditLongitude(asset.longitude == null ? '' : String(asset.longitude));
+    setEditHeight(asset.structureHeightMeters == null ? '' : String(asset.structureHeightMeters));
+    setEditArea(asset.footprintAreaSquareMeters == null ? '' : String(asset.footprintAreaSquareMeters));
+    setEditing(true);
+  };
+
   const documents = useAssetDocuments(asset?.id ?? '');
   const upload = useUploadDocument(asset?.id ?? '');
   const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
@@ -1011,8 +1112,8 @@ function AssetDetailDrawer({
     };
   }, [filePreviewUrl]);
 
-  const primaryImageDoc = (documents.data ?? []).find((doc) =>
-    doc.contentType?.toLowerCase().startsWith('image/'),
+  const primaryImageDoc = (documents.data ?? []).find(
+    (doc) => doc.documentType === 'ASSET_PHOTO' && doc.contentType?.toLowerCase().startsWith('image/'),
   );
   // A blob URL outlives this component unless it is revoked, and a download that resolves after the
   // drawer closed must not write state that no longer has a home.
@@ -1050,6 +1151,47 @@ function AssetDetailDrawer({
   };
 
   const uploadAllowed = isClient && (asset?.status === 'ACTIVE' || asset?.status === 'INACTIVE');
+  const parsedEditHeight = parseOptionalDimension(editHeight);
+  const parsedEditArea = parseOptionalDimension(editArea);
+  const parsedEditLatitude = parseOptionalCoordinate(editLatitude, -90, 90);
+  const parsedEditLongitude = parseOptionalCoordinate(editLongitude, -180, 180);
+  const coordinatesPartiallyMissing =
+    (editLatitude.trim() === '') !== (editLongitude.trim() === '');
+  const editInvalid =
+    !editName.trim() ||
+    !editLocation.trim() ||
+    coordinatesPartiallyMissing ||
+    parsedEditHeight === undefined ||
+    parsedEditArea === undefined ||
+    parsedEditLatitude === undefined ||
+    parsedEditLongitude === undefined;
+  const saveAssetEdit = () => {
+    if (!asset || editInvalid) return;
+    updateMutation.mutate(
+      {
+        assetId: asset.id,
+        input: {
+          name: editName.trim(),
+          description: editDescription.trim() || null,
+          locationText: editLocation.trim(),
+          latitude: parsedEditLatitude ?? null,
+          longitude: parsedEditLongitude ?? null,
+          structureHeightMeters: parsedEditHeight ?? null,
+          footprintAreaSquareMeters: parsedEditArea ?? null,
+          clearCoordinates: editLatitude.trim() === '' && editLongitude.trim() === '',
+          clearStructureHeight: editHeight.trim() === '',
+          clearFootprintArea: editArea.trim() === '',
+          clearDescription: editDescription.trim() === '',
+        },
+      },
+      {
+        onSuccess: (updated) => {
+          onAssetUpdated?.(updated);
+          setEditing(false);
+        },
+      },
+    );
+  };
   const downloadDenied = isPermissionDenied(downloadError) || isPermissionDenied(documents.error);
 
   const openDocument = async (storedDocument: AssetDocument) => {
@@ -1103,6 +1245,29 @@ function AssetDetailDrawer({
           {asset?.code} · {formatLocation(asset?.locationText ?? null)}
         </Typography>
         <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
+        {asset && isClient && asset.status !== 'RETIRED' && !editingCurrentAsset && (
+          <Button size="small" onClick={startEditing}>{t('Edit asset')}</Button>
+        )}
+        {asset && editingCurrentAsset && (
+          <Stack spacing={1.5} sx={{ my: 2 }}>
+            <TextField label={t('Asset name')} value={editName} onChange={(e) => setEditName(e.target.value)} required />
+            <TextField label={t('Location')} value={editLocation} onChange={(e) => setEditLocation(e.target.value)} required />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField label={t('Latitude')} value={editLatitude} onChange={(e) => setEditLatitude(e.target.value)} error={parsedEditLatitude === undefined} fullWidth />
+              <TextField label={t('Longitude')} value={editLongitude} onChange={(e) => setEditLongitude(e.target.value)} error={parsedEditLongitude === undefined} fullWidth />
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField label={t('Structure height (m)')} value={editHeight} onChange={(e) => setEditHeight(e.target.value)} error={parsedEditHeight === undefined} fullWidth />
+              <TextField label={t('Footprint area (m²)')} value={editArea} onChange={(e) => setEditArea(e.target.value)} error={parsedEditArea === undefined} fullWidth />
+            </Stack>
+            <TextField label={t('Description')} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} multiline rows={2} />
+            {updateMutation.isError && <Alert severity="error">{getErrorMessage(updateMutation.error, t('Could not update the asset.'))}</Alert>}
+            <Stack direction="row" sx={{ justifyContent: 'flex-end' }} spacing={1}>
+              <Button onClick={() => setEditing(false)}>{t('Cancel')}</Button>
+              <Button variant="contained" disabled={editInvalid || updateMutation.isPending} onClick={saveAssetEdit}>{t('Save changes')}</Button>
+            </Stack>
+          </Stack>
+        )}
         {asset && primaryImageDoc && (
           <Box
             sx={{
@@ -1218,7 +1383,7 @@ function AssetDetailDrawer({
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <Button variant="outlined" component="label" startIcon={<CloudUploadOutlined />}>
-                  {file ? file.name : 'Choose file'}
+                  {file ? file.name : primaryImageDoc ? t('Replace asset photo') : t('Choose asset photo')}
                   <input
                     hidden
                     type="file"
@@ -1264,11 +1429,13 @@ function AssetDetailDrawer({
                     upload.mutate(
                       {
                         file,
-                        documentType,
+                        documentType: file.type.startsWith('image/') ? 'ASSET_PHOTO' : documentType,
                         ...(documentDate ? { documentDate } : {}),
+                        ...(file.type.startsWith('image/') ? { primaryImage: true } : {}),
                       },
                       {
                         onSuccess: () => {
+                          setDownloadError(null);
                           if (filePreviewUrl) {
                             URL.revokeObjectURL(filePreviewUrl);
                           }

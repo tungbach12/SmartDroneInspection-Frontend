@@ -1329,12 +1329,16 @@ export default function Mf1ReviewPage() {
                     </Box>
                   </Box>
 
-                  {('maxWindResistanceMps' in selected && selected.maxWindResistanceMps) ||
+                  {('maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null) ||
+                  ('maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null) ||
                   ('hasThermalCamera' in selected && selected.hasThermalCamera) ||
                   ('hasRtk' in selected && selected.hasRtk) ? (
                     <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
-                      {'maxWindResistanceMps' in selected && selected.maxWindResistanceMps && (
+                      {'maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null && (
                         <Chip size="small" variant="outlined" label={tr(`Kháng gió: ${selected.maxWindResistanceMps} m/s`, `Wind resistance: ${selected.maxWindResistanceMps} m/s`)} />
+                      )}
+                      {'maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null && (
+                        <Chip size="small" variant="outlined" label={tr(`Trần bay tối đa: ${selected.maxAltitudeMeters} m`, `Declared maximum altitude: ${selected.maxAltitudeMeters} m`)} />
                       )}
                       {'opticalZoomLevel' in selected && selected.opticalZoomLevel && (
                         <Chip size="small" variant="outlined" label={`Zoom: ${selected.opticalZoomLevel}`} />

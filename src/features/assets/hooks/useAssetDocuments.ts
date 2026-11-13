@@ -19,11 +19,13 @@ export function useUploadDocument(assetId: string) {
       file,
       documentType,
       documentDate,
+      primaryImage,
     }: {
       file: File;
       documentType: string;
       documentDate?: string;
-    }) => documentApi.upload(assetId, file, documentType, documentDate),
+      primaryImage?: boolean;
+    }) => documentApi.upload(assetId, file, documentType, documentDate, primaryImage),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: documentKeys.forAsset(assetId) });
       showToast('Document uploaded');

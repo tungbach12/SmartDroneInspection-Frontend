@@ -11,7 +11,10 @@ import {
   contractQueryKeys,
   type AssignOccurrenceInput,
   type CreateServiceRequestInput,
+  type EvaluatePartnerCandidatesInput,
   type IssueServiceQuoteInput,
+  type PartnerCandidate,
+  type PartnerCapabilityOption,
   type ServiceRequest,
 } from '../api/contractApi';
 
@@ -87,6 +90,19 @@ export function useMarkMessagesRead(requestId?: string) {
       });
       await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
     },
+  });
+}
+
+export function usePartnerCapabilities() {
+  return useQuery<PartnerCapabilityOption[]>({
+    queryKey: [...contractQueryKeys.partners(), 'capabilities'],
+    queryFn: contractApi.listPartnerCapabilities,
+  });
+}
+
+export function useEvaluatePartnerCandidates(requestId: string) {
+  return useMutation<PartnerCandidate[], Error, EvaluatePartnerCandidatesInput>({
+    mutationFn: (input) => contractApi.evaluatePartnerCandidates(requestId, input),
   });
 }
 

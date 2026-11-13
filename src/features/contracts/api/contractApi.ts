@@ -35,6 +35,7 @@ export interface ServiceRequestQuote {
   updatedAt: string;
   updatedByUserId: string;
   rowVersion: number;
+  requiredDroneFeatureCodes: string[];
 }
 
 export interface ServiceInvoiceSummary {
@@ -143,6 +144,47 @@ export interface CreateServiceRequestInput {
   recurrenceEndDate?: string;
 }
 
+export interface PartnerCapabilityOption {
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  displayOrder: number;
+  isActive: boolean;
+  category: string;
+}
+
+export interface PartnerCandidateCheck {
+  code: string;
+  status: 'PASS' | 'FAIL' | 'UNKNOWN' | 'MATCH' | 'MISMATCH';
+  explanation: string;
+}
+
+export interface PartnerCandidate {
+  inspectorId: string;
+  droneId: string;
+  inspectorName: string;
+  inspectorAvatarUrl: string | null;
+  droneSerialNumber: string;
+  droneModel: string | null;
+  /** Optional while older backend instances omit the image-presence field. */
+  droneHasImage?: boolean;
+  droneFeatureCodes: string[];
+  eligibility: 'PASS' | 'FAIL' | 'UNKNOWN';
+  capabilityFit: 'MATCH' | 'MISMATCH' | 'UNKNOWN';
+  droneMaxAltitudeMeters: number | null;
+  structureHeightMeters: number | null;
+  footprintAreaSquareMeters: number | null;
+  hardGates: PartnerCandidateCheck[];
+  capabilityChecks: PartnerCandidateCheck[];
+  disclaimer: string;
+}
+
+export interface EvaluatePartnerCandidatesInput {
+  plannedStartAt: string;
+  plannedEndAt: string;
+  requiredDroneFeatureCodes: string[];
+}
+
 export interface IssueServiceQuoteInput {
   scopeSnapshot: string;
   firstOccurrenceStartAt: string;
@@ -150,6 +192,7 @@ export interface IssueServiceQuoteInput {
   inspectorId: string;
   droneId: string;
   pricePerOccurrenceVnd: number;
+  requiredDroneFeatureCodes: string[];
 }
 
 export interface AssignOccurrenceInput {
@@ -163,6 +206,7 @@ export interface PartnerInspector {
   id: string;
   fullName: string;
   licenseExpiresAt: string | null;
+  avatarUrl: string | null;
 }
 
 export interface PartnerDrone {
@@ -170,6 +214,7 @@ export interface PartnerDrone {
   inspectorOwnerId: string;
   serialNumber: string;
   model: string;
+  hasImage: boolean;
 }
 
 export const contractQueryKeys = {
@@ -206,6 +251,22 @@ export const contractApi = {
   async markMessagesRead(requestId: string): Promise<ServiceRequest> {
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/messages/read`,
+    );
+    return data;
+  },
+
+  async listPartnerCapabilities(): Promise<PartnerCapabilityOption[]> {
+    const { data } = await api.get<PartnerCapabilityOption[]>('/contracts/requests/partner-capabilities');
+    return data.filter((option) => option.isActive && option.category.toUpperCase() === 'CAPABILITY');
+  },
+
+  async evaluatePartnerCandidates(
+    requestId: string,
+    input: EvaluatePartnerCandidatesInput,
+  ): Promise<PartnerCandidate[]> {
+    const { data } = await api.post<PartnerCandidate[]>(
+      `/contracts/requests/${requestId}/partner-candidates`,
+      input,
     );
     return data;
   },

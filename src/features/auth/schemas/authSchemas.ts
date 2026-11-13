@@ -33,6 +33,8 @@ export const firstAssetSchema = z
     locationText: z.string().trim().max(500, 'Location must be 500 characters or fewer.').optional(),
     latitude: z.number().min(-90, 'Latitude must be >= -90.').max(90, 'Latitude must be <= 90.').optional().or(z.nan()),
     longitude: z.number().min(-180, 'Longitude must be >= -180.').max(180, 'Longitude must be <= 180.').optional().or(z.nan()),
+    structureHeightMeters: z.number().min(0).max(999999.99).optional().or(z.nan()),
+    footprintAreaSquareMeters: z.number().min(0).max(9999999999.99).optional().or(z.nan()),
   })
   .optional();
 

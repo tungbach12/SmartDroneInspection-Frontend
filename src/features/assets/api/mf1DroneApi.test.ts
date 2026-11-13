@@ -17,6 +17,19 @@ describe('inspector drone registration API', () => {
     expect(api.post).toHaveBeenCalledWith('/drone-registration-applications', expect.not.objectContaining({ organizationId: expect.anything() }));
   });
 
+  it('sends the declared altitude independently from wind resistance and allows it to remain optional', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'application-1', status: 'PENDING' } });
+    const payload = {
+      serialNumber: 'SN-ALT', registrationNumber: 'REG-ALT', registrationFileKey: 'reg/file',
+      registrationExpiresAt: '2027-12-31T00:00:00Z', ownershipFileKey: 'owner/file',
+      maxWindResistanceMps: 12, maxAltitudeMeters: 5000,
+    };
+    await mf1DroneApi.submit(payload);
+    expect(api.post).toHaveBeenCalledWith('/drone-registration-applications', payload);
+    await mf1DroneApi.submit({ ...payload, maxAltitudeMeters: undefined });
+    expect(api.post).toHaveBeenLastCalledWith('/drone-registration-applications', expect.objectContaining({ maxWindResistanceMps: 12, maxAltitudeMeters: undefined }));
+  });
+
   it('uploads drone evidence with a typed evidence category and returns the server key', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { success: true, data: { fileKey: 'drone-registration-applications/inspector/evidence/OWNERSHIP/uuid.pdf' } } });
     const file = new File(['%PDF-1.7'], 'ownership.pdf', { type: 'application/pdf' });

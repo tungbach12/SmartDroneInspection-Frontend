@@ -5,6 +5,7 @@ import {
   assetKeys,
   type AssetListFilters,
   type CreateAssetInput,
+  type UpdateAssetInput,
 } from '../api/assetApi';
 
 export function useAssets(filters: AssetListFilters, enabled = true) {
@@ -34,6 +35,23 @@ export function useCreateAsset() {
     },
     onError: (err: any) => {
       showToast(err.response?.data?.detail || 'Failed to create asset', 'error');
+    },
+  });
+}
+
+export function useUpdateAsset() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+
+  return useMutation({
+    mutationFn: ({ assetId, input }: { assetId: string; input: UpdateAssetInput }) =>
+      assetApi.update(assetId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+      showToast('Asset updated successfully');
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.detail || 'Failed to update asset', 'error');
     },
   });
 }

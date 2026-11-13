@@ -29,6 +29,7 @@ describe('contractApi', () => {
       inspectorId: 'insp-1',
       droneId: 'drone-1',
       pricePerOccurrenceVnd: 12000000,
+      requiredDroneFeatureCodes: ['THERMAL_CAMERA'],
     };
     const response = { data: { id: 'req-1' } };
     vi.mocked(api.put).mockResolvedValue(response as never);
@@ -77,5 +78,36 @@ describe('contractApi', () => {
     expect(formData).toBeInstanceOf(FormData);
     expect((formData as FormData).get('file')).toBe(file);
     expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/signed-contract', formData);
+  });
+
+  it('loads the active partner capability catalog from the API', async () => {
+    const options = [
+      {
+        code: 'THERMAL_CAMERA',
+        nameVi: 'Camera nhiệt',
+        nameEn: 'Thermal Camera',
+        displayOrder: 1,
+        isActive: true,
+        category: 'CAPABILITY',
+      },
+      { code: 'LEGACY', nameVi: 'Cũ', nameEn: 'Legacy', displayOrder: 9, isActive: false, category: 'CAPABILITY' },
+    ];
+    vi.mocked(api.get).mockResolvedValue({ data: options } as never);
+
+    await expect(contractApi.listPartnerCapabilities()).resolves.toEqual([options[0]]);
+    expect(api.get).toHaveBeenCalledWith('/contracts/requests/partner-capabilities');
+  });
+
+  it('evaluates partner candidates for a service request schedule and capability list', async () => {
+    const input = {
+      plannedStartAt: '2026-12-04T01:00:00Z',
+      plannedEndAt: '2026-12-04T03:00:00Z',
+      requiredDroneFeatureCodes: ['THERMAL_CAMERA'],
+    };
+    const candidates = [{ inspectorId: 'insp-1', droneId: 'drone-1', droneFeatureCodes: ['THERMAL_CAMERA'], eligibility: 'PASS', capabilityFit: 'MATCH' }];
+    vi.mocked(api.post).mockResolvedValue({ data: candidates } as never);
+
+    await expect(contractApi.evaluatePartnerCandidates('req-1', input)).resolves.toBe(candidates);
+    expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/partner-candidates', input);
   });
 });
