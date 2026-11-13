@@ -16,11 +16,7 @@ export type PlatformUserRole =
 
 export type PlatformUserStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 
-export type ActorZone =
-  | 'PLATFORM'
-  | 'CUSTOMER_ORGANIZATION'
-  | 'INSPECTOR_PARTNER'
-  | 'PROSPECT_CUSTOMER';
+export type ActorZone = 'PLATFORM' | 'CUSTOMER' | 'INSPECTOR';
 
 export interface PlatformUser {
   id: string;
@@ -28,7 +24,6 @@ export interface PlatformUser {
   fullName: string;
   roles: string[];
   actorZone: string;
-  organizationId: string | null;
 }
 
 /**
@@ -46,13 +41,11 @@ export interface CreatePlatformUserInput {
   email: string;
   fullName: string;
   actorZone: ActorZone;
-  organizationId?: string | null;
   roles: PlatformUserRole[];
 }
 
 export interface UpdatePlatformUserRolesInput {
   actorZone: ActorZone;
-  organizationId?: string | null;
   roles: PlatformUserRole[];
 }
 

@@ -174,8 +174,7 @@ function signInAs(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'User',
       roles,
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
   });
 }

@@ -101,7 +101,7 @@ export interface ServiceRequestOccurrence {
 
 export interface ServiceRequest {
   id: string;
-  organizationId: string;
+  ownerCustomerId: string;
   assetId: string;
   description: string;
   requestedFrom: string;

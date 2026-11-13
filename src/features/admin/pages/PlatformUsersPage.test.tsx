@@ -33,7 +33,6 @@ const PLATFORM_ADMIN = {
   fullName: 'Platform Admin',
   roles: ['ADMIN'],
   actorZone: 'PLATFORM',
-  organizationId: null,
 };
 
 const CUSTOMER = {
@@ -41,8 +40,7 @@ const CUSTOMER = {
   email: 'org.manager@example.test',
   fullName: 'Organization Manager',
   roles: ['CUSTOMER'],
-  actorZone: 'CUSTOMER_ORGANIZATION',
-  organizationId: 'org-1',
+  actorZone: 'CUSTOMER',
 };
 
 function renderWithClient() {
@@ -80,7 +78,7 @@ describe('PlatformUsersPage', () => {
 
     expect(await screen.findByText('platform.admin@example.test')).toBeTruthy();
     expect(screen.getByText('org.manager@example.test')).toBeTruthy();
-    expect(screen.getByText('Customer organization')).toBeTruthy();
+    expect(screen.getAllByText('Customer').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ADMIN').length).toBeGreaterThan(0);
     expect(screen.getAllByText('CUSTOMER').length).toBeGreaterThan(0);
   });
@@ -120,7 +118,6 @@ describe('PlatformUsersPage', () => {
         email: 'pm@example.test',
         fullName: 'Platform Manager User',
         actorZone: 'PLATFORM',
-        organizationId: null,
         roles: ['MANAGER'],
       }),
     );

@@ -61,8 +61,7 @@ describe('OAuthCallbackPage', () => {
       email: 'customer@example.com',
       fullName: 'Google Customer',
       roles: ['CUSTOMER'],
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: null,
+      actorZone: 'CUSTOMER',
       visionFallbackEnabled: true,
     });
 

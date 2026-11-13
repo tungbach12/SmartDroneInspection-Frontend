@@ -59,8 +59,7 @@ describe('ContractsPage', () => {
       userId: 'customer-1',
       userName: 'Customer One',
       email: 'customer@test.local',
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     });
     vi.spyOn(assetsHook, 'useAssets').mockReturnValue({
       data: {
@@ -122,7 +121,7 @@ describe('ContractsPage', () => {
       data: [
         {
           id: 'req-1',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Crack check',
           requestedFrom: '2026-11-01',
@@ -151,7 +150,7 @@ describe('ContractsPage', () => {
         },
         {
           id: 'req-quoted',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Roof survey quote',
           requestedFrom: '2026-11-03',
@@ -180,7 +179,7 @@ describe('ContractsPage', () => {
         },
         {
           id: 'req-signed',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Signed bridge survey',
           requestedFrom: '2026-11-04',
@@ -250,7 +249,7 @@ describe('ContractsPage', () => {
       data: [
         {
           id: 'req-signed',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Bridge survey',
           requestedFrom: '2026-11-01',
@@ -306,13 +305,12 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
         {
           id: 'req-1',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Crack check',
           requestedFrom: '2026-11-01',
@@ -391,14 +389,13 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     const mutateAsync = vi.fn();
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
         {
           id: 'req-recurring-expiry',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Recurring bridge survey',
           requestedFrom: '2026-12-04',
@@ -480,7 +477,6 @@ describe('ContractsPage', () => {
       userName: 'Admin User',
       email: 'admin@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     renderPage();
     expect(screen.getByText('MF2 is available to Customer and Platform Manager accounts.')).toBeTruthy();
@@ -492,7 +488,7 @@ describe('ContractsPage', () => {
       data: [
         {
           id: 'req-quoted',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Crack check',
           requestedFrom: '2026-11-01',
@@ -574,14 +570,13 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-signed', status: 'ASSIGNED' });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
         {
           id: 'req-signed',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Bridge survey',
           requestedFrom: '2026-11-01',
@@ -697,7 +692,6 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     const evaluateMutate = vi.fn().mockResolvedValue([
       {
@@ -743,7 +737,7 @@ describe('ContractsPage', () => {
       data: [
         {
           id: 'req-1',
-          organizationId: 'org-1',
+          ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Crack check',
           requestedFrom: '2026-11-01',
@@ -815,7 +809,6 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
       actorZone: 'PLATFORM',
-      organizationId: null,
     });
     const evaluateMutate = vi.fn().mockResolvedValue([
       {
@@ -837,7 +830,7 @@ describe('ContractsPage', () => {
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [{
         id: 'req-1',
-        organizationId: 'org-1',
+        ownerCustomerId: 'org-1',
         assetId: 'asset-1',
         description: 'Crack check',
         requestedFrom: '2026-11-01',

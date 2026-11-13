@@ -74,9 +74,8 @@ describe('customer organization registration', () => {
   it('verifies OTP and keeps pending airspace registration out of login', async () => {
     mocks.registerOrganization.mockResolvedValue({
       registrationStatus: 'PENDING_AIRSPACE_REVIEW',
-      organizationId: null,
       reviewMessage: 'An administrator must review your location.',
-      user: { id: 'prospect-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'PROSPECT_CUSTOMER', organizationId: null },
+      user: { id: 'prospect-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'CUSTOMER' },
     });
     renderRegister();
     await fillRegistrationForm();

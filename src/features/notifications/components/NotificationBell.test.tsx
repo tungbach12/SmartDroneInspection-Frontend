@@ -54,8 +54,7 @@ describe('NotificationBell & Inbox', () => {
         email: 'inspector@example.com',
         fullName: 'Inspector One',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-1',
+        actorZone: 'CUSTOMER',
       },
     });
   });

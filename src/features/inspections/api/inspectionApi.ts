@@ -320,7 +320,7 @@ export interface InspectionListFilters {
  */
 export interface InspectionListItem {
   id: string;
-  organizationId: string;
+  ownerCustomerId: string;
   assetId: string;
   inspectorId: string;
   objective?: string | null;
@@ -376,7 +376,7 @@ export interface CreateInspectionInput {
 
 export interface InspectionDetail {
   id: string;
-  organizationId: string;
+  ownerCustomerId: string;
   assetId: string;
   assetName: string | null;
   locationText?: string | null | undefined;
