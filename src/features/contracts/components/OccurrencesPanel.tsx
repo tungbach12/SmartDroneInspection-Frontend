@@ -41,6 +41,7 @@ import {
   isSelectablePartnerCandidate,
   PartnerCandidateResults,
 } from './PartnerCandidateResults';
+import { RefundControls } from './RefundControls';
 
 interface OccurrencesPanelProps {
   request: ServiceRequest;
@@ -398,13 +399,28 @@ function OccurrenceCard({
                   {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
                   {payout?.reference ? ` · UNC: ${payout.reference}` : ''}
                   {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
+                  {occurrence.remainingInspectorNetPayout != null
+                    ? ` · Còn phải chi: ${formatNumber(occurrence.remainingInspectorNetPayout)} ₫`
+                    : ''}
                 </Typography>
+                {manager && isPaid && occurrence.paymentStatus === 'PAID' && (
+                  <RefundControls
+                    requestId={request.id}
+                    occurrence={occurrence}
+                    enabled={manager}
+                    onChanged={onChanged}
+                    onError={onError}
+                  />
+                )}
                 {isPaid &&
-                  !['PAID', 'SETTLED'].includes(payout?.status ?? occurrence.payoutStatus ?? '') && (
+                  !payout?.heldForRefund &&
+                  (!['PAID', 'SETTLED'].includes(payout?.status ?? occurrence.payoutStatus ?? '') ||
+                    Boolean(payout?.reference?.startsWith('AUTO-DISBURSE')) ||
+                    Boolean(occurrence.payoutReference?.startsWith('AUTO-DISBURSE'))) && (
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ pt: 0.75 }}>
                     <TextField
                       size="small"
-                      placeholder="Nhập mã giao dịch ngân hàng (VD: UNC-VCB-20261110)"
+                      placeholder="Nhập mã UNC ngân hàng thực tế (VD: UNC-VCB-20261110)"
                       value={payoutRef}
                       onChange={(e) => setPayoutRef(e.target.value)}
                       sx={{ flex: 1, bgcolor: 'background.paper' }}

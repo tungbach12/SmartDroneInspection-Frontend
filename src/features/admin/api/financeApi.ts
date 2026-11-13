@@ -36,6 +36,9 @@ export interface InspectorPayoutSummary {
   status: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
   reference: string | null;
   recordedAt: string | null;
+  heldForRefund?: boolean;
+  finalPayoutAmount?: number | null;
+  refundReconciliationReference?: string | null;
 }
 
 export interface OccurrenceFinanceProjection {

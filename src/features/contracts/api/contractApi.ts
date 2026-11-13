@@ -59,6 +59,62 @@ export interface InspectorPayoutSummary {
   status: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
   reference: string | null;
   recordedAt: string | null;
+  heldForRefund?: boolean;
+  finalPayoutAmount?: number | null;
+}
+
+export interface InspectorReceivableRecoverySummary {
+  id: string;
+  amount: number;
+  externalReference: string;
+  note: string;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export interface InspectorReceivableSummary {
+  id: string;
+  refundId: string;
+  assessedAmount: number;
+  recoveredAmount: number;
+  outstandingAmount: number;
+  sourceReference: string;
+  reason: string;
+  recoveries: InspectorReceivableRecoverySummary[];
+}
+
+export interface ServiceRefundSummary {
+  id: string;
+  amount: number;
+  status: 'INITIATED' | 'COMPLETED' | 'CANCELLED';
+  requestReference: string | null;
+  inspectorReceivableAmount: number | null;
+  platformAbsorbedPlanAmount: number | null;
+  initiatedByUserId: string | null;
+  initiatedAt: string | null;
+  completedByUserId: string | null;
+  completedAt: string | null;
+  cancelledByUserId: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  inspectorPayoutReduction: number | null;
+  platformCommissionAdjustment: number | null;
+  vatAdjustment: number | null;
+  tncnAdjustment: number | null;
+  platformAbsorbedAmount: number | null;
+  reference: string | null;
+  reason: string | null;
+  recordedByUserId: string | null;
+  allocationReconciledByUserId?: string | null;
+  allocationReconciliationReference?: string | null;
+  allocationReconciliationNote?: string | null;
+  allocationReconciledAt?: string | null;
+  recordedAt: string;
+}
+
+export interface OccurrenceFinanceDetails {
+  refunds: ServiceRefundSummary[];
+  inspectorReceivables: InspectorReceivableSummary[];
 }
 
 export interface ServiceRequestOccurrence {
@@ -86,8 +142,13 @@ export interface ServiceRequestOccurrence {
   tncnRate?: number | null;
   tncnAmount?: number | null;
   inspectorNetPayout?: number | null;
+  remainingInspectorNetPayout?: number | null;
   paymentStatus?: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | string | null;
   paymentConfirmedAt?: string | null;
+  refundedAmount?: number | null;
+  refundStatus?: string | null;
+  refunds?: ServiceRefundSummary[];
+  inspectorReceivables?: InspectorReceivableSummary[];
   paymentMethod?: string | null;
   paymentReference?: string | null;
   payosOrderCode?: number | null;
@@ -320,6 +381,13 @@ export const contractApi = {
     return data;
   },
 
+  async getOccurrenceFinance(requestId: string, occurrenceId: string): Promise<OccurrenceFinanceDetails> {
+    const { data } = await api.get<OccurrenceFinanceDetails>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/finance`,
+    );
+    return data;
+  },
+
   async confirmOccurrencePayment(
     requestId: string,
     occurrenceId: string,
@@ -329,6 +397,50 @@ export const contractApi = {
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/confirm-payment`,
       input,
     );
+    return data;
+  },
+
+  async initiateOccurrenceRefund(requestId: string, occurrenceId: string, input: {
+    amount: number; requestReference: string; reason: string;
+    inspectorReceivableAmount: number; platformAbsorbedAmount: number;
+  }): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/refunds`, input);
+    return data;
+  },
+
+  async completeOccurrenceRefund(requestId: string, occurrenceId: string, refundId: string, input: {
+    inspectorPayoutReduction: number; platformCommissionAdjustment: number;
+    vatAdjustment: number; tncnAdjustment: number; platformAbsorbedAmount: number;
+    externalReference: string;
+  }): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/refunds/${refundId}/complete`, input);
+    return data;
+  },
+
+  async cancelOccurrenceRefund(requestId: string, occurrenceId: string, refundId: string, reason: string): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/refunds/${refundId}/cancel`, { reason });
+    return data;
+  },
+
+  async reconcileRefundAllocation(requestId: string, occurrenceId: string, refundId: string, input: {
+    inspectorReceivableAmount: number; platformAbsorbedPlanAmount: number;
+    inspectorPayoutReduction: number; platformCommissionAdjustment: number;
+    vatAdjustment: number; tncnAdjustment: number; platformAbsorbedAmount: number;
+    reconciliationReference: string; note: string;
+  }): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/refunds/${refundId}/reconcile-allocation`, input);
+    return data;
+  },
+
+  async recordReceivableRecovery(requestId: string, occurrenceId: string, receivableId: string, input: {
+    amount: number; externalReference: string; note: string;
+  }): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/receivables/${receivableId}/recover`, input);
     return data;
   },
 
