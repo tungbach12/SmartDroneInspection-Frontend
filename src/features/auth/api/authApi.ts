@@ -32,6 +32,8 @@ export interface FirstAssetRegistrationInput {
   locationText: string;
   latitude: number;
   longitude: number;
+  structureHeightMeters?: number | null;
+  footprintAreaSquareMeters?: number | null;
 }
 
 export interface OrganizationRegistrationRequest {

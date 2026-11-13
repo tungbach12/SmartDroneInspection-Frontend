@@ -44,6 +44,15 @@ describe('assetApi', () => {
     expect(api.post).toHaveBeenCalledWith('/assets', body);
   });
 
+  it('patches editable asset fields including clear flags', async () => {
+    const updated = { id: 'a1', structureHeightMeters: null, footprintAreaSquareMeters: 900 };
+    vi.mocked(api.patch).mockResolvedValue({ data: updated });
+    const input = { name: 'Updated bridge', clearStructureHeight: true, footprintAreaSquareMeters: 900 };
+
+    await expect(assetApi.update('a1', input)).resolves.toEqual(updated);
+    expect(api.patch).toHaveBeenCalledWith('/assets/a1', input);
+  });
+
   it('retires an asset', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { id: 'a1', status: 'RETIRED' } });
 
@@ -95,7 +104,16 @@ describe('documentApi', () => {
     expect(form).toBeInstanceOf(FormData);
     expect((form as FormData).get('documentType')).toBe('OWNERSHIP');
     expect((form as FormData).get('documentDate')).toBe('2026-01-01');
+    expect((form as FormData).get('primaryImage')).toBeNull();
     expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' } });
+  });
+
+  it('marks a primary asset image explicitly', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'd1', documentType: 'ASSET_PHOTO' } });
+    await documentApi.upload('a1', new File(['image'], 'bridge.png', { type: 'image/png' }), 'ASSET_PHOTO', undefined, true);
+    const form = vi.mocked(api.post).mock.calls[0]![1] as FormData;
+    expect(form.get('primaryImage')).toBe('true');
+    expect(form.get('documentType')).toBe('ASSET_PHOTO');
   });
 
   it('surfaces the server-assigned id on upload rather than assuming it is null', async () => {

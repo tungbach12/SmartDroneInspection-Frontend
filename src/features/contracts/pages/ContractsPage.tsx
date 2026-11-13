@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Box,
@@ -40,7 +40,7 @@ import { RequestQuotePanel } from '../components/RequestQuotePanel';
 import { SignedContractPanel } from '../components/SignedContractPanel';
 import { OccurrencesPanel } from '../components/OccurrencesPanel';
 import { CreateRequestDialog } from '../components/CreateRequestDialog';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 function errorText(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -100,19 +100,19 @@ function getStatusLabel(status: ServiceRequest['status'], t: (key: string) => st
 
 function getRequestStageSubtitle(
   status: ServiceRequest['status'],
+  role: 'CUSTOMER' | 'MANAGER',
   t: (key: string) => string,
 ): string {
   switch (status) {
     case 'OPEN':
-      return `${t('Step')} 1/4 · ${t('In progress')}`;
+      return `${t('Step')} 1/5 · ${t(role === 'MANAGER' ? 'Request review' : 'Request submitted')}`;
     case 'QUOTED':
-      return `${t('Step')} 2/4 · ${t('Quote review')}`;
+      return `${t('Step')} 3/5 · ${t('Quote review')}`;
     case 'ACCEPTED':
-      return `${t('Step')} 3/4 · ${t('Acceptance recorded')}`;
     case 'CONTRACT_SIGNED':
-      return `${t('Step')} 3/4 · ${t('Signed contract')}`;
+      return `${t('Step')} 4/5 · ${t('Signed agreement')}`;
     case 'ASSIGNED':
-      return `${t('Step')} 4/4 · ${t('Scheduled')}`;
+      return `${t('Step')} 5/5 · ${t('Scheduled')}`;
     case 'CANCELLED':
       return '';
     default:
@@ -154,18 +154,36 @@ export default function ContractsPage() {
   const requests = useServiceRequests();
   const assets = useAssets({ page: 1, pageSize: 100 }, isCustomer);
 
-  const [selectedRequestId, setSelectedRequestId] = useState<string>(() => {
-    try {
-      return new URLSearchParams(window.location.search).get('requestId') ?? '';
-    } catch {
-      return '';
-    }
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedRequestId = searchParams.get('requestId') ?? '';
   const selectedRequest = useServiceRequest(selectedRequestId || undefined);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [pairSelectionRequestId, setPairSelectionRequestId] = useState('');
+
+  const selectRequest = useCallback(
+    (requestId: string) => {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (requestId) {
+            next.set('requestId', requestId);
+          } else {
+            next.delete('requestId');
+            next.delete('step');
+            next.delete('occurrenceId');
+            next.delete('inspectorId');
+            next.delete('droneId');
+          }
+          return next;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
 
   const refreshSelectedRequest = () => {
     void requests.refetch();
@@ -227,6 +245,8 @@ export default function ContractsPage() {
   const currentEffectiveStatus = currentRequest
     ? getEffectiveRequestStatus(currentRequest)
     : 'OPEN';
+  const quotePairSelectionOpen = searchParams.get('step') === 'quote-pair';
+  const hasConfirmedQuotePair = pairSelectionRequestId === selectedRequestId;
 
   return (
     <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 }, pb: { xs: 11, md: 12 } }}>
@@ -244,7 +264,7 @@ export default function ContractsPage() {
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
             <PageBreadcrumbs
               items={[
-                { label: t('Service requests'), onClick: () => setSelectedRequestId('') },
+                { label: t('Service requests'), onClick: () => selectRequest('') },
                 { label: currentRequest.description },
               ]}
             />
@@ -327,6 +347,8 @@ export default function ContractsPage() {
           <ContractLifecycleStepper
             status={currentEffectiveStatus}
             role={isCustomer ? 'CUSTOMER' : 'MANAGER'}
+            selectionOpen={quotePairSelectionOpen}
+            hasSelectedPair={hasConfirmedQuotePair}
           />
 
           {/* Hoạt động 1: Báo giá & Phê duyệt */}
@@ -338,6 +360,9 @@ export default function ContractsPage() {
             onChanged={refreshSelectedRequest}
             onError={setError}
             onOpenInbox={(requestId) => navigate(`${isCustomer ? '/client' : '/manager'}/messages?requestId=${requestId}`)}
+            onPairSelectionChange={(confirmed) =>
+              setPairSelectionRequestId(confirmed ? selectedRequestId : '')
+            }
           />
 
           {/* Hoạt động 2: Ký hợp đồng giấy & Upload bằng chứng */}
@@ -589,7 +614,7 @@ export default function ContractsPage() {
                         <TableRow
                           key={req.id}
                           hover
-                          onClick={() => setSelectedRequestId(req.id)}
+                          onClick={() => selectRequest(req.id)}
                           sx={{ cursor: 'pointer' }}
                         >
                           <TableCell sx={{ py: 2 }}>
@@ -623,7 +648,7 @@ export default function ContractsPage() {
                                 label={getStatusLabel(effectiveStatus, t)}
                                 tone={statusTone(effectiveStatus)}
                               />
-                              {getRequestStageSubtitle(effectiveStatus, t) && (
+                              {getRequestStageSubtitle(effectiveStatus, isCustomer ? 'CUSTOMER' : 'MANAGER', t) && (
                                 <Typography
                                   variant="caption"
                                   sx={{
@@ -633,7 +658,7 @@ export default function ContractsPage() {
                                     pl: 0.25,
                                   }}
                                 >
-                                  {getRequestStageSubtitle(effectiveStatus, t)}
+                                  {getRequestStageSubtitle(effectiveStatus, isCustomer ? 'CUSTOMER' : 'MANAGER', t)}
                                 </Typography>
                               )}
                             </Stack>
@@ -654,7 +679,7 @@ export default function ContractsPage() {
                               variant="outlined"
                               size="small"
                               endIcon={<ArrowForwardRoundedIcon />}
-                              onClick={() => setSelectedRequestId(req.id)}
+                              onClick={() => selectRequest(req.id)}
                               sx={{
                                 borderRadius: '8px',
                                 textTransform: 'none',
@@ -683,7 +708,7 @@ export default function ContractsPage() {
         assets={assets.data?.items ?? []}
         onCreated={(id) => {
           setCreateDialogOpen(false);
-          setSelectedRequestId(id);
+          selectRequest(id);
           refreshSelectedRequest();
         }}
         onError={setError}
