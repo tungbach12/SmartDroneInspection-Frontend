@@ -306,40 +306,43 @@ export default function LoginPage() {
 
   const authInputSx = {
     '& .MuiOutlinedInput-root': {
-      bgcolor: '#F8FBFA',
-      borderRadius: '8px',
-      color: '#173B36',
+      bgcolor: '#F3F5F8',
+      borderRadius: '10px',
+      color: '#0F172A',
       fontSize: '14px',
       '& fieldset': {
-        borderColor: '#D6E4E0',
+        borderColor: '#E2E8F0',
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
       },
       '&:hover fieldset': {
-        borderColor: 'text.secondary',
+        borderColor: '#CBD5E1',
+      },
+      '&.Mui-focused': {
+        bgcolor: '#FFFFFF',
       },
       '&.Mui-focused fieldset': {
-        borderColor: 'primary.main',
+        borderColor: '#3758F9',
         borderWidth: '1.5px',
-        boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.14)',
+        boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.12)',
       },
     },
     '& .MuiInputLabel-root': {
-      color: 'text.secondary',
+      color: '#52525B',
       fontSize: '14px',
       '&.Mui-focused': {
-        color: 'primary.main',
+        color: '#3758F9',
       },
     },
     '& .MuiInputBase-input': {
       py: '13.5px',
       fontSize: '14px',
       '&::placeholder': {
-        color: '#607972',
+        color: '#94A3B8',
         opacity: 1,
       },
     },
     '& .MuiFormHelperText-root': {
-      color: '#B5473C',
+      color: '#DC2626',
       fontSize: '12px',
       mx: 0.5,
       mt: 0.5,
@@ -699,8 +702,8 @@ export default function LoginPage() {
       socialPrompt={t('Or sign in with')}
       onGoogleClick={onGoogleLogin}
       heroTagline={{
-        line1: 'Precision View,',
-        line2: 'Intelligent Insights',
+        line1: 'Smart Drone Infrastructure Inspection',
+        line2: 'AI-assisted defect detection, inspection reports, and maintenance tracking in one unified platform.',
       }}
     >
       <Stack
@@ -775,7 +778,7 @@ export default function LoginPage() {
               setIsForgotPassword(true);
             }}
             sx={{
-              color: '#087E8B',
+              color: '#3758F9',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '13px',
@@ -798,18 +801,18 @@ export default function LoginPage() {
           size="large"
           disabled={loginForm.formState.isSubmitting}
           sx={{
-            minHeight: 46,
-            borderRadius: '8px',
-            bgcolor: 'primary.main',
+            minHeight: 48,
+            borderRadius: '10px',
+            bgcolor: '#3758F9',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: 'none',
+            boxShadow: '0 4px 14px rgba(55, 88, 249, 0.24)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: 'primary.dark',
-              boxShadow: 'none',
+              bgcolor: '#2237EE',
+              boxShadow: '0 6px 20px rgba(55, 88, 249, 0.32)',
             },
           }}
         >

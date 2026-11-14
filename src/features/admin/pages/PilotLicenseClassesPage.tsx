@@ -117,7 +117,7 @@ export default function PilotLicenseClassesPage() {
       <PageHeader
         title="Danh mục hạng bằng lái UAV"
         subtitle="Quản lý các hạng bằng lái Inspector có thể chọn khi đăng ký hoặc cập nhật hồ sơ."
-        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: 'Hạng bằng lái UAV' }]}
+        breadcrumbs={[{ label: 'Governance', to: '/admin/dashboard' }, { label: 'Hạng bằng lái UAV' }]}
         actions={(
           <Button
             variant="contained"

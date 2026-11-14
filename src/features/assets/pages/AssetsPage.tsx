@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Card,
   Chip,
   CircularProgress,
   Dialog,
@@ -11,7 +12,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  Drawer,
   IconButton,
   InputAdornment,
   List,
@@ -30,13 +30,13 @@ import Close from '@mui/icons-material/Close';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import PlaceRounded from '@mui/icons-material/PlaceRounded';
-import MyLocationRounded from '@mui/icons-material/MyLocationRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
+import ApartmentRounded from '@mui/icons-material/ApartmentRounded';
 import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useToastStore } from '@/shared/ui/Toast';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isPermissionDenied } from '@/shared/api/problem';
-import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -59,8 +59,6 @@ import { InspectionWorkDetailDialog } from '@/features/inspections/components/In
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AssetLocationPickerModal } from '../components/AssetLocationPickerModal';
-
-const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'];
 
 function formatLocation(text: string | null): string {
   if (!text) return '—';
@@ -90,49 +88,28 @@ export function AssetsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Asset | null>(null);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<
+    'ACTIVE' | 'PENDING_REVIEW' | 'INACTIVE' | 'RETIRED'
+  >('ACTIVE');
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? items.length;
   const activeCount = items.filter((a) => a.status === 'ACTIVE').length;
   const pendingCount = items.filter((a) => a.status === 'PENDING_REVIEW').length;
   const checkpointsConfiguredCount = items.filter((a) => (a.inspectionItems?.length ?? 0) > 0).length;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredItems = items.filter((asset) => {
+    if (asset.status !== statusFilter) return false;
+    if (!normalizedQuery) return true;
+    return (
+      asset.name.toLowerCase().includes(normalizedQuery) ||
+      asset.code.toLowerCase().includes(normalizedQuery) ||
+      formatLocation(asset.locationText).toLowerCase().includes(normalizedQuery)
+    );
+  });
 
-  const columns: DataTableColumn<Asset>[] = [
-    {
-      id: 'code',
-      label: t('Code'),
-      width: 160,
-      render: (asset) => (
-        <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.75rem', color: 'text.primary' }}>
-          {asset.code}
-        </Typography>
-      ),
-    },
-    {
-      id: 'name',
-      label: t('Asset Name'),
-      render: (asset) => (
-        <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
-          {asset.name}
-        </Typography>
-      ),
-    },
-    {
-      id: 'location',
-      label: t('Location'),
-      render: (asset) => (
-        <Typography sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-          {formatLocation(asset.locationText)}
-        </Typography>
-      ),
-    },
-    {
-      id: 'status',
-      label: t('Status'),
-      width: 160,
-      render: (asset) => <StatusChip status={asset.status} />,
-    },
-  ];
+  const categoryNameById = new Map((categories.data ?? []).map((c) => [c.id, c.name]));
 
   const newAssetButton = isClient ? (
     <Button
@@ -158,7 +135,7 @@ export function AssetsPage() {
     <Box className="workspace-page workspace-page--assets">
       <PageHeader
         title={t('Assets')}
-        breadcrumbs={[{ label: 'Home', to: '/client/dashboard' }, { label: t('Assets') }]}
+        breadcrumbs={[{ label: t('Operations'), to: '/client/dashboard' }, { label: t('Assets') }]}
       />
       {/* 4 Lytic KPI Metric Cards */}
       {isClient && (
@@ -218,18 +195,190 @@ export function AssetsPage() {
           />
         }
       >
-        <DataTable
-          columns={columns}
-          rows={items}
-          rowKey={(asset) => asset.id}
-          searchable
-          searchPlaceholder={t('Search by id, name, or code…')}
-          searchPredicate={(asset, query) =>
-            asset.name.toLowerCase().includes(query) || asset.code.toLowerCase().includes(query)
-          }
-          actions={newAssetButton}
-          onRowClick={(asset) => setSelected(asset)}
-        />
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, mb: 2.5 }}
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, width: { xs: '100%', sm: 'auto' } }}>
+            <TextField
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('Search by id, name, or code…')}
+              sx={{ width: { xs: '100%', sm: 280 }, bgcolor: 'background.paper', borderRadius: '8px' }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRounded sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              select
+              size="small"
+              label={t('Status')}
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(
+                  e.target.value as 'ACTIVE' | 'PENDING_REVIEW' | 'INACTIVE' | 'RETIRED',
+                )
+              }
+              sx={{ minWidth: { xs: '100%', sm: 180 }, bgcolor: 'background.paper', borderRadius: '8px' }}
+            >
+              <MenuItem value="ACTIVE">{t('ACTIVE')}</MenuItem>
+              <MenuItem value="PENDING_REVIEW">{t('PENDING_REVIEW')}</MenuItem>
+              <MenuItem value="INACTIVE">{t('INACTIVE')}</MenuItem>
+              <MenuItem value="RETIRED">{t('RETIRED')}</MenuItem>
+            </TextField>
+          </Stack>
+          {newAssetButton}
+        </Stack>
+
+        {filteredItems.length === 0 ? (
+          <Paper
+            variant="outlined"
+            sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider' }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {t('No matching assets found.')}
+            </Typography>
+          </Paper>
+        ) : (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5 }}>
+            {filteredItems.map((asset) => {
+              const categoryName = categoryNameById.get(asset.categoryId);
+              const checkpointCount = asset.inspectionItems?.length ?? 0;
+              return (
+                <Card
+                  key={asset.id}
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: '10px',
+                    borderColor: 'divider',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'border-color 160ms ease, box-shadow 160ms ease',
+                    '&:hover': {
+                      borderColor: 'primary.light',
+                      boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)',
+                    },
+                  }}
+                >
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+                      <Box sx={{ display: 'flex', gap: 1.75, alignItems: 'flex-start', minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            flexShrink: 0,
+                            borderRadius: '10px',
+                            border: 1,
+                            borderColor: 'divider',
+                            bgcolor: 'action.hover',
+                            display: 'grid',
+                            placeItems: 'center',
+                            color: 'primary.main',
+                          }}
+                        >
+                          <ApartmentRounded sx={{ fontSize: 26 }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="subtitle1"
+                            component="h2"
+                            sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}
+                          >
+                            {asset.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {categoryName ? `${categoryName} · ` : ''}
+                            {formatLocation(asset.locationText)}
+                          </Typography>
+                          <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
+                            {!isClient && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`${checkpointCount} ${t('checkpoints')}`}
+                                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px' }}
+                              />
+                            )}
+                            {asset.structureHeightMeters != null && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={`${asset.structureHeightMeters} m`}
+                                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px' }}
+                              />
+                            )}
+                          </Stack>
+                        </Box>
+                      </Box>
+                      <StatusChip status={asset.status} />
+                    </Box>
+
+                    <Divider sx={{ my: 1.75 }} />
+
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, fontSize: '0.875rem' }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {t('Asset Code:')}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontFamily: 'monospace', color: 'text.primary', fontSize: '0.875rem' }}>
+                          {asset.code}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {t('GPS Coordinates:')}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                          {asset.latitude != null && asset.longitude != null
+                            ? `${asset.latitude.toFixed(4)}°, ${asset.longitude.toFixed(4)}°`
+                            : '—'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      mt: 2,
+                      pt: 1.5,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setSelected(asset)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: '0.8125rem',
+                        borderRadius: '8px',
+                        px: 2,
+                      }}
+                    >
+                      {t('Detail')}
+                    </Button>
+                  </Box>
+                </Card>
+              );
+            })}
+          </Box>
+        )}
       </QueryState>
 
       <CreateAssetDialog
@@ -537,13 +686,7 @@ function CreateAssetDialogForm({
                 <Button
                   size="small"
                   variant="outlined"
-                  startIcon={
-                    gpsLoading ? (
-                      <CircularProgress size={14} />
-                    ) : (
-                      <MyLocationRounded sx={{ fontSize: 15 }} />
-                    )
-                  }
+                  startIcon={gpsLoading ? <CircularProgress size={14} /> : undefined}
                   onClick={handleGetCurrentGpsLocation}
                   disabled={gpsLoading}
                   sx={{
@@ -565,13 +708,12 @@ function CreateAssetDialogForm({
                       ? 'Đang lấy GPS…'
                       : 'Locating…'
                     : locale === 'vi'
-                      ? '📍 Lấy GPS của tôi'
-                      : '📍 Use my GPS'}
+                      ? 'Lấy GPS của tôi'
+                      : 'Use my GPS'}
                 </Button>
                 <Button
                   size="small"
                   variant="contained"
-                  startIcon={<PlaceRounded sx={{ fontSize: 15 }} />}
                   onClick={() => setMapPickerOpen(true)}
                   sx={{
                     textTransform: 'none',
@@ -583,7 +725,7 @@ function CreateAssetDialogForm({
                     '&:hover': { bgcolor: 'primary.dark' },
                   }}
                 >
-                  {locale === 'vi' ? '🗺️ Mở bản đồ cắm kim' : '🗺️ Pick on map'}
+                  {locale === 'vi' ? 'Mở bản đồ cắm kim' : 'Pick on map'}
                 </Button>
               </Stack>
             </Stack>
@@ -1097,24 +1239,33 @@ function AssetDetailDrawer({
 
   const documents = useAssetDocuments(asset?.id ?? '');
   const upload = useUploadDocument(asset?.id ?? '');
-  const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0] ?? 'OTHER');
   const [documentDate, setDocumentDate] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; previewUrl: string | null }>>([]);
+  const [uploadingBatch, setUploadingBatch] = useState(false);
+  const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
+    setActiveImageId(null);
+  }, [asset?.id]);
+
+  useEffect(() => {
     return () => {
-      if (filePreviewUrl) {
-        URL.revokeObjectURL(filePreviewUrl);
+      for (const item of selectedFiles) {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
       }
     };
-  }, [filePreviewUrl]);
+  }, [selectedFiles]);
 
-  const primaryImageDoc = (documents.data ?? []).find(
-    (doc) => doc.documentType === 'ASSET_PHOTO' && doc.contentType?.toLowerCase().startsWith('image/'),
+  const imageDocs = (documents.data ?? []).filter(
+    (doc) => doc.contentType?.toLowerCase().startsWith('image/'),
   );
+  const primaryImageDoc = imageDocs[0];
+  const activeImageDoc =
+    imageDocs.find((doc) => doc.id === activeImageId) ?? primaryImageDoc;
   // A blob URL outlives this component unless it is revoked, and a download that resolves after the
   // drawer closed must not write state that no longer has a home.
   const liveObjectUrls = useRef<Set<string>>(new Set());
@@ -1226,28 +1377,36 @@ function AssetDetailDrawer({
   };
 
   return (
-    <Drawer
-      anchor="right"
-      open={Boolean(asset)}
-      onClose={onClose}
-      sx={{ zIndex: (theme) => theme.zIndex.drawer + 2 }}
-    >
-      <Box sx={{ width: { xs: '100vw', sm: 540 }, maxWidth: '100vw', p: { xs: 2, sm: 3 } }}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
-            {asset?.name}
-          </Typography>
-          <IconButton onClick={onClose} aria-label={t('Close drawer')}>
-            <Close />
-          </IconButton>
-        </Stack>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          {asset?.code} · {formatLocation(asset?.locationText ?? null)}
-        </Typography>
-        <Box sx={{ my: 1 }}>{asset && <StatusChip status={asset.status} />}</Box>
-        {asset && isClient && asset.status !== 'RETIRED' && !editingCurrentAsset && (
-          <Button size="small" onClick={startEditing}>{t('Edit asset')}</Button>
-        )}
+    <>
+      <Dialog
+        open={Boolean(asset)}
+        onClose={onClose}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        slotProps={{
+          paper: {
+            sx: { borderRadius: '14px' },
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1.5 }}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6" component="span" sx={{ fontWeight: 700, display: 'block' }}>
+                {asset?.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                {asset?.code} · {formatLocation(asset?.locationText ?? null)}
+              </Typography>
+            </Box>
+            <IconButton onClick={onClose} aria-label={t('Close detail popup')}>
+              <Close />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ mb: 1.5 }}>{asset && <StatusChip status={asset.status} />}</Box>
         {asset && editingCurrentAsset && (
           <Stack spacing={1.5} sx={{ my: 2 }}>
             <TextField label={t('Asset name')} value={editName} onChange={(e) => setEditName(e.target.value)} required />
@@ -1268,24 +1427,83 @@ function AssetDetailDrawer({
             </Stack>
           </Stack>
         )}
-        {asset && primaryImageDoc && (
-          <Box
-            sx={{
-              my: 1.5,
-              borderRadius: '10px',
-              overflow: 'hidden',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.default',
-            }}
-          >
-            <AuthenticatedImage
-              src={`/assets/${asset.id}/documents/${primaryImageDoc.id}/content`}
-              alt={asset.name}
-              maxHeight={220}
-              sx={{ width: '100%', height: 220, objectFit: 'cover', borderRadius: 0 }}
-            />
-          </Box>
+        {asset && activeImageDoc && (
+          <Stack spacing={1} sx={{ my: 1.5 }}>
+            <Box
+              sx={{
+                p: 1,
+                borderRadius: '10px',
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.default',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'relative',
+              }}
+            >
+              <AuthenticatedImage
+                src={`/assets/${asset.id}/documents/${activeImageDoc.id}/content`}
+                alt={activeImageDoc.fileName || asset.name}
+                maxHeight={380}
+                sx={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: 380,
+                  objectFit: 'contain',
+                  borderRadius: '6px',
+                }}
+              />
+              {imageDocs.length > 1 && (
+                <Chip
+                  size="small"
+                  label={`${imageDocs.findIndex((d) => d.id === activeImageDoc.id) + 1} / ${imageDocs.length}`}
+                  sx={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    bgcolor: 'rgba(15, 23, 42, 0.72)',
+                    color: '#FFFFFF',
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+            </Box>
+            {imageDocs.length > 1 && (
+              <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                {imageDocs.map((imgDoc) => {
+                  const isSelected = imgDoc.id === activeImageDoc.id;
+                  return (
+                    <Box
+                      key={imgDoc.id}
+                      onClick={() => setActiveImageId(imgDoc.id)}
+                      sx={{
+                        width: 72,
+                        height: 54,
+                        flexShrink: 0,
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        border: '2px solid',
+                        borderColor: isSelected ? 'primary.main' : 'divider',
+                        opacity: isSelected ? 1 : 0.72,
+                        transition: 'all 0.15s ease',
+                        '&:hover': { opacity: 1 },
+                      }}
+                    >
+                      <AuthenticatedImage
+                        src={`/assets/${asset.id}/documents/${imgDoc.id}/content`}
+                        alt={imgDoc.fileName}
+                        maxHeight={54}
+                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </Box>
+                  );
+                })}
+              </Stack>
+            )}
+          </Stack>
         )}
         {asset?.status === 'RETIRED' && (
           <Alert severity="info" sx={{ my: 1.5, borderRadius: '8px', fontSize: '0.875rem' }}>
@@ -1294,7 +1512,7 @@ function AssetDetailDrawer({
             )}
           </Alert>
         )}
-        {asset && (
+        {asset && !isClient && (
           <InspectionItemsSection
             asset={asset}
             canEdit={canEditInspectionItems && asset.status !== 'RETIRED'}
@@ -1313,7 +1531,7 @@ function AssetDetailDrawer({
         <Divider sx={{ my: 2 }} />
 
         <Typography variant="subtitle2" gutterBottom>
-          {t('Documents')}
+          Tài liệu đính kèm
         </Typography>
         {downloadDenied ? (
           <Alert severity="warning" data-testid="document-access-denied">
@@ -1335,9 +1553,7 @@ function AssetDetailDrawer({
               <ListItem key={document.id} disableGutters>
                 <ListItemText
                   primary={document.fileName}
-                  secondary={`${document.documentType} · ${(
-                    document.sizeBytes / 1024
-                  ).toFixed(1)} KB`}
+                  secondary={`${(document.sizeBytes / 1024).toFixed(1)} KB`}
                 />
                 <Button
                   size="small"
@@ -1362,19 +1578,6 @@ function AssetDetailDrawer({
             {uploadAllowed ? (
               <Stack spacing={2}>
                 <TextField
-                  select
-                  size="small"
-                  label={t('Document type')}
-                  value={documentType}
-                  onChange={(event) => setDocumentType(event.target.value)}
-                >
-                  {DOCUMENT_TYPES.map((type) => (
-                    <MenuItem key={type} value={type}>
-                      {type}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
                   size="small"
                   type="date"
                   label={t('Document date')}
@@ -1383,70 +1586,136 @@ function AssetDetailDrawer({
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <Button variant="outlined" component="label" startIcon={<CloudUploadOutlined />}>
-                  {file ? file.name : primaryImageDoc ? t('Replace asset photo') : t('Choose asset photo')}
+                  {selectedFiles.length > 0
+                    ? `Đã chọn ${selectedFiles.length} tệp`
+                    : 'Thêm ảnh hoặc tài liệu'}
                   <input
                     hidden
+                    multiple
                     type="file"
                     accept="image/png,image/jpeg,image/webp,application/pdf"
                     onChange={(event) => {
-                      const selectedFile = event.target.files?.[0] ?? null;
-                      if (filePreviewUrl) {
-                        URL.revokeObjectURL(filePreviewUrl);
-                      }
-                      setFile(selectedFile);
-                      setFilePreviewUrl(
-                        selectedFile && selectedFile.type.startsWith('image/')
-                          ? URL.createObjectURL(selectedFile)
-                          : null,
-                      );
+                      const picked = Array.from(event.target.files ?? []);
+                      if (picked.length === 0) return;
+                      const nextItems = picked.map((f) => ({
+                        file: f,
+                        previewUrl: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+                      }));
+                      setSelectedFiles((prev) => [...prev, ...nextItems]);
+                      event.target.value = '';
                     }}
                   />
                 </Button>
-                {filePreviewUrl && (
+                {selectedFiles.length > 0 && (
                   <Box
-                    component="img"
-                    src={filePreviewUrl}
-                    alt={file?.name ?? 'Selected image preview'}
                     sx={{
-                      width: '100%',
-                      maxHeight: 180,
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      display: 'block',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))',
+                      gap: 1,
                     }}
-                  />
+                  >
+                    {selectedFiles.map((item, idx) => (
+                      <Box
+                        key={`${item.file.name}-${item.file.size}-${idx}`}
+                        sx={{
+                          position: 'relative',
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          overflow: 'hidden',
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        {item.previewUrl ? (
+                          <Box
+                            component="img"
+                            src={item.previewUrl}
+                            alt={item.file.name}
+                            sx={{
+                              width: '100%',
+                              height: 76,
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              height: 76,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              px: 0.75,
+                              textAlign: 'center',
+                            }}
+                          >
+                            <Typography variant="caption" noWrap sx={{ maxWidth: '100%' }}>
+                              {item.file.name}
+                            </Typography>
+                          </Box>
+                        )}
+                        <IconButton
+                          size="small"
+                          aria-label={t('Remove file')}
+                          onClick={() => {
+                            if (item.previewUrl) {
+                              URL.revokeObjectURL(item.previewUrl);
+                            }
+                            setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 2,
+                            bgcolor: 'rgba(15, 23, 42, 0.72)',
+                            color: '#FFFFFF',
+                            p: 0.25,
+                            '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.9)' },
+                          }}
+                        >
+                          <Close sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Box>
+                    ))}
+                  </Box>
                 )}
                 {upload.isError && (
                   <Alert severity="error">{getErrorMessage(upload.error, 'Upload failed.')}</Alert>
                 )}
                 <Button
                   variant="contained"
-                  disabled={!file || upload.isPending}
-                  onClick={() => {
-                    if (!file) return;
-                    upload.mutate(
-                      {
-                        file,
-                        documentType: file.type.startsWith('image/') ? 'ASSET_PHOTO' : documentType,
-                        ...(documentDate ? { documentDate } : {}),
-                        ...(file.type.startsWith('image/') ? { primaryImage: true } : {}),
-                      },
-                      {
-                        onSuccess: () => {
-                          setDownloadError(null);
-                          if (filePreviewUrl) {
-                            URL.revokeObjectURL(filePreviewUrl);
-                          }
-                          setFile(null);
-                          setFilePreviewUrl(null);
-                        },
-                      },
-                    );
+                  disabled={selectedFiles.length === 0 || upload.isPending || uploadingBatch}
+                  onClick={async () => {
+                    if (selectedFiles.length === 0) return;
+                    setUploadingBatch(true);
+                    let assignedPrimary = Boolean(primaryImageDoc);
+                    try {
+                      for (const item of selectedFiles) {
+                        const isImg = item.file.type.startsWith('image/');
+                        const shouldSetPrimary = isImg && !assignedPrimary;
+                        await upload.mutateAsync({
+                          file: item.file,
+                          documentType: isImg ? 'ASSET_PHOTO' : 'OTHER',
+                          ...(documentDate ? { documentDate } : {}),
+                          ...(shouldSetPrimary ? { primaryImage: true } : {}),
+                        });
+                        if (shouldSetPrimary) {
+                          assignedPrimary = true;
+                        }
+                      }
+                      setDownloadError(null);
+                      for (const item of selectedFiles) {
+                        if (item.previewUrl) {
+                          URL.revokeObjectURL(item.previewUrl);
+                        }
+                      }
+                      setSelectedFiles([]);
+                    } finally {
+                      setUploadingBatch(false);
+                    }
                   }}
                 >
-                  {t('Upload document')}
+                  {uploadingBatch || upload.isPending ? t('Uploading…') : t('Upload')}
                 </Button>
               </Stack>
             ) : (
@@ -1488,7 +1757,16 @@ function AssetDetailDrawer({
             </Box>
           </>
         )}
-      </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          {asset && isClient && asset.status !== 'RETIRED' && !editingCurrentAsset && (
+            <Button variant="outlined" onClick={startEditing}>
+              {t('Edit asset')}
+            </Button>
+          )}
+          <Button onClick={onClose}>{t('Close')}</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={confirmRetireOpen}
@@ -1521,7 +1799,7 @@ function AssetDetailDrawer({
           </Button>
         </DialogActions>
       </Dialog>
-    </Drawer>
+    </>
   );
 }
 

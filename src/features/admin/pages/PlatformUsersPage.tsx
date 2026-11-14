@@ -302,7 +302,7 @@ export default function PlatformUsersPage() {
       <PageHeader
         title={isManager ? t('Partner workforce') : t('Platform accounts')}
         breadcrumbs={[
-          { label: 'Home', to: isManager ? '/manager/dashboard' : '/admin/dashboard' },
+          { label: t('Governance'), to: isManager ? '/manager/dashboard' : '/admin/dashboard' },
           { label: isManager ? t('Partner workforce') : t('Platform accounts') },
         ]}
       />

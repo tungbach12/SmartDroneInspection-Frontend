@@ -5,19 +5,13 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  FormHelperText,
   IconButton,
   InputAdornment,
-  InputLabel,
   Link,
-  MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -29,17 +23,13 @@ import {
   ArrowForwardRounded,
 } from '@mui/icons-material';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router-dom';
-import { Controller, useForm } from 'react-hook-form';
-import { api } from '@/shared/api/client';
+import { useForm } from 'react-hook-form';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 import { AuthLoadingScreen } from '../components/AuthSessionBootstrapper';
 import * as authApi from '../api/authApi';
 import {
-  evaluateAirspace,
   getAuthErrorMessage,
   registerOrganization,
-  type AirspaceEvaluationResponse,
-  type FirstAssetRegistrationInput,
 } from '../api/authApi';
 import {
   organizationRegistrationSchema,
@@ -51,84 +41,62 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const authInputSx = {
   '& .MuiOutlinedInput-root': {
-    bgcolor: '#F8FBFA',
-    borderRadius: '8px',
-    color: '#173B36',
+    bgcolor: '#F3F5F8',
+    borderRadius: '10px',
+    color: '#0F172A',
     fontSize: '14px',
     '& fieldset': {
-      borderColor: '#D6E4E0',
+      borderColor: '#E2E8F0',
       transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     },
     '&:hover fieldset': {
-      borderColor: 'text.secondary',
+      borderColor: '#CBD5E1',
+    },
+    '&.Mui-focused': {
+      bgcolor: '#FFFFFF',
     },
     '&.Mui-focused fieldset': {
-      borderColor: 'primary.main',
+      borderColor: '#3758F9',
       borderWidth: '1.5px',
-      boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.14)',
+      boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.12)',
     },
   },
   '& .MuiInputLabel-root': {
-    color: 'text.secondary',
+    color: '#52525B',
     fontSize: '14px',
     '&.Mui-focused': {
-      color: 'primary.main',
+      color: '#3758F9',
     },
   },
   '& .MuiInputBase-input': {
     py: '13.5px',
     fontSize: '14px',
     '&::placeholder': {
-      color: '#607972',
+      color: '#94A3B8',
       opacity: 1,
     },
   },
   '& .MuiFormHelperText-root': {
-    color: '#B5473C',
+    color: '#DC2626',
     fontSize: '12px',
     mx: 0.5,
     mt: 0.5,
   },
 };
 
-function toFirstAssetPayload(
-  asset?: {
-    code?: string | undefined;
-    name?: string | undefined;
-    categoryId?: string | undefined;
-    locationText?: string | undefined;
-    latitude?: number | undefined;
-    longitude?: number | undefined;
-    structureHeightMeters?: number | undefined;
-    footprintAreaSquareMeters?: number | undefined;
-  } | undefined,
-): FirstAssetRegistrationInput | undefined {
-  if (
-    !asset ||
-    !asset.code?.trim() ||
-    !asset.name?.trim() ||
-    !asset.categoryId?.trim() ||
-    !asset.locationText?.trim() ||
-    typeof asset.latitude !== 'number' ||
-    Number.isNaN(asset.latitude) ||
-    typeof asset.longitude !== 'number' ||
-    Number.isNaN(asset.longitude)
-  ) {
-    return undefined;
-  }
+function deriveOrganizationFields(values: OrganizationRegistrationFormValues): {
+  organizationName: string;
+  organizationCode: string;
+} {
+  const organizationName = values.fullName.trim();
+  const localPart = (values.email.split('@')[0] ?? 'org')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .replace(/^[^A-Za-z0-9]+/, '');
+  const prefix = (localPart || 'ORG').slice(0, 24).toUpperCase();
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
   return {
-    code: asset.code.trim(),
-    name: asset.name.trim(),
-    categoryId: asset.categoryId.trim(),
-    locationText: asset.locationText.trim(),
-    latitude: asset.latitude,
-    longitude: asset.longitude,
-    ...(typeof asset.structureHeightMeters === 'number' && !Number.isNaN(asset.structureHeightMeters)
-      ? { structureHeightMeters: asset.structureHeightMeters }
-      : {}),
-    ...(typeof asset.footprintAreaSquareMeters === 'number' && !Number.isNaN(asset.footprintAreaSquareMeters)
-      ? { footprintAreaSquareMeters: asset.footprintAreaSquareMeters }
-      : {}),
+    organizationName,
+    organizationCode: `${prefix}_${suffix}`,
   };
 }
 
@@ -142,38 +110,14 @@ export default function RegisterPage() {
   const [agreed, setAgreed] = useState(true);
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
 
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
-  const [otpChannel, setOtpChannel] = useState<'EMAIL' | 'SMS'>('EMAIL');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [pendingFormValues, setPendingFormValues] = useState<OrganizationRegistrationFormValues | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
-  const [airspaceAdvisory, setAirspaceAdvisory] = useState<AirspaceEvaluationResponse | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .get<Array<{ id: string; name: string; active?: boolean }>>('/catalog/asset-categories')
-      .then((res) => {
-        if (!active) return;
-        const list = Array.isArray(res.data)
-          ? res.data.filter((item) => item.active !== false)
-          : [];
-        setCategories(list);
-      })
-      .catch(() => {
-        if (!active) return;
-        setCategories([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -185,51 +129,11 @@ export default function RegisterPage() {
     resolver: zodResolver(organizationRegistrationSchema),
     defaultValues: {
       fullName: '',
-      organizationName: '',
-      organizationCode: '',
       email: '',
       password: '',
       confirmPassword: '',
-      firstAsset: {
-        code: '',
-        name: '',
-        categoryId: '',
-        locationText: '',
-        latitude: undefined,
-        longitude: undefined,
-      },
     },
   });
-
-  const watchedLat = form.watch('firstAsset.latitude');
-  const watchedLng = form.watch('firstAsset.longitude');
-
-  useEffect(() => {
-    if (
-      typeof watchedLat !== 'number' ||
-      typeof watchedLng !== 'number' ||
-      Number.isNaN(watchedLat) ||
-      Number.isNaN(watchedLng) ||
-      watchedLat < -90 ||
-      watchedLat > 90 ||
-      watchedLng < -180 ||
-      watchedLng > 180
-    ) {
-      return;
-    }
-    if (typeof evaluateAirspace !== 'function') return;
-    let active = true;
-    evaluateAirspace(watchedLat, watchedLng)
-      .then((res) => {
-        if (active) setAirspaceAdvisory(res);
-      })
-      .catch(() => {
-        if (active) setAirspaceAdvisory(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [watchedLat, watchedLng]);
 
   if (status === 'checking') {
     return <AuthLoadingScreen />;
@@ -244,13 +148,6 @@ export default function RegisterPage() {
     setErrorMessage(null);
     setRegistrationMessage(null);
 
-    if (airspaceAdvisory?.classification === 'NO_FLY_ZONE') {
-      setErrorMessage(
-        airspaceAdvisory.advisoryMessage || 'Registration is blocked in this no-fly zone.',
-      );
-      return;
-    }
-
     let sendOtpFn: typeof authApi.sendRegistrationOtp | undefined;
     try {
       sendOtpFn = authApi.sendRegistrationOtp;
@@ -262,8 +159,7 @@ export default function RegisterPage() {
       try {
         const result = await registerOrganization({
           ...values,
-          firstAsset: toFirstAssetPayload(values.firstAsset),
-          phoneNumber: phoneNumber.trim() || undefined,
+          ...deriveOrganizationFields(values),
         });
         if (result.registrationStatus === 'PENDING_AIRSPACE_REVIEW') {
           setRegistrationMessage(
@@ -285,11 +181,9 @@ export default function RegisterPage() {
     setSendingOtp(true);
     setPendingFormValues(values);
     try {
-      const channel = phoneNumber.trim() ? otpChannel : 'EMAIL';
       const otpRes = await sendOtpFn({
         email: values.email,
-        phoneNumber: phoneNumber.trim() || undefined,
-        channel,
+        channel: 'EMAIL',
       });
       setChallengeToken(otpRes.challengeToken);
       setOtpCode('');
@@ -310,28 +204,7 @@ export default function RegisterPage() {
     try {
       const otpRes = await authApi.sendRegistrationOtp({
         email: pendingFormValues.email,
-        phoneNumber: phoneNumber.trim() || undefined,
-        channel: otpChannel,
-      });
-      setChallengeToken(otpRes.challengeToken);
-      setCountdown(60);
-    } catch (err) {
-      setOtpError(getAuthErrorMessage(err));
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleSwitchChannel = async (newChannel: 'EMAIL' | 'SMS') => {
-    if (newChannel === otpChannel || !pendingFormValues) return;
-    setOtpChannel(newChannel);
-    setSendingOtp(true);
-    setOtpError(null);
-    try {
-      const otpRes = await authApi.sendRegistrationOtp({
-        email: pendingFormValues.email,
-        phoneNumber: phoneNumber.trim() || undefined,
-        channel: newChannel,
+        channel: 'EMAIL',
       });
       setChallengeToken(otpRes.challengeToken);
       setCountdown(60);
@@ -349,8 +222,7 @@ export default function RegisterPage() {
     try {
       const result = await registerOrganization({
         ...pendingFormValues,
-        firstAsset: toFirstAssetPayload(pendingFormValues.firstAsset),
-        phoneNumber: phoneNumber.trim() || undefined,
+        ...deriveOrganizationFields(pendingFormValues),
         otpChallengeToken: challengeToken,
         otpCode: otpCode.trim(),
       });
@@ -383,8 +255,8 @@ export default function RegisterPage() {
       backTo="/"
       socialPrompt={t('Or register with')}
       heroTagline={{
-        line1: 'Capturing Perspectives,',
-        line2: 'Creating Confidence',
+        line1: 'Protect Your Critical Infrastructure',
+        line2: 'Schedule drone inspections, review high-resolution evidence, and manage maintenance workflows effortlessly.',
       }}
     >
       <Stack
@@ -457,160 +329,6 @@ export default function RegisterPage() {
             sx={authInputSx}
           />
         </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <TextField
-            {...form.register('organizationName')}
-            label={t('Organization name')}
-            placeholder={t('Acme Infrastructure')}
-            autoComplete="organization"
-            fullWidth
-            error={Boolean(form.formState.errors.organizationName)}
-            helperText={form.formState.errors.organizationName?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('organizationCode')}
-            label={t('Organization code')}
-            placeholder="ACME"
-            fullWidth
-            error={Boolean(form.formState.errors.organizationCode)}
-            helperText={form.formState.errors.organizationCode?.message}
-            sx={authInputSx}
-          />
-        </Box>
-
-        <TextField
-          label={t('Phone number (Optional for SMS OTP)')}
-          placeholder="0912345678"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          fullWidth
-          sx={authInputSx}
-        />
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <TextField
-            {...form.register('firstAsset.code')}
-            label={t('Asset code')}
-            placeholder="AST-001"
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.code)}
-            helperText={form.formState.errors.firstAsset?.code?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.name')}
-            label={t('Asset name')}
-            placeholder="Main bridge"
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.name)}
-            helperText={form.formState.errors.firstAsset?.name?.message}
-            sx={authInputSx}
-          />
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <Controller
-            control={form.control}
-            name="firstAsset.categoryId"
-            render={({ field }) => (
-              <FormControl
-                fullWidth
-                error={Boolean(form.formState.errors.firstAsset?.categoryId)}
-                sx={authInputSx}
-              >
-                <InputLabel id="register-asset-category-label">{t('Asset category')}</InputLabel>
-                <Select
-                  {...field}
-                  labelId="register-asset-category-label"
-                  label={t('Asset category')}
-                >
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {form.formState.errors.firstAsset?.categoryId && (
-                  <FormHelperText>
-                    {form.formState.errors.firstAsset.categoryId.message}
-                  </FormHelperText>
-                )}
-              </FormControl>
-            )}
-          />
-          <TextField
-            {...form.register('firstAsset.locationText')}
-            label={t('Location description')}
-            placeholder="District 1, HCMC"
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.locationText)}
-            helperText={form.formState.errors.firstAsset?.locationText?.message}
-            sx={authInputSx}
-          />
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <TextField
-            {...form.register('firstAsset.latitude', { valueAsNumber: true })}
-            label={t('Latitude')}
-            placeholder="10.7769"
-            type="number"
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.latitude)}
-            helperText={form.formState.errors.firstAsset?.latitude?.message}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.longitude', { valueAsNumber: true })}
-            label={t('Longitude')}
-            placeholder="106.7009"
-            type="number"
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.longitude)}
-            helperText={form.formState.errors.firstAsset?.longitude?.message}
-            sx={authInputSx}
-          />
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-          <TextField
-            {...form.register('firstAsset.structureHeightMeters', { valueAsNumber: true })}
-            label={t('Structure height (m)')}
-            type="number"
-            slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.structureHeightMeters)}
-            helperText={form.formState.errors.firstAsset?.structureHeightMeters?.message ?? t('Optional. Used to check the drone maximum altitude.')}
-            sx={authInputSx}
-          />
-          <TextField
-            {...form.register('firstAsset.footprintAreaSquareMeters', { valueAsNumber: true })}
-            label={t('Footprint area (m²)')}
-            type="number"
-            slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
-            fullWidth
-            error={Boolean(form.formState.errors.firstAsset?.footprintAreaSquareMeters)}
-            helperText={form.formState.errors.firstAsset?.footprintAreaSquareMeters?.message ?? t('Optional. Shown to the manager when choosing a partner.')}
-            sx={authInputSx}
-          />
-        </Box>
-
-        {airspaceAdvisory && (
-          <Alert
-            severity={
-              airspaceAdvisory.classification === 'NO_FLY_ZONE'
-                ? 'error'
-                : airspaceAdvisory.classification === 'CLEAR_ZONE'
-                  ? 'success'
-                  : 'warning'
-            }
-            sx={{ borderRadius: 2 }}
-          >
-            {airspaceAdvisory.advisoryMessage}
-          </Alert>
-        )}
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
           <TextField
@@ -695,18 +413,18 @@ export default function RegisterPage() {
           size="large"
           disabled={form.formState.isSubmitting || sendingOtp}
           sx={{
-            minHeight: 46,
-            borderRadius: '8px',
-            bgcolor: 'primary.main',
+            minHeight: 48,
+            borderRadius: '10px',
+            bgcolor: '#3758F9',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: 'none',
+            boxShadow: '0 4px 14px rgba(55, 88, 249, 0.24)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: 'primary.dark',
-              boxShadow: 'none',
+              bgcolor: '#2237EE',
+              boxShadow: '0 6px 20px rgba(55, 88, 249, 0.32)',
             },
           }}
         >
@@ -729,30 +447,9 @@ export default function RegisterPage() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Mã xác thực 6 chữ số đã được gửi tới{' '}
-              <strong>
-                {otpChannel === 'SMS' && phoneNumber.trim()
-                  ? phoneNumber.trim()
-                  : pendingFormValues?.email}
-              </strong>
+              <strong>{pendingFormValues?.email}</strong>
               . Vui lòng nhập mã để hoàn tất đăng ký tài khoản.
             </Typography>
-
-            {phoneNumber.trim() && (
-              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <Chip
-                  label="Gửi qua Email"
-                  clickable
-                  color={otpChannel === 'EMAIL' ? 'primary' : 'default'}
-                  onClick={() => void handleSwitchChannel('EMAIL')}
-                />
-                <Chip
-                  label="Gửi qua SMS"
-                  clickable
-                  color={otpChannel === 'SMS' ? 'primary' : 'default'}
-                  onClick={() => void handleSwitchChannel('SMS')}
-                />
-              </Stack>
-            )}
 
             <TextField
               autoFocus

@@ -346,7 +346,7 @@ export default function AssetCatalogPage() {
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
         title={t('Asset catalog & Flight checklists')}
-        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
+        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
       />
 
       <Tabs

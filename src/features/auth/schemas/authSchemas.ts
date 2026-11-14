@@ -45,23 +45,9 @@ export const organizationRegistrationSchema = z
       .trim()
       .min(1, 'Enter your full name.')
       .max(200, 'Name must be 200 characters or fewer.'),
-    organizationName: z
-      .string()
-      .trim()
-      .min(1, 'Enter your organization name.')
-      .max(200, 'Organization name must be 200 characters or fewer.'),
-    organizationCode: z
-      .string()
-      .trim()
-      .regex(
-        /^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/,
-        'Use 3–64 letters, numbers, hyphens, or underscores; start with a letter or number.',
-      ),
     email: emailField,
-    phoneNumber: z.string().trim().max(32).optional(),
     password: strongPasswordField,
     confirmPassword: z.string(),
-    firstAsset: firstAssetSchema.optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ['confirmPassword'],

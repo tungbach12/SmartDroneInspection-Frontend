@@ -600,7 +600,7 @@ export default function Mf1ReviewPage() {
       <PageHeader
         title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
         breadcrumbs={[
-          { label: 'Home', to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
+          { label: tr('Quản trị', 'Governance'), to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
           { label: tr('Duyệt onboarding', 'Onboarding reviews') },
         ]}
       />

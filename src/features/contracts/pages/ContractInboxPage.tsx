@@ -75,7 +75,7 @@ export default function ContractInboxPage() {
       <PageHeader
         title={t('Messages')}
         breadcrumbs={[
-          { label: 'Home', to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
+          { label: t('Operations'), to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
           { label: t('Messages') },
         ]}
       />

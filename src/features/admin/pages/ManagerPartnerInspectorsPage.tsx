@@ -159,7 +159,7 @@ export default function ManagerPartnerInspectorsPage() {
       <PageHeader
         title={t('Partner workforce')}
         breadcrumbs={[
-          { label: 'Home', to: '/manager/dashboard' },
+          { label: t('Governance'), to: '/manager/dashboard' },
           { label: t('Partner workforce') },
         ]}
       />

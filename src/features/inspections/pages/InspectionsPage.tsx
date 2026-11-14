@@ -211,7 +211,7 @@ export default function InspectionsPage() {
                     '&:hover': { color: 'primary.main' },
                   }}
                 >
-                  {t('Home')}
+                  {t('Operations')}
                 </Box>
                 <Box
                   component="svg"
@@ -246,7 +246,7 @@ export default function InspectionsPage() {
               : t('Inspections')
           }
           breadcrumbs={[
-            { label: 'Home', to: getSectionPath(portal, 'dashboard') },
+            { label: t('Operations'), to: getSectionPath(portal, 'dashboard') },
             {
               label:
                 isOrganizationAdmin && view === 'reports'

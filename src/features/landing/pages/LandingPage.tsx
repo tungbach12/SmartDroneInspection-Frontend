@@ -51,15 +51,20 @@ const actionSx = {
   justifyContent: 'center',
   gap: 1,
   minHeight: 46,
-  px: 2.5,
-  bgcolor: '#65DFBA',
-  color: '#071006',
-  fontSize: 13,
+  px: 2.75,
+  borderRadius: 0,
+  bgcolor: '#3758F9',
+  color: '#FFFFFF',
+  fontSize: 13.5,
   fontWeight: 600,
   textDecoration: 'none',
-  transition: 'background-color 160ms ease',
-  '&:hover': { bgcolor: '#42CFAE' },
-  '&:focus-visible': { outline: '2px solid #65DFBA', outlineOffset: 3 },
+  boxShadow: '0 4px 14px rgba(55, 88, 249, 0.28)',
+  transition: 'background-color 160ms ease, box-shadow 160ms ease',
+  '&:hover': {
+    bgcolor: '#2237EE',
+    boxShadow: '0 6px 20px rgba(55, 88, 249, 0.36)',
+  },
+  '&:focus-visible': { outline: '2px solid #38BDF8', outlineOffset: 3 },
 };
 
 export default function LandingPage() {
@@ -297,7 +302,7 @@ export default function LandingPage() {
                 fontWeight: 600,
                 letterSpacing: '.12em',
                 textTransform: 'uppercase',
-                borderBottom: '1px solid #65DFBA',
+                borderBottom: '1px solid #3758F9',
                 pb: 0.5,
               }}
             >
@@ -389,8 +394,8 @@ export default function LandingPage() {
                       mb: 2.5,
                       display: 'grid',
                       placeItems: 'center',
-                      bgcolor: '#e9ece7',
-                      color: '#0A968A',
+                      bgcolor: '#EFF3FF',
+                      color: '#3758F9',
                     }}
                   >
                     <item.Icon sx={{ fontSize: 29, strokeWidth: 1 }} />
@@ -474,7 +479,7 @@ export default function LandingPage() {
                 }}
               />
               <Box sx={{ position: 'relative', left: { xs: 14, md: 30 }, bottom: { xs: 14, md: 30 }, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#65DFBA', boxShadow: '0 0 10px rgba(101,223,186,.72)' }} />
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#38BDF8', boxShadow: '0 0 10px rgba(56,189,248,.78)' }} />
                 <Typography sx={{ color: 'rgba(255,255,255,.8)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase' }}>
                   {t('Illustrative AI confidence — not a risk score')}
                 </Typography>

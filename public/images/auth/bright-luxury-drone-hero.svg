@@ -1,0 +1,224 @@
+<svg width="1200" height="1500" viewBox="0 0 1200 1500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Sky & Morning Sunlight -->
+    <linearGradient id="sky" x1="600" y1="0" x2="600" y2="1500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4A7291"/>
+      <stop offset="28%" stop-color="#769FBE"/>
+      <stop offset="56%" stop-color="#AECADF"/>
+      <stop offset="80%" stop-color="#DCE8F0"/>
+      <stop offset="100%" stop-color="#EEF3F6"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.28" cy="0.25" r="0.55">
+      <stop offset="0%" stop-color="#FFFDF7" stop-opacity="0.78"/>
+      <stop offset="40%" stop-color="#FDEFD9" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#AECADF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Soft Cloud Gradients -->
+    <radialGradient id="cloud1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94"/>
+      <stop offset="55%" stop-color="#F4F8FB" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Glass Tower Gradients -->
+    <linearGradient id="towerMain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EBF2F7"/>
+      <stop offset="45%" stop-color="#C8DAE6"/>
+      <stop offset="100%" stop-color="#8CA8BD"/>
+    </linearGradient>
+    <linearGradient id="towerSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9EB7CA"/>
+      <stop offset="100%" stop-color="#607E96"/>
+    </linearGradient>
+    <linearGradient id="towerWarm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F7F4EE"/>
+      <stop offset="50%" stop-color="#DDD7CE"/>
+      <stop offset="100%" stop-color="#A8A49E"/>
+    </linearGradient>
+    <linearGradient id="towerAccent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DCE9F2"/>
+      <stop offset="60%" stop-color="#A8C2D6"/>
+      <stop offset="100%" stop-color="#708FA8"/>
+    </linearGradient>
+
+    <!-- Drone Pearl White & Titanium Gradients -->
+    <linearGradient id="droneShell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#EDF2F6"/>
+      <stop offset="100%" stop-color="#BCCAD6"/>
+    </linearGradient>
+    <linearGradient id="droneDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="droneArm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F1F5F9"/>
+      <stop offset="50%" stop-color="#CBD5E1"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+    <linearGradient id="lensGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="scanBeam" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.32"/>
+      <stop offset="60%" stop-color="#7DD3FC" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="blurSoft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="20" flood-color="#1E3A5F" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <!-- Sky Background -->
+  <rect width="1200" height="1500" fill="url(#sky)"/>
+  <rect width="1200" height="1500" fill="url(#sunGlow)"/>
+
+  <!-- Atmospheric Soft Clouds -->
+  <g filter="url(#blurSoft)" opacity="0.88">
+    <ellipse cx="300" cy="280" rx="260" ry="95" fill="url(#cloud1)"/>
+    <ellipse cx="420" cy="240" rx="190" ry="80" fill="url(#cloud1)"/>
+    <ellipse cx="980" cy="460" rx="280" ry="100" fill="url(#cloud1)"/>
+    <ellipse cx="860" cy="430" rx="180" ry="75" fill="url(#cloud1)"/>
+    <ellipse cx="180" cy="720" rx="220" ry="85" fill="url(#cloud1)"/>
+  </g>
+
+  <!-- Distant Modern Skyline -->
+  <g opacity="0.48">
+    <rect x="60" y="920" width="95" height="580" fill="#A9C0D1"/>
+    <rect x="180" y="840" width="110" height="660" fill="#9BB5C8"/>
+    <rect x="330" y="880" width="125" height="620" fill="#B2C7D6"/>
+    <rect x="760" y="810" width="120" height="690" fill="#9EB7CA"/>
+    <rect x="920" y="870" width="130" height="630" fill="#B2C7D6"/>
+    <rect x="1070" y="930" width="100" height="570" fill="#9BB5C8"/>
+  </g>
+
+  <!-- Left Tower -->
+  <g>
+    <polygon points="90,820 260,790 260,1500 90,1500" fill="url(#towerWarm)"/>
+    <polygon points="260,790 340,815 340,1500 260,1500" fill="#9098A1"/>
+    <g stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="1.5">
+      <line x1="90" y1="860" x2="260" y2="835"/>
+      <line x1="90" y1="900" x2="260" y2="875"/>
+      <line x1="90" y1="940" x2="260" y2="915"/>
+      <line x1="90" y1="980" x2="260" y2="955"/>
+      <line x1="90" y1="1020" x2="260" y2="995"/>
+      <line x1="90" y1="1060" x2="260" y2="1035"/>
+      <line x1="90" y1="1100" x2="260" y2="1075"/>
+      <line x1="90" y1="1140" x2="260" y2="1115"/>
+      <line x1="90" y1="1180" x2="260" y2="1155"/>
+      <line x1="90" y1="1220" x2="260" y2="1195"/>
+    </g>
+  </g>
+
+  <!-- Right Sleek Glass Skyscraper -->
+  <g>
+    <polygon points="820,760 1010,720 1010,1500 820,1500" fill="url(#towerAccent)"/>
+    <polygon points="1010,720 1120,750 1120,1500 1010,1500" fill="url(#towerSide)"/>
+    <g stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="1.5">
+      <line x1="820" y1="800" x2="1010" y2="762"/>
+      <line x1="820" y1="840" x2="1010" y2="802"/>
+      <line x1="820" y1="880" x2="1010" y2="842"/>
+      <line x1="820" y1="920" x2="1010" y2="882"/>
+      <line x1="820" y1="960" x2="1010" y2="922"/>
+      <line x1="820" y1="1000" x2="1010" y2="962"/>
+      <line x1="820" y1="1040" x2="1010" y2="1002"/>
+      <line x1="820" y1="1080" x2="1010" y2="1042"/>
+      <line x1="820" y1="1120" x2="1010" y2="1082"/>
+      <line x1="820" y1="1160" x2="1010" y2="1122"/>
+      <line x1="820" y1="1200" x2="1010" y2="1162"/>
+    </g>
+    <polygon points="820,760 930,736 860,1150 820,1150" fill="#FFFFFF" opacity="0.22"/>
+  </g>
+
+  <!-- Center Iconic Glass Tower -->
+  <g>
+    <polygon points="390,690 610,645 610,1500 390,1500" fill="url(#towerMain)"/>
+    <polygon points="610,645 730,680 730,1500 610,1500" fill="url(#towerSide)"/>
+    <g stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1.8">
+      <line x1="445" y1="678" x2="445" y2="1500"/>
+      <line x1="500" y1="667" x2="500" y2="1500"/>
+      <line x1="555" y1="656" x2="555" y2="1500"/>
+      <line x1="390" y1="735" x2="610" y2="690"/>
+      <line x1="390" y1="780" x2="610" y2="735"/>
+      <line x1="390" y1="825" x2="610" y2="780"/>
+      <line x1="390" y1="870" x2="610" y2="825"/>
+      <line x1="390" y1="915" x2="610" y2="870"/>
+      <line x1="390" y1="960" x2="610" y2="915"/>
+      <line x1="390" y1="1005" x2="610" y2="960"/>
+      <line x1="390" y1="1050" x2="610" y2="1005"/>
+      <line x1="390" y1="1095" x2="610" y2="1050"/>
+      <line x1="390" y1="1140" x2="610" y2="1095"/>
+      <line x1="390" y1="1185" x2="610" y2="1140"/>
+      <line x1="390" y1="1230" x2="610" y2="1185"/>
+    </g>
+    <polygon points="390,690 540,659 390,1080" fill="#FFFFFF" opacity="0.28"/>
+    <polyline points="390,690 610,645 730,680" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.9"/>
+  </g>
+
+  <!-- Foreground Bright Mist -->
+  <ellipse cx="600" cy="1470" rx="700" ry="180" fill="#F4F8FB" opacity="0.85" filter="url(#blurSoft)"/>
+
+  <!-- Subtle Autonomous Lidar Scan Cone -->
+  <polygon points="600,455 425,840 650,805" fill="url(#scanBeam)"/>
+  <line x1="600" y1="455" x2="425" y2="840" stroke="#38BDF8" stroke-width="1.2" stroke-opacity="0.45" stroke-dasharray="6 6"/>
+  <line x1="600" y1="455" x2="650" y2="805" stroke="#38BDF8" stroke-width="1.2" stroke-opacity="0.45" stroke-dasharray="6 6"/>
+  <g stroke="#0284C7" stroke-width="2" stroke-opacity="0.55" fill="none">
+    <path d="M465 775 L465 755 L485 755"/>
+    <path d="M565 735 L585 735 L585 755"/>
+    <path d="M465 825 L465 845 L485 845"/>
+    <path d="M565 825 L585 825 L585 805"/>
+  </g>
+
+  <!-- HERO PEARL-WHITE & TITANIUM INSPECTION DRONE -->
+  <g transform="translate(600, 385)" filter="url(#dropShadow)">
+    <path d="M-75,-20 L-225,-95 L-215,-112 L-65,-38 Z" fill="url(#droneArm)"/>
+    <ellipse cx="-222" cy="-105" rx="16" ry="11" fill="#334155"/>
+    <ellipse cx="-222" cy="-112" rx="135" ry="22" fill="#FFFFFF" fill-opacity="0.28" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.5"/>
+    <ellipse cx="-222" cy="-112" rx="10" ry="5" fill="#0F172A"/>
+
+    <path d="M75,-20 L225,-95 L215,-112 L65,-38 Z" fill="url(#droneArm)"/>
+    <ellipse cx="222" cy="-105" rx="16" ry="11" fill="#334155"/>
+    <ellipse cx="222" cy="-112" rx="135" ry="22" fill="#FFFFFF" fill-opacity="0.28" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="1.5"/>
+    <ellipse cx="222" cy="-112" rx="10" ry="5" fill="#0F172A"/>
+
+    <path d="M-70,25 L-95,105 L-115,105" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <path d="M70,25 L95,105 L115,105" stroke="#334155" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <line x1="-125" y1="106" x2="-60" y2="106" stroke="#1E293B" stroke-width="6" stroke-linecap="round"/>
+    <line x1="60" y1="106" x2="125" y2="106" stroke="#1E293B" stroke-width="6" stroke-linecap="round"/>
+
+    <path d="M-72,12 L-255,60 L-262,42 L-80,-8 Z" fill="url(#droneArm)"/>
+    <rect x="-268" y="34" width="26" height="24" rx="8" fill="#1E293B"/>
+    <rect x="-264" y="42" width="18" height="4" rx="2" fill="#10B981"/>
+    <ellipse cx="-255" cy="30" rx="160" ry="26" fill="#FFFFFF" fill-opacity="0.34" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1.8"/>
+    <ellipse cx="-255" cy="30" rx="12" ry="6" fill="#0F172A"/>
+
+    <path d="M72,12 L255,60 L262,42 L80,-8 Z" fill="url(#droneArm)"/>
+    <rect x="242" y="34" width="26" height="24" rx="8" fill="#1E293B"/>
+    <rect x="246" y="42" width="18" height="4" rx="2" fill="#0EA5E9"/>
+    <ellipse cx="255" cy="30" rx="160" ry="26" fill="#FFFFFF" fill-opacity="0.34" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1.8"/>
+    <ellipse cx="255" cy="30" rx="12" ry="6" fill="#0F172A"/>
+
+    <path d="M-95,0 C-95,-45 -50,-68 0,-68 C50,-68 95,-45 95,0 C95,30 68,42 0,42 C-68,42 -95,30 -95,0 Z" fill="url(#droneShell)" stroke="#CBD5E1" stroke-width="1.5"/>
+    <path d="M-56,-36 C-30,-56 30,-56 56,-36 L44,-10 C22,-18 -22,-18 -44,-10 Z" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+    <path d="M-64,6 C-64,-12 -32,-20 0,-20 C32,-20 64,-12 64,6 C64,20 35,26 0,26 C-35,26 -64,20 -64,6 Z" fill="url(#droneDark)"/>
+    <circle cx="-36" cy="4" r="9" fill="#020617" stroke="#475569" stroke-width="1.5"/>
+    <circle cx="-34" cy="2" r="3" fill="#38BDF8" opacity="0.8"/>
+    <circle cx="36" cy="4" r="9" fill="#020617" stroke="#475569" stroke-width="1.5"/>
+    <circle cx="38" cy="2" r="3" fill="#38BDF8" opacity="0.8"/>
+    <rect x="-14" y="2" width="28" height="4" rx="2" fill="#38BDF8"/>
+
+    <rect x="-24" y="34" width="48" height="14" rx="4" fill="#334155"/>
+    <rect x="-34" y="46" width="68" height="52" rx="14" fill="url(#droneDark)" stroke="#475569" stroke-width="1.5"/>
+    <circle cx="0" cy="72" r="21" fill="#020617" stroke="#64748B" stroke-width="2"/>
+    <circle cx="0" cy="72" r="15" fill="url(#lensGlass)"/>
+    <circle cx="-5" cy="67" r="4.5" fill="#FFFFFF" opacity="0.7"/>
+    <circle cx="5" cy="77" r="2" fill="#BAE6FD" opacity="0.6"/>
+  </g>
+</svg>

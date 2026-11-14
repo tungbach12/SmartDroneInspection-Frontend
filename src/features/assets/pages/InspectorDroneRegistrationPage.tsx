@@ -537,7 +537,7 @@ export default function InspectorDroneRegistrationPage() {
     <Box className="workspace-page">
       <PageHeader
         title={tr('Drone của tôi', 'My Drones')}
-        breadcrumbs={[{ label: 'Home', to: '/operations/dashboard' }, { label: tr('Drone của tôi', 'My drones') }]}
+        breadcrumbs={[{ label: tr('Vận hành', 'Operations'), to: '/operations/dashboard' }, { label: tr('Drone của tôi', 'My drones') }]}
       />
 
       {/* KPI METRICS OVERVIEW */}
