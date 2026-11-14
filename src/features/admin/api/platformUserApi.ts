@@ -12,8 +12,7 @@ export type PlatformUserRole =
   | 'ADMIN'
   | 'MANAGER'
   | 'CUSTOMER'
-  | 'INSPECTOR'
-  | 'MAINTENANCE_ENGINEER';
+  | 'INSPECTOR';
 
 export type PlatformUserStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 

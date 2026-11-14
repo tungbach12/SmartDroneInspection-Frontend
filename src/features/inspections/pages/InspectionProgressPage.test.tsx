@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
       inspectorName: 'Nguyen Van A',
       droneModel: 'Matrice 30T',
       status: 'UNDER_REVIEW',
-      inspectionType: 'INITIAL',
     },
     isLoading: false,
     error: null,

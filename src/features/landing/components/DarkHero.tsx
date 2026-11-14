@@ -137,7 +137,7 @@ export function DarkHero() {
               maxWidth: '680px',
             }}
           >
-            {t('Eliminate costly scaffolding and hazardous rope access. SmartDroneInspection coordinates autonomous drone flights, flags structural cracks with computer vision, and delivers audit-ready repair tickets certified by licensed inspectors.')}
+            {t('Eliminate costly scaffolding and hazardous rope access. SmartDroneInspection coordinates autonomous drone flights, flags structural cracks with computer vision, and delivers audit-ready inspection reports certified by licensed inspectors.')}
           </Typography>
 
           {/* Square CTAs (0px border-radius, brutalist contrast) */}

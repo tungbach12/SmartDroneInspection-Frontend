@@ -56,7 +56,6 @@ const ROLE_LABELS: Record<PlatformUserRole, string> = {
   MANAGER: 'Platform manager',
   CUSTOMER: 'Customer admin',
   INSPECTOR: 'Inspector',
-  MAINTENANCE_ENGINEER: 'Maintenance engineer',
 };
 
 const ROLE_FILTERS: Array<{ id: 'ALL' | PlatformUserRole; label: string }> = [
@@ -65,7 +64,6 @@ const ROLE_FILTERS: Array<{ id: 'ALL' | PlatformUserRole; label: string }> = [
   { id: 'MANAGER', label: 'Manager' },
   { id: 'CUSTOMER', label: 'Customer' },
   { id: 'INSPECTOR', label: 'Inspector' },
-  { id: 'MAINTENANCE_ENGINEER', label: 'Engineer' },
 ];
 
 export default function PlatformUsersPage() {
@@ -125,15 +123,11 @@ export default function PlatformUsersPage() {
     ).length;
     const customerCount = scopedItems.filter((u) => u.roles.includes('CUSTOMER')).length;
     const inspectorCount = scopedItems.filter((u) => u.roles.includes('INSPECTOR')).length;
-    const engineerCount = scopedItems.filter((u) =>
-      u.roles.includes('MAINTENANCE_ENGINEER'),
-    ).length;
     return {
       total: scopedItems.length,
       platformCount,
       customerCount,
       inspectorCount,
-      engineerCount,
     };
   }, [scopedItems]);
 
@@ -348,13 +342,9 @@ export default function PlatformUsersPage() {
             iconType="building"
           />
           <MetricCard
-            label={t('Field workforce')}
-            value={
-              users.isLoading
-                ? '…'
-                : formatNumber(roleCounts.inspectorCount + roleCounts.engineerCount)
-            }
-            change={`${roleCounts.inspectorCount} Pilot · ${roleCounts.engineerCount} Eng`}
+            label={t('Inspectors')}
+            value={users.isLoading ? '…' : formatNumber(roleCounts.inspectorCount)}
+            change={t('Partner inspectors')}
             positive
             subtext={t('inspectors & engineers')}
             iconType="plane"
@@ -524,7 +514,7 @@ export default function PlatformUsersPage() {
                         ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
                         : actorZone === 'INSPECTOR_PARTNER'
                           ? (['INSPECTOR'] as PlatformUserRole[])
-                          : (['CUSTOMER', 'INSPECTOR', 'MAINTENANCE_ENGINEER'] as PlatformUserRole[])
+                          : (['CUSTOMER', 'INSPECTOR'] as PlatformUserRole[])
                     ).map((role) => (
                       <MenuItem key={role} value={role}>
                         {ROLE_LABELS[role]}

@@ -10,7 +10,7 @@ const metrics = [
   {
     value: '10',
     unit: 'x',
-    label: 'Faster turnaround from flight takeoff to certified repair workorders',
+    label: 'Faster turnaround from flight takeoff to certified inspection reports',
   },
   {
     value: '0',

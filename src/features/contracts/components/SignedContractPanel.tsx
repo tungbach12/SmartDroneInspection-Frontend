@@ -5,12 +5,21 @@ import {
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
   Paper,
   Stack,
   Typography,
 } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { type ServiceRequest } from '../api/contractApi';
 import { useDownloadSignedContract, useUploadSignedContract } from '../hooks/useContracts';
@@ -28,9 +37,11 @@ export function SignedContractPanel({
   onChanged,
   onError,
 }: SignedContractPanelProps) {
+  const { t } = useLocale();
   const upload = useUploadSignedContract(request.id);
   const download = useDownloadSignedContract();
   const [file, setFile] = useState<File | null>(null);
+  const [legalDialogOpen, setLegalDialogOpen] = useState(false);
 
   const submit = async () => {
     if (!file) {
@@ -75,29 +86,103 @@ export function SignedContractPanel({
   return (
     <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', boxShadow: 'none' }}>
       <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Paper contract evidence
-        </Typography>
-        <Box
+        <Stack
+          direction="row"
           sx={{
-            p: 1.5,
-            mb: 2,
-            borderRadius: '8px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.default',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1.5,
+            flexWrap: 'wrap',
+            gap: 1,
           }}
         >
-          <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', color: 'text.primary', mb: 0.5 }}>
-            Cơ sở pháp lý & điều kiện bắt buộc của Hợp đồng dịch vụ bay khảo sát
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
+            {t('Paper contract evidence')}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.55 }}>
-            • <strong>Hợp đồng dịch vụ thương mại</strong> (Điều 513–521 Bộ luật Dân sự 91/2015/QH13 & Điều 74–87 Luật Thương mại 36/2005/QH11): ghi nhận phạm vi tài sản khảo sát, số đợt bay (One-time / Recurring), đơn giá VND/đợt, thuế GTGT (VAT) và mốc nghiệm thu báo cáo trước khi thanh toán.
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.55 }}>
-            • <strong>Chế độ cấp phép bay & phân hạng phương tiện bay</strong> (Điều 4, 21, 22 & 27 Nghị định 288/2025/NĐ-CP; Luật PKND 49/2024/QH15): hồ sơ xin phép bay nộp trước tối thiểu 07 ngày làm việc; mỗi đợt bay độc lập (bao gồm cả bay kiểm tra lại sau bảo trì) phải có Giấy phép bay còn hiệu lực và phi công có hạng bằng lái phù hợp MTOW (Hạng A cho UAV &lt; 2 kg; Hạng B cho UAV ≥ 2 kg).
-          </Typography>
-        </Box>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            startIcon={<InfoOutlinedIcon fontSize="small" />}
+            onClick={() => setLegalDialogOpen(true)}
+            sx={{
+              textTransform: 'none',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              borderRadius: '6px',
+              borderColor: 'divider',
+              color: 'text.secondary',
+              '&:hover': {
+                borderColor: 'primary.main',
+                color: 'primary.main',
+              },
+            }}
+          >
+            {t('Legal basis & terms')}
+          </Button>
+        </Stack>
+
+        <Dialog
+          open={legalDialogOpen}
+          onClose={() => setLegalDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: '10px',
+                bgcolor: 'background.paper',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+              },
+            },
+          }}
+        >
+          <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <InfoOutlinedIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {t('Legal basis & mandatory conditions')}
+              </Typography>
+            </Stack>
+            <IconButton size="small" onClick={() => setLegalDialogOpen(false)} aria-label="Close">
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+          <Divider />
+          <DialogContent sx={{ py: 2 }}>
+            <Stack spacing={2}>
+              <Box sx={{ p: 1.75, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                  {t('Commercial service contract')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6 }}>
+                  {t('(Articles 513–521 Civil Code 91/2015/QH13 & Articles 74–87 Commercial Law 36/2005/QH11): records survey asset scope, occurrence count (One-time / Recurring), VND/occurrence unit price, VAT, and report acceptance milestone prior to payment.')}
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 1.75, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                  {t('Flight permit & UAV category compliance')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6 }}>
+                  {t('(Articles 4, 21, 22 & 27 Decree 288/2025/ND-CP; Air Defense Law 49/2024/QH15): flight permit dossier must be submitted at least 07 working days in advance; each independent flight mission (including post-maintenance re-inspections) requires a valid Flight Permit and pilot with appropriate MTOW license rating (Class A for UAV < 2 kg; Class B for UAV ≥ 2 kg).')}
+                </Typography>
+              </Box>
+            </Stack>
+          </DialogContent>
+          <Divider />
+          <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={() => setLegalDialogOpen(false)}
+              sx={{ borderRadius: '6px', fontWeight: 600, px: 2 }}
+            >
+              {t('Understood')}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {request.contractFileName ? (
           <Paper
@@ -111,7 +196,7 @@ export function SignedContractPanel({
           >
             <Stack spacing={2}>
               <Alert severity="success" sx={{ borderRadius: '8px' }}>
-                Signed scan recorded: {request.contractFileName} · {request.contractContentType} · {request.contractSizeBytes} bytes
+                {t('Signed scan recorded')}: {request.contractFileName} · {request.contractContentType} · {request.contractSizeBytes} bytes
               </Alert>
               <Box>
                 <LoadingButton
@@ -122,7 +207,7 @@ export function SignedContractPanel({
                   onClick={() => void downloadContract()}
                   sx={{ borderRadius: '8px', fontWeight: 700 }}
                 >
-                  Download signed contract
+                  {t('Download signed contract')}
                 </LoadingButton>
               </Box>
             </Stack>
@@ -130,11 +215,11 @@ export function SignedContractPanel({
         ) : manager && request.status === 'ACCEPTED' ? (
           <Box sx={{ p: 2.5, bgcolor: 'action.hover', borderRadius: '10px' }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Upload the scan after both parties sign the paper contract offline. No online signature or payment is collected here.
+              {t('Upload the scan after both parties sign the paper contract offline. No online signature or payment is collected here.')}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
               <Button component="label" variant="outlined" startIcon={<CloudUploadOutlinedIcon />} sx={{ borderRadius: '8px' }}>
-                {file?.name ?? 'Choose signed contract scan'}
+                {file?.name ?? t('Choose signed contract scan')}
                 <input
                   hidden
                   type="file"
@@ -150,13 +235,13 @@ export function SignedContractPanel({
                 onClick={() => void submit()}
                 sx={{ borderRadius: '8px', fontWeight: 700 }}
               >
-                Upload signed scan
+                {t('Upload signed scan')}
               </LoadingButton>
             </Stack>
           </Box>
         ) : (
           <Typography color="text.secondary">
-            Customer acceptance is required before the Manager can upload contract evidence.
+            {t('Customer acceptance is required before the Manager can upload contract evidence.')}
           </Typography>
         )}
       </CardContent>

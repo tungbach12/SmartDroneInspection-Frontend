@@ -160,12 +160,8 @@ export default function InspectionProgressPage() {
               <Stack direction="row" spacing={1} sx={{ mt: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Chip
                   size="small"
-                  label={
-                    inspection?.inspectionType === 'RE_INSPECTION'
-                      ? t('Re-inspection (Audit)')
-                      : t('Standard Inspection')
-                  }
-                  color={inspection?.inspectionType === 'RE_INSPECTION' ? 'secondary' : 'default'}
+                  label={t('Standard Inspection')}
+                  color="default"
                   variant="outlined"
                   sx={{ fontWeight: 600 }}
                 />

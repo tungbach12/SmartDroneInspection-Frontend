@@ -68,7 +68,6 @@ import {
   NextAdminSunIcon,
   NextAdminTablesIcon,
   NextAdminTaskIcon,
-  NextAdminTeamIcon,
 } from '@/shared/ui/NextAdminIcons';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -84,6 +83,7 @@ const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <NextAdminHomeIcon /> },
   { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
+  { section: 'messages', icon: <NextAdminFormsIcon /> },
   { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <NextAdminTablesIcon /> },
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
@@ -91,8 +91,6 @@ const NAV_ITEMS = [
   { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
   { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
   { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
-  { section: 'maintenance', icon: <NextAdminTaskIcon /> },
-  { section: 'workforce', icon: <NextAdminTeamIcon /> },
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
   { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
   { section: 'pilot-license-classes', icon: <NextAdminFormsIcon />, path: '/admin/pilot-license-classes' },

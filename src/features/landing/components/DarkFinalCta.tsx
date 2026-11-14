@@ -70,7 +70,7 @@ export function DarkFinalCta() {
               lineHeight: 1.65,
             }}
           >
-            {t('Start with a single bridge, solar farm, or industrial facility. Experience 10x faster defect detection, zero climbing hazard, and instant repair dispatch.')}
+            {t('Start with a single bridge, solar farm, or industrial facility. Experience 10x faster defect detection, zero climbing hazard, and rapid report publication.')}
           </Typography>
 
           <Stack

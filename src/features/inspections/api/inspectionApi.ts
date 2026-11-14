@@ -164,7 +164,6 @@ export interface Finding {
   boundingBox: string | null;
   modelName: string | null;
   confidence: number | null;
-  forwardedToMaintenanceAt: string | null;
   isDeleted: boolean;
 }
 
@@ -172,7 +171,6 @@ export interface ReportReviewResult {
   reportVersionId: string;
   versionNo: number;
   publishedAt: string | null;
-  forwardedFindingIds: string[];
   inspectionStatus: string;
   status?: ReportStatus;
   returnReason?: string | null;
@@ -334,8 +332,6 @@ export interface InspectionListItem {
   reportId: string | null;
   reportStatus: ReportStatus | null;
   reportVersionNo: number | null;
-  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
-  workOrderId?: string | null;
   assetName?: string | null;
   assetCode?: string | null;
   assetLocation?: string | null;
@@ -360,7 +356,6 @@ export interface InspectionListItem {
 /** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
   | 'REPORT_REVIEW'
-  | 'CORRECTIVE_DISPOSITION'
   | 'NONE';
 
 export interface InspectionPage {
@@ -400,10 +395,6 @@ export interface InspectionDetail {
   plannedStartAt: string | null;
   plannedEndAt: string | null;
   status: InspectionStatus;
-  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
-  workOrderId?: string | null;
-  sourceInspectionId?: string | null;
-  sourceReportVersionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -414,38 +405,6 @@ export type FieldSessionStatus =
   | 'FIELD_COMPLETED'
   | 'POSTPONED'
   | 'ABORTED';
-
-/** One field session of an inspection, as MF2-09 to MF2-12 record it. */
-export interface ReinspectionVerificationItem {
-  id: string;
-  reinspectionId: string;
-  sourceFindingId: string;
-  sourceFindingCode?: string | null;
-  sourceDefectLabel?: string | null;
-  sourceSeverity?: string | null;
-  sourceTechnicalNotes?: string | null;
-  sourceEvidenceId?: string | null;
-  sourceEvidenceFileKey?: string | null;
-  sourceLocationDescription?: string | null;
-  sourceLatitude?: number | null;
-  sourceLongitude?: number | null;
-  repairProofUrl?: string | null;
-  repairEngineerNotes?: string | null;
-  newEvidenceId?: string | null;
-  newEvidenceFileKey?: string | null;
-  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
-  inspectorNotes?: string | null;
-  ragReferenceStandards?: string[] | null;
-  ragVerificationGuidance?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UpdateDefectVerificationPayload {
-  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
-  newEvidenceId?: string | null;
-  inspectorNotes?: string | null;
-}
 
 export interface FieldSession {
   id: string;
@@ -744,14 +703,6 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  completeCorrectiveHandoff: (inspectionId: string, findingIds: string[]) =>
-    api
-      .post<ReportReviewResult>(
-        `/inspections/${inspectionId}/report/corrective-handoff`,
-        { findingIds },
-      )
-      .then((response) => response.data),
-
   listVersions: (inspectionId: string) =>
     api
       .get<InspectionReport[]>(
@@ -822,24 +773,6 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  /** Customer or Manager spawns a linked RE_INSPECTION mission directly from a published report. */
-  createDirectReinspection: (
-    inspectionId: string,
-    input: { repairNotes?: string; repairProofUrl?: string },
-  ) =>
-    api
-      .post<InspectionDetail>(
-        `/inspections/${inspectionId}/reinspections`,
-        null,
-        {
-          params: {
-            repairNotes: input.repairNotes,
-            repairProofUrl: input.repairProofUrl,
-          },
-        },
-      )
-      .then((response) => response.data),
-
   /** Generates a PayOS VietQR online payment link for an accepted inspection. */
   createPayOSPaymentLink: (inspectionId: string) =>
     api
@@ -863,22 +796,5 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  getReinspectionVerifications: (inspectionId: string) =>
-    api
-      .get<ReinspectionVerificationItem[]>(
-        `/inspections/${inspectionId}/reinspection-verifications`,
-      )
-      .then((response) => response.data),
 
-  updateReinspectionVerification: (
-    inspectionId: string,
-    verificationId: string,
-    payload: UpdateDefectVerificationPayload,
-  ) =>
-    api
-      .put<ReinspectionVerificationItem>(
-        `/inspections/${inspectionId}/reinspection-verifications/${verificationId}`,
-        payload,
-      )
-      .then((response) => response.data),
 };

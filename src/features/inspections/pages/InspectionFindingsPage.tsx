@@ -1,8 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -21,7 +18,6 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
-import ExpandMore from '@mui/icons-material/ExpandMore';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -48,13 +44,9 @@ import {
   useConfirmFinding,
   useRemovedFindings,
   useRestoreFinding,
-  useInspection,
-  useReinspectionVerifications,
-  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
 import { usePlatformAiAnalytics } from '@/features/admin/hooks/usePlatformAiSettings';
 import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
-import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -67,13 +59,7 @@ export default function InspectionFindingsPage() {
   const isReviewer =
     roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN');
 
-  const inspectionQuery = useInspection(inspectionId);
   const aiSettingsQuery = usePlatformAiAnalytics?.(true);
-  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
-  const reinspectionVerifications = useReinspectionVerifications(
-    isReinspection ? inspectionId : null,
-  );
-  const updateVerificationMutation = useUpdateReinspectionVerification(inspectionId);
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -934,52 +920,7 @@ export default function InspectionFindingsPage() {
 
   return (
     <Stack spacing={2.5}>
-      {/* Re-inspection Target Defect Verifications */}
-      {isReinspection && (
-        <ReinspectionVerificationSection
-          inspectionId={inspectionId}
-          sourceInspectionId={inspectionQuery.data?.sourceInspectionId}
-          items={reinspectionVerifications.data ?? []}
-          evidenceList={activeEvidenceItems}
-          onUpdate={(verificationId, payload) =>
-            updateVerificationMutation.mutateAsync({ verificationId, payload })
-          }
-          readOnly={!isInspector || !analysisUnlocked}
-        />
-      )}
-
-      {/* When Re-inspection: wrap general defect discovery in an optional collapsed Accordion */}
-      {isReinspection ? (
-        <Accordion
-          variant="outlined"
-          sx={{
-            borderRadius: '10px !important',
-            borderColor: 'divider',
-            '&:before': { display: 'none' },
-            boxShadow: 'none',
-            overflow: 'hidden',
-          }}
-        >
-          <AccordionSummary expandIcon={<ExpandMore />}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <AutoAwesomeOutlined color="action" />
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
-                  {t('Additional New Defect Scanning (Optional)')}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Only needed if fresh captures revealed unexpected defects outside the repair scope')}
-                </Typography>
-              </Box>
-            </Stack>
-          </AccordionSummary>
-          <AccordionDetails sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
-            {defectDiscoveryWorkspace}
-          </AccordionDetails>
-        </Accordion>
-      ) : (
-        defectDiscoveryWorkspace
-      )}
+      {defectDiscoveryWorkspace}
 
       <ConfirmDialog
         open={Boolean(findingToDeleteId)}

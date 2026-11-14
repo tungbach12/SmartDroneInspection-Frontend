@@ -8,12 +8,19 @@ export interface DroneRegistrationInput {
   registrationFileKey: string;
   registrationExpiresAt: string;
   ownershipFileKey: string;
-  inspectionFileKey: string;
+  inspectionFileKey?: string | undefined;
+  maxWindResistanceMps?: number | undefined;
+  opticalZoomLevel?: string | undefined;
+  hasThermalCamera?: boolean | undefined;
+  hasRtk?: boolean | undefined;
+  documentFiles?: Record<string, string> | undefined;
+  imageFileKeys?: string[] | undefined;
+  features?: string[] | undefined;
 }
 
-export type DroneEvidenceType = 'REGISTRATION' | 'OWNERSHIP' | 'INSPECTION';
+export type DroneEvidenceType = 'REGISTRATION' | 'OWNERSHIP' | 'INSPECTION' | string;
 
-export async function uploadDroneEvidence(file: File, type: DroneEvidenceType): Promise<string> {
+export async function uploadDroneEvidence(file: File, type: string): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await api.post<{ fileKey: string } | { data: { fileKey: string } }>(
@@ -41,6 +48,13 @@ export interface DroneRegistrationApplication {
   registrationExpiresAt?: string | null;
   ownershipFileKey?: string | null;
   inspectionFileKey?: string | null;
+  documentFiles?: Record<string, string> | null;
+  maxWindResistanceMps?: number | null;
+  opticalZoomLevel?: string | null;
+  hasThermalCamera?: boolean;
+  hasRtk?: boolean;
+  imageFileKeys?: string[] | null;
+  features?: string[] | null;
   status: string;
   reviewNote: string | null;
   droneId: string | null;
@@ -63,6 +77,14 @@ export interface InspectorDrone {
   requiredLicenseClass?: string | null;
   registrationExpirationStatus?: string | null;
   registrationRemainingDays?: number | null;
+  maxWindResistanceMps?: number | null;
+  opticalZoomLevel?: string | null;
+  hasThermalCamera?: boolean;
+  hasRtk?: boolean;
+  documentFiles?: Record<string, string> | null;
+  imageFileKeys?: string[] | null;
+  primaryImageKey?: string | null;
+  features?: string[] | null;
 }
 
 function unwrap<T>(value: T | { data: T }): T {

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Chip,
   Divider,
   Paper,
   Stack,
@@ -135,10 +134,6 @@ export function CustomerDashboardPage() {
   const inReviewOrFlightCount = enrichedInspections.filter(
     (item) => item.reportStatus !== 'PUBLISHED' && item.status !== 'CANCELLED',
   ).length;
-  const correctiveDueCount = enrichedInspections.filter(
-    (item) =>
-      item.pendingAction === 'CORRECTIVE_DISPOSITION' && item.inspectionType !== 'RE_INSPECTION',
-  ).length;
   const totalPaidVnd = enrichedInspections
     .filter((item) => item.resolvedPaymentStatus === 'PAID')
     .reduce((sum, item) => sum + (item.resolvedAmount ?? 0), 0);
@@ -184,8 +179,8 @@ export function CustomerDashboardPage() {
         enrichedInspections.length > 0
           ? `${publishedReportsCount}/${enrichedInspections.length}`
           : `${publishedReportsCount}`,
-      change: correctiveDueCount > 0 ? `${correctiveDueCount} ${t('Needs maintenance')}` : t('Ready'),
-      positive: correctiveDueCount === 0,
+      change: t('Ready'),
+      positive: true,
       subtext: t('official deliverables ready'),
       iconType: 'check-circle',
     },
@@ -442,9 +437,6 @@ export function CustomerDashboardPage() {
                   <TableBody>
                     {enrichedInspections.slice(0, 5).map((item) => {
                       const isPublished = item.reportStatus === 'PUBLISHED';
-                      const needsMaintenance =
-                        item.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-                        item.inspectionType !== 'RE_INSPECTION';
                       return (
                         <TableRow
                           key={item.id}
@@ -468,19 +460,6 @@ export function CustomerDashboardPage() {
                               >
                                 {item.resolvedAssetName}
                               </Typography>
-                              {item.inspectionType === 'RE_INSPECTION' && (
-                                <Chip
-                                  size="small"
-                                  color="secondary"
-                                  label={t('Re-inspection')}
-                                  sx={{
-                                    height: 18,
-                                    fontSize: '0.75rem',
-                                    fontWeight: 650,
-                                    borderRadius: '5px',
-                                  }}
-                                />
-                              )}
                             </Stack>
                             <Typography
                               variant="caption"
@@ -564,28 +543,6 @@ export function CustomerDashboardPage() {
                               spacing={0.75}
                               sx={{ justifyContent: 'flex-end', alignItems: 'center' }}
                             >
-                              {needsMaintenance && (
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/client/inspections/${item.id}/corrective`);
-                                  }}
-                                  sx={{
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 650,
-                                    color: '#8C520B',
-                                    textTransform: 'none',
-                                    px: 1,
-                                    py: 0.4,
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {t('Maintenance')}
-                                </Button>
-                              )}
                               <Button
                                 size="small"
                                 variant="outlined"
