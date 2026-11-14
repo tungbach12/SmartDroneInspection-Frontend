@@ -58,6 +58,27 @@ describe('contractApi', () => {
     expect(api.get).toHaveBeenCalledWith('/contracts/partners/drones');
   });
 
+  it('lists customer payment history with page and size', async () => {
+    const result = { content: [{ occurrenceId: 'occ-1' }], totalElements: 1, page: 0, size: 20 };
+    vi.mocked(api.get).mockResolvedValue({ data: result } as never);
+
+    await expect(contractApi.listCustomerFinanceHistory(0, 20)).resolves.toBe(result);
+    expect(api.get).toHaveBeenCalledWith('/contracts/requests/finance-history/customer?page=0&size=20');
+  });
+
+  it('lists inspector payouts and requests scoped payout detail', async () => {
+    const history = { content: [], totalElements: 0, page: 1, size: 10 };
+    const detail = { occurrenceId: 'occ-1', payoutStatus: 'PAID' };
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({ data: history } as never)
+      .mockResolvedValueOnce({ data: detail } as never);
+
+    await expect(contractApi.listInspectorFinanceHistory(1, 10)).resolves.toBe(history);
+    await expect(contractApi.getInspectorFinanceHistoryDetail('occ-1')).resolves.toBe(detail);
+    expect(api.get).toHaveBeenNthCalledWith(1, '/contracts/requests/finance-history/inspector?page=1&size=10');
+    expect(api.get).toHaveBeenNthCalledWith(2, '/contracts/requests/finance-history/inspector/occ-1');
+  });
+
   it('downloads the signed-contract attachment as a Blob', async () => {
     const attachment = new Blob(['signed'], { type: 'application/pdf' });
     vi.mocked(api.get).mockResolvedValue({ data: attachment } as never);

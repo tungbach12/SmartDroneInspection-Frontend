@@ -117,6 +117,57 @@ export interface OccurrenceFinanceDetails {
   inspectorReceivables: InspectorReceivableSummary[];
 }
 
+export interface OccurrenceFinanceHistoryItem {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  requestDescription: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  counterpartyId: string | null;
+  counterpartyName: string | null;
+  currency: string;
+  amount: number | null;
+  status: string;
+  paymentMethod: string | null;
+  reference: string | null;
+  confirmedAt: string | null;
+}
+
+export interface OccurrenceFinanceHistoryPage {
+  content: OccurrenceFinanceHistoryItem[];
+  totalElements: number;
+  page: number;
+  size: number;
+}
+
+export interface OccurrenceFinanceHistoryDetail {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  currency: string;
+  totalPrice: number | null;
+  serviceBaseAmount: number | null;
+  vatAmount: number | null;
+  commissionAmount: number | null;
+  inspectorGrossPayout: number | null;
+  tncnAmount: number | null;
+  inspectorNetPayout: number | null;
+  paymentStatus: string;
+  paymentAmount: number | null;
+  refundedAmount: number | null;
+  refundStatus: string | null;
+  refunds: Array<{ id: string; amount: number; status: string; recordedAt: string }>;
+  paymentConfirmedAt: string | null;
+  payoutStatus: string | null;
+  payoutReference: string | null;
+  payoutRecordedAt: string | null;
+  accountingDisclaimer: string | null;
+  payment: ServicePaymentSummary;
+  payout: InspectorPayoutSummary | null;
+}
+
+
 export interface ServiceRequestOccurrence {
   id: string;
   occurrenceIndex: number;
@@ -377,6 +428,34 @@ export const contractApi = {
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/assign`,
       input,
+    );
+    return data;
+  },
+
+  async listCustomerFinanceHistory(page = 0, size = 20): Promise<OccurrenceFinanceHistoryPage> {
+    const { data } = await api.get<OccurrenceFinanceHistoryPage>(
+      `/contracts/requests/finance-history/customer?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async listInspectorFinanceHistory(page = 0, size = 20): Promise<OccurrenceFinanceHistoryPage> {
+    const { data } = await api.get<OccurrenceFinanceHistoryPage>(
+      `/contracts/requests/finance-history/inspector?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async getCustomerFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/customer/${occurrenceId}`,
+    );
+    return data;
+  },
+
+  async getInspectorFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/inspector/${occurrenceId}`,
     );
     return data;
   },

@@ -33,6 +33,7 @@ const expectedAccess: Record<
     'pilot-license-classes': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
+    'finance-history': [],
     settings: ['ADMIN'],
   },
   manager: {
@@ -48,6 +49,7 @@ const expectedAccess: Record<
     'pilot-license-classes': [],
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
+    'finance-history': [],
     settings: ['MANAGER'],
   },
   client: {
@@ -63,6 +65,7 @@ const expectedAccess: Record<
     'pilot-license-classes': [],
     'onboarding-reviews': [],
     'inspector-drones': [],
+    'finance-history': ['CUSTOMER'],
     settings: ['CUSTOMER'],
   },
   operations: {
@@ -78,6 +81,7 @@ const expectedAccess: Record<
     'pilot-license-classes': [],
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
+    'finance-history': ['INSPECTOR'],
     settings: ['INSPECTOR'],
   },
 };

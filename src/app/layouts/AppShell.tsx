@@ -90,6 +90,7 @@ const NAV_ITEMS = [
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
   { section: 'inspections', icon: <NextAdminTaskIcon /> },
   { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
+  { section: 'finance-history', icon: <NextAdminInvoiceIcon /> },
   { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
   { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
@@ -115,7 +116,7 @@ const NAV_GROUPS: ReadonlyArray<{
     key: 'operations',
     labelEn: 'OPERATIONS',
     labelVi: 'VẬN HÀNH',
-    sections: ['contracts', 'messages', 'assets', 'schedule', 'inspections', 'inspector-drones'],
+    sections: ['contracts', 'messages', 'assets', 'schedule', 'inspections', 'inspector-drones', 'finance-history'],
   },
   {
     key: 'governance',
