@@ -34,6 +34,7 @@ const expectedAccess: Record<
     'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],
+    'finance-history': [],
     settings: ['ADMIN'],
   },
   manager: {
@@ -50,6 +51,7 @@ const expectedAccess: Record<
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
     notifications: ['MANAGER'],
+    'finance-history': [],
     settings: ['MANAGER'],
   },
   client: {
@@ -66,6 +68,7 @@ const expectedAccess: Record<
     'onboarding-reviews': [],
     'inspector-drones': [],
     notifications: ['CUSTOMER'],
+    'finance-history': ['CUSTOMER'],
     settings: ['CUSTOMER'],
   },
   operations: {
@@ -82,6 +85,7 @@ const expectedAccess: Record<
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
     notifications: ['INSPECTOR'],
+    'finance-history': ['INSPECTOR'],
     settings: ['INSPECTOR'],
   },
 };
