@@ -18,6 +18,8 @@ import {
   Select,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
@@ -26,7 +28,8 @@ import LogoutRounded from '@mui/icons-material/LogoutRounded';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { pilotLicenseClassApi } from '../api/pilotLicenseClassApi';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import InspectorOnboardingPage from '@/features/admin/pages/InspectorOnboardingPage';
 import {
   getAuthErrorMessage,
   changePassword,
@@ -54,6 +57,10 @@ export default function AccountSecurityPage() {
   const clearSession = useAuthStore((state) => state.clearSession);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isInspector = Boolean(user?.roles.includes('INSPECTOR'));
+  const activeTab =
+    isInspector && searchParams.get('tab') === 'pilot-profile' ? 'pilot-profile' : 'security';
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [signingOutSession, setSigningOutSession] = useState(false);
@@ -173,6 +180,37 @@ export default function AccountSecurityPage() {
           </Typography>
         </Box>
 
+        {isInspector && (
+          <Tabs
+            value={activeTab}
+            onChange={(_, value: 'security' | 'pilot-profile') => {
+              const next = new URLSearchParams(searchParams);
+              if (value === 'pilot-profile') {
+                next.set('tab', 'pilot-profile');
+              } else {
+                next.delete('tab');
+              }
+              setSearchParams(next, { replace: true });
+            }}
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab
+              value="security"
+              label={locale === 'vi' ? 'Tài khoản & Bảo mật' : 'Account & Security'}
+              sx={{ textTransform: 'none', fontWeight: 650 }}
+            />
+            <Tab
+              value="pilot-profile"
+              label={locale === 'vi' ? 'Hồ sơ Phi công & Hợp đồng' : 'Pilot Profile & Contract'}
+              sx={{ textTransform: 'none', fontWeight: 650 }}
+            />
+          </Tabs>
+        )}
+
+        {activeTab === 'pilot-profile' ? (
+          <InspectorOnboardingPage embedded />
+        ) : (
+          <>
         {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
         {/* Signed-in Account Info */}
@@ -694,6 +732,8 @@ export default function AccountSecurityPage() {
             </Stack>
           </Stack>
         </Box>
+          </>
+        )}
       </Stack>
 
       <Dialog

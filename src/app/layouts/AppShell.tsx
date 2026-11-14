@@ -23,6 +23,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Stack,
   Menu,
   MenuItem,
   Toolbar,
@@ -97,6 +98,45 @@ const NAV_ITEMS = [
   { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },
   { section: 'settings', icon: <NextAdminProfileIcon /> },
 ] as const;
+
+const NAV_GROUPS: ReadonlyArray<{
+  key: 'main' | 'operations' | 'governance' | 'account';
+  labelEn: string;
+  labelVi: string;
+  sections: ReadonlyArray<(typeof NAV_ITEMS)[number]['section']>;
+}> = [
+  {
+    key: 'main',
+    labelEn: 'MAIN MENU',
+    labelVi: 'MENU CHÍNH',
+    sections: ['dashboard'],
+  },
+  {
+    key: 'operations',
+    labelEn: 'OPERATIONS',
+    labelVi: 'VẬN HÀNH',
+    sections: ['contracts', 'messages', 'assets', 'schedule', 'inspections', 'inspector-drones'],
+  },
+  {
+    key: 'governance',
+    labelEn: 'GOVERNANCE',
+    labelVi: 'QUẢN TRỊ',
+    sections: [
+      'onboarding-reviews',
+      'platform-users',
+      'asset-catalog',
+      'pilot-license-classes',
+      'finance-settings',
+      'ai-settings',
+    ],
+  },
+  {
+    key: 'account',
+    labelEn: 'ACCOUNT',
+    labelVi: 'TÀI KHOẢN',
+    sections: ['settings'],
+  },
+];
 
 interface AppShellProps {
   portal: PortalId;
@@ -182,7 +222,7 @@ export function AppShell({ portal }: AppShellProps) {
       return portal === 'operations' && roles.includes('INSPECTOR');
     }
     if (section === 'partner-onboarding') {
-      return portal === 'operations' && roles.includes('INSPECTOR');
+      return false;
     }
     if (section === 'ai-settings') {
       return portal === 'admin' && roles.includes('ADMIN');
@@ -209,7 +249,7 @@ export function AppShell({ portal }: AppShellProps) {
         : section === 'partner-onboarding'
           ? locale === 'vi'
             ? 'Hồ sơ & Hợp đồng'
-            : 'Partner onboarding'
+            : 'Pilot Profile & Contract'
           : section === 'ai-settings'
             ? locale === 'vi'
               ? 'Cấu hình AI'
@@ -370,127 +410,142 @@ export function AppShell({ portal }: AppShellProps) {
       </Box>
 
       <Box sx={{ minHeight: 0, flex: 1, overflowY: 'auto', px: 1.5, pt: 1, pb: 2 }}>
-        <Typography
-          component="div"
-          sx={{
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            color: '#71717A',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            px: 1.5,
-            mb: 1,
-          }}
-        >
-          MAIN MENU
-        </Typography>
-
         <List
           component="nav"
           aria-label={`${getPortalLabel(portal, locale)} navigation`}
           sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}
         >
-          {visibleNavigation.map((item) => {
-            const { section, icon } = item;
-            const path =
-              section === 'schedule'
-                ? '/operations/inspections?view=calendar'
-                : section === 'partner-onboarding'
-                  ? '/operations/partner-onboarding'
-                  : section === 'ai-settings'
-                    ? '/admin/ai-settings'
-                    : section === 'pilot-license-classes'
-                      ? '/admin/pilot-license-classes'
-                      : getSectionPath(
-                        portal,
-                        section as Exclude<typeof section, 'schedule' | 'partner-onboarding' | 'ai-settings' | 'pilot-license-classes'>,
-                      );
-            const isCalendarView =
-              location.pathname.startsWith('/operations/inspections') &&
-              new URLSearchParams(location.search).get('view') === 'calendar';
-            const selected =
-              section === 'schedule'
-                ? isCalendarView
-                : section === 'inspections'
-                  ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) && !isCalendarView
-                  : location.pathname === path;
-            const navLabel =
-              section === 'schedule'
-                ? t('Inspection Schedule')
-                : section === 'partner-onboarding'
-                  ? locale === 'vi'
-                    ? 'Hồ sơ & Hợp đồng'
-                    : 'Partner onboarding'
-                  : section === 'ai-settings'
-                    ? locale === 'vi'
-                      ? 'Cấu hình AI'
-                      : 'AI configuration'
-                    : section === 'pilot-license-classes'
-                      ? locale === 'vi'
-                        ? 'Hạng bằng lái UAV'
-                        : 'UAV license classes'
-                      : getSectionLabel(section, locale, portal);
+          {NAV_GROUPS.map((group) => {
+            const groupItems = visibleNavigation.filter((item) =>
+              group.sections.includes(item.section),
+            );
+            if (groupItems.length === 0) return null;
             return (
-              <ListItemButton
-                key={section}
-                component={RouterLink}
-                to={path}
-                selected={selected}
-                onClick={() => setMobileOpen(false)}
-                sx={{
-                  borderRadius: '8px',
-                  py: '8px',
-                  px: '12px',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: selected ? 'text.primary' : 'text.secondary',
-                  bgcolor: selected
-                    ? isDark
-                      ? 'rgba(255,255,255,0.08)'
-                      : '#E4E4E7'
-                    : 'transparent',
-                  '& .MuiListItemIcon-root': {
-                    minWidth: 30,
-                    color: 'inherit',
-                  },
-                  '&.Mui-selected': {
-                    bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E4E7',
-                    color: 'text.primary',
-                    '&:hover': {
-                      bgcolor: isDark ? 'rgba(255,255,255,0.12)' : '#D4D4D8',
-                    },
-                  },
-                  '&:hover': {
-                    bgcolor: selected
-                      ? isDark
-                        ? 'rgba(255,255,255,0.12)'
-                        : '#D4D4D8'
-                      : isDark
-                        ? 'rgba(255,255,255,0.04)'
-                        : 'rgba(0,0,0,0.04)',
-                    color: 'text.primary',
-                  },
-                  '&:focus-visible': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                    outlineOffset: 1,
-                  },
-                }}
-              >
-                <ListItemIcon>{icon}</ListItemIcon>
-                <ListItemText
-                  primary={navLabel}
-                  slotProps={{
-                    primary: {
-                      sx: {
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        color: 'inherit',
-                      },
-                    },
+              <Box key={group.key} sx={{ mb: 1.5 }}>
+                <Typography
+                  component="div"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: '#71717A',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    px: 1.5,
+                    mb: 0.75,
                   }}
-                />
-              </ListItemButton>
+                >
+                  {locale === 'vi' ? group.labelVi : group.labelEn}
+                </Typography>
+                <Stack spacing={0.5}>
+                  {groupItems.map((item) => {
+                    const { section, icon } = item;
+                    const path =
+                      section === 'schedule'
+                        ? '/operations/inspections?view=calendar'
+                        : section === 'partner-onboarding'
+                          ? '/operations/partner-onboarding'
+                          : section === 'ai-settings'
+                            ? '/admin/ai-settings'
+                            : section === 'pilot-license-classes'
+                              ? '/admin/pilot-license-classes'
+                              : getSectionPath(
+                                  portal,
+                                  section as Exclude<
+                                    typeof section,
+                                    'schedule' | 'partner-onboarding' | 'ai-settings' | 'pilot-license-classes'
+                                  >,
+                                );
+                    const isCalendarView =
+                      location.pathname.startsWith('/operations/inspections') &&
+                      new URLSearchParams(location.search).get('view') === 'calendar';
+                    const selected =
+                      section === 'schedule'
+                        ? isCalendarView
+                        : section === 'inspections'
+                          ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) &&
+                            !isCalendarView
+                          : location.pathname === path;
+                    const navLabel =
+                      section === 'schedule'
+                        ? t('Inspection Schedule')
+                        : section === 'partner-onboarding'
+                          ? locale === 'vi'
+                            ? 'Hồ sơ & Hợp đồng'
+                            : 'Pilot Profile & Contract'
+                          : section === 'ai-settings'
+                            ? locale === 'vi'
+                              ? 'Cấu hình AI'
+                              : 'AI configuration'
+                            : section === 'pilot-license-classes'
+                              ? locale === 'vi'
+                                ? 'Hạng bằng lái UAV'
+                                : 'UAV license classes'
+                              : getSectionLabel(section, locale, portal);
+                    return (
+                      <ListItemButton
+                        key={section}
+                        component={RouterLink}
+                        to={path}
+                        selected={selected}
+                        onClick={() => setMobileOpen(false)}
+                        sx={{
+                          borderRadius: '8px',
+                          py: '8px',
+                          px: '12px',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          color: selected ? 'text.primary' : 'text.secondary',
+                          bgcolor: selected
+                            ? isDark
+                              ? 'rgba(255,255,255,0.08)'
+                              : '#E4E4E7'
+                            : 'transparent',
+                          '& .MuiListItemIcon-root': {
+                            minWidth: 30,
+                            color: 'inherit',
+                          },
+                          '&.Mui-selected': {
+                            bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#E4E4E7',
+                            color: 'text.primary',
+                            '&:hover': {
+                              bgcolor: isDark ? 'rgba(255,255,255,0.12)' : '#D4D4D8',
+                            },
+                          },
+                          '&:hover': {
+                            bgcolor: selected
+                              ? isDark
+                                ? 'rgba(255,255,255,0.12)'
+                                : '#D4D4D8'
+                              : isDark
+                                ? 'rgba(255,255,255,0.04)'
+                                : 'rgba(0,0,0,0.04)',
+                            color: 'text.primary',
+                          },
+                          '&:focus-visible': {
+                            outline: '2px solid',
+                            outlineColor: 'primary.main',
+                            outlineOffset: 1,
+                          },
+                        }}
+                      >
+                        <ListItemIcon>{icon}</ListItemIcon>
+                        <ListItemText
+                          primary={navLabel}
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                color: 'inherit',
+                              },
+                            },
+                          }}
+                        />
+                      </ListItemButton>
+                    );
+                  })}
+                </Stack>
+              </Box>
             );
           })}
           {visibleNavigation.length === 0 && (

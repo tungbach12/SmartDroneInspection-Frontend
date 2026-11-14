@@ -38,13 +38,14 @@ const STEPS = [
   '3. Kết quả Phê duyệt',
 ];
 
-export default function InspectorOnboardingPage() {
+export default function InspectorOnboardingPage({ embedded = false }: { embedded?: boolean } = {}) {
   const user = useAuthStore((state) => state.user);
   const inspectorId = user?.id ?? null;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const [activeStep, setActiveStep] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const profileQuery = useQuery({
@@ -120,6 +121,7 @@ export default function InspectorOnboardingPage() {
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(['inspector-profile', inspectorId], updated);
+      setIsEditing(false);
       setSuccessMessage('Đã lưu thông tin hồ sơ.');
     },
   });
@@ -154,43 +156,104 @@ export default function InspectorOnboardingPage() {
     );
   }
 
+  const isApproved = profile.onboardingStatus === 'APPROVED';
+  const canEdit = !isApproved || isEditing;
+
   return (
-    <Box className="workspace-page" sx={{ maxWidth: 760, mx: 'auto', pb: 6 }}>
-      <PageHeader
-        title="Hồ sơ & Hợp đồng Đối tác"
-        subtitle="Hoàn tất 3 bước đơn giản để kích hoạt tài khoản nhận nhiệm vụ bay."
-      />
+    <Box
+      className={embedded ? undefined : 'workspace-page'}
+      sx={embedded ? { pb: 2 } : { maxWidth: 760, mx: 'auto', pb: 6 }}
+    >
+      {!embedded && (
+        <PageHeader
+          title={isApproved ? 'Hồ sơ Phi công & Hợp đồng Đối tác' : 'Hồ sơ & Hợp đồng Đối tác'}
+          subtitle={
+            isApproved
+              ? 'Cập nhật thông tin cá nhân, gia hạn bằng lái UAV và xem lại hợp đồng đối tác đã ký.'
+              : 'Hoàn tất 3 bước đơn giản để kích hoạt tài khoản nhận nhiệm vụ bay.'
+          }
+        />
+      )}
 
       <Paper
         variant="outlined"
         sx={{
-          mt: 2.5,
+          mt: embedded ? 0 : 2.5,
           p: { xs: 2.5, sm: 3.5 },
           borderRadius: '14px',
           borderColor: 'divider',
         }}
       >
-        <Stepper activeStep={activeStep} sx={{ mb: 3.5 }}>
-          {STEPS.map((label, idx) => {
-            const done =
-              (idx === 0 && Boolean(profile.hasLicenseScan && profile.pilotLicenseNumber)) ||
-              (idx === 1 && Boolean(profile.hasPartnerContract)) ||
-              (idx === 2 && profile.onboardingStatus === 'APPROVED');
-            return (
-              <Step
-                key={label}
-                completed={done}
-                sx={{ cursor: 'pointer' }}
+        {isApproved ? (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{
+              justifyContent: 'space-between',
+              alignItems: { sm: 'center' },
+              p: 2,
+              mb: 3,
+              bgcolor: 'action.hover',
+              borderRadius: '10px',
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Hợp đồng Đối tác & Trạng thái kích hoạt
+                </Typography>
+                <Chip size="small" color="success" icon={<CheckCircleRounded />} label="Đã phê duyệt & Hoạt động" />
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {profile.hasPartnerContract
+                  ? profile.partnerContractSha256
+                    ? `Hợp đồng đã ký · SHA-256: ${profile.partnerContractSha256.slice(0, 12)}…${profile.partnerContractSha256.slice(-6)}`
+                    : 'Hợp đồng đã ký đã được lưu trữ trên hệ thống.'
+                  : 'Hợp đồng đối tác đang được lưu trữ bởi Manager.'}
+              </Typography>
+            </Box>
+
+            {profile.hasPartnerContract && (
+              <Button
+                size="small"
+                variant="outlined"
                 onClick={() => {
-                  setSuccessMessage(null);
-                  setActiveStep(idx);
+                  if (!inspectorId) return;
+                  void inspectorProfileApi.getPartnerContractBlobUrl(inspectorId).then((res) => {
+                    window.open(res.blobUrl, '_blank', 'noopener,noreferrer');
+                  });
                 }}
+                sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'background.paper', flexShrink: 0 }}
               >
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            );
-          })}
-        </Stepper>
+                Xem hợp đồng đã ký
+              </Button>
+            )}
+          </Stack>
+        ) : (
+          <Stepper activeStep={activeStep} sx={{ mb: 3.5 }}>
+            {STEPS.map((label, idx) => {
+              const done =
+                (idx === 0 && Boolean(profile.hasLicenseScan && profile.pilotLicenseNumber)) ||
+                (idx === 1 && Boolean(profile.hasPartnerContract)) ||
+                (idx === 2 && profile.onboardingStatus === 'APPROVED');
+              return (
+                <Step
+                  key={label}
+                  completed={done}
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setSuccessMessage(null);
+                    setActiveStep(idx);
+                  }}
+                >
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              );
+            })}
+          </Stepper>
+        )}
 
         {successMessage && (
           <Alert
@@ -230,14 +293,35 @@ export default function InspectorOnboardingPage() {
           </Alert>
         )}
 
-        {/* ===================== BƯỚC 1: CCCD & BẰNG LÁI ===================== */}
-        {activeStep === 0 && (
+        {/* ===================== BƯỚC 1 / HỒ SƠ & GIA HẠN BẰNG LÁI ===================== */}
+        {(isApproved || activeStep === 0) && (
           <Stack spacing={2.5}>
+            {isApproved && (
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  Thông tin cá nhân & Bằng lái UAV
+                </Typography>
+                {!isEditing && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      setSuccessMessage(null);
+                      setIsEditing(true);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Chỉnh sửa / Gia hạn bằng lái
+                  </Button>
+                )}
+              </Stack>
+            )}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 size="small"
                 label="Họ và tên"
                 value={form.fullName}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 fullWidth
               />
@@ -245,6 +329,7 @@ export default function InspectorOnboardingPage() {
                 size="small"
                 label="Số điện thoại"
                 value={form.phoneNumber || ''}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
                 fullWidth
               />
@@ -252,6 +337,7 @@ export default function InspectorOnboardingPage() {
                 size="small"
                 label="Số CCCD / Hộ chiếu *"
                 value={form.citizenId || ''}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, citizenId: e.target.value })}
                 fullWidth
               />
@@ -259,6 +345,7 @@ export default function InspectorOnboardingPage() {
                 size="small"
                 label="Số hiệu Bằng lái UAV *"
                 value={form.pilotLicenseNumber || ''}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, pilotLicenseNumber: e.target.value })}
                 fullWidth
               />
@@ -269,7 +356,7 @@ export default function InspectorOnboardingPage() {
                 value={form.pilotLicenseClass || ''}
                 onChange={(e) => setForm({ ...form, pilotLicenseClass: e.target.value })}
                 fullWidth
-                disabled={licenseClassesQuery.isLoading || licenseClassesQuery.isError}
+                disabled={!canEdit || licenseClassesQuery.isLoading || licenseClassesQuery.isError}
                 helperText={licenseClassesQuery.isError ? 'Không thể tải danh mục hạng bằng lái.' : undefined}
               >
                 <MenuItem value=""><em>Chưa chọn hạng bằng</em></MenuItem>
@@ -286,6 +373,7 @@ export default function InspectorOnboardingPage() {
                 label="Ngày hết hạn bằng lái"
                 slotProps={{ inputLabel: { shrink: true } }}
                 value={form.pilotLicenseExpiresAt || ''}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, pilotLicenseExpiresAt: e.target.value })}
                 fullWidth
               />
@@ -311,54 +399,92 @@ export default function InspectorOnboardingPage() {
                 {profile.hasLicenseScan && (
                   <Chip size="small" color="success" icon={<CheckCircleRounded />} label="Đã tải lên" />
                 )}
-                <Button
-                  component="label"
-                  size="small"
-                  variant="outlined"
-                  startIcon={<CloudUploadOutlined />}
-                  disabled={uploadLicenseMutation.isPending}
-                  sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'background.paper' }}
-                >
-                  {uploadLicenseMutation.isPending ? 'Đang tải…' : 'Tải ảnh/PDF Bằng lái'}
-                  <input
-                    hidden
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,application/pdf"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) uploadLicenseMutation.mutate(f);
-                    }}
-                  />
-                </Button>
+                {canEdit && (
+                  <Button
+                    component="label"
+                    size="small"
+                    variant="outlined"
+                    startIcon={<CloudUploadOutlined />}
+                    disabled={uploadLicenseMutation.isPending}
+                    sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'background.paper' }}
+                  >
+                    {uploadLicenseMutation.isPending ? 'Đang tải…' : 'Tải ảnh/PDF Bằng lái'}
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,application/pdf"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadLicenseMutation.mutate(f);
+                      }}
+                    />
+                  </Button>
+                )}
               </Stack>
             </Stack>
 
-            <Stack direction="row" sx={{ justifyContent: 'space-between', pt: 1 }}>
-              <Button
-                variant="outlined"
-                disabled={updateMutation.isPending}
-                onClick={() => updateMutation.mutate(form)}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
-              >
-                {updateMutation.isPending ? 'Đang lưu…' : 'Lưu thông tin'}
-              </Button>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForwardRounded />}
-                onClick={() => {
-                  updateMutation.mutate(form);
-                  setActiveStep(1);
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
-              >
-                Tiếp tục Bước 2
-              </Button>
-            </Stack>
+            {canEdit && (
+              <Stack direction="row" sx={{ justifyContent: isApproved ? 'flex-end' : 'space-between', gap: 1.5, pt: 1 }}>
+                {isApproved && (
+                  <Button
+                    variant="outlined"
+                    disabled={updateMutation.isPending}
+                    onClick={() => {
+                      setIsEditing(false);
+                      if (profile) {
+                        setForm({
+                          fullName: profile.fullName || '',
+                          phoneNumber: profile.phoneNumber || '',
+                          citizenId: profile.citizenId || '',
+                          dateOfBirth: profile.dateOfBirth || '',
+                          address: profile.address || '',
+                          notes: profile.notes || '',
+                          pilotLicenseNumber: profile.pilotLicenseNumber || '',
+                          pilotLicenseClass: profile.pilotLicenseClass || '',
+                          pilotLicenseIssuedDate: profile.pilotLicenseIssuedDate || '',
+                          pilotLicenseExpiresAt: profile.pilotLicenseExpiresAt
+                            ? profile.pilotLicenseExpiresAt.slice(0, 10)
+                            : '',
+                        });
+                      }
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Hủy
+                  </Button>
+                )}
+                <Button
+                  variant={isApproved ? 'contained' : 'outlined'}
+                  disabled={updateMutation.isPending}
+                  onClick={() => updateMutation.mutate(form)}
+                  sx={{ textTransform: 'none', fontWeight: 600 }}
+                >
+                  {updateMutation.isPending
+                    ? 'Đang lưu…'
+                    : isApproved
+                      ? 'Lưu & Cập nhật hồ sơ'
+                      : 'Lưu thông tin'}
+                </Button>
+                {!isApproved && (
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForwardRounded />}
+                    onClick={() => {
+                      updateMutation.mutate(form);
+                      setActiveStep(1);
+                    }}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Tiếp tục Bước 2
+                  </Button>
+                )}
+              </Stack>
+            )}
           </Stack>
         )}
 
         {/* ===================== BƯỚC 2: HỢP ĐỒNG ĐỐI TÁC ===================== */}
-        {activeStep === 1 && (
+        {!isApproved && activeStep === 1 && (
           <Stack spacing={2.5}>
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
@@ -406,7 +532,22 @@ export default function InspectorOnboardingPage() {
 
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
                 {profile.hasPartnerContract && (
-                  <Chip size="small" color="success" icon={<CheckCircleRounded />} label="Đã lưu" />
+                  <>
+                    <Chip size="small" color="success" icon={<CheckCircleRounded />} label="Đã lưu" />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        if (!inspectorId) return;
+                        void inspectorProfileApi.getPartnerContractBlobUrl(inspectorId).then((res) => {
+                          window.open(res.blobUrl, '_blank', 'noopener,noreferrer');
+                        });
+                      }}
+                      sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'background.paper' }}
+                    >
+                      Xem hợp đồng đã ký
+                    </Button>
+                  </>
                 )}
                 <Button
                   component="label"
@@ -452,7 +593,7 @@ export default function InspectorOnboardingPage() {
         )}
 
         {/* ===================== BƯỚC 3: KẾT QUẢ PHÊ DUYỆT ===================== */}
-        {activeStep === 2 && (
+        {!isApproved && activeStep === 2 && (
           <Stack spacing={2.5}>
             <Alert
               severity={

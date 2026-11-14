@@ -11,6 +11,8 @@ export interface InspectorApplication {
   pilotLicenseClass: string;
   pilotLicenseExpiresAt: string | null;
   hasLicenseScan: boolean;
+  hasSignedContract?: boolean;
+  signedContractSha256?: string | null;
   status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | string;
   approvedUserId?: string | null;
   reviewedByUserId?: string | null;
@@ -67,6 +69,18 @@ export const inspectorApplicationApi = {
     );
     return unwrap(data);
   },
+  getLicenseScanBlob: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/inspector-applications/${id}/license-scan`, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+  getSignedContractBlob: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/inspector-applications/${id}/signed-contract`, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
   getLicenseScan: async (id: string) => {
     const response = await api.get(`/inspector-applications/${id}/license-scan`, {
       responseType: 'blob',
@@ -85,10 +99,13 @@ export const inspectorApplicationApi = {
     const { data } = await api.post(`/inspector-applications/${id}/cleanup-rejected`);
     return unwrap(data);
   },
-  uploadSignedContract: async (id: string, file: File) => {
+  uploadSignedContract: async (id: string, file: File): Promise<InspectorApplication> => {
     const form = new FormData();
     form.append('file', file);
-    const { data } = await api.post(`/inspector-applications/${id}/signed-contract`, form);
+    const { data } = await api.post<InspectorApplication | { data: InspectorApplication }>(
+      `/inspector-applications/${id}/signed-contract`,
+      form,
+    );
     return unwrap(data);
   },
 };
