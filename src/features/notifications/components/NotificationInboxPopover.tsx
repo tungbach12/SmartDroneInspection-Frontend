@@ -23,7 +23,10 @@ import ForumRoundedIcon from '@mui/icons-material/ForumRounded';
 import { getSectionPath, type PortalId } from '@/app/permissions/accessPolicy';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import type { UnreadChatNotification } from '@/features/contracts/hooks/useContracts';
+import {
+  useMarkMessagesRead,
+  type UnreadChatNotification,
+} from '@/features/contracts/hooks/useContracts';
 import {
   useMarkNotificationAsRead,
   useNotifications,
@@ -69,6 +72,7 @@ export function NotificationInboxPopover({
   const { data: unreadData } = useNotificationUnreadCount({ enabled: open });
   const unreadCount = unreadData?.unreadCount ?? 0;
   const markReadMutation = useMarkNotificationAsRead();
+  const markChatReadMutation = useMarkMessagesRead();
 
   const handleTabChange = (_: SyntheticEvent, newValue: number) => {
     setUnreadOnly(newValue === 1);
@@ -269,7 +273,8 @@ export function NotificationInboxPopover({
                 <Box
                   key={chat.requestId}
                   onClick={() => {
-                    navigate(`${getSectionPath(portal, 'contracts')}?requestId=${chat.requestId}`);
+                    markChatReadMutation.mutate(chat.requestId);
+                    navigate(`${getSectionPath(portal, 'messages')}?requestId=${chat.requestId}`);
                     onClose();
                   }}
                   sx={{

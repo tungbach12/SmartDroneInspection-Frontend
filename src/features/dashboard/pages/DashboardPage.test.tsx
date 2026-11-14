@@ -60,15 +60,6 @@ describe('dashboard', () => {
     expect(screen.getByRole('button', { name: /All Inspections/i })).toBeTruthy();
   });
 
-  it('shows only maintenance shortcuts for maintenance engineers', () => {
-    renderDashboard(['MAINTENANCE_ENGINEER'], '/operations/dashboard');
-    expect(screen.getByRole('heading', { name: 'Maintenance workload' })).toBeTruthy();
-    expect(screen.getByText('Assigned repair work')).toBeTruthy();
-    expect(document.querySelector('a[href="/operations/maintenance"]')).toBeTruthy();
-    expect(document.querySelector('a[href="/operations/inspections"]')).toBeNull();
-    expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
-  });
-
   it('shows shared Lytic-style metrics with platform-only shortcuts for administrators', () => {
     renderDashboard(['ADMIN'], '/admin/dashboard');
     expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
@@ -96,10 +87,9 @@ describe('dashboard', () => {
     expect(document.querySelector('a[href="/operations/inspections"]')).toBeNull();
   });
 
-  it('combines both operations workspaces only within the operations portal', () => {
-    renderDashboard(['INSPECTOR', 'MAINTENANCE_ENGINEER'], '/operations/dashboard');
-    expect(document.querySelector('a[href="/operations/inspections"]')).toBeTruthy();
-    expect(document.querySelector('a[href="/operations/maintenance"]')).toBeTruthy();
-    expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
+  it('shows inspection navigation in the operations portal without maintenance workspaces', () => {
+    renderDashboard(['INSPECTOR'], '/operations/dashboard');
+    expect(screen.getByRole('button', { name: /All Inspections/i })).toBeTruthy();
+    expect(mocks.useAssets).not.toHaveBeenCalled();
   });
 });

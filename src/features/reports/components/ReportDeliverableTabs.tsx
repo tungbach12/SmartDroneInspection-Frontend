@@ -6,7 +6,6 @@ import type {
   EvidenceItem,
   Finding,
   InspectionReport,
-  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { ReportAuthoringPanel } from './ReportAuthoringPanel';
 import { FlightOperationsReportView } from './FlightOperationsReportView';
@@ -20,7 +19,6 @@ export interface ReportDeliverableTabsProps {
   onSelectVersion?: ((versionId: string) => void) | undefined;
   findings: Finding[];
   evidenceList: EvidenceItem[];
-  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   canEdit?: boolean;
   onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
   assetName?: string | null | undefined;
@@ -35,7 +33,6 @@ export function ReportDeliverableTabs({
   onSelectVersion,
   findings,
   evidenceList,
-  reinspectionVerifications,
   canEdit = false,
   onSaveSections,
   assetName,
@@ -122,7 +119,7 @@ export function ReportDeliverableTabs({
           inspectionId={inspectionId}
           canEdit={canEdit}
           onSaveSections={onSaveSections}
-          reinspectionVerifications={reinspectionVerifications}
+
           droneSummary={droneSummary}
           flightPermitFileName={flightPermitFileName}
         />

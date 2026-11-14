@@ -13,52 +13,20 @@ describe('authentication form validation', () => {
     expect(loginSchema.safeParse({ email: 'client@example.com', password: '' }).success).toBe(false);
   });
 
-  it('validates Client organization registration and matching passwords', () => {
+  it('validates account registration and matching passwords', () => {
     const valid = {
       fullName: 'Client User',
-      organizationName: 'Example Organization',
-      organizationCode: 'example_1',
       email: 'client@example.com',
       password: 'A much longer secure password 1!',
       confirmPassword: 'A much longer secure password 1!',
-      firstAsset: {
-        code: 'AST-001',
-        name: 'Saigon Bridge',
-        categoryId: 'e58ed763-928c-4155-bee9-fdbaaadc15f3',
-        locationText: 'District 2, HCMC',
-        latitude: 10.7769,
-        longitude: 106.6953,
-      },
     };
 
     expect(organizationRegistrationSchema.safeParse(valid).success).toBe(true);
 
-    const withAsset = {
-      ...valid,
-      firstAsset: {
-        code: 'AST-001',
-        name: 'Saigon Bridge',
-        categoryId: 'e58ed763-928c-4155-bee9-fdbaaadc15f3',
-        locationText: 'District 2, HCMC',
-        latitude: 10.7769,
-        longitude: 106.6953,
-      },
-    };
-    expect(organizationRegistrationSchema.safeParse(withAsset).success).toBe(true);
-
-    expect(
-      organizationRegistrationSchema.safeParse({
-        ...withAsset,
-        firstAsset: {
-          ...withAsset.firstAsset,
-          latitude: 95, // invalid latitude
-        },
-      }).success,
-    ).toBe(false);
     expect(
       organizationRegistrationSchema.safeParse({
         ...valid,
-        organizationCode: 'x!',
+        fullName: '',
       }).success,
     ).toBe(false);
     expect(

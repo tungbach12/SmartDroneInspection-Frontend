@@ -40,7 +40,15 @@ export interface DroneRegistrationApplication {
   registrationFileKey: string;
   registrationExpiresAt: string;
   ownershipFileKey: string;
-  inspectionFileKey: string;
+  inspectionFileKey?: string | null;
+  maxWindResistanceMps?: number | null;
+  maxAltitudeMeters?: number | null;
+  opticalZoomLevel?: string | null;
+  hasThermalCamera?: boolean;
+  hasRtk?: boolean;
+  documentFiles?: Record<string, string> | null;
+  imageFileKeys?: string[] | null;
+  features?: string[] | null;
   status: string;
   reviewNote: string | null;
   reviewedByUserId?: string | null;
@@ -51,7 +59,7 @@ export interface DroneRegistrationApplication {
 }
 
 export const mf1ReviewApi = {
-  droneEvidence: (id: string, type: 'REGISTRATION' | 'OWNERSHIP' | 'INSPECTION') =>
+  droneEvidence: (id: string, type: string) =>
     api.get<Blob>(`/drone-registration-applications/${id}/evidence/${type}`, { responseType: 'blob' }).then((response) => response.data),
   pendingCustomers: () =>
     api.get<ProspectiveCustomerReview[] | { data: ProspectiveCustomerReview[] }>('/platform/customer-airspace-reviews/pending').then(unwrap),

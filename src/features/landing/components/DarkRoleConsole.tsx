@@ -34,16 +34,6 @@ const roles = [
     actionText: 'Operations Sign In',
     href: '/login',
   },
-  {
-    role: 'MAINTENANCE_ENGINEER',
-    title: 'Maintenance Engineer',
-    description:
-      'Complete assigned maintenance work and record evidence of close-out.',
-    status: 'warn' as const,
-    statusLabel: 'MAINTENANCE',
-    actionText: 'Operations Sign In',
-    href: '/login',
-  },
 ];
 
 export function DarkRoleConsole() {

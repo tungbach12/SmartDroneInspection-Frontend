@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { theme } from '@/app/theme/theme';
 import Mf1ReviewPage from './Mf1ReviewPage';
 import { mf1ReviewApi } from '../api/mf1ReviewApi';
+import { inspectorApplicationApi } from '@/features/auth/api/inspectorApplicationApi';
 import { useAuthStore } from '@/features/auth/store/authStore';
 
 const originalCreateObjectUrl = URL.createObjectURL;
@@ -28,6 +29,17 @@ vi.mock('../api/inspectorProfileApi', () => ({
     getProfile: vi.fn().mockResolvedValue(null),
     updateProfile: vi.fn(),
     createFlightLog: vi.fn(),
+  },
+}));
+
+vi.mock('@/features/auth/api/inspectorApplicationApi', () => ({
+  inspectorApplicationApi: {
+    listPending: vi.fn().mockResolvedValue([]),
+    listApprovedAwaitingContract: vi.fn().mockResolvedValue([]),
+    getLicenseScanBlob: vi.fn().mockResolvedValue(new Blob(['img'], { type: 'image/png' })),
+    approve: vi.fn(),
+    reject: vi.fn(),
+    uploadSignedContract: vi.fn(),
   },
 }));
 
@@ -124,5 +136,37 @@ describe('MF1 review queues', () => {
     expect(
       await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i),
     ).toBeTruthy();
+  });
+
+  it('allows reviewing pending inspector applications and viewing license scan', async () => {
+    vi.mocked(inspectorApplicationApi.listPending).mockResolvedValue([
+      {
+        id: 'app-1',
+        email: 'sangditrau123@gmail.com',
+        fullName: 'Nguyen Van Sang',
+        phoneNumber: '0901234567',
+        citizenId: '079200012345',
+        address: '123 Le Loi, Q1, TP.HCM',
+        pilotLicenseNumber: 'UAV-999',
+        pilotLicenseClass: 'Hạng A',
+        pilotLicenseExpiresAt: '2028-12-31',
+        hasLicenseScan: true,
+        status: 'PENDING_REVIEW',
+        createdAt: '2026-11-14T00:00:00Z',
+      },
+    ]);
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('tab', { name: /Inspector Applications|Đơn đăng ký Inspector/i }),
+    );
+    expect(await screen.findByText('Nguyen Van Sang')).toBeTruthy();
+    expect(screen.getByText(/079200012345/)).toBeTruthy();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Review application|Xem hồ sơ & Duyệt/i }),
+    );
+    expect(
+      await screen.findByText(/Review Inspector Application|Thẩm định Đơn đăng ký Inspector/i),
+    ).toBeTruthy();
+    expect(inspectorApplicationApi.getLicenseScanBlob).toHaveBeenCalledWith('app-1');
   });
 });

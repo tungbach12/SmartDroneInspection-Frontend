@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { Box, Button, Container, Link, Typography } from '@mui/material';
+import { Box, Button, Link, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { AuthHeroSlideshow } from './AuthHeroSlideshow';
+import { DroneScene3D } from './DroneScene3D';
 
 function GoogleIcon() {
   return (
@@ -26,40 +26,33 @@ function GoogleIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="#FFFFFF" style={{ display: 'block' }}>
-      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.98.6-2.62 1.35-.57.65-1.06 1.73-.93 2.76 1 .08 2-.51 2.62-1.26" />
-    </svg>
-  );
-}
-
 function BrandLogo() {
   return (
-    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.25 }}>
-      <svg width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ display: 'block' }}>
-        <defs>
-          <linearGradient id="sdi_auth_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#3758F9" />
-            <stop offset="1" stopColor="#06B6D4" />
-          </linearGradient>
-        </defs>
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.15 }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ display: 'block' }}>
+        <rect x="2" y="2" width="28" height="28" rx="8" fill="#3758F9" />
         <path
-          d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
-          fill="url(#sdi_auth_s_grad)"
+          d="M9.5 11.5L13 15M22.5 11.5L19 15M9.5 20.5L13 17M22.5 20.5L19 17"
+          stroke="#93C5FD"
+          strokeWidth="2"
+          strokeLinecap="round"
         />
-        <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
+        <circle cx="9" cy="11" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
+        <circle cx="23" cy="11" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
+        <circle cx="9" cy="21" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
+        <circle cx="23" cy="21" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
+        <rect x="13" y="13" width="6" height="6" rx="2" fill="#FFFFFF" />
       </svg>
       <Typography
         sx={{
-          fontSize: '18px',
+          fontSize: '20px',
           fontWeight: 700,
-          letterSpacing: '-0.025em',
-          color: '#FFFFFF',
+          letterSpacing: '-0.03em',
+          color: '#18181B',
           fontFamily: 'inherit',
         }}
       >
-        SmartDroneInspection
+        SDI<Box component="span" sx={{ color: '#3758F9' }}>.</Box>
       </Typography>
     </Box>
   );
@@ -99,10 +92,10 @@ export function AuthPageLayout({
   backLabel = 'Back to website',
   backTo = '/',
   heroTagline = {
-    line1: 'Capturing Perspectives,',
-    line2: 'Creating Confidence',
+    line1: 'Autonomous Aerial Inspection',
+    line2: 'Precision 3D Infrastructure Telemetry',
   },
-  socialPrompt = 'Or register with',
+  socialPrompt = 'Or, Login with',
   showSocial = true,
   onGoogleClick,
   onAppleClick: _onAppleClick,
@@ -114,318 +107,177 @@ export function AuthPageLayout({
       component="main"
       sx={{
         minHeight: '100vh',
-        bgcolor: '#F1F7F5',
-        background:
-          'radial-gradient(ellipse at 10% 8%, rgba(101, 223, 186, 0.15), transparent 38%), radial-gradient(ellipse at 92% 92%, rgba(8, 126, 139, 0.1), transparent 34%), #F1F7F5',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        py: { xs: 3, md: 5 },
-        px: { xs: 2, sm: 3, md: 4 },
+        width: '100%',
+        bgcolor: '#FFFFFF',
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: '58fr 42fr', lg: '62fr 38fr' },
+        alignItems: 'stretch',
         fontFamily: 'var(--lytic-font, "Geist Sans", sans-serif)',
       }}
     >
-      {/* Ambient Landing Page Lighting */}
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          top: '-15%',
-          left: '10%',
-          width: '650px',
-          height: '450px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(101, 223, 186, 0.2) 0%, transparent 65%)',
-          filter: 'blur(90px)',
-          pointerEvents: 'none',
-        }}
-      />
-      <Box
-        aria-hidden="true"
-        sx={{
-          position: 'absolute',
-          bottom: '-12%',
-          right: '8%',
-          width: '550px',
-          height: '400px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(8, 126, 139, 0.12) 0%, transparent 65%)',
-          filter: 'blur(80px)',
-          pointerEvents: 'none',
-        }}
+      {/* Left Pane: Interactive Three.js 3D Drone Inspection Animation */}
+      <DroneScene3D
+        backLabel={backLabel}
+        backTo={backTo}
+        heroTagline={heroTagline}
       />
 
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 10 }}>
-        {/* Main Floating Outer Card */}
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: '1080px',
-            mx: 'auto',
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            borderRadius: { xs: '20px', md: '26px' },
-            bgcolor: '#FFFFFF',
-            border: '1px solid rgba(15, 87, 77, 0.12)',
-            boxShadow: '0 32px 84px -22px rgba(21, 74, 65, 0.22), 0 3px 16px rgba(21, 74, 65, 0.05)',
-            p: { xs: 2, md: '18px' },
-            gap: { xs: 3, md: 4 },
-            alignItems: 'stretch',
-          }}
-        >
-          {/* Left Inner Frame: Realistic Drone Photo Showcase Card */}
-          <Box
-            component="aside"
-            sx={{
-              display: { xs: 'none', md: 'flex' },
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              borderRadius: '20px',
-              minHeight: { md: '560px', lg: '600px' },
-              p: 3.5,
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-            }}
-          >
-            <AuthHeroSlideshow />
-
-            {/* Top Bar: Brand Logo & Back to Website Pill */}
-            <Box
+      {/* Right Pane: Clean Compact Form matching the Reference Layout */}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          px: { xs: 3, sm: 5, md: 5, lg: 6 },
+          py: { xs: 4, md: 5 },
+          bgcolor: '#FFFFFF',
+        }}
+      >
+        <Box sx={{ width: '100%', maxWidth: '360px' }}>
+          {/* Top-Left Brand Logo */}
+          <Box sx={{ mb: 3.5 }}>
+            <Link
+              component={RouterLink}
+              to="/"
+              underline="none"
               sx={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                position: 'relative',
-                zIndex: 2,
+                transition: 'opacity 0.2s ease',
+                '&:hover': { opacity: 0.85 },
               }}
             >
-              <Link
-                component={RouterLink}
-                to="/"
-                underline="none"
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  transition: 'opacity 0.2s ease',
-                  '&:hover': { opacity: 0.85 },
-                }}
-              >
-                <BrandLogo />
-              </Link>
-
-              <Link
-                component={RouterLink}
-                to={backTo}
-                underline="none"
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  fontSize: '12.5px',
-                  fontWeight: 500,
-                  color: '#FFFFFF',
-                  bgcolor: 'rgba(8, 32, 30, 0.3)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.36)',
-                  borderRadius: '9999px',
-                  px: 1.75,
-                  py: 0.6,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    bgcolor: 'rgba(8, 32, 30, 0.48)',
-                    color: '#FFFFFF',
-                  },
-                }}
-              >
-                {backLabel} &rarr;
-              </Link>
-            </Box>
-
-            {/* Bottom Section: Hero Tagline & 3 Pagination Dashes */}
-            <Box sx={{ position: 'relative', zIndex: 2, textAlign: 'center', pb: 1 }}>
-              <Typography
-                component="h2"
-                sx={{
-                  fontSize: '26px',
-                  fontWeight: 600,
-                  lineHeight: 1.35,
-                  letterSpacing: '-0.025em',
-                  color: '#FFFFFF',
-                  mb: 2.5,
-                  textShadow: '0 2px 12px rgba(0,0,0,0.5)',
-                }}
-              >
-                {heroTagline.line1}
-                <br />
-                {heroTagline.line2}
-              </Typography>
-
-            </Box>
+              <BrandLogo />
+            </Link>
           </Box>
 
-          {/* Right Form Pane */}
-          <Box
-            sx={{
-              minWidth: 0,
-              p: { xs: 1, sm: 2.5, md: '16px 20px 16px 8px' },
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}
-          >
-            {/* Header: Title and Welcoming Subtitle Link */}
-            <Box sx={{ mb: 2.5 }}>
-              {eyebrow && (
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: 'primary.main',
-                    mb: 0.5,
-                  }}
-                >
-                  {eyebrow}
-                </Typography>
-              )}
+          {/* Left-Aligned Bold Heading & Subtitle */}
+          <Box sx={{ mb: 3 }}>
+            {eyebrow && (
               <Typography
-                component="h1"
                 sx={{
-                  fontSize: { xs: '28px', sm: '34px' },
+                  fontSize: '11.5px',
                   fontWeight: 700,
-                  letterSpacing: '-0.03em',
-                  color: 'text.primary',
-                  lineHeight: 1.2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.09em',
+                  color: '#3758F9',
                   mb: 0.75,
                 }}
               >
-                {title}
+                {eyebrow}
               </Typography>
-
-              {subtitleText && (
-                <Typography
-                  sx={{
-                    fontSize: '14px',
-                    color: 'text.secondary',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {subtitleText}{' '}
-                  {subtitleLinkText && subtitleLinkTo && (
-                    <Link
-                      component={RouterLink}
-                      to={subtitleLinkTo}
-                      underline="hover"
-                      sx={{
-                        color: 'primary.main',
-                        fontWeight: 600,
-                        transition: 'color 0.2s ease',
-                        '&:hover': { color: 'primary.dark' },
-                      }}
-                    >
-                      {subtitleLinkText}
-                    </Link>
-                  )}
-                </Typography>
-              )}
-
-              {description && !subtitleText && (
-                <Typography
-                  sx={{
-                    fontSize: '14px',
-                    color: '#5F7872',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {description}
-                </Typography>
-              )}
-            </Box>
-
-            {/* Form Fields */}
-            <Box sx={{ mb: 1 }}>{children}</Box>
-
-            {/* Social / SSO Divider & Buttons */}
-            {showSocial && (
-              <Box sx={{ mt: 1.5 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    my: 1.75,
-                  }}
-                >
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: '#DFEAE7' }} />
-                  <Typography sx={{ fontSize: '12px', color: '#607972' }}>
-                    {socialPrompt}
-                  </Typography>
-                  <Box sx={{ flex: 1, height: '1px', bgcolor: '#DFEAE7' }} />
-                </Box>
-
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    onClick={onGoogleClick ?? defaultGoogleLogin}
-                    startIcon={<GoogleIcon />}
-                    sx={{
-                      height: 44,
-                      borderRadius: '8px',
-                      borderColor: '#D7E5E1',
-                      color: '#23433D',
-                      textTransform: 'none',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      bgcolor: '#F8FBFA',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        borderColor: '#9FC8BF',
-                        bgcolor: '#EDF6F3',
-                      },
-                    }}
-                  >
-                    Google
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    startIcon={<AppleIcon />}
-                    sx={{
-                      height: 44,
-                      borderRadius: '8px',
-                      borderColor: '#D7E5E1',
-                      color: '#23433D',
-                      textTransform: 'none',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      bgcolor: '#F8FBFA',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        borderColor: '#9FC8BF',
-                        bgcolor: '#EDF6F3',
-                      },
-                    }}
-                  >
-                    Apple
-                  </Button>
-                </Box>
-              </Box>
             )}
-
-            {/* Custom footer if passed */}
-            {footer && (
-              <Box sx={{ pt: 2, textAlign: 'center' }}>
-                {footer}
-              </Box>
-            )}
+            <Typography
+              component="h1"
+              sx={{
+                fontSize: { xs: '28px', sm: '32px' },
+                fontWeight: 700,
+                letterSpacing: '-0.03em',
+                color: '#18181B',
+                lineHeight: 1.2,
+                mb: 0.75,
+              }}
+            >
+              {title}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '14px',
+                color: '#64748B',
+                lineHeight: 1.5,
+              }}
+            >
+              {description || 'Enter to get unlimited access to data & information.'}
+            </Typography>
           </Box>
+
+          {/* Form Fields & Primary Submit Button */}
+          <Box>{children}</Box>
+
+          {/* Divider & Social Button Below Form (Matches Reference Image) */}
+          {showSocial && (
+            <Box sx={{ mt: 2.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  mb: 2.25,
+                }}
+              >
+                <Box sx={{ flex: 1, height: '1px', bgcolor: '#E2E8F0' }} />
+                <Typography sx={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+                  {socialPrompt}
+                </Typography>
+                <Box sx={{ flex: 1, height: '1px', bgcolor: '#E2E8F0' }} />
+              </Box>
+
+              <Button
+                type="button"
+                variant="outlined"
+                fullWidth
+                onClick={onGoogleClick ?? defaultGoogleLogin}
+                startIcon={<GoogleIcon />}
+                sx={{
+                  height: 46,
+                  borderRadius: '10px',
+                  borderColor: '#E2E8F0',
+                  color: '#1E293B',
+                  textTransform: 'none',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  bgcolor: '#FFFFFF',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: '#CBD5E1',
+                    bgcolor: '#F8FAFC',
+                  },
+                }}
+              >
+                Continue with Google
+              </Button>
+            </Box>
+          )}
+
+          {/* Bottom Register/Login Switch Link */}
+          {subtitleText && (
+            <Typography
+              sx={{
+                mt: 3,
+                textAlign: 'center',
+                fontSize: '13.5px',
+                color: '#0F172A',
+                fontWeight: 500,
+              }}
+            >
+              {subtitleText}{' '}
+              {subtitleLinkText && subtitleLinkTo && (
+                <Link
+                  component={RouterLink}
+                  to={subtitleLinkTo}
+                  underline="hover"
+                  sx={{
+                    color: '#3758F9',
+                    fontWeight: 600,
+                    transition: 'color 0.2s ease',
+                    '&:hover': { color: '#2237EE' },
+                  }}
+                >
+                  {subtitleLinkText}
+                </Link>
+              )}
+            </Typography>
+          )}
+
+          {footer && (
+            <Box sx={{ pt: 2, textAlign: 'center' }}>
+              {footer}
+            </Box>
+          )}
         </Box>
-      </Container>
+      </Box>
     </Box>
   );
 }

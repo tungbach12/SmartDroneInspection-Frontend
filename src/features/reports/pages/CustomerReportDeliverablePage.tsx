@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -8,24 +8,19 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import BuildOutlined from '@mui/icons-material/BuildOutlined';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
-  useCreateDirectReinspection,
   useCreateInspectionPayOSLink,
   useCreateInspectionVnPayUrl,
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
-  useInspectionWorkflowState,
-  useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
   useRequestReportClarification,
@@ -42,7 +37,7 @@ export interface CustomerReportDeliverablePageProps {
 
 /**
  * Dedicated Customer Official Report & Deliverable Settlement Page (/client/inspections/:id/report | /settlement).
- * Handles Customer report acceptance, service invoice payment (PayOS / VNPay), and forwarding confirmed findings to Maintenance.
+ * Handles Customer report acceptance and service invoice payment (PayOS / VNPay).
  */
 export default function CustomerReportDeliverablePage({
   stage,
@@ -50,7 +45,6 @@ export default function CustomerReportDeliverablePage({
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
-  const navigate = useNavigate();
   const showReportContent = !stage || stage === 'report';
   const showSettlementContent = !stage || stage === 'settlement';
 
@@ -59,9 +53,6 @@ export default function CustomerReportDeliverablePage({
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
-  const [reinspectionOpen, setReinspectionOpen] = useState(false);
-  const [reinspectionNotes, setReinspectionNotes] = useState('');
-  const [reinspectionProofUrl, setReinspectionProofUrl] = useState('');
 
   useEffect(() => {
     if (!inspectionId || typeof localStorage === 'undefined') return;
@@ -88,16 +79,12 @@ export default function CustomerReportDeliverablePage({
   }, [inspectionId]);
 
   const inspectionQuery = useInspection(inspectionId);
-  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
-  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
-  const workflowState = useInspectionWorkflowState(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
-  const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
@@ -119,18 +106,6 @@ export default function CustomerReportDeliverablePage({
     versions.data?.[0] ??
     null;
 
-  const inspectionStatus = workflowState.data?.status;
-  const confirmedFindingsList = (findings.data ?? []).filter(
-    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
-  );
-  const hasForwardedFindings = confirmedFindingsList.some(
-    (item) => item.forwardedToMaintenanceAt != null,
-  );
-  const publishedUnhanded =
-    openVersion?.status === 'PUBLISHED' &&
-    (inspectionStatus === 'COMPLETED' || inspectionStatus == null) &&
-    !hasForwardedFindings;
-
   const resolvedDroneSummary =
     [
       openVersion?.reportContext?.assignedDrone?.manufacturer,
@@ -146,6 +121,10 @@ export default function CustomerReportDeliverablePage({
     null;
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
+
+  const priorClarificationCount = (versions.data ?? []).filter(
+    (v) => v.returnReason && v.returnReason.includes('[Yêu cầu làm rõ từ Khách hàng]'),
+  ).length;
 
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
@@ -219,60 +198,6 @@ export default function CustomerReportDeliverablePage({
               />
             )}
 
-            {showSettlementContent && publishedUnhanded && !isReinspection && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2,
-                  borderRadius: '10px',
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { sm: 'center' },
-                  justifyContent: 'space-between',
-                  gap: 2,
-                }}
-              >
-                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
-                  <BuildOutlined color="primary" sx={{ mt: 0.25 }} />
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {t('Send to Maintenance (MF3-12)')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('Select confirmed findings to forward to your maintenance team as repair candidates.')}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setReinspectionOpen(true)}
-                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                  >
-                    {t('Schedule Re-inspection')}
-                  </Button>
-                  <Button
-                    variant="contained"
-                    component={RouterLink}
-                    to={`${getSectionPath('client', 'inspections')}/${inspectionId}/corrective`}
-                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                  >
-                    {t('Send findings to Maintenance')}
-                  </Button>
-                </Stack>
-              </Paper>
-            )}
-
-            {showSettlementContent && publishedUnhanded && isReinspection && (
-              <Alert severity="info" sx={{ borderRadius: '10px' }}>
-                {t(
-                  'This is a re-inspection deliverable verifying previous repair work. Findings verification has been recorded directly to the linked maintenance work order.',
-                )}
-              </Alert>
-            )}
-
             {showReportContent && (
               <ReportDeliverableTabs
                 inspectionId={inspectionId}
@@ -281,7 +206,6 @@ export default function CustomerReportDeliverablePage({
                 onSelectVersion={setOpenVersionId}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
-                reinspectionVerifications={reinspectionVerifications.data}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
@@ -303,21 +227,31 @@ export default function CustomerReportDeliverablePage({
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t(
-                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Platform Manager will review and provide a response.',
-              )}
-            </Typography>
-            <TextField
-              label={t('Dispute details or questions')}
-              multiline
-              rows={4}
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder={t('e.g. Defect location is inaccurate, photo quality is unclear, severity rating requires re-evaluation…')}
-              fullWidth
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
+            {priorClarificationCount >= 2 ? (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t(
+                  'Báo cáo đã qua 02 lần yêu cầu làm rõ theo hạn mức hợp đồng. Quyền gửi yêu cầu trực tuyến đã tạm khóa để bảo vệ tiến độ. Vui lòng liên hệ trực tiếp Quản lý nền tảng để đối soát và hòa giải.',
+                )}
+              </Alert>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  {t(
+                    'Vui lòng nêu rõ các điểm chưa chính xác hoặc câu hỏi kỹ thuật cần làm rõ. Quy định hợp đồng cho phép tối đa 02 lần yêu cầu làm rõ trước khi nghiệm thu (Hiện tại: lần {count}/2).',
+                  ).replace('{count}', String(priorClarificationCount + 1))}
+                </Typography>
+                <TextField
+                  label={t('Dispute details or questions')}
+                  multiline
+                  rows={4}
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  placeholder={t('e.g. Defect location is inaccurate, photo quality is unclear, severity rating requires re-evaluation…')}
+                  fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -327,7 +261,7 @@ export default function CustomerReportDeliverablePage({
           <Button
             variant="contained"
             color="warning"
-            disabled={!disputeReason.trim() || requestClarification.isPending}
+            disabled={priorClarificationCount >= 2 || !disputeReason.trim() || requestClarification.isPending}
             onClick={() => {
               const timestamp = new Date().toISOString();
               try {
@@ -368,68 +302,6 @@ export default function CustomerReportDeliverablePage({
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={reinspectionOpen}
-        onClose={() => setReinspectionOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {t('Schedule Post-Repair Re-inspection')}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t(
-                'Schedule a targeted re-inspection flight to verify that all confirmed defects from this report have been remediated.',
-              )}
-            </Typography>
-            <TextField
-              label={t('Contractor repair summary / Handover notes')}
-              multiline
-              rows={3}
-              value={reinspectionNotes}
-              onChange={(e) => setReinspectionNotes(e.target.value)}
-              placeholder={t('e.g. Repaired facade cracks at 18F with epoxy injection and waterproof coating…')}
-              fullWidth
-            />
-            <TextField
-              label={t('Repair proof photo URL (optional)')}
-              value={reinspectionProofUrl}
-              onChange={(e) => setReinspectionProofUrl(e.target.value)}
-              placeholder="https://..."
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setReinspectionOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            disabled={createDirectReinspection.isPending}
-            onClick={() => {
-              createDirectReinspection.mutate(
-                {
-                  ...(reinspectionNotes.trim() ? { repairNotes: reinspectionNotes.trim() } : {}),
-                  ...(reinspectionProofUrl.trim() ? { repairProofUrl: reinspectionProofUrl.trim() } : {}),
-                },
-                {
-                  onSuccess: (created) => {
-                    setReinspectionOpen(false);
-                    navigate(`${getSectionPath('client', 'inspections')}/${created.id}/tracking`);
-                  },
-                },
-              );
-            }}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-          >
-            {createDirectReinspection.isPending ? t('Scheduling…') : t('Confirm Re-inspection')}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

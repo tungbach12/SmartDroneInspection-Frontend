@@ -21,7 +21,6 @@ import type {
   EvidenceItem,
   InspectionReport,
   Finding,
-  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -37,7 +36,6 @@ export interface ReportAuthoringPanelProps {
   canEdit?: boolean;
   onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
-  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
 }
@@ -59,7 +57,6 @@ export function ReportAuthoringPanel({
   evidenceList,
   inspectionId,
   canEdit = false,
-  reinspectionVerifications,
   droneSummary,
   flightPermitFileName,
 }: ReportAuthoringPanelProps) {
@@ -198,7 +195,7 @@ export function ReportAuthoringPanel({
         findings={findings}
         evidenceList={evidenceList}
         inspectionId={inspectionId}
-        reinspectionVerifications={reinspectionVerifications}
+
         droneSummary={droneSummary}
         flightPermitFileName={flightPermitFileName}
       />

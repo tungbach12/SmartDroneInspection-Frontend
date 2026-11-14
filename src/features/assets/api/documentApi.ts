@@ -20,11 +20,18 @@ export const documentApi = {
   list: (assetId: string) =>
     api.get<AssetDocument[]>(`/assets/${assetId}/documents`).then((r) => r.data),
 
-  upload: (assetId: string, file: File, documentType: string, documentDate?: string) => {
+  upload: (
+    assetId: string,
+    file: File,
+    documentType: string,
+    documentDate?: string,
+    primaryImage = false,
+  ) => {
     const form = new FormData();
     form.append('file', file);
     form.append('documentType', documentType);
     if (documentDate) form.append('documentDate', documentDate);
+    if (primaryImage) form.append('primaryImage', 'true');
     return api
       .post<AssetDocument>(`/assets/${assetId}/documents`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },

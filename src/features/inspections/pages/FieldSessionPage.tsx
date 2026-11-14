@@ -30,9 +30,7 @@ import {
   useInspectionEvidence,
   useStartFieldSession,
   useUploadFlightPermit,
-  useReinspectionVerifications,
 } from '../hooks/useInspections';
-import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
 import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
@@ -387,8 +385,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const startSession = useStartFieldSession(inspectionId);
   const outcome = useFieldSessionOutcome(inspectionId);
   const uploadPermit = useUploadFlightPermit(inspectionId);
-  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
-  const verifications = useReinspectionVerifications(isReinspection ? inspectionId : '');
   const evidenceQuery = useInspectionEvidence?.(inspectionId);
 
   const [permitFile, setPermitFile] = useState<File | null>(null);
@@ -419,7 +415,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [outcomeReason, setOutcomeReason] = useState('');
   const abortReasonInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
-  const assetInspectionItems = isReinspection ? [] : (inspection?.inspectionItems ?? []);
+  const assetInspectionItems = inspection?.inspectionItems ?? [];
 
   const preFlightTemplatesQuery = useChecklistTemplates(
     { type: 'PRE_FLIGHT' },
@@ -621,15 +617,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   return (
     <Box className="workspace-page workspace-page--inspections trace-ledger-workspace">
       <Stack spacing={2}>
-        {isReinspection && showFlightStage && (
-          <TargetFlightShotList
-            mode="flight-guidance"
-            inspectionId={inspectionId}
-            sourceInspectionId={inspection?.sourceInspectionId}
-            items={verifications.data ?? []}
-          />
-        )}
-
         {showPermitSection && (
         <QueryState
           isLoading={inspectionQuery.isLoading}
@@ -1432,7 +1419,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         },
                         {
                           onSuccess: () => {
-                            navigate(isReinspection ? '../findings' : '../evidence');
+                            navigate('../evidence');
                           },
                         },
                       );
@@ -1452,9 +1439,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       >
                         <Box>
                           <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-                            {isReinspection
-                              ? t('Post-flight Completion Checklist')
-                              : t('Post-flight & Inspection Items')}
+                            {t('Post-flight & Inspection Items')}
                           </Typography>
                         </Box>
                         <Button
@@ -1714,9 +1699,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             !((allPostFlightChecked && allAssetItemsChecked) || Boolean(outcomeReason.trim()))
                           }
                         >
-                          {isReinspection
-                            ? t('Complete session & Continue to Defect Verification')
-                            : t('Complete session & Continue to Evidence')}
+                          {t('Complete session & Continue to Evidence')}
                         </LoadingButton>
                       </Stack>
                     </Stack>
@@ -1746,11 +1729,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       </Box>
                       <Button
                         component={RouterLink}
-                        to={isReinspection ? '../findings' : '../evidence'}
+                        to='../evidence'
                         variant="contained"
                         sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
                       >
-                        {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
+                        {t('Continue to evidence')}
                       </Button>
                     </Stack>
 
@@ -1947,9 +1930,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             textTransform: 'none',
                           }}
                         >
-                          {isReinspection
-                            ? t('Continue to Post-flight Check')
-                            : t('Continue to Post-flight & Items')}
+                          {t('Continue to Post-flight & Items')}
                         </Button>
                       ) : (
                         <Button
@@ -1999,12 +1980,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       )}
                       <Button
                         component={RouterLink}
-                        to={isReinspection ? '../findings' : '../evidence'}
+                        to='../evidence'
                         variant="contained"
                         size="medium"
                         sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
                       >
-                        {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
+                        {t('Continue to evidence')}
                       </Button>
                     </Stack>
                   ) : (

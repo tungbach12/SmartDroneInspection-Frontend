@@ -75,9 +75,7 @@ vi.mock('../hooks/useInspections', () => ({
   useUpdateFinding: () => mocks.updateFinding,
   useDeleteFinding: () => mocks.deleteFinding,
   useUpdateEvidenceLocation: () => mocks.updateLocation,
-  useInspection: () => ({ data: { inspectionType: 'INITIAL' } }),
-  useReinspectionVerifications: () => ({ data: [] }),
-  useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  useInspection: () => ({ data: {} }),
 }));
 
 vi.mock('@/shared/api/client', async (importOriginal) => {
@@ -135,7 +133,6 @@ function pendingFinding() {
     boundingBox: '',
     modelName: 'advisor',
     confidence: 0.82,
-    forwardedToMaintenanceAt: null,
     isDeleted: false,
   };
 }
@@ -155,7 +152,6 @@ function undecidedFinding() {
     boundingBox: null,
     modelName: null,
     confidence: null,
-    forwardedToMaintenanceAt: null,
     isDeleted: false,
   };
 }
@@ -178,8 +174,7 @@ function signInAs(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'User',
       roles,
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
   });
 }

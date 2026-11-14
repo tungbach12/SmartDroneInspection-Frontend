@@ -34,6 +34,8 @@ import HistoryRounded from '@mui/icons-material/HistoryRounded';
 import PersonAddAlt from '@mui/icons-material/PersonAddAlt';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
+import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   mf1ReviewApi,
@@ -44,6 +46,10 @@ import {
   inspectorProfileApi,
   type InspectorProfile,
 } from '../api/inspectorProfileApi';
+import {
+  inspectorApplicationApi,
+  type InspectorApplication,
+} from '@/features/auth/api/inspectorApplicationApi';
 import { useCreatePlatformUser } from '../hooks/usePlatformUsers';
 import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -108,6 +114,7 @@ function classifyDroneLegalTier(rawText?: string | null): {
 }
 
 const ALL_PANELS = [
+  'Inspector applications',
   'Drone registrations',
   'Drone history',
   'Inspector partners',
@@ -133,8 +140,14 @@ export default function Mf1ReviewPage() {
   const isAdmin = roles.includes('ADMIN');
 
   const availablePanels: Panel[] = isAdmin
-    ? ['Drone registrations', 'Drone history', 'Inspector partners', 'Customer airspace']
-    : ['Drone registrations', 'Drone history', 'Inspector partners'];
+    ? [
+        'Inspector applications',
+        'Drone registrations',
+        'Drone history',
+        'Inspector partners',
+        'Customer airspace',
+      ]
+    : ['Inspector applications', 'Drone registrations', 'Drone history', 'Inspector partners'];
 
   const [panel, setPanel] = useState<Panel>('Drone registrations');
   const [selected, setSelected] = useState<ReviewItem | null>(null);
@@ -198,6 +211,35 @@ export default function Mf1ReviewPage() {
     refetchInterval: 8000,
   });
 
+  const pendingInspectorApps = useQuery({
+    queryKey: ['mf1-reviews', 'inspector-applications', 'pending'],
+    queryFn: inspectorApplicationApi.listPending,
+    retry: false,
+    refetchInterval: 8000,
+  });
+
+  const awaitingContractApps = useQuery({
+    queryKey: ['mf1-reviews', 'inspector-applications', 'awaiting-contract'],
+    queryFn: inspectorApplicationApi.listApprovedAwaitingContract,
+    retry: false,
+    refetchInterval: 8000,
+  });
+
+  const [selectedApplication, setSelectedApplication] = useState<InspectorApplication | null>(null);
+  const [appAction, setAppAction] = useState<'approve' | 'reject'>('approve');
+  const [appRejectReason, setAppRejectReason] = useState('');
+  const [appScanUrl, setAppScanUrl] = useState<string | null>(null);
+  const [appScanIsPdf, setAppScanIsPdf] = useState(false);
+  const [appScanLoading, setAppScanLoading] = useState(false);
+  const [appScanFailed, setAppScanFailed] = useState(false);
+  const [appPending, setAppPending] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
+  const [uploadingContractId, setUploadingContractId] = useState<string | null>(null);
+  const [contractFeedback, setContractFeedback] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
   const closeDialog = () => {
     if (pending) return;
     setSelected(null);
@@ -224,25 +266,47 @@ export default function Mf1ReviewPage() {
 
     try {
       const isDroneApp = panel === 'Drone registrations' || panel === 'Drone history';
-      const documentsToFetch = isDroneApp
-        ? [
+      const droneApplication = isDroneApp ? (item as DroneRegistrationApplication) : null;
+      let documentsToFetch: Array<{ label: string; type: string; load: () => Promise<Blob> }> = [];
+
+      if (droneApplication) {
+        if (droneApplication.documentFiles && Object.keys(droneApplication.documentFiles).length > 0) {
+          documentsToFetch = Object.entries(droneApplication.documentFiles).map(([code]) => ({
+            label: code,
+            type: code,
+            load: () => mf1ReviewApi.droneEvidence(item.id, code),
+          }));
+        } else {
+          documentsToFetch = [
             {
-              label: tr('Giấy chứng nhận đăng ký drone', 'Drone registration certificate'),
+              label: tr('Đăng ký drone', 'Drone registration'),
               type: 'REGISTRATION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'REGISTRATION'),
             },
             {
-              label: tr('Giấy tờ sở hữu / Hóa đơn tài chính', 'Ownership proof / Financial invoice'),
+              label: tr('Chứng từ sở hữu', 'Proof of ownership'),
               type: 'OWNERSHIP',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'OWNERSHIP'),
             },
-            {
-              label: tr('Giấy kiểm định / Chứng nhận an toàn kỹ thuật', 'Airworthiness & technical safety certificate'),
+          ];
+          if (droneApplication.inspectionFileKey) {
+            documentsToFetch.push({
+              label: tr('Kiểm định an toàn', 'Safety inspection'),
               type: 'INSPECTION',
               load: () => mf1ReviewApi.droneEvidence(item.id, 'INSPECTION'),
-            },
-          ]
-        : [];
+            });
+          }
+        }
+        if (droneApplication.imageFileKeys && droneApplication.imageFileKeys.length > 0) {
+          droneApplication.imageFileKeys.forEach((_, idx) => {
+            documentsToFetch.push({
+              label: tr(`Ảnh drone #${idx + 1}`, `Drone Photo #${idx + 1}`),
+              type: `DRONE_IMAGE_${idx}`,
+              load: () => mf1ReviewApi.droneEvidence(item.id, `DRONE_IMAGE_${idx}`),
+            });
+          });
+        }
+      }
 
       if (documentsToFetch.length === 0) {
         setEvidenceLoading(false);
@@ -352,7 +416,7 @@ export default function Mf1ReviewPage() {
       const res = await createPlatformUser.mutateAsync({
         email: createEmail.trim(),
         fullName: createFullName.trim(),
-        actorZone: 'INSPECTOR_PARTNER',
+        actorZone: 'INSPECTOR',
         roles: ['INSPECTOR'],
       });
       setCreateInspectorOpen(false);
@@ -374,7 +438,137 @@ export default function Mf1ReviewPage() {
     }
   };
 
+  const closeInspectorAppDialog = () => {
+    if (appPending) return;
+    setSelectedApplication(null);
+    setAppAction('approve');
+    setAppRejectReason('');
+    if (appScanUrl) URL.revokeObjectURL(appScanUrl);
+    setAppScanUrl(null);
+    setAppScanIsPdf(false);
+    setAppScanLoading(false);
+    setAppScanFailed(false);
+    setAppError(null);
+  };
+
+  const openInspectorAppReview = async (application: InspectorApplication) => {
+    if (appScanUrl) URL.revokeObjectURL(appScanUrl);
+    setAppScanUrl(null);
+    setAppScanIsPdf(false);
+    setAppScanFailed(false);
+    setSelectedApplication(application);
+    setAppAction('approve');
+    setAppRejectReason('');
+    setAppError(null);
+
+    if (!application.hasLicenseScan) {
+      return;
+    }
+
+    setAppScanLoading(true);
+    try {
+      const blob = await inspectorApplicationApi.getLicenseScanBlob(application.id);
+      const url = URL.createObjectURL(blob);
+      setAppScanUrl(url);
+      setAppScanIsPdf(blob.type.toLowerCase().includes('pdf'));
+    } catch {
+      setAppScanFailed(true);
+    } finally {
+      setAppScanLoading(false);
+    }
+  };
+
+  const submitInspectorAppReview = async () => {
+    if (!selectedApplication) return;
+    setAppError(null);
+
+    if (appAction === 'reject' && appRejectReason.trim().length === 0) {
+      setAppError(
+        tr(
+          'Vui lòng nhập lý do từ chối để hệ thống gửi email thông báo cho ứng viên.',
+          'Please enter a rejection reason to notify the applicant by email.',
+        ),
+      );
+      return;
+    }
+
+    setAppPending(true);
+    try {
+      if (appAction === 'approve') {
+        await inspectorApplicationApi.approve(selectedApplication.id);
+      } else {
+        await inspectorApplicationApi.reject(selectedApplication.id, appRejectReason.trim());
+      }
+      await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
+      await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      closeInspectorAppDialog();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : tr(
+              'Không thể xử lý đơn đăng ký Inspector. Vui lòng thử lại.',
+              'Could not process this inspector application. Please try again.',
+            );
+      setAppError(message);
+    } finally {
+      setAppPending(false);
+    }
+  };
+
+  const handleUploadSignedContract = async (application: InspectorApplication, file: File) => {
+    setContractFeedback(null);
+    setAppError(null);
+    setUploadingContractId(application.id);
+    try {
+      const updated = await inspectorApplicationApi.uploadSignedContract(application.id, file);
+      if (selectedApplication?.id === application.id) {
+        setSelectedApplication(updated);
+      }
+      await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
+      await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      setContractFeedback({
+        severity: 'success',
+        message: tr(
+          `Đã tải lên bản scan hợp đồng cho ${application.fullName}. Bạn có thể bấm Duyệt để kích hoạt tài khoản.`,
+          `Uploaded signed contract for ${application.fullName}. You can now approve the account.`,
+        ),
+      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : tr(
+              'Không thể tải lên bản scan hợp đồng. Vui lòng thử lại.',
+              'Could not upload signed contract scan. Please try again.',
+            );
+      setContractFeedback({ severity: 'error', message });
+      if (selectedApplication?.id === application.id) {
+        setAppError(message);
+      }
+    } finally {
+      setUploadingContractId(null);
+    }
+  };
+
+  const handleOpenSignedContractPreview = async (applicationId: string) => {
+    try {
+      const blob = await inspectorApplicationApi.getSignedContractBlob(applicationId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setAppError(
+        tr('Không thể mở bản scan hợp đồng từ MinIO.', 'Could not open signed contract from MinIO.'),
+      );
+    }
+  };
+
   const getTabLabel = (name: Panel) => {
+    if (name === 'Inspector applications') {
+      const pendingCount = pendingInspectorApps.data?.length ?? 0;
+      return tr(`Đơn đăng ký Inspector (${pendingCount})`, `Inspector Applications (${pendingCount})`);
+    }
     if (name === 'Drone registrations') {
       const count = drones.data?.length ?? 0;
       return tr(`Đăng ký Drone chờ duyệt (${count})`, `Partner Drone Registrations (${count})`);
@@ -385,13 +579,14 @@ export default function Mf1ReviewPage() {
     }
     if (name === 'Inspector partners') {
       const count = inspectorProfiles.data?.length ?? 0;
-      return tr(`Hồ sơ đối tác Inspector (${count})`, `Partner Inspector Applications (${count})`);
+      return tr(`Hồ sơ đối tác Inspector (${count})`, `Partner Inspector Profiles (${count})`);
     }
     const count = customers.data?.length ?? 0;
     return tr(`Vùng bay khách hàng (${count})`, `Customer Airspace & Assets (${count})`);
   };
 
   const getTabIcon = (name: Panel) => {
+    if (name === 'Inspector applications') return <AssignmentIndOutlined fontSize="small" />;
     if (name === 'Drone registrations') return <FlightRounded fontSize="small" />;
     if (name === 'Drone history') return <HistoryRounded fontSize="small" />;
     if (name === 'Inspector partners') return <BadgeOutlined fontSize="small" />;
@@ -405,7 +600,7 @@ export default function Mf1ReviewPage() {
       <PageHeader
         title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
         breadcrumbs={[
-          { label: 'Home', to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
+          { label: tr('Quản trị', 'Governance'), to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
           { label: tr('Duyệt onboarding', 'Onboarding reviews') },
         ]}
       />
@@ -439,6 +634,267 @@ export default function Mf1ReviewPage() {
             />
           ))}
         </Tabs>
+
+        {/* ===================== TAB 0: INSPECTOR APPLICATIONS ===================== */}
+        {panel === 'Inspector applications' && (
+          <Stack spacing={4}>
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
+                    {tr('1. Đơn đăng ký Inspector chờ duyệt', '1. Pending Inspector Applications')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'Kiểm tra toàn bộ thông tin khai báo và tài liệu bằng lái phi công trước khi phê duyệt tạo tài khoản.',
+                      'Inspect declared details and pilot license documents before approving account creation.',
+                    )}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  startIcon={<RefreshRounded />}
+                  onClick={() => {
+                    void pendingInspectorApps.refetch();
+                    void awaitingContractApps.refetch();
+                  }}
+                  disabled={pendingInspectorApps.isFetching || awaitingContractApps.isFetching}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {tr('Làm mới', 'Refresh')}
+                </Button>
+              </Box>
+
+              {pendingInspectorApps.isLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5, gap: 2 }}>
+                  <CircularProgress size={26} />
+                  <Typography color="text.secondary">
+                    {tr('Đang tải danh sách đơn đăng ký…', 'Loading inspector applications…')}
+                  </Typography>
+                </Box>
+              ) : (pendingInspectorApps.data ?? []).length === 0 ? (
+                <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 6, px: 2 }}>
+                  <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.secondary', mb: 1 }} />
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+                    {tr('Không có đơn đăng ký Inspector nào đang chờ duyệt', 'No inspector applications pending review')}
+                  </Typography>
+                </Card>
+              ) : (
+                <Stack spacing={2}>
+                  {(pendingInspectorApps.data ?? []).map((app) => (
+                    <Card
+                      key={app.id}
+                      variant="outlined"
+                      sx={{
+                        borderRadius: '10px',
+                        borderColor: 'divider',
+                        '&:hover': { borderColor: 'primary.main' },
+                      }}
+                    >
+                      <CardContent sx={{ p: 2.5 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            gap: 2,
+                          }}
+                        >
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                              <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                                {app.fullName}
+                              </Typography>
+                              <Chip label={app.status} size="small" color="warning" sx={{ fontWeight: 700 }} />
+                              <Chip
+                                label={
+                                  app.hasLicenseScan
+                                    ? tr('Có tài liệu bằng lái', 'License scan attached')
+                                    : tr('Thiếu tài liệu bằng lái', 'Missing license scan')
+                                }
+                                size="small"
+                                variant="outlined"
+                                color={app.hasLicenseScan ? 'success' : 'error'}
+                              />
+                              <Chip
+                                label={
+                                  app.hasSignedContract
+                                    ? tr('Đã scan hợp đồng', 'Signed contract uploaded')
+                                    : tr('Chờ ký & scan hợp đồng', 'Awaiting signed contract')
+                                }
+                                size="small"
+                                variant="outlined"
+                                color={app.hasSignedContract ? 'success' : 'info'}
+                              />
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                              {app.email}
+                              {app.phoneNumber ? ` · ${app.phoneNumber}` : ''}
+                              {' · '}
+                              {tr('Ngày nộp:', 'Submitted:')} {new Date(app.createdAt).toLocaleString(dateLocale)}
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
+                                gap: 1.5,
+                                p: 1.5,
+                                bgcolor: 'background.default',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <Typography variant="body2">
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('CCCD/CMND:', 'Citizen ID:')}
+                                </Box>{' '}
+                                <strong>{app.citizenId}</strong>
+                              </Typography>
+                              <Typography variant="body2">
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('Số & Hạng bằng:', 'License:')}
+                                </Box>{' '}
+                                <strong>
+                                  {app.pilotLicenseNumber} ({app.pilotLicenseClass})
+                                </strong>
+                              </Typography>
+                              <Typography variant="body2">
+                                <Box component="span" sx={{ color: 'text.secondary' }}>
+                                  {tr('Hết hạn bằng:', 'Expires:')}
+                                </Box>{' '}
+                                <strong>
+                                  {app.pilotLicenseExpiresAt
+                                    ? new Date(app.pilotLicenseExpiresAt).toLocaleDateString(dateLocale)
+                                    : tr('Không thời hạn', 'No expiry')}
+                                </strong>
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                              {tr('Địa chỉ:', 'Address:')} {app.address}
+                            </Typography>
+                          </Box>
+
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<FactCheckOutlined />}
+                            onClick={() => void openInspectorAppReview(app)}
+                            sx={{ px: 2.5, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap' }}
+                          >
+                            {tr('Xem hồ sơ & Duyệt', 'Review application')}
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+
+            {(awaitingContractApps.data ?? []).length > 0 && (
+            <Box>
+              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', mb: 0.5 }}>
+                {tr(
+                  '2. Hồ sơ cũ đã duyệt — Chờ tải lên hợp đồng đã ký',
+                  '2. Legacy Approved — Awaiting Signed Contract Upload',
+                )}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {tr(
+                  'Sau khi gặp mặt và ký hợp đồng offline với Inspector, Manager tải bản scan hợp đồng đã ký lên đây để kích hoạt hồ sơ đối tác.',
+                  'After offline signing with the Inspector, upload the scanned signed contract here to activate partner onboarding.',
+                )}
+              </Typography>
+
+              {contractFeedback && (
+                <Alert
+                  severity={contractFeedback.severity}
+                  onClose={() => setContractFeedback(null)}
+                  sx={{ mb: 2 }}
+                >
+                  {contractFeedback.message}
+                </Alert>
+              )}
+
+              {awaitingContractApps.isLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4, gap: 2 }}>
+                  <CircularProgress size={22} />
+                  <Typography color="text.secondary">
+                    {tr('Đang tải danh sách chờ hợp đồng…', 'Loading approved applications awaiting contract…')}
+                  </Typography>
+                </Box>
+              ) : (awaitingContractApps.data ?? []).length === 0 ? (
+                <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 5, px: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'Không có hồ sơ nào đang chờ tải lên hợp đồng đã ký.',
+                      'No approved applications are awaiting a signed contract upload.',
+                    )}
+                  </Typography>
+                </Card>
+              ) : (
+                <Stack spacing={2}>
+                  {(awaitingContractApps.data ?? []).map((app) => (
+                    <Card key={app.id} variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider' }}>
+                      <CardContent sx={{ p: 2.5 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            gap: 2,
+                          }}
+                        >
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                              <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '1rem' }}>
+                                {app.fullName}
+                              </Typography>
+                              <Chip label={tr('Chờ scan hợp đồng', 'Awaiting contract')} size="small" color="info" />
+                            </Box>
+                            <Typography variant="body2" color="text.secondary">
+                              {app.email}
+                              {app.phoneNumber ? ` · ${app.phoneNumber}` : ''}
+                              {' · '}
+                              {tr('Bằng:', 'License:')} {app.pilotLicenseNumber} ({app.pilotLicenseClass})
+                            </Typography>
+                          </Box>
+
+                          <Button
+                            component="label"
+                            variant="contained"
+                            color="success"
+                            startIcon={<UploadFileRounded />}
+                            disabled={uploadingContractId === app.id}
+                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', whiteSpace: 'nowrap' }}
+                          >
+                            {uploadingContractId === app.id
+                              ? tr('Đang tải lên…', 'Uploading…')
+                              : tr('Scan / Tải lên hợp đồng đã ký', 'Upload signed contract')}
+                            <input
+                              type="file"
+                              hidden
+                              accept="application/pdf,image/png,image/jpeg,image/webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (file) {
+                                  void handleUploadSignedContract(app, file);
+                                }
+                              }}
+                            />
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+            )}
+          </Stack>
+        )}
 
         {/* ===================== TAB 1: PARTNER DRONE REGISTRATIONS ===================== */}
         {panel === 'Drone registrations' && (
@@ -1328,6 +1784,29 @@ export default function Mf1ReviewPage() {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {('maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null) ||
+                  ('maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null) ||
+                  ('hasThermalCamera' in selected && selected.hasThermalCamera) ||
+                  ('hasRtk' in selected && selected.hasRtk) ? (
+                    <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                      {'maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null && (
+                        <Chip size="small" variant="outlined" label={tr(`Kháng gió: ${selected.maxWindResistanceMps} m/s`, `Wind resistance: ${selected.maxWindResistanceMps} m/s`)} />
+                      )}
+                      {'maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null && (
+                        <Chip size="small" variant="outlined" label={tr(`Trần bay tối đa: ${selected.maxAltitudeMeters} m`, `Declared maximum altitude: ${selected.maxAltitudeMeters} m`)} />
+                      )}
+                      {'opticalZoomLevel' in selected && selected.opticalZoomLevel && (
+                        <Chip size="small" variant="outlined" label={`Zoom: ${selected.opticalZoomLevel}`} />
+                      )}
+                      {'hasThermalCamera' in selected && selected.hasThermalCamera && (
+                        <Chip size="small" color="secondary" label={tr('Camera nhiệt', 'Thermal Camera')} />
+                      )}
+                      {'hasRtk' in selected && selected.hasRtk && (
+                        <Chip size="small" color="primary" label="RTK GNSS" />
+                      )}
+                    </Box>
+                  ) : null}
                 </Box>
               )}
 
@@ -1534,6 +2013,279 @@ export default function Mf1ReviewPage() {
                   : tr('Xác nhận từ chối', 'Confirm rejection')}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG: REVIEW INSPECTOR APPLICATION */}
+      <Dialog
+        open={Boolean(selectedApplication)}
+        onClose={closeInspectorAppDialog}
+        fullWidth
+        maxWidth="md"
+        slotProps={{ paper: { sx: { borderRadius: '10px' } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {tr('Thẩm định Đơn đăng ký Inspector', 'Review Inspector Application')}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedApplication && (
+            <Stack spacing={2.5}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                  gap: 1.5,
+                  p: 2,
+                  bgcolor: 'background.default',
+                  borderRadius: '10px',
+                  border: 1,
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="body2">
+                  <strong>{tr('Họ và tên:', 'Full name:')}</strong> {selectedApplication.fullName}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Email:</strong> {selectedApplication.email}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('Số điện thoại:', 'Phone:')}</strong>{' '}
+                  {selectedApplication.phoneNumber || tr('Chưa cung cấp', 'Not provided')}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('CCCD/CMND:', 'Citizen ID:')}</strong> {selectedApplication.citizenId}
+                </Typography>
+                <Typography variant="body2" sx={{ gridColumn: { sm: '1 / -1' } }}>
+                  <strong>{tr('Địa chỉ:', 'Address:')}</strong> {selectedApplication.address}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('Số bằng lái:', 'License no.:')}</strong> {selectedApplication.pilotLicenseNumber}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('Hạng bằng:', 'License class:')}</strong> {selectedApplication.pilotLicenseClass}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('Ngày hết hạn:', 'Expires at:')}</strong>{' '}
+                  {selectedApplication.pilotLicenseExpiresAt
+                    ? new Date(selectedApplication.pilotLicenseExpiresAt).toLocaleDateString(dateLocale)
+                    : tr('Không thời hạn', 'No expiry')}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{tr('Ngày nộp hồ sơ:', 'Submitted at:')}</strong>{' '}
+                  {new Date(selectedApplication.createdAt).toLocaleString(dateLocale)}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {tr('Tài liệu bằng lái phi công (MinIO)', 'Pilot License Document (MinIO)')}
+                  </Typography>
+                  {appScanUrl && (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {!appScanIsPdf && (
+                        <Button
+                          size="small"
+                          startIcon={<ZoomInRounded />}
+                          onClick={() => setZoomUrl(appScanUrl)}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          {tr('Phóng to', 'Zoom in')}
+                        </Button>
+                      )}
+                      <Button
+                        size="small"
+                        startIcon={<OpenInNewRounded />}
+                        component="a"
+                        href={appScanUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ textTransform: 'none' }}
+                      >
+                        {tr('Mở tab mới', 'Open in new tab')}
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+
+                {appScanLoading ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 3 }}>
+                    <CircularProgress size={22} />
+                    <Typography variant="body2" color="text.secondary">
+                      {tr('Đang tải tài liệu bằng lái…', 'Loading license scan…')}
+                    </Typography>
+                  </Box>
+                ) : appScanFailed ? (
+                  <Alert severity="error">
+                    {tr('Không thể tải tài liệu bằng lái từ MinIO.', 'Could not load license document from MinIO.')}
+                  </Alert>
+                ) : !appScanUrl ? (
+                  <Alert severity="warning">
+                    {tr('Ứng viên chưa đính kèm tài liệu bằng lái.', 'No license scan attached.')}
+                  </Alert>
+                ) : appScanIsPdf ? (
+                  <iframe
+                    src={appScanUrl}
+                    title="Pilot license document"
+                    style={{ width: '100%', height: '380px', border: 'none', borderRadius: '8px' }}
+                  />
+                ) : (
+                  <Box
+                    component="img"
+                    src={appScanUrl}
+                    alt="Pilot license scan"
+                    onClick={() => setZoomUrl(appScanUrl)}
+                    sx={{
+                      maxHeight: 360,
+                      maxWidth: '100%',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      border: 1,
+                      borderColor: 'divider',
+                      cursor: 'zoom-in',
+                    }}
+                  />
+                )}
+              </Box>
+
+              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  {tr('Hợp đồng hợp tác ký offline (Bắt buộc trước khi duyệt)', 'Offline Signed Contract (Required before approval)')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  {tr(
+                    'Sau khi ký hợp đồng trực tiếp với ứng viên, Manager scan và tải lên bản hợp đồng đã ký rồi mới duyệt tạo tài khoản.',
+                    'After offline signing with the applicant, upload the scanned signed contract before approving account creation.',
+                  )}
+                </Typography>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    color={selectedApplication.hasSignedContract ? 'success' : 'primary'}
+                    startIcon={<UploadFileRounded />}
+                    disabled={uploadingContractId === selectedApplication.id}
+                    sx={{ textTransform: 'none', fontWeight: 650 }}
+                  >
+                    {uploadingContractId === selectedApplication.id
+                      ? tr('Đang tải lên…', 'Uploading…')
+                      : selectedApplication.hasSignedContract
+                        ? tr('Tải lại bản scan hợp đồng', 'Replace signed contract scan')
+                        : tr('Scan / Tải lên hợp đồng đã ký', 'Upload signed contract scan')}
+                    <input
+                      type="file"
+                      hidden
+                      accept="application/pdf,image/png,image/jpeg,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (file) {
+                          void handleUploadSignedContract(selectedApplication, file);
+                        }
+                      }}
+                    />
+                  </Button>
+
+                  {selectedApplication.hasSignedContract && (
+                    <Button
+                      size="small"
+                      startIcon={<OpenInNewRounded />}
+                      onClick={() => void handleOpenSignedContractPreview(selectedApplication.id)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {tr('Xem hợp đồng đã tải', 'View uploaded contract')}
+                    </Button>
+                  )}
+
+                  <Chip
+                    label={
+                      selectedApplication.hasSignedContract
+                        ? tr('Đã tải lên bản scan hợp đồng', 'Signed contract uploaded')
+                        : tr('Chưa có bản scan hợp đồng', 'No signed contract yet')
+                    }
+                    size="small"
+                    color={selectedApplication.hasSignedContract ? 'success' : 'warning'}
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+
+              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  {tr('Quyết định duyệt hồ sơ', 'Application Review Decision')}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+                  <Button
+                    variant={appAction === 'approve' ? 'contained' : 'outlined'}
+                    color="success"
+                    startIcon={<CheckCircleOutlineRounded />}
+                    onClick={() => setAppAction('approve')}
+                    sx={{ textTransform: 'none', fontWeight: 650 }}
+                  >
+                    {tr('Duyệt & Tạo tài khoản', 'Approve & Create account')}
+                  </Button>
+                  <Button
+                    variant={appAction === 'reject' ? 'contained' : 'outlined'}
+                    color="error"
+                    startIcon={<HighlightOffRounded />}
+                    onClick={() => setAppAction('reject')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {tr('Từ chối hồ sơ', 'Reject application')}
+                  </Button>
+                </Box>
+
+                {appAction === 'approve' ? (
+                  selectedApplication.hasSignedContract ? (
+                    <Alert severity="success">
+                      {tr(
+                        'Đã có bản scan hợp đồng. Bấm Xác nhận duyệt để tạo tài khoản Inspector và kích hoạt đối tác ngay.',
+                        'Signed contract uploaded. Confirm approval to create and activate the Inspector account.',
+                      )}
+                    </Alert>
+                  ) : (
+                    <Alert severity="warning">
+                      {tr(
+                        'Chưa thể duyệt: vui lòng ký hợp đồng offline với ứng viên và tải lên bản scan hợp đồng ở mục trên trước.',
+                        'Cannot approve yet: please sign the contract offline and upload the scanned contract above first.',
+                      )}
+                    </Alert>
+                  )
+                ) : (
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    label={tr('Lý do từ chối (gửi qua email cho ứng viên)', 'Rejection reason (emailed to applicant)')}
+                    placeholder={tr('VD: Ảnh bằng lái bị mờ, vui lòng chụp rõ nét và đăng ký lại...', 'e.g. License image is blurry...')}
+                    value={appRejectReason}
+                    onChange={(e) => setAppRejectReason(e.target.value)}
+                  />
+                )}
+              </Box>
+
+              {appError && <Alert severity="error">{appError}</Alert>}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={closeInspectorAppDialog} disabled={appPending}>
+            {tr('Đóng', 'Close')}
+          </Button>
+          <Button
+            variant="contained"
+            color={appAction === 'approve' ? 'success' : 'error'}
+            onClick={() => void submitInspectorAppReview()}
+            disabled={appPending || (appAction === 'approve' && !selectedApplication?.hasSignedContract)}
+            sx={{ px: 3, fontWeight: 650 }}
+          >
+            {appPending
+              ? tr('Đang xử lý…', 'Processing…')
+              : appAction === 'approve'
+                ? tr('Xác nhận duyệt', 'Confirm approval')
+                : tr('Xác nhận từ chối', 'Confirm rejection')}
+          </Button>
         </DialogActions>
       </Dialog>
 

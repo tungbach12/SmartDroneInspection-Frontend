@@ -78,7 +78,7 @@ function renderPage(route = '/operations/inspections') {
 function listedInspection() {
   return {
     id: 'inspection-1',
-    organizationId: 'org-1',
+    ownerCustomerId: 'org-1',
     assetId: 'asset-1',
     inspectorId: 'inspector-1',
     objective: 'Inspect the main span',
@@ -102,8 +102,7 @@ function signInAs(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'User',
       roles,
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
   });
 }
@@ -242,17 +241,6 @@ describe('InspectionsPage', () => {
     expect(refetch).toHaveBeenCalledOnce();
   });
 
-  it('tells a maintenance engineer where to look instead', async () => {
-    signInAs(['MAINTENANCE_ENGINEER']);
-
-    renderPage();
-
-    expect(
-      await screen.findByText(/available to Inspectors, organization manageristrators/),
-    ).toBeTruthy();
-    expect(screen.queryByRole('row', { name: /Inspect the main span/ })).toBeNull();
-  });
-
   it('defaults to the report filter on the ?view=reports queue', async () => {
     mocks.reportsQuery = {
       data: {
@@ -307,12 +295,10 @@ describe('InspectionsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Report review queue' })).toBeTruthy();
     expect(screen.getByText(/administrator's decision is report-level/i)).toBeTruthy();
 
-    // The queue counts the phases the administrator is actually asked to decide.
     expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Corrective outcomes due on this page: 1' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Read returned report' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Record corrective outcome' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Record corrective outcome' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Review submission' }));
     expect(screen.getByTestId('location')).toHaveProperty(
@@ -321,7 +307,7 @@ describe('InspectionsPage', () => {
     );
   });
 
-  it('opens the phase a row is waiting in, rather than a fixed tab', async () => {
+  it('does not expose a corrective outcome action from the report queue', async () => {
     signInAs(['CUSTOMER']);
     mocks.reportsQuery = {
       data: {
@@ -340,11 +326,8 @@ describe('InspectionsPage', () => {
 
     renderPage('/client/inspections?view=reports');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Record corrective outcome' }));
-    expect(screen.getByTestId('location')).toHaveProperty(
-      'textContent',
-      '/client/inspections/corr-1/corrective',
-    );
+    expect(screen.queryByRole('button', { name: 'Record corrective outcome' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open report' })).toBeTruthy();
   });
 
   it('filters to inspections with a report when the report view is active via query param', async () => {

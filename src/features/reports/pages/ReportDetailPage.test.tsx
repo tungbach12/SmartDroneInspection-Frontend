@@ -38,7 +38,6 @@ vi.mock('@/features/inspections/api/inspectionApi', () => ({
     submitVersion: vi.fn(),
     withdrawVersion: vi.fn(),
     reviewVersion: vi.fn(),
-    completeCorrectiveHandoff: vi.fn(),
     workflowState: vi.fn(),
     getAiSummary: vi.fn().mockResolvedValue({
       summary: 'AI summary',
@@ -67,8 +66,7 @@ function setRole(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'Test User',
       roles,
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
     roles,
   });
@@ -131,7 +129,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     id: 'finding-1',
     inspectionId: 'inspection-1',
     evidenceId: 'evidence-1',
-    forwardedToMaintenanceAt: null,
     findingCode: 'F-1',
     defectLabel: 'Surface crack',
     severity: 'HIGH',
@@ -383,7 +380,6 @@ describe('ReportDetailPage MF3 gates', () => {
       status: 'PUBLISHED',
       returnReason: null,
       publishedAt: '2026-10-01T12:00:00Z',
-      forwardedFindingIds: [],
       inspectionStatus: 'COMPLETED',
     });
 
@@ -396,7 +392,7 @@ describe('ReportDetailPage MF3 gates', () => {
     expect(screen.queryByLabelText(/rationale/i)).toBeNull();
   });
 
-  it('reveals the send-to-maintenance navigation after the report is published', async () => {
+  it('keeps the published report deliverable free of maintenance handoff navigation', async () => {
     mockedApi.listVersions
       .mockResolvedValueOnce([version({ authorUserId: 'someone-else' })])
       .mockResolvedValue([
@@ -422,7 +418,6 @@ describe('ReportDetailPage MF3 gates', () => {
       status: 'PUBLISHED',
       returnReason: null,
       publishedAt: '2026-10-01T12:00:00Z',
-      forwardedFindingIds: [],
       inspectionStatus: 'COMPLETED',
     });
 
@@ -432,9 +427,8 @@ describe('ReportDetailPage MF3 gates', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
 
-    expect(await screen.findByText(/Send to Maintenance \(MF3-12\)/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Send findings to Maintenance' })).toBeTruthy();
-    expect(screen.queryByText(/record corrective outcomes before handing findings to MF4/i)).toBeNull();
+    expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();
   });
 
   it('returns to the reports queue on the inspections list', async () => {

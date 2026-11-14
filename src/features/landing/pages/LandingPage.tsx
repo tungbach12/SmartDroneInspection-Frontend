@@ -32,9 +32,9 @@ const services = [
   },
   {
     number: '04',
-    title: 'Direct handoff to maintenance',
+    title: 'Certified tamper-proof reports',
     description:
-      'Approve repair estimates, assign maintenance work orders, and verify results with a follow-up flight.',
+      'Receive official stamped engineering deliverables accepted by regulators and insurers, with transparent fee settlement.',
     Icon: TaskAltIcon,
   },
 ];
@@ -51,22 +51,27 @@ const actionSx = {
   justifyContent: 'center',
   gap: 1,
   minHeight: 46,
-  px: 2.5,
-  bgcolor: '#65DFBA',
-  color: '#071006',
-  fontSize: 13,
+  px: 2.75,
+  borderRadius: 0,
+  bgcolor: '#3758F9',
+  color: '#FFFFFF',
+  fontSize: 13.5,
   fontWeight: 600,
   textDecoration: 'none',
-  transition: 'background-color 160ms ease',
-  '&:hover': { bgcolor: '#42CFAE' },
-  '&:focus-visible': { outline: '2px solid #65DFBA', outlineOffset: 3 },
+  boxShadow: '0 4px 14px rgba(55, 88, 249, 0.28)',
+  transition: 'background-color 160ms ease, box-shadow 160ms ease',
+  '&:hover': {
+    bgcolor: '#2237EE',
+    boxShadow: '0 6px 20px rgba(55, 88, 249, 0.36)',
+  },
+  '&:focus-visible': { outline: '2px solid #38BDF8', outlineOffset: 3 },
 };
 
 export default function LandingPage() {
   const { locale, setLocale, t } = useLocale();
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'SDI | A clearer view of every asset';
+    document.title = 'SDI';
     if (!window.sessionStorage.getItem('sdi_locale_explicit')) {
       setLocale('en');
     }
@@ -116,8 +121,8 @@ export default function LandingPage() {
               <svg width="34" height="34" viewBox="0 0 48 48" fill="none" aria-hidden="true">
                 <defs>
                   <linearGradient id="sdi_landing_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#3758F9" />
-                    <stop offset="1" stopColor="#06B6D4" />
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#3B82F6" />
                   </linearGradient>
                 </defs>
                 <path
@@ -127,7 +132,7 @@ export default function LandingPage() {
                 <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
               </svg>
               <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
-                SmartDroneInspection
+                SDI
               </Typography>
             </Stack>
           </Link>
@@ -282,7 +287,7 @@ export default function LandingPage() {
               lineHeight: 1.7,
             }}
           >
-            {t('Inspect your roofs, bridges, and tall structures without dangerous climbing or costly scaffolding. Receive detailed photo reports and clear repair steps in days, not weeks.')}
+            {t('Inspect your roofs, bridges, and tall structures without dangerous climbing or costly scaffolding. Receive detailed photo reports and certified defect findings in days, not weeks.')}
           </Typography>
           <Stack direction="row" spacing={3} sx={{ alignItems: 'center', mt: 3.5, flexWrap: 'wrap', rowGap: 2 }}>
             <Box component="a" href="/register" sx={actionSx}>
@@ -297,7 +302,7 @@ export default function LandingPage() {
                 fontWeight: 600,
                 letterSpacing: '.12em',
                 textTransform: 'uppercase',
-                borderBottom: '1px solid #65DFBA',
+                borderBottom: '1px solid #3758F9',
                 pb: 0.5,
               }}
             >
@@ -389,8 +394,8 @@ export default function LandingPage() {
                       mb: 2.5,
                       display: 'grid',
                       placeItems: 'center',
-                      bgcolor: '#e9ece7',
-                      color: '#0A968A',
+                      bgcolor: '#EFF3FF',
+                      color: '#3758F9',
                     }}
                   >
                     <item.Icon sx={{ fontSize: 29, strokeWidth: 1 }} />
@@ -474,7 +479,7 @@ export default function LandingPage() {
                 }}
               />
               <Box sx={{ position: 'relative', left: { xs: 14, md: 30 }, bottom: { xs: 14, md: 30 }, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#65DFBA', boxShadow: '0 0 10px rgba(101,223,186,.72)' }} />
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#38BDF8', boxShadow: '0 0 10px rgba(56,189,248,.78)' }} />
                 <Typography sx={{ color: 'rgba(255,255,255,.8)', fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase' }}>
                   {t('Illustrative AI confidence — not a risk score')}
                 </Typography>
@@ -488,7 +493,7 @@ export default function LandingPage() {
                 {t('Technology brings it into view. People decide what it means.')}
               </Typography>
               <Typography sx={{ mt: 3, maxWidth: 510, color: 'rgba(255,255,255,.7)', fontSize: 14, lineHeight: 1.8 }}>
-                {t('Stop guessing damage from the ground or waiting weeks for scaffolding. Get crystal-clear aerial photos of your entire asset, reviewed by certified experts, so you only pay for the repairs you actually need.')}
+                {t('Stop guessing damage from the ground or waiting weeks for scaffolding. Get crystal-clear aerial photos of your entire asset, reviewed by certified experts, so you get accurate condition assessments you can trust.')}
               </Typography>
               <Box component="a" href="/register" sx={{ ...actionSx, mt: 3.5, alignSelf: 'flex-start' }}>
                 {t('See how the platform works')} <NorthEastIcon sx={{ fontSize: 16 }} />
@@ -531,7 +536,19 @@ export default function LandingPage() {
             }}
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <Box component="img" src="/images/landing/teal-soft-dark-v1.png" alt="" aria-hidden="true" sx={{ width: 44, height: 44, borderRadius: 1, objectFit: 'cover' }} />
+              <svg width="38" height="38" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="sdi_landing_footer_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#3B82F6" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
+                  fill="url(#sdi_landing_footer_grad)"
+                />
+                <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
+              </svg>
               <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
                 SDI
               </Typography>

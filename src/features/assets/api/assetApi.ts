@@ -12,6 +12,8 @@ export interface Asset {
   categoryId: string;
   createdAt: string;
   inspectionItems: string[];
+  structureHeightMeters: number | null;
+  footprintAreaSquareMeters: number | null;
 }
 
 export interface AssetListFilters {
@@ -30,6 +32,22 @@ export interface CreateAssetInput {
   longitude?: number | null;
   ownershipInformation?: string | null;
   inspectionItems?: string[];
+  structureHeightMeters?: number | null;
+  footprintAreaSquareMeters?: number | null;
+}
+
+export interface UpdateAssetInput {
+  name?: string;
+  description?: string | null;
+  locationText?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  structureHeightMeters?: number | null;
+  footprintAreaSquareMeters?: number | null;
+  clearCoordinates?: boolean;
+  clearStructureHeight?: boolean;
+  clearFootprintArea?: boolean;
+  clearDescription?: boolean;
 }
 
 export interface AssetPage {
@@ -57,6 +75,9 @@ export const assetApi = {
 
   updateInspectionItems: (id: string, inspectionItems: string[]) =>
     api.put<Asset>(`/assets/${id}/inspection-items`, { inspectionItems }).then((r) => r.data),
+
+  update: (id: string, input: UpdateAssetInput) =>
+    api.patch<Asset>(`/assets/${id}`, input).then((r) => r.data),
 
   retire: (id: string) => api.post<Asset>(`/assets/${id}/retire`).then((r) => r.data),
 };

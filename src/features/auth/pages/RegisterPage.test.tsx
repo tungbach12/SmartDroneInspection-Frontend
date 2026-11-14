@@ -41,8 +41,6 @@ async function fillRegistrationForm() {
   const fields = [
     ['Your full name', 'Customer Admin'],
     ['Work email', 'customer@example.test'],
-    ['Organization name', 'Example Infrastructure'],
-    ['Organization code', 'EXAMPLE'],
     ['Password', 'SecurePass1!'],
     ['Confirm password', 'SecurePass1!'],
   ];
@@ -63,7 +61,7 @@ describe('customer organization registration', () => {
     });
   });
 
-  it('requires organization details and valid password as part of registration', async () => {
+  it('requires account details and valid password as part of registration', async () => {
     renderRegister();
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     expect(await screen.findByText('Enter your full name.')).toBeTruthy();
@@ -71,12 +69,10 @@ describe('customer organization registration', () => {
     expect(mocks.registerOrganization).not.toHaveBeenCalled();
   });
 
-  it('verifies OTP and keeps pending airspace registration out of login', async () => {
+  it('verifies OTP and registers account without organization/asset form fields', async () => {
     mocks.registerOrganization.mockResolvedValue({
-      registrationStatus: 'PENDING_AIRSPACE_REVIEW',
-      organizationId: null,
-      reviewMessage: 'An administrator must review your location.',
-      user: { id: 'prospect-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'PROSPECT_CUSTOMER', organizationId: null },
+      registrationStatus: 'ACTIVE',
+      user: { id: 'customer-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'CUSTOMER' },
     });
     renderRegister();
     await fillRegistrationForm();
@@ -85,7 +81,6 @@ describe('customer organization registration', () => {
     await waitFor(() => {
       expect(mocks.sendRegistrationOtp).toHaveBeenCalledWith({
         email: 'customer@example.test',
-        phoneNumber: undefined,
         channel: 'EMAIL',
       });
     });
@@ -96,17 +91,16 @@ describe('customer organization registration', () => {
 
     await waitFor(() => {
       expect(mocks.registerOrganization).toHaveBeenCalled();
-      expect(screen.getByText('An administrator must review your location.')).toBeTruthy();
+      expect(screen.getByLabelText('Current location').textContent).toContain('/login?registered=1');
     });
     expect(mocks.registerOrganization).toHaveBeenCalledWith(expect.objectContaining({
       fullName: 'Customer Admin',
       email: 'customer@example.test',
-      organizationName: 'Example Infrastructure',
-      organizationCode: 'EXAMPLE',
+      organizationName: 'Customer Admin',
+      organizationCode: expect.stringMatching(/^CUSTOMER_[A-Z0-9]+$/),
       otpChallengeToken: 'challenge-token-1',
       otpCode: '123456',
     }));
-    expect(screen.getByLabelText('Current location').textContent).toContain('/register');
   });
 
   it('surfaces error and blocks registration when OTP dispatch fails', async () => {

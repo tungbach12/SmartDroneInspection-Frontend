@@ -73,9 +73,6 @@ const InspectionProgressPage = lazy(
 const OrganizationReportReviewPage = lazy(
   () => import('@/features/reports/pages/ReportDetailPage'),
 );
-const CorrectiveDispositionPage = lazy(
-  () => import('@/features/reports/pages/CorrectiveDispositionPage'),
-);
 const InspectionEvidencePage = lazy(
   () => import('@/features/inspections/pages/InspectionEvidencePage'),
 );
@@ -89,12 +86,6 @@ const InspectionReportPage = lazy(
 const FieldSessionPage = lazy(
   () => import('@/features/inspections/pages/FieldSessionPage'),
 );
-const MaintenancePage = lazy(
-  () => import('@/features/maintenance/pages/MaintenancePage'),
-);
-const WorkforcePage = lazy(
-  () => import('@/features/workforce/pages/WorkforcePage'),
-);
 const PlatformUsersPage = lazy(
   () => import('@/features/admin/pages/PlatformUsersPage'),
 );
@@ -103,6 +94,9 @@ const ManagerPartnerInspectorsPage = lazy(
 );
 const ContractsPage = lazy(
   () => import('@/features/contracts/pages/ContractsPage'),
+);
+const ContractInboxPage = lazy(
+  () => import('@/features/contracts/pages/ContractInboxPage'),
 );
 const PlatformFinanceSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
@@ -120,12 +114,11 @@ const Mf1ReviewPage = lazy(
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
   contracts: <ContractsPage />,
+  messages: <ContractInboxPage />,
   assets: <AssetsPage />,
   'asset-catalog': <AssetCatalogPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
-  maintenance: <MaintenancePage />,
-  workforce: <WorkforcePage />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
   'pilot-license-classes': <PilotLicenseClassesPage />,
@@ -255,17 +248,6 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                       ) : (
                         <CustomerReportDeliverablePage stage="settlement" />
                       )}
-                    </RequireAuth>
-                  ),
-                },
-                {
-                  // MF3-12: the post-publication corrective disposition is its own phase, so it
-                  // is not reachable from the report review screen where a reviewer might read it
-                  // as "editing the report".
-                  path: 'corrective',
-                  element: (
-                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
-                      <CorrectiveDispositionPage />
                     </RequireAuth>
                   ),
                 },

@@ -8,7 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { FactCheckOutlined, TaskAltOutlined } from '@mui/icons-material';
+import { TaskAltOutlined } from '@mui/icons-material';
 import Add from '@mui/icons-material/Add';
 import {
   getSectionPath,
@@ -139,7 +139,6 @@ export default function InspectionsPage() {
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
-  const correctiveDueCount = items.filter((item) => item.pendingAction === 'CORRECTIVE_DISPOSITION').length;
 
   const newInspectionButton = isOrgAdmin ? (
     <Button
@@ -212,7 +211,7 @@ export default function InspectionsPage() {
                     '&:hover': { color: 'primary.main' },
                   }}
                 >
-                  {t('Home')}
+                  {t('Operations')}
                 </Box>
                 <Box
                   component="svg"
@@ -247,7 +246,7 @@ export default function InspectionsPage() {
               : t('Inspections')
           }
           breadcrumbs={[
-            { label: 'Home', to: getSectionPath(portal, 'dashboard') },
+            { label: t('Operations'), to: getSectionPath(portal, 'dashboard') },
             {
               label:
                 isOrganizationAdmin && view === 'reports'
@@ -260,16 +259,15 @@ export default function InspectionsPage() {
 
       {!canBrowse ? (
         <Alert severity="info">
-          The inspection list is available to Inspectors, organization manageristrators, and platform
-          administrators. Maintenance engineers track corrective work in Maintenance.
+          The inspection list is available to Inspectors, organization managers, and platform
+          administrators.
         </Alert>
       ) : (
         <Stack spacing={2.5}>
           {isOrganizationAdmin && view === 'reports' && (
             <Alert severity="info">
               The administrator's decision is report-level: approve or return the submitted report
-              with a reason. Evidence and Inspector findings are read inside the report document,
-              and the corrective outcome is recorded after publication.
+              with a reason. Evidence and Inspector findings are read inside the report document.
             </Alert>
           )}
           {isOrganizationAdmin && view !== 'calendar' && (
@@ -278,10 +276,7 @@ export default function InspectionsPage() {
                 <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
                 <Box><Typography variant="caption" color="text.secondary">{t('Report review · this page')}</Typography><Typography variant="h6">{reportDueCount}</Typography></Box>
               </Paper>
-              <Paper variant="outlined" role="group" aria-label={`Corrective outcomes due on this page: ${correctiveDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
-                <FactCheckOutlined color={correctiveDueCount ? 'warning' : 'disabled'} />
-                <Box><Typography variant="caption" color="text.secondary">{t('Corrective outcome · this page')}</Typography><Typography variant="h6">{correctiveDueCount}</Typography></Box>
-              </Paper>
+
             </Stack>
           )}
           {view === 'calendar' ? (

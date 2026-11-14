@@ -5,7 +5,7 @@ export const PORTAL_ROLE_ACCESS = {
   admin: ['ADMIN'],
   manager: ['MANAGER'],
   client: ['CUSTOMER'],
-  operations: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+  operations: ['INSPECTOR'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type PortalId = keyof typeof PORTAL_ROLE_ACCESS;
@@ -22,12 +22,11 @@ export const PORTAL_CONFIG = {
 export const SECTION_IDS = [
   'dashboard',
   'contracts',
+  'messages',
   'assets',
   'asset-catalog',
   'inspections',
   'reports',
-  'maintenance',
-  'workforce',
   'platform-users',
   'finance-settings',
   'pilot-license-classes',
@@ -41,12 +40,11 @@ export type SectionId = (typeof SECTION_IDS)[number];
 export const SECTION_LABELS: Record<SectionId, string> = {
   dashboard: 'Dashboard',
   contracts: 'Service requests',
+  messages: 'Messages',
   assets: 'Assets',
   'asset-catalog': 'Asset catalog',
   inspections: 'Inspections',
   reports: 'Reports',
-  maintenance: 'Maintenance',
-  workforce: 'Workforce',
   'platform-users': 'Platform accounts',
   'finance-settings': 'Finance settings',
   'pilot-license-classes': 'UAV license classes',
@@ -69,12 +67,11 @@ const PORTAL_LABELS_VI: Record<PortalId, string> = {
 const SECTION_LABELS_VI: Record<SectionId, string> = {
   dashboard: 'Bảng điều khiển',
   contracts: 'Yêu cầu dịch vụ',
+  messages: 'Tin nhắn',
   assets: 'Tài sản',
   'asset-catalog': 'Danh mục tài sản',
   inspections: 'Đợt kiểm tra',
   reports: 'Báo cáo',
-  maintenance: 'Bảo trì',
-  workforce: 'Nhân sự',
   'platform-users': 'Tài khoản nền tảng',
   'finance-settings': 'Cấu hình tài chính',
   'pilot-license-classes': 'Hạng bằng lái UAV',
@@ -125,13 +122,11 @@ const SECTION_ROLE_ACCESS = {
   admin: {
     dashboard: ['ADMIN'],
     contracts: [],
+    messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
-    maintenance: ['ADMIN'],
-    // Workforce is a customer-organization function; the platform workspace does not expose it.
-    workforce: [],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
     'finance-settings': ['ADMIN'],
@@ -143,12 +138,11 @@ const SECTION_ROLE_ACCESS = {
   manager: {
     dashboard: ['MANAGER'],
     contracts: ['MANAGER'],
+    messages: ['MANAGER'],
     assets: ['MANAGER'],
     'asset-catalog': [],
     inspections: ['MANAGER'],
     reports: ['MANAGER'],
-    maintenance: [],
-    workforce: [],
     'platform-users': ['MANAGER'],
     'finance-settings': [],
     'pilot-license-classes': [],
@@ -159,13 +153,11 @@ const SECTION_ROLE_ACCESS = {
   client: {
     dashboard: ['CUSTOMER'],
     contracts: ['CUSTOMER'],
+    messages: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
     inspections: ['CUSTOMER'],
     reports: ['CUSTOMER'],
-    maintenance: ['CUSTOMER'],
-    // Workforce provisioning is limited to the organization CUSTOMER account.
-    workforce: ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
     'finance-settings': [],
@@ -175,20 +167,19 @@ const SECTION_ROLE_ACCESS = {
     settings: ['CUSTOMER'],
   },
   operations: {
-    dashboard: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    dashboard: ['INSPECTOR'],
     contracts: [],
+    messages: [],
     assets: [],
     'asset-catalog': [],
     inspections: ['INSPECTOR'],
     reports: ['INSPECTOR'],
-    maintenance: ['MAINTENANCE_ENGINEER'],
-    workforce: [],
     'platform-users': [],
     'finance-settings': [],
     'pilot-license-classes': [],
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
-    settings: ['INSPECTOR', 'MAINTENANCE_ENGINEER'],
+    settings: ['INSPECTOR'],
   },
 } as const satisfies Record<
   PortalId,

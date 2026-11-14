@@ -31,6 +31,10 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import TuneRounded from '@mui/icons-material/TuneRounded';
+import { DroneDocumentConfigTab } from '../components/DroneDocumentConfigTab';
+import { DroneFeatureConfigTab } from '../components/DroneFeatureConfigTab';
 import type { ChecklistTemplate, ChecklistTemplateType } from '../api/catalogApi';
 import {
   useCategories,
@@ -282,7 +286,7 @@ export default function AssetCatalogPage() {
   const categories = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
-  const [activeTab, setActiveTab] = useState<'categories' | 'flight-checklists'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'flight-checklists' | 'drone-documents' | 'drone-features'>('categories');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
   // New category form
@@ -342,7 +346,7 @@ export default function AssetCatalogPage() {
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
         title={t('Asset catalog & Flight checklists')}
-        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
+        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
       />
 
       <Tabs
@@ -364,9 +368,23 @@ export default function AssetCatalogPage() {
           label={t('Pre-flight & Post-flight Checklists')}
           sx={{ textTransform: 'none', fontWeight: 600 }}
         />
+        <Tab
+          value="drone-documents"
+          icon={<DescriptionOutlined fontSize="small" />}
+          iconPosition="start"
+          label={t('Drone Document Requirements')}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        />
+        <Tab
+          value="drone-features"
+          icon={<TuneRounded fontSize="small" />}
+          iconPosition="start"
+          label={t('Drone Features & Safety')}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        />
       </Tabs>
 
-      {activeTab === 'categories' ? (
+      {activeTab === 'categories' && (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
           <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
             <CardContent>
@@ -525,7 +543,9 @@ export default function AssetCatalogPage() {
             </CardContent>
           </Card>
         </Stack>
-      ) : (
+      )}
+
+      {activeTab === 'flight-checklists' && (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
           <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
             <CardContent>
@@ -562,6 +582,9 @@ export default function AssetCatalogPage() {
           </Card>
         </Stack>
       )}
+
+      {activeTab === 'drone-documents' && <DroneDocumentConfigTab />}
+      {activeTab === 'drone-features' && <DroneFeatureConfigTab />}
     </Box>
   );
 }

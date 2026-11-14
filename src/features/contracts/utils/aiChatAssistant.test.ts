@@ -5,7 +5,7 @@ import { generateContextualAiBotReply, shouldAiBotAutoReply } from './aiChatAssi
 describe('aiChatAssistant', () => {
   const dummyRequest: ServiceRequest = {
     id: 'req-001',
-    organizationId: 'org-001',
+    ownerCustomerId: 'org-001',
     assetId: 'asset-001',
     description: 'Khảo sát vết nứt mố cầu',
     requestedFrom: '2026-11-05T08:00:00Z',
@@ -19,13 +19,16 @@ describe('aiChatAssistant', () => {
     occurrenceCount: 1,
     recurrenceEndDate: null,
     status: 'OPEN',
-    acceptedQuoteVersion: null,
+    acceptedQuoteId: null,
+    acceptedAt: null,
+    acceptedByUserId: null,
+    acceptedTermsSnapshot: null,
     contractFileName: null,
     contractContentType: null,
     contractSizeBytes: null,
     contractUploadedAt: null,
     createdAt: '2026-11-01T10:00:00Z',
-    quotes: [],
+    currentQuote: null,
     occurrences: [],
     messages: [],
   };

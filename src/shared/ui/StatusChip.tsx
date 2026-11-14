@@ -76,11 +76,7 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   pending: 'warning',
   pending_review: 'warning',
   awaiting_approval: 'warning',
-  submitted_for_acceptance: 'warning',
-  reinspection_required: 'warning',
-  paused_for_change: 'warning',
   proposed: 'warning',
-  repair_pending: 'warning',
   submitted: 'warning',
   inprogress: 'warning',
   in_progress: 'warning',
@@ -91,7 +87,6 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   reschedule_required: 'warning',
 
   returned: 'error',
-  rework_required: 'error',
   cancelled: 'error',
   aborted: 'error',
   rejected: 'error',
@@ -102,7 +97,6 @@ const STATUS_MAP: Record<string, StatusVariant> = {
   assigned: 'info',
   ready_for_flight: 'info',
   planned: 'info',
-  work_completed: 'info',
 
   inactive: 'default',
   superseded: 'default',
@@ -116,13 +110,6 @@ const STATUS_LABELS: Record<string, string> = {
   ready_for_flight: 'Ready for Flight',
   report_draft: 'Report Draft',
   reschedule_required: 'Reschedule Required',
-  cost_reconciled: 'Cost Reconciled',
-  submitted_for_acceptance: 'Submitted for Acceptance',
-  reinspection_required: 'Re-inspection Required',
-  paused_for_change: 'Paused for Change',
-  repair_pending: 'Repair Pending',
-  rework_required: 'Rework Required',
-  work_completed: 'Work Completed',
   scheduled: 'Scheduled',
   completed: 'Completed',
   published: 'Published',
@@ -136,6 +123,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 export interface StatusChipProps {
   status: string;
+  label?: string;
+  tone?: StatusVariant;
   size?: ChipProps['size'];
 }
 
@@ -143,11 +132,11 @@ export interface StatusChipProps {
  * Modern status pill with a colored dot indicator, matching the Lytic dashboard design reference.
  * Wraps MUI Chip to preserve class names and accessibility in tests.
  */
-export function StatusChip({ status, size = 'small' }: StatusChipProps) {
+export function StatusChip({ status, label, tone, size = 'small' }: StatusChipProps) {
   const { t } = useLocale();
   const isDark = useIsDarkMode();
   const normalized = status.toLowerCase().replace(/[\s-]/g, '_');
-  const variant = STATUS_MAP[normalized] ?? 'default';
+  const variant = tone ?? STATUS_MAP[normalized] ?? 'default';
   const theme = THEMES[variant];
   const displayLabel = STATUS_LABELS[normalized] ?? status;
 
@@ -155,7 +144,7 @@ export function StatusChip({ status, size = 'small' }: StatusChipProps) {
     <Chip
       size={size}
       color={theme.variant}
-      label={t(displayLabel)}
+      label={t(label ?? displayLabel)}
       data-status={status}
       sx={{
         borderRadius: '6px',

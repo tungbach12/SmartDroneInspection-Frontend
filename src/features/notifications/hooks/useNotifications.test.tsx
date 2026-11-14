@@ -48,8 +48,7 @@ describe('useNotifications hooks', () => {
         email: 'user@example.com',
         fullName: 'Test User',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-1',
+        actorZone: 'CUSTOMER',
       },
     });
   });

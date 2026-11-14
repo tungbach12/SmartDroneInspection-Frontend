@@ -130,15 +130,9 @@ export function OverviewStakeholdersSection({
   const matchedInspectorUser = platformUsers.find(
     (u) => u.id === inspection.inspectorId,
   );
-  const orgMembers = platformUsers.filter(
-    (u) => u.organizationId === inspection.organizationId,
+  const matchedCustomerUser = platformUsers.find(
+    (u) => u.id === inspection.ownerCustomerId,
   );
-  const matchedCustomerUser =
-    orgMembers.find((u) => u.roles.includes('CUSTOMER')) ?? orgMembers[0];
-  const orgEngineers = orgMembers.filter((u) =>
-    u.roles.includes('MAINTENANCE_ENGINEER'),
-  );
-
   const inspectorName =
     inspectorProfile?.fullName ||
     matchedInspectorUser?.fullName ||
@@ -152,7 +146,7 @@ export function OverviewStakeholdersSection({
 
   const customerName =
     matchedCustomerUser?.fullName ||
-    `${t('Organization')} #${inspection.organizationId.slice(0, 8)}`;
+    `${t('Customer')} #${inspection.ownerCustomerId.slice(0, 8)}`;
   const customerEmail =
     matchedCustomerUser?.email || 'customer@mf3bridge.test';
 
@@ -619,19 +613,9 @@ export function OverviewStakeholdersSection({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <ReadOnlyField
-                    label={t('Organization ID')}
-                    value={inspection.organizationId}
+                    label={t('Customer ID')}
+                    value={inspection.ownerCustomerId}
                     monospace
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <ReadOnlyField
-                    label={t('Organization Workforce')}
-                    value={
-                      orgEngineers.length > 0
-                        ? `${orgEngineers.length} ${t('Maintenance Engineer(s)')} (${orgEngineers.map((e) => e.fullName).join(', ')})`
-                        : t('Managed by Customer Organization')
-                    }
                   />
                 </Grid>
               </Grid>

@@ -80,7 +80,6 @@ vi.mock('../hooks/useInspections', () => ({
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
   useInspection: () => ({ data: undefined }),
-  useReinspectionVerifications: () => ({ data: [] }),
   useFieldSessions: () => ({ data: [] }),
 }));
 
@@ -102,8 +101,7 @@ function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
       email: 'user@example.test',
       fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
-      actorZone: 'CUSTOMER_ORGANIZATION',
-      organizationId: 'org-1',
+      actorZone: 'CUSTOMER',
     },
   });
 }

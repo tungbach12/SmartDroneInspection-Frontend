@@ -10,7 +10,7 @@ export interface OverviewStageGuidance {
 
 /**
  * Resolves the target step route (`permit`, `pre-flight`, `field-session`, `post-flight`,
- * `evidence`, `findings`, `report`, `audit`, `review`, `settlement`, `tracking`, `corrective`)
+ * `evidence`, `findings`, `report`, `audit`, `review`, `settlement`, `tracking`)
  * for an inspection list item based on the active portal role.
  */
 export function resolveInitialStepForRow(
@@ -39,12 +39,6 @@ export function resolveInitialStepForRow(
 
   if (roleView === 'customer') {
     if (isReportsQueue) {
-      if (
-        row?.pendingAction === 'CORRECTIVE_DISPOSITION' &&
-        row?.inspectionType !== 'RE_INSPECTION'
-      ) {
-        return 'corrective';
-      }
       if (row?.reportStatus === 'PUBLISHED') {
         return 'report';
       }
@@ -62,7 +56,7 @@ export function resolveInitialStepForRow(
     if (paymentStatus !== 'PAID') {
       return 'settlement';
     }
-    return row?.inspectionType === 'RE_INSPECTION' ? 'settlement' : 'corrective';
+    return 'settlement';
   }
 
   // Inspector ('operations' portal)
@@ -79,7 +73,7 @@ export function resolveInitialStepForRow(
     if (row?.reportId) {
       return 'report';
     }
-    return row?.inspectionType === 'RE_INSPECTION' ? 'findings' : 'evidence';
+    return 'evidence';
   }
   if (row?.status === 'IN_PROGRESS') {
     return 'field-session';
@@ -114,7 +108,7 @@ export function resolveRowStageSubtitle(
   }
 
   if (roleView === 'customer') {
-    const total = row.inspectionType === 'RE_INSPECTION' ? 3 : 4;
+    const total = 3;
     const isPublished = row.reportStatus === 'PUBLISHED';
     if (!isPublished) {
       return `Step 1/${total} · In progress`;
@@ -123,18 +117,11 @@ export function resolveRowStageSubtitle(
     if (!accepted) {
       return `Step 2/${total} · Report ready · v${row.reportVersionNo ?? 1}`;
     }
-    const paymentStatus = options?.resolvedPaymentStatus ?? row.paymentStatus;
-    if (paymentStatus !== 'PAID') {
-      return `Step 3/${total} · Accepted`;
-    }
-    return total === 4
-      ? `Step 4/${total} · Settled`
-      : `Step 3/${total} · Settled`;
+    return `Step 3/${total} · Settled`;
   }
 
   // Inspector
-  const isReinspection = row.inspectionType === 'RE_INSPECTION';
-  const total = isReinspection ? 6 : 7;
+  const total = 7;
   if (row.reportStatus === 'PUBLISHED' || row.status === 'COMPLETED') {
     return `Step ${total}/${total} · Published`;
   }
@@ -148,9 +135,7 @@ export function resolveRowStageSubtitle(
     if (row.reportId) {
       return `Step ${total}/${total} · Draft Report`;
     }
-    return isReinspection
-      ? `Step 5/${total} · Defect Verification`
-      : `Step 5/${total} · Evidence & AI`;
+    return `Step 5/${total} · Evidence & AI`;
   }
   if (row.status === 'IN_PROGRESS') {
     return `Step 3/${total} · Flight Operation`;
@@ -162,12 +147,11 @@ export function resolveRowStageSubtitle(
  * Resolves role-specific workflow guidance and CTA destination for the Overview dialog.
  */
 export function resolveOverviewGuidance(
-  inspection: Pick<InspectionDetail, 'status' | 'flightPermitFileName' | 'inspectionType'>,
+  inspection: Pick<InspectionDetail, 'status' | 'flightPermitFileName'>,
   roleView: InspectionRoleView,
   t: (key: string) => string,
 ): OverviewStageGuidance {
   const status: InspectionStatus = inspection.status;
-  const isReinspection = inspection.inspectionType === 'RE_INSPECTION';
 
   if (roleView === 'manager') {
     switch (status) {
@@ -240,11 +224,9 @@ export function resolveOverviewGuidance(
       };
     case 'FIELD_COMPLETED':
       return {
-        tip: isReinspection
-          ? t('Re-inspection flight completed. Verify repaired defects against previous findings and compile report.')
-          : t('Field flight completed. Upload captured drone evidence, review AI detections, confirm findings, and draft report.'),
-        actionLabel: isReinspection ? t('Verify defect findings') : t('Review evidence & findings'),
-        subpath: isReinspection ? 'findings' : 'evidence',
+        tip: t('Field flight completed. Upload captured drone evidence, review AI detections, confirm findings, and draft report.'),
+        actionLabel: t('Review evidence & findings'),
+        subpath: 'evidence',
       };
     case 'UNDER_REVIEW':
       return {

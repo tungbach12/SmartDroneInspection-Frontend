@@ -29,8 +29,7 @@ const user = {
   email: 'org-manager@example.com',
   fullName: 'Organization Manager',
   roles: ['CUSTOMER'],
-  actorZone: 'CUSTOMER_ORGANIZATION',
-  organizationId: 'org-1',
+  actorZone: 'CUSTOMER',
   visionFallbackEnabled: true,
 };
 
@@ -86,7 +85,6 @@ describe('browser auth API', () => {
             'MANAGER',
             'CUSTOMER',
             'INSPECTOR',
-            'MAINTENANCE_ENGINEER',
             'UNKNOWN_ROLE',
           ],
         },
@@ -100,7 +98,6 @@ describe('browser auth API', () => {
       'MANAGER',
       'CUSTOMER',
       'INSPECTOR',
-      'MAINTENANCE_ENGINEER',
     ]);
   });
 
@@ -169,7 +166,6 @@ describe('browser auth API', () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         registrationStatus: 'ACTIVE',
-        organizationId: 'org-1',
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
         user: { ...user, roles: ['CUSTOMER', 'UNKNOWN_ROLE'] },
@@ -242,21 +238,20 @@ describe('browser auth API', () => {
         user: {
           ...user,
           roles: ['CUSTOMER', 'MANAGER'],
-          actorZone: 'INSPECTOR_PARTNER',
+          actorZone: 'INSPECTOR',
         },
       },
     });
 
     const result = await login('partner@example.com', 'secret password');
     expect(result.user?.roles).toEqual(['CUSTOMER', 'MANAGER']);
-    expect(result.user?.actorZone).toBe('INSPECTOR_PARTNER');
+    expect(result.user?.actorZone).toBe('INSPECTOR');
   });
 
   it('accepts first asset data and handles pending airspace review response in customer registration', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         registrationStatus: 'PENDING_AIRSPACE_REVIEW',
-        organizationId: null,
         organizationName: 'Example Org',
         organizationCode: 'EXAMPLE',
         airspaceClassification: 'UNKNOWN',
@@ -265,8 +260,7 @@ describe('browser auth API', () => {
         user: {
           ...user,
           roles: ['CUSTOMER'],
-          actorZone: 'PROSPECT_CUSTOMER',
-          organizationId: null,
+          actorZone: 'CUSTOMER',
         },
       },
     });
@@ -304,7 +298,7 @@ describe('browser auth API', () => {
     });
     expect(result.registrationStatus).toBe('PENDING_AIRSPACE_REVIEW');
     expect(result.airspaceReviewId).toBe('review-123');
-    expect(result.user?.actorZone).toBe('PROSPECT_CUSTOMER');
+    expect(result.user?.actorZone).toBe('CUSTOMER');
   });
 
   it('evaluates airspace advisory before submission', async () => {

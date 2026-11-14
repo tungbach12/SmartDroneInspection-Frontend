@@ -58,7 +58,7 @@ function deriveSummaryDetailsFromPersisted(
   const recommendedActions =
     confirmed.length === 0
       ? 'Routine periodic drone inspection schedule is recommended.'
-      : 'Timely maintenance intervention recommended for confirmed defects.';
+      : 'Timely remediation recommended for confirmed defects.';
 
   return {
     summary: persistedSummary,

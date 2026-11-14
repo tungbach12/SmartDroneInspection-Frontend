@@ -49,7 +49,7 @@ export default function ManagerPartnerInspectorsPage() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   const items = (users.data ?? []).filter(
-    (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR_PARTNER',
+    (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR',
   );
 
   const columns: DataTableColumn<PlatformUser>[] = [
@@ -118,7 +118,7 @@ export default function ManagerPartnerInspectorsPage() {
       {
         email: email.trim(),
         fullName: fullName.trim(),
-        actorZone: 'INSPECTOR_PARTNER',
+        actorZone: 'INSPECTOR',
         roles: ['INSPECTOR'],
       },
       {
@@ -159,7 +159,7 @@ export default function ManagerPartnerInspectorsPage() {
       <PageHeader
         title={t('Partner workforce')}
         breadcrumbs={[
-          { label: 'Home', to: '/manager/dashboard' },
+          { label: t('Governance'), to: '/manager/dashboard' },
           { label: t('Partner workforce') },
         ]}
       />

@@ -61,6 +61,7 @@ export function InspectorDashboardPage() {
   });
   const myDrones = dronesQuery.data ?? [];
   const droneCount = myDrones.length;
+  const activeDroneCount = myDrones.filter((d) => d.serviceability === 'ACTIVE').length;
 
   const inspectionsQuery = useInspections({ page: 1, pageSize: 50 }, true);
   const items = useInspectionsQueryItems(inspectionsQuery.data?.items);
@@ -218,45 +219,91 @@ export function InspectorDashboardPage() {
         {/* License Expiry / Expiration Warning Banner */}
         {myProfile &&
           (myProfile.licenseExpirationStatus === 'EXPIRED' ||
-            myProfile.licenseExpirationStatus === 'EXPIRING_SOON') && (
-            <Alert
-              severity={
-                myProfile.licenseExpirationStatus === 'EXPIRED'
-                  ? 'error'
-                  : (myProfile.licenseRemainingDays ?? 99) <= 7
-                    ? 'warning'
-                    : 'info'
-              }
-              action={
-                <Button
-                  color="inherit"
-                  size="small"
-                  endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-                  onClick={() => navigate('/operations/partner-onboarding')}
-                  sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
-                >
-                  {myProfile.licenseExpirationStatus === 'EXPIRED'
-                    ? 'Cập nhật bằng lái ngay'
-                    : 'Gia hạn / Cập nhật'}
-                </Button>
-              }
-              sx={{ borderRadius: '10px', alignItems: 'center' }}
-            >
-              {myProfile.licenseExpirationStatus === 'EXPIRED'
-                ? `Khẩn cấp: Giấy phép điều khiển UAV ${myProfile.pilotLicenseNumber || ''} của bạn đã hết hạn${
-                    myProfile.pilotLicenseExpiresAt
-                      ? ` (${new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')})`
-                      : ''
-                  }. Tài khoản tạm thời bị khóa quyền nhận lịch bay và bắt đầu chuyến bay mới cho đến khi cập nhật bằng gia hạn.`
-                : `Cảnh báo: Giấy phép điều khiển UAV ${myProfile.pilotLicenseNumber || ''} của bạn sẽ hết hạn sau ${
-                    myProfile.licenseRemainingDays ?? 0
-                  } ngày${
-                    myProfile.pilotLicenseExpiresAt
-                      ? ` (ngày ${new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')})`
-                      : ''
-                  }. Vui lòng gia hạn và tải lên bản scan mới để tránh gián đoạn lịch bay.`}
-            </Alert>
-          )}
+            myProfile.licenseExpirationStatus === 'EXPIRING_SOON') && (() => {
+            const isExpired = myProfile.licenseExpirationStatus === 'EXPIRED';
+            const remainingDays = myProfile.licenseRemainingDays ?? 0;
+            const expiryDateText = myProfile.pilotLicenseExpiresAt
+              ? new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')
+              : null;
+            const severity = isExpired ? 'error' : remainingDays <= 7 ? 'warning' : 'info';
+
+            return (
+              <Alert
+                severity={severity}
+                action={
+                  <Button
+                    color={severity}
+                    variant="outlined"
+                    size="small"
+                    endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                    onClick={() => navigate('/operations/settings?tab=pilot-profile')}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 650,
+                      whiteSpace: 'nowrap',
+                      borderRadius: '8px',
+                      px: 1.75,
+                      py: 0.65,
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    {isExpired ? 'Cập nhật bằng lái ngay' : 'Gia hạn / Cập nhật'}
+                  </Button>
+                }
+                sx={{
+                  borderRadius: '12px',
+                  px: 2.25,
+                  py: 1.5,
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  border: 1,
+                  borderColor: `${severity}.light`,
+                  '& .MuiAlert-message': { py: 0.25, flex: 1 },
+                  '& .MuiAlert-action': {
+                    pt: 0,
+                    pl: { xs: 0, sm: 2 },
+                    alignItems: 'center',
+                  },
+                }}
+              >
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                    {isExpired
+                      ? 'Giấy phép điều khiển UAV đã hết hạn'
+                      : 'Giấy phép điều khiển UAV sắp hết hạn'}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    color={severity}
+                    variant="outlined"
+                    label={
+                      isExpired
+                        ? expiryDateText
+                          ? `Hết hạn ngày ${expiryDateText}`
+                          : 'Đã hết hạn'
+                        : expiryDateText
+                          ? `Còn ${remainingDays} ngày · ${expiryDateText}`
+                          : `Còn ${remainingDays} ngày`
+                    }
+                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 650 }}
+                  />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                  {myProfile.pilotLicenseNumber ? (
+                    <>
+                      Số bằng{' '}
+                      <Box component="span" sx={{ fontWeight: 650, color: 'text.primary', fontFamily: 'monospace' }}>
+                        {myProfile.pilotLicenseNumber}
+                      </Box>
+                      {' — '}
+                    </>
+                  ) : null}
+                  {isExpired
+                    ? 'Tài khoản tạm thời bị khóa quyền nhận lịch bay và bắt đầu chuyến bay mới cho đến khi cập nhật bằng gia hạn.'
+                    : 'Vui lòng gia hạn và tải lên bản scan mới để tránh gián đoạn lịch bay.'}
+                </Typography>
+              </Alert>
+            );
+          })()}
 
         {/* Minimal 1-line notice ONLY when onboarding is not yet approved */}
         {myProfile && myProfile.onboardingStatus !== 'APPROVED' && (
@@ -267,7 +314,7 @@ export function InspectorDashboardPage() {
                 color="inherit"
                 size="small"
                 endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-                onClick={() => navigate('/operations/partner-onboarding')}
+                onClick={() => navigate('/operations/settings?tab=pilot-profile')}
                 sx={{ textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
               >
                 Hoàn tất hồ sơ
@@ -303,7 +350,7 @@ export function InspectorDashboardPage() {
           </Alert>
         )}
 
-        {/* 3 Focused Real Metric Cards */}
+        {/* 4 Focused Real Metric Cards (NextAdmin layout) */}
         <Box
           role="region"
           aria-label={t('Inspector summary metrics')}
@@ -311,7 +358,8 @@ export function InspectorDashboardPage() {
             display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
-              sm: 'repeat(3, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              lg: 'repeat(4, 1fr)',
             },
             gap: 2.5,
           }}
@@ -350,6 +398,15 @@ export function InspectorDashboardPage() {
             subtext={t('after 15% platform commission')}
             iconType="wallet"
           />
+
+          <MetricCard
+            label={t('Active Drones')}
+            value={`${activeDroneCount} / ${droneCount}`}
+            change={`${myProfile?.totalFlightHours ?? 0}h ${t('flight hrs')}`}
+            positive={activeDroneCount > 0}
+            subtext={myProfile?.pilotLicenseClass || t('fleet readiness')}
+            iconType="users"
+          />
         </Box>
 
         {/* Monthly Personal Revenue & Net Payout Chart */}
@@ -360,6 +417,156 @@ export function InspectorDashboardPage() {
           totalCommission={totalCommission}
           totalDisbursed={totalDisbursed}
         />
+
+        {/* 2-Column Overview Cards (NextAdmin bottom grid) */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+            gap: 2.5,
+          }}
+        >
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2.5,
+              borderRadius: '12px',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              boxShadow: 'none',
+            }}
+          >
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {t('My Drone Fleet')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {activeDroneCount} {t('active')} · {droneCount - activeDroneCount} {t('unactive')}
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                onClick={() => navigate('/operations/inspector-drones')}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                {t('Manage')}
+              </Button>
+            </Stack>
+
+            {myDrones.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                {t('No drones registered yet.')}
+              </Typography>
+            ) : (
+              <Stack spacing={1.25}>
+                {myDrones.slice(0, 4).map((drone) => (
+                  <Stack
+                    key={drone.id}
+                    direction="row"
+                    sx={{
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 1.5,
+                      borderRadius: '8px',
+                      bgcolor: 'action.hover',
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 650 }} noWrap>
+                        {drone.model?.split('[')[0]?.trim() || drone.serialNumber}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                        SN: {drone.serialNumber}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      label={drone.serviceability === 'ACTIVE' ? 'Active' : 'Unactive'}
+                      color={drone.serviceability === 'ACTIVE' ? 'success' : 'warning'}
+                      variant="outlined"
+                      sx={{ fontWeight: 650, fontSize: '0.75rem' }}
+                    />
+                  </Stack>
+                ))}
+              </Stack>
+            )}
+          </Paper>
+
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2.5,
+              borderRadius: '12px',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              boxShadow: 'none',
+            }}
+          >
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {t('Pilot License & Flight Readiness')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {myProfile?.pilotLicenseClass || t('Not set')}
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                onClick={() => navigate('/operations/settings?tab=pilot-profile')}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                {t('Profile')}
+              </Button>
+            </Stack>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 1.5,
+              }}
+            >
+              <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('License Number')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', mt: 0.25 }}>
+                  {myProfile?.pilotLicenseNumber || '—'}
+                </Typography>
+              </Box>
+              <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('License Expiry')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25 }}>
+                  {myProfile?.pilotLicenseExpiresAt
+                    ? new Date(myProfile.pilotLicenseExpiresAt).toLocaleDateString('vi-VN')
+                    : '—'}
+                </Typography>
+              </Box>
+              <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Total Flight Hours')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25 }}>
+                  {myProfile?.totalFlightHours ?? 0} hrs
+                </Typography>
+              </Box>
+              <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Partner Contract')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.25 }}>
+                  {myProfile?.hasPartnerContract ? t('Signed & Active') : t('Pending')}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Box>
 
         {/* Monthly Financial Settlement Table */}
         <Paper

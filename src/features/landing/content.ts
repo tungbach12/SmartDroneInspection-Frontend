@@ -36,10 +36,10 @@ export const workflowSteps = [
   },
   {
     number: '06',
-    label: 'Maintenance Engineer',
-    title: 'Close from evidence',
+    label: 'Customer',
+    title: 'Accept the report',
     description:
-      'Accepted defects become repair work, before/after evidence, and a maintenance record tied back to the report.',
+      'Review the published inspection report, confirm acceptance, and settle the service fee.',
   },
 ] as const;
 
@@ -59,11 +59,11 @@ export const productItems = [
     icon: 'finding',
   },
   {
-    label: 'Maintenance output',
-    title: 'Turn findings into work',
+    label: 'Published reports',
+    title: 'Make every finding traceable',
     description:
-      'Approved defects spawn assigned maintenance with before/after evidence and warranty/rework context.',
-    icon: 'maintenance',
+      'Keep confirmed findings, evidence, and the signed inspection report together for review.',
+    icon: 'finding',
   },
 ] as const;
 
@@ -88,12 +88,5 @@ export const roleCards = [
     description:
       'Set GSD/AGL, overlap, airspace clearance, permits, and shot-items; capture evidence with checksum on site.',
     icon: 'field',
-  },
-  {
-    role: 'Maintenance Engineer',
-    title: 'Close from reviewed defects',
-    description:
-      'Pick up approved defects, record before/after evidence, and close maintenance with a traceable record.',
-    icon: 'asset',
   },
 ] as const;

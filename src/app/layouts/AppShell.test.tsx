@@ -62,8 +62,7 @@ describe('AppShell with NotificationBell integration', () => {
         email: 'inspector@example.com',
         fullName: 'Inspector One',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-1',
+        actorZone: 'CUSTOMER',
       },
     });
 
@@ -85,27 +84,6 @@ describe('AppShell with NotificationBell integration', () => {
     expect(screen.getByRole('link', { name: 'Inspection Schedule' }).getAttribute('href')).toBe(
       '/operations/inspections?view=calendar',
     );
-  });
-
-  it('does not show the Inspector Schedule link to Maintenance Engineers', () => {
-    useAuthStore.getState().setSession({
-      accessToken: 'token-engineer',
-      user: {
-        id: 'engineer-1',
-        email: 'engineer@example.com',
-        fullName: 'Engineer One',
-        roles: ['MAINTENANCE_ENGINEER'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-1',
-      },
-    });
-
-    render(<AppShell portal="operations" />, {
-      wrapper: createWrapper(queryClient),
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Hide sidebar' }));
-
-    expect(screen.queryByRole('link', { name: 'Inspection Schedule' })).toBeNull();
   });
 
   it('renders NotificationBell in toolbar with unread badge', async () => {

@@ -338,7 +338,7 @@ export function BentoGrid() {
                 {t('Certified Compliance Reports')}
               </Typography>
               <Typography sx={{ fontSize: '14px', color: '#5D707B', mb: 2.5, lineHeight: 1.6 }}>
-                {t('Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, then dispatch verified maintenance tickets.')}
+                {t('Turn aerial findings into tamper-proof inspection certificates that regulators and insurers accept, ready for official download and settlement.')}
               </Typography>
 
               {/* Generated Image Asset: Immutable Inspection Certificate */}
@@ -368,7 +368,7 @@ export function BentoGrid() {
                   <StatusChip status="pass" label={t('SEALED EVIDENCE')} />
                 </Box>
                 <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <StatusChip status="active" label={t('MAINTENANCE DISPATCHED')} />
+                  <StatusChip status="active" label={t('REPORT PUBLISHED')} />
                 </Box>
               </Box>
 
@@ -377,7 +377,7 @@ export function BentoGrid() {
                 {[
                   { tag: 'EVIDENCE', text: 'Tamper-proof RAW 4K photos attached', color: '#62c073' },
                   { tag: 'SIGN-OFF', text: 'Certified Inspector signed report', color: '#087E8B' },
-                  { tag: 'REPAIRS', text: 'Before and after photo verification', color: '#62c073' },
+                  { tag: 'DELIVERY', text: 'Instant immutable PDF export & settlement', color: '#62c073' },
                 ].map((item) => (
                   <Box
                     key={item.text}

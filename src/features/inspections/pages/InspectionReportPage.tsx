@@ -29,7 +29,6 @@ import {
   useReportVersions,
   useSubmitReportVersion,
   useWithdrawReportVersion,
-  useReinspectionVerifications,
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
@@ -69,7 +68,6 @@ export default function InspectionReportPage() {
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
-  const reinspectionVerifications = useReinspectionVerifications(inspectionId);
   const fieldSessionsQuery = useFieldSessions?.(inspectionId);
 
   const createDraft = useGenerateReportDraft(inspectionId);
@@ -136,41 +134,16 @@ export default function InspectionReportPage() {
 
   const draftPreviewVersion: InspectionReport = useMemo(() => {
     const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
-    const verifications = reinspectionVerifications.data ?? [];
-    const isReinspection =
-      inspectionData?.inspectionType === 'RE_INSPECTION' || verifications.length > 0;
-    const resolvedVerifications = verifications.filter(
-      (v) => v.resolutionStatus === 'RESOLVED',
-    ).length;
-    const unresolvedVerifications = verifications.filter(
-      (v) => v.resolutionStatus === 'UNRESOLVED',
-    ).length;
-    const inconclusiveVerifications = verifications.filter(
-      (v) => v.resolutionStatus === 'INCONCLUSIVE',
-    ).length;
-
     const severities = reportable.map((f) => f.severity);
     const overallCondition: ReportOverallCondition = severities.includes('CRITICAL')
       ? 'CRITICAL'
-      : severities.includes('HIGH') || (isReinspection && unresolvedVerifications > 0)
+      : severities.includes('HIGH')
         ? 'POOR'
-        : severities.includes('MEDIUM') || (isReinspection && inconclusiveVerifications > 0)
+        : severities.includes('MEDIUM')
           ? 'FAIR'
           : 'GOOD';
     const assetLabel = inspectionData?.assetName || t('the inspected structure');
     const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${reportable.length} ${t('confirmed defects')}; ${(evidence.data ?? []).length} ${t('evidence captures')}.`;
-
-    const executiveSummary = isReinspection
-      ? `Báo cáo bay kiểm tra đối soát 3 bên sau bảo trì cho công trình ${inspectionData?.assetName || 'công trình'}. Đã đối chiếu ${verifications.length} hạng mục sửa chữa mục tiêu (${resolvedVerifications}/${verifications.length} ĐÃ KHẮC PHỤC${unresolvedVerifications > 0 ? `, ${unresolvedVerifications} CHƯA KHẮC PHỤC` : ''}${inconclusiveVerifications > 0 ? `, ${inconclusiveVerifications} CẦN KIỂM TRA THÊM` : ''}) cùng ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường mới.`
-      : `Báo cáo kiểm định cho công trình ${inspectionData?.assetName || 'công trình'}. Đã ghi nhận ${reportable.length} khuyết tật cần theo dõi/sửa chữa và ${(evidence.data ?? []).length} hình ảnh bằng chứng hiện trường.`;
-
-    const conclusionsRecommendations = isReinspection
-      ? unresolvedVerifications > 0 || inconclusiveVerifications > 0
-        ? `Còn ${unresolvedVerifications + inconclusiveVerifications} hạng mục bảo trì chưa đạt yêu cầu kỹ thuật hoặc cần đánh giá bổ sung. Đề xuất chuyển trả Lệnh bảo trì sang trạng thái yêu cầu sửa chữa lại (REWORK_REQUIRED) trước khi nghiệm thu.`
-        : `Toàn bộ ${verifications.length} hạng mục khuyết tật mục tiêu trong phạm vi bảo trì đã được khắc phục đạt chuẩn kỹ thuật (RESOLVED). Đề xuất hoàn tất nghiệm thu bàn giao Lệnh bảo trì.`
-      : reportable.length > 0
-        ? `Đề xuất chuyển giao ${reportable.length} phát hiện khuyết tật đã xác nhận sang bộ phận bảo trì (Maintenance) để lập kế hoạch sửa chữa và khắc phục.`
-        : 'Công trình trong tình trạng hoạt động tốt, không phát hiện khuyết tật nghiêm trọng tại thời điểm khảo sát.';
 
     return {
       id: `preview-${inspectionId}`,
@@ -187,21 +160,15 @@ export default function InspectionReportPage() {
       summary: autoSummary,
       omissionDisclosure: null,
       sections: {
-        executiveSummary: isReinspection ? executiveSummary : autoSummary,
+        executiveSummary: autoSummary,
         overallCondition,
-        purposeScopeCriteria: isReinspection
-          ? t('Three-way defect verification (Original Defect — Maintenance Repair Proof — Drone Re-capture) per engineering standards.')
-          : t(
-              'Aerial structural survey using UAV/Drone to capture high-resolution imagery and detect surface defects.',
-            ),
+        purposeScopeCriteria: t('Aerial structural survey using UAV/Drone to capture high-resolution imagery and detect surface defects.'),
         methodEquipmentConditions: inspectionData?.droneSerialNumber
           ? `${t('Assigned UAV')}: ${inspectionData.droneModel ?? ''} (${t('Serial')}: ${inspectionData.droneSerialNumber}). ${t('Remote visual inspection conducted per standard protocol.')}`
           : t('Specialized inspection UAV equipped with high-resolution optical camera.'),
-        conclusionsRecommendations: isReinspection
-          ? conclusionsRecommendations
-          : reportable.length > 0
-            ? `${t('Recommend forwarding')} ${reportable.length} ${t('confirmed defect finding(s) to Maintenance for corrective repair planning.')}`
-            : t('No confirmed defects in the reviewed evidence. This does not certify the structure as safe or defect-free.'),
+        conclusionsRecommendations: reportable.length > 0
+          ? `${reportable.length} ${t('confirmed findings require attention.')}`
+          : t('No confirmed defects in the reviewed evidence. This does not certify the structure as safe or defect-free.'),
       },
       reportContext: {
         organizationName: null,
@@ -241,7 +208,6 @@ export default function InspectionReportPage() {
     userId,
     findings.data,
     evidence.data,
-    reinspectionVerifications.data,
     inspectionData,
     workflow.data,
     fieldSessionItems,
@@ -533,7 +499,6 @@ export default function InspectionReportPage() {
                   findings={findings.data ?? []}
                   evidenceList={activeEvidenceList}
                   inspectionId={inspectionId}
-                  reinspectionVerifications={reinspectionVerifications.data}
                 />
               ) : (
                 <FlightOperationsReportView
@@ -597,7 +562,6 @@ export default function InspectionReportPage() {
                 canEdit={canEditOpenVersion}
                 onSaveSections={handleSaveSections}
                 onDirtyChange={onReportDirtyChange}
-                reinspectionVerifications={reinspectionVerifications.data}
               />
             ) : (
               <FlightOperationsReportView
