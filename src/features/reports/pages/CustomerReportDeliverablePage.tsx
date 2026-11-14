@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -121,6 +122,10 @@ export default function CustomerReportDeliverablePage({
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
+  const priorClarificationCount = (versions.data ?? []).filter(
+    (v) => v.returnReason && v.returnReason.includes('[Yêu cầu làm rõ từ Khách hàng]'),
+  ).length;
+
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
       {!isEmbeddedInInspectionWorkspace && (
@@ -222,21 +227,31 @@ export default function CustomerReportDeliverablePage({
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t(
-                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Platform Manager will review and provide a response.',
-              )}
-            </Typography>
-            <TextField
-              label={t('Dispute details or questions')}
-              multiline
-              rows={4}
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder={t('e.g. Defect location is inaccurate, photo quality is unclear, severity rating requires re-evaluation…')}
-              fullWidth
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
+            {priorClarificationCount >= 2 ? (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t(
+                  'Báo cáo đã qua 02 lần yêu cầu làm rõ theo hạn mức hợp đồng. Quyền gửi yêu cầu trực tuyến đã tạm khóa để bảo vệ tiến độ. Vui lòng liên hệ trực tiếp Quản lý nền tảng để đối soát và hòa giải.',
+                )}
+              </Alert>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  {t(
+                    'Vui lòng nêu rõ các điểm chưa chính xác hoặc câu hỏi kỹ thuật cần làm rõ. Quy định hợp đồng cho phép tối đa 02 lần yêu cầu làm rõ trước khi nghiệm thu (Hiện tại: lần {count}/2).',
+                  ).replace('{count}', String(priorClarificationCount + 1))}
+                </Typography>
+                <TextField
+                  label={t('Dispute details or questions')}
+                  multiline
+                  rows={4}
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  placeholder={t('e.g. Defect location is inaccurate, photo quality is unclear, severity rating requires re-evaluation…')}
+                  fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -246,7 +261,7 @@ export default function CustomerReportDeliverablePage({
           <Button
             variant="contained"
             color="warning"
-            disabled={!disputeReason.trim() || requestClarification.isPending}
+            disabled={priorClarificationCount >= 2 || !disputeReason.trim() || requestClarification.isPending}
             onClick={() => {
               const timestamp = new Date().toISOString();
               try {

@@ -59,6 +59,7 @@ interface DroneFormState {
   maxFlightTimeMinutes: string;
   cameraSensor: string;
   maxWindResistanceMps: string;
+  maxAltitudeMeters: string;
   opticalZoomLevel: string;
   features: string[];
 }
@@ -73,6 +74,7 @@ const initialForm: DroneFormState = {
   maxFlightTimeMinutes: '',
   cameraSensor: '',
   maxWindResistanceMps: '12',
+  maxAltitudeMeters: '',
   opticalZoomLevel: '1',
   features: ['RTK_POSITIONING'],
 };
@@ -361,6 +363,8 @@ export default function InspectorDroneRegistrationPage() {
         ownershipFileKey: uploadedMap['OWNERSHIP'] || '',
         inspectionFileKey: uploadedMap['INSPECTION'] || undefined,
         maxWindResistanceMps: formData.maxWindResistanceMps ? Number(formData.maxWindResistanceMps) : undefined,
+        maxAltitudeMeters:
+          formData.maxAltitudeMeters.trim() === '' ? undefined : Number(formData.maxAltitudeMeters),
         opticalZoomLevel: zoomValue ? `${zoomValue}x` : '1x',
         hasThermalCamera: hasThermal,
         hasRtk,
@@ -471,8 +475,12 @@ export default function InspectorDroneRegistrationPage() {
       !form.serialNumber.trim() ||
       !form.registrationNumber.trim() ||
       !form.registrationExpiresAt;
+    const altitudeValue = form.maxAltitudeMeters.trim();
+    const invalidAltitude =
+      altitudeValue !== '' &&
+      (!Number.isFinite(Number(altitudeValue)) || Number(altitudeValue) < 0);
 
-    if (missingFields || !hasAtLeastOneImage || !allDocumentsUploaded) {
+    if (missingFields || invalidAltitude || !hasAtLeastOneImage || !allDocumentsUploaded) {
       return;
     }
 
@@ -850,11 +858,12 @@ export default function InspectorDroneRegistrationPage() {
                               </Stack>
                             </Box>
                           )}
-                          {(drone.maxWindResistanceMps || (drone.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(drone.opticalZoomLevel))) && (
+                          {(drone.maxWindResistanceMps != null || drone.maxAltitudeMeters != null || (drone.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(drone.opticalZoomLevel))) && (
                             <Box sx={{ gridColumn: '1 / -1' }}>
                               <Typography variant="caption" color="text.secondary">
                                 {[
-                                  drone.maxWindResistanceMps ? `${tr('Kháng gió', 'Wind')}: ${drone.maxWindResistanceMps} m/s` : null,
+                                  drone.maxWindResistanceMps != null ? `${tr('Kháng gió', 'Wind')}: ${drone.maxWindResistanceMps} m/s` : null,
+                                  drone.maxAltitudeMeters != null ? `${tr('Trần bay khai báo', 'Declared max altitude')}: ${drone.maxAltitudeMeters} m` : null,
                                   drone.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(drone.opticalZoomLevel)
                                     ? `Zoom: ${drone.opticalZoomLevel}`
                                     : null,
@@ -953,7 +962,8 @@ export default function InspectorDroneRegistrationPage() {
                                   ? drone.registrationExpiresAt.slice(0, 10)
                                   : '',
                                 mtowKg: mtowMatch?.[1] || (drone.mtowKg ? String(drone.mtowKg) : ''),
-                                maxWindResistanceMps: drone.maxWindResistanceMps ? String(drone.maxWindResistanceMps) : '12',
+                                maxWindResistanceMps: drone.maxWindResistanceMps != null ? String(drone.maxWindResistanceMps) : '12',
+                                maxAltitudeMeters: drone.maxAltitudeMeters != null ? String(drone.maxAltitudeMeters) : '',
                                 opticalZoomLevel: drone.opticalZoomLevel ? drone.opticalZoomLevel.replace(/x/i, '') : '1',
                                 features: drone.features && drone.features.length > 0 ? drone.features : fallbackFeatures,
                               },
@@ -1066,7 +1076,8 @@ export default function InspectorDroneRegistrationPage() {
                             parsed.mtow,
                             parsed.flightTime,
                             parsed.camera,
-                            app.maxWindResistanceMps ? `${tr('Gió', 'Wind')} ${app.maxWindResistanceMps} m/s` : null,
+                            app.maxWindResistanceMps != null ? `${tr('Gió', 'Wind')} ${app.maxWindResistanceMps} m/s` : null,
+                            app.maxAltitudeMeters != null ? `${tr('Trần bay tối đa', 'Maximum altitude')} ${app.maxAltitudeMeters} m` : null,
                             app.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(app.opticalZoomLevel)
                               ? `Zoom ${app.opticalZoomLevel}`
                               : null,
@@ -1178,7 +1189,8 @@ export default function InspectorDroneRegistrationPage() {
                                     ? app.registrationExpiresAt.slice(0, 10)
                                     : '',
                                   mtowKg: mtowMatch?.[1] || '',
-                                  maxWindResistanceMps: app.maxWindResistanceMps ? String(app.maxWindResistanceMps) : '12',
+                                  maxWindResistanceMps: app.maxWindResistanceMps != null ? String(app.maxWindResistanceMps) : '12',
+                                  maxAltitudeMeters: app.maxAltitudeMeters != null ? String(app.maxAltitudeMeters) : '',
                                   opticalZoomLevel: app.opticalZoomLevel ? app.opticalZoomLevel.replace(/x/i, '') : '1',
                                   features: app.features && app.features.length > 0 ? app.features : fallbackFeatures,
                                 },
@@ -1349,6 +1361,16 @@ export default function InspectorDroneRegistrationPage() {
                   onChange={updateField('maxWindResistanceMps')}
                   type="number"
                   slotProps={{ htmlInput: { step: '0.5' } }}
+                />
+                <TextField
+                  label={tr('Trần bay tối đa theo thông số hãng', 'Manufacturer maximum flight altitude')}
+                  placeholder={tr('VD: 5000', 'e.g. 5000')}
+                  value={form.maxAltitudeMeters}
+                  onChange={updateField('maxAltitudeMeters')}
+                  type="number"
+                  slotProps={{ htmlInput: { min: 0, step: '0.1' }, input: { endAdornment: <InputAdornment position="end">m</InputAdornment> } }}
+                  helperText={tr('Không bắt buộc. Giá trị khai báo xấp xỉ; không phải xác nhận clearance/giấy phép bay.', 'Optional. Approximate declared value; not flight clearance or permit confirmation.')}
+                  error={form.maxAltitudeMeters.trim() !== '' && (!Number.isFinite(Number(form.maxAltitudeMeters)) || Number(form.maxAltitudeMeters) < 0)}
                 />
                 <TextField
                   label={tr('Zoom quang học', 'Optical Zoom')}

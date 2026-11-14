@@ -42,6 +42,7 @@ export interface DroneRegistrationApplication {
   ownershipFileKey: string;
   inspectionFileKey?: string | null;
   maxWindResistanceMps?: number | null;
+  maxAltitudeMeters?: number | null;
   opticalZoomLevel?: string | null;
   hasThermalCamera?: boolean;
   hasRtk?: boolean;

@@ -14,6 +14,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../hooks/useAssets', () => ({
   useAssets: () => ({ data: { items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 0 }, isLoading: false }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useUpdateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useRetireAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 vi.mock('../hooks/useCatalog', () => ({ useCategories: () => ({ data: [] }) }));

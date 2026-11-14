@@ -27,11 +27,11 @@ function LocationProbe() {
   return <output aria-label="Current location">{location.pathname}</output>;
 }
 
-const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER_ORGANIZATION' }[] = [
+const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER' }[] = [
   { role: 'ADMIN', path: '/admin/dashboard', actorZone: 'PLATFORM' },
   { role: 'MANAGER', path: '/manager/dashboard', actorZone: 'PLATFORM' },
-  { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
-  { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER_ORGANIZATION' },
+  { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER' },
+  { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER' },
 ];
 
 function renderLogin(initialEntry = '/login') {
@@ -75,7 +75,6 @@ describe('role-aware sign-in flow', () => {
         fullName: 'Role User',
         roles: [role],
         actorZone,
-        organizationId: actorZone === 'PLATFORM' ? null : 'org-1',
       },
     });
 
@@ -104,13 +103,13 @@ describe('role-aware sign-in flow', () => {
       step: 'PASSWORD_CHANGE_REQUIRED',
       accessToken: null,
       accessTokenExpiresInSeconds: 0,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER_ORGANIZATION', organizationId: 'org-1' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
     });
     authMocks.completeInitialPasswordSetup.mockResolvedValue({
       step: 'AUTHENTICATED',
       accessToken: 'new-memory-token',
       accessTokenExpiresInSeconds: 900,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER_ORGANIZATION', organizationId: 'org-1' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
     });
 
     renderLogin();
@@ -132,7 +131,7 @@ describe('role-aware sign-in flow', () => {
   it('preserves a permitted protected destination after sign-in', async () => {
     authMocks.login.mockResolvedValue({
       step: 'AUTHENTICATED', accessToken: 'memory-access-token', accessTokenExpiresInSeconds: 900,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER_ORGANIZATION', organizationId: 'org-1' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
     });
     renderLogin('/login?returnTo=%2Foperations%2Finspections');
     fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
@@ -161,8 +160,7 @@ describe('role-aware sign-in flow', () => {
         email: 'field@example.test',
         fullName: 'Field User',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER_ORGANIZATION',
-        organizationId: 'org-1',
+        actorZone: 'CUSTOMER',
       },
     });
 

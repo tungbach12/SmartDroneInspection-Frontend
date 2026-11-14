@@ -48,6 +48,8 @@ vi.mock('../hooks/useAssets', () => ({
           locationText: 'District 1',
           latitude: null,
           longitude: null,
+          structureHeightMeters: null,
+          footprintAreaSquareMeters: null,
           status: 'ACTIVE',
           categoryId: 'c1',
           createdAt: '2026-09-25T00:00:00Z',
@@ -61,6 +63,7 @@ vi.mock('../hooks/useAssets', () => ({
     isLoading: false,
   }),
   useCreateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useUpdateAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useRetireAsset: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 

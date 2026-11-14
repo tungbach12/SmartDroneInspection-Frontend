@@ -29,6 +29,7 @@ describe('contractApi', () => {
       inspectorId: 'insp-1',
       droneId: 'drone-1',
       pricePerOccurrenceVnd: 12000000,
+      requiredDroneFeatureCodes: ['THERMAL_CAMERA'],
     };
     const response = { data: { id: 'req-1' } };
     vi.mocked(api.put).mockResolvedValue(response as never);
@@ -67,6 +68,70 @@ describe('contractApi', () => {
     });
   });
 
+  it('posts refund initiation before external transfer and keeps its own request reference', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const input = {
+      amount: 250,
+      requestReference: 'REF-REQ-1',
+      reason: 'Service cancelled',
+      inspectorReceivableAmount: 0,
+      platformAbsorbedAmount: 0,
+    };
+
+    await contractApi.initiateOccurrenceRefund('req-1', 'occ-1', input);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds',
+      input,
+    );
+  });
+
+  it('completes an initiated refund by its ID with external transfer evidence', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const input = {
+      inspectorPayoutReduction: 100,
+      platformCommissionAdjustment: 20,
+      vatAdjustment: 10,
+      tncnAdjustment: 5,
+      platformAbsorbedAmount: 15,
+      externalReference: 'BANK-REF-1',
+    };
+
+    await contractApi.completeOccurrenceRefund('req-1', 'occ-1', 'refund-1', input);
+
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds/refund-1/complete',
+      input,
+    );
+  });
+
+  it('reconciles one legacy refund and records a receivable recovery by ledger ID', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
+    const allocation = {
+      inspectorReceivableAmount: 75,
+      platformAbsorbedPlanAmount: 25,
+      inspectorPayoutReduction: 75,
+      platformCommissionAdjustment: 0,
+      vatAdjustment: 0,
+      tncnAdjustment: 0,
+      platformAbsorbedAmount: 25,
+      reconciliationReference: 'LEGACY-DOC-1',
+      note: 'Matched to bank statement',
+    };
+    await contractApi.reconcileRefundAllocation('req-1', 'occ-1', 'refund-1', allocation);
+    expect(api.post).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/refunds/refund-1/reconcile-allocation',
+      allocation,
+    );
+
+    const recovery = { amount: 10, externalReference: 'RECOVERY-1', note: 'Manual collection' };
+    await contractApi.recordReceivableRecovery('req-1', 'occ-1', 'receivable-1', recovery);
+    expect(api.post).toHaveBeenLastCalledWith(
+      '/contracts/requests/req-1/occurrences/occ-1/receivables/receivable-1/recover',
+      recovery,
+    );
+  });
+
   it('uploads signed contract as the file multipart field', async () => {
     const file = new File(['signed'], 'signed.pdf', { type: 'application/pdf' });
     vi.mocked(api.post).mockResolvedValue({ data: { id: 'req-1' } } as never);
@@ -77,5 +142,36 @@ describe('contractApi', () => {
     expect(formData).toBeInstanceOf(FormData);
     expect((formData as FormData).get('file')).toBe(file);
     expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/signed-contract', formData);
+  });
+
+  it('loads the active partner capability catalog from the API', async () => {
+    const options = [
+      {
+        code: 'THERMAL_CAMERA',
+        nameVi: 'Camera nhiệt',
+        nameEn: 'Thermal Camera',
+        displayOrder: 1,
+        isActive: true,
+        category: 'CAPABILITY',
+      },
+      { code: 'LEGACY', nameVi: 'Cũ', nameEn: 'Legacy', displayOrder: 9, isActive: false, category: 'CAPABILITY' },
+    ];
+    vi.mocked(api.get).mockResolvedValue({ data: options } as never);
+
+    await expect(contractApi.listPartnerCapabilities()).resolves.toEqual([options[0]]);
+    expect(api.get).toHaveBeenCalledWith('/contracts/requests/partner-capabilities');
+  });
+
+  it('evaluates partner candidates for a service request schedule and capability list', async () => {
+    const input = {
+      plannedStartAt: '2026-12-04T01:00:00Z',
+      plannedEndAt: '2026-12-04T03:00:00Z',
+      requiredDroneFeatureCodes: ['THERMAL_CAMERA'],
+    };
+    const candidates = [{ inspectorId: 'insp-1', droneId: 'drone-1', droneFeatureCodes: ['THERMAL_CAMERA'], eligibility: 'PASS', capabilityFit: 'MATCH' }];
+    vi.mocked(api.post).mockResolvedValue({ data: candidates } as never);
+
+    await expect(contractApi.evaluatePartnerCandidates('req-1', input)).resolves.toBe(candidates);
+    expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/partner-candidates', input);
   });
 });

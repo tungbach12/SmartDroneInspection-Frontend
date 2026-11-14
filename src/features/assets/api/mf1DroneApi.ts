@@ -10,6 +10,7 @@ export interface DroneRegistrationInput {
   ownershipFileKey: string;
   inspectionFileKey?: string | undefined;
   maxWindResistanceMps?: number | undefined;
+  maxAltitudeMeters?: number | undefined;
   opticalZoomLevel?: string | undefined;
   hasThermalCamera?: boolean | undefined;
   hasRtk?: boolean | undefined;
@@ -50,6 +51,7 @@ export interface DroneRegistrationApplication {
   inspectionFileKey?: string | null;
   documentFiles?: Record<string, string> | null;
   maxWindResistanceMps?: number | null;
+  maxAltitudeMeters?: number | null;
   opticalZoomLevel?: string | null;
   hasThermalCamera?: boolean;
   hasRtk?: boolean;
@@ -78,6 +80,7 @@ export interface InspectorDrone {
   registrationExpirationStatus?: string | null;
   registrationRemainingDays?: number | null;
   maxWindResistanceMps?: number | null;
+  maxAltitudeMeters?: number | null;
   opticalZoomLevel?: string | null;
   hasThermalCamera?: boolean;
   hasRtk?: boolean;

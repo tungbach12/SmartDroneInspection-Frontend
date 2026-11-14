@@ -11,7 +11,7 @@ vi.mock('../hooks/useInspections', () => ({
 const mockItems: InspectionListItem[] = [
   {
     id: 'insp-001',
-    organizationId: 'org-111',
+    ownerCustomerId: 'org-111',
     assetId: 'asset-1',
     inspectorId: 'ins-1',
     objective: 'Quarterly Cable Inspection',
@@ -27,7 +27,7 @@ const mockItems: InspectionListItem[] = [
   },
   {
     id: 'insp-002',
-    organizationId: 'org-111',
+    ownerCustomerId: 'org-111',
     assetId: 'asset-2',
     inspectorId: 'ins-1',
     objective: 'PV Panel Thermal Scanning',
@@ -43,7 +43,7 @@ const mockItems: InspectionListItem[] = [
   },
   {
     id: 'insp-003-unscheduled',
-    organizationId: 'org-111',
+    ownerCustomerId: 'org-111',
     assetId: 'asset-3',
     inspectorId: 'ins-1',
     objective: 'Blade Tip Erosion Check',

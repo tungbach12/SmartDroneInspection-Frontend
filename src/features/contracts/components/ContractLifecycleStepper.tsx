@@ -4,34 +4,49 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 interface ContractLifecycleStepperProps {
   status: string;
   role: 'CUSTOMER' | 'MANAGER';
+  selectionOpen?: boolean;
+  hasSelectedPair?: boolean;
 }
 
 const ROLE_STEPS = {
   CUSTOMER: [
-    { key: 'OPEN', label: '1. Request submitted' },
-    { key: 'QUOTED', label: '2. Review manager quote' },
-    { key: 'CONTRACT_SIGNED', label: '3. Accept terms & sign contract' },
-    { key: 'ASSIGNED', label: '4. Inspection scheduled' },
+    { key: 'OPEN', label: '1. Submit request' },
+    { key: 'PAIR', label: '2. Manager selects partner' },
+    { key: 'QUOTED', label: '3. Review quotation' },
+    { key: 'CONTRACT_SIGNED', label: '4. Accept terms and sign agreement' },
+    { key: 'ASSIGNED', label: '5. Inspection dispatched' },
   ],
   MANAGER: [
     { key: 'OPEN', label: '1. Review customer request' },
-    { key: 'QUOTED', label: '2. Prepare & discuss quote' },
-    { key: 'CONTRACT_SIGNED', label: '3. Record signed contract' },
-    { key: 'ASSIGNED', label: '4. Assign inspection team' },
+    { key: 'PAIR', label: '2. Select Inspector & drone' },
+    { key: 'QUOTED', label: '3. Prepare quotation' },
+    { key: 'CONTRACT_SIGNED', label: '4. Record signed agreement' },
+    { key: 'ASSIGNED', label: '5. Dispatch inspection team' },
   ],
 } as const;
 
-export function ContractLifecycleStepper({ status, role }: ContractLifecycleStepperProps) {
+export function ContractLifecycleStepper({
+  status,
+  role,
+  selectionOpen = false,
+  hasSelectedPair = false,
+}: ContractLifecycleStepperProps) {
   const { t } = useLocale();
   const steps = ROLE_STEPS[role];
   const acceptedStep = steps.findIndex((step) => step.key === 'CONTRACT_SIGNED');
   const activeStep = (() => {
+    if (status === 'OPEN' && role === 'MANAGER') {
+      if (selectionOpen) return 1;
+      if (hasSelectedPair) return 2;
+      return 1;
+    }
     switch (status) {
       case 'OPEN':
         return 0;
       case 'QUOTED':
-        return 1;
+        return 2;
       case 'ACCEPTED':
+        return role === 'CUSTOMER' ? 2 : 3;
       case 'CONTRACT_SIGNED':
         return acceptedStep;
       case 'ASSIGNED':
@@ -57,6 +72,11 @@ export function ContractLifecycleStepper({ status, role }: ContractLifecycleStep
         activeStep={activeStep}
         alternativeLabel
         sx={{
+          overflowX: 'auto',
+          '& .MuiStep-root': { px: { xs: 0.25, sm: 1 } },
+          '& .MuiStepConnector-root': { top: 12 },
+          '& .MuiStepIcon-root': { fontSize: { xs: 24, sm: 28 } },
+          '& .MuiStepLabel-labelContainer': { maxWidth: { xs: 94, sm: 180 } },
           '& .MuiStepLabel-label': {
             fontWeight: 600,
             fontSize: '0.875rem',
@@ -68,6 +88,9 @@ export function ContractLifecycleStepper({ status, role }: ContractLifecycleStep
           },
           '& .MuiStepLabel-label.Mui-completed': {
             color: 'text.primary',
+          },
+          '@media (max-width: 600px)': {
+            '& .MuiStepLabel-label': { fontSize: '0.6875rem', lineHeight: 1.2 },
           },
         }}
       >
