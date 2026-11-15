@@ -389,7 +389,7 @@ export default function ContractsPage() {
           <PageHeader
             title={t('Inspection service requests')}
             breadcrumbs={[
-              { label: 'Home', to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
+              { label: t('Operations'), to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
               { label: t('Service requests') },
             ]}
           />

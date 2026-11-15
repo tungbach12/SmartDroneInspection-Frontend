@@ -150,5 +150,19 @@ export function resolveSafeNotificationRoute(
     return `/${targetPortal}/${section}`;
   }
 
+  if (first === 'partner-onboarding') {
+    if (!userRoles.includes('INSPECTOR')) {
+      return null;
+    }
+    return `/${targetPortal}/partner-onboarding`;
+  }
+
+  if (first === 'onboarding-reviews') {
+    if (!canAccessSection(targetPortal, 'onboarding-reviews', userRoles)) {
+      return null;
+    }
+    return `/${targetPortal}/onboarding-reviews`;
+  }
+
   return null;
 }

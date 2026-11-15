@@ -79,6 +79,15 @@ const initialForm: DroneFormState = {
   features: ['RTK_POSITIONING'],
 };
 
+type ConfiguredDroneDocument = {
+  code: string;
+  titleVi: string;
+  titleEn: string;
+  descriptionVi: string;
+  descriptionEn: string;
+  isRequired: boolean;
+};
+
 const DEFAULT_FEATURES: Array<{
   code: string;
   nameVi: string;
@@ -93,14 +102,7 @@ const DEFAULT_FEATURES: Array<{
   { code: 'WEATHERPROOF_IP', nameVi: 'Kháng nước & bụi (IP54/IP55)', nameEn: 'Weatherproof (IP54/IP55)', category: 'SAFETY' },
 ];
 
-const DEFAULT_DOCUMENTS: Array<{
-  code: string;
-  titleVi: string;
-  titleEn: string;
-  descriptionVi: string;
-  descriptionEn: string;
-  isRequired: boolean;
-}> = [
+const DEFAULT_DOCUMENTS: ConfiguredDroneDocument[] = [
   {
     code: 'REGISTRATION',
     titleVi: 'Đăng ký drone',
@@ -115,6 +117,14 @@ const DEFAULT_DOCUMENTS: Array<{
     titleEn: 'Proof of Ownership',
     descriptionVi: 'Hóa đơn tài chính, hợp đồng hoặc tờ khai hải quan',
     descriptionEn: 'Invoice, sales contract, or customs form',
+    isRequired: true,
+  },
+  {
+    code: 'INSPECTION',
+    titleVi: 'Kiểm định kỹ thuật',
+    titleEn: 'Technical Inspection',
+    descriptionVi: 'Chứng nhận/biên bản kiểm định an toàn kỹ thuật',
+    descriptionEn: 'Technical safety inspection certificate',
     isRequired: true,
   },
 ];
@@ -237,6 +247,41 @@ export default function InspectorDroneRegistrationPage() {
     enabled: isInspector,
     refetchInterval: isInspector ? 10000 : false,
     retry: false,
+  });
+
+  const [droneToDelete, setDroneToDelete] = useState<InspectorDrone | null>(null);
+  const [fleetActionError, setFleetActionError] = useState<string | null>(null);
+
+  const serviceabilityMutation = useMutation({
+    mutationFn: ({ droneId, serviceability }: { droneId: string; serviceability: 'ACTIVE' | 'MAINTENANCE' }) =>
+      mf1DroneApi.updateMyDroneServiceability(droneId, serviceability),
+    onSuccess: async () => {
+      setFleetActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['mf1', 'inspector', 'drones'] });
+    },
+    onError: (err) => {
+      setFleetActionError(
+        err instanceof Error
+          ? err.message
+          : tr('Không thể cập nhật trạng thái hoạt động của drone.', 'Could not update drone serviceability.'),
+      );
+    },
+  });
+
+  const deleteDroneMutation = useMutation({
+    mutationFn: (droneId: string) => mf1DroneApi.deleteMyDrone(droneId),
+    onSuccess: async () => {
+      setFleetActionError(null);
+      setDroneToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ['mf1', 'inspector', 'drones'] });
+    },
+    onError: (err) => {
+      setFleetActionError(
+        err instanceof Error
+          ? err.message
+          : tr('Không thể xóa drone. Vui lòng thử lại.', 'Could not delete drone. Please try again.'),
+      );
+    },
   });
 
   const drones = useQuery({
@@ -480,14 +525,19 @@ export default function InspectorDroneRegistrationPage() {
   };
 
   const hasAtLeastOneImage = imageFiles.length > 0 || existingImageKeys.length > 0;
-  const allDocumentsUploaded =
-    effectiveConfigs.filter((doc) => doc.isRequired).every((doc) => Boolean(files[doc.code] || existingFileKeys[doc.code]));
+  const requiredDocumentCodes = new Set(effectiveConfigs.filter((doc) => doc.isRequired).map((doc) => doc.code));
+  const allDocumentsUploaded = [...requiredDocumentCodes].every((code) => {
+    if (code === 'OWNERSHIP') return true;
+    if (code === 'REGISTRATION') return Boolean(files[code] || existingFileKeys[code]);
+    if (code === 'INSPECTION') return Boolean(files[code] || existingFileKeys[code]);
+    return Boolean(files[code] || existingFileKeys[code]);
+  });
 
   return (
     <Box className="workspace-page">
       <PageHeader
         title={tr('Drone của tôi', 'My Drones')}
-        breadcrumbs={[{ label: 'Home', to: '/operations/dashboard' }, { label: tr('Drone của tôi', 'My drones') }]}
+        breadcrumbs={[{ label: tr('Vận hành', 'Operations'), to: '/operations/dashboard' }, { label: tr('Drone của tôi', 'My drones') }]}
       />
 
       {/* KPI METRICS OVERVIEW */}
@@ -860,7 +910,36 @@ export default function InspectorDroneRegistrationPage() {
                         </Box>
                       </Box>
 
-                      <Box sx={{ mt: 2.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      <Box
+                        sx={{
+                          mt: 2.5,
+                          pt: 1.5,
+                          borderTop: '1px dashed',
+                          borderColor: 'divider',
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          flexWrap: 'wrap',
+                          gap: 1,
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color={drone.serviceability === 'ACTIVE' ? 'warning' : 'success'}
+                          disabled={serviceabilityMutation.isPending}
+                          onClick={() =>
+                            serviceabilityMutation.mutate({
+                              droneId: drone.id,
+                              serviceability:
+                                drone.serviceability === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE',
+                            })
+                          }
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                        >
+                          {drone.serviceability === 'ACTIVE'
+                            ? tr('Unactive (Đang sửa chữa)', 'Set Unactive (Maintenance)')
+                            : tr('Kích hoạt lại (Active)', 'Set Active')}
+                        </Button>
                         <Button
                           size="small"
                           variant="outlined"
@@ -902,7 +981,20 @@ export default function InspectorDroneRegistrationPage() {
                           }}
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
-                          {tr('Cập nhật / Gia hạn', 'Update / Renew')}
+                          {tr('Cập nhật', 'Update')}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteOutlineRounded />}
+                          onClick={() => {
+                            setFleetActionError(null);
+                            setDroneToDelete(drone);
+                          }}
+                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                        >
+                          {tr('Xóa drone', 'Delete')}
                         </Button>
                       </Box>
                     </Card>
@@ -1159,49 +1251,65 @@ export default function InspectorDroneRegistrationPage() {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <TextField
                   required
-                  label={tr('Tên Drone / Model', 'Drone Model')}
-                  placeholder={tr('VD: DJI Matrice 350 RTK', 'e.g. DJI Matrice 350 RTK')}
+                  label={tr('Tên Drone / Model *', 'Drone Model *')}
+                  placeholder={tr('VD: DJI Matrice 350 RTK, Autel EVO Max 4T', 'e.g. DJI Matrice 350 RTK, Autel EVO Max 4T')}
                   value={form.droneName}
                   onChange={updateField('droneName')}
                   error={submitAttempted && !form.droneName.trim()}
-                  helperText={submitAttempted && !form.droneName.trim() ? tr('Vui lòng nhập tên drone', 'Required') : undefined}
+                  helperText={tr('Tên thương mại đầy đủ của thiết bị', 'Full commercial model designation')}
                 />
                 <TextField
                   required
-                  label={tr('Hãng sản xuất', 'Manufacturer')}
-                  placeholder={tr('VD: DJI, Autel hoặc Tự lắp', 'e.g. DJI, Autel, or Custom')}
+                  label={tr('Hãng sản xuất *', 'Manufacturer *')}
+                  placeholder={tr('VD: DJI, Autel Robotics, Skydio', 'e.g. DJI, Autel Robotics, Skydio')}
                   value={form.manufacturer}
                   onChange={updateField('manufacturer')}
                   error={submitAttempted && !form.manufacturer.trim()}
-                  helperText={submitAttempted && !form.manufacturer.trim() ? tr('Vui lòng nhập hãng sản xuất', 'Required') : undefined}
+                  helperText={tr('Hãng chế tạo nguyên chiếc', 'Airframe manufacturer')}
                 />
                 <TextField
                   required
-                  label={tr('Số Serial (S/N)', 'Serial Number')}
-                  placeholder="1581F4B0C2301001"
+                  label={tr('Số Serial thân máy (Airframe Serial Number) *', 'Airframe Serial Number *')}
+                  placeholder={tr('VD: 1581F4B0C2301001', 'e.g. 1581F4B0C2301001')}
                   value={form.serialNumber}
                   onChange={updateField('serialNumber')}
                   error={submitAttempted && !form.serialNumber.trim()}
-                  helperText={submitAttempted && !form.serialNumber.trim() ? tr('Vui lòng nhập số serial', 'Required') : undefined}
+                  helperText={tr('Mã số duy nhất in trên tem thân máy (phải khớp hóa đơn/tờ khai)', 'Unique airframe serial number')}
                 />
                 <TextField
                   required
-                  label={tr('Số đăng ký', 'Registration Number')}
-                  placeholder="VN-UAV-2026-0889"
+                  label={tr('Số Đăng ký Phương tiện bay (Bộ Công an cấp) *', 'UAV Registration Number (Police Authority) *')}
+                  placeholder={tr('VD: ĐK-2026-00892', 'e.g. DK-2026-00892')}
                   value={form.registrationNumber}
                   onChange={updateField('registrationNumber')}
                   error={submitAttempted && !form.registrationNumber.trim()}
-                  helperText={submitAttempted && !form.registrationNumber.trim() ? tr('Vui lòng nhập số đăng ký', 'Required') : undefined}
+                  helperText={tr(
+                    'Số trên Giấy chứng nhận đăng ký do Công an tỉnh/TP hoặc Cục A05 cấp',
+                    'Registration number issued by Provincial Police or Cyber Security Dept (A05)',
+                  )}
                 />
                 <TextField
                   required
                   type="date"
-                  label={tr('Hạn đăng ký', 'Registration Expiry')}
+                  label={tr('Ngày hết hạn đăng ký / kiểm định *', 'Registration / Airworthiness Expiry Date *')}
                   value={form.registrationExpiresAt}
                   onChange={updateField('registrationExpiresAt')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   error={submitAttempted && !form.registrationExpiresAt}
-                  helperText={submitAttempted && !form.registrationExpiresAt ? tr('Vui lòng chọn ngày hết hạn', 'Required') : undefined}
+                  helperText={tr(
+                    'Thời hạn kiểm định/đăng ký phương tiện bay',
+                    'Airworthiness registration validity period',
+                  )}
+                />
+                <TextField
+                  label={tr('Trọng lượng cất cánh tối đa MTOW (kg) *', 'Max Takeoff Weight MTOW (kg) *')}
+                  placeholder={tr('VD: 4.07', 'e.g. 4.07')}
+                  value={form.mtowKg}
+                  onChange={updateField('mtowKg')}
+                  helperText={tr(
+                    'Căn cứ phân Loại 1 – Loại 5 phương tiện bay theo Điều 4 Nghị định 288/2025/NĐ-CP',
+                    'Basis for Category 1 to 5 classification under Decree 288/2025/ND-CP',
+                  )}
                 />
                 {(() => {
                   const legalInfo = classifyDroneByMtow(form.mtowKg);
@@ -1660,6 +1768,55 @@ export default function InspectorDroneRegistrationPage() {
             {submit.isPending
               ? tr('Đang gửi hồ sơ…', 'Submitting…')
               : tr('Gửi hồ sơ', 'Submit Application')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(droneToDelete)}
+        onClose={() => {
+          if (!deleteDroneMutation.isPending) setDroneToDelete(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '10px', p: 0.5 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {tr('Xác nhận xóa drone', 'Confirm Delete Drone')}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            {tr(
+              `Bạn có chắc muốn xóa thiết bị ${droneToDelete?.model?.split('[')[0]?.trim() || droneToDelete?.serialNumber || ''} khỏi đội bay của bạn? Thiết bị sẽ ngừng hoạt động và không thể điều phối bay mới.`,
+              `Are you sure you want to remove ${droneToDelete?.model?.split('[')[0]?.trim() || droneToDelete?.serialNumber || ''} from your fleet? It will be retired and excluded from future dispatches.`,
+            )}
+          </Typography>
+          {fleetActionError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {fleetActionError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setDroneToDelete(null)}
+            disabled={deleteDroneMutation.isPending}
+            sx={{ textTransform: 'none' }}
+          >
+            {tr('Hủy', 'Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleteDroneMutation.isPending || !droneToDelete}
+            onClick={() => {
+              if (droneToDelete) {
+                deleteDroneMutation.mutate(droneToDelete.id);
+              }
+            }}
+            sx={{ textTransform: 'none', fontWeight: 650 }}
+          >
+            {deleteDroneMutation.isPending ? tr('Đang xóa…', 'Deleting…') : tr('Xác nhận xóa', 'Delete')}
           </Button>
         </DialogActions>
       </Dialog>

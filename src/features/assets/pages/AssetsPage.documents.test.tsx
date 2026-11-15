@@ -71,6 +71,7 @@ vi.mock('../hooks/useAssetDocuments', () => ({
   }),
   useUploadDocument: () => ({
     mutate: upload,
+    mutateAsync: upload,
     isPending: false,
     isError: uploadState.isError,
     error: uploadState.error,
@@ -200,14 +201,13 @@ describe('AssetsPage document streaming contract', () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    const uploadButton = screen.getByRole('button', { name: /Upload document/ });
+    const uploadButton = screen.getByRole('button', { name: /^Upload$/ });
     expect((uploadButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(uploadButton);
 
     await waitFor(() =>
       expect(upload).toHaveBeenCalledWith(
-        expect.objectContaining({ file, documentType: 'OWNERSHIP' }),
-        expect.anything(),
+        expect.objectContaining({ file, documentType: 'OTHER' }),
       ),
     );
   });

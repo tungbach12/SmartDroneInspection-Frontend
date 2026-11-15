@@ -267,7 +267,7 @@ export function CustomerInspectionsPage() {
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
         title={t('Inspections')}
-        breadcrumbs={[{ label: 'Home', to: '/client/dashboard' }, { label: t('Inspections') }]}
+        breadcrumbs={[{ label: t('Operations'), to: '/client/dashboard' }, { label: t('Inspections') }]}
       />
 
       <Stack spacing={2}>

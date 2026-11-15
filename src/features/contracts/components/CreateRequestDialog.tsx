@@ -36,7 +36,7 @@ import { useCreateServiceRequest } from '../hooks/useContracts';
 interface CreateRequestDialogProps {
   open: boolean;
   onClose: () => void;
-  assets: { id: string; name: string; code: string }[];
+  assets: { id: string; name: string; code: string; status?: string }[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
 }
@@ -370,11 +370,13 @@ export function CreateRequestDialog({
               value={assetId}
               onChange={(event) => setAssetId(event.target.value)}
             >
-              {assets.map((asset) => (
-                <MenuItem key={asset.id} value={asset.id}>
-                  {asset.code} — {asset.name}
-                </MenuItem>
-              ))}
+              {assets
+                .filter((asset) => asset.status !== 'RETIRED')
+                .map((asset) => (
+                  <MenuItem key={asset.id} value={asset.id}>
+                    {asset.code} — {asset.name}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
 

@@ -791,7 +791,10 @@ export function CustomerDashboardPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {assetList.slice(0, 6).map((asset) => {
+                  {assetList
+                    .filter((asset) => asset.status !== 'RETIRED')
+                    .slice(0, 6)
+                    .map((asset) => {
                     const counts = inspectionCountByAssetId.get(asset.id);
                     return (
                       <TableRow

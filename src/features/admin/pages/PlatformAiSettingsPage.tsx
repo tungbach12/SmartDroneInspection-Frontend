@@ -13,7 +13,7 @@ export default function PlatformAiSettingsPage() {
     <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       <PageHeader
         title={t('AI Configuration & Model Performance')}
-        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('AI settings') }]}
+        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('AI settings') }]}
       />
 
       <QueryState

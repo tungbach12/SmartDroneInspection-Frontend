@@ -121,7 +121,7 @@ export default function PlatformFinanceSettingsPage() {
     <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
       <PageHeader
         title={t('Inspection Finance Settings')}
-        breadcrumbs={[{ label: 'Home', to: '/admin/dashboard' }, { label: t('Finance settings') }]}
+        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Finance settings') }]}
       />
 
       <QueryState

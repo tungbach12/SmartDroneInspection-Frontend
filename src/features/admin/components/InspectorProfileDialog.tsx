@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { pilotLicenseClassApi } from '@/features/auth/api/pilotLicenseClassApi';
 import {
   Alert,
   Avatar,
@@ -33,12 +34,16 @@ import HistoryEduRounded from '@mui/icons-material/HistoryEduRounded';
 import ZoomInRounded from '@mui/icons-material/ZoomInRounded';
 import AddCircleOutlineRounded from '@mui/icons-material/AddCircleOutlineRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
+import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import {
   inspectorProfileApi,
   type UpdateInspectorProfileInput,
   type CreateInspectorFlightLogInput,
 } from '../api/inspectorProfileApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -52,6 +57,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
   const queryClient = useQueryClient();
+  const roles = useAuthStore((state) => state.roles);
+  const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
   const [currentTab, setCurrentTab] = useState(0);
 
   // Profile Query
@@ -66,6 +73,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
     queryKey: ['inspector-flight-logs', inspectorId],
     queryFn: () => (inspectorId ? inspectorProfileApi.listFlightLogs(inspectorId) : []),
     enabled: Boolean(inspectorId && open),
+  });
+  const licenseClassesQuery = useQuery({
+    queryKey: ['pilot-license-classes', 'active'],
+    queryFn: pilotLicenseClassApi.listActive,
+    staleTime: 60_000,
   });
 
   // Form State
@@ -106,6 +118,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const [licenseScanBlobUrl, setLicenseScanBlobUrl] = useState<string | null>(null);
   const [licenseScanLoading, setLicenseScanLoading] = useState(false);
   const [zoomScanOpen, setZoomScanOpen] = useState(false);
+  // Signed Partner Contract preview
+  const [contractBlobUrl, setContractBlobUrl] = useState<string | null>(null);
+  const [contractContentType, setContractContentType] = useState<string>('');
+  const [contractLoading, setContractLoading] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Sync profile data to form
@@ -143,6 +161,26 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
       } else {
         setLicenseScanBlobUrl(null);
       }
+
+      // Fetch partner contract scan if available
+      if (p.hasPartnerContract && inspectorId) {
+        setContractLoading(true);
+        inspectorProfileApi
+          .getPartnerContractBlobUrl(inspectorId)
+          .then(({ blobUrl, contentType }) => {
+            setContractBlobUrl(blobUrl);
+            setContractContentType(contentType);
+          })
+          .catch(() => {
+            setContractBlobUrl(null);
+            setContractContentType('');
+          })
+          .finally(() => setContractLoading(false));
+      } else {
+        setContractBlobUrl(null);
+        setContractContentType('');
+      }
+      setRejectReason(p.rejectionReason || '');
     }
   }, [profileQuery.data, inspectorId]);
 
@@ -152,8 +190,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
       if (licenseScanBlobUrl) {
         URL.revokeObjectURL(licenseScanBlobUrl);
       }
+      if (contractBlobUrl) {
+        URL.revokeObjectURL(contractBlobUrl);
+      }
     };
-  }, [licenseScanBlobUrl]);
+  }, [licenseScanBlobUrl, contractBlobUrl]);
 
   // Update Profile Mutation
   const updateMutation = useMutation({
@@ -257,6 +298,77 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
     const file = e.target.files?.[0];
     if (file) {
       uploadScanMutation.mutate(file);
+    }
+  };
+
+  // Upload Signed Partner Contract Mutation
+  const uploadContractMutation = useMutation({
+    mutationFn: (file: File) => {
+      if (!inspectorId) throw new Error('Missing inspector ID');
+      return inspectorProfileApi.uploadPartnerContract(inspectorId, file);
+    },
+    onSuccess: async (updated) => {
+      setErrorMessage(null);
+      queryClient.setQueryData(['inspector-profile', inspectorId], updated);
+      queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      setSuccessMessage('Đã tải lên Hợp đồng Đối tác đã ký và khóa mã băm SHA-256 trên MinIO!');
+      setTimeout(() => setSuccessMessage(null), 5000);
+      if (inspectorId) {
+        setContractLoading(true);
+        try {
+          const { blobUrl, contentType } = await inspectorProfileApi.getPartnerContractBlobUrl(inspectorId);
+          setContractBlobUrl(blobUrl);
+          setContractContentType(contentType);
+        } catch {
+          // ignore
+        } finally {
+          setContractLoading(false);
+        }
+      }
+    },
+    onError: () => {
+      setErrorMessage('Không thể tải lên hợp đồng. Vui lòng chọn tệp PDF, PNG, JPG hoặc WebP hợp lệ.');
+    },
+  });
+
+  // Approve Onboarding Mutation
+  const approveOnboardingMutation = useMutation({
+    mutationFn: () => {
+      if (!inspectorId) throw new Error('Missing inspector ID');
+      return inspectorProfileApi.approveOnboarding(inspectorId);
+    },
+    onSuccess: (updated) => {
+      setErrorMessage(null);
+      queryClient.setQueryData(['inspector-profile', inspectorId], updated);
+      queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-users'] });
+      setSuccessMessage('Đã phê duyệt kích hoạt Đối tác Inspector! Phi công đã sẵn sàng nhận nhiệm vụ bay.');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    },
+    onError: () => {
+      setErrorMessage('Chưa đủ điều kiện phê duyệt: Cần có đủ (1) Bản scan Bằng lái và (2) Bản scan Hợp đồng đã ký (SHA-256).');
+    },
+  });
+
+  // Reject Onboarding Mutation
+  const rejectOnboardingMutation = useMutation({
+    mutationFn: (reason: string) => {
+      if (!inspectorId) throw new Error('Missing inspector ID');
+      return inspectorProfileApi.rejectOnboarding(inspectorId, reason);
+    },
+    onSuccess: (updated) => {
+      setErrorMessage(null);
+      queryClient.setQueryData(['inspector-profile', inspectorId], updated);
+      queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      setSuccessMessage('Đã gửi yêu cầu bổ sung hồ sơ/hợp đồng cho Inspector.');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    },
+  });
+
+  const handleContractFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadContractMutation.mutate(file);
     }
   };
 
@@ -433,34 +545,50 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                   <Alert severity="success">{successMessage}</Alert>
                 </Box>
               )}
+              {errorMessage && (
+                <Box sx={{ px: 3, pt: 2 }}>
+                  <Alert severity="error" onClose={() => setErrorMessage(null)}>
+                    {errorMessage}
+                  </Alert>
+                </Box>
+              )}
 
               {/* TABS NAVIGATION */}
-              <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
                 <Tabs value={currentTab} onChange={(_, val) => setCurrentTab(val)} variant="scrollable">
                   <Tab
                     icon={<BadgeOutlined />}
                     iconPosition="start"
-                    label={tr('1. Thông tin cá nhân & Nhân sự', '1. Personal & Personnel Info')}
+                    label={tr('1. Thông tin cá nhân', '1. Personal Info')}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
                   <Tab
                     icon={<FlightTakeoffRounded />}
                     iconPosition="start"
-                    label={tr('2. Giấy phép & Bản Scan', '2. Pilot License & Scan')}
+                    label={tr('2. Bằng lái & Bản Scan', '2. Pilot License & Scan')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<DescriptionOutlined />}
+                    iconPosition="start"
+                    label={tr(
+                      `3. Hợp đồng Đối tác & Duyệt (${profile.onboardingStatus === 'APPROVED' ? 'Đã duyệt' : 'Chờ duyệt'})`,
+                      `3. Partner Contract & Approval (${profile.onboardingStatus === 'APPROVED' ? 'Approved' : 'Pending'})`,
+                    )}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
                   <Tab
                     icon={<HistoryEduRounded />}
                     iconPosition="start"
-                    label={tr('3. Kinh nghiệm bay', '3. Flight Experience')}
+                    label={tr('4. Kinh nghiệm bay', '4. Flight Experience')}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
                   <Tab
                     icon={<FlightTakeoffRounded />}
                     iconPosition="start"
                     label={tr(
-                      `4. Lịch sử bay tại công ty (${profile.companyFlightsCount})`,
-                      `4. Platform Flight Log (${profile.companyFlightsCount})`,
+                      `5. Lịch sử bay (${profile.companyFlightsCount})`,
+                      `5. Flight Log (${profile.companyFlightsCount})`,
                     )}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
@@ -566,39 +694,41 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       <TextField
                         fullWidth
                         label={tr('Số hiệu bằng lái / Chứng chỉ phi công', 'Pilot license / Certificate number')}
-                        placeholder="VN-UAV-2025-00892"
+                        placeholder="VD: DC-2026-0012845"
                         value={form.pilotLicenseNumber || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseNumber: e.target.value })}
                         helperText={tr(
-                          'Số cấp phép chính thức từ cơ quan quản lý hàng không',
-                          'Official permit number issued by aviation authority',
+                          'Định dạng cấp phép chính thức (VD: DC-YYYY-XXXXXXX)',
+                          'Official license format (e.g. DC-YYYY-XXXXXXX)',
                         )}
                       />
                       <TextField
                         select
                         fullWidth
-                        label={tr(
-                          'Hạng bằng lái / Loại chứng chỉ (Điều 27 NĐ 288/2025/NĐ-CP)',
-                          'License class (Decree 288/2025/ND-CP Article 27)',
-                        )}
+                        label={tr('Hạng bằng lái UAV', 'UAV pilot license class')}
                         value={form.pilotLicenseClass || ''}
                         onChange={(e) => setForm({ ...form, pilotLicenseClass: e.target.value })}
-                        helperText="Hạng A: bay trực quan VLOS (< 2 kg) · Hạng B: bay thiết bị/BVLOS & mọi Drone ≥ 2 kg"
+                        helperText={
+                          licenseClassesQuery.isLoading
+                            ? tr('Đang tải danh mục hạng bằng…', 'Loading license classes…')
+                            : undefined
+                        }
+                        disabled={licenseClassesQuery.isLoading || licenseClassesQuery.isError}
                       >
                         <MenuItem value="">
-                          <em>Chưa chọn hạng bằng</em>
+                          <em>{tr('Chưa chọn hạng bằng', 'No class selected')}</em>
                         </MenuItem>
-                        <MenuItem value="CLASS_A">
-                          Hạng A — Điều khiển trực quan VLOS (Loại 2: 0.25 – &lt; 2 kg)
-                        </MenuItem>
-                        <MenuItem value="CLASS_B">
-                          Hạng B — Điều khiển bằng thiết bị / BVLOS (Loại 3–5: ≥ 2 kg)
-                        </MenuItem>
+                        {licenseClassesQuery.data?.map((licenseClass) => (
+                          <MenuItem key={licenseClass.id} value={licenseClass.name}>
+                            {licenseClass.name}
+                          </MenuItem>
+                        ))}
                         {form.pilotLicenseClass &&
-                          form.pilotLicenseClass !== 'CLASS_A' &&
-                          form.pilotLicenseClass !== 'CLASS_B' && (
+                          !licenseClassesQuery.data?.some(
+                            (licenseClass) => licenseClass.name === form.pilotLicenseClass,
+                          ) && (
                             <MenuItem value={form.pilotLicenseClass}>
-                              {form.pilotLicenseClass}
+                              {form.pilotLicenseClass} ({tr('Đã ngừng hoạt động', 'Inactive')})
                             </MenuItem>
                           )}
                       </TextField>
@@ -755,8 +885,323 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                 </Box>
               )}
 
-              {/* TAB 2: FLIGHT EXPERIENCE */}
+              {/* TAB 2: HỢP ĐỒNG ĐỐI TÁC & PHÊ DUYỆT (HYBRID ONBOARDING SHA-256) */}
               {currentTab === 2 && (
+                <Box sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    {/* BƯỚC 1: TẢI DỰ THẢO HỢP ĐỒNG PDF */}
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '12px',
+                        borderColor: '#cbd5e1',
+                        bgcolor: '#f8fafc',
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        gap: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                          Bước 1 — Tải Dự thảo Hợp đồng Đối tác (PDF điền sẵn thông tin)
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Hệ thống tự động trích xuất Họ tên, CCCD ({profile.citizenId || 'chưa nhập'}), Số bằng lái ({profile.pilotLicenseNumber || 'chưa nhập'}) và điều khoản chia sẻ doanh thu (85% Net Payout) thành file PDF chuẩn để hai bên ký trực tiếp hoặc ký số CA.
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        startIcon={<DownloadRounded />}
+                        onClick={() => {
+                          if (inspectorId) {
+                            void inspectorProfileApi.downloadDraftPartnerContractPdf(inspectorId, profile.fullName);
+                          }
+                        }}
+                        sx={{
+                          bgcolor: '#087E8B',
+                          textTransform: 'none',
+                          fontWeight: 650,
+                          whiteSpace: 'nowrap',
+                          '&:hover': { bgcolor: '#066B70' },
+                        }}
+                      >
+                        Tải Dự thảo Hợp đồng (PDF)
+                      </Button>
+                    </Paper>
+
+                    {/* BƯỚC 2: UPLOAD BẢN SCAN HỢP ĐỒNG ĐÃ KÝ + MÃ BĂM SHA-256 */}
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '12px',
+                        borderColor: profile.hasPartnerContract ? '#10b981' : '#cbd5e1',
+                        bgcolor: profile.hasPartnerContract ? '#f0fdf4' : '#ffffff',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexDirection: { xs: 'column', sm: 'row' },
+                          justifyContent: 'space-between',
+                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          gap: 1.5,
+                          mb: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                            Bước 2 — Upload Bản scan Hợp đồng đã ký (Khóa toàn vẹn SHA-256 trên MinIO)
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Sau khi ký hợp đồng (ký tay có đóng dấu hoặc ký số CA hợp pháp), tải file PDF/Ảnh chụp hợp đồng lên MinIO.
+                          </Typography>
+                        </Box>
+
+                        <Button
+                          component="label"
+                          variant="outlined"
+                          startIcon={<CloudUploadOutlined />}
+                          disabled={uploadContractMutation.isPending}
+                          sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', bgcolor: '#ffffff' }}
+                        >
+                          {uploadContractMutation.isPending
+                            ? 'Đang băm SHA-256 & tải lên…'
+                            : profile.hasPartnerContract
+                              ? 'Tải lên bản Hợp đồng mới thay thế'
+                              : 'Chọn file Hợp đồng đã ký (PDF/Ảnh)'}
+                          <input
+                            hidden
+                            type="file"
+                            accept="application/pdf,image/png,image/jpeg,image/webp"
+                            onChange={handleContractFileSelected}
+                          />
+                        </Button>
+                      </Box>
+
+                      {profile.partnerContractSha256 && (
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            mb: 2,
+                            bgcolor: '#ffffff',
+                            borderRadius: '8px',
+                            border: '1px solid #bbf7d0',
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#166534', display: 'block' }}>
+                            🔒 Mã băm toàn vẹn chống sửa đổi (SHA-256 Checksum trên MinIO):
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontFamily: 'monospace',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              color: '#0f172a',
+                              wordBreak: 'break-all',
+                              mt: 0.25,
+                            }}
+                          >
+                            {profile.partnerContractSha256}
+                          </Typography>
+                          {profile.partnerContractUploadedAt && (
+                            <Typography variant="caption" color="text.secondary">
+                              Thời điểm lưu trữ: {new Date(profile.partnerContractUploadedAt).toLocaleString('vi-VN')}
+                            </Typography>
+                          )}
+                        </Box>
+                      )}
+
+                      {contractLoading ? (
+                        <Box sx={{ py: 4, textAlign: 'center' }}>
+                          <CircularProgress size={26} />
+                          <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                            Đang tải hợp đồng từ MinIO…
+                          </Typography>
+                        </Box>
+                      ) : contractBlobUrl ? (
+                        <Box sx={{ textAlign: 'center' }}>
+                          {contractContentType.includes('pdf') ? (
+                            <iframe
+                              src={contractBlobUrl}
+                              title="Signed Partner Contract PDF"
+                              style={{ width: '100%', height: '320px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#fff' }}
+                            />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={contractBlobUrl}
+                              alt="Bản scan hợp đồng đã ký"
+                              sx={{ maxHeight: 280, maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid #cbd5e1', bgcolor: '#fff' }}
+                            />
+                          )}
+                          <Box sx={{ mt: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              component="a"
+                              href={contractBlobUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ textTransform: 'none', bgcolor: '#ffffff' }}
+                            >
+                              Mở xem toàn màn hình / Tải về
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Alert severity="warning">
+                          Chưa có bản scan Hợp đồng Đối tác đã ký trên MinIO. Vui lòng tải Dự thảo Hợp đồng ở Bước 1, ký tên và tải lên tại đây.
+                        </Alert>
+                      )}
+                    </Paper>
+
+                    {/* BƯỚC 3: CỔNG DUYỆT KÍCH HOẠT ĐỐI TÁC (HARD GATE) */}
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '12px',
+                        borderColor: '#e2e8f0',
+                        bgcolor: '#f8fafc',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                          Bước 3 — Cổng Phê duyệt Kích hoạt Đối tác (Onboarding Gate)
+                        </Typography>
+                        <Chip
+                          icon={<VerifiedUserOutlined />}
+                          label={
+                            profile.onboardingStatus === 'APPROVED'
+                              ? 'ĐÃ PHÊ DUYỆT — SẴN SÀNG NHẬN NHIỆM VỤ BAY'
+                              : profile.onboardingStatus === 'REJECTED'
+                                ? 'YÊU CẦU BỔ SUNG HỒ SƠ'
+                                : 'ĐANG CHỜ MANAGER PHÊ DUYỆT'
+                          }
+                          color={
+                            profile.onboardingStatus === 'APPROVED'
+                              ? 'success'
+                              : profile.onboardingStatus === 'REJECTED'
+                                ? 'error'
+                                : 'warning'
+                          }
+                          size="small"
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5, mb: 2 }}>
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            bgcolor: '#ffffff',
+                            borderRadius: '8px',
+                            border: profile.hasLicenseScan ? '1px solid #86efac' : '1px solid #fecaca',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          {profile.hasLicenseScan ? (
+                            <CheckCircleRounded color="success" fontSize="small" />
+                          ) : (
+                            <ErrorOutlineRounded color="error" fontSize="small" />
+                          )}
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            (1) Bản scan Bằng lái UAV: {profile.hasLicenseScan ? 'Đã lưu MinIO' : 'Chưa tải lên'}
+                          </Typography>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            bgcolor: '#ffffff',
+                            borderRadius: '8px',
+                            border: profile.hasPartnerContract ? '1px solid #86efac' : '1px solid #fecaca',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          {profile.hasPartnerContract ? (
+                            <CheckCircleRounded color="success" fontSize="small" />
+                          ) : (
+                            <ErrorOutlineRounded color="error" fontSize="small" />
+                          )}
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            (2) Hợp đồng đã ký (SHA-256): {profile.hasPartnerContract ? 'Đã lưu MinIO' : 'Chưa tải lên'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {profile.rejectionReason && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                          <strong>Lý do yêu cầu bổ sung:</strong> {profile.rejectionReason}
+                        </Alert>
+                      )}
+
+                      {canApprovePartner ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              startIcon={<CheckCircleRounded />}
+                              disabled={
+                                !profile.hasLicenseScan ||
+                                !profile.hasPartnerContract ||
+                                approveOnboardingMutation.isPending
+                              }
+                              onClick={() => approveOnboardingMutation.mutate()}
+                              sx={{ textTransform: 'none', fontWeight: 700 }}
+                            >
+                              {approveOnboardingMutation.isPending
+                                ? 'Đang phê duyệt…'
+                                : profile.onboardingStatus === 'APPROVED'
+                                  ? 'Đã phê duyệt kích hoạt (Cập nhật lại)'
+                                  : 'Phê duyệt kích hoạt Đối tác (Approve)'}
+                            </Button>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mt: 1 }}>
+                            <TextField
+                              size="small"
+                              fullWidth
+                              label="Lý do yêu cầu bổ sung / từ chối (nếu hồ sơ chưa đạt)"
+                              placeholder="VD: Hợp đồng thiếu chữ ký trang 2 hoặc ảnh bằng lái bị mờ..."
+                              value={rejectReason}
+                              onChange={(e) => setRejectReason(e.target.value)}
+                              sx={{ bgcolor: '#ffffff' }}
+                            />
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              disabled={!rejectReason.trim() || rejectOnboardingMutation.isPending}
+                              onClick={() => rejectOnboardingMutation.mutate(rejectReason.trim())}
+                              sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap' }}
+                            >
+                              Yêu cầu bổ sung
+                            </Button>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Alert severity={profile.onboardingStatus === 'APPROVED' ? 'success' : 'info'}>
+                          {profile.onboardingStatus === 'APPROVED'
+                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Platform Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
+                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Platform Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
+                        </Alert>
+                      )}
+                    </Paper>
+                  </Box>
+                </Box>
+              )}
+
+              {/* TAB 3: KINH NGHIỆM BAY */}
+              {currentTab === 3 && (
                 <Box component="form" onSubmit={handleSaveProfile} sx={{ p: 3 }}>
                   <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '0.875rem', mb: 2, color: 'text.primary' }}>
                     {tr(
@@ -887,8 +1332,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                 </Box>
               )}
 
-              {/* TAB 3: PLATFORM FLIGHT LOGS */}
-              {currentTab === 3 && (
+              {/* TAB 4: LỊCH SỬ BAY TẠI CÔNG TY */}
+              {currentTab === 4 && (
                 <Box sx={{ p: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box>

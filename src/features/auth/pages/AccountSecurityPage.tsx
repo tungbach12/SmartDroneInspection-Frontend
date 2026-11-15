@@ -18,14 +18,18 @@ import {
   Select,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import LogoutRounded from '@mui/icons-material/LogoutRounded';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { pilotLicenseClassApi } from '../api/pilotLicenseClassApi';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import InspectorOnboardingPage from '@/features/admin/pages/InspectorOnboardingPage';
 import {
   getAuthErrorMessage,
   changePassword,
@@ -53,12 +57,21 @@ export default function AccountSecurityPage() {
   const clearSession = useAuthStore((state) => state.clearSession);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isInspector = Boolean(user?.roles.includes('INSPECTOR'));
+  const activeTab =
+    isInspector && searchParams.get('tab') === 'pilot-profile' ? 'pilot-profile' : 'security';
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [signingOutSession, setSigningOutSession] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [preferencePending, setPreferencePending] = useState(false);
   const visionFallbackEnabled = user?.visionFallbackEnabled ?? true;
+  const licenseClassesQuery = useQuery({
+    queryKey: ['pilot-license-classes', 'active'],
+    queryFn: pilotLicenseClassApi.listActive,
+    staleTime: 60_000,
+  });
 
   const [licenseNumber, setLicenseNumber] = useState(user?.pilotLicenseNumber ?? '');
   const [licenseClass, setLicenseClass] = useState(user?.pilotLicenseClass ?? '');
@@ -167,6 +180,37 @@ export default function AccountSecurityPage() {
           </Typography>
         </Box>
 
+        {isInspector && (
+          <Tabs
+            value={activeTab}
+            onChange={(_, value: 'security' | 'pilot-profile') => {
+              const next = new URLSearchParams(searchParams);
+              if (value === 'pilot-profile') {
+                next.set('tab', 'pilot-profile');
+              } else {
+                next.delete('tab');
+              }
+              setSearchParams(next, { replace: true });
+            }}
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab
+              value="security"
+              label={locale === 'vi' ? 'Tài khoản & Bảo mật' : 'Account & Security'}
+              sx={{ textTransform: 'none', fontWeight: 650 }}
+            />
+            <Tab
+              value="pilot-profile"
+              label={locale === 'vi' ? 'Hồ sơ Phi công & Hợp đồng' : 'Pilot Profile & Contract'}
+              sx={{ textTransform: 'none', fontWeight: 650 }}
+            />
+          </Tabs>
+        )}
+
+        {activeTab === 'pilot-profile' ? (
+          <InspectorOnboardingPage embedded />
+        ) : (
+          <>
         {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
         {/* Signed-in Account Info */}
@@ -448,13 +492,23 @@ export default function AccountSecurityPage() {
                 />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
+                    select
                     label={t('License class')}
                     size="small"
                     fullWidth
                     value={licenseClass}
                     onChange={(e) => setLicenseClass(e.target.value)}
-                    placeholder="e.g. CLASS_3 / Commercial"
-                  />
+                    disabled={licenseClassesQuery.isLoading || licenseClassesQuery.isError}
+                    helperText={licenseClassesQuery.isError ? t('Could not load license classes.') : undefined}
+                  >
+                    <MenuItem value=""><em>{t('No class selected')}</em></MenuItem>
+                    {licenseClassesQuery.data?.map((item) => (
+                      <MenuItem key={item.id} value={item.name}>{item.name}</MenuItem>
+                    ))}
+                    {licenseClass && !licenseClassesQuery.data?.some((item) => item.name === licenseClass) && (
+                      <MenuItem value={licenseClass}>{licenseClass} ({t('Inactive')})</MenuItem>
+                    )}
+                  </TextField>
                   <TextField
                     type="date"
                     label={t('Expiry date')}
@@ -678,6 +732,8 @@ export default function AccountSecurityPage() {
             </Stack>
           </Stack>
         </Box>
+          </>
+        )}
       </Stack>
 
       <Dialog
