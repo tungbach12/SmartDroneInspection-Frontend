@@ -8,7 +8,9 @@ import type {
 import { ReportDerivedSections } from './ReportDerivedSections';
 
 vi.mock('@/shared/ui/AuthenticatedImage', () => ({
-  AuthenticatedImage: () => <div />,
+  AuthenticatedImage: ({ src }: { src: string }) => (
+    <div data-testid="authenticated-image" data-src={src} />
+  ),
 }));
 
 const version: InspectionReport = {
@@ -280,6 +282,9 @@ describe('ReportDerivedSections confirmed findings', () => {
 
     expect(screen.getByText('Findings preview')).toBeTruthy();
     expect(screen.getByText('Surface crack · HIGH')).toBeTruthy();
+    expect(
+      screen.getByTestId('authenticated-image').getAttribute('data-src'),
+    ).toBe('/api/v1/inspections/inspection-1/evidence/evidence-1/content?variant=thumb');
 
     const openModalBtn = screen.getByRole('button', { name: /View finding details/i });
     expect(openModalBtn).toBeTruthy();

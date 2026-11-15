@@ -319,6 +319,15 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                 <Box sx={{ width: '100%', lineHeight: 0 }}>
                   <AuthenticatedMedia
                     src={inspectionApi.evidenceContentUrl(props.inspectionId, props.evidence.id)}
+                    posterSrc={
+                      props.evidence.hasThumbnail
+                        ? inspectionApi.evidenceContentUrl(
+                            props.inspectionId,
+                            props.evidence.id,
+                            'thumb',
+                          )
+                        : undefined
+                    }
                     alt={`Inspection evidence ${props.evidence.fileName}`}
                     contentType={props.evidence.contentType}
                     maxHeight={420}

@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   },
   versions: { data: [] as unknown[], isLoading: false, error: null as Error | null, refetch: vi.fn() },
   retire: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
+  retryProcessing: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   bulkRetire: { mutateAsync: vi.fn(), isPending: false, isError: false, error: null as Error | null },
 }));
 
@@ -87,7 +88,9 @@ vi.mock('../hooks/useInspections', () => ({
   useFieldSessions: () => mocks.sessionQuery,
   useReportVersions: () => mocks.versions,
   useRetireEvidence: () => mocks.retire,
+  useRetryEvidenceProcessing: () => mocks.retryProcessing,
   useBulkRetireEvidence: () => mocks.bulkRetire,
+  useInvalidateInspectionEvidence: () => vi.fn().mockResolvedValue(undefined),
   useUploadInspectionEvidence: () => mocks.upload,
   useInspection: () => ({ data: { id: 'inspection-1' }, isLoading: false }),
 }));
@@ -456,5 +459,119 @@ describe('InspectionEvidencePage', () => {
     expect(screen.getByText('Video tools')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Capture frame' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Scan video for defects' })).toBeTruthy();
+  });
+
+  it('rejects oversized >2 GB video files and renders FAILED retry / resumable chunked uploads', async () => {
+    const { inspectionApi } = await import('../api/inspectionApi');
+    const beginSpy = vi.spyOn(inspectionApi, 'beginEvidenceUpload').mockResolvedValue({
+      sessionId: 'sess-1',
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      fileName: 'long-flight.mp4',
+      contentType: 'video/mp4',
+      declaredSizeBytes: 12,
+      chunkSizeBytes: 5,
+      totalParts: 3,
+      uploadedPartNumbers: [],
+      status: 'OPEN',
+      evidenceId: null,
+      errorMessage: null,
+      expiresAt: '2026-11-16T00:00:00Z',
+      createdAt: '2026-11-15T00:00:00Z',
+      completedAt: null,
+    });
+    const partSpy = vi
+      .spyOn(inspectionApi, 'uploadEvidencePart')
+      .mockRejectedValueOnce(new Error('transient timeout'))
+      .mockImplementation(async (_inspId, _sessId, partNo) => ({
+        sessionId: 'sess-1',
+        inspectionId: 'inspection-1',
+        fieldSessionId: 'session-1',
+        fileName: 'long-flight.mp4',
+        contentType: 'video/mp4',
+        declaredSizeBytes: 12,
+        chunkSizeBytes: 5,
+        totalParts: 3,
+        uploadedPartNumbers: Array.from({ length: partNo }, (_, i) => i + 1),
+        status: 'OPEN',
+        evidenceId: null,
+        errorMessage: null,
+        expiresAt: '2026-11-16T00:00:00Z',
+        createdAt: '2026-11-15T00:00:00Z',
+        completedAt: null,
+      }));
+    const completeSpy = vi.spyOn(inspectionApi, 'completeEvidenceUpload').mockResolvedValue({
+      sessionId: 'sess-1',
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      fileName: 'long-flight.mp4',
+      contentType: 'video/mp4',
+      declaredSizeBytes: 12,
+      chunkSizeBytes: 5,
+      totalParts: 3,
+      uploadedPartNumbers: [1, 2, 3],
+      status: 'PROCESSING',
+      evidenceId: 'ev-video-1',
+      errorMessage: null,
+      expiresAt: '2026-11-16T00:00:00Z',
+      createdAt: '2026-11-15T00:00:00Z',
+      completedAt: null,
+    });
+
+    mocks.evidenceQuery = {
+      data: {
+        items: [
+          {
+            id: 'video-failed',
+            fileName: 'failed.mp4',
+            contentType: 'video/mp4',
+            sizeBytes: 1024,
+            processingStatus: 'FAILED',
+            processingError: 'FFmpeg timed out',
+            captureTime: '2026-10-08T08:15:00Z',
+            isDeleted: false,
+          },
+        ],
+        page: 1,
+        pageSize: 50,
+        totalCount: 1,
+        totalPages: 1,
+        activeCount: 1,
+        retiredCount: 0,
+        latestCreatedAt: '2026-10-08T08:15:00Z',
+        latestRetiredAt: null,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    window.sessionStorage.clear();
+    renderWithRouter(<InspectionEvidencePage />);
+
+    // Failed video disables tools and exposes retry processing.
+    expect(screen.getByText('FFmpeg timed out')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Capture frame' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry processing' }));
+    expect(mocks.retryProcessing.mutate).toHaveBeenCalledWith('video-failed');
+
+    // Oversized > 2 GB file is rejected client-side.
+    const hugeFile = { name: 'huge.mp4', type: 'video/mp4', size: 2 * 1024 * 1024 * 1024 + 1 } as File;
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [hugeFile] },
+    });
+    expect(await screen.findByText(/Video uploads cannot exceed 2 GB/)).toBeTruthy();
+
+    // Valid MP4 uses resumable chunk upload with transient chunk retry.
+    const validVideo = new File(['0123456789AB'], 'long-flight.mp4', { type: 'video/mp4' });
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [validVideo] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Upload$/i }));
+
+    await waitFor(() => expect(completeSpy).toHaveBeenCalledWith('inspection-1', 'sess-1'));
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(partSpy).toHaveBeenCalledTimes(4); // 1 failed + 3 succeeded
   });
 });

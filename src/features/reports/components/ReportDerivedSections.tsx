@@ -602,7 +602,7 @@ export function ReportDerivedSections({
                     >
                       {item.contentType.startsWith('image/') && (
                         <AuthenticatedImage
-                          src={inspectionApi.evidenceContentUrl(inspectionId, item.id)}
+                          src={inspectionApi.evidenceContentUrl(inspectionId, item.id, 'thumb')}
                           alt={item.fileName}
                           maxHeight={160}
                           sx={{ borderRadius: '8px', border: '1px solid', borderColor: 'divider', mb: 1.25 }}

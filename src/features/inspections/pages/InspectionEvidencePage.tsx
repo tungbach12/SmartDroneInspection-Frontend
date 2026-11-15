@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Chip,
+  LinearProgress,
   MenuItem,
   Paper,
   Stack,
@@ -18,17 +19,20 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CropRounded from '@mui/icons-material/CropRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { inspectionApi } from '../api/inspectionApi';
 import {
+  useInvalidateInspectionEvidence,
   useInspectionEvidenceQuery,
   useInspectionWorkflowState,
   useFieldSessions,
   useReportVersions,
   useRetireEvidence,
+  useRetryEvidenceProcessing,
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
 } from '../hooks/useInspections';
@@ -39,10 +43,57 @@ import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
+const MAX_IMAGE_OR_DOC_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
+const DEFAULT_CHUNK_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_CHUNK_RETRIES = 3;
+
+interface SavedUploadRef {
+  sessionId: string;
+  fileName: string;
+  sizeBytes: number;
+}
+
+function savedUploadStorageKey(inspectionId: string): string {
+  return `sdi-resumable-uploads:${inspectionId}`;
+}
+
+function savedUploadEntryKey(fileName: string, sizeBytes: number): string {
+  return `${fileName}::${sizeBytes}`;
+}
+
+function readSavedUploads(inspectionId: string): Record<string, SavedUploadRef> {
+  if (!inspectionId || typeof window === 'undefined' || !window.sessionStorage) return {};
+  try {
+    const raw = window.sessionStorage.getItem(savedUploadStorageKey(inspectionId));
+    return raw ? (JSON.parse(raw) as Record<string, SavedUploadRef>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSavedUploads(inspectionId: string, entries: Record<string, SavedUploadRef>) {
+  if (!inspectionId || typeof window === 'undefined' || !window.sessionStorage) return;
+  try {
+    if (Object.keys(entries).length === 0) {
+      window.sessionStorage.removeItem(savedUploadStorageKey(inspectionId));
+    } else {
+      window.sessionStorage.setItem(savedUploadStorageKey(inspectionId), JSON.stringify(entries));
+    }
+  } catch {
+    // Ignore storage quota / private mode failures.
+  }
+}
+
+function queueItemKey(file: File): string {
+  return `${file.name}::${file.size}`;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 export default function InspectionEvidencePage() {
@@ -65,14 +116,25 @@ export default function InspectionEvidencePage() {
   const workflow = useInspectionWorkflowState(inspectionId);
   const sessionHistory = useFieldSessions(inspectionId, isInspector);
   const versions = useReportVersions(inspectionId);
+  const invalidateEvidence = useInvalidateInspectionEvidence(inspectionId);
   const upload = useUploadInspectionEvidence(inspectionId);
   const retire = useRetireEvidence(inspectionId);
+  const retryProcessing = useRetryEvidenceProcessing(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
-
 
   const [queue, setQueue] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
+  const [activeUploadSession, setActiveUploadSession] = useState<{
+    fileName: string;
+    sessionId: string;
+  } | null>(null);
+  const [savedUploads, setSavedUploads] = useState<Record<string, SavedUploadRef>>(() =>
+    readSavedUploads(inspectionId),
+  );
+  const activeAbortRef = useRef<AbortController | null>(null);
+  const cancelledFilesRef = useRef<Set<string>>(new Set());
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -134,6 +196,22 @@ export default function InspectionEvidencePage() {
     displayedEvidenceItems[0] ??
     null;
 
+  const hasPendingProcessing = displayedEvidenceItems.some(
+    (item) => item.processingStatus === 'PENDING' || item.processingStatus === 'PROCESSING',
+  );
+
+  useEffect(() => {
+    setSavedUploads(readSavedUploads(inspectionId));
+  }, [inspectionId]);
+
+  useEffect(() => {
+    if (!hasPendingProcessing) return;
+    const timer = window.setInterval(() => {
+      void evidence.refetch();
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [hasPendingProcessing, evidence]);
+
   const updateStatus = (value: EvidenceQueryFilters['status']) => {
     setFilterMode(value);
     setPage(1);
@@ -153,6 +231,52 @@ export default function InspectionEvidencePage() {
     setShowDeleteConfirm(false);
   };
 
+  const updateSavedUploadMap = (
+    updater: (prev: Record<string, SavedUploadRef>) => Record<string, SavedUploadRef>,
+  ) => {
+    setSavedUploads((prev) => {
+      const next = updater(prev);
+      writeSavedUploads(inspectionId, next);
+      return next;
+    });
+  };
+
+  const handleStageFiles = (chosen: File[]) => {
+    if (chosen.length === 0) return;
+    const existingVideoBytes = queue
+      .filter((f) => f.type === 'video/mp4')
+      .reduce((sum, f) => sum + f.size, 0);
+    let runningVideoBytes = existingVideoBytes;
+    const accepted: File[] = [];
+    const errors: Record<string, string> = {};
+
+    for (const file of chosen) {
+      if (file.size <= 0) {
+        errors[file.name] = t('File is empty and cannot be uploaded.');
+        continue;
+      }
+      const isMp4 = file.type === 'video/mp4';
+      if (isMp4) {
+        if (file.size > MAX_VIDEO_BYTES || runningVideoBytes + file.size > MAX_VIDEO_BYTES) {
+          errors[file.name] = t('Video uploads cannot exceed 2 GB in total.');
+          continue;
+        }
+        runningVideoBytes += file.size;
+      } else if (file.size > MAX_IMAGE_OR_DOC_BYTES) {
+        errors[file.name] = t('Images and PDFs cannot exceed 10 MB.');
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    if (accepted.length > 0) {
+      setQueue((prev) => [...prev, ...accepted]);
+    }
+    if (Object.keys(errors).length > 0) {
+      setFileErrors((prev) => ({ ...prev, ...errors }));
+    }
+  };
+
   const removeFromQueue = (name: string) => {
     setQueue((prev) => prev.filter((file) => file.name !== name));
     setFileErrors((prev) => {
@@ -161,29 +285,190 @@ export default function InspectionEvidencePage() {
       delete next[name];
       return next;
     });
+    setFileProgress((prev) => {
+      if (!(name in prev)) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const uploadResumableVideo = async (file: File) => {
+    const entryKey = savedUploadEntryKey(file.name, file.size);
+    let session = null as Awaited<ReturnType<typeof inspectionApi.beginEvidenceUpload>> | null;
+    const existingRef = readSavedUploads(inspectionId)[entryKey];
+
+    if (existingRef) {
+      try {
+        const remoteStatus = await inspectionApi.getEvidenceUploadStatus(
+          inspectionId,
+          existingRef.sessionId,
+        );
+        if (remoteStatus.status === 'OPEN') {
+          session = remoteStatus;
+        } else if (remoteStatus.status === 'PROCESSING' || remoteStatus.status === 'READY') {
+          updateSavedUploadMap((prev) => {
+            const next = { ...prev };
+            delete next[entryKey];
+            return next;
+          });
+          setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
+          return;
+        }
+      } catch {
+        // Session expired/not found; clear stale reference and create a fresh session below.
+      }
+    }
+
+    if (!session) {
+      session = await inspectionApi.beginEvidenceUpload(inspectionId, {
+        fileName: file.name,
+        contentType: file.type || 'video/mp4',
+        totalSizeBytes: file.size,
+        ...(completedFieldSessionId ? { fieldSessionId: completedFieldSessionId } : {}),
+      });
+      updateSavedUploadMap((prev) => ({
+        ...prev,
+        [entryKey]: {
+          sessionId: session!.sessionId,
+          fileName: file.name,
+          sizeBytes: file.size,
+        },
+      }));
+    }
+
+    setActiveUploadSession({ fileName: file.name, sessionId: session.sessionId });
+    const chunkSize = session.chunkSizeBytes || DEFAULT_CHUNK_SIZE_BYTES;
+    const completedSet = new Set(session.uploadedPartNumbers ?? []);
+    const initialCompletedBytes = Array.from(completedSet).reduce((sum, partNo) => {
+      const start = (partNo - 1) * chunkSize;
+      const end = Math.min(file.size, start + chunkSize);
+      return sum + Math.max(0, end - start);
+    }, 0);
+    setFileProgress((prev) => ({
+      ...prev,
+      [file.name]: Math.min(99, Math.round((initialCompletedBytes / file.size) * 100)),
+    }));
+
+    for (let partNo = 1; partNo <= session.totalParts; partNo++) {
+      if (cancelledFilesRef.current.has(queueItemKey(file))) {
+        return;
+      }
+      if (completedSet.has(partNo)) continue;
+      const start = (partNo - 1) * chunkSize;
+      const end = Math.min(file.size, start + chunkSize);
+      const chunk = file.slice(start, end, file.type || 'video/mp4');
+
+      let attempt = 0;
+      let uploaded = false;
+      while (!uploaded) {
+        if (cancelledFilesRef.current.has(queueItemKey(file))) {
+          return;
+        }
+        attempt += 1;
+        const controller = new AbortController();
+        activeAbortRef.current = controller;
+        try {
+          const updatedSession = await inspectionApi.uploadEvidencePart(
+            inspectionId,
+            session.sessionId,
+            partNo,
+            chunk,
+            {
+              signal: controller.signal,
+              onProgress: (loaded) => {
+                const confirmedBytes = (partNo - 1) * chunkSize;
+                const pct = Math.min(99, Math.round(((confirmedBytes + loaded) / file.size) * 100));
+                setFileProgress((prev) => ({ ...prev, [file.name]: pct }));
+              },
+            },
+          );
+          for (const donePart of updatedSession.uploadedPartNumbers ?? [partNo]) {
+            completedSet.add(donePart);
+          }
+          uploaded = true;
+        } catch (chunkErr) {
+          if (cancelledFilesRef.current.has(queueItemKey(file)) || attempt >= MAX_CHUNK_RETRIES) {
+            throw chunkErr;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, attempt * 400));
+        } finally {
+          if (activeAbortRef.current === controller) {
+            activeAbortRef.current = null;
+          }
+        }
+      }
+    }
+
+    await inspectionApi.completeEvidenceUpload(inspectionId, session.sessionId);
+    updateSavedUploadMap((prev) => {
+      const next = { ...prev };
+      delete next[entryKey];
+      return next;
+    });
+    setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
+    await invalidateEvidence();
+  };
+
+  const handleCancelResumableUpload = async (file: File) => {
+    const key = queueItemKey(file);
+    cancelledFilesRef.current.add(key);
+    activeAbortRef.current?.abort();
+    const saved = savedUploads[savedUploadEntryKey(file.name, file.size)];
+    if (saved) {
+      try {
+        await inspectionApi.cancelEvidenceUpload(inspectionId, saved.sessionId);
+      } catch {
+        // Ignore cancellation errors if session already expired/completed.
+      }
+      updateSavedUploadMap((prev) => {
+        const next = { ...prev };
+        delete next[savedUploadEntryKey(file.name, file.size)];
+        return next;
+      });
+    }
+    setActiveUploadSession((curr) => (curr?.fileName === file.name ? null : curr));
+    removeFromQueue(file.name);
   };
 
   const uploadQueue = async () => {
     if (uploading || queue.length === 0) return;
     setUploading(true);
+    cancelledFilesRef.current.clear();
     for (const file of [...queue]) {
+      if (cancelledFilesRef.current.has(queueItemKey(file))) continue;
       try {
-        await upload.mutateAsync({
-          file,
-          ...(completedFieldSessionId ? { fieldSessionId: completedFieldSessionId } : {}),
-        });
-        setQueue((prev) => prev.filter((queued) => queued !== file));
-        setFileErrors((prev) => {
-          if (!(file.name in prev)) return prev;
-          const next = { ...prev };
-          delete next[file.name];
-          return next;
-        });
+        if (file.type === 'video/mp4') {
+          await uploadResumableVideo(file);
+        } else {
+          await upload.mutateAsync({
+            file,
+            ...(completedFieldSessionId ? { fieldSessionId: completedFieldSessionId } : {}),
+          });
+        }
+        if (!cancelledFilesRef.current.has(queueItemKey(file))) {
+          setQueue((prev) => prev.filter((queued) => queued !== file));
+          setFileErrors((prev) => {
+            if (!(file.name in prev)) return prev;
+            const next = { ...prev };
+            delete next[file.name];
+            return next;
+          });
+          setFileProgress((prev) => {
+            if (!(file.name in prev)) return prev;
+            const next = { ...prev };
+            delete next[file.name];
+            return next;
+          });
+        }
       } catch (error) {
+        if (cancelledFilesRef.current.has(queueItemKey(file))) continue;
         setFileErrors((prev) => ({
           ...prev,
           [file.name]: getErrorMessage(error, 'Upload failed. Retry to safely try again.'),
         }));
+      } finally {
+        setActiveUploadSession((curr) => (curr?.fileName === file.name ? null : curr));
       }
     }
     setUploading(false);
@@ -370,7 +655,7 @@ export default function InspectionEvidencePage() {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {queue.length === 0
-                  ? t('Upload photos, videos, or documents.')
+                  ? t('Upload photos (max 10 MB), documents, or MP4 videos (up to 2 GB, resumable).')
                   : `${queue.length} ${t('file(s) staged')}`}
               </Typography>
             </Box>
@@ -394,9 +679,7 @@ export default function InspectionEvidencePage() {
                     accept="image/png,image/jpeg,image/webp,image/tiff,video/mp4,application/pdf"
                     onChange={(event) => {
                       const chosen = Array.from(event.target.files ?? []);
-                      if (chosen.length > 0) {
-                        setQueue((prev) => [...prev, ...chosen]);
-                      }
+                      handleStageFiles(chosen);
                       event.target.value = '';
                     }}
                   />
@@ -431,26 +714,83 @@ export default function InspectionEvidencePage() {
             </Alert>
           )}
 
+          {Object.values(savedUploads)
+            .filter((entry) => !queue.some((q) => savedUploadEntryKey(q.name, q.size) === savedUploadEntryKey(entry.fileName, entry.sizeBytes)))
+            .map((entry) => (
+              <Alert key={entry.sessionId} severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
+                {t('Interrupted upload found for')} <strong>{entry.fileName}</strong> ({formatBytes(entry.sizeBytes)}).{' '}
+                {t('Reselect the exact same file to resume uploading remaining chunks.')}
+              </Alert>
+            ))}
+
+          {Object.entries(fileErrors)
+            .filter(([name]) => !queue.some((q) => q.name === name))
+            .map(([name, message]) => (
+              <Alert
+                key={name}
+                severity="error"
+                sx={{ mt: 1.5, borderRadius: '10px' }}
+                onClose={() =>
+                  setFileErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[name];
+                    return next;
+                  })
+                }
+              >
+                <strong>{name}:</strong> {message}
+              </Alert>
+            ))}
+
           {queue.length > 0 && canEditEvidence && (
             <Stack spacing={0.75} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-              {queue.map((file) => (
-                <Box key={file.name}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <InsertDriveFileOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
-                      {file.name}
-                    </Typography>
-                    <Button size="small" color="error" onClick={() => removeFromQueue(file.name)}>
-                      {t('Remove')}
-                    </Button>
-                  </Stack>
-                  {fileErrors[file.name] && (
-                    <Alert severity="error" sx={{ mt: 0.5 }}>
-                      {fileErrors[file.name]}
-                    </Alert>
-                  )}
-                </Box>
-              ))}
+              {queue.map((file) => {
+                const pct = fileProgress[file.name];
+                const isActiveResumable = activeUploadSession?.fileName === file.name;
+                const hasSavedSession = Boolean(
+                  savedUploads[savedUploadEntryKey(file.name, file.size)],
+                );
+                return (
+                  <Box key={`${file.name}-${file.size}`}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <InsertDriveFileOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                        {file.name}{' '}
+                        <Typography component="span" variant="caption" color="text.secondary">
+                          ({formatBytes(file.size)})
+                          {typeof pct === 'number' ? ` · ${pct}%` : ''}
+                          {hasSavedSession && !isActiveResumable ? ` · ${t('Resumable')}` : ''}
+                        </Typography>
+                      </Typography>
+                      {isActiveResumable ? (
+                        <Button
+                          size="small"
+                          color="warning"
+                          onClick={() => void handleCancelResumableUpload(file)}
+                        >
+                          {t('Cancel upload')}
+                        </Button>
+                      ) : (
+                        <Button size="small" color="error" onClick={() => removeFromQueue(file.name)}>
+                          {t('Remove')}
+                        </Button>
+                      )}
+                    </Stack>
+                    {typeof pct === 'number' && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        sx={{ mt: 0.5, borderRadius: 1 }}
+                      />
+                    )}
+                    {fileErrors[file.name] && (
+                      <Alert severity="error" sx={{ mt: 0.5 }}>
+                        {fileErrors[file.name]}
+                      </Alert>
+                    )}
+                  </Box>
+                );
+              })}
             </Stack>
           )}
         </Paper>
@@ -615,6 +955,26 @@ export default function InspectionEvidencePage() {
                             {item.isDeleted && (
                               <Chip size="small" color="error" variant="outlined" label={t('Deleted')} sx={{ height: 20, fontSize: '0.7rem' }} />
                             )}
+                            {!item.isDeleted &&
+                              (item.processingStatus === 'PENDING' ||
+                                item.processingStatus === 'PROCESSING') && (
+                                <Chip
+                                  size="small"
+                                  color="info"
+                                  variant="outlined"
+                                  label={t('Processing')}
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                              )}
+                            {!item.isDeleted && item.processingStatus === 'FAILED' && (
+                              <Chip
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                label={t('Failed')}
+                                sx={{ height: 20, fontSize: '0.7rem' }}
+                              />
+                            )}
                           </Stack>
                           <Typography
                             variant="caption"
@@ -682,14 +1042,54 @@ export default function InspectionEvidencePage() {
                           borderColor: 'divider',
                         }}
                       >
-                        <AuthenticatedMedia
-                          src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
-                          alt={selectedEvidence.fileName}
-                          contentType={selectedEvidence.contentType}
-                          videoRef={videoRef}
-                          maxHeight={460}
-                          sx={{ borderRadius: '8px' }}
-                        />
+                        {selectedEvidence.contentType.startsWith('video/') &&
+                        selectedEvidence.processingStatus &&
+                        selectedEvidence.processingStatus !== 'READY' ? (
+                          <Alert
+                            severity={
+                              selectedEvidence.processingStatus === 'FAILED' ? 'error' : 'info'
+                            }
+                            action={
+                              selectedEvidence.processingStatus === 'FAILED' && canUploadEvidence ? (
+                                <Button
+                                  size="small"
+                                  color="inherit"
+                                  startIcon={<RefreshRounded fontSize="small" />}
+                                  disabled={retryProcessing.isPending}
+                                  onClick={() => retryProcessing.mutate(selectedEvidence.id)}
+                                >
+                                  {t('Retry processing')}
+                                </Button>
+                              ) : undefined
+                            }
+                          >
+                            {selectedEvidence.processingStatus === 'FAILED'
+                              ? selectedEvidence.processingError ||
+                                t('Video transcoding failed. Retry processing to try again.')
+                              : t(
+                                  'Video is being processed into a streamable 1080p rendition. Playback will become available once ready.',
+                                )}
+                          </Alert>
+                        ) : (
+                          <AuthenticatedMedia
+                            src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
+                            posterSrc={
+                              selectedEvidence.contentType.startsWith('video/') &&
+                              selectedEvidence.hasThumbnail
+                                ? inspectionApi.evidenceContentUrl(
+                                    inspectionId,
+                                    selectedEvidence.id,
+                                    'thumb',
+                                  )
+                                : undefined
+                            }
+                            alt={selectedEvidence.fileName}
+                            contentType={selectedEvidence.contentType}
+                            videoRef={videoRef}
+                            maxHeight={460}
+                            sx={{ borderRadius: '8px' }}
+                          />
+                        )}
                         {selectedEvidence.contentType.startsWith('video/') && canUploadEvidence && (
                           <Stack
                             spacing={1.25}
@@ -713,6 +1113,12 @@ export default function InspectionEvidencePage() {
                                   size="small"
                                   variant="outlined"
                                   startIcon={<CropRounded fontSize="small" />}
+                                  disabled={
+                                    Boolean(
+                                      selectedEvidence.processingStatus &&
+                                        selectedEvidence.processingStatus !== 'READY',
+                                    )
+                                  }
                                   onClick={handleOpenCropFromVideo}
                                   sx={{ textTransform: 'none', fontWeight: 600 }}
                                 >
@@ -723,6 +1129,12 @@ export default function InspectionEvidencePage() {
                                   variant="contained"
                                   startIcon={<AutoAwesomeRounded fontSize="small" />}
                                   loading={autoDetectingVideo}
+                                  disabled={
+                                    Boolean(
+                                      selectedEvidence.processingStatus &&
+                                        selectedEvidence.processingStatus !== 'READY',
+                                    )
+                                  }
                                   onClick={() => void handleAutoDetectFromVideo()}
                                   sx={{ textTransform: 'none', fontWeight: 600 }}
                                 >

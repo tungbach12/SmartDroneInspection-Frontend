@@ -86,6 +86,17 @@ export interface EvidencePage {
   latestRetiredAt: string | null;
 }
 
+export type EvidenceProcessingStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+
+export type EvidenceUploadSessionStatus =
+  | 'OPEN'
+  | 'COMPLETING'
+  | 'PROCESSING'
+  | 'READY'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'EXPIRED';
+
 export interface EvidenceItem {
   id: string;
   inspectionId: string;
@@ -93,6 +104,14 @@ export interface EvidenceItem {
   fileName: string;
   contentType: string;
   sizeBytes: number;
+  originalSizeBytes?: number | null;
+  processingStatus?: EvidenceProcessingStatus;
+  processingError?: string | null;
+  hasThumbnail?: boolean;
+  mediaWidth?: number | null;
+  mediaHeight?: number | null;
+  durationSeconds?: number | null;
+  processedAt?: string | null;
   captureTime: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -100,6 +119,43 @@ export interface EvidenceItem {
   isDeleted: boolean;
   locationDescription: string | null;
   deduplicated: boolean;
+}
+
+export interface EvidenceUploadSession {
+  sessionId: string;
+  inspectionId: string;
+  fieldSessionId: string | null;
+  fileName: string;
+  contentType: string;
+  declaredSizeBytes: number;
+  chunkSizeBytes: number;
+  totalParts: number;
+  uploadedPartNumbers: number[];
+  status: EvidenceUploadSessionStatus;
+  evidenceId: string | null;
+  processingStatus?: EvidenceProcessingStatus | null;
+  errorMessage: string | null;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt?: string;
+  completedAt: string | null;
+}
+
+export interface BeginEvidenceUploadInput {
+  fileName: string;
+  contentType: string;
+  totalSizeBytes: number;
+  fieldSessionId?: string;
+  captureTime?: string;
+  latitude?: number;
+  longitude?: number;
+  locationDescription?: string;
+}
+
+export interface MediaTicket {
+  ticket: string;
+  streamUrl: string;
+  expiresAt: string;
 }
 
 /**
@@ -518,8 +574,80 @@ export const inspectionApi = {
       })
       .then((response) => response.data),
 
-  evidenceContentUrl: (inspectionId: string, evidenceId: string) =>
-    `${api.defaults.baseURL}/inspections/${inspectionId}/evidence/${evidenceId}/content`,
+  evidenceContentUrl: (
+    inspectionId: string,
+    evidenceId: string,
+    variant?: 'primary' | 'thumb',
+  ) => {
+    const base = `${api.defaults.baseURL}/inspections/${inspectionId}/evidence/${evidenceId}/content`;
+    return variant && variant !== 'primary' ? `${base}?variant=${variant}` : base;
+  },
+
+  beginEvidenceUpload: (inspectionId: string, input: BeginEvidenceUploadInput) =>
+    api
+      .post<EvidenceUploadSession>(`/inspections/${inspectionId}/evidence/uploads`, input)
+      .then((response) => response.data),
+
+  getEvidenceUploadStatus: (inspectionId: string, sessionId: string) =>
+    api
+      .get<EvidenceUploadSession>(`/inspections/${inspectionId}/evidence/uploads/${sessionId}`)
+      .then((response) => response.data),
+
+  uploadEvidencePart: (
+    inspectionId: string,
+    sessionId: string,
+    partNumber: number,
+    chunk: Blob,
+    options?: { signal?: AbortSignal; onProgress?: (loaded: number, total: number) => void },
+  ) => {
+    const form = new FormData();
+    form.append('file', chunk, `part-${partNumber}`);
+    return api
+      .put<EvidenceUploadSession>(
+        `/inspections/${inspectionId}/evidence/uploads/${sessionId}/parts/${partNumber}`,
+        form,
+        {
+          timeout: 300_000,
+          ...(options?.signal ? { signal: options.signal } : {}),
+          ...(options?.onProgress
+            ? {
+                onUploadProgress: (event) => {
+                  options.onProgress?.(event.loaded, event.total ?? chunk.size);
+                },
+              }
+            : {}),
+        },
+      )
+      .then((response) => response.data);
+  },
+
+  completeEvidenceUpload: (inspectionId: string, sessionId: string) =>
+    api
+      .post<EvidenceUploadSession>(
+        `/inspections/${inspectionId}/evidence/uploads/${sessionId}/complete`,
+      )
+      .then((response) => response.data),
+
+  cancelEvidenceUpload: (inspectionId: string, sessionId: string) =>
+    api
+      .delete<EvidenceUploadSession>(`/inspections/${inspectionId}/evidence/uploads/${sessionId}`)
+      .then((response) => response.data),
+
+  retryEvidenceProcessing: (inspectionId: string, evidenceId: string) =>
+    api
+      .post<EvidenceItem>(`/inspections/${inspectionId}/evidence/${evidenceId}/retry-processing`)
+      .then((response) => response.data),
+
+  issueMediaTicket: (
+    inspectionId: string,
+    evidenceId: string,
+    variant: 'primary' | 'thumb' = 'primary',
+  ) =>
+    api
+      .post<MediaTicket>(`/inspections/${inspectionId}/evidence/${evidenceId}/media-ticket`, null, {
+        params: { variant },
+      })
+      .then((response) => response.data),
 
   workflowState: (inspectionId: string) =>
     api
