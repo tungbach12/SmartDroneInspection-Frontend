@@ -5,7 +5,7 @@ import {
   Outlet,
   RouterProvider,
 } from 'react-router-dom';
-import { Box, CircularProgress } from '@mui/material';
+import { BrandLoadingScreen } from '@/shared/components/BrandLoadingScreen';
 import { AppShell } from '@/app/layouts/AppShell';
 import {
   getLegacySectionRedirectPath,
@@ -417,15 +417,7 @@ export function RouterWithToast() {
   const { t } = useLocale();
   return (
     <>
-      <Suspense
-        fallback={(
-          <Box
-            sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
-          >
-            <CircularProgress aria-label={t('Loading page')} />
-          </Box>
-        )}
-      >
+      <Suspense fallback={<BrandLoadingScreen label={t('Loading page')} />}>
         <AuthSessionBootstrapper />
         <RouterProvider router={router} />
       </Suspense>

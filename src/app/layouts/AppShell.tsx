@@ -407,7 +407,7 @@ export function AppShell({ portal }: AppShellProps) {
                 fontWeight: 600,
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
-                color: '#3758F9',
+                color: '#2B84EB',
                 lineHeight: 1.2,
                 mt: 0.25,
                 whiteSpace: 'nowrap',
@@ -843,7 +843,7 @@ export function AppShell({ portal }: AppShellProps) {
                       width: 38,
                       height: 38,
                       bgcolor: '#EFF3FF',
-                      color: '#3758F9',
+                      color: '#2B84EB',
                       fontSize: '0.875rem',
                       fontWeight: 600,
                       flexShrink: 0,
@@ -994,8 +994,8 @@ export function AppShell({ portal }: AppShellProps) {
               height: 46,
               px: 1.75,
               borderRadius: '10px',
-              border: '1.5px solid #3758F9',
-              boxShadow: '0 0 0 4px rgba(55, 88, 249, 0.15)',
+              border: '1.5px solid #2B84EB',
+              boxShadow: '0 0 0 4px rgba(43, 132, 235, 0.15)',
               bgcolor: 'background.paper',
             }}
           >

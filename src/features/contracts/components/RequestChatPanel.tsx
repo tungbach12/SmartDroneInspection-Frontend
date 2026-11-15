@@ -245,7 +245,7 @@ export function RequestChatPanel({ request, onChanged, onError }: RequestChatPan
                       color: isMe ? '#ffffff' : 'text.primary',
                       border: isMe ? 'none' : '1px solid',
                       borderColor: 'divider',
-                      boxShadow: isMe ? '0 1px 3px rgba(55, 88, 249, 0.25)' : 'none',
+                      boxShadow: isMe ? '0 1px 3px rgba(43, 132, 235, 0.25)' : 'none',
                       ...theme.applyStyles('dark', {
                         bgcolor: isMe ? 'primary.main' : '#18181b',
                         borderColor: isMe ? 'transparent' : 'rgba(255, 255, 255, 0.08)',

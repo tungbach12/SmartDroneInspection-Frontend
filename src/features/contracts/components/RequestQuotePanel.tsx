@@ -522,7 +522,7 @@ export function RequestQuotePanel({
                     <Avatar
                       src={selectedCandidate.inspectorAvatarUrl ?? undefined}
                       alt={selectedCandidate.inspectorName}
-                      sx={{ width: 42, height: 42, flexShrink: 0, bgcolor: '#EEF2FF', color: '#3758F9', fontWeight: 700 }}
+                      sx={{ width: 42, height: 42, flexShrink: 0, bgcolor: '#EEF2FF', color: '#2B84EB', fontWeight: 700 }}
                     >
                       {getInspectorInitials(selectedCandidate.inspectorName)}
                     </Avatar>

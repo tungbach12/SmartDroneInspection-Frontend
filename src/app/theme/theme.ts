@@ -68,7 +68,7 @@ export const theme = createTheme({
           selected: 'rgba(255, 255, 255, 0.08)',
           disabled: 'rgba(161, 161, 170, 0.35)',
           disabledBackground: 'rgba(161, 161, 170, 0.12)',
-          focus: 'rgba(87, 80, 241, 0.24)',
+          focus: 'rgba(43, 132, 235, 0.22)',
         },
       },
     },
@@ -128,6 +128,15 @@ export const theme = createTheme({
           },
         },
         contained: { boxShadow: 'none' },
+        outlined: {
+          '&.MuiButton-colorPrimary': {
+            borderColor: 'color-mix(in srgb, var(--mui-palette-primary-main) 38%, transparent)',
+            '&:hover': {
+              borderColor: 'var(--mui-palette-primary-main)',
+              backgroundColor: 'color-mix(in srgb, var(--mui-palette-primary-main) 6%, transparent)',
+            },
+          },
+        },
       },
     },
     MuiPaper: {

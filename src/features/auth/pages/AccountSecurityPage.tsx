@@ -279,7 +279,7 @@ export default function AccountSecurityPage() {
                   startIcon={<LogoutRounded />}
                   size="small"
                   sx={{
-                    bgcolor: '#3758F9',
+                    bgcolor: '#2B84EB',
                     textTransform: 'none',
                     fontWeight: 600,
                     '&:hover': { bgcolor: '#463FD8' },
@@ -558,7 +558,7 @@ export default function AccountSecurityPage() {
                 onClick={() => navigate('/operations/inspector-drones')}
                 sx={{
                   alignSelf: 'flex-start',
-                  bgcolor: '#3758F9',
+                  bgcolor: '#2B84EB',
                   textTransform: 'none',
                   fontWeight: 600,
                   '&:hover': { bgcolor: '#2b45cb' },
@@ -707,7 +707,7 @@ export default function AccountSecurityPage() {
                 onClick={handleSignOutCurrentSession}
                 startIcon={<LogoutRounded />}
                 sx={{
-                  bgcolor: '#3758F9',
+                  bgcolor: '#2B84EB',
                   textTransform: 'none',
                   fontWeight: 600,
                   '&:hover': { bgcolor: '#463FD8' },

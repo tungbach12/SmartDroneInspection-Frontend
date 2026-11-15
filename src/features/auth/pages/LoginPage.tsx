@@ -321,16 +321,16 @@ export default function LoginPage() {
         bgcolor: '#FFFFFF',
       },
       '&.Mui-focused fieldset': {
-        borderColor: '#3758F9',
+        borderColor: '#2B84EB',
         borderWidth: '1.5px',
-        boxShadow: '0 0 0 3px rgba(55, 88, 249, 0.12)',
+        boxShadow: '0 0 0 3px rgba(43, 132, 235, 0.12)',
       },
     },
     '& .MuiInputLabel-root': {
       color: '#52525B',
       fontSize: '14px',
       '&.Mui-focused': {
-        color: '#3758F9',
+        color: '#2B84EB',
       },
     },
     '& .MuiInputBase-input': {
@@ -778,7 +778,7 @@ export default function LoginPage() {
               setIsForgotPassword(true);
             }}
             sx={{
-              color: '#3758F9',
+              color: '#2B84EB',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '13px',
@@ -803,16 +803,16 @@ export default function LoginPage() {
           sx={{
             minHeight: 48,
             borderRadius: '10px',
-            bgcolor: '#3758F9',
+            bgcolor: '#2B84EB',
             fontSize: '15px',
             fontWeight: 600,
             textTransform: 'none',
             color: '#FFFFFF',
-            boxShadow: '0 4px 14px rgba(55, 88, 249, 0.24)',
+            boxShadow: '0 2px 10px rgba(43, 132, 235, 0.20)',
             transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: '#2237EE',
-              boxShadow: '0 6px 20px rgba(55, 88, 249, 0.32)',
+              bgcolor: '#1F71D4',
+              boxShadow: '0 4px 14px rgba(43, 132, 235, 0.26)',
             },
           }}
         >

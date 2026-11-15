@@ -63,7 +63,7 @@ function getStatusColors(
   }
   switch (status) {
     case 'SCHEDULED':
-      return { bg: 'rgba(55, 88, 249, 0.08)', accent: '#3758F9' };
+      return { bg: 'rgba(43, 132, 235, 0.08)', accent: '#2B84EB' };
     case 'IN_PROGRESS':
     case 'UNDER_REVIEW':
       return { bg: 'rgba(239, 68, 68, 0.09)', accent: '#EF4444' };
@@ -468,8 +468,8 @@ export function InspectorScheduleCalendar({
                 height: 36,
                 px: 1.75,
                 borderRadius: '8px',
-                bgcolor: '#3758F9',
-                '&:hover': { bgcolor: '#2237EE' },
+                bgcolor: '#2B84EB',
+                '&:hover': { bgcolor: '#1F71D4' },
                 color: '#FFFFFF',
                 fontSize: '0.875rem',
                 fontWeight: 500,
@@ -548,12 +548,12 @@ export function InspectorScheduleCalendar({
                           fontSize: '0.875rem',
                           fontWeight: cell.isToday ? 700 : 500,
                           color: cell.isToday
-                            ? '#3758F9'
+                            ? '#2B84EB'
                             : cell.isCurrentMonth
                               ? 'text.primary'
                               : 'text.disabled',
                           ...(cell.isToday && {
-                            bgcolor: 'rgba(55, 88, 249, 0.10)',
+                            bgcolor: 'rgba(43, 132, 235, 0.10)',
                             px: 0.875,
                             py: 0.125,
                             borderRadius: '6px',
@@ -637,7 +637,7 @@ export function InspectorScheduleCalendar({
                           sx={{
                             fontSize: '0.75rem',
                             fontWeight: 600,
-                            color: '#3758F9',
+                            color: '#2B84EB',
                             cursor: 'pointer',
                             textAlign: 'center',
                           }}
@@ -705,8 +705,8 @@ export function InspectorScheduleCalendar({
                         justifyContent: 'center',
                         fontSize: '0.875rem',
                         fontWeight: col.isToday ? 700 : 500,
-                        bgcolor: col.isToday ? 'rgba(55, 88, 249, 0.10)' : 'transparent',
-                        color: col.isToday ? '#3758F9' : 'text.primary',
+                        bgcolor: col.isToday ? 'rgba(43, 132, 235, 0.10)' : 'transparent',
+                        color: col.isToday ? '#2B84EB' : 'text.primary',
                       }}
                     >
                       {col.date.getDate()}
@@ -926,13 +926,13 @@ export function InspectorScheduleCalendar({
                     p: 2,
                     borderRadius: '8px',
                     border: '1px solid',
-                    borderColor: isSelectedMonth ? '#3758F9' : 'divider',
-                    bgcolor: isSelectedMonth ? 'rgba(55, 88, 249, 0.04)' : 'background.paper',
+                    borderColor: isSelectedMonth ? '#2B84EB' : 'divider',
+                    bgcolor: isSelectedMonth ? 'rgba(43, 132, 235, 0.04)' : 'background.paper',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    '&:hover': { borderColor: '#3758F9' },
+                    '&:hover': { borderColor: '#2B84EB' },
                   }}
                 >
                   <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.primary' }}>
@@ -942,7 +942,7 @@ export function InspectorScheduleCalendar({
                     sx={{
                       fontSize: '0.75rem',
                       fontWeight: 500,
-                      color: count > 0 ? '#3758F9' : 'text.secondary',
+                      color: count > 0 ? '#2B84EB' : 'text.secondary',
                     }}
                   >
                     {count}

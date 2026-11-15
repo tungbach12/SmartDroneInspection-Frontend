@@ -256,7 +256,7 @@ export function CustomerDashboardPage() {
               height: 40,
               px: 1.75,
               borderRadius: '8px',
-              bgcolor: '#3758F9',
+              bgcolor: '#2B84EB',
               fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
@@ -358,7 +358,7 @@ export function CustomerDashboardPage() {
               size="small"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
               sx={{
-                color: '#3758F9',
+                color: '#2B84EB',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -720,7 +720,7 @@ export function CustomerDashboardPage() {
               size="small"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
               sx={{
-                color: '#3758F9',
+                color: '#2B84EB',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',

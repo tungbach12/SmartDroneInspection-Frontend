@@ -140,8 +140,8 @@ export function NotificationItemCard({
         bgcolor: isUnread
           ? (theme) =>
               theme.palette.mode === 'dark'
-                ? 'rgba(55, 88, 249, 0.09)'
-                : 'rgba(55, 88, 249, 0.04)'
+                ? 'rgba(43, 132, 235, 0.09)'
+                : 'rgba(43, 132, 235, 0.04)'
           : 'transparent',
         '&:last-of-type': { borderBottom: 'none' },
         '&:hover .notif-mark-read-btn': { opacity: 1 },

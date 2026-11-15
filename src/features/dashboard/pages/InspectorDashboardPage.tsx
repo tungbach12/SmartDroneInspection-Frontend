@@ -203,7 +203,7 @@ export function InspectorDashboardPage() {
                 height: 38,
                 px: 1.75,
                 borderRadius: '8px',
-                bgcolor: '#3758F9',
+                bgcolor: '#2B84EB',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
@@ -607,7 +607,7 @@ export function InspectorDashboardPage() {
               variant="text"
               endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
               onClick={() => navigate('/operations/inspections')}
-              sx={{ color: '#3758F9', textTransform: 'none', fontWeight: 600, fontSize: '0.875rem' }}
+              sx={{ color: '#2B84EB', textTransform: 'none', fontWeight: 600, fontSize: '0.875rem' }}
             >
               {t('View inspection orders')}
             </Button>

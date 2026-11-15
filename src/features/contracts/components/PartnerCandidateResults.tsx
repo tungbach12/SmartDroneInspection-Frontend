@@ -451,7 +451,7 @@ export function PartnerCandidateResults({
                   width: 56,
                   height: 56,
                   bgcolor: '#EEF2FF',
-                  color: '#3758F9',
+                  color: '#2B84EB',
                   fontWeight: 700,
                   fontSize: '1rem',
                   border: '1px solid',
@@ -1053,7 +1053,7 @@ export function PartnerCandidateResults({
                   <tr className="group-row"><td colSpan={4}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
                       <Avatar src={group.inspectorAvatarUrl ?? undefined} alt={group.inspectorName}
-                        sx={{ width: 30, height: 30, bgcolor: '#EEF2FF', color: '#3758F9', fontWeight: 700, fontSize: '0.6875rem', flexShrink: 0 }}>
+                        sx={{ width: 30, height: 30, bgcolor: '#EEF2FF', color: '#2B84EB', fontWeight: 700, fontSize: '0.6875rem', flexShrink: 0 }}>
                         {getInspectorInitials(group.inspectorName)}
                       </Avatar>
                       <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700 }} noWrap>{group.inspectorName}</Typography>

@@ -120,7 +120,7 @@ export function InspectorMonthlyRevenueChart({
           {/* Legend */}
           <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#3758F9' }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#2B84EB' }} />
               <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.75rem' }}>
                 {t('Net payout')}
               </Typography>
@@ -145,8 +145,8 @@ export function InspectorMonthlyRevenueChart({
             >
               <defs>
                 <linearGradient id="netPayoutGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3758F9" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#3758F9" stopOpacity="0.85" />
+                  <stop offset="0%" stopColor="#2B84EB" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#2B84EB" stopOpacity="0.85" />
                 </linearGradient>
                 <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#A855F7" stopOpacity="0.9" />
@@ -254,7 +254,7 @@ export function InspectorMonthlyRevenueChart({
                           textAnchor="middle"
                           fontSize="9.5"
                           fontWeight="600"
-                          fill="#3758F9"
+                          fill="#2B84EB"
                           fontFamily="Inter, sans-serif"
                         >
                           {formatNumber(m.netPayoutAmount)} ₫

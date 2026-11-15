@@ -777,7 +777,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       borderRadius: '12px',
                       border: '2px dashed',
                       borderColor: permitFile ? 'primary.main' : 'divider',
-                      bgcolor: permitFile ? 'rgba(55, 88, 249, 0.04)' : 'background.default',
+                      bgcolor: permitFile ? 'rgba(43, 132, 235, 0.04)' : 'background.default',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -787,7 +787,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       transition: 'border-color 160ms ease, background-color 160ms ease',
                       '&:hover': {
                         borderColor: 'primary.main',
-                        bgcolor: 'rgba(55, 88, 249, 0.025)',
+                        bgcolor: 'rgba(43, 132, 235, 0.025)',
                       },
                     }}
                   >
@@ -797,7 +797,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         height: 56,
                         borderRadius: '12px',
                         bgcolor: '#EFF3FF',
-                        color: '#3758F9',
+                        color: '#2B84EB',
                         display: 'grid',
                         placeItems: 'center',
                         mb: 0.5,
@@ -984,7 +984,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             height: 44,
                             borderRadius: '10px',
                             bgcolor: isCompletedPreFlight ? 'rgba(22, 163, 74, 0.12)' : '#EFF3FF',
-                            color: isCompletedPreFlight ? '#16A34A' : '#3758F9',
+                            color: isCompletedPreFlight ? '#16A34A' : '#2B84EB',
                             display: 'grid',
                             placeItems: 'center',
                             flexShrink: 0,
@@ -1892,7 +1892,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             ? 'rgba(22, 163, 74, 0.12)'
                             : 'background.default',
                         color: openSession
-                          ? '#3758F9'
+                          ? '#2B84EB'
                           : canContinueToEvidence
                             ? '#16A34A'
                             : 'text.secondary',
@@ -2129,7 +2129,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   height: 28,
                                   borderRadius: '8px',
                                   bgcolor: '#EFF3FF',
-                                  color: '#3758F9',
+                                  color: '#2B84EB',
                                   display: 'grid',
                                   placeItems: 'center',
                                   fontSize: '0.75rem',

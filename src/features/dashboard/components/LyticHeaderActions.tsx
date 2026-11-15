@@ -63,7 +63,7 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
                 fontSize: '0.75rem',
                 fontWeight: isActive ? 600 : 500,
                 color: isActive ? '#FFFFFF' : '#71717A',
-                bgcolor: isActive ? '#3758F9' : 'transparent',
+                bgcolor: isActive ? '#2B84EB' : 'transparent',
                 borderRadius: '8px',
                 px: 1.25,
                 py: 0.5,

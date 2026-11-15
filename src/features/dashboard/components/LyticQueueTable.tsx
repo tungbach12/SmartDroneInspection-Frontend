@@ -235,7 +235,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
             size="small"
             endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
             sx={{
-              color: '#3758F9',
+              color: '#2B84EB',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '0.875rem',
