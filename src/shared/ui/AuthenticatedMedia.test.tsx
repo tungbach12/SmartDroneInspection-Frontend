@@ -28,43 +28,63 @@ afterEach(() => {
 });
 
 describe('AuthenticatedMedia', () => {
-  it('renders an interactive video element with controls when contentType is video/mp4', async () => {
-    let requestConfig: InternalAxiosRequestConfig | undefined;
-    const responseBlob = new Blob(['video-bytes'], { type: 'video/mp4' });
+  it('streams video via scoped media ticket and HTTP Range URL without downloading a full Blob', async () => {
+    const requests: InternalAxiosRequestConfig[] = [];
     api.defaults.adapter = ((config: InternalAxiosRequestConfig) => {
-      requestConfig = config;
+      requests.push(config);
+      if (config.method?.toLowerCase() === 'post') {
+        return Promise.resolve<AxiosResponse>({
+          data: {
+            ticket: 'signed-ticket',
+            streamUrl: '/api/v1/inspections/i1/evidence/e1/stream?ticket=signed-ticket',
+            expiresAt: '2026-11-15T05:00:00Z',
+          },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        });
+      }
       return Promise.resolve<AxiosResponse>({
-        data: responseBlob,
+        data: new Blob(['poster-thumb'], { type: 'image/jpeg' }),
         status: 200,
         statusText: 'OK',
         headers: {},
         config,
       });
     }) as AxiosAdapter;
-    URL.createObjectURL = vi.fn().mockReturnValue('blob:flight-video');
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:poster-thumb');
     URL.revokeObjectURL = vi.fn();
     useAuthStore.setState({ accessToken: 'manager-access-token' });
 
     const { unmount } = render(
       <AuthenticatedMedia
         src="/api/v1/inspections/i1/evidence/e1/content"
+        posterSrc="/api/v1/inspections/i1/evidence/e1/content?variant=thumb"
         alt="drone flight video"
         contentType="video/mp4"
       />,
     );
-    await flushMediaRequest();
 
-    expect(requestConfig?.url).toBe('/inspections/i1/evidence/e1/content');
-    expect(requestConfig?.headers.Authorization).toBe('Bearer manager-access-token');
-    expect(requestConfig?.responseType).toBe('blob');
-
-    const videoElement = screen.getByLabelText('drone flight video') as HTMLVideoElement;
+    const videoElement = (await screen.findByLabelText('drone flight video')) as HTMLVideoElement;
     expect(videoElement.tagName.toLowerCase()).toBe('video');
     expect(videoElement.controls).toBe(true);
-    expect(videoElement.getAttribute('src')).toBe('blob:flight-video');
+    expect(videoElement.getAttribute('src')).toBe(
+      '/api/v1/inspections/i1/evidence/e1/stream?ticket=signed-ticket',
+    );
+    await waitFor(() => {
+      expect(videoElement.getAttribute('poster')).toBe('blob:poster-thumb');
+    });
+
+    const ticketRequest = requests.find((req) => req.method?.toLowerCase() === 'post');
+    expect(ticketRequest?.url).toBe('/inspections/i1/evidence/e1/media-ticket');
+    expect(ticketRequest?.headers.Authorization).toBe('Bearer manager-access-token');
+    expect(
+      requests.some((req) => req.url === '/inspections/i1/evidence/e1/content'),
+    ).toBe(false);
 
     unmount();
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:flight-video');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:poster-thumb');
   });
 
   it('renders an img element when contentType is image/jpeg', async () => {

@@ -163,6 +163,36 @@ export function useUploadInspectionEvidence(inspectionId: string | null) {
   });
 }
 
+export function useInvalidateInspectionEvidence(inspectionId: string | null) {
+  const client = useQueryClient();
+  return async () => {
+    if (!inspectionId) return;
+    await Promise.all([
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) }),
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] }),
+      client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) }),
+      client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) }),
+    ]);
+  };
+}
+
+export function useRetryEvidenceProcessing(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (evidenceId: string) =>
+      inspectionApi.retryEvidenceProcessing(inspectionId!, evidenceId),
+    onSuccess: () => {
+      showToast('Re-queued video processing.', 'info');
+      if (!inspectionId) return;
+      client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+      client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not re-queue video processing.'), 'error'),
+  });
+}
+
 export function useUpdateEvidenceLocation(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
