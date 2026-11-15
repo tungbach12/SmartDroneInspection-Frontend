@@ -17,15 +17,45 @@ describe('inspectionApi MF3 simplified contracts', () => {
     expect(form.has('source')).toBe(false);
   });
 
-  it('uploads flight permit through the flight-permit endpoint', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { id: 'inspection-1', status: 'READY_FOR_FLIGHT' } } as never);
-    const file = new File(['permit'], 'permit.pdf', { type: 'application/pdf' });
+  it('uploads flight permit with structured metadata through the flight-permit endpoint', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({
+      data: { id: 'inspection-1', status: 'SCHEDULED', flightPermitVerificationStatus: 'PENDING_REVIEW' },
+    } as never);
+    const file = new File(['%PDF-1.4 permit'], 'permit.pdf', { type: 'application/pdf' });
 
-    await inspectionApi.uploadFlightPermit('inspection-1', file);
+    await inspectionApi.uploadFlightPermit('inspection-1', {
+      file,
+      permitNumber: '184/GP-TC',
+      issuingAuthority: 'Cục Tác chiến',
+      validFrom: '2026-11-15T00:00:00.000Z',
+      validTo: '2026-11-16T12:00:00.000Z',
+      droneSerial: 'SN-DJI-M300-88',
+      maxAltitudeM: 120,
+    });
 
     const [url, form] = post.mock.calls[0]!;
     expect(url).toBe('/inspections/inspection-1/flight-permit');
     expect((form as FormData).get('file')).toBe(file);
+    expect((form as FormData).get('permitNumber')).toBe('184/GP-TC');
+    expect((form as FormData).get('issuingAuthority')).toBe('Cục Tác chiến');
+    expect((form as FormData).get('droneSerial')).toBe('SN-DJI-M300-88');
+    expect((form as FormData).get('maxAltitudeM')).toBe('120');
+  });
+
+  it('submits manager verification decisions through the flight-permit review endpoint', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({
+      data: { id: 'inspection-1', flightPermitVerificationStatus: 'APPROVED' },
+    } as never);
+
+    await inspectionApi.reviewFlightPermit('inspection-1', {
+      decision: 'APPROVED',
+      notes: 'Stamped certificate matches CAAV registry.',
+    });
+
+    expect(post).toHaveBeenCalledWith('/inspections/inspection-1/flight-permit/review', {
+      decision: 'APPROVED',
+      notes: 'Stamped certificate matches CAAV registry.',
+    });
   });
 });
 

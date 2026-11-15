@@ -52,6 +52,10 @@ import {
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
+import {
+  isFlightPermitVerified,
+  resolveFlightPermitVerificationStatus,
+} from '../utils/workflowStepResolver';
 
 interface WorkflowStep {
   step: number;
@@ -510,10 +514,7 @@ export default function InspectionDetailPage() {
       ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
     switch (stepValue) {
       case 'permit':
-        return (
-          Boolean(inspection?.flightPermitFileName) ||
-          ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
-        );
+        return isFlightPermitVerified(inspection, workflowQuery.data);
       case 'pre-flight':
         return (
           Boolean(
@@ -557,9 +558,11 @@ export default function InspectionDetailPage() {
     'UNDER_REVIEW',
     'COMPLETED',
   ].includes(workflowStatus);
-  const hasPermitReady =
-    Boolean(inspection?.flightPermitFileName) ||
-    ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(workflowStatus);
+  const permitVerificationStatus = resolveFlightPermitVerificationStatus(
+    inspection,
+    workflowQuery.data,
+  );
+  const hasPermitReady = isFlightPermitVerified(inspection, workflowQuery.data);
   const hasSessionStarted =
     isFieldWorkComplete || hasLiveFlightInActiveSession || hasFlightRecordInActiveSession;
   const hasEvidence =
@@ -617,7 +620,15 @@ export default function InspectionDetailPage() {
       }
       return null;
     }
-    if (step.value === 'pre-flight' && !hasPermitReady) return t('Upload the flight permit before starting the pre-flight checklist.');
+    if (step.value === 'pre-flight' && !hasPermitReady) {
+      if (permitVerificationStatus === 'PENDING_REVIEW') {
+        return t('Flight permit is pending Platform Manager verification before starting the pre-flight checklist.');
+      }
+      if (permitVerificationStatus === 'REJECTED') {
+        return t('Flight permit was rejected by the Platform Manager. Upload a replacement permit before starting the pre-flight checklist.');
+      }
+      return t('Upload the flight permit and await Manager approval before starting the pre-flight checklist.');
+    }
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
     if (step.value === 'findings' && !hasEvidence) return t('Upload evidence to review findings.');

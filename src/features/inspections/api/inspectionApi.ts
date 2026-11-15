@@ -169,6 +169,7 @@ export type FindingStatus = 'PENDING' | 'CONFIRMED';
 export interface InspectionWorkflowState {
   status: InspectionStatus;
   findingsConfirmedAt: string | null;
+  flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
 }
 
 /**
@@ -389,6 +390,7 @@ export interface InspectionListItem {
   overdueNotifiedAt?: string | null;
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
+  flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *
@@ -399,8 +401,34 @@ export interface InspectionListItem {
   pendingAction: PendingAction;
 }
 
+/** Flight permit verification lifecycle tracked on the inspection record. */
+export type FlightPermitVerificationStatus =
+  | 'NOT_UPLOADED'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED';
+
+/** Structured metadata required alongside the flight permit document upload. */
+export interface UploadFlightPermitInput {
+  file: File;
+  permitNumber: string;
+  issuingAuthority: string;
+  validFrom: string;
+  validTo: string;
+  droneSerial?: string | null | undefined;
+  maxAltitudeM?: number | null | undefined;
+}
+
+/** Platform manager / admin verification decision payload for an uploaded flight permit. */
+export interface ReviewFlightPermitInput {
+  decision: 'APPROVED' | 'REJECTED';
+  reason?: string | null | undefined;
+  notes?: string | null | undefined;
+}
+
 /** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
+  | 'PERMIT_REVIEW'
   | 'REPORT_REVIEW'
   | 'NONE';
 
@@ -436,7 +464,23 @@ export interface InspectionDetail {
   droneServiceability?: string | null;
   flightPermitFileKey: string | null;
   flightPermitFileName: string | null;
+  flightPermitNumber?: string | null;
+  flightPermitAuthority?: string | null;
+  flightPermitValidFrom?: string | null;
+  flightPermitValidTo?: string | null;
+  flightPermitDroneSerial?: string | null;
+  flightPermitMaxAltitudeM?: number | null;
+  flightPermitFileSha256?: string | null;
+  flightPermitFileSizeBytes?: number | null;
+  flightPermitContentType?: string | null;
   flightPermitUploadedAt: string | null;
+  flightPermitUploadedBy?: string | null;
+  flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
+  flightPermitVerifiedBy?: string | null;
+  flightPermitVerifiedByName?: string | null;
+  flightPermitVerifiedAt?: string | null;
+  flightPermitRejectionReason?: string | null;
+  flightPermitReviewNotes?: string | null;
   inspectionItems: string[];
   plannedStartAt: string | null;
   plannedEndAt: string | null;
@@ -490,13 +534,28 @@ export const inspectionApi = {
       .get<InspectionPage>('/inspections/with-reports', { params: filters })
       .then((response) => response.data),
 
-  uploadFlightPermit: (inspectionId: string, file: File) => {
+  uploadFlightPermit: (inspectionId: string, input: UploadFlightPermitInput) => {
     const form = new FormData();
-    form.append('file', file);
+    form.append('file', input.file);
+    form.append('permitNumber', input.permitNumber);
+    form.append('issuingAuthority', input.issuingAuthority);
+    form.append('validFrom', input.validFrom);
+    form.append('validTo', input.validTo);
+    if (input.droneSerial?.trim()) {
+      form.append('droneSerial', input.droneSerial.trim());
+    }
+    if (input.maxAltitudeM !== undefined && input.maxAltitudeM !== null) {
+      form.append('maxAltitudeM', String(input.maxAltitudeM));
+    }
     return api
       .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit`, form)
       .then((response) => response.data);
   },
+
+  reviewFlightPermit: (inspectionId: string, payload: ReviewFlightPermitInput) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit/review`, payload)
+      .then((response) => response.data),
 
   flightPermitContentUrl: (inspectionId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/flight-permit/content`,

@@ -20,7 +20,14 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   workflowQuery: {
-    data: { status: 'IN_PROGRESS', findingsConfirmedAt: null as string | null },
+    data: {
+      status: 'IN_PROGRESS',
+      findingsConfirmedAt: null,
+    } as {
+      status: string;
+      findingsConfirmedAt: string | null;
+      flightPermitVerificationStatus?: string | null;
+    },
     isLoading: false,
     isError: false,
     error: null as Error | null,
@@ -618,5 +625,61 @@ describe('InspectionDetailPage', () => {
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Go to Pre-flight Check' })).toBeNull();
+  });
+
+  it('keeps pre-flight locked while uploaded flight permit is PENDING_REVIEW or REJECTED', async () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'SCHEDULED',
+        assignmentStatus: 'ACCEPTED',
+        flightPermitFileName: 'permit.pdf',
+        flightPermitVerificationStatus: 'PENDING_REVIEW',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: {
+        status: 'SCHEDULED',
+        findingsConfirmedAt: null,
+        flightPermitVerificationStatus: 'PENDING_REVIEW',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/pre-flight' });
+    const navigationPending = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(
+      navigationPending.querySelector(
+        'a[aria-label*="Pre-flight Check: Waiting. Flight permit is pending Platform Manager verification"]',
+      ),
+    ).toBeTruthy();
+
+    cleanup();
+    mocks.inspectionQuery.data = {
+      ...mocks.inspectionQuery.data,
+      flightPermitVerificationStatus: 'REJECTED',
+    };
+    mocks.workflowQuery.data = {
+      status: 'SCHEDULED',
+      findingsConfirmedAt: null,
+      flightPermitVerificationStatus: 'REJECTED',
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/pre-flight' });
+    const navigationRejected = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(
+      navigationRejected.querySelector(
+        'a[aria-label*="Pre-flight Check: Waiting. Flight permit was rejected by the Platform Manager"]',
+      ),
+    ).toBeTruthy();
   });
 });

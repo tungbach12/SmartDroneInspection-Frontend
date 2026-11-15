@@ -1,6 +1,52 @@
-import type { InspectionDetail, InspectionListItem, InspectionStatus } from '../api/inspectionApi';
+import type {
+  FlightPermitVerificationStatus,
+  InspectionDetail,
+  InspectionListItem,
+  InspectionStatus,
+  InspectionWorkflowState,
+} from '../api/inspectionApi';
 
 export type InspectionRoleView = 'inspector' | 'manager' | 'customer';
+
+const FLIGHT_STARTED_STATUSES: readonly string[] = [
+  'IN_PROGRESS',
+  'FIELD_COMPLETED',
+  'UNDER_REVIEW',
+  'COMPLETED',
+];
+
+export function resolveFlightPermitVerificationStatus(
+  inspection?: Pick<
+    InspectionDetail,
+    'flightPermitFileName' | 'flightPermitVerificationStatus'
+  > | null,
+  workflowState?: Pick<InspectionWorkflowState, 'flightPermitVerificationStatus'> | null,
+): FlightPermitVerificationStatus {
+  const explicit =
+    inspection?.flightPermitVerificationStatus ??
+    workflowState?.flightPermitVerificationStatus;
+  if (explicit) {
+    return explicit;
+  }
+  return inspection?.flightPermitFileName ? 'APPROVED' : 'NOT_UPLOADED';
+}
+
+export function isFlightPermitVerified(
+  inspection?: Pick<
+    InspectionDetail,
+    'status' | 'flightPermitFileName' | 'flightPermitVerificationStatus'
+  > | null,
+  workflowState?: Pick<
+    InspectionWorkflowState,
+    'status' | 'flightPermitVerificationStatus'
+  > | null,
+): boolean {
+  const status = workflowState?.status ?? inspection?.status ?? '';
+  if (FLIGHT_STARTED_STATUSES.includes(status)) {
+    return true;
+  }
+  return resolveFlightPermitVerificationStatus(inspection, workflowState) === 'APPROVED';
+}
 
 export interface OverviewStageGuidance {
   tip: string;
@@ -104,6 +150,9 @@ export function resolveRowStageSubtitle(
     if (row.reportStatus === 'RETURNED') {
       return 'Step 2/3 · Returned for Revision';
     }
+    if (row.pendingAction === 'PERMIT_REVIEW') {
+      return 'Step 1/3 · Permit Review Due';
+    }
     return 'Step 1/3 · Field & Evidence Audit';
   }
 
@@ -147,15 +196,31 @@ export function resolveRowStageSubtitle(
  * Resolves role-specific workflow guidance and CTA destination for the Overview dialog.
  */
 export function resolveOverviewGuidance(
-  inspection: Pick<InspectionDetail, 'status' | 'flightPermitFileName'>,
+  inspection: Pick<
+    InspectionDetail,
+    'status' | 'flightPermitFileName' | 'flightPermitVerificationStatus'
+  >,
   roleView: InspectionRoleView,
   t: (key: string) => string,
 ): OverviewStageGuidance {
   const status: InspectionStatus = inspection.status;
+  const permitStatus = resolveFlightPermitVerificationStatus(inspection);
 
   if (roleView === 'manager') {
     switch (status) {
       case 'SCHEDULED':
+        if (permitStatus === 'PENDING_REVIEW') {
+          return {
+            tip: t('Flight permit submitted and awaiting your verification before flight takeoff.'),
+            actionLabel: t('Verify flight permit'),
+            subpath: 'audit',
+          };
+        }
+        return {
+          tip: t('Field mission and evidence capture phase. Audit flight permit, telemetry, and captured evidence.'),
+          actionLabel: t('Open field & evidence audit'),
+          subpath: 'audit',
+        };
       case 'IN_PROGRESS':
       case 'FIELD_COMPLETED':
         return {
@@ -204,15 +269,29 @@ export function resolveOverviewGuidance(
   // Inspector
   switch (status) {
     case 'SCHEDULED':
-      if (inspection.flightPermitFileName) {
+      if (permitStatus === 'APPROVED') {
         return {
-          tip: t('Flight permit uploaded. Complete the pre-flight safety checklist to start flight operation.'),
+          tip: t('Flight permit verified by Platform Manager. Complete the pre-flight safety checklist to start flight operation.'),
           actionLabel: t('Open pre-flight check'),
           subpath: 'pre-flight',
         };
       }
+      if (permitStatus === 'PENDING_REVIEW') {
+        return {
+          tip: t('Flight permit uploaded and awaiting Platform Manager verification before pre-flight checks can begin.'),
+          actionLabel: t('Review permit status'),
+          subpath: 'permit',
+        };
+      }
+      if (permitStatus === 'REJECTED') {
+        return {
+          tip: t('Flight permit was rejected by the Platform Manager. Upload a corrected permit to unlock pre-flight checks.'),
+          actionLabel: t('Upload replacement permit'),
+          subpath: 'permit',
+        };
+      }
       return {
-        tip: t('This inspection is scheduled. Upload the regulatory flight permit to unlock pre-flight readiness.'),
+        tip: t('This inspection is scheduled. Upload the regulatory flight permit and submit it for manager verification.'),
         actionLabel: t('Upload flight permit'),
         subpath: 'permit',
       };

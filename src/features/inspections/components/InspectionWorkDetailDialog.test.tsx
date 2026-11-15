@@ -124,9 +124,32 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText('Pylon North')).toBeTruthy();
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
 
-    // Guidance banner for SCHEDULED when permit is already uploaded -> pre-flight
-    expect(screen.getByText(/Flight permit uploaded/i)).toBeTruthy();
+    // Guidance banner for SCHEDULED when permit is verified -> pre-flight
+    expect(screen.getByText(/Flight permit verified by Platform Manager/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Open pre-flight check/i })).toBeTruthy();
+  });
+
+  it('guides inspector back to permit step when verification is PENDING_REVIEW', () => {
+    mockUseInspection.mockReturnValue({
+      data: {
+        ...mockInspectionData,
+        flightPermitVerificationStatus: 'PENDING_REVIEW',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    const handleClose = vi.fn();
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={handleClose}
+      />,
+    );
+
+    expect(screen.getByText(/awaiting Platform Manager verification/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Review permit status/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/permit');
   });
 
   it('navigates to pre-flight step when permit is uploaded and action button is clicked', () => {

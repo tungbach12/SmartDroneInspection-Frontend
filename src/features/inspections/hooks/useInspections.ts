@@ -11,12 +11,15 @@ import {
   inspectionApi,
   type Finding,
   type CreateInspectionInput,
+  type FlightPermitVerificationStatus,
   type InspectionListFilters,
   type ManualDraftInput,
   type ManualFindingInput,
   type PlatformAiAnalytics,
   type ReviewFindingInput,
+  type ReviewFlightPermitInput,
   type UpdatePlatformAiSettingsInput,
+  type UploadFlightPermitInput,
 } from '../api/inspectionApi';
 
 export const inspectionKeys = {
@@ -86,17 +89,41 @@ export function useUploadFlightPermit(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: (file: File) => inspectionApi.uploadFlightPermit(inspectionId!, file),
-    onSuccess: (_data, file) => {
-      showToast('Flight permit uploaded successfully');
+    mutationFn: (input: UploadFlightPermitInput) =>
+      inspectionApi.uploadFlightPermit(inspectionId!, input),
+    onSuccess: (_data, input) => {
+      showToast('Flight permit submitted for manager verification');
       if (!inspectionId) return;
-      cacheUploadedFlightPermit(inspectionId, file);
+      cacheUploadedFlightPermit(inspectionId, input.file);
       void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
       void client.invalidateQueries({ queryKey: inspectionKeys.all });
     },
     onError: (error) => showToast(getErrorMessage(error, 'Could not upload flight permit.'), 'error'),
   });
 }
+
+export function useReviewFlightPermit(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (payload: ReviewFlightPermitInput) =>
+      inspectionApi.reviewFlightPermit(inspectionId!, payload),
+    onSuccess: (_data, payload) => {
+      showToast(
+        payload.decision === 'APPROVED'
+          ? 'Flight permit approved'
+          : 'Flight permit rejected',
+      );
+      if (!inspectionId) return;
+      void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+      void client.invalidateQueries({ queryKey: inspectionKeys.all });
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not review flight permit.'), 'error'),
+  });
+}
+
+export type { FlightPermitVerificationStatus, ReviewFlightPermitInput, UploadFlightPermitInput };
 
 export interface EvidenceQueryFilters {
   status: 'ACTIVE' | 'RETIRED' | 'ALL';

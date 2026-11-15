@@ -25,6 +25,8 @@ import {
   useReportVersions,
   useReviewReportVersion,
 } from '@/features/inspections/hooks/useInspections';
+import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
+import { FlightPermitVerificationPanel } from '@/features/inspections/components/FlightPermitVerificationPanel';
 import { PlatformSettlementInvoiceCard } from '@/features/inspections/components/PlatformSettlementInvoiceCard';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
@@ -52,7 +54,9 @@ export default function ManagerReportReviewPage({
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
+  const roles = useAuthStore((state) => state.roles);
   const userId = useAuthStore((state) => state.userId);
+  const canVerifyPermit = roles.includes('MANAGER') || roles.includes('ADMIN');
   const showAuditStage = stage === 'audit';
   const showReviewStage = !stage || stage === 'review';
   const showSettlementStage = !stage || stage === 'settlement';
@@ -60,6 +64,7 @@ export default function ManagerReportReviewPage({
   const [openVersionId, setOpenVersionId] = useState<string | null>(null);
   const [reviewReason, setReviewReason] = useState('');
   const [showReturnBox, setShowReturnBox] = useState(false);
+  const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
 
   const inspectionQuery = useInspection(inspectionId);
   const fieldSessionsQuery = useFieldSessions(inspectionId);
@@ -155,6 +160,32 @@ export default function ManagerReportReviewPage({
               {t('Continue to Report Decision')}
             </Button>
           </Paper>
+
+          {inspectionQuery.data && (
+            <FlightPermitVerificationPanel
+              inspection={inspectionQuery.data}
+              canReview={canVerifyPermit}
+              onPreviewPermit={() => setPermitPreviewOpen(true)}
+            />
+          )}
+
+          {inspectionQuery.data?.flightPermitFileName && (
+            <FlightPermitPreviewDialog
+              open={permitPreviewOpen}
+              onClose={() => setPermitPreviewOpen(false)}
+              inspectionId={inspectionId}
+              fileName={inspectionQuery.data.flightPermitFileName}
+              uploadedAt={inspectionQuery.data.flightPermitUploadedAt}
+              assetName={inspectionQuery.data.assetName}
+              droneSummary={resolvedDroneSummary}
+              permitNumber={inspectionQuery.data.flightPermitNumber}
+              issuingAuthority={inspectionQuery.data.flightPermitAuthority}
+              validFrom={inspectionQuery.data.flightPermitValidFrom}
+              validTo={inspectionQuery.data.flightPermitValidTo}
+              verificationStatus={inspectionQuery.data.flightPermitVerificationStatus}
+              fileSha256={inspectionQuery.data.flightPermitFileSha256}
+            />
+          )}
 
           <FlightOperationsReportView
             inspectionId={inspectionId}

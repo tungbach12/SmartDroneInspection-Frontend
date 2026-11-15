@@ -142,6 +142,7 @@ describe('FieldSessionPage', () => {
       ...INSPECTION,
       status: 'SCHEDULED',
       flightPermitFileName: null,
+      flightPermitVerificationStatus: 'NOT_UPLOADED',
     });
     mocks.list.mockResolvedValue([]);
 
@@ -150,7 +151,42 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByText('Flight permit')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(
-      screen.getByText(/does not verify validity or grant permission to fly/i),
+      screen.getByText(/Every permit must be verified by a Platform Manager before pre-flight execution/i),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('blocks starting a field session while flight permit verification is PENDING_REVIEW or REJECTED', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'SCHEDULED',
+      flightPermitVerificationStatus: 'PENDING_REVIEW',
+    });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient();
+
+    expect(
+      await screen.findByText(/Submitted for Platform Manager verification/i),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    cleanup();
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'SCHEDULED',
+      flightPermitVerificationStatus: 'REJECTED',
+      flightPermitRejectionReason: 'Missing military authority stamp',
+    });
+
+    renderWithClient();
+
+    expect(
+      await screen.findByText(/Missing military authority stamp/i),
     ).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,

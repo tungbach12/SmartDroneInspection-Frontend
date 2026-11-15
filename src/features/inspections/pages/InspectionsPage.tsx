@@ -132,6 +132,9 @@ export default function InspectionsPage() {
       if (row.reportStatus === 'RETURNED') return t('Read returned report');
       return t('Open report');
     }
+    if (isPlatformManager && row.pendingAction === 'PERMIT_REVIEW') {
+      return t('Verify flight permit');
+    }
     if (portal === 'client') {
       return row.reportStatus === 'PUBLISHED' ? t('View report') : t('Track progress');
     }
@@ -168,6 +171,7 @@ export default function InspectionsPage() {
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
+  const permitDueCount = items.filter((item) => item.pendingAction === 'PERMIT_REVIEW').length;
   const pendingAssignmentItems = useMemo(
     () =>
       items.filter(
@@ -334,6 +338,11 @@ export default function InspectionsPage() {
                   {t('Review')}
                 </Button>
               </Stack>
+            </Alert>
+          )}
+          {isPlatformManager && view === 'all' && permitDueCount > 0 && (
+            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+              {permitDueCount} {t('inspections have flight permits pending manager verification')}
             </Alert>
           )}
           {isPlatformManager && view === 'all' && declinedReassignCount > 0 && (
