@@ -19,7 +19,10 @@ import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PrintRounded from '@mui/icons-material/PrintRounded';
-import { inspectionApi } from '../api/inspectionApi';
+import {
+  inspectionApi,
+  type FlightPermitVerificationStatus,
+} from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const uploadedPermitCache = new Map<string, File>();
@@ -42,6 +45,12 @@ export interface FlightPermitPreviewDialogProps {
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
   localFile?: File | null | undefined;
+  permitNumber?: string | null | undefined;
+  issuingAuthority?: string | null | undefined;
+  validFrom?: string | null | undefined;
+  validTo?: string | null | undefined;
+  verificationStatus?: FlightPermitVerificationStatus | null | undefined;
+  fileSha256?: string | null | undefined;
 }
 
 function triggerDownload(blob: Blob, fileName: string) {
@@ -64,6 +73,12 @@ export function FlightPermitPreviewDialog({
   assetName,
   droneSummary,
   localFile,
+  permitNumber,
+  issuingAuthority,
+  validFrom,
+  validTo,
+  verificationStatus,
+  fileSha256,
 }: FlightPermitPreviewDialogProps) {
   const { t, formatDateTime } = useLocale();
   const [loading, setLoading] = useState(false);
@@ -276,9 +291,23 @@ export function FlightPermitPreviewDialog({
                     </Typography>
                   </Box>
                   <Chip
-                    color="success"
+                    color={
+                      verificationStatus === 'APPROVED'
+                        ? 'success'
+                        : verificationStatus === 'REJECTED'
+                          ? 'error'
+                          : 'warning'
+                    }
                     icon={<CheckCircleRounded />}
-                    label={t('Verified Pre-Flight Gate')}
+                    label={
+                      verificationStatus === 'APPROVED'
+                        ? t('Approved by Manager')
+                        : verificationStatus === 'REJECTED'
+                          ? t('Rejected by Manager')
+                          : verificationStatus === 'PENDING_REVIEW'
+                            ? t('Pending Manager Verification')
+                            : t('Flight Document')
+                    }
                     sx={{ fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'center' } }}
                   />
                 </Stack>
@@ -290,6 +319,49 @@ export function FlightPermitPreviewDialog({
                     gap: 2,
                   }}
                 >
+                  {permitNumber && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        {t('Permit Number')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 650, mt: 0.25 }}>
+                        {permitNumber}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {issuingAuthority && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        {t('Issuing Authority')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 650, mt: 0.25 }}>
+                        {issuingAuthority}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {validFrom && validTo && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        {t('Validity Window')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 650, mt: 0.25 }}>
+                        {formatDateTime(new Date(validFrom))} → {formatDateTime(new Date(validTo))}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {fileSha256 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        {t('SHA-256 Digest')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', mt: 0.25, wordBreak: 'break-all' }}>
+                        {fileSha256}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                       {t('Document File Name')}

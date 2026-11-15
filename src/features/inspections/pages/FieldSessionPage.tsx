@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Grid,
   Paper,
   Stack,
   TextField,
@@ -23,6 +24,7 @@ import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   useFieldSessionOutcome,
   useFieldSessions,
@@ -33,6 +35,11 @@ import {
 } from '../hooks/useInspections';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
 import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
+import { FlightPermitVerificationPanel } from '../components/FlightPermitVerificationPanel';
+import {
+  isFlightPermitVerified,
+  resolveFlightPermitVerificationStatus,
+} from '../utils/workflowStepResolver';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { useChecklistTemplates } from '@/features/assets/hooks/useCatalog';
 import type { FieldSession } from '../api/fieldSessionApi';
@@ -370,6 +377,39 @@ function ChecklistNoteDisplay({
   );
 }
 
+const MAX_PERMIT_FILE_BYTES = 25 * 1024 * 1024;
+const ALLOWED_PERMIT_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
+const ALLOWED_PERMIT_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'] as const;
+
+function toDateTimeLocalValue(iso?: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function validatePermitFileSelection(file: File, t: (text: string) => string): string | null {
+  if (file.size <= 0) {
+    return t('Selected flight permit file is empty.');
+  }
+  if (file.size > MAX_PERMIT_FILE_BYTES) {
+    return t('Flight permit file exceeds the 25 MB limit.');
+  }
+  const lower = file.name.toLowerCase();
+  const extOk = ALLOWED_PERMIT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  const mimeOk = !file.type || ALLOWED_PERMIT_MIME_TYPES.has(file.type.toLowerCase());
+  if (!extOk || !mimeOk) {
+    return t('Unsupported permit format. Upload a PDF, PNG, JPG, or WEBP file.');
+  }
+  return null;
+}
+
 export interface FieldSessionPageProps {
   stage?: 'permit' | 'pre-flight' | 'flight' | 'post-flight';
 }
@@ -379,6 +419,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const { formatDateTime, t } = useLocale();
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
+  const roles = useAuthStore((state) => state.roles);
+  const isManagerOrAdmin = roles.includes('MANAGER') || roles.includes('ADMIN');
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const sessions = useFieldSessions(inspectionId);
@@ -388,6 +430,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const evidenceQuery = useInspectionEvidence?.(inspectionId);
 
   const [permitFile, setPermitFile] = useState<File | null>(null);
+  const [permitNumberDraft, setPermitNumber] = useState<string | null>(null);
+  const [issuingAuthorityDraft, setIssuingAuthority] = useState<string | null>(null);
+  const [permitValidFromDraft, setPermitValidFrom] = useState<string | null>(null);
+  const [permitValidToDraft, setPermitValidTo] = useState<string | null>(null);
+  const [permitDroneSerialDraft, setPermitDroneSerial] = useState<string | null>(null);
+  const [permitMaxAltitudeMDraft, setPermitMaxAltitudeM] = useState<string | null>(null);
+  const [permitFormError, setPermitFormError] = useState<string | null>(null);
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -466,14 +515,35 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   );
   const latestSession = items.at(-1);
   const hasPermit = Boolean(inspection?.flightPermitFileName);
+  const permitVerificationStatus = resolveFlightPermitVerificationStatus(inspection);
+  const isPermitApproved = isFlightPermitVerified(inspection);
   const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
   const isWindowExpired = Number.isFinite(windowEndMs) && windowEndMs < nowMs;
   const canStart =
     !openSession &&
-    hasPermit &&
+    isPermitApproved &&
     inspection?.status === 'SCHEDULED' &&
     !inspection?.reassignmentRequired &&
     !isWindowExpired;
+
+  const permitNumber = permitNumberDraft ?? inspection?.flightPermitNumber ?? '';
+  const issuingAuthority = issuingAuthorityDraft ?? inspection?.flightPermitAuthority ?? '';
+  const permitValidFrom =
+    permitValidFromDraft ??
+    toDateTimeLocalValue(inspection?.flightPermitValidFrom ?? inspection?.plannedStartAt);
+  const permitValidTo =
+    permitValidToDraft ??
+    toDateTimeLocalValue(inspection?.flightPermitValidTo ?? inspection?.plannedEndAt);
+  const permitDroneSerial =
+    permitDroneSerialDraft ??
+    inspection?.flightPermitDroneSerial ??
+    inspection?.droneSerialNumber ??
+    '';
+  const permitMaxAltitudeM =
+    permitMaxAltitudeMDraft ??
+    (inspection?.flightPermitMaxAltitudeM != null
+      ? String(inspection.flightPermitMaxAltitudeM)
+      : '');
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
@@ -650,20 +720,15 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   sx={{ alignItems: { sm: 'flex-start' }, justifyContent: 'space-between' }}
                 >
                   <Box>
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 0.5 }}>
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap' }}>
                       <Typography variant="subtitle1" sx={{ fontSize: '1.0625rem', fontWeight: 600, color: 'text.primary' }}>
                         {t('Flight permit')}
                       </Typography>
-                      <Chip
-                        size="small"
-                        label={hasPermit ? t('On file') : t('Required')}
-                        color={hasPermit ? 'success' : 'warning'}
-                        variant="outlined"
-                      />
+                      <StatusChip status={permitVerificationStatus} />
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
                       {t(
-                        'Upload the mission flight document. This records the file only; it does not verify validity or grant permission to fly.',
+                        'Upload the regulatory flight permit document and structured metadata. Every permit must be verified by a Platform Manager before pre-flight execution.',
                       )}
                     </Typography>
                     {!stage && inspection.assetName && (
@@ -673,7 +738,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     )}
                   </Box>
 
-                  {hasPermit && stage === 'permit' && (
+                  {isPermitApproved && stage === 'permit' && (
                     <Button
                       component={RouterLink}
                       to="../pre-flight"
@@ -693,188 +758,257 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   )}
                 </Stack>
 
-                {hasPermit && (
-                  <Box
-                    sx={{
-                      p: { xs: 2, sm: 2.5 },
-                      borderRadius: '12px',
-                      bgcolor: 'background.default',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 2,
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
-                      <Box
-                        sx={{
-                          width: 46,
-                          height: 46,
-                          borderRadius: '10px',
-                          bgcolor: 'rgba(22, 163, 74, 0.12)',
-                          color: 'success.main',
-                          display: 'grid',
-                          placeItems: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <CheckCircleRounded sx={{ fontSize: 24 }} />
-                      </Box>
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
-                          {t('Flight document recorded')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
-                          {inspection.flightPermitFileName}
-                          {inspection.flightPermitUploadedAt
-                            ? ` · ${formatDateTime(new Date(inspection.flightPermitUploadedAt))}`
-                            : ''}
-                        </Typography>
-                      </Box>
-                    </Stack>
+                <FlightPermitVerificationPanel
+                  inspection={inspection}
+                  canReview={isManagerOrAdmin}
+                  onPreviewPermit={() => setPermitPreviewOpen(true)}
+                  compact={stage !== 'permit'}
+                />
 
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Button
-                        size="medium"
-                        variant="outlined"
-                        startIcon={<VisibilityOutlined fontSize="small" />}
-                        onClick={() => setPermitPreviewOpen(true)}
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          borderRadius: '8px',
-                          bgcolor: 'background.paper',
-                          px: 2,
-                          py: 0.875,
-                        }}
-                      >
-                        {t('View permit')}
-                      </Button>
-                    </Stack>
-                  </Box>
+                {inspection.status !== 'SCHEDULED' && stage === 'permit' && (
+                  <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                    {t('Permit uploads and replacements are locked because this inspection is no longer in SCHEDULED status.')}
+                  </Alert>
                 )}
 
-                {(!hasPermit || stage === 'permit') && (
-                  <Box
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      const droppedFile = event.dataTransfer.files?.[0];
-                      if (droppedFile) {
-                        setPermitFile(droppedFile);
-                      }
-                    }}
-                    sx={{
-                      minHeight: stage === 'permit' ? 240 : 180,
-                      p: { xs: 3, sm: 4.5 },
-                      borderRadius: '12px',
-                      border: '2px dashed',
-                      borderColor: permitFile ? 'primary.main' : 'divider',
-                      bgcolor: permitFile ? 'rgba(43, 132, 235, 0.04)' : 'background.default',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      gap: 1.5,
-                      transition: 'border-color 160ms ease, background-color 160ms ease',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                        bgcolor: 'rgba(43, 132, 235, 0.025)',
-                      },
-                    }}
-                  >
+                {inspection.status === 'SCHEDULED' && (!hasPermit || stage === 'permit') && (
+                  <Stack spacing={2}>
                     <Box
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const droppedFile = event.dataTransfer.files?.[0];
+                        if (droppedFile) {
+                          const err = validatePermitFileSelection(droppedFile, t);
+                          setPermitFormError(err);
+                          setPermitFile(err ? null : droppedFile);
+                        }
+                      }}
                       sx={{
-                        width: 56,
-                        height: 56,
+                        minHeight: stage === 'permit' ? 190 : 150,
+                        p: { xs: 2.5, sm: 3.5 },
                         borderRadius: '12px',
-                        bgcolor: '#EFF3FF',
-                        color: '#2B84EB',
-                        display: 'grid',
-                        placeItems: 'center',
-                        mb: 0.5,
+                        border: '2px dashed',
+                        borderColor: permitFile ? 'primary.main' : 'divider',
+                        bgcolor: permitFile ? 'rgba(43, 132, 235, 0.04)' : 'background.default',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        gap: 1.5,
+                        transition: 'border-color 160ms ease, background-color 160ms ease',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          bgcolor: 'rgba(43, 132, 235, 0.025)',
+                        },
                       }}
                     >
-                      <UploadFileRounded sx={{ fontSize: 28 }} />
-                    </Box>
-
-                    <Box sx={{ maxWidth: 520 }}>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}>
-                        {permitFile
-                          ? permitFile.name
-                          : hasPermit
-                            ? t('Upload or replace flight permit document')
-                            : t('Drag and drop flight permit file here, or click to browse')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {t(
-                          'Supported formats: PDF, PNG, JPG, WEBP (Max 25 MB) · Official CAAV / Military Operations Flight Clearance',
-                        )}
-                      </Typography>
-                    </Box>
-
-                    <Stack
-                      direction={{ xs: 'column', sm: 'row' }}
-                      spacing={1.5}
-                      sx={{ alignItems: 'center', justifyContent: 'center', mt: 1 }}
-                    >
-                      <Button
-                        component="label"
-                        variant="outlined"
-                        size="medium"
-                        startIcon={<UploadFileRounded />}
+                      <Box
                         sx={{
-                          borderRadius: '8px',
-                          px: 2.5,
-                          py: 1,
-                          fontWeight: 600,
-                          bgcolor: 'background.paper',
-                          maxWidth: '100%',
+                          width: 50,
+                          height: 50,
+                          borderRadius: '12px',
+                          bgcolor: '#EFF3FF',
+                          color: '#2B84EB',
+                          display: 'grid',
+                          placeItems: 'center',
                         }}
                       >
-                        <Box
-                          component="span"
-                          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        >
-                          {permitFile?.name ??
-                            (hasPermit ? t('Choose replacement permit file') : t('Choose permit file'))}
-                        </Box>
-                        <input
-                          aria-label={t('Choose permit file')}
-                          type="file"
-                          hidden
-                          accept=".pdf,image/png,image/jpeg,image/webp"
-                          onChange={(event) => setPermitFile(event.target.files?.[0] ?? null)}
-                        />
-                      </Button>
+                        <UploadFileRounded sx={{ fontSize: 26 }} />
+                      </Box>
 
-                      {permitFile && (
+                      <Box sx={{ maxWidth: 520 }}>
+                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+                          {permitFile
+                            ? permitFile.name
+                            : hasPermit
+                              ? t('Upload or replace flight permit document')
+                              : t('Drag and drop flight permit file here, or click to browse')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          {t(
+                            'Supported formats: PDF, PNG, JPG, WEBP (Max 25 MB) · Official CAAV / Military Operations Flight Clearance',
+                          )}
+                        </Typography>
+                      </Box>
+
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.25}
+                        sx={{ alignItems: 'center', justifyContent: 'center' }}
+                      >
                         <Button
+                          component="label"
                           variant="outlined"
                           size="medium"
-                          startIcon={<VisibilityOutlined />}
-                          onClick={() => setPermitPreviewOpen(true)}
+                          startIcon={<UploadFileRounded />}
                           sx={{
                             borderRadius: '8px',
-                            px: 2,
+                            px: 2.5,
                             py: 1,
-                            textTransform: 'none',
                             fontWeight: 600,
                             bgcolor: 'background.paper',
+                            maxWidth: '100%',
                           }}
                         >
-                          {t('Preview file')}
+                          <Box
+                            component="span"
+                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
+                            {permitFile?.name ??
+                              (hasPermit ? t('Choose replacement permit file') : t('Choose permit file'))}
+                          </Box>
+                          <input
+                            aria-label={t('Choose permit file')}
+                            type="file"
+                            hidden
+                            accept=".pdf,image/png,image/jpeg,image/webp"
+                            onChange={(event) => {
+                              const selected = event.target.files?.[0] ?? null;
+                              if (!selected) {
+                                setPermitFile(null);
+                                return;
+                              }
+                              const err = validatePermitFileSelection(selected, t);
+                              setPermitFormError(err);
+                              setPermitFile(err ? null : selected);
+                            }}
+                          />
                         </Button>
-                      )}
 
+                        {permitFile && (
+                          <Button
+                            variant="outlined"
+                            size="medium"
+                            startIcon={<VisibilityOutlined />}
+                            onClick={() => setPermitPreviewOpen(true)}
+                            sx={{
+                              borderRadius: '8px',
+                              px: 2,
+                              py: 1,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              bgcolor: 'background.paper',
+                            }}
+                          >
+                            {t('Preview file')}
+                          </Button>
+                        )}
+                      </Stack>
+                    </Box>
+
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          required
+                          fullWidth
+                          size="small"
+                          label={t('Permit number')}
+                          placeholder="e.g. 184/GP-TC"
+                          value={permitNumber}
+                          onChange={(e) => {
+                            setPermitNumber(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          required
+                          fullWidth
+                          size="small"
+                          label={t('Issuing authority')}
+                          placeholder="e.g. Cục Tác chiến - Bộ Tổng Tham mưu"
+                          value={issuingAuthority}
+                          onChange={(e) => {
+                            setIssuingAuthority(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          required
+                          fullWidth
+                          size="small"
+                          type="datetime-local"
+                          label={t('Valid from')}
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          value={permitValidFrom}
+                          onChange={(e) => {
+                            setPermitValidFrom(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          required
+                          fullWidth
+                          size="small"
+                          type="datetime-local"
+                          label={t('Valid to')}
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          value={permitValidTo}
+                          onChange={(e) => {
+                            setPermitValidTo(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={t('Permitted drone serial (optional)')}
+                          placeholder={inspection.droneSerialNumber ?? 'e.g. SN-DJI-M300-88'}
+                          helperText={
+                            inspection.droneSerialNumber
+                              ? `${t('Assigned drone')}: ${inspection.droneSerialNumber}`
+                              : undefined
+                          }
+                          value={permitDroneSerial}
+                          onChange={(e) => {
+                            setPermitDroneSerial(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="number"
+                          label={t('Max permitted altitude AGL (m, optional)')}
+                          placeholder="120"
+                          slotProps={{ htmlInput: { min: 1, max: 2000 } }}
+                          value={permitMaxAltitudeM}
+                          onChange={(e) => {
+                            setPermitMaxAltitudeM(e.target.value);
+                            setPermitFormError(null);
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+
+                    {permitFormError && (
+                      <Alert severity="error" sx={{ borderRadius: '10px' }}>
+                        {permitFormError}
+                      </Alert>
+                    )}
+
+                    <MutationProblemAlert
+                      error={uploadPermit.error}
+                      isError={uploadPermit.isError}
+                      fallbackMessage={t('Could not upload flight permit.')}
+                    />
+
+                    <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
                       <LoadingButton
                         variant="contained"
                         size="medium"
@@ -882,32 +1016,104 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         loading={uploadPermit.isPending}
                         onClick={() => {
                           if (!permitFile) return;
-                          uploadPermit.mutate(permitFile, {
-                            onSuccess: () => {
-                              setPermitFile(null);
-                              if (stage === 'permit') {
-                                navigate('../pre-flight');
-                              }
+                          const fileError = validatePermitFileSelection(permitFile, t);
+                          if (fileError) {
+                            setPermitFormError(fileError);
+                            return;
+                          }
+                          const trimmedNum = permitNumber.trim();
+                          const trimmedAuth = issuingAuthority.trim();
+                          if (!trimmedNum || !trimmedAuth || !permitValidFrom || !permitValidTo) {
+                            setPermitFormError(
+                              t('Fill in permit number, issuing authority, valid from, and valid to before submitting.'),
+                            );
+                            return;
+                          }
+                          const fromDate = new Date(permitValidFrom);
+                          const toDate = new Date(permitValidTo);
+                          if (
+                            Number.isNaN(fromDate.getTime()) ||
+                            Number.isNaN(toDate.getTime()) ||
+                            toDate.getTime() <= fromDate.getTime()
+                          ) {
+                            setPermitFormError(t('Permit valid-to timestamp must be after valid-from.'));
+                            return;
+                          }
+                          if (toDate.getTime() <= Date.now()) {
+                            setPermitFormError(t('Permit valid-to timestamp has already expired.'));
+                            return;
+                          }
+                          if (inspection.plannedStartAt) {
+                            const plannedStart = new Date(inspection.plannedStartAt).getTime();
+                            if (fromDate.getTime() > plannedStart) {
+                              setPermitFormError(
+                                t('Permit valid-from must start on or before the planned inspection start time.'),
+                              );
+                              return;
+                            }
+                          }
+                          if (inspection.plannedEndAt) {
+                            const plannedEnd = new Date(inspection.plannedEndAt).getTime();
+                            if (toDate.getTime() < plannedEnd) {
+                              setPermitFormError(
+                                t('Permit valid-to must cover the entire planned inspection end time.'),
+                              );
+                              return;
+                            }
+                          }
+                          if (
+                            permitDroneSerial.trim() &&
+                            inspection.droneSerialNumber &&
+                            permitDroneSerial.trim().toLowerCase() !==
+                              inspection.droneSerialNumber.trim().toLowerCase()
+                          ) {
+                            setPermitFormError(
+                              t('Permitted drone serial does not match the assigned drone serial.'),
+                            );
+                            return;
+                          }
+                          const parsedAlt = permitMaxAltitudeM.trim()
+                            ? Number(permitMaxAltitudeM.trim())
+                            : null;
+                          if (
+                            parsedAlt != null &&
+                            (!Number.isInteger(parsedAlt) || parsedAlt < 1 || parsedAlt > 2000)
+                          ) {
+                            setPermitFormError(
+                              t('Max permitted altitude must be between 1 and 2000 meters.'),
+                            );
+                            return;
+                          }
+
+                          setPermitFormError(null);
+                          uploadPermit.mutate(
+                            {
+                              file: permitFile,
+                              permitNumber: trimmedNum,
+                              issuingAuthority: trimmedAuth,
+                              validFrom: fromDate.toISOString(),
+                              validTo: toDate.toISOString(),
+                              droneSerial: permitDroneSerial.trim() || undefined,
+                              maxAltitudeM: parsedAlt ?? undefined,
                             },
-                          });
+                            {
+                              onSuccess: () => {
+                                setPermitFile(null);
+                              },
+                            },
+                          );
                         }}
                         sx={{
                           borderRadius: '8px',
-                          px: 2.5,
+                          px: 2.75,
                           py: 1,
                           fontWeight: 600,
                         }}
                       >
-                        {t('Upload flight permit')}
+                        {t('Submit flight permit for verification')}
                       </LoadingButton>
                     </Stack>
-
-                    <MutationProblemAlert
-                      error={uploadPermit.error}
-                      isError={uploadPermit.isError}
-                      fallbackMessage={t('Could not upload flight permit.')}
-                    />
-                  </Box>
+                  </Stack>
                 )}
               </Stack>
             </Paper>
@@ -929,6 +1135,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 null
               }
               localFile={permitFile}
+              permitNumber={inspection.flightPermitNumber}
+              issuingAuthority={inspection.flightPermitAuthority}
+              validFrom={inspection.flightPermitValidFrom}
+              validTo={inspection.flightPermitValidTo}
+              verificationStatus={permitVerificationStatus}
+              fileSha256={inspection.flightPermitFileSha256}
             />
           )}
         </QueryState>

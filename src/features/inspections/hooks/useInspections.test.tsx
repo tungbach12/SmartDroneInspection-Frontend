@@ -33,6 +33,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
       uploadFlightPermit: vi.fn(),
+      reviewFlightPermit: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
     },
@@ -216,8 +217,14 @@ function buildCases(): MutationCase[] {
       apiMock: vi.mocked(inspectionApi.uploadFlightPermit),
       render: (client) => renderMutation(client, () => useUploadFlightPermit('inspection-1')),
       run: (runner) =>
-        (runner.mutateAsync as (file: File) => Promise<unknown>)(new File(['test'], 'permit.pdf')),
-      successMessage: 'Flight permit uploaded successfully',
+        (runner.mutateAsync as (input: unknown) => Promise<unknown>)({
+          file: new File(['test'], 'permit.pdf', { type: 'application/pdf' }),
+          permitNumber: '184/GP-TC',
+          issuingAuthority: 'Cục Tác chiến',
+          validFrom: '2026-11-15T00:00:00Z',
+          validTo: '2026-11-16T00:00:00Z',
+        }),
+      successMessage: 'Flight permit submitted for manager verification',
     },
     {
       name: 'findings confirmation',

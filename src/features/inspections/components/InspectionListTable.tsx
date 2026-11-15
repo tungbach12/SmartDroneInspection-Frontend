@@ -38,6 +38,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
  * and an inspection that needs nothing from the administrator says so instead of implying a task.
  */
 const PENDING_ACTION_LABEL: Record<PendingAction, string> = {
+  PERMIT_REVIEW: 'Permit review due',
   REPORT_REVIEW: 'Report review due',
   NONE: 'Nothing waiting for you',
 };

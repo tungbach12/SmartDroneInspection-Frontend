@@ -450,12 +450,27 @@ export function InspectionWorkDetailDialog({
                   <Typography variant="caption" color="text.secondary">
                     {t('Regulatory Flight Permit')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                    {inspection.flightPermitFileName || t('Awaiting Permit Upload')}
-                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                      {inspection.flightPermitFileName || t('Awaiting Permit Upload')}
+                    </Typography>
+                    {inspection.flightPermitVerificationStatus && (
+                      <StatusChip status={inspection.flightPermitVerificationStatus} />
+                    )}
+                  </Stack>
+                  {inspection.flightPermitNumber && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                      {`${inspection.flightPermitNumber}${inspection.flightPermitAuthority ? ` · ${inspection.flightPermitAuthority}` : ''}`}
+                    </Typography>
+                  )}
                   {inspection.flightPermitUploadedAt && (
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {t('Uploaded')}: {formatDate(new Date(inspection.flightPermitUploadedAt))}
+                    </Typography>
+                  )}
+                  {inspection.flightPermitVerificationStatus === 'REJECTED' && inspection.flightPermitRejectionReason && (
+                    <Typography variant="caption" color="error.main" sx={{ display: 'block', mt: 0.25, fontWeight: 600 }}>
+                      {t('Rejected')}: {inspection.flightPermitRejectionReason}
                     </Typography>
                   )}
                 </Grid>
