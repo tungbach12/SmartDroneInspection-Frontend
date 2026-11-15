@@ -24,15 +24,14 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import MapRounded from '@mui/icons-material/MapRounded';
-import EditCalendarOutlinedIcon from '@mui/icons-material/EditCalendarOutlined';
-import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import {
   useInspection,
   useFieldSessions,
-  useRescheduleInspection,
-  useCancelInspection,
+  useAcceptInspection,
+  useDeclineInspection,
 } from '../hooks/useInspections';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -67,17 +66,14 @@ export function InspectionWorkDetailDialog({
 
   const roles = useAuthStore((state) => state.roles);
   const portal = (location.pathname.split('/').filter(Boolean)[0] ?? PORTAL_IDS[0]) as PortalId;
-  const isManagerOrAdminPortal = portal === 'manager' || portal === 'admin';
+  const isManagerPortal = portal === 'manager' && roles.includes('MANAGER');
   const isClientPortal = portal === 'client';
-  const roleView: InspectionRoleView = isManagerOrAdminPortal
+  const roleView: InspectionRoleView = isManagerPortal
     ? 'manager'
     : isClientPortal
       ? 'customer'
       : 'inspector';
 
-  // Only Platform Manager or Admin can reschedule or cancel dispatched missions.
-  const canManage =
-    !isClientPortal && (roles.includes('MANAGER') || roles.includes('ADMIN'));
 
   const inspectionQuery = useInspection(inspectionId, open && Boolean(inspectionId));
   const inspection = inspectionQuery.data;
@@ -87,15 +83,25 @@ export function InspectionWorkDetailDialog({
   const latestSession = sessionsQuery.data?.at(-1);
   const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
 
-  const reschedule = useRescheduleInspection(inspectionId);
-  const cancel = useCancelInspection(inspectionId);
+  const accept = useAcceptInspection(inspectionId);
+  const decline = useDeclineInspection(inspectionId);
 
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [newStart, setNewStart] = useState('');
-  const [newEnd, setNewEnd] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
 
+  const isPendingAcceptance =
+    !isManagerPortal &&
+    !isClientPortal &&
+    roles.includes('INSPECTOR') &&
+    inspection?.status === 'SCHEDULED' &&
+    !inspection?.reassignmentRequired &&
+    inspection?.assignmentStatus === 'PENDING_ACCEPTANCE';
+  const canDecline =
+    !isManagerPortal &&
+    !isClientPortal &&
+    roles.includes('INSPECTOR') &&
+    inspection?.status === 'SCHEDULED' &&
+    !inspection?.reassignmentRequired;
   const navigateToInspectionRoute = (subpath = '') => {
     onClose();
     const base = `${getSectionPath(portal, 'inspections')}/${inspectionId}`;
@@ -199,6 +205,44 @@ export function InspectionWorkDetailDialog({
           </Alert>
         ) : (
           <Stack spacing={2.5}>
+            {/* Pending inspector acceptance alert */}
+            {isPendingAcceptance && (
+              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Assignment pending confirmation')}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Inspector decline / reassignment required alert */}
+            {inspection.reassignmentRequired && (
+              <Alert severity="error" sx={{ borderRadius: '10px' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Reassignment required — assigned inspector declined')}
+                </Typography>
+                {inspection.declineReason && (
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {t('Reason')}: &ldquo;{inspection.declineReason}&rdquo;
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {t('This flight cannot start until the Platform Manager reassigns or reschedules it.')}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Overdue no-show alert */}
+            {inspection.overdueNotifiedAt && inspection.status === 'SCHEDULED' && !inspection.reassignmentRequired && (
+              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Scheduled window passed without starting')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {t('The scheduled flight window elapsed with no active field session recorded. Follow up, reschedule, or reassign as needed.')}
+                </Typography>
+              </Alert>
+            )}
+
             {/* Aborted flight warning alert */}
             {wasAborted && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -487,45 +531,35 @@ export function InspectionWorkDetailDialog({
         }}
       >
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-          {canManage && inspection?.status === 'SCHEDULED' && (
-            <>
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<EditCalendarOutlinedIcon />}
-                onClick={() => {
-                  const startStr = inspection.plannedStartAt
-                    ? new Date(inspection.plannedStartAt).toISOString().slice(0, 16)
-                    : '';
-                  const endStr = inspection.plannedEndAt
-                    ? new Date(inspection.plannedEndAt).toISOString().slice(0, 16)
-                    : '';
-                  setNewStart(startStr);
-                  setNewEnd(endStr);
-                  setRescheduleOpen(true);
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-              >
-                {t('Reschedule')}
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<CancelOutlinedIcon />}
-                onClick={() => {
-                  setCancelReason('');
-                  setCancelOpen(true);
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-              >
-                {t('Cancel inspection')}
-              </Button>
-            </>
+          {isPendingAcceptance && (
+            <LoadingButton
+              variant="contained"
+              color="primary"
+              loading={accept.isPending}
+              onClick={() => accept.mutate(undefined)}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', boxShadow: 'none', minHeight: { xs: 42, sm: 36 } }}
+            >
+              {t('Accept mission')}
+            </LoadingButton>
+          )}
+          {canDecline && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                setDeclineReason('');
+                setDeclineOpen(true);
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', minHeight: { xs: 42, sm: 36 } }}
+            >
+              {t('Decline mission')}
+            </Button>
           )}
         </Stack>
 
-        <Stack direction="row" spacing={1}>
-          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600 }}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600, minHeight: { xs: 42, sm: 36 } }}>
             {t('Close')}
           </Button>
           <Button
@@ -533,7 +567,7 @@ export function InspectionWorkDetailDialog({
             endIcon={<OpenInNewRoundedIcon />}
             onClick={() => navigateToInspectionRoute()}
             disabled={!inspection}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', minHeight: { xs: 42, sm: 36 } }}
           >
             {t('Open full inspection workspace')}
           </Button>
@@ -550,103 +584,54 @@ export function InspectionWorkDetailDialog({
         />
       )}
 
-      {/* Reschedule Dialog */}
-      <Dialog open={rescheduleOpen} onClose={() => setRescheduleOpen(false)} maxWidth="xs" fullWidth>
+      {/* Inspector Decline Dialog */}
+      <Dialog open={declineOpen} onClose={() => setDeclineOpen(false)} maxWidth="xs" fullWidth>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (!newStart || !newEnd) return;
-            reschedule.mutate(
-              {
-                plannedStartAt: new Date(newStart).toISOString(),
-                plannedEndAt: new Date(newEnd).toISOString(),
+            if (!declineReason.trim()) return;
+            decline.mutate(declineReason.trim(), {
+              onSuccess: () => {
+                setDeclineOpen(false);
+                onClose();
               },
-              { onSuccess: () => setRescheduleOpen(false) },
-            );
+            });
           }}
         >
-          <DialogTitle sx={{ fontWeight: 700 }}>{t('Reschedule flight window')}</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Decline assigned mission?')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField
-                label={t('Planned start')}
-                type="datetime-local"
-                value={newStart}
-                onChange={(e) => setNewStart(e.target.value)}
+                label={t('Decline reason')}
+                multiline
+                minRows={3}
                 required
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <TextField
-                label={t('Planned end')}
-                type="datetime-local"
-                value={newEnd}
-                onChange={(e) => setNewEnd(e.target.value)}
-                required
-                slotProps={{ inputLabel: { shrink: true } }}
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
               />
               <MutationProblemAlert
-                error={reschedule.error}
-                isError={reschedule.isError}
-                fallbackMessage={t('Could not reschedule inspection.')}
+                error={decline.error}
+                isError={decline.isError}
+                fallbackMessage={t('Could not decline inspection.')}
               />
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setRescheduleOpen(false)}>{t('Cancel')}</Button>
+            <Button onClick={() => setDeclineOpen(false)}>{t('Back')}</Button>
             <LoadingButton
               type="submit"
               variant="contained"
-              loading={reschedule.isPending}
-              disabled={!newStart || !newEnd}
+              color="warning"
+              loading={decline.isPending}
+              disabled={!declineReason.trim()}
             >
-              {t('Save schedule')}
+              {t('Confirm decline')}
             </LoadingButton>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* Cancel Dialog */}
-      <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="xs" fullWidth>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            cancel.mutate(
-              { reason: cancelReason.trim() },
-              {
-                onSuccess: () => {
-                  setCancelOpen(false);
-                  onClose();
-                },
-              },
-            );
-          }}
-        >
-          <DialogTitle sx={{ fontWeight: 700 }}>{t('Cancel this inspection?')}</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField
-                label={t('Cancellation reason')}
-                multiline
-                minRows={3}
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                helperText={t('Enter the reason for cancelling this scheduled mission.')}
-              />
-              <MutationProblemAlert
-                error={cancel.error}
-                isError={cancel.isError}
-                fallbackMessage={t('Could not cancel inspection.')}
-              />
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setCancelOpen(false)}>{t('Back')}</Button>
-            <LoadingButton type="submit" variant="contained" color="error" loading={cancel.isPending}>
-              {t('Confirm cancellation')}
-            </LoadingButton>
-          </DialogActions>
-        </form>
-      </Dialog>
     </Dialog>
   );
 }

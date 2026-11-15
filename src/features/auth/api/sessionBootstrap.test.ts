@@ -13,11 +13,11 @@ describe('MF1 browser session role handling', () => {
   });
 
   it.each([
-    ['ADMIN', 'PLATFORM'],
-    ['MANAGER', 'PLATFORM'],
-    ['CUSTOMER', 'CUSTOMER'],
-    ['INSPECTOR', 'INSPECTOR'],
-  ] as const)('restores the canonical %s role and %s actor zone', async (role, actorZone) => {
+    'ADMIN',
+    'MANAGER',
+    'CUSTOMER',
+    'INSPECTOR',
+  ] as const)('restores the canonical %s role', async (role) => {
     useAuthStore.getState().setStatus('checking');
     mocks.restoreBrowserSession.mockResolvedValue({
       step: 'AUTHENTICATED',
@@ -28,13 +28,11 @@ describe('MF1 browser session role handling', () => {
         email: 'user@example.test',
         fullName: 'Test User',
         roles: [role],
-        actorZone,
       },
     });
 
     await initializeBrowserSession();
 
     expect(useAuthStore.getState().roles).toEqual([role]);
-    expect(useAuthStore.getState().actorZone).toBe(actorZone);
   });
 });

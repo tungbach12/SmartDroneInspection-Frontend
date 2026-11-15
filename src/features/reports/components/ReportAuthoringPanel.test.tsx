@@ -17,7 +17,6 @@ const version: InspectionReport = {
   publishedAt: null,
   createdAt: '2026-10-30T08:00:00Z',
   omissionDisclosure: null,
-  sections: {},
 };
 
 const findings: Finding[] = [];

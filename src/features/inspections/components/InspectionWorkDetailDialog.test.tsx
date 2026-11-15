@@ -40,14 +40,17 @@ const mockInspectionData: InspectionDetail = {
 
 const mockUseInspection = vi.fn();
 const mockUseFieldSessions = vi.fn();
-const mockUseReschedule = vi.fn();
-const mockUseCancel = vi.fn();
+const mockUseAccept = vi.fn();
+const mockUseDecline = vi.fn();
+const mockUseReassignCandidates = vi.fn();
 
 vi.mock('../hooks/useInspections', () => ({
   useInspection: (id: string | null, enabled: boolean) => mockUseInspection(id, enabled),
   useFieldSessions: (id: string | null, enabled: boolean) => mockUseFieldSessions(id, enabled),
-  useRescheduleInspection: () => ({ mutate: mockUseReschedule, isPending: false, isError: false }),
-  useCancelInspection: () => ({ mutate: mockUseCancel, isPending: false, isError: false }),
+  useAcceptInspection: () => ({ mutate: mockUseAccept, isPending: false, isError: false }),
+  useDeclineInspection: () => ({ mutate: mockUseDecline, isPending: false, isError: false }),
+  useReassignCandidates: (id: string | null, enabled: boolean) =>
+    mockUseReassignCandidates(id, enabled),
 }));
 
 describe('InspectionWorkDetailDialog', () => {
@@ -61,6 +64,11 @@ describe('InspectionWorkDetailDialog', () => {
       isError: false,
     });
     mockUseFieldSessions.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+    mockUseReassignCandidates.mockReturnValue({
       data: [],
       isLoading: false,
       isError: false,
@@ -178,7 +186,7 @@ describe('InspectionWorkDetailDialog', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd');
   });
 
-  it('renders aborted session warning alert and manager dispatch actions for MANAGER', () => {
+  it('renders aborted session warning but keeps dispatch controls out of the informational overview', () => {
     useAuthStore.setState({ roles: ['MANAGER'] });
     mockUseFieldSessions.mockReturnValue({
       data: [
@@ -204,11 +212,13 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText('Reschedule required')).toBeTruthy();
     expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
     expect(screen.getByText(/Heavy thunderstorm on site/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Reschedule' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Cancel inspection' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reassign Inspector & Drone' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel inspection' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Force-abort session' })).toBeNull();
   });
 
-  it('hides manager reschedule and cancel actions from CUSTOMER', () => {
+  it('keeps the informational overview free of manager dispatch actions for CUSTOMER', () => {
     useAuthStore.setState({ roles: ['CUSTOMER'] });
 
     render(
@@ -220,7 +230,9 @@ describe('InspectionWorkDetailDialog', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reassign Inspector & Drone' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cancel inspection' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Force-abort session' })).toBeNull();
   });
 
   it('displays Partner Inspector and Customer stakeholder cards with profile and workspace links on /manager/inspections', () => {
@@ -241,5 +253,100 @@ describe('InspectionWorkDetailDialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Customer info/i }));
     expect(screen.getByRole('button', { name: /Service requests/i })).toBeTruthy();
+  });
+
+  it('lets INSPECTOR decline a SCHEDULED mission with a required reason', () => {
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Decline mission/i }));
+    fireEvent.change(screen.getByLabelText(/Decline reason/i), {
+      target: { value: 'Schedule conflict with emergency work' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Confirm decline/i }));
+
+    expect(mockUseDecline).toHaveBeenCalledWith(
+      'Schedule conflict with emergency work',
+      expect.any(Object),
+    );
+  });
+
+  it('shows reassignment required alert while keeping dispatch actions out of Overview', () => {
+    mockPathname = '/manager/inspections';
+    useAuthStore.setState({ roles: ['MANAGER'] });
+    mockUseInspection.mockReturnValue({
+      data: {
+        ...mockInspectionData,
+        reassignmentRequired: true,
+        declineReason: 'Drone battery issue',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const { rerender } = render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Reassignment required — assigned inspector declined/i)).toBeTruthy();
+    expect(screen.getByText(/Drone battery issue/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Reassign Inspector & Drone/i })).toBeNull();
+
+    mockUseInspection.mockReturnValue({
+      data: {
+        ...mockInspectionData,
+        status: 'IN_PROGRESS',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    mockUseFieldSessions.mockReturnValue({
+      data: [{ id: 'sess-open', status: 'IN_PROGRESS' }],
+      isLoading: false,
+      isError: false,
+    });
+
+    rerender(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Force-abort session/i })).toBeNull();
+    expect(screen.queryByLabelText(/Force-abort reason/i)).toBeNull();
+  });
+
+  it('shows Accept mission button for INSPECTOR when assignmentStatus is PENDING_ACCEPTANCE', () => {
+    mockUseInspection.mockReturnValue({
+      data: {
+        ...mockInspectionData,
+        assignmentStatus: 'PENDING_ACCEPTANCE',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <InspectionWorkDetailDialog
+        open={true}
+        inspectionId="insp-12345678-abcd"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Assignment pending confirmation/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Accept mission/i }));
+    expect(mockUseAccept).toHaveBeenCalledWith(undefined);
   });
 });

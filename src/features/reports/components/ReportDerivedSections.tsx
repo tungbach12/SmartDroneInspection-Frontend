@@ -315,8 +315,7 @@ export function ReportDerivedSections({
   const unlinkedFindings = reportableFindings.filter(
     (finding) => !evidenceList.some((item) => item.id === finding.evidenceId),
   );
-  const reportSummaryText =
-    version.summary?.trim() || version.sections?.executiveSummary?.trim() || null;
+  const reportSummaryText = version.summary?.trim() || null;
 
   return (
     <Box>

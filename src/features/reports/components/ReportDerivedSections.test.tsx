@@ -24,7 +24,7 @@ const version: InspectionReport = {
   publishedAt: null,
   createdAt: '2026-01-01T00:00:00Z',
   omissionDisclosure: null,
-  sections: { inspectorCoverageAssessment: 'North span covered; east face not observed.' },
+  summary: 'North span covered; east face not observed.',
   reportContext: {
     organizationName: 'Northwind Infrastructure',
     assetCode: 'BR-014',

@@ -75,7 +75,7 @@ describe('customer organization registration', () => {
     mocks.registerOrganization.mockResolvedValue({
       registrationStatus: 'PENDING_AIRSPACE_REVIEW',
       reviewMessage: 'An administrator must review your location.',
-      user: { id: 'prospect-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'CUSTOMER' },
+      user: { id: 'prospect-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'] },
     });
     renderRegister();
     await fillRegistrationForm();

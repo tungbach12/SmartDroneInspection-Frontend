@@ -31,7 +31,6 @@ import {
   useUpdatePlatformUserStatus,
 } from '../hooks/usePlatformUsers';
 import type {
-  ActorZone,
   PlatformUser,
   PlatformUserRole,
   PlatformUserStatus,
@@ -42,12 +41,6 @@ import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 
 type PlatformUserRow = PlatformUser & {
   status?: PlatformUserStatus;
-};
-
-const ZONE_LABELS: Record<string, string> = {
-  PLATFORM: 'Platform',
-  CUSTOMER: 'Customer',
-  INSPECTOR: 'Inspector',
 };
 
 const ROLE_LABELS: Record<PlatformUserRole, string> = {
@@ -80,9 +73,6 @@ export default function PlatformUsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [actorZone, setActorZone] = useState<ActorZone>(
-    isManager ? 'INSPECTOR' : 'PLATFORM',
-  );
   const [roles, setRoles] = useState<PlatformUserRole[]>(
     isManager ? ['INSPECTOR'] : ['ADMIN'],
   );
@@ -99,12 +89,7 @@ export default function PlatformUsersPage() {
 
   const allItems = useMemo<PlatformUserRow[]>(() => users.data ?? [], [users.data]);
   const scopedItems = useMemo(
-    () =>
-      isManager
-        ? allItems.filter(
-            (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR',
-          )
-        : allItems,
+    () => (isManager ? allItems.filter((user) => user.roles.includes('INSPECTOR')) : allItems),
     [allItems, isManager],
   );
 
@@ -155,16 +140,6 @@ export default function PlatformUsersPage() {
       ),
     },
     {
-      id: 'zone',
-      label: t('Zone'),
-      width: 190,
-      render: (user) => (
-        <Typography sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-          {ZONE_LABELS[user.actorZone] ?? user.actorZone}
-        </Typography>
-      ),
-    },
-    {
       id: 'roles',
       label: t('Roles'),
       width: 240,
@@ -203,8 +178,7 @@ export default function PlatformUsersPage() {
       width: isManager ? 200 : 340,
       align: 'right' as const,
       render: (user: PlatformUserRow) => {
-        const isInspectorUser =
-          user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR';
+        const isInspectorUser = user.roles.includes('INSPECTOR');
         const isSelf = Boolean(currentUserId && user.id === currentUserId);
         const isSuspended = user.status === 'SUSPENDED';
 
@@ -278,7 +252,6 @@ export default function PlatformUsersPage() {
       startIcon={<PersonAddAlt />}
       onClick={() => {
         if (isManager) {
-          setActorZone('INSPECTOR');
           setRoles(['INSPECTOR']);
         }
         setCreateOpen(true);
@@ -426,7 +399,6 @@ export default function PlatformUsersPage() {
               {
                 email: email.trim(),
                 fullName: fullName.trim(),
-                actorZone: isManager ? 'INSPECTOR' : actorZone,
                 roles: isManager ? ['INSPECTOR'] : roles,
               },
               {
@@ -468,58 +440,22 @@ export default function PlatformUsersPage() {
                 onChange={(e) => setFullName(e.target.value)}
               />
               {isManager ? (
-                <>
-                  <TextField label={t('Zone')} value={t('Inspector partner')} disabled />
-                  <TextField label={t('Role')} value={t('Inspector')} disabled />
-                </>
+                <TextField label={t('Role')} value={t('Inspector')} disabled />
               ) : (
-                <>
-                  <TextField
-                    select
-                    label={t('Zone')}
-                    value={actorZone}
-                    onChange={(e) => {
-                      const nextZone = e.target.value as ActorZone;
-                      setActorZone(nextZone);
-                      if (nextZone === 'PLATFORM') {
-                        setRoles(['ADMIN']);
-                      } else if (nextZone === 'INSPECTOR') {
-                        setRoles(['INSPECTOR']);
-                      } else {
-                        setRoles(['CUSTOMER']);
-                      }
-                    }}
-                  >
-                    <MenuItem value="PLATFORM">{t('Platform')}</MenuItem>
-                    <MenuItem value="CUSTOMER">{t('Customer')}</MenuItem>
-                    <MenuItem value="INSPECTOR">{t('Inspector')}</MenuItem>
-                  </TextField>
-                  <TextField
-                    select
-                    label={t('Role')}
-                    value={
-                      roles[0] ??
-                      (actorZone === 'PLATFORM'
-                        ? 'ADMIN'
-                        : actorZone === 'INSPECTOR'
-                          ? 'INSPECTOR'
-                          : 'CUSTOMER')
-                    }
-                    onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
-                  >
-                    {(
-                      actorZone === 'PLATFORM'
-                        ? (['ADMIN', 'MANAGER'] as PlatformUserRole[])
-                        : actorZone === 'INSPECTOR'
-                          ? (['INSPECTOR'] as PlatformUserRole[])
-                          : (['CUSTOMER', 'INSPECTOR'] as PlatformUserRole[])
-                    ).map((role) => (
+                <TextField
+                  select
+                  label={t('Role')}
+                  value={roles[0] ?? 'ADMIN'}
+                  onChange={(e) => setRoles([e.target.value as PlatformUserRole])}
+                >
+                  {(['ADMIN', 'MANAGER', 'CUSTOMER', 'INSPECTOR'] as PlatformUserRole[]).map(
+                    (role) => (
                       <MenuItem key={role} value={role}>
                         {ROLE_LABELS[role]}
                       </MenuItem>
-                    ))}
-                  </TextField>
-                </>
+                    ),
+                  )}
+                </TextField>
               )}
             </Stack>
           </DialogContent>

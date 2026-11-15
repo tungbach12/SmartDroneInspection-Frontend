@@ -13,7 +13,6 @@ function setRole(roles: Role[]) {
       email: 'admin@example.test',
       fullName: 'Reviewer',
       roles,
-      actorZone: 'CUSTOMER',
     },
     userId: 'admin-1',
     userName: 'Reviewer',

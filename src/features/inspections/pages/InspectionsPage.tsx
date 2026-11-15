@@ -4,8 +4,13 @@ import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { TaskAltOutlined } from '@mui/icons-material';
@@ -27,12 +32,20 @@ import {
   resolveInitialStepForRow,
   type InspectionRoleView,
 } from '../utils/workflowStepResolver';
+import { AssignmentsLedger } from '../components/AssignmentsLedger';
 import { InspectorScheduleCalendar } from '../components/InspectorScheduleCalendar';
 import { InspectionWorkDetailDialog } from '../components/InspectionWorkDetailDialog';
-import { useInspections, useInspectionsWithReports } from '../hooks/useInspections';
+import {
+  useAcceptInspection,
+  useDeclineInspection,
+  useInspections,
+  useInspectionsWithReports,
+} from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 
-type InspectionsView = 'all' | 'reports' | 'calendar';
+type InspectionsView = 'all' | 'reports' | 'calendar' | 'assignments';
 
 const EMPTY_ITEMS: never[] = [];
 
@@ -63,22 +76,33 @@ export default function InspectionsPage() {
   const isOrgAdmin = roles.includes('CUSTOMER');
   const [createInspectionOpen, setCreateInspectionOpen] = useState(false);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
+  const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const acceptInspection = useAcceptInspection(null);
+  const declineInspection = useDeclineInspection(declineTargetId);
+  const rawViewParam = searchParams.get('view');
   const view: InspectionsView =
-    searchParams.get('view') === 'reports'
+    rawViewParam === 'reports'
       ? 'reports'
-      : searchParams.get('view') === 'calendar'
+      : rawViewParam === 'calendar'
         ? 'calendar'
-        : 'all';
+        : rawViewParam === 'assignments' || rawViewParam === 'pending'
+          ? 'assignments'
+          : 'all';
+  const initialAssignmentFilter = rawViewParam === 'pending' ? 'PENDING' : 'ALL';
 
   const listFilters = useMemo(() => ({ page, pageSize }), [page, pageSize]);
   // The report queue is server-paged from /with-reports so its rows, total and pages stay
   // consistent; the all-view reads the scoped collection instead.
-  const allInspections = useInspections(listFilters, view === 'all');
+  const allInspections = useInspections(
+    view === 'assignments' ? { page: 1, pageSize: 100 } : listFilters,
+    view === 'all' || view === 'assignments',
+  );
   const reportInspections = useInspectionsWithReports(listFilters, view === 'reports');
   const inspections = view === 'reports' ? reportInspections : allInspections;
 
@@ -89,19 +113,24 @@ export default function InspectionsPage() {
         ? 'customer'
         : 'inspector';
 
-  const openInspection = (inspectionId: string) => {
+  const openInspection = (
+    inspectionId: string,
+    dispatchAction?: 'reschedule' | 'reassign' | 'cancel' | 'forceAbort',
+  ) => {
     const row = visibleItems.find((item) => item.id === inspectionId);
     const target = resolveInitialStepForRow(row, roleView, {
       isReportsQueue: view === 'reports',
     });
     navigate(`${getSectionPath(portal, 'inspections')}/${inspectionId}/${target}`, {
-      state: { autoResumeStep: true },
+      state: { autoResumeStep: true, ...(dispatchAction ? { dispatchAction } : {}) },
     });
   };
 
   const getActionLabel = (row: InspectionListItem): string | undefined => {
     if (view === 'reports' && isReviewer) {
-      return undefined;
+      if (row.pendingAction === 'REPORT_REVIEW') return t('Review submission');
+      if (row.reportStatus === 'RETURNED') return t('Read returned report');
+      return t('Open report');
     }
     if (portal === 'client') {
       return row.reportStatus === 'PUBLISHED' ? t('View report') : t('Track progress');
@@ -139,6 +168,17 @@ export default function InspectionsPage() {
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
+  const pendingAssignmentItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.status === 'SCHEDULED' &&
+          !item.reassignmentRequired &&
+          item.assignmentStatus === 'PENDING_ACCEPTANCE',
+      ),
+    [items],
+  );
+  const declinedReassignCount = items.filter((item) => item.reassignmentRequired).length;
 
   const newInspectionButton = isOrgAdmin ? (
     <Button
@@ -239,19 +279,23 @@ export default function InspectionsPage() {
       ) : (
         <PageHeader
           title={
-            isOrganizationAdmin
-              ? view === 'reports'
-                ? t('Report review queue')
-                : t('Organization inspections')
-              : t('Inspections')
+            view === 'assignments'
+              ? t('Assignments')
+              : isOrganizationAdmin
+                ? view === 'reports'
+                  ? t('Report review queue')
+                  : t('Organization inspections')
+                : t('Inspections')
           }
           breadcrumbs={[
             { label: 'Home', to: getSectionPath(portal, 'dashboard') },
             {
               label:
-                isOrganizationAdmin && view === 'reports'
-                  ? t('Report review queue')
-                  : t('Inspections'),
+                view === 'assignments'
+                  ? t('Assignments')
+                  : isOrganizationAdmin && view === 'reports'
+                    ? t('Report review queue')
+                    : t('Inspections'),
             },
           ]}
         />
@@ -270,7 +314,34 @@ export default function InspectionsPage() {
               with a reason. Evidence and Inspector findings are read inside the report document.
             </Alert>
           )}
-          {isOrganizationAdmin && view !== 'calendar' && (
+          {portal === 'operations' && view === 'all' && pendingAssignmentItems.length > 0 && (
+            <Alert severity="warning" sx={{ borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.25}
+                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {pendingAssignmentItems.length} {t('pending assignments')}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => navigate('/operations/inspections?view=pending')}
+                  sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '8px', alignSelf: { xs: 'flex-start', sm: 'center' }, minHeight: 36 }}
+                >
+                  {t('Review')}
+                </Button>
+              </Stack>
+            </Alert>
+          )}
+          {isPlatformManager && view === 'all' && declinedReassignCount > 0 && (
+            <Alert severity="error" sx={{ borderRadius: '10px' }}>
+              {declinedReassignCount} {t('declined inspections require reassignment')}
+            </Alert>
+          )}
+          {isOrganizationAdmin && view !== 'calendar' && view !== 'assignments' && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Paper variant="outlined" role="group" aria-label={`Report reviews due on this page: ${reportDueCount}`} sx={{ flex: 1, p: 1.75, display: 'flex', gap: 1.25, alignItems: 'center' }}>
                 <TaskAltOutlined color={reportDueCount ? 'warning' : 'disabled'} />
@@ -281,6 +352,34 @@ export default function InspectionsPage() {
           )}
           {view === 'calendar' ? (
             <InspectorScheduleCalendar onSelectInspection={(id) => setSelectedWorkDetailId(id)} />
+          ) : view === 'assignments' ? (
+            <QueryState
+              isLoading={inspections.isLoading}
+              error={inspections.error}
+              isEmpty={items.length === 0}
+              onRetry={() => void inspections.refetch()}
+              loadingLabel={t('Loading assignments…')}
+              empty={
+                <EmptyState
+                  title={t('No assignments')}
+                  description={t('New assignments will appear here.')}
+                />
+              }
+            >
+              <AssignmentsLedger
+                key={initialAssignmentFilter}
+                rows={items}
+                initialFilter={initialAssignmentFilter}
+                acceptingId={acceptInspection.isPending ? (acceptInspection.variables ?? null) : null}
+                onAccept={(id) => acceptInspection.mutate(id)}
+                onDecline={(id) => {
+                  setDeclineReason('');
+                  setDeclineTargetId(id);
+                }}
+                onOverview={(id) => setSelectedWorkDetailId(id)}
+                onOpen={openInspection}
+              />
+            </QueryState>
           ) : (
             <QueryState
               isLoading={inspections.isLoading}
@@ -319,10 +418,21 @@ export default function InspectionsPage() {
                 }}
                 onOpen={openInspection}
                 onOverview={(id) => setSelectedWorkDetailId(id)}
+                onAccept={(id) => acceptInspection.mutate(id)}
+                onDecline={(id) => {
+                  setDeclineReason('');
+                  setDeclineTargetId(id);
+                }}
+                canDispatch={portal === 'manager' && roles.includes('MANAGER')}
+                onReschedule={(id) => openInspection(id, 'reschedule')}
+                onReassign={(id) => openInspection(id, 'reassign')}
+                onCancelInspection={(id) => openInspection(id, 'cancel')}
+                onForceAbort={(id) => openInspection(id, 'forceAbort')}
+                acceptingId={acceptInspection.isPending ? (acceptInspection.variables ?? null) : null}
                 getActionLabel={getActionLabel}
                 showReportColumn={view === 'reports' || isReviewer}
-                reviewerMode={isReviewer && view === 'reports'}
-                roleView={roleView === 'customer' ? 'inspector' : roleView}
+                reviewerMode={view === 'reports'}
+                roleView={roleView}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 searchPlaceholder={t('Search by asset name, code, or location…')}
@@ -346,6 +456,58 @@ export default function InspectionsPage() {
         inspectionId={selectedWorkDetailId}
         onClose={() => setSelectedWorkDetailId(null)}
       />
+
+      <Dialog
+        open={Boolean(declineTargetId)}
+        onClose={() => setDeclineTargetId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!declineTargetId || !declineReason.trim()) return;
+            declineInspection.mutate(declineReason.trim(), {
+              onSuccess: () => {
+                setDeclineTargetId(null);
+                setDeclineReason('');
+              },
+            });
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Decline assigned mission?')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label={t('Decline reason')}
+                multiline
+                minRows={3}
+                required
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+              />
+              <MutationProblemAlert
+                error={declineInspection.error}
+                isError={declineInspection.isError}
+                fallbackMessage={t('Could not decline inspection.')}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setDeclineTargetId(null)}>{t('Back')}</Button>
+            <LoadingButton
+              type="submit"
+              variant="contained"
+              color="warning"
+              loading={declineInspection.isPending}
+              disabled={!declineReason.trim()}
+            >
+              {t('Confirm decline')}
+            </LoadingButton>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }
