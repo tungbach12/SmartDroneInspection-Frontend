@@ -53,6 +53,7 @@ import {
 } from '@/features/auth/api/authApi';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
+  NextAdminBellIcon,
   NextAdminCalendarIcon,
   NextAdminChartsIcon,
   NextAdminChevronDownIcon,
@@ -76,7 +77,10 @@ import { NotificationBell } from '@/features/notifications/components/Notificati
 import {
   clearNotificationCache,
   useNotificationSessionSync,
+  useNotificationUnreadCount,
 } from '@/features/notifications/hooks/useNotifications';
+import { useUnreadChatSummary } from '@/features/contracts/hooks/useContracts';
+import { useInspections } from '@/features/inspections/hooks/useInspections';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
@@ -84,6 +88,7 @@ const NAV_ITEMS = [
   { section: 'dashboard', icon: <NextAdminHomeIcon /> },
   { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
   { section: 'messages', icon: <NextAdminFormsIcon /> },
+  { section: 'assignments', icon: <NextAdminTaskIcon />, path: '/operations/inspections?view=assignments' },
   { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <NextAdminTablesIcon /> },
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
@@ -93,6 +98,7 @@ const NAV_ITEMS = [
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
   { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
   { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },
+  { section: 'notifications', icon: <NextAdminBellIcon /> },
   { section: 'settings', icon: <NextAdminProfileIcon /> },
 ] as const;
 
@@ -109,7 +115,7 @@ export function AppShell({ portal }: AppShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   useNotificationSessionSync();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('sm'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
   // Synchronized sidebar state across windows and tabs
   const [navVisible, setNavVisibleState] = useState<boolean>(() => {
@@ -162,6 +168,19 @@ export function AppShell({ portal }: AppShellProps) {
   const email = useAuthStore((state) => state.email);
   const clearSession = useAuthStore((state) => state.clearSession);
   const showToast = useToastStore((state) => state.showToast);
+  const isInspectorOps = portal === 'operations' && roles.includes('INSPECTOR');
+  const inspectorAssignmentsQuery = useInspections({ page: 1, pageSize: 100 }, isInspectorOps);
+  const { data: unreadNotifData } = useNotificationUnreadCount();
+  const { totalUnread: unreadChatCount } = useUnreadChatSummary();
+  const totalUnreadNotifications = (unreadNotifData?.unreadCount ?? 0) + unreadChatCount;
+  const pendingAssignmentCount = isInspectorOps
+    ? (inspectorAssignmentsQuery.data?.items ?? []).filter(
+        (item) =>
+          item.status === 'SCHEDULED' &&
+          !item.reassignmentRequired &&
+          item.assignmentStatus === 'PENDING_ACCEPTANCE',
+      ).length
+    : 0;
 
   useEffect(() => {
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -176,6 +195,9 @@ export function AppShell({ portal }: AppShellProps) {
   }, []);
 
   const roleFilteredNavigation = NAV_ITEMS.filter(({ section }) => {
+    if (section === 'assignments') {
+      return portal === 'operations' && roles.includes('INSPECTOR');
+    }
     if (section === 'schedule') {
       return portal === 'operations' && roles.includes('INSPECTOR');
     }
@@ -186,22 +208,26 @@ export function AppShell({ portal }: AppShellProps) {
   }).map((item) => {
     const { section, icon } = item;
     const path =
-      section === 'schedule'
-        ? '/operations/inspections?view=calendar'
-        : section === 'ai-settings'
-          ? '/admin/ai-settings'
-          : getSectionPath(
-              portal,
-              section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
-            );
+      section === 'assignments'
+        ? '/operations/inspections?view=assignments'
+        : section === 'schedule'
+          ? '/operations/inspections?view=calendar'
+          : section === 'ai-settings'
+            ? '/admin/ai-settings'
+            : getSectionPath(
+                portal,
+                section as Exclude<typeof section, 'assignments' | 'schedule' | 'ai-settings'>,
+              );
     const label =
-      section === 'schedule'
-        ? t('Inspection Schedule')
-        : section === 'ai-settings'
-          ? locale === 'vi'
-            ? 'Cấu hình AI'
-            : 'AI configuration'
-          : getSectionLabel(section, locale, portal);
+      section === 'assignments'
+        ? t('Assignments')
+        : section === 'schedule'
+          ? t('Inspection Schedule')
+          : section === 'ai-settings'
+            ? locale === 'vi'
+              ? 'Cấu hình AI'
+              : 'AI configuration'
+            : getSectionLabel(section, locale, portal);
     return {
       section,
       icon,
@@ -375,32 +401,24 @@ export function AppShell({ portal }: AppShellProps) {
         >
           {visibleNavigation.map((item) => {
             const { section, icon } = item;
-            const path =
-              section === 'schedule'
-                ? '/operations/inspections?view=calendar'
-                : section === 'ai-settings'
-                  ? '/admin/ai-settings'
-                  : getSectionPath(
-                      portal,
-                      section as Exclude<typeof section, 'schedule' | 'ai-settings'>,
-                    );
+            const path = item.path;
+            const viewParam = new URLSearchParams(location.search).get('view');
             const isCalendarView =
+              location.pathname.startsWith('/operations/inspections') && viewParam === 'calendar';
+            const isAssignmentsView =
               location.pathname.startsWith('/operations/inspections') &&
-              new URLSearchParams(location.search).get('view') === 'calendar';
+              (viewParam === 'assignments' || viewParam === 'pending');
             const selected =
-              section === 'schedule'
-                ? isCalendarView
-                : section === 'inspections'
-                  ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) && !isCalendarView
-                  : location.pathname === path;
-            const navLabel =
-              section === 'schedule'
-                ? t('Inspection Schedule')
-                : section === 'ai-settings'
-                  ? locale === 'vi'
-                    ? 'Cấu hình AI'
-                    : 'AI configuration'
-                  : getSectionLabel(section, locale, portal);
+              section === 'assignments'
+                ? isAssignmentsView
+                : section === 'schedule'
+                  ? isCalendarView
+                  : section === 'inspections'
+                    ? location.pathname.startsWith(getSectionPath(portal, 'inspections')) &&
+                      !isCalendarView &&
+                      !isAssignmentsView
+                    : location.pathname === path;
+            const navLabel = item.label;
             return (
               <ListItemButton
                 key={section}
@@ -461,6 +479,51 @@ export function AppShell({ portal }: AppShellProps) {
                     },
                   }}
                 />
+                {section === 'assignments' && pendingAssignmentCount > 0 && (
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{
+                      ml: 1,
+                      minWidth: 20,
+                      height: 20,
+                      px: 0.75,
+                      borderRadius: '10px',
+                      bgcolor: 'warning.main',
+                      color: 'warning.contrastText',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {pendingAssignmentCount}
+                  </Box>
+                )}
+                {section === 'notifications' && totalUnreadNotifications > 0 && (
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{
+                      ml: 1,
+                      minWidth: 20,
+                      height: 20,
+                      px: 0.75,
+                      borderRadius: '10px',
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {totalUnreadNotifications > 99 ? '99+' : totalUnreadNotifications}
+                  </Box>
+                )}
               </ListItemButton>
             );
           })}
@@ -579,7 +642,8 @@ export function AppShell({ portal }: AppShellProps) {
                   sx={{
                     display: { xs: 'none', sm: 'flex' },
                     alignItems: 'center',
-                    width: { sm: 240, md: 300 },
+                    flex: '0 1 280px',
+                    minWidth: 0,
                     height: 40,
                     borderRadius: '999px',
                     border: '1px solid',
@@ -587,7 +651,6 @@ export function AppShell({ portal }: AppShellProps) {
                     bgcolor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
                     px: 1.75,
                     gap: 1,
-                    flexShrink: 0,
                     cursor: 'pointer',
                     '&:hover': {
                       borderColor: 'text.secondary',

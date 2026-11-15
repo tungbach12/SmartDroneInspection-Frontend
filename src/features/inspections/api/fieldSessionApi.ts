@@ -70,4 +70,13 @@ export const fieldSessionApi = {
         { reason },
       )
       .then((r) => r.data),
+
+  /** Manager/Admin recovery: force-aborts a hung IN_PROGRESS session so dispatch can recover. */
+  forceAbort: (inspectionId: string, sessionId: string, reason: string) =>
+    api
+      .post<FieldSession>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/force-abort`,
+        { reason },
+      )
+      .then((r) => r.data),
 };

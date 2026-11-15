@@ -26,7 +26,6 @@ import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ReportDerivedSections } from './ReportDerivedSections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import type { ReportSectionValues } from './ReportSectionForm';
 
 export interface ReportAuthoringPanelProps {
   version: InspectionReport;
@@ -34,7 +33,6 @@ export interface ReportAuthoringPanelProps {
   evidenceList: EvidenceItem[];
   inspectionId: string;
   canEdit?: boolean;
-  onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;

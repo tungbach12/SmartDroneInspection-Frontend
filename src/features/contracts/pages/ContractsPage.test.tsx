@@ -59,7 +59,6 @@ describe('ContractsPage', () => {
       userId: 'customer-1',
       userName: 'Customer One',
       email: 'customer@test.local',
-      actorZone: 'CUSTOMER',
     });
     vi.spyOn(assetsHook, 'useAssets').mockReturnValue({
       data: {
@@ -304,7 +303,6 @@ describe('ContractsPage', () => {
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
-      actorZone: 'PLATFORM',
     });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
@@ -388,7 +386,6 @@ describe('ContractsPage', () => {
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
-      actorZone: 'PLATFORM',
     });
     const mutateAsync = vi.fn();
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
@@ -476,7 +473,6 @@ describe('ContractsPage', () => {
       userId: 'admin-1',
       userName: 'Admin User',
       email: 'admin@test.local',
-      actorZone: 'PLATFORM',
     });
     renderPage();
     expect(screen.getByText('MF2 is available to Customer and Platform Manager accounts.')).toBeTruthy();
@@ -569,7 +565,6 @@ describe('ContractsPage', () => {
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
-      actorZone: 'PLATFORM',
     });
     const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-signed', status: 'ASSIGNED' });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
@@ -691,7 +686,6 @@ describe('ContractsPage', () => {
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
-      actorZone: 'PLATFORM',
     });
     const evaluateMutate = vi.fn().mockResolvedValue([
       {
@@ -808,7 +802,6 @@ describe('ContractsPage', () => {
       userId: 'manager-1',
       userName: 'Platform Manager',
       email: 'manager@test.local',
-      actorZone: 'PLATFORM',
     });
     const evaluateMutate = vi.fn().mockResolvedValue([
       {

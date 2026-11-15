@@ -121,7 +121,6 @@ function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
       email: 'user@example.test',
       fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
-      actorZone: 'CUSTOMER',
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -390,6 +390,11 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(timerId);
+  }, []);
   const [preFlightChecked, setPreFlightChecked] = useState<string[]>([]);
   const [preFlightNote, setPreFlightNote] = useState('');
   const [outcomeTarget, setOutcomeTarget] = useState<{
@@ -461,10 +466,14 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
   );
   const latestSession = items.at(-1);
   const hasPermit = Boolean(inspection?.flightPermitFileName);
+  const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
+  const isWindowExpired = Number.isFinite(windowEndMs) && windowEndMs < nowMs;
   const canStart =
     !openSession &&
     hasPermit &&
-    inspection?.status === 'SCHEDULED';
+    inspection?.status === 'SCHEDULED' &&
+    !inspection?.reassignmentRequired &&
+    !isWindowExpired;
   const canContinueToEvidence =
     !openSession &&
     (inspection?.status === 'FIELD_COMPLETED' ||
@@ -1045,6 +1054,13 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       )}
                     </Stack>
 
+                    {!isCompletedPreFlight && inspection.reassignmentRequired && (
+                      <Alert severity="error">
+                        {t('This inspection was declined and requires Platform Manager reassignment before starting a field session.')}
+                        {inspection.declineReason ? ` (${t('Reason')}: ${inspection.declineReason})` : ''}
+                      </Alert>
+                    )}
+
                     {!isCompletedPreFlight && !hasPermit && (
                       <Alert
                         severity="warning"
@@ -1349,6 +1365,12 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             value={preFlightNote}
                             onChange={(event) => setPreFlightNote(event.target.value)}
                           />
+
+                          {!openSession && inspection.status === 'SCHEDULED' && isWindowExpired && (
+                            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                              {t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.')}
+                            </Alert>
+                          )}
 
                           <MutationProblemAlert
                             error={startSession.error}
@@ -2015,6 +2037,23 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   )}
                 </Stack>
 
+                {!openSession && !canContinueToEvidence && inspection.reassignmentRequired && (
+                  <Alert severity="error">
+                    {t('This inspection was declined and requires Platform Manager reassignment before starting a field session.')}
+                    {inspection.declineReason ? ` (${t('Reason')}: ${inspection.declineReason})` : ''}
+                  </Alert>
+                )}
+
+                {!openSession &&
+                  !canContinueToEvidence &&
+                  inspection.status === 'SCHEDULED' &&
+                  !inspection.reassignmentRequired &&
+                  isWindowExpired && (
+                    <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+                      {t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.')}
+                    </Alert>
+                  )}
+
                 {openSession?.status === 'IN_PROGRESS' && (
                   <>
                     <SmartDroneHubTelemetryPanel
@@ -2186,7 +2225,9 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       {t('Reason')}: "{latestSession.abortReason}"
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      {t('The inspection status was returned to SCHEDULED. Contact manager for rescheduling, or start a new session when conditions are safe.')}
+                      {isWindowExpired
+                        ? t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.')
+                        : t('The inspection status was returned to SCHEDULED. Contact manager for rescheduling, or start a new session when conditions are safe.')}
                     </Typography>
                   </Alert>
                 )}

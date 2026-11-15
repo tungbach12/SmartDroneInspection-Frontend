@@ -35,11 +35,7 @@ import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
-import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
-import type {
-  InspectionReport,
-  ReportOverallCondition,
-} from '../api/inspectionApi';
+import type { InspectionReport } from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
@@ -118,10 +114,6 @@ export default function InspectionReportPage() {
     isInspector && isAuthor && !sourcesChangedAfterVersion && openVersion?.status === 'RETURNED',
   );
 
-  const handleSaveSections = async (_sections: ReportSectionValues) => {
-    // Report sections are derived automatically from confirmed records.
-  };
-
   const isSubmitting = createDraft.isPending || submit.isPending;
 
   const inspectionQuery = useInspection?.(inspectionId);
@@ -134,14 +126,6 @@ export default function InspectionReportPage() {
 
   const draftPreviewVersion: InspectionReport = useMemo(() => {
     const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
-    const severities = reportable.map((f) => f.severity);
-    const overallCondition: ReportOverallCondition = severities.includes('CRITICAL')
-      ? 'CRITICAL'
-      : severities.includes('HIGH')
-        ? 'POOR'
-        : severities.includes('MEDIUM')
-          ? 'FAIR'
-          : 'GOOD';
     const assetLabel = inspectionData?.assetName || t('the inspected structure');
     const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${reportable.length} ${t('confirmed defects')}; ${(evidence.data ?? []).length} ${t('evidence captures')}.`;
 
@@ -159,17 +143,6 @@ export default function InspectionReportPage() {
       createdAt: new Date().toISOString(),
       summary: autoSummary,
       omissionDisclosure: null,
-      sections: {
-        executiveSummary: autoSummary,
-        overallCondition,
-        purposeScopeCriteria: t('Aerial structural survey using UAV/Drone to capture high-resolution imagery and detect surface defects.'),
-        methodEquipmentConditions: inspectionData?.droneSerialNumber
-          ? `${t('Assigned UAV')}: ${inspectionData.droneModel ?? ''} (${t('Serial')}: ${inspectionData.droneSerialNumber}). ${t('Remote visual inspection conducted per standard protocol.')}`
-          : t('Specialized inspection UAV equipped with high-resolution optical camera.'),
-        conclusionsRecommendations: reportable.length > 0
-          ? `${reportable.length} ${t('confirmed findings require attention.')}`
-          : t('No confirmed defects in the reviewed evidence. This does not certify the structure as safe or defect-free.'),
-      },
       reportContext: {
         organizationName: null,
         assetCode: null,
@@ -560,7 +533,6 @@ export default function InspectionReportPage() {
                 evidenceList={activeEvidenceList}
                 inspectionId={inspectionId}
                 canEdit={canEditOpenVersion}
-                onSaveSections={handleSaveSections}
                 onDirtyChange={onReportDirtyChange}
               />
             ) : (

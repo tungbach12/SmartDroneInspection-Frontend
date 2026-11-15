@@ -29,7 +29,6 @@ const user = {
   email: 'org-manager@example.com',
   fullName: 'Organization Manager',
   roles: ['CUSTOMER'],
-  actorZone: 'CUSTOMER',
   visionFallbackEnabled: true,
 };
 
@@ -101,11 +100,11 @@ describe('browser auth API', () => {
     ]);
   });
 
-  it('rejects actor zones outside the canonical platform and organization zones', async () => {
+  it('rejects malformed account profiles missing roles', async () => {
     transport.postWithBrowserCsrf.mockResolvedValue({
       data: {
         ...authenticatedFlow,
-        user: { ...user, actorZone: 'SERVICE_WORKFORCE' },
+        user: { ...user, roles: 'CUSTOMER' },
       },
     });
 
@@ -238,14 +237,12 @@ describe('browser auth API', () => {
         user: {
           ...user,
           roles: ['CUSTOMER', 'MANAGER'],
-          actorZone: 'INSPECTOR',
         },
       },
     });
 
     const result = await login('partner@example.com', 'secret password');
     expect(result.user?.roles).toEqual(['CUSTOMER', 'MANAGER']);
-    expect(result.user?.actorZone).toBe('INSPECTOR');
   });
 
   it('accepts first asset data and handles pending airspace review response in customer registration', async () => {
@@ -260,7 +257,6 @@ describe('browser auth API', () => {
         user: {
           ...user,
           roles: ['CUSTOMER'],
-          actorZone: 'CUSTOMER',
         },
       },
     });
@@ -298,7 +294,7 @@ describe('browser auth API', () => {
     });
     expect(result.registrationStatus).toBe('PENDING_AIRSPACE_REVIEW');
     expect(result.airspaceReviewId).toBe('review-123');
-    expect(result.user?.actorZone).toBe('CUSTOMER');
+    expect(result.user?.roles).toEqual(['CUSTOMER']);
   });
 
   it('evaluates airspace advisory before submission', async () => {

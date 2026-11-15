@@ -101,6 +101,9 @@ const PlatformAiSettingsPage = lazy(
 const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
 );
+const NotificationsPage = lazy(
+  () => import('@/features/notifications/pages/NotificationsPage'),
+);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -114,6 +117,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   'finance-settings': <PlatformFinanceSettingsPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
+  notifications: <NotificationsPage />,
   settings: <AccountSecurityPage />,
 };
 

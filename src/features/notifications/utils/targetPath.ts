@@ -3,10 +3,12 @@ import {
   getAvailablePortals,
   PORTAL_IDS,
   type PortalId,
+  type SectionId,
 } from '@/app/permissions/accessPolicy';
 import type { Role } from '@/features/auth/store/authStore';
 
 const ALLOWED_INSPECTION_SUBROUTES = new Set([
+  'tracking',
   'permit',
   'pre-flight',
   'field-session',
@@ -19,8 +21,21 @@ const ALLOWED_INSPECTION_SUBROUTES = new Set([
   'settlement',
 ]);
 
+const SIMPLE_PORTAL_SECTIONS: readonly SectionId[] = [
+  'assets',
+  'dashboard',
+  'contracts',
+  'messages',
+  'onboarding-reviews',
+  'inspector-drones',
+  'notifications',
+  'settings',
+];
+
 /**
  * Validates untrusted notification target paths and resolves them safely into internal portal routes.
+ * Supports both portal-relative paths (`/inspections/:id`) and portal-prefixed paths
+ * (`/operations/inspections/:id`, `/manager/inspections/:id`, `/client/inspections/:id`).
  * External URLs, dangerous protocols, and routes not accessible by the user's role/portal are rejected.
  */
 export function resolveSafeNotificationRoute(
@@ -43,22 +58,35 @@ export function resolveSafeNotificationRoute(
     return null;
   }
 
-  // Determine target portal
-  let targetPortal = currentPortal;
-  if (!targetPortal || !PORTAL_IDS.includes(targetPortal)) {
-    const available = getAvailablePortals(userRoles);
-    targetPortal = available[0] ?? null;
-  }
+  // Clean path (strip query/hash)
+  const cleanPath = trimmed.split('?')[0]?.split('#')[0] ?? '';
+  let segments = cleanPath.split('/').filter(Boolean);
 
-  if (!targetPortal) {
+  if (segments.length === 0) {
     return null;
   }
 
-  // Clean path (strip query/hash)
-  const cleanPath = trimmed.split('?')[0]?.split('#')[0] ?? '';
-  const segments = cleanPath.split('/').filter(Boolean);
+  const availablePortals = getAvailablePortals(userRoles);
+  let targetPortal: PortalId | null = null;
 
-  if (segments.length === 0) {
+  if (PORTAL_IDS.includes(segments[0] as PortalId)) {
+    const explicitPortal = segments[0] as PortalId;
+    if (!availablePortals.includes(explicitPortal)) {
+      return null;
+    }
+    targetPortal = explicitPortal;
+    segments = segments.slice(1);
+    if (segments.length === 0) {
+      return `/${targetPortal}/dashboard`;
+    }
+  } else {
+    targetPortal =
+      currentPortal && PORTAL_IDS.includes(currentPortal)
+        ? currentPortal
+        : (availablePortals[0] ?? null);
+  }
+
+  if (!targetPortal) {
     return null;
   }
 
@@ -81,7 +109,14 @@ export function resolveSafeNotificationRoute(
         return null;
       }
       if (
-        normalizedSubroute === 'review' &&
+        normalizedSubroute === 'audit' &&
+        targetPortal !== 'manager' &&
+        targetPortal !== 'admin'
+      ) {
+        return `/${targetPortal}/inspections/${inspectionId}`;
+      }
+      if (
+        (normalizedSubroute === 'review' || normalizedSubroute === 'settlement') &&
         targetPortal !== 'client' &&
         targetPortal !== 'manager' &&
         targetPortal !== 'admin'
@@ -107,18 +142,12 @@ export function resolveSafeNotificationRoute(
     return `/${targetPortal}/reports/${reportId}`;
   }
 
-  if (first === 'assets') {
-    if (!canAccessSection(targetPortal, 'assets', userRoles)) {
+  if (SIMPLE_PORTAL_SECTIONS.includes(first as SectionId)) {
+    const section = first as SectionId;
+    if (!canAccessSection(targetPortal, section, userRoles)) {
       return null;
     }
-    return `/${targetPortal}/assets`;
-  }
-
-  if (first === 'dashboard') {
-    if (!canAccessSection(targetPortal, 'dashboard', userRoles)) {
-      return null;
-    }
-    return `/${targetPortal}/dashboard`;
+    return `/${targetPortal}/${section}`;
   }
 
   return null;

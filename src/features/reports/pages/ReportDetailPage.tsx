@@ -34,7 +34,6 @@ import {
   useInspectionEvidence,
   useInspectionWorkflowState,
   useInspection,
-  useSaveReportSections,
   useReportPaymentStatus,
 } from '@/features/inspections/hooks/useInspections';
 import ManagerReportReviewPage from './ManagerReportReviewPage';
@@ -43,7 +42,6 @@ import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliv
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
-import type { ReportSectionValues } from '@/features/reports/components/ReportSectionForm';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
@@ -168,19 +166,6 @@ export default function ReportDetailPage() {
           new Date(currentFindingsConfirmationAt).getTime() >
             new Date(openVersion.createdAt).getTime())),
   );
-
-  const saveSections = useSaveReportSections(inspectionId);
-
-  const handleSaveSections = async (versionId: string, sections: ReportSectionValues) => {
-    await saveSections.mutateAsync({
-      versionId,
-      sections: {
-        ...sections,
-        overallCondition: sections.overallCondition || null,
-      },
-    });
-    await versions.refetch();
-  };
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
@@ -526,7 +511,6 @@ export default function ReportDetailPage() {
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
                 canEdit={canAuthor && canEditReturnedText}
-                onSaveSections={(sections) => handleSaveSections(openVersion.id, sections)}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}

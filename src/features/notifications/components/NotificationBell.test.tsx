@@ -54,7 +54,6 @@ describe('NotificationBell & Inbox', () => {
         email: 'inspector@example.com',
         fullName: 'Inspector One',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER',
       },
     });
   });
@@ -110,7 +109,7 @@ describe('NotificationBell & Inbox', () => {
 
     expect(await screen.findByText('Inspection Assigned')).toBeTruthy();
     expect(screen.getByText('You have been assigned to inspection 101')).toBeTruthy();
-    expect(screen.getByText(/in-app/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'View All' })).toBeTruthy();
   });
 
   it('clicking a notification item with safe route marks it as read and navigates', async () => {
@@ -249,7 +248,7 @@ describe('NotificationBell & Inbox', () => {
     await waitFor(() => {
       expect(notificationApi.list).toHaveBeenCalledWith({
         page: 1,
-        pageSize: 10,
+        pageSize: 15,
         unreadOnly: true,
       });
     });
@@ -369,7 +368,7 @@ describe('NotificationBell & Inbox', () => {
     });
   });
 
-  it('handles pagination controls when multiple pages exist', async () => {
+  it('navigates to the portal notifications page when View All is clicked', async () => {
     vi.mocked(notificationApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 });
     vi.mocked(notificationApi.list).mockResolvedValue({
       items: [
@@ -387,9 +386,9 @@ describe('NotificationBell & Inbox', () => {
         },
       ],
       page: 1,
-      pageSize: 10,
+      pageSize: 15,
       totalCount: 25,
-      totalPages: 3,
+      totalPages: 2,
     });
 
     render(<NotificationBell portal="operations" />, {
@@ -398,18 +397,9 @@ describe('NotificationBell & Inbox', () => {
 
     fireEvent.click(screen.getByTestId('notification-bell-button'));
     expect(await screen.findByText('Page 1 Item')).toBeTruthy();
-    expect(screen.getByText('1 / 3')).toBeTruthy();
 
-    const nextBtn = screen.getByLabelText('Next page');
-    fireEvent.click(nextBtn);
-
-    await waitFor(() => {
-      expect(notificationApi.list).toHaveBeenCalledWith({
-        page: 2,
-        pageSize: 10,
-        unreadOnly: undefined,
-      });
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'View All' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/operations/notifications');
   });
 
   it('renders empty state when there are no notifications', async () => {

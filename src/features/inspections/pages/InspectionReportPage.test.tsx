@@ -41,12 +41,6 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     error: null as Error | null,
   },
-  saveSections: {
-    mutateAsync: vi.fn(),
-    isPending: false,
-    isError: false,
-    error: null as Error | null,
-  },
   verifyVersion: {
     mutate: vi.fn(),
     mutateAsync: vi.fn().mockResolvedValue(undefined),
@@ -75,7 +69,6 @@ vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useGenerateReportDraft: () => mocks.createDraft,
   useAuthorManualDraft: () => mocks.authorManualDraft,
-  useSaveReportSections: () => mocks.saveSections,
   useVerifyReportVersion: () => mocks.verifyVersion,
   useSubmitReportVersion: () => mocks.submitVersion,
   useWithdrawReportVersion: () => mocks.withdrawVersion,
@@ -101,7 +94,6 @@ function signInAs(role: 'INSPECTOR' | 'CUSTOMER') {
       email: 'user@example.test',
       fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
-      actorZone: 'CUSTOMER',
     },
   });
 }
@@ -122,7 +114,6 @@ describe('InspectionReportPage', () => {
     mocks.createDraft.isPending = false;
     mocks.createDraft.isSuccess = false;
     mocks.authorManualDraft.mutate.mockReset();
-    mocks.saveSections.mutateAsync.mockReset();
     mocks.verifyVersion.mutate.mockReset();
     mocks.submitVersion.mutate.mockReset();
     mocks.withdrawVersion.mutate.mockReset();
@@ -222,13 +213,7 @@ describe('InspectionReportPage', () => {
           authorUserId: 'inspector-1',
           createdAt: '2026-10-14T12:00:00Z',
           returnReason: 'Clarify findings',
-          sections: {
-            executiveSummary: 'Main span inspected.',
-            methodEquipmentConditions: 'Visual drone survey.',
-            omissionDisclosure: 'None.',
-            conclusionsRecommendations: 'Monitor hairline crack.',
-            overallCondition: 'GOOD',
-          },
+          summary: 'Main span inspected.',
         },
       ],
       isLoading: false,
@@ -265,7 +250,6 @@ describe('InspectionReportPage', () => {
           reviewerUserId: null,
           reviewedAt: null,
           createdAt: '2026-10-14T12:00:00Z',
-          sections: {},
         },
       ],
       isLoading: false,
@@ -298,7 +282,6 @@ describe('InspectionReportPage', () => {
           status: 'PUBLISHED',
           authorUserId: 'inspector-1',
           createdAt: '2026-10-15T10:00:00Z',
-          sections: {},
         },
       ],
       isLoading: false,

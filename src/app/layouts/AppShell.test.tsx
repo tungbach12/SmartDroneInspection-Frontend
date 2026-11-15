@@ -62,7 +62,6 @@ describe('AppShell with NotificationBell integration', () => {
         email: 'inspector@example.com',
         fullName: 'Inspector One',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER',
       },
     });
 
@@ -81,8 +80,14 @@ describe('AppShell with NotificationBell integration', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Hide sidebar' }));
 
+    expect(screen.getByRole('link', { name: 'Assignments' }).getAttribute('href')).toBe(
+      '/operations/inspections?view=assignments',
+    );
     expect(screen.getByRole('link', { name: 'Inspection Schedule' }).getAttribute('href')).toBe(
       '/operations/inspections?view=calendar',
+    );
+    expect(screen.getByRole('link', { name: 'Notifications' }).getAttribute('href')).toBe(
+      '/operations/notifications',
     );
   });
 

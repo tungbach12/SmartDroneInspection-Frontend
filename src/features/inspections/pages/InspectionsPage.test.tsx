@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,6 +46,11 @@ vi.mock('../hooks/useInspections', async () => {
     useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
     useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
     useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useForceAbortFieldSession: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useReassignInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+    useReassignCandidates: () => ({ data: [], isLoading: false, isError: false }),
   };
 });
 
@@ -62,7 +67,12 @@ import InspectionsPage from './InspectionsPage';
 /** Proves where a row click actually went, since the page navigates rather than expands. */
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  return (
+    <div>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state ?? {})}</div>
+    </div>
+  );
 }
 
 function renderPage(route = '/operations/inspections') {
@@ -102,7 +112,6 @@ function signInAs(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'User',
       roles,
-      actorZone: 'CUSTOMER',
     },
   });
 }
@@ -175,15 +184,43 @@ describe('InspectionsPage', () => {
     );
   });
 
-  it('opens an inspection at the current incomplete step or final step from the row action', async () => {
+  it('opens the workspace from the row action menu', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open workspace' }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
       '/operations/inspections/inspection-1/evidence',
     );
+  });
+
+  it('routes a Manager dispatch action to the workspace through navigation state', async () => {
+    signInAs(['MANAGER']);
+    mocks.listQuery = {
+      data: {
+        items: [{ ...listedInspection(), status: 'SCHEDULED' }],
+        page: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/manager/inspections');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reschedule' }));
+
+    expect(screen.getByTestId('location')).toHaveProperty(
+      'textContent',
+      '/manager/inspections/inspection-1/audit',
+    );
+    expect(screen.getByTestId('location-state').textContent).toContain('"dispatchAction":"reschedule"');
   });
 
   it('opens a completed/published inspection at the final step', async () => {
@@ -210,7 +247,8 @@ describe('InspectionsPage', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open workspace' }));
 
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
@@ -296,11 +334,10 @@ describe('InspectionsPage', () => {
     expect(screen.getByText(/administrator's decision is report-level/i)).toBeTruthy();
 
     expect(screen.getByRole('group', { name: 'Report reviews due on this page: 1' })).toBeTruthy();
-    expect(await screen.findByRole('button', { name: 'Review submission' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Read returned report' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Record corrective outcome' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Review submission' }));
+    const submittedRow = await screen.findByRole('row', { name: /Review bridge report/ });
+    fireEvent.click(within(submittedRow).getByRole('button', { name: 'Inspection actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Review submission' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Review submission' }));
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
       '/client/inspections/submitted-1/review',
@@ -327,7 +364,9 @@ describe('InspectionsPage', () => {
     renderPage('/client/inspections?view=reports');
 
     expect(screen.queryByRole('button', { name: 'Record corrective outcome' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Open report' })).toBeTruthy();
+    const reportRow = await screen.findByRole('row', { name: /Corrective outcome/ });
+    fireEvent.click(within(reportRow).getByRole('button', { name: 'Inspection actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Open report' })).toBeTruthy();
   });
 
   it('filters to inspections with a report when the report view is active via query param', async () => {
@@ -421,5 +460,100 @@ describe('InspectionsPage', () => {
       'textContent',
       '/client/inspections/cust-pub-1/report',
     );
+  });
+
+  it('renders all assignments including accepted and declined history on ?view=assignments with filter tabs', async () => {
+    mocks.listQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'pending-1',
+            assetName: 'Thu Thiem Bridge',
+            status: 'SCHEDULED',
+            assignmentStatus: 'PENDING_ACCEPTANCE',
+            reassignmentRequired: false,
+          },
+          {
+            ...listedInspection(),
+            id: 'accepted-1',
+            assetName: 'Already Accepted Bridge',
+            status: 'COMPLETED',
+            assignmentStatus: 'ACCEPTED',
+            reassignmentRequired: false,
+          },
+          {
+            ...listedInspection(),
+            id: 'declined-1',
+            assetName: 'Declined Tower',
+            status: 'SCHEDULED',
+            assignmentStatus: 'DECLINED',
+            reassignmentRequired: true,
+          },
+        ],
+        page: 1,
+        pageSize: 100,
+        totalCount: 3,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/operations/inspections?view=assignments');
+
+    expect(await screen.findByText('Thu Thiem Bridge')).toBeTruthy();
+    expect(screen.getByText('Already Accepted Bridge')).toBeTruthy();
+    expect(screen.getByText('Declined Tower')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Pending (1)' }));
+    expect(screen.getByText('Thu Thiem Bridge')).toBeTruthy();
+    expect(screen.queryByText('Already Accepted Bridge')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Accepted (1)' }));
+    expect(screen.getByText('Already Accepted Bridge')).toBeTruthy();
+    expect(screen.queryByText('Thu Thiem Bridge')).toBeNull();
+  });
+
+  it('defaults to Pending tab on ?view=pending while keeping old assignment tabs accessible', async () => {
+    mocks.listQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'pending-1',
+            assetName: 'Thu Thiem Bridge',
+            status: 'SCHEDULED',
+            assignmentStatus: 'PENDING_ACCEPTANCE',
+            reassignmentRequired: false,
+          },
+          {
+            ...listedInspection(),
+            id: 'accepted-1',
+            assetName: 'Already Accepted Bridge',
+            status: 'SCHEDULED',
+            assignmentStatus: 'ACCEPTED',
+            reassignmentRequired: false,
+          },
+        ],
+        page: 1,
+        pageSize: 100,
+        totalCount: 2,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/operations/inspections?view=pending');
+
+    expect(await screen.findByText('Thu Thiem Bridge')).toBeTruthy();
+    expect(screen.queryByText('Already Accepted Bridge')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'All (2)' }));
+    expect(screen.getByText('Already Accepted Bridge')).toBeTruthy();
   });
 });

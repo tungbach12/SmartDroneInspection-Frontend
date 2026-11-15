@@ -122,9 +122,9 @@ export default function CustomerReportDeliverablePage({
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
-  const priorClarificationCount = (versions.data ?? []).filter(
-    (v) => v.returnReason && v.returnReason.includes('[Yêu cầu làm rõ từ Khách hàng]'),
-  ).length;
+  const priorClarificationCount =
+    inspectionQuery.data?.clarificationCount ??
+    (versions.data ?? []).filter((v) => Boolean(v.clarificationRequested)).length;
 
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>

@@ -459,4 +459,26 @@ describe('PartnerCandidateResults', () => {
       }),
     ).toBe(false);
   });
+
+  it('displays advisory reliability history chips when counts are positive', () => {
+    renderWithQuery(
+      <PartnerCandidateResults
+        candidates={[
+          {
+            ...passingCandidate,
+            declineCount: 2,
+            noShowCount: 1,
+            abortCount: 1,
+          },
+        ]}
+        selectedInspectorId=""
+        selectedDroneId=""
+        onSelectPair={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Declines: 2')).toBeTruthy();
+    expect(screen.getByText('No-shows: 1')).toBeTruthy();
+    expect(screen.getByText('Aborts: 1')).toBeTruthy();
+  });
 });

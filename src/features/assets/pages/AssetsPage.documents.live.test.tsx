@@ -76,6 +76,11 @@ vi.mock('@/features/inspections/hooks/useInspections', () => ({
   useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
   useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useForceAbortFieldSession: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useReassignInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useReassignCandidates: () => ({ data: [], isLoading: false, isError: false, error: null }),
 }));
 
 import { AssetsPage } from './AssetsPage';

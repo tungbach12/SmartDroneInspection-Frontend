@@ -66,7 +66,6 @@ function setRole(roles: Role[]) {
       email: 'user@example.test',
       fullName: 'Test User',
       roles,
-      actorZone: 'CUSTOMER',
     },
     roles,
   });
@@ -109,17 +108,8 @@ function version(overrides: Partial<Awaited<ReturnType<typeof inspectionApi.list
     returnReason: null,
     publishedAt: null,
     createdAt: '2026-10-01T09:00:00Z',
-    narrative: 'The north span was surveyed from both maintenance walkways.',
+    summary: 'The north span was surveyed from both maintenance walkways.',
     omissionDisclosure: null,
-    sections: {
-      executiveSummary: 'The north span was surveyed from both maintenance walkways.',
-      purposeScopeCriteria: null,
-      inspectorCoverageAssessment: null,
-      methodEquipmentConditions: null,
-      conclusionsRecommendations: null,
-      overallCondition: null,
-      omissionDisclosure: null,
-    },
     ...overrides,
   };
 }
@@ -153,10 +143,10 @@ describe('ReportDetailPage MF3 gates', () => {
       status: 'FIELD_COMPLETED',
       findingsConfirmedAt: '2026-10-01T08:00:00Z',
     });
-    setRole(['CUSTOMER']);
+    setRole(['MANAGER']);
   });
 
-  it('allows the Organization Manager to approve and publish without per-finding decisions', async () => {
+  it('allows the Platform Manager to approve and publish without per-finding decisions', async () => {
     mockedApi.listVersions.mockResolvedValue([version({})]);
     mockedApi.listFindings.mockResolvedValue([
       finding({ status: 'CONFIRMED' }),
@@ -437,7 +427,8 @@ describe('ReportDetailPage MF3 gates', () => {
     setRole(['CUSTOMER']);
     renderPage('/client/reports/inspection-1');
 
-    fireEvent.click(await screen.findByRole('link', { name: 'Review queue' }));
+    expect(screen.queryByRole('button', { name: 'Approve & publish' })).toBeNull();
+    fireEvent.click(await screen.findByRole('link', { name: 'Reports' }));
 
     expect(screen.getByTestId('location').textContent).toBe(
       '/client/inspections?view=reports',

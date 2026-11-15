@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
   Box,
-  Button,
   Chip,
   Divider,
+  IconButton,
   InputAdornment,
+  Menu,
   MenuItem,
   Pagination,
   Paper,
@@ -20,7 +21,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import SearchIcon from '@mui/icons-material/Search';
 import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
@@ -52,11 +53,19 @@ interface InspectionListTableProps {
   onPageSizeChange: (pageSize: number) => void;
   /** Opens the inspection's own route, which is where the MF3 workflow lives. */
   onOpen: (inspectionId: string) => void;
-  /** Opens the full inspection overview dialog (schedule, airspace map, checkpoints, purpose). */
+  /** Opens the full inspection overview dialog (read-only mission information). */
   onOverview?: (inspectionId: string) => void;
+  onAccept?: (inspectionId: string) => void;
+  onDecline?: (inspectionId: string) => void;
+  onReschedule?: (inspectionId: string) => void;
+  onReassign?: (inspectionId: string) => void;
+  onCancelInspection?: (inspectionId: string) => void;
+  onForceAbort?: (inspectionId: string) => void;
+  canDispatch?: boolean;
+  acceptingId?: string | null;
   showReportColumn?: boolean;
   reviewerMode?: boolean;
-  roleView?: 'inspector' | 'manager';
+  roleView?: 'inspector' | 'manager' | 'customer';
   getActionLabel?: (row: InspectionListItem) => string | undefined;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -67,20 +76,50 @@ interface InspectionListTableProps {
   actions?: ReactNode;
 }
 
-function formatDate(
-  value: string | null,
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatScheduleDateRange(
+  start: string | null,
+  end: string | null,
+  fallback: string,
   format: (input: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
 ): string {
-  if (!value) return '—';
+  const primary = start ?? fallback;
+  if (!primary) return '—';
   try {
-    const d = new Date(value);
-    return format(d, {
+    const startDate = new Date(primary);
+    if (Number.isNaN(startDate.getTime())) return primary;
+    if (start && end) {
+      const endDate = new Date(end);
+      if (!Number.isNaN(endDate.getTime()) && !isSameLocalDay(startDate, endDate)) {
+        const sameYear = startDate.getFullYear() === endDate.getFullYear();
+        const startLabel = format(
+          startDate,
+          sameYear
+            ? { month: 'short', day: 'numeric' }
+            : { month: 'short', day: 'numeric', year: 'numeric' },
+        );
+        const endLabel = format(endDate, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+        return `${startLabel} – ${endLabel}`;
+      }
+    }
+    return format(startDate, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
   } catch {
-    return value;
+    return primary;
   }
 }
 
@@ -128,6 +167,14 @@ export function InspectionListTable({
   onPageSizeChange: _onPageSizeChange,
   onOpen,
   onOverview,
+  onAccept,
+  onDecline,
+  onReschedule,
+  onReassign,
+  onCancelInspection,
+  onForceAbort,
+  acceptingId = null,
+  canDispatch = false,
   showReportColumn = false,
   reviewerMode = false,
   roleView = 'inspector',
@@ -143,6 +190,107 @@ export function InspectionListTable({
   const { t, formatDate: formatDateValue, formatNumber } = useLocale();
   const theme = useTheme();
   const isCompactViewport = useMediaQuery(theme.breakpoints.down('md'));
+  const isInspector = roleView === 'inspector';
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [menuRow, setMenuRow] = useState<InspectionListItem | null>(null);
+
+  const closeActionMenu = () => {
+    setMenuAnchor(null);
+    setMenuRow(null);
+  };
+  const openActionMenu = (event: MouseEvent<HTMLElement>, row: InspectionListItem) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+    setMenuRow(row);
+  };
+  const isPendingAcceptance = (row: InspectionListItem) =>
+    row.status === 'SCHEDULED' && row.assignmentStatus === 'PENDING_ACCEPTANCE' && !row.reassignmentRequired;
+  const actionLabelFor = (row: InspectionListItem) =>
+    (getActionLabel ? getActionLabel(row) : undefined) ??
+    (reviewerMode
+      ? row.pendingAction === 'REPORT_REVIEW'
+        ? 'Review submission'
+        : row.reportStatus === 'RETURNED'
+          ? 'Read returned report'
+          : 'Open report'
+      : 'Open');
+  const inspectionActionMenuId = (rowId: string) => `inspection-actions-${rowId}`;
+
+  const renderActionMenu = (row: InspectionListItem) => (
+    <>
+      <IconButton
+        size="small"
+        aria-label={t('Inspection actions')}
+        aria-haspopup="menu"
+        aria-controls={menuRow?.id === row.id && menuAnchor ? inspectionActionMenuId(row.id) : undefined}
+        aria-expanded={menuRow?.id === row.id && Boolean(menuAnchor)}
+        onClick={(event) => openActionMenu(event, row)}
+        sx={{
+          width: { xs: 44, sm: 36 },
+          height: { xs: 44, sm: 36 },
+          borderRadius: '8px',
+          border: '1px solid',
+          borderColor: 'divider',
+          color: 'text.secondary',
+          bgcolor: 'background.paper',
+          '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+        }}
+      >
+        <MoreVertRounded fontSize="small" />
+      </IconButton>
+      <Menu
+        id={inspectionActionMenuId(row.id)}
+        anchorEl={menuAnchor}
+        open={menuRow?.id === row.id && Boolean(menuAnchor)}
+        onClose={closeActionMenu}
+        onClick={(event) => event.stopPropagation()}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { minWidth: 200, borderRadius: '12px' } } }}
+      >
+        <MenuItem onClick={() => { closeActionMenu(); onOpen(row.id); }}>
+          {t(reviewerMode ? actionLabelFor(row) : 'Open workspace')}
+        </MenuItem>
+        {onOverview && (
+          <MenuItem onClick={() => { closeActionMenu(); onOverview(row.id); }}>
+            {t('Overview')}
+          </MenuItem>
+        )}
+        {isInspector && isPendingAcceptance(row) && onAccept && (
+          <MenuItem disabled={acceptingId === row.id} onClick={() => { closeActionMenu(); onAccept(row.id); }}>
+            {t('Accept mission')}
+          </MenuItem>
+        )}
+        {isInspector && isPendingAcceptance(row) && onDecline && (
+          <MenuItem onClick={() => { closeActionMenu(); onDecline(row.id); }}>
+            {t('Decline mission')}
+          </MenuItem>
+        )}
+        {canDispatch && row.status === 'SCHEDULED' && onReschedule && (
+          <MenuItem onClick={() => { closeActionMenu(); onReschedule(row.id); }}>
+            {t('Reschedule')}
+          </MenuItem>
+        )}
+        {canDispatch && row.status === 'SCHEDULED' && onReassign && (
+          <MenuItem onClick={() => { closeActionMenu(); onReassign(row.id); }}>
+            {t('Reassign Inspector & Drone')}
+          </MenuItem>
+        )}
+        {canDispatch && row.status === 'SCHEDULED' && onCancelInspection && <Divider />}
+        {canDispatch && row.status === 'SCHEDULED' && onCancelInspection && (
+          <MenuItem onClick={() => { closeActionMenu(); onCancelInspection(row.id); }} sx={{ color: 'error.main' }}>
+            {t('Cancel inspection')}
+          </MenuItem>
+        )}
+        {canDispatch && row.status === 'IN_PROGRESS' && onForceAbort && <Divider />}
+        {canDispatch && row.status === 'IN_PROGRESS' && onForceAbort && (
+          <MenuItem onClick={() => { closeActionMenu(); onForceAbort(row.id); }} sx={{ color: 'error.main' }}>
+            {t('Force-abort session')}
+          </MenuItem>
+        )}
+      </Menu>
+    </>
+  );
 
   return (
     <Paper
@@ -257,23 +405,30 @@ export function InspectionListTable({
               const finance = resolveInspectorFinanceBreakdown(row.id, row);
               const meta = resolveInspectionMetadata(row);
               const locationLabel = parseLocationLabel(row.assetLocation);
-              const scheduleDate = formatDate(row.plannedStartAt ?? row.updatedAt, formatDateValue);
+              const scheduleDate = formatScheduleDateRange(
+                row.plannedStartAt,
+                row.plannedEndAt,
+                row.updatedAt,
+                formatDateValue,
+              );
               const scheduleWindow = formatWindowTime(row.plannedStartAt, row.plannedEndAt, formatDateValue);
               const stageSubtitle = resolveRowStageSubtitle(row, roleView);
-              const actionText =
-                (getActionLabel ? getActionLabel(row) : undefined) ??
-                (reviewerMode
-                  ? row.pendingAction === 'REPORT_REVIEW'
-                    ? 'Review submission'
-                    : row.reportStatus === 'RETURNED'
-                      ? 'Read returned report'
-                      : 'Open report'
-                  : 'Open');
 
               return (
                 <Box
                   key={row.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onOpen(row.id)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
+                      event.preventDefault();
+                      onOpen(row.id);
+                    }
+                  }}
                   sx={{
                     p: 2,
                     cursor: 'pointer',
@@ -312,7 +467,25 @@ export function InspectionListTable({
                           {locationLabel ?? meta.objective ?? `${scheduleDate}${scheduleWindow ? ` · ${scheduleWindow}` : ''}`}
                         </Typography>
                       </Box>
-                      <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                      <Stack spacing={0.35} sx={{ alignItems: 'flex-end' }}>
+                        {row.reassignmentRequired ? (
+                          <>
+                            <StatusChip status="DECLINED" label={t('Reassignment required')} tone="error" />
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                              {t('Scheduled')}
+                            </Typography>
+                          </>
+                        ) : row.status === 'SCHEDULED' && row.assignmentStatus === 'PENDING_ACCEPTANCE' ? (
+                          <>
+                            <StatusChip status="PENDING" label={t('Pending acceptance')} tone="warning" />
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                              {t('Scheduled')}
+                            </Typography>
+                          </>
+                        ) : (
+                          <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                        )}
+                      </Stack>
                     </Stack>
 
                     <Stack
@@ -349,49 +522,7 @@ export function InspectionListTable({
                       </Stack>
 
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                        {onOverview && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onOverview(row.id);
-                            }}
-                            sx={{
-                              borderRadius: '8px',
-                              borderColor: 'divider',
-                              color: 'text.secondary',
-                              fontWeight: 600,
-                              fontSize: '0.75rem',
-                              textTransform: 'none',
-                              px: 1.25,
-                              py: 0.4,
-                            }}
-                          >
-                            {t('Overview')}
-                          </Button>
-                        )}
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onOpen(row.id);
-                          }}
-                          endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
-                          sx={{
-                            borderRadius: '8px',
-                            borderColor: 'divider',
-                            color: 'text.primary',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            textTransform: 'none',
-                            px: 1.25,
-                            py: 0.4,
-                          }}
-                        >
-                          {actionText}
-                        </Button>
+                        {renderActionMenu(row)}
                       </Stack>
                     </Stack>
                   </Stack>
@@ -542,7 +673,12 @@ export function InspectionListTable({
                 const finance = resolveInspectorFinanceBreakdown(row.id, row);
                 const meta = resolveInspectionMetadata(row);
                 const locationLabel = parseLocationLabel(row.assetLocation);
-                const scheduleDate = formatDate(row.plannedStartAt ?? row.updatedAt, formatDateValue);
+                const scheduleDate = formatScheduleDateRange(
+                row.plannedStartAt,
+                row.plannedEndAt,
+                row.updatedAt,
+                formatDateValue,
+              );
                 const scheduleWindow = formatWindowTime(row.plannedStartAt, row.plannedEndAt, formatDateValue);
                 const stageSubtitle = resolveRowStageSubtitle(row, roleView);
 
@@ -677,21 +813,29 @@ export function InspectionListTable({
                           px: 1.5,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
-                          whiteSpace: 'nowrap',
                         }}
                       >
                         <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
-                          <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                          {row.reassignmentRequired ? (
+                            <StatusChip status="DECLINED" label={t('Reassignment required')} tone="error" />
+                          ) : row.status === 'SCHEDULED' && row.assignmentStatus === 'PENDING_ACCEPTANCE' ? (
+                            <StatusChip status="PENDING" label={t('Pending acceptance')} tone="warning" />
+                          ) : (
+                            <StatusChip status={row.reportStatus === 'PUBLISHED' ? 'PUBLISHED' : row.status} />
+                          )}
                           <Typography
                             variant="caption"
                             sx={{
                               color: 'text.secondary',
                               fontSize: '0.75rem',
-                              fontWeight: 500,
+                              fontWeight: 400,
                               pl: 0.25,
                             }}
                           >
-                            {t(stageSubtitle)}
+                            {(row.reassignmentRequired ||
+                              (row.status === 'SCHEDULED' && row.assignmentStatus === 'PENDING_ACCEPTANCE'))
+                              ? t('Scheduled')
+                              : t(stageSubtitle)}
                           </Typography>
                         </Stack>
                       </TableCell>
@@ -811,72 +955,7 @@ export function InspectionListTable({
                         borderColor: 'divider',
                       }}
                     >
-                      <Stack direction="row" spacing={0.75} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
-                        {onOverview && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onOverview(row.id);
-                            }}
-                            sx={{
-                              borderRadius: '8px',
-                              borderColor: 'divider',
-                              color: 'text.secondary',
-                              fontWeight: 600,
-                              fontSize: '0.75rem',
-                              textTransform: 'none',
-                              minWidth: 'auto',
-                              px: 1,
-                              py: 0.5,
-                              whiteSpace: 'nowrap',
-                              '&:hover': {
-                                borderColor: 'text.primary',
-                                color: 'text.primary',
-                                bgcolor: 'action.hover',
-                              },
-                            }}
-                          >
-                            {t('Overview')}
-                          </Button>
-                        )}
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onOpen(row.id);
-                          }}
-                          endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
-                          sx={{
-                            borderRadius: '8px',
-                            borderColor: 'divider',
-                            color: 'text.primary',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            textTransform: 'none',
-                            minWidth: 'auto',
-                            px: 1,
-                            py: 0.5,
-                            whiteSpace: 'nowrap',
-                            '&:hover': {
-                              borderColor: 'primary.main',
-                              color: 'primary.main',
-                              bgcolor: 'primary.light',
-                            },
-                          }}
-                        >
-                          {(getActionLabel ? getActionLabel(row) : undefined) ??
-                            (reviewerMode
-                              ? row.pendingAction === 'REPORT_REVIEW'
-                                ? 'Review submission'
-                                : row.reportStatus === 'RETURNED'
-                                  ? 'Read returned report'
-                                  : 'Open report'
-                              : 'Open')}
-                        </Button>
-                      </Stack>
+                      {renderActionMenu(row)}
                     </TableCell>
                   </TableRow>
                 );

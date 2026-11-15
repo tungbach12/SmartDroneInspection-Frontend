@@ -9,7 +9,6 @@ import type {
 } from '@/features/inspections/api/inspectionApi';
 import { ReportAuthoringPanel } from './ReportAuthoringPanel';
 import { FlightOperationsReportView } from './FlightOperationsReportView';
-import type { ReportSectionValues } from './ReportSectionForm';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface ReportDeliverableTabsProps {
@@ -20,7 +19,6 @@ export interface ReportDeliverableTabsProps {
   findings: Finding[];
   evidenceList: EvidenceItem[];
   canEdit?: boolean;
-  onSaveSections?: ((sections: ReportSectionValues) => Promise<unknown>) | undefined;
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
@@ -34,7 +32,6 @@ export function ReportDeliverableTabs({
   findings,
   evidenceList,
   canEdit = false,
-  onSaveSections,
   assetName,
   droneSummary,
   flightPermitFileName,
@@ -118,8 +115,6 @@ export function ReportDeliverableTabs({
           evidenceList={evidenceList}
           inspectionId={inspectionId}
           canEdit={canEdit}
-          onSaveSections={onSaveSections}
-
           droneSummary={droneSummary}
           flightPermitFileName={flightPermitFileName}
         />

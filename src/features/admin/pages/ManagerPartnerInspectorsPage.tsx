@@ -48,9 +48,7 @@ export default function ManagerPartnerInspectorsPage() {
   const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
-  const items = (users.data ?? []).filter(
-    (user) => user.roles.includes('INSPECTOR') || user.actorZone === 'INSPECTOR',
-  );
+  const items = (users.data ?? []).filter((user) => user.roles.includes('INSPECTOR'));
 
   const columns: DataTableColumn<PlatformUser>[] = [
     {
@@ -118,7 +116,6 @@ export default function ManagerPartnerInspectorsPage() {
       {
         email: email.trim(),
         fullName: fullName.trim(),
-        actorZone: 'INSPECTOR',
         roles: ['INSPECTOR'],
       },
       {

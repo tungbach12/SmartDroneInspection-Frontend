@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   },
   evidenceQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   findingsQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  sessionsQuery: { data: [] as any[], isLoading: false, isError: false },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -36,7 +37,14 @@ vi.mock('../hooks/useInspections', () => ({
   useInspectionEvidence: () => mocks.evidenceQuery,
   useInspectionFindings: () => mocks.findingsQuery,
   useReportVersions: () => mocks.versionsQuery,
-  useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
+  useFieldSessions: () => mocks.sessionsQuery,
+  useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useForceAbortFieldSession: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useReassignInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useReassignCandidates: () => ({ data: [], isLoading: false, isError: false, error: null }),
 }));
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -102,7 +110,6 @@ function signInAs(role: 'INSPECTOR' | 'CUSTOMER' | 'MANAGER' | 'ADMIN') {
       email: 'user@example.test',
       fullName: role === 'CUSTOMER' ? 'Organization Manager' : 'Inspector',
       roles: [role],
-      actorZone: 'CUSTOMER',
     },
   });
 }
@@ -126,6 +133,7 @@ beforeEach(() => {
   };
   mocks.evidenceQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
   mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
+  mocks.sessionsQuery = { data: [], isLoading: false, isError: false };
 });
 
 afterEach(() => {
@@ -357,5 +365,258 @@ describe('InspectionDetailPage', () => {
         '/operations/inspections/inspection-1/evidence',
       );
     });
+  });
+
+  it('locks execution stages until INSPECTOR accepts a PENDING_ACCEPTANCE mission', () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'SCHEDULED',
+        assignmentStatus: 'PENDING_ACCEPTANCE',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'SCHEDULED', findingsConfirmedAt: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
+
+    expect(screen.getByText('Assignment pending confirmation')).toBeTruthy();
+    expect(screen.getByText('Accept assignment to begin')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Accept mission' }).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('current-path')).toBeNull();
+  });
+
+  it('offers Manager recovery buttons directly in the aborted alert and in the workspace menu', async () => {
+    signInAs('MANAGER');
+    const futureStart = new Date(Date.now() + 3600_000).toISOString();
+    const futureEnd = new Date(Date.now() + 7200_000).toISOString();
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetName: 'Cau Nhat Tan',
+        status: 'SCHEDULED',
+        plannedStartAt: futureStart,
+        plannedEndAt: futureEnd,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'SCHEDULED', findingsConfirmedAt: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.sessionsQuery = {
+      data: [
+        {
+          id: 'session-1',
+          status: 'ABORTED',
+          endedAt: '2026-11-14T10:00:00Z',
+          abortReason: 'Sudden adverse weather / high wind',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+
+    renderInspectionPage({ route: '/manager/inspections/inspection-1/audit' });
+
+    expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
+    const rescheduleBtn = screen.getByRole('button', { name: 'Reschedule' });
+    expect(screen.getByRole('button', { name: 'Reassign Inspector & Drone' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel inspection' })).toBeTruthy();
+
+    fireEvent.click(rescheduleBtn);
+    expect(screen.getByRole('dialog', { name: 'Reschedule flight window' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Reschedule flight window' })).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inspection actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reschedule' }));
+    expect(screen.getByRole('dialog', { name: 'Reschedule flight window' })).toBeTruthy();
+  });
+
+  it('offers Manager recovery buttons in declined and overdue alerts while keeping Admin read-only', () => {
+    signInAs('MANAGER');
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'SCHEDULED',
+        reassignmentRequired: true,
+        assignmentStatus: 'DECLINED',
+        declineReason: 'Equipment unavailable',
+        overdueNotifiedAt: '2026-11-14T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'SCHEDULED', findingsConfirmedAt: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderInspectionPage({ route: '/manager/inspections/inspection-1/audit' });
+
+    expect(screen.getByText('Reassignment required — assigned inspector declined')).toBeTruthy();
+    expect(screen.getByText('Scheduled window passed without starting')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Reschedule' }).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: 'Reassign Inspector & Drone' }).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: 'Cancel inspection' }).length).toBe(2);
+
+    cleanup();
+    signInAs('ADMIN');
+    renderInspectionPage({ route: '/admin/inspections/inspection-1/audit' });
+
+    expect(screen.getByText('Scheduled window passed without starting')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reassign Inspector & Drone' })).toBeNull();
+  });
+
+  it('guides INSPECTOR from an aborted session alert to pre-flight or permit upload when window is open', async () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'SCHEDULED',
+        assignmentStatus: 'ACCEPTED',
+        flightPermitFileName: 'permit.pdf',
+        plannedStartAt: new Date(Date.now() - 1800_000).toISOString(),
+        plannedEndAt: new Date(Date.now() + 3600_000).toISOString(),
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'SCHEDULED', findingsConfirmedAt: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.sessionsQuery = {
+      data: [
+        {
+          id: 'session-1',
+          status: 'ABORTED',
+          endedAt: '2026-11-14T10:00:00Z',
+          abortReason: 'UAV battery or hardware warning',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
+
+    expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
+    expect(screen.queryByText(/Please reschedule the flight window/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Pre-flight Check' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('current-path').textContent).toBe(
+        '/operations/inspections/inspection-1/pre-flight',
+      );
+    });
+
+    cleanup();
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/pre-flight' });
+    expect(screen.getByRole('button', { name: 'Complete Pre-flight Checklist' })).toBeTruthy();
+
+    cleanup();
+    mocks.inspectionQuery.data = {
+      ...mocks.inspectionQuery.data,
+      flightPermitFileName: null,
+    };
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload Flight Permit' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('current-path').textContent).toBe(
+        '/operations/inspections/inspection-1/permit',
+      );
+    });
+    expect(screen.getByRole('button', { name: 'Upload Flight Permit' })).toBeTruthy();
+  });
+
+  it('tells INSPECTOR and CUSTOMER accurately when an aborted session cannot restart or dispatch', () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'SCHEDULED',
+        assignmentStatus: 'ACCEPTED',
+        flightPermitFileName: 'permit.pdf',
+        plannedStartAt: new Date(Date.now() - 7200_000).toISOString(),
+        plannedEndAt: new Date(Date.now() - 3600_000).toISOString(),
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'SCHEDULED', findingsConfirmedAt: null },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.sessionsQuery = {
+      data: [
+        {
+          id: 'session-1',
+          status: 'ABORTED',
+          endedAt: '2026-11-14T10:00:00Z',
+          abortReason: 'UAV battery or hardware warning',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
+
+    expect(
+      screen.getByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Go to Pre-flight Check' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+
+    cleanup();
+    signInAs('CUSTOMER');
+    renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
+
+    expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
+    expect(
+      screen.getByText(/The Platform Manager will reschedule or reassign this inspection as needed/i),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Go to Pre-flight Check' })).toBeNull();
   });
 });
