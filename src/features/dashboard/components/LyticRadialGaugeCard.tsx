@@ -129,7 +129,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
             <path
               d={progressArc}
               fill="none"
-              stroke="#3758F9"
+              stroke="#2B84EB"
               strokeWidth={strokeWidth}
               strokeLinecap="round"
             />
@@ -222,7 +222,7 @@ export const LyticRadialGaugeCard: React.FC<LyticRadialGaugeCardProps> = ({
                       left: 0,
                       height: '100%',
                       width: `${item.percentage}%`,
-                      bgcolor: idx === 0 ? '#3758F9' : '#06B6D4',
+                      bgcolor: idx === 0 ? '#2B84EB' : '#06B6D4',
                       borderRadius: '9999px',
                       transition: 'width 0.3s ease',
                     }}

@@ -155,7 +155,7 @@ export function InspectionWorkDetailDialog({
               width: 40,
               height: 40,
               borderRadius: '10px',
-              bgcolor: 'rgba(55, 88, 249, 0.1)',
+              bgcolor: 'rgba(43, 132, 235, 0.1)',
               color: 'primary.main',
               flexShrink: 0,
             }}

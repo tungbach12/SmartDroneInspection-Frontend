@@ -1005,7 +1005,7 @@ export default function InspectionDetailPage() {
               const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
               const isCompleted = state === 'complete';
               const completeGreen = '#176B52';
-              const activePrimary = '#3758F9';
+              const activePrimary = '#2B84EB';
 
               return (
                 <ButtonBase
@@ -1090,7 +1090,7 @@ export default function InspectionDetailPage() {
                               ? 'text.primary'
                               : 'text.secondary',
                         boxShadow: isCurrent
-                          ? '0 0 0 4px rgba(55, 88, 249, 0.20)'
+                          ? '0 0 0 4px rgba(43, 132, 235, 0.20)'
                           : 'none',
                         fontSize: '0.8rem',
                         fontWeight: 700,
@@ -1175,7 +1175,7 @@ export default function InspectionDetailPage() {
                   const isCurrent = tabValue === step.value;
                   const isCompleted = state === 'complete';
                   const completeGreen = '#176B52';
-                  const activePrimary = '#3758F9';
+                  const activePrimary = '#2B84EB';
                   return (
                     <Box
                       key={step.value}
@@ -1205,7 +1205,7 @@ export default function InspectionDetailPage() {
                             : isCurrent
                               ? activePrimary
                               : 'text.secondary',
-                          boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(43, 132, 235, 0.2)' : 'none',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}

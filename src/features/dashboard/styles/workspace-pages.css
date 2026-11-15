@@ -1,10 +1,10 @@
 /* Clean workspace styling aligned with NextAdmin light and dark color schemes */
 
 :root {
-  --nextadmin-primary: #3758F9;
-  --nextadmin-primary-dark: #2237EE;
-  --nextadmin-primary-light: #06B6D4;
-  --nextadmin-primary-soft: #EFF3FF;
+  --nextadmin-primary: #2B84EB;
+  --nextadmin-primary-dark: #1F71D4;
+  --nextadmin-primary-light: #38BDF8;
+  --nextadmin-primary-soft: #EFF6FF;
   --nextadmin-canvas: #F4F4F5;
   --nextadmin-inset: #FCFCFD;
   --nextadmin-card: #FFFFFF;

@@ -7,6 +7,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { NextAdminLogoMark } from '@/shared/ui/NextAdminIcons';
 
 const services = [
   {
@@ -53,16 +54,16 @@ const actionSx = {
   minHeight: 46,
   px: 2.75,
   borderRadius: 0,
-  bgcolor: '#3758F9',
+  bgcolor: '#2B84EB',
   color: '#FFFFFF',
   fontSize: 13.5,
   fontWeight: 600,
   textDecoration: 'none',
-  boxShadow: '0 4px 14px rgba(55, 88, 249, 0.28)',
+  boxShadow: '0 2px 10px rgba(43, 132, 235, 0.20)',
   transition: 'background-color 160ms ease, box-shadow 160ms ease',
   '&:hover': {
-    bgcolor: '#2237EE',
-    boxShadow: '0 6px 20px rgba(55, 88, 249, 0.36)',
+    bgcolor: '#1F71D4',
+    boxShadow: '0 4px 14px rgba(43, 132, 235, 0.28)',
   },
   '&:focus-visible': { outline: '2px solid #38BDF8', outlineOffset: 3 },
 };
@@ -118,19 +119,7 @@ export default function LandingPage() {
             sx={{ color: '#fff', fontSize: 15, fontWeight: 650, letterSpacing: '-0.04em' }}
           >
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <svg width="34" height="34" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="sdi_landing_s_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#1D4ED8" />
-                    <stop offset="1" stopColor="#3B82F6" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
-                  fill="url(#sdi_landing_s_grad)"
-                />
-                <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
-              </svg>
+              <NextAdminLogoMark width={34} height={34} />
               <Typography component="span" sx={{ color: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit' }}>
                 SDI
               </Typography>
@@ -302,7 +291,7 @@ export default function LandingPage() {
                 fontWeight: 600,
                 letterSpacing: '.12em',
                 textTransform: 'uppercase',
-                borderBottom: '1px solid #3758F9',
+                borderBottom: '1px solid #2B84EB',
                 pb: 0.5,
               }}
             >
@@ -394,8 +383,8 @@ export default function LandingPage() {
                       mb: 2.5,
                       display: 'grid',
                       placeItems: 'center',
-                      bgcolor: '#EFF3FF',
-                      color: '#3758F9',
+                      bgcolor: '#EFF6FF',
+                      color: '#2B84EB',
                     }}
                   >
                     <item.Icon sx={{ fontSize: 29, strokeWidth: 1 }} />
@@ -536,19 +525,7 @@ export default function LandingPage() {
             }}
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <svg width="38" height="38" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="sdi_landing_footer_grad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#1D4ED8" />
-                    <stop offset="1" stopColor="#3B82F6" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M10 17C10 11.4772 14.4772 7 20 7H36C37.6569 7 39 8.34315 39 10V13C39 16.3137 36.3137 19 33 19H19C17.3431 19 16 20.3431 16 22C16 23.6569 17.3431 25 19 25H29C34.5228 25 39 29.4772 39 35V35C39 38.866 35.866 42 32 42H12C10.3431 42 9 40.6569 9 39V36C9 32.6863 11.6863 30 15 30H29C30.6569 30 32 28.6569 32 27C32 25.3431 30.6569 24 29 24H19C14.0294 24 10 19.9706 10 15V17Z"
-                  fill="url(#sdi_landing_footer_grad)"
-                />
-                <circle cx="24" cy="24.5" r="2.8" fill="#FFFFFF" />
-              </svg>
+              <NextAdminLogoMark width={38} height={38} />
               <Typography sx={{ color: '#f5f5f3', fontSize: 18, fontWeight: 650, letterSpacing: '-.04em' }}>
                 SDI
               </Typography>

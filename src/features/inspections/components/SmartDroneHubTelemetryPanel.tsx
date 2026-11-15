@@ -236,7 +236,7 @@ export function SmartDroneHubTelemetryPanel({
                 height: 40,
                 borderRadius: '10px',
                 bgcolor: isConnected ? 'rgba(22, 163, 74, 0.12)' : '#EFF3FF',
-                color: isConnected ? '#16A34A' : '#3758F9',
+                color: isConnected ? '#16A34A' : '#2B84EB',
                 display: 'grid',
                 placeItems: 'center',
                 flexShrink: 0,

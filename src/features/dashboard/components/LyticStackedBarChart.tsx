@@ -49,7 +49,7 @@ export const LyticStackedBarChart: React.FC<LyticStackedBarChartProps> = ({
   ];
   const barWidth = Math.min(24, (chartWidth / categories.length) * 0.45);
 
-  const nextAdminColors = ['#3758F9', '#06B6D4', '#0EA5E9', '#93C5FD'] as const;
+  const nextAdminColors = ['#2B84EB', '#06B6D4', '#0EA5E9', '#93C5FD'] as const;
 
   return (
     <Box

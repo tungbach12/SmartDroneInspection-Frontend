@@ -1,6 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { Box, Button, Link, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { NextAdminLogoMark } from '@/shared/ui/NextAdminIcons';
 import { DroneScene3D } from './DroneScene3D';
 
 function GoogleIcon() {
@@ -29,20 +30,7 @@ function GoogleIcon() {
 function BrandLogo() {
   return (
     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.15 }}>
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ display: 'block' }}>
-        <rect x="2" y="2" width="28" height="28" rx="8" fill="#3758F9" />
-        <path
-          d="M9.5 11.5L13 15M22.5 11.5L19 15M9.5 20.5L13 17M22.5 20.5L19 17"
-          stroke="#93C5FD"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        <circle cx="9" cy="11" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
-        <circle cx="23" cy="11" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
-        <circle cx="9" cy="21" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
-        <circle cx="23" cy="21" r="2.2" stroke="#FFFFFF" strokeWidth="1.6" />
-        <rect x="13" y="13" width="6" height="6" rx="2" fill="#FFFFFF" />
-      </svg>
+      <NextAdminLogoMark width={32} height={32} style={{ display: 'block' }} />
       <Typography
         sx={{
           fontSize: '20px',
@@ -52,7 +40,7 @@ function BrandLogo() {
           fontFamily: 'inherit',
         }}
       >
-        SDI<Box component="span" sx={{ color: '#3758F9' }}>.</Box>
+        SDI<Box component="span" sx={{ color: '#2B84EB' }}>.</Box>
       </Typography>
     </Box>
   );
@@ -162,7 +150,7 @@ export function AuthPageLayout({
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.09em',
-                  color: '#3758F9',
+                  color: '#2B84EB',
                   mb: 0.75,
                 }}
               >
@@ -259,10 +247,10 @@ export function AuthPageLayout({
                   to={subtitleLinkTo}
                   underline="hover"
                   sx={{
-                    color: '#3758F9',
+                    color: '#2B84EB',
                     fontWeight: 600,
                     transition: 'color 0.2s ease',
-                    '&:hover': { color: '#2237EE' },
+                    '&:hover': { color: '#1F71D4' },
                   }}
                 >
                   {subtitleLinkText}

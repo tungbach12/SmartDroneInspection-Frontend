@@ -1,6 +1,6 @@
 import { useEffect, type PropsWithChildren } from 'react';
-import { Box, CircularProgress } from '@mui/material';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { BrandLoadingScreen } from '@/shared/components/BrandLoadingScreen';
 import { getAuthRedirectTarget, getLoginReturnTo } from '../utils/authRedirect';
 import { initializeBrowserSession } from '../api/sessionBootstrap';
 import { useAuthStore } from '../store/authStore';
@@ -16,13 +16,7 @@ export function AuthSessionBootstrapper() {
 
 export function AuthLoadingScreen() {
   const { t } = useLocale();
-  return (
-    <Box
-      sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}
-    >
-      <CircularProgress aria-label={t('Checking your session')} />
-    </Box>
-  );
+  return <BrandLoadingScreen label={t('Checking your session')} />;
 }
 
 export function PublicOnly({ children }: PropsWithChildren) {

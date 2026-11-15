@@ -126,7 +126,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   width: 8,
                   height: 8,
                   borderRadius: '2px',
-                  bgcolor: '#3758F9',
+                  bgcolor: '#2B84EB',
                   flexShrink: 0,
                 }}
               />
@@ -288,8 +288,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
         >
           <defs>
             <linearGradient id="nextadminAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3758F9" stopOpacity="0.2" />
-              <stop offset="95%" stopColor="#3758F9" stopOpacity="0" />
+              <stop offset="5%" stopColor="#2B84EB" stopOpacity="0.2" />
+              <stop offset="95%" stopColor="#2B84EB" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -329,7 +329,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           <path
             d={series1Path}
             fill="none"
-            stroke="#3758F9"
+            stroke="#2B84EB"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -359,7 +359,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 cx={getX(hoverIndex)}
                 cy={getY(series1Data[hoverIndex] ?? 0)}
                 r="4.5"
-                fill="#3758F9"
+                fill="#2B84EB"
                 stroke={theme.palette.background.paper}
                 strokeWidth="2"
               />
@@ -434,7 +434,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               {t(months[hoverIndex] ?? '')} {t('Performance')}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#3758F9' }} />
+              <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: '#2B84EB' }} />
               <span>{t(series1Name)}: {(series1Data[hoverIndex] == null ? undefined : formatNumber(series1Data[hoverIndex]))}</span>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>

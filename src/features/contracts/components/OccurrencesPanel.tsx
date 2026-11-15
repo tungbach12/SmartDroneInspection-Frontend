@@ -581,7 +581,7 @@ function OccurrenceCard({
                           width: 40,
                           height: 40,
                           bgcolor: '#EEF2FF',
-                          color: '#3758F9',
+                          color: '#2B84EB',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}

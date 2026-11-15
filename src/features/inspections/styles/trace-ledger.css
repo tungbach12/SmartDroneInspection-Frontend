@@ -68,7 +68,7 @@
 }
 
 .trace-ledger-workspace :is(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid var(--mui-palette-primary-main, #3758F9);
+  outline: 2px solid var(--mui-palette-primary-main, #2B84EB);
   outline-offset: 2px;
 }
 

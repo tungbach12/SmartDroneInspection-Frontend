@@ -601,7 +601,7 @@ function OperationsAndPlatformDashboard() {
                       textTransform: 'none',
                       '&:hover': {
                         bgcolor: 'action.hover',
-                        borderColor: '#3758F9',
+                        borderColor: '#2B84EB',
                       },
                     }}
                     startIcon={
@@ -610,8 +610,8 @@ function OperationsAndPlatformDashboard() {
                           width: 32,
                           height: 32,
                           borderRadius: '8px',
-                          bgcolor: 'rgba(55, 88, 249, 0.10)',
-                          color: '#3758F9',
+                          bgcolor: 'rgba(43, 132, 235, 0.10)',
+                          color: '#2B84EB',
                           display: 'grid',
                           placeItems: 'center',
                         }}

@@ -179,7 +179,7 @@ export function AirspaceFlightPlannerDialog({
               width: 38,
               height: 38,
               borderRadius: '10px',
-              bgcolor: 'rgba(55, 88, 249, 0.1)',
+              bgcolor: 'rgba(43, 132, 235, 0.1)',
               color: 'primary.main',
               display: 'flex',
               alignItems: 'center',

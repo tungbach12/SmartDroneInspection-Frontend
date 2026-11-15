@@ -8,10 +8,171 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      .sdi-boot-screen {
+        --sdi-bg: #f8fafc;
+        --sdi-card: rgba(255, 255, 255, 0.92);
+        --sdi-border: rgba(148, 163, 184, 0.24);
+        --sdi-text: #0f172a;
+        --sdi-muted: #64748b;
+        --sdi-track: rgba(59, 130, 246, 0.14);
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          radial-gradient(circle at 50% 42%, rgba(59, 130, 246, 0.12), transparent 52%),
+          radial-gradient(circle at 52% 56%, rgba(45, 212, 191, 0.1), transparent 46%),
+          var(--sdi-bg);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        color: var(--sdi-text);
+        z-index: 9999;
+      }
+      .sdi-boot-screen.sdi-dark {
+        --sdi-bg: #0b1120;
+        --sdi-card: rgba(15, 23, 42, 0.92);
+        --sdi-border: rgba(148, 163, 184, 0.18);
+        --sdi-text: #f8fafc;
+        --sdi-muted: #94a3b8;
+        --sdi-track: rgba(59, 130, 246, 0.2);
+      }
+      .sdi-boot-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+      }
+      .sdi-iris-stage {
+        position: relative;
+        width: 96px;
+        height: 96px;
+        display: grid;
+        place-items: center;
+      }
+      .sdi-iris-halo {
+        position: absolute;
+        inset: -10px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.26) 0%, rgba(45, 212, 191, 0.12) 48%, transparent 72%);
+        animation: sdi-pulse 2.4s ease-in-out infinite;
+      }
+      .sdi-iris-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        padding: 3px;
+        background: conic-gradient(from 0deg, #3b82f6 0deg, #0ea5e9 95deg, #2dd4bf 190deg, rgba(59, 130, 246, 0.08) 280deg, transparent 360deg);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: sdi-spin 1.45s cubic-bezier(0.45, 0.15, 0.55, 0.85) infinite;
+      }
+      .sdi-iris-core {
+        position: relative;
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        background: var(--sdi-card);
+        border: 1px solid var(--sdi-border);
+        box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.18);
+        display: grid;
+        place-items: center;
+      }
+      .sdi-iris-svg {
+        width: 44px;
+        height: 44px;
+        animation: sdi-breathe 2.4s ease-in-out infinite;
+      }
+      .sdi-boot-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        letter-spacing: -0.02em;
+      }
+      .sdi-boot-title strong {
+        font-size: 18px;
+        font-weight: 800;
+      }
+      .sdi-boot-title span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--sdi-muted);
+      }
+      .sdi-boot-bar {
+        width: 144px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--sdi-track);
+        overflow: hidden;
+        position: relative;
+      }
+      .sdi-boot-bar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        width: 46%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #3b82f6, #0ea5e9, #2dd4bf);
+        animation: sdi-sweep 1.5s ease-in-out infinite;
+      }
+      @keyframes sdi-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes sdi-pulse {
+        0%, 100% { transform: scale(0.92); opacity: 0.72; }
+        50% { transform: scale(1.08); opacity: 1; }
+      }
+      @keyframes sdi-breathe {
+        0%, 100% { transform: rotate(0deg) scale(0.96); }
+        50% { transform: rotate(12deg) scale(1.04); }
+      }
+      @keyframes sdi-sweep {
+        0% { transform: translateX(-110%); }
+        100% { transform: translateX(230%); }
+      }
+    </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="sdi-web-boot" class="sdi-boot-screen" role="status" aria-label="Loading SmartDroneInspection">
+        <div class="sdi-boot-stack">
+          <div class="sdi-iris-stage">
+            <div class="sdi-iris-halo"></div>
+            <div class="sdi-iris-ring"></div>
+            <div class="sdi-iris-core">
+              <svg class="sdi-iris-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <linearGradient id="sdi_boot_iris" x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#3B82F6"/>
+                    <stop offset="1" stop-color="#2DD4BF"/>
+                  </linearGradient>
+                </defs>
+                <path d="M9.97 12.72A18 18 0 0 1 33.6 8.78L29.88 18A8.4 8.4 0 0 0 19.83 16.71Z" fill="#3B82F6"/>
+                <path d="M35.28 9.97A18 18 0 0 1 39.22 33.6L30 29.88A8.4 8.4 0 0 0 31.29 19.83Z" fill="#0EA5E9"/>
+                <path d="M38.03 35.28A18 18 0 0 1 14.4 39.22L18.12 30A8.4 8.4 0 0 0 28.17 31.29Z" fill="url(#sdi_boot_iris)"/>
+                <path d="M12.72 38.03A18 18 0 0 1 8.78 14.4L18 18.12A8.4 8.4 0 0 0 16.71 28.17Z" fill="#2B84EB"/>
+                <circle cx="24" cy="24" r="5.6" fill="url(#sdi_boot_iris)"/>
+                <circle cx="24" cy="24" r="2.4" fill="#FFFFFF"/>
+              </svg>
+            </div>
+          </div>
+          <div class="sdi-boot-title">
+            <strong>SDI</strong>
+            <span>SmartDroneInspection</span>
+          </div>
+          <div class="sdi-boot-bar"></div>
+        </div>
+      </div>
+      <script>
+        try {
+          if (localStorage.getItem('mui-mode') === 'dark') {
+            document.getElementById('sdi-web-boot')?.classList.add('sdi-dark');
+          }
+        } catch {}
+      </script>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

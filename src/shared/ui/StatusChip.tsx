@@ -45,8 +45,8 @@ const THEMES: Record<StatusVariant, ThemeInfo> = {
   info: {
     variant: 'info',
     bg: '#EFF3FF',
-    text: '#3758F9',
-    dot: '#3758F9',
+    text: '#2B84EB',
+    dot: '#2B84EB',
     darkBg: 'rgba(59, 130, 246, 0.16)',
     darkText: '#93C5FD',
     darkDot: '#60A5FA',
