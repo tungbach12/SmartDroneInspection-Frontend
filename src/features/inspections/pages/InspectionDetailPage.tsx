@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -9,8 +9,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -23,19 +28,29 @@ import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
+import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import '../styles/trace-ledger.css';
 import {
+  useAcceptInspection,
+  useCancelInspection,
+  useDeclineInspection,
   useFieldSessions,
+  useForceAbortFieldSession,
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
   useReportVersions,
+  useRescheduleInspection,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
+import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
 
 interface WorkflowStep {
@@ -188,9 +203,34 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
   },
 ] as const;
 
+function toLocalDateTimeInputValue(iso?: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function InspectionDetailPage() {
-  const { formatDate, t } = useLocale();
+  const { formatDate, formatDateTime, t } = useLocale();
   const [reportDirty, setReportDirty] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [newStart, setNewStart] = useState('');
+  const [newEnd, setNewEnd] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [forceAbortOpen, setForceAbortOpen] = useState(false);
+  const [forceAbortReason, setForceAbortReason] = useState('');
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const stageContentRef = useRef<HTMLDivElement>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(timerId);
+  }, []);
   const blocker = useBlocker(reportDirty);
   useEffect(() => {
     if (!reportDirty) return undefined;
@@ -211,6 +251,7 @@ export default function InspectionDetailPage() {
     (roles.includes('ADMIN') || roles.includes('MANAGER')) &&
     (location.pathname.startsWith('/admin/') || location.pathname.startsWith('/manager/'));
   const isOrganizationAdmin = isReviewerAdmin;
+  const canDispatch = roles.includes('MANAGER') && location.pathname.startsWith('/manager/');
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const steps = isCustomer
@@ -230,11 +271,158 @@ export default function InspectionDetailPage() {
   );
 
   const sessionsQuery = useFieldSessions(inspectionId);
+  const acceptMutation = useAcceptInspection(inspectionId);
+  const declineMutation = useDeclineInspection(inspectionId);
+  const rescheduleMutation = useRescheduleInspection(inspectionId);
+  const cancelMutation = useCancelInspection(inspectionId);
+  const forceAbortMutation = useForceAbortFieldSession(inspectionId);
   const openSession = sessionsQuery.data?.find(
     (s) => s.status === 'IN_PROGRESS' || s.status === 'PLANNED',
   );
   const latestSession = sessionsQuery.data?.at(-1);
   const wasAborted = latestSession?.status === 'ABORTED' && inspection?.status === 'SCHEDULED';
+  const isOverdue =
+    inspection?.status === 'SCHEDULED' &&
+    Boolean(inspection?.overdueNotifiedAt) &&
+    !wasAborted;
+  const openRescheduleDialog = () => {
+    setNewStart(toLocalDateTimeInputValue(inspection?.plannedStartAt));
+    setNewEnd(toLocalDateTimeInputValue(inspection?.plannedEndAt));
+    setRescheduleOpen(true);
+  };
+  const dispatchAction = (location.state as { dispatchAction?: string } | null)?.dispatchAction;
+  useEffect(() => {
+    if (!dispatchAction || !inspection || !canDispatch) return;
+    if (dispatchAction === 'forceAbort' && sessionsQuery.isLoading) return;
+    if (dispatchAction === 'reschedule' && inspection.status === 'SCHEDULED') {
+      setNewStart(toLocalDateTimeInputValue(inspection.plannedStartAt));
+      setNewEnd(toLocalDateTimeInputValue(inspection.plannedEndAt));
+      setRescheduleOpen(true);
+    }
+    if (dispatchAction === 'reassign' && inspection.status === 'SCHEDULED') setReassignOpen(true);
+    if (dispatchAction === 'cancel' && inspection.status === 'SCHEDULED') {
+      setCancelReason('');
+      setCancelOpen(true);
+    }
+    if (dispatchAction === 'forceAbort' && inspection.status === 'IN_PROGRESS' && openSession?.status === 'IN_PROGRESS') {
+      setForceAbortReason('');
+      setForceAbortOpen(true);
+    }
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [dispatchAction, inspection, canDispatch, openSession, sessionsQuery.isLoading, location.pathname, navigate]);
+  const openDispatchAction = (action: 'reschedule' | 'reassign' | 'cancel' | 'forceAbort') => {
+    setActionsAnchor(null);
+    if (action === 'reschedule') openRescheduleDialog();
+    else if (action === 'reassign') setReassignOpen(true);
+    else if (action === 'cancel') {
+      setCancelReason('');
+      setCancelOpen(true);
+    } else if (openSession?.status === 'IN_PROGRESS') {
+      setForceAbortReason('');
+      setForceAbortOpen(true);
+    }
+  };
+  const hasScheduledDispatchActions = canDispatch && inspection?.status === 'SCHEDULED';
+  const hasForceAbortAction = canDispatch && inspection?.status === 'IN_PROGRESS' && openSession?.status === 'IN_PROGRESS';
+  const recoveryActionButtonSx = {
+    textTransform: 'none',
+    fontWeight: 600,
+    borderRadius: '8px',
+    boxShadow: 'none',
+  } as const;
+  const renderDispatchRecoveryActions = (primaryAction: 'reschedule' | 'reassign') =>
+    hasScheduledDispatchActions ? (
+      <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', rowGap: 1 }}>
+        <Button
+          size="small"
+          variant={primaryAction === 'reschedule' ? 'contained' : 'outlined'}
+          color={primaryAction === 'reschedule' ? 'warning' : 'primary'}
+          onClick={() => openDispatchAction('reschedule')}
+          sx={recoveryActionButtonSx}
+        >
+          {t('Reschedule')}
+        </Button>
+        <Button
+          size="small"
+          variant={primaryAction === 'reassign' ? 'contained' : 'outlined'}
+          color={primaryAction === 'reassign' ? 'error' : 'primary'}
+          onClick={() => openDispatchAction('reassign')}
+          sx={recoveryActionButtonSx}
+        >
+          {t('Reassign Inspector & Drone')}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          onClick={() => openDispatchAction('cancel')}
+          sx={recoveryActionButtonSx}
+        >
+          {t('Cancel inspection')}
+        </Button>
+      </Stack>
+    ) : null;
+  const showDispatchMenu = Boolean(hasScheduledDispatchActions || hasForceAbortAction);
+  const workspaceActions = showDispatchMenu ? (
+    <>
+      <IconButton
+        aria-label={t('Inspection actions')}
+        aria-haspopup="menu"
+        aria-expanded={Boolean(actionsAnchor)}
+        onClick={(event: MouseEvent<HTMLElement>) => setActionsAnchor(event.currentTarget)}
+        sx={{
+          width: { xs: 44, sm: 36 },
+          height: { xs: 44, sm: 36 },
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: '8px',
+        }}
+      >
+        <MoreVertRounded />
+      </IconButton>
+      <Menu
+        anchorEl={actionsAnchor}
+        open={Boolean(actionsAnchor)}
+        onClose={() => setActionsAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { minWidth: 200, borderRadius: '12px' } } }}
+      >
+        {hasScheduledDispatchActions && (
+          <MenuItem onClick={() => openDispatchAction('reschedule')}>
+            {t('Reschedule')}
+          </MenuItem>
+        )}
+        {hasScheduledDispatchActions && (
+          <MenuItem onClick={() => openDispatchAction('reassign')}>
+            {t('Reassign Inspector & Drone')}
+          </MenuItem>
+        )}
+        {hasScheduledDispatchActions && <Divider />}
+        {hasScheduledDispatchActions && (
+          <MenuItem onClick={() => openDispatchAction('cancel')} sx={{ color: 'error.main' }}>
+            {t('Cancel inspection')}
+          </MenuItem>
+        )}
+        {hasForceAbortAction && (
+          <MenuItem onClick={() => openDispatchAction('forceAbort')} sx={{ color: 'error.main' }}>
+            {t('Force-abort session')}
+          </MenuItem>
+        )}
+      </Menu>
+    </>
+  ) : null;
+  const isInspectorRole = !isCustomer && !isReviewerAdmin && roles.includes('INSPECTOR');
+  const isPendingAcceptance =
+    isInspectorRole &&
+    inspection?.status === 'SCHEDULED' &&
+    !inspection?.reassignmentRequired &&
+    inspection?.assignmentStatus === 'PENDING_ACCEPTANCE';
+  const isDeclinedAwaitingReassign =
+    inspection?.status === 'SCHEDULED' &&
+    (Boolean(inspection?.reassignmentRequired) || inspection?.assignmentStatus === 'DECLINED');
+  const isExecutionLockedByAssignment =
+    isInspectorRole && (isPendingAcceptance || isDeclinedAwaitingReassign);
 
   const hasLiveFlightInActiveSession = Boolean(
     openSession?.id &&
@@ -397,6 +585,9 @@ export default function InspectionDetailPage() {
       }
       return 'pending';
     }
+    if (isExecutionLockedByAssignment) {
+      return 'blocked';
+    }
     if (isStepCompleted(step.value)) return 'complete';
     if (step.value === 'pre-flight' && !hasPermitReady) return 'blocked';
     if (step.value === 'post-flight' && !hasSessionStarted) return 'blocked';
@@ -414,6 +605,12 @@ export default function InspectionDetailPage() {
   };
 
   const blockedReason = (step: WorkflowStep): string | null => {
+    if (isPendingAcceptance) {
+      return t('Accept this mission assignment before starting flight preparation.');
+    }
+    if (isInspectorRole && isDeclinedAwaitingReassign) {
+      return t('This mission was declined and is awaiting manager reassignment.');
+    }
     if (isCustomer) {
       if ((step.value === 'report' || step.value === 'settlement') && !hasPublishedVersion) {
         return t('The official report is being reviewed and has not been published yet. Please track progress.');
@@ -431,6 +628,61 @@ export default function InspectionDetailPage() {
   const currentStep = visibleSteps.find((step) => step.value === tabValue);
   const currentStepIndex = visibleSteps.findIndex((step) => step.value === tabValue);
   const currentStepState = currentStep ? readinessFor(currentStep) : 'pending';
+
+  const windowEndMs = inspection?.plannedEndAt ? new Date(inspection.plannedEndAt).getTime() : Number.NaN;
+  const isWindowExpired = Number.isFinite(windowEndMs) && windowEndMs < nowMs;
+  const abortedGuidance: {
+    description: string;
+    continueAction: { label: string; to?: string; scrollToContent?: boolean } | null;
+  } = (() => {
+    if (canDispatch) {
+      return {
+        description: t('The flight session was stopped before completion. Please reschedule the flight window or dispatch as needed.'),
+        continueAction: null,
+      };
+    }
+    if (isInspectorRole) {
+      if (isPendingAcceptance || isDeclinedAwaitingReassign) {
+        return {
+          description: t('The flight session was stopped before completion. Execution resumes once the mission assignment is confirmed.'),
+          continueAction: null,
+        };
+      }
+      if (isWindowExpired) {
+        return {
+          description: t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.'),
+          continueAction: null,
+        };
+      }
+      if (!hasPermitReady) {
+        return {
+          description:
+            tabValue === 'permit'
+              ? t('Upload a valid flight permit below before starting a new session, or contact the Platform Manager to reschedule.')
+              : t('The flight session was stopped before completion. Upload a valid flight permit to prepare a new session, or contact the Platform Manager to reschedule.'),
+          continueAction:
+            tabValue === 'permit'
+              ? { scrollToContent: true, label: t('Upload Flight Permit') }
+              : { to: 'permit', label: t('Upload Flight Permit') },
+        };
+      }
+      return {
+        description:
+          tabValue === 'pre-flight'
+            ? t('Complete the pre-flight checklist below to start a new session when conditions are safe, or contact the Platform Manager to reschedule.')
+            : t('The flight session was stopped before completion. You can prepare a new session when conditions are safe, or contact the Platform Manager to reschedule.'),
+        continueAction:
+          tabValue === 'pre-flight'
+            ? { scrollToContent: true, label: t('Complete Pre-flight Checklist') }
+            : { to: 'pre-flight', label: t('Go to Pre-flight Check') },
+      };
+    }
+    return {
+      description: t('The flight session was stopped before completion. The Platform Manager will reschedule or reassign this inspection as needed.'),
+      continueAction: null,
+    };
+  })();
+  const abortContinueAction = abortedGuidance.continueAction;
 
   const autoResumeStep = Boolean(
     (location.state as { autoResumeStep?: boolean } | null)?.autoResumeStep,
@@ -502,7 +754,10 @@ export default function InspectionDetailPage() {
           ]}
         />
 
-        <PageHeader title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')} />
+        <PageHeader
+          title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')}
+          actions={workspaceActions}
+        />
 
         {inspection && (
           <Paper
@@ -538,7 +793,7 @@ export default function InspectionDetailPage() {
                   {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                 </Typography>
 
-
+                {isReviewerAdmin && <StatusChip status={inspection.status} />}
 
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {t('Drone')}:{' '}
@@ -547,14 +802,27 @@ export default function InspectionDetailPage() {
                     {inspection.droneModel ? ` (${inspection.droneModel})` : ''}
                   </Box>
                 </Typography>
+
+                {isReviewerAdmin && inspection.plannedStartAt && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                    {t('Planned Start')}:{' '}
+                    <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                      {formatDateTime(new Date(inspection.plannedStartAt))}
+                      {inspection.plannedEndAt
+                        ? ` – ${formatDateTime(new Date(inspection.plannedEndAt))}`
+                        : ''}
+                    </Box>
+                  </Typography>
+                )}
               </Stack>
+
 
               {!isOrganizationAdmin && !isCustomer && (
                 <Box
                   role="region"
                   className="inspection-evidence-trace"
                   aria-label={t('Inspection evidence trace')}
-                  sx={{ p: 0, border: 'none', bgcolor: 'transparent' }}
+                  sx={{ p: 0, border: 'none !important', bgcolor: 'transparent' }}
                 >
                   <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
                     <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
@@ -573,17 +841,137 @@ export default function InspectionDetailPage() {
           </Box>
         )}
 
+        {isPendingAcceptance && (
+          <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.25}
+              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Assignment pending confirmation')}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.25, fontVariantNumeric: 'tabular-nums' }}>
+                  {inspection?.plannedStartAt
+                    ? `${t('Planned Start')}: ${formatDateTime(new Date(inspection.plannedStartAt))}`
+                    : t('Not scheduled')}
+                  {inspection?.plannedEndAt ? ` – ${formatDateTime(new Date(inspection.plannedEndAt))}` : ''}
+                </Typography>
+              </Box>
+            </Stack>
+          </Alert>
+        )}
+
+        {isDeclinedAwaitingReassign && (
+          <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.25}
+              sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Reassignment required — assigned inspector declined')}
+                </Typography>
+                {inspection?.declineReason && (
+                  <Typography variant="body2" sx={{ mt: 0.25 }}>
+                    {t('Reason')}: &ldquo;{inspection.declineReason}&rdquo;
+                  </Typography>
+                )}
+              </Box>
+              {renderDispatchRecoveryActions('reassign')}
+            </Stack>
+          </Alert>
+        )}
+
         {wasAborted && (
-          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px' }}>
+          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Previous flight session was aborted')}
+                </Typography>
+                {(latestSession?.endedAt || latestSession?.abortReason) && (
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {latestSession?.endedAt ? `${t('Ended')} ${formatDate(new Date(latestSession.endedAt))}` : ''}
+                    {latestSession?.endedAt && latestSession?.abortReason ? ' · ' : ''}
+                    {latestSession?.abortReason ? (
+                      <>
+                        {t('Reason')}: &ldquo;{latestSession.abortReason}&rdquo;
+                      </>
+                    ) : null}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {abortedGuidance.description}
+                </Typography>
+              </Box>
+              {canDispatch
+                ? renderDispatchRecoveryActions('reschedule')
+                : abortContinueAction && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="warning"
+                      onClick={() => {
+                        if (abortContinueAction.scrollToContent) {
+                          stageContentRef.current?.scrollIntoView?.({
+                            behavior: 'smooth',
+                            block: 'start',
+                          });
+                          return;
+                        }
+                        if (abortContinueAction.to) {
+                          navigate(
+                            `${getSectionPath('operations', 'inspections')}/${inspectionId}/${abortContinueAction.to}`,
+                          );
+                        }
+                      }}
+                      sx={{ ...recoveryActionButtonSx, flexShrink: 0 }}
+                    >
+                      {abortContinueAction.label}
+                    </Button>
+                  )}
+            </Stack>
+          </Alert>
+        )}
+
+        {isReviewerAdmin && isOverdue && (
+          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+            >
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Scheduled window passed without starting')}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.25 }}>
+                  {canDispatch
+                    ? t('The scheduled flight window elapsed with no active field session recorded. Follow up, reschedule, or reassign as needed.')
+                    : t('The scheduled flight window elapsed with no active field session recorded. Pending Platform Manager follow-up, rescheduling, or reassignment.')}
+                </Typography>
+              </Box>
+              {renderDispatchRecoveryActions('reschedule')}
+            </Stack>
+          </Alert>
+        )}
+
+        {isReviewerAdmin && inspection?.status === 'IN_PROGRESS' && openSession && (
+          <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              {t('Previous flight session was aborted')}
+              {t('Field session in progress')}
             </Typography>
-            <Typography variant="body2" sx={{ mt: 0.5 }}>
-              {latestSession?.endedAt ? `${t('Ended')} ${formatDate(new Date(latestSession.endedAt))} · ` : ''}
-              {t('Reason')}: "{latestSession?.abortReason}"
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              {t('The flight session was stopped before completion. Please reschedule the flight window or dispatch as needed.')}
+            <Typography variant="body2" sx={{ mt: 0.25 }}>
+              {openSession.startedAt
+                ? `${t('Started at')}: ${formatDateTime(new Date(openSession.startedAt))}`
+                : t('Session active on site')}
             </Typography>
           </Alert>
         )}
@@ -607,7 +995,7 @@ export default function InspectionDetailPage() {
         >
           <Stack
             direction="row"
-            sx={{ alignItems: 'flex-start', display: { xs: 'none', sm: 'flex' } }}
+            sx={{ alignItems: 'flex-start', display: { xs: 'none', md: 'flex' } }}
           >
             {visibleSteps.map((step, idx) => {
               const state = readinessFor(step);
@@ -774,7 +1162,7 @@ export default function InspectionDetailPage() {
           </Stack>
 
           {currentStep && (
-            <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
                 <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{t(currentStep.title)}</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -845,9 +1233,252 @@ export default function InspectionDetailPage() {
         )}
       </Box>
 
-      <Box className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
-        <Outlet context={{ onReportDirtyChange: setReportDirty }} />
+      <Box ref={stageContentRef} className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
+        {isExecutionLockedByAssignment ? (
+          <Paper
+            variant="outlined"
+            sx={{ p: { xs: 2.5, sm: 3.5 }, borderRadius: '12px', textAlign: 'center' }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {isPendingAcceptance
+                ? t('Accept assignment to begin')
+                : t('Mission declined')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+              {isPendingAcceptance
+                ? t('Confirm or decline this assignment to proceed.')
+                : t('Awaiting manager reassignment.')}
+            </Typography>
+            {isPendingAcceptance && (
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{ justifyContent: 'center', mt: 2.5 }}
+              >
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => {
+                    setDeclineReason('');
+                    setDeclineOpen(true);
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', minHeight: { xs: 44, sm: 38 } }}
+                >
+                  {t('Decline mission')}
+                </Button>
+                <LoadingButton
+                  variant="contained"
+                  color="primary"
+                  loading={acceptMutation.isPending}
+                  onClick={() => acceptMutation.mutate(undefined)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', boxShadow: 'none', minHeight: { xs: 44, sm: 38 } }}
+                >
+                  {t('Accept mission')}
+                </LoadingButton>
+              </Stack>
+            )}
+          </Paper>
+        ) : (
+          <Outlet context={{ onReportDirtyChange: setReportDirty }} />
+        )}
       </Box>
+
+      <Dialog open={declineOpen} onClose={() => setDeclineOpen(false)} maxWidth="xs" fullWidth>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!declineReason.trim()) return;
+            declineMutation.mutate(declineReason.trim(), {
+              onSuccess: () => {
+                setDeclineOpen(false);
+              },
+            });
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Decline assigned mission?')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label={t('Decline reason')}
+                multiline
+                minRows={3}
+                required
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+              />
+              <MutationProblemAlert
+                error={declineMutation.error}
+                isError={declineMutation.isError}
+                fallbackMessage={t('Could not decline inspection.')}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setDeclineOpen(false)}>{t('Back')}</Button>
+            <LoadingButton
+              type="submit"
+              variant="contained"
+              color="warning"
+              loading={declineMutation.isPending}
+              disabled={!declineReason.trim()}
+            >
+              {t('Confirm decline')}
+            </LoadingButton>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {canDispatch && (
+        <>
+          <ReassignInspectionDialog
+            open={reassignOpen}
+            inspection={inspection}
+            onClose={() => setReassignOpen(false)}
+          />
+
+          <Dialog open={rescheduleOpen} onClose={() => setRescheduleOpen(false)} maxWidth="xs" fullWidth>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newStart || !newEnd) return;
+                rescheduleMutation.mutate(
+                  {
+                    plannedStartAt: new Date(newStart).toISOString(),
+                    plannedEndAt: new Date(newEnd).toISOString(),
+                  },
+                  { onSuccess: () => setRescheduleOpen(false) },
+                );
+              }}
+            >
+              <DialogTitle sx={{ fontWeight: 700 }}>{t('Reschedule flight window')}</DialogTitle>
+              <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <TextField
+                    label={t('Planned start')}
+                    type="datetime-local"
+                    value={newStart}
+                    onChange={(e) => setNewStart(e.target.value)}
+                    required
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <TextField
+                    label={t('Planned end')}
+                    type="datetime-local"
+                    value={newEnd}
+                    onChange={(e) => setNewEnd(e.target.value)}
+                    required
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <MutationProblemAlert
+                    error={rescheduleMutation.error}
+                    isError={rescheduleMutation.isError}
+                    fallbackMessage={t('Could not reschedule inspection.')}
+                  />
+                </Stack>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setRescheduleOpen(false)}>{t('Back')}</Button>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  loading={rescheduleMutation.isPending}
+                  disabled={!newStart || !newEnd}
+                >
+                  {t('Save schedule')}
+                </LoadingButton>
+              </DialogActions>
+            </form>
+          </Dialog>
+
+          <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="xs" fullWidth>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                cancelMutation.mutate(
+                  { reason: cancelReason.trim() },
+                  { onSuccess: () => setCancelOpen(false) },
+                );
+              }}
+            >
+              <DialogTitle sx={{ fontWeight: 700 }}>{t('Cancel this inspection?')}</DialogTitle>
+              <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <TextField
+                    label={t('Cancellation reason')}
+                    multiline
+                    minRows={3}
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    helperText={t('Enter the reason for cancelling this scheduled mission.')}
+                  />
+                  <MutationProblemAlert
+                    error={cancelMutation.error}
+                    isError={cancelMutation.isError}
+                    fallbackMessage={t('Could not cancel inspection.')}
+                  />
+                </Stack>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setCancelOpen(false)}>{t('Back')}</Button>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  color="error"
+                  loading={cancelMutation.isPending}
+                >
+                  {t('Confirm cancellation')}
+                </LoadingButton>
+              </DialogActions>
+            </form>
+          </Dialog>
+
+          <Dialog open={forceAbortOpen} onClose={() => setForceAbortOpen(false)} maxWidth="xs" fullWidth>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!openSession?.id || !forceAbortReason.trim()) return;
+                forceAbortMutation.mutate(
+                  { sessionId: openSession.id, reason: forceAbortReason.trim() },
+                  { onSuccess: () => setForceAbortOpen(false) },
+                );
+              }}
+            >
+              <DialogTitle sx={{ fontWeight: 700 }}>{t('Force-abort active session?')}</DialogTitle>
+              <DialogContent>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <TextField
+                    label={t('Force-abort reason')}
+                    multiline
+                    minRows={3}
+                    required
+                    value={forceAbortReason}
+                    onChange={(e) => setForceAbortReason(e.target.value)}
+                    helperText={t('This closes the hung IN_PROGRESS session and returns the inspection to SCHEDULED for recovery dispatch.')}
+                  />
+                  <MutationProblemAlert
+                    error={forceAbortMutation.error}
+                    isError={forceAbortMutation.isError}
+                    fallbackMessage={t('Could not force-abort field session.')}
+                  />
+                </Stack>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setForceAbortOpen(false)}>{t('Back')}</Button>
+                <LoadingButton
+                  type="submit"
+                  variant="contained"
+                  color="error"
+                  loading={forceAbortMutation.isPending}
+                  disabled={!forceAbortReason.trim()}
+                >
+                  {t('Confirm force-abort')}
+                </LoadingButton>
+              </DialogActions>
+            </form>
+          </Dialog>
+        </>
+      )}
 
       <Dialog
         open={blocker.state === 'blocked'}
@@ -862,7 +1493,7 @@ export default function InspectionDetailPage() {
         <DialogTitle id="unsaved-report-title">{t('Unsaved report changes')}</DialogTitle>
         <DialogContent id="unsaved-report-description">
           <Typography variant="body2" color="text.secondary">
-            {t('Your report sections have not been saved. Save them before leaving, or discard your edits.')}
+            {t('You have unsaved report changes. Review or discard them before leaving.')}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

@@ -72,7 +72,7 @@ describe('customer organization registration', () => {
   it('verifies OTP and registers account without organization/asset form fields', async () => {
     mocks.registerOrganization.mockResolvedValue({
       registrationStatus: 'ACTIVE',
-      user: { id: 'customer-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'], actorZone: 'CUSTOMER' },
+      user: { id: 'customer-1', email: 'customer@example.test', fullName: 'Customer Admin', roles: ['CUSTOMER'] },
     });
     renderRegister();
     await fillRegistrationForm();

@@ -1,10 +1,9 @@
-﻿import { useState, type SyntheticEvent } from 'react';
+﻿import { useMemo, useState, type SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Divider,
   IconButton,
@@ -16,11 +15,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import ChevronLeftRounded from '@mui/icons-material/ChevronLeftRounded';
-import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
-import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
-import ForumRoundedIcon from '@mui/icons-material/ForumRounded';
+import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import { getSectionPath, type PortalId } from '@/app/permissions/accessPolicy';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import {
@@ -30,9 +27,12 @@ import {
 import {
   useMarkNotificationAsRead,
   useNotifications,
-  useNotificationUnreadCount,
 } from '../hooks/useNotifications';
-import type { NotificationItem } from '../api/notificationApi';
+import {
+  buildUnifiedNotificationEntries,
+  groupNotificationsByDay,
+  type UnifiedNotificationEntry,
+} from '../utils/notificationFeed';
 import { NotificationItemCard } from './NotificationItemCard';
 
 interface NotificationInboxPopoverProps {
@@ -52,8 +52,8 @@ export function NotificationInboxPopover({
 }: NotificationInboxPopoverProps) {
   const { t } = useLocale();
   const navigate = useNavigate();
+  const roles = useAuthStore((state) => state.roles);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [page, setPage] = useState(1);
 
   const {
     data: pageData,
@@ -62,55 +62,72 @@ export function NotificationInboxPopover({
     refetch,
   } = useNotifications(
     {
-      page,
-      pageSize: 10,
+      page: 1,
+      pageSize: 15,
       unreadOnly: unreadOnly ? true : undefined,
     },
     { enabled: open },
   );
 
-  const { data: unreadData } = useNotificationUnreadCount({ enabled: open });
-  const unreadCount = unreadData?.unreadCount ?? 0;
   const markReadMutation = useMarkNotificationAsRead();
   const markChatReadMutation = useMarkMessagesRead();
 
   const handleTabChange = (_: SyntheticEvent, newValue: number) => {
     setUnreadOnly(newValue === 1);
-    setPage(1);
   };
 
-  const handleItemSelect = (
-    item: NotificationItem,
-    safeRoute: string | null,
-  ) => {
-    if (!item.read && item.status !== 'READ') {
-      markReadMutation.mutate(item.id);
+  const handleEntrySelect = (entry: UnifiedNotificationEntry) => {
+    if (entry.kind === 'chat' && entry.chatRequestId) {
+      markChatReadMutation.mutate(entry.chatRequestId);
+    } else if (entry.isUnread) {
+      markReadMutation.mutate(entry.id);
     }
-    if (safeRoute) {
-      navigate(safeRoute);
+    if (entry.safeRoute) {
+      navigate(entry.safeRoute);
       onClose();
     }
   };
 
-  const handleMarkAsRead = (id: string) => {
-    markReadMutation.mutate(id);
-  };
-
-  const handleMarkAllInViewAsRead = () => {
-    if (!pageData?.items) return;
-    const unreadItems = pageData.items.filter(
-      (item) => !item.read && item.status !== 'READ',
-    );
-    for (const item of unreadItems) {
-      markReadMutation.mutate(item.id);
+  const handleMarkAsRead = (entry: UnifiedNotificationEntry) => {
+    if (entry.kind === 'notification') {
+      markReadMutation.mutate(entry.id);
     }
   };
 
-  const items = pageData?.items ?? [];
-  const totalPages = pageData?.totalPages ?? 1;
-  const hasUnreadInView = items.some(
-    (item) => !item.read && item.status !== 'READ',
+  const rawItems = useMemo(() => pageData?.items ?? [], [pageData?.items]);
+  const unifiedEntries = useMemo(
+    () =>
+      buildUnifiedNotificationEntries(
+        rawItems,
+        unreadChatItems,
+        portal,
+        roles,
+        unreadOnly,
+      ),
+    [rawItems, unreadChatItems, portal, roles, unreadOnly],
   );
+  const dayGroups = useMemo(
+    () => groupNotificationsByDay(unifiedEntries),
+    [unifiedEntries],
+  );
+
+  const hasUnreadInView = unifiedEntries.some((entry) => entry.isUnread);
+
+  const handleMarkAllInViewAsRead = () => {
+    for (const entry of unifiedEntries) {
+      if (!entry.isUnread) continue;
+      if (entry.kind === 'chat' && entry.chatRequestId) {
+        markChatReadMutation.mutate(entry.chatRequestId);
+      } else {
+        markReadMutation.mutate(entry.id);
+      }
+    }
+  };
+
+  const handleViewAll = () => {
+    navigate(getSectionPath(portal, 'notifications'));
+    onClose();
+  };
 
   return (
     <Popover
@@ -122,72 +139,39 @@ export function NotificationInboxPopover({
       slotProps={{
         paper: {
           sx: {
-            width: { xs: 340, sm: 400 },
-            maxHeight: 560,
+            width: { xs: 'calc(100vw - 24px)', sm: 400 },
+            maxWidth: 400,
+            maxHeight: 580,
             display: 'flex',
             flexDirection: 'column',
-            borderRadius: 2,
-            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.12)',
+            borderRadius: '12px',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.12)',
             overflow: 'hidden',
           },
         },
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, pb: 1, bgcolor: 'background.paper' }}>
+      <Box sx={{ px: 2.5, pt: 2, pb: 0.5, bgcolor: 'background.paper' }}>
         <Stack
           direction="row"
-          spacing={1}
           sx={{ alignItems: 'center', justifyContent: 'space-between' }}
         >
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('Notifications')}
-            </Typography>
-            {unreadCount > 0 && (
-              <Chip
-                label={`${unreadCount} ${t('Unread')}`}
-                size="small"
-                color="primary"
-                sx={{
-                  height: 20,
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                }}
-              />
-            )}
-          </Stack>
-
-          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-            {hasUnreadInView && (
-              <Tooltip title={t('Mark all as read')}>
-                <Button
-                  size="small"
-                  startIcon={<DoneAllRounded fontSize="small" />}
-                  onClick={handleMarkAllInViewAsRead}
-                  sx={{
-                    textTransform: 'none',
-                    fontSize: '0.75rem',
-                    py: 0.25,
-                    px: 1,
-                  }}
-                >
-                  {t('Mark all as read')}
-                </Button>
-              </Tooltip>
-            )}
-            <Chip
-              label={t('In-app')}
-              variant="outlined"
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
+            {t('Notifications')}
+          </Typography>
+          <Tooltip title={t('Open notifications page')}>
+            <IconButton
               size="small"
-              sx={{
-                height: 18,
-                fontSize: '0.625rem',
-                color: 'text.secondary',
-                borderColor: 'divider',
-              }}
-            />
-          </Stack>
+              aria-label={t('Open notifications page')}
+              onClick={handleViewAll}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+            >
+              <OpenInFullRounded sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
         </Stack>
 
         <Tabs
@@ -195,7 +179,7 @@ export function NotificationInboxPopover({
           onChange={handleTabChange}
           sx={{
             minHeight: 36,
-            mt: 1,
+            mt: 0.5,
             '& .MuiTab-root': {
               minHeight: 36,
               py: 0.5,
@@ -214,13 +198,13 @@ export function NotificationInboxPopover({
       <Divider />
 
       {/* Body */}
-      <Box sx={{ flex: 1, minHeight: 200, overflowY: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 220, overflowY: 'auto' }}>
         {isLoading && (
           <Stack
             spacing={1.5}
             sx={{ alignItems: 'center', justifyContent: 'center', py: 6 }}
           >
-            <CircularProgress size={28} />
+            <CircularProgress size={26} />
             <Typography variant="body2" color="text.secondary">
               {t('Loading notifications…')}
             </Typography>
@@ -236,95 +220,15 @@ export function NotificationInboxPopover({
                   {t('Try again')}
                 </Button>
               }
-              sx={{ borderRadius: 1.5 }}
+              sx={{ borderRadius: '8px' }}
             >
               {t('Failed to load notifications')}
             </Alert>
           </Box>
         )}
 
-        {/* Unread Contract Chat Messages */}
-        {unreadChatItems && unreadChatItems.length > 0 && (
-          <Box
-            sx={{
-              p: 1.5,
-              bgcolor: (theme) =>
-                theme.palette.mode === 'dark' ? 'rgba(87, 80, 241, 0.1)' : '#eef2ff',
-              borderBottom: 1,
-              borderColor: 'divider',
-            }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-              <ForumRoundedIcon sx={{ fontSize: 17, color: 'primary.main' }} />
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 750,
-                  color: 'primary.main',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {t('Contract negotiation messages')}
-              </Typography>
-            </Stack>
-            <Stack spacing={1}>
-              {unreadChatItems.map((chat) => (
-                <Box
-                  key={chat.requestId}
-                  onClick={() => {
-                    markChatReadMutation.mutate(chat.requestId);
-                    navigate(`${getSectionPath(portal, 'messages')}?requestId=${chat.requestId}`);
-                    onClose();
-                  }}
-                  sx={{
-                    p: 1.25,
-                    borderRadius: 1.5,
-                    border: '1px solid',
-                    borderColor: 'primary.light',
-                    bgcolor: 'background.paper',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                      transform: 'translateY(-1px)',
-                    },
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ fontWeight: 700, fontSize: '0.8125rem' }}
-                      noWrap
-                    >
-                      {chat.requestDescription}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      color="error"
-                      label={`${chat.unreadCount} ${t('New')}`}
-                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }}
-                    />
-                  </Stack>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block' }}
-                    noWrap
-                  >
-                    <strong>{chat.latestMessageAuthor}:</strong> {chat.latestMessageBody}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        )}
-
-        {!isLoading && !isError && items.length === 0 && (!unreadChatItems || unreadChatItems.length === 0) && (
-          <Box sx={{ py: 3, px: 2 }}>
+        {!isLoading && !isError && dayGroups.length === 0 && (
+          <Box sx={{ py: 4, px: 2 }}>
             <EmptyState
               title={t('No notifications')}
               description={t('You have no notifications right now.')}
@@ -332,61 +236,108 @@ export function NotificationInboxPopover({
           </Box>
         )}
 
-        {!isLoading && !isError && items.length > 0 && (
-          <List disablePadding>
-            {items.map((item) => (
-              <NotificationItemCard
-                key={item.id}
-                notification={item}
-                portal={portal}
-                onSelect={handleItemSelect}
-                onMarkAsRead={handleMarkAsRead}
-                isMarkingRead={markReadMutation.isPending}
-              />
+        {!isLoading && !isError && dayGroups.length > 0 && (
+          <Box>
+            {dayGroups.map((group) => (
+              <Box key={group.bucket}>
+                <Box
+                  sx={{
+                    px: 2.5,
+                    py: 1,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(255, 255, 255, 0.03)'
+                        : '#F9FAFB',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.72rem',
+                      fontWeight: 650,
+                      letterSpacing: '0.06em',
+                      color: 'text.secondary',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {t(group.label)}
+                  </Typography>
+                </Box>
+                <List disablePadding>
+                  {group.items.map((entry) => (
+                    <NotificationItemCard
+                      key={entry.id}
+                      entry={entry}
+                      portal={portal}
+                      onSelect={handleEntrySelect}
+                      onMarkAsRead={handleMarkAsRead}
+                      isMarkingRead={markReadMutation.isPending}
+                      compact
+                    />
+                  ))}
+                </List>
+              </Box>
             ))}
-          </List>
+          </Box>
         )}
       </Box>
 
-      {/* Footer / Pagination */}
-      {totalPages > 1 && (
-        <>
-          <Divider />
-          <Box
-            sx={{
-              p: 1,
-              px: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              {page} / {totalPages}
-            </Typography>
-            <Stack direction="row" spacing={0.5}>
-              <IconButton
-                size="small"
-                disabled={page <= 1}
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                aria-label="Previous page"
-              >
-                <ChevronLeftRounded fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                disabled={page >= totalPages}
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                aria-label="Next page"
-              >
-                <ChevronRightRounded fontSize="small" />
-              </IconButton>
-            </Stack>
-          </Box>
-        </>
-      )}
+      {/* Footer */}
+      <Divider />
+      <Box
+        sx={{
+          px: 2.5,
+          py: 1.5,
+          bgcolor: 'background.paper',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+        }}
+      >
+        <Button
+          size="small"
+          variant="text"
+          disabled={!hasUnreadInView}
+          onClick={handleMarkAllInViewAsRead}
+          sx={{
+            textTransform: 'none',
+            fontSize: '0.8125rem',
+            fontWeight: 500,
+            color: 'text.secondary',
+            textDecoration: 'underline',
+            px: 0.5,
+            minWidth: 'auto',
+            '&:hover': {
+              bgcolor: 'transparent',
+              color: 'text.primary',
+              textDecoration: 'underline',
+            },
+          }}
+        >
+          {t('Mark all as read')}
+        </Button>
+
+        <Button
+          size="small"
+          variant="contained"
+          color="primary"
+          onClick={handleViewAll}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            borderRadius: '8px',
+            px: 2.25,
+            py: 0.75,
+            boxShadow: 'none',
+          }}
+        >
+          {t('View All')}
+        </Button>
+      </Box>
     </Popover>
   );
 }
-

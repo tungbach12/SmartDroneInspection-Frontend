@@ -27,11 +27,11 @@ function LocationProbe() {
   return <output aria-label="Current location">{location.pathname}</output>;
 }
 
-const roleCases: { role: Role; path: string; actorZone: 'PLATFORM' | 'CUSTOMER' }[] = [
-  { role: 'ADMIN', path: '/admin/dashboard', actorZone: 'PLATFORM' },
-  { role: 'MANAGER', path: '/manager/dashboard', actorZone: 'PLATFORM' },
-  { role: 'CUSTOMER', path: '/client/dashboard', actorZone: 'CUSTOMER' },
-  { role: 'INSPECTOR', path: '/operations/dashboard', actorZone: 'CUSTOMER' },
+const roleCases: { role: Role; path: string }[] = [
+  { role: 'ADMIN', path: '/admin/dashboard' },
+  { role: 'MANAGER', path: '/manager/dashboard' },
+  { role: 'CUSTOMER', path: '/client/dashboard' },
+  { role: 'INSPECTOR', path: '/operations/dashboard' },
 ];
 
 function renderLogin(initialEntry = '/login') {
@@ -64,7 +64,7 @@ describe('role-aware sign-in flow', () => {
     useAuthStore.getState().clearSession();
   });
 
-  it.each(roleCases)('routes $role to $path from the server-assigned role', async ({ role, path, actorZone }) => {
+  it.each(roleCases)('routes $role to $path from the server-assigned role', async ({ role, path }) => {
     authMocks.login.mockResolvedValue({
       step: 'AUTHENTICATED',
       accessToken: 'memory-access-token',
@@ -74,7 +74,6 @@ describe('role-aware sign-in flow', () => {
         email: `${role.toLowerCase()}@example.test`,
         fullName: 'Role User',
         roles: [role],
-        actorZone,
       },
     });
 
@@ -103,13 +102,13 @@ describe('role-aware sign-in flow', () => {
       step: 'PASSWORD_CHANGE_REQUIRED',
       accessToken: null,
       accessTokenExpiresInSeconds: 0,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
     });
     authMocks.completeInitialPasswordSetup.mockResolvedValue({
       step: 'AUTHENTICATED',
       accessToken: 'new-memory-token',
       accessTokenExpiresInSeconds: 900,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
     });
 
     renderLogin();
@@ -131,7 +130,7 @@ describe('role-aware sign-in flow', () => {
   it('preserves a permitted protected destination after sign-in', async () => {
     authMocks.login.mockResolvedValue({
       step: 'AUTHENTICATED', accessToken: 'memory-access-token', accessTokenExpiresInSeconds: 900,
-      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'], actorZone: 'CUSTOMER' },
+      user: { id: 'field-user', email: 'field@example.test', fullName: 'Field User', roles: ['INSPECTOR'] },
     });
     renderLogin('/login?returnTo=%2Foperations%2Finspections');
     fireEvent.change(screen.getByRole('textbox', { name: /email address/i }), { target: { value: 'field@example.test' } });
@@ -160,7 +159,6 @@ describe('role-aware sign-in flow', () => {
         email: 'field@example.test',
         fullName: 'Field User',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER',
       },
     });
 

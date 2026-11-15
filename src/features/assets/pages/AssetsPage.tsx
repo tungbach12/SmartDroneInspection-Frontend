@@ -271,7 +271,7 @@ export function AssetsPage() {
                     },
                   }}
                 >
-                  <Box>
+                  <Box onClick={() => setSelected(asset)} sx={{ cursor: 'pointer' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
                       <Box sx={{ display: 'flex', gap: 1.75, alignItems: 'flex-start', minWidth: 0 }}>
                         <Box

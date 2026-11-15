@@ -90,4 +90,44 @@ describe('resolveSafeNotificationRoute', () => {
     // Operations portal has no assets section for INSPECTOR
     expect(resolveSafeNotificationRoute('/assets/asset-1', 'operations', ['INSPECTOR'])).toBeNull();
   });
+
+  it('supports portal-prefixed paths emitted by backend notification services', () => {
+    expect(
+      resolveSafeNotificationRoute(
+        '/operations/inspections/10c8aec4-56b5-4a19-af70-26b36cd48e47',
+        'operations',
+        ['INSPECTOR'],
+      ),
+    ).toBe('/operations/inspections/10c8aec4-56b5-4a19-af70-26b36cd48e47');
+
+    expect(
+      resolveSafeNotificationRoute('/operations/inspections', 'operations', ['INSPECTOR']),
+    ).toBe('/operations/inspections');
+
+    expect(
+      resolveSafeNotificationRoute(
+        '/manager/inspections/77f9c283-a68f-4d06-b7f6-5871dcdceb99',
+        'manager',
+        ['MANAGER'],
+      ),
+    ).toBe('/manager/inspections/77f9c283-a68f-4d06-b7f6-5871dcdceb99');
+
+    expect(
+      resolveSafeNotificationRoute(
+        '/client/inspections/ff8905e2-48bf-4690-8023-1a8f28afd5ce/tracking',
+        'client',
+        ['CUSTOMER'],
+      ),
+    ).toBe('/client/inspections/ff8905e2-48bf-4690-8023-1a8f28afd5ce/tracking');
+  });
+
+  it('rejects portal-prefixed paths when user lacks access to that portal', () => {
+    expect(
+      resolveSafeNotificationRoute(
+        '/manager/inspections/77f9c283-a68f-4d06-b7f6-5871dcdceb99',
+        'operations',
+        ['INSPECTOR'],
+      ),
+    ).toBeNull();
+  });
 });

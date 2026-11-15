@@ -112,11 +112,30 @@ export function InspectorScheduleCalendar({
     for (const item of filteredItems) {
       if (item.plannedStartAt) {
         try {
-          const d = new Date(item.plannedStartAt);
-          const key = toDateKey(d);
-          const existing = map.get(key) ?? [];
-          existing.push(item);
-          map.set(key, existing);
+          const startDate = new Date(item.plannedStartAt);
+          if (Number.isNaN(startDate.getTime())) {
+            unscheduled.push(item);
+            continue;
+          }
+          const endDate = item.plannedEndAt ? new Date(item.plannedEndAt) : startDate;
+          const cursor = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            startDate.getDate(),
+          );
+          const lastDay = Number.isNaN(endDate.getTime())
+            ? cursor
+            : new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+          const maxSpanDays = 60;
+          let count = 0;
+          while (cursor.getTime() <= lastDay.getTime() && count < maxSpanDays) {
+            const key = toDateKey(cursor);
+            const existing = map.get(key) ?? [];
+            existing.push(item);
+            map.set(key, existing);
+            cursor.setDate(cursor.getDate() + 1);
+            count += 1;
+          }
         } catch {
           unscheduled.push(item);
         }

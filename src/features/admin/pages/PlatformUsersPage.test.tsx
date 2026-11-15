@@ -32,7 +32,6 @@ const PLATFORM_ADMIN = {
   email: 'platform.admin@example.test',
   fullName: 'Platform Admin',
   roles: ['ADMIN'],
-  actorZone: 'PLATFORM',
 };
 
 const CUSTOMER = {
@@ -40,7 +39,6 @@ const CUSTOMER = {
   email: 'org.manager@example.test',
   fullName: 'Organization Manager',
   roles: ['CUSTOMER'],
-  actorZone: 'CUSTOMER',
 };
 
 function renderWithClient() {
@@ -73,7 +71,7 @@ describe('PlatformUsersPage', () => {
     cleanup();
   });
 
-  it('lists the administrator-managed accounts with their zone and roles', async () => {
+  it('lists the administrator-managed accounts with their roles', async () => {
     renderWithClient();
 
     expect(await screen.findByText('platform.admin@example.test')).toBeTruthy();
@@ -117,7 +115,6 @@ describe('PlatformUsersPage', () => {
       expect(mocks.create).toHaveBeenCalledWith({
         email: 'pm@example.test',
         fullName: 'Platform Manager User',
-        actorZone: 'PLATFORM',
         roles: ['MANAGER'],
       }),
     );

@@ -6,7 +6,6 @@ import {
 } from '@/shared/api/client';
 import {
   normalizeRole,
-  type ActorZone,
   type AuthUser,
   type Role,
 } from '../store/authStore';
@@ -117,7 +116,6 @@ interface ApiUser {
   email: string;
   fullName: string;
   roles: unknown;
-  actorZone: string;
   avatarUrl?: string | null;
   visionFallbackEnabled?: boolean;
   pilotLicenseNumber?: string;
@@ -145,8 +143,6 @@ export interface OrganizationRegistrationResponse {
   user: AuthUser;
 }
 
-const VALID_ACTOR_ZONES: readonly ActorZone[] = ['PLATFORM', 'CUSTOMER', 'INSPECTOR'];
-
 function parseUser(value: unknown): AuthUser {
   if (!value || typeof value !== 'object') {
     throw new Error('The server returned an invalid account profile.');
@@ -157,14 +153,8 @@ function parseUser(value: unknown): AuthUser {
     typeof user.id !== 'string' ||
     typeof user.email !== 'string' ||
     typeof user.fullName !== 'string' ||
-    typeof user.actorZone !== 'string' ||
     !Array.isArray(user.roles)
   ) {
-    throw new Error('The server returned an invalid account profile.');
-  }
-
-  const actorZone = user.actorZone as ActorZone;
-  if (!VALID_ACTOR_ZONES.includes(actorZone)) {
     throw new Error('The server returned an invalid account profile.');
   }
 
@@ -173,7 +163,6 @@ function parseUser(value: unknown): AuthUser {
     email: user.email,
     fullName: user.fullName,
     roles: user.roles.map(normalizeRole).filter((role): role is Role => role !== null),
-    actorZone,
     avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
     visionFallbackEnabled:
       typeof user.visionFallbackEnabled === 'boolean'

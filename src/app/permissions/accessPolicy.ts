@@ -32,6 +32,7 @@ export const SECTION_IDS = [
   'pilot-license-classes',
   'onboarding-reviews',
   'inspector-drones',
+  'notifications',
   'settings',
 ] as const;
 
@@ -50,6 +51,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   'pilot-license-classes': 'UAV license classes',
   'onboarding-reviews': 'Onboarding reviews',
   'inspector-drones': 'My drones',
+  notifications: 'Notifications',
   settings: 'Settings',
 };
 
@@ -77,6 +79,7 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   'pilot-license-classes': 'Hạng bằng lái UAV',
   'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
   'inspector-drones': 'Drone của tôi',
+  notifications: 'Thông báo',
   settings: 'Cài đặt',
 };
 
@@ -133,6 +136,7 @@ const SECTION_ROLE_ACCESS = {
     'pilot-license-classes': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
+    notifications: ['ADMIN'],
     settings: ['ADMIN'],
   },
   manager: {
@@ -148,6 +152,7 @@ const SECTION_ROLE_ACCESS = {
     'pilot-license-classes': [],
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
+    notifications: ['MANAGER'],
     settings: ['MANAGER'],
   },
   client: {
@@ -164,6 +169,7 @@ const SECTION_ROLE_ACCESS = {
     'pilot-license-classes': [],
     'onboarding-reviews': [],
     'inspector-drones': [],
+    notifications: ['CUSTOMER'],
     settings: ['CUSTOMER'],
   },
   operations: {
@@ -179,6 +185,7 @@ const SECTION_ROLE_ACCESS = {
     'pilot-license-classes': [],
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
+    notifications: ['INSPECTOR'],
     settings: ['INSPECTOR'],
   },
 } as const satisfies Record<

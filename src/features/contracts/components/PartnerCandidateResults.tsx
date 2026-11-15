@@ -96,6 +96,9 @@ interface InspectorCandidateGroup {
   inspectorId: string;
   inspectorName: string;
   inspectorAvatarUrl: string | null;
+  declineCount: number;
+  noShowCount: number;
+  abortCount: number;
   items: PartnerCandidate[];
 }
 
@@ -110,6 +113,9 @@ function groupByInspector(items: PartnerCandidate[]): InspectorCandidateGroup[] 
         inspectorId: item.inspectorId,
         inspectorName: item.inspectorName,
         inspectorAvatarUrl: item.inspectorAvatarUrl,
+        declineCount: item.declineCount ?? 0,
+        noShowCount: item.noShowCount ?? 0,
+        abortCount: item.abortCount ?? 0,
         items: [item],
       });
     }
@@ -461,6 +467,39 @@ export function PartnerCandidateResults({
                 <Typography variant="body2" color="text.secondary">
                   {t('Partner Inspector')}
                 </Typography>
+                {((activeDetailCandidate.declineCount ?? 0) > 0 ||
+                  (activeDetailCandidate.noShowCount ?? 0) > 0 ||
+                  (activeDetailCandidate.abortCount ?? 0) > 0) && (
+                  <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
+                    {(activeDetailCandidate.declineCount ?? 0) > 0 && (
+                      <Chip
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        label={`${t('Declines')}: ${activeDetailCandidate.declineCount}`}
+                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                      />
+                    )}
+                    {(activeDetailCandidate.noShowCount ?? 0) > 0 && (
+                      <Chip
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        label={`${t('No-shows')}: ${activeDetailCandidate.noShowCount}`}
+                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                      />
+                    )}
+                    {(activeDetailCandidate.abortCount ?? 0) > 0 && (
+                      <Chip
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        label={`${t('Aborts')}: ${activeDetailCandidate.abortCount}`}
+                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                      />
+                    )}
+                  </Stack>
+                )}
               </Box>
             </Stack>
 
@@ -1012,12 +1051,39 @@ export function PartnerCandidateResults({
               {candidateGroups.map((group) => (
                 <tbody key={group.inspectorId}>
                   <tr className="group-row"><td colSpan={4}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
                       <Avatar src={group.inspectorAvatarUrl ?? undefined} alt={group.inspectorName}
                         sx={{ width: 30, height: 30, bgcolor: '#EEF2FF', color: '#3758F9', fontWeight: 700, fontSize: '0.6875rem', flexShrink: 0 }}>
                         {getInspectorInitials(group.inspectorName)}
                       </Avatar>
                       <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700 }} noWrap>{group.inspectorName}</Typography>
+                      {group.declineCount > 0 && (
+                        <Chip
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          label={`${t('Declines')}: ${group.declineCount}`}
+                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        />
+                      )}
+                      {group.noShowCount > 0 && (
+                        <Chip
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          label={`${t('No-shows')}: ${group.noShowCount}`}
+                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        />
+                      )}
+                      {group.abortCount > 0 && (
+                        <Chip
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          label={`${t('Aborts')}: ${group.abortCount}`}
+                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        />
+                      )}
                       <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', whiteSpace: 'nowrap' }}>
                         {group.items.length === 1 ? t('1 drone') : `${group.items.length} ${t('drones')}`}
                       </Typography>

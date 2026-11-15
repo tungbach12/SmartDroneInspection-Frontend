@@ -210,4 +210,44 @@ describe('InspectorScheduleCalendar', () => {
     fireEvent.click(prevBtn);
     expect(screen.getByText('November 2026')).toBeTruthy();
   });
+
+  it('displays a 3-day inspection across all spanned calendar days', () => {
+    mockUseInspections.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'insp-multiday',
+            ownerCustomerId: 'org-111',
+            assetId: 'asset-1',
+            inspectorId: 'ins-1',
+            objective: '3-Day Bridge Survey',
+            plannedStartAt: '2026-11-10T01:00:00Z',
+            plannedEndAt: '2026-11-12T10:00:00Z',
+            status: 'SCHEDULED',
+            reportId: null,
+            reportStatus: null,
+            reportVersionNo: null,
+            pendingAction: 'NONE',
+            createdAt: '2026-10-01T00:00:00Z',
+            updatedAt: '2026-10-01T00:00:00Z',
+          },
+        ],
+        totalCount: 1,
+        page: 1,
+        pageSize: 100,
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(
+      <InspectorScheduleCalendar
+        onSelectInspection={vi.fn()}
+        initialDate={initialDate}
+      />,
+    );
+
+    expect(screen.getAllByText('3-Day Bridge Survey')).toHaveLength(3);
+  });
 });

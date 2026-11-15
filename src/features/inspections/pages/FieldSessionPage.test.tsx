@@ -336,4 +336,49 @@ describe('FieldSessionPage', () => {
       ),
     );
   });
+
+  it('blocks starting a field session when reassignmentRequired is true', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      reassignmentRequired: true,
+      declineReason: 'Weather hold',
+    });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient();
+
+    expect(
+      await screen.findByText(/This inspection was declined and requires Platform Manager reassignment/i),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('disables starting a new session when the scheduled flight window has elapsed after an abort', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      plannedStartAt: new Date(Date.now() - 7200_000).toISOString(),
+      plannedEndAt: new Date(Date.now() - 3600_000).toISOString(),
+    });
+    mocks.list.mockResolvedValue([
+      {
+        ...SESSION,
+        status: 'ABORTED',
+        abortReason: 'UAV battery or hardware warning',
+        endedAt: '2026-11-14T10:00:00Z',
+      },
+    ]);
+
+    renderWithClient();
+
+    expect(await screen.findByText('Previous flight session was aborted')).toBeTruthy();
+    expect(
+      screen.getAllByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i)
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
 });

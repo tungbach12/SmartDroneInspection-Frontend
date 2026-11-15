@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@mui/material/styles';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,11 +29,16 @@ const assetRows = [
 ] as const;
 
 function renderDashboard(roles: Role[], path = '/client/dashboard') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   useAuthStore.setState({ roles, userName: 'Alex Rivera' });
   return render(
-    <ThemeProvider theme={theme}>
-      <MemoryRouter initialEntries={[path]}><DashboardPage /></MemoryRouter>
-    </ThemeProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <MemoryRouter initialEntries={[path]}><DashboardPage /></MemoryRouter>
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
 }
 

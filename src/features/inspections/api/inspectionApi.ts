@@ -1,9 +1,10 @@
 import { api } from '@/shared/api/client';
+import type { PartnerCandidate } from '@/features/contracts/api/contractApi';
 
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a qualified CUSTOMER reviewer who is not the author decides.
+ * and a Platform Manager / Admin reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'
@@ -34,13 +35,8 @@ export interface InspectionReport {
   summary?: string | null;
   /** Why no automated drafting contributed, present on manual drafts only. */
   omissionDisclosure: string | null;
-  /** Full raw JSON snapshot containing structured report fields & custom enterprise schemas. */
-  contentSnapshot?: string | null;
-  /**
-   * The authored Report 3 §3.7.2 sections. A null field is an absent section and is shown as "not
-   * supplied"; it is not an empty value the author chose.
-   */
-  sections?: ReportSections | null;
+  /** Whether this version was returned due to a Customer clarification request. */
+  clarificationRequested?: boolean;
   /** Read-only, source-backed inspection context included with the report version response. */
   reportContext?: InspectionReportContext | null;
 }
@@ -77,18 +73,6 @@ export interface InspectionReportContext {
 }
 
 export type ReportOverallCondition = 'GOOD' | 'FAIR' | 'POOR' | 'CRITICAL';
-
-export interface ReportSections {
-  executiveSummary?: string | null;
-  purposeScopeCriteria?: string | null;
-  inspectorCoverageAssessment?: string | null;
-  methodEquipmentConditions?: string | null;
-  conclusionsRecommendations?: string | null;
-  overallCondition?: ReportOverallCondition | null;
-  omissionDisclosure?: string | null;
-}
-
-export type ReportSectionsInput = ReportSections;
 
 export interface EvidencePage {
   items: EvidenceItem[];
@@ -309,6 +293,8 @@ export type InspectionStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
+export type AssignmentStatus = 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'DECLINED';
+
 export interface InspectionListFilters {
   page?: number;
   pageSize?: number;
@@ -343,6 +329,10 @@ export interface InspectionListItem {
   inspectorNetPayout?: number | null;
   payoutStatus?: 'PENDING' | 'ELIGIBLE' | 'PAID' | string | null;
   paymentMethod?: string | null;
+  reassignmentRequired?: boolean;
+  overdueNotifiedAt?: string | null;
+  assignmentStatus?: AssignmentStatus | null;
+  assignmentAcceptedAt?: string | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *
@@ -397,6 +387,15 @@ export interface InspectionDetail {
   status: InspectionStatus;
   createdAt: string;
   updatedAt: string;
+  reassignmentRequired?: boolean;
+  declineReason?: string | null;
+  declinedAt?: string | null;
+  declinedByInspectorId?: string | null;
+  cancellationReason?: string | null;
+  overdueNotifiedAt?: string | null;
+  clarificationCount?: number;
+  assignmentStatus?: AssignmentStatus | null;
+  assignmentAcceptedAt?: string | null;
 }
 
 export type FieldSessionStatus =
@@ -466,6 +465,21 @@ export const inspectionApi = {
   cancel: (inspectionId: string, payload?: { reason?: string }) =>
     api
       .post<InspectionDetail>(`/inspections/${inspectionId}/cancellation`, payload ?? {})
+      .then((response) => response.data),
+
+  accept: (inspectionId: string) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/accept`)
+      .then((response) => response.data),
+
+  decline: (inspectionId: string, reason: string) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/decline`, { reason })
+      .then((response) => response.data),
+
+  getReassignCandidates: (inspectionId: string) =>
+    api
+      .post<PartnerCandidate[]>(`/inspections/${inspectionId}/reassign-candidates`)
       .then((response) => response.data),
 
   // MF3-01/02 evidence intake. The server computes the checksum and treats a repeat as idempotent.
@@ -707,22 +721,6 @@ export const inspectionApi = {
     api
       .get<InspectionReport[]>(
         `/inspections/${inspectionId}/report/versions`,
-      )
-      .then((response) => response.data),
-
-  /**
-   * MF3-08: saves the Report 3 §3.7.2 sections the author is accountable for. The whole authored
-   * set is sent so a partial write cannot leave a version half-updated.
-   */
-  saveReportSections: (
-    inspectionId: string,
-    versionId: string,
-    sections: ReportSectionsInput,
-  ) =>
-    api
-      .put<InspectionReport>(
-        `/inspections/${inspectionId}/report/versions/${versionId}/sections`,
-        sections,
       )
       .then((response) => response.data),
 

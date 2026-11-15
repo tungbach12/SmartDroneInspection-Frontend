@@ -238,6 +238,9 @@ export interface PartnerCandidate {
   hardGates: PartnerCandidateCheck[];
   capabilityChecks: PartnerCandidateCheck[];
   disclaimer: string;
+  declineCount?: number;
+  noShowCount?: number;
+  abortCount?: number;
 }
 
 export interface EvaluatePartnerCandidatesInput {

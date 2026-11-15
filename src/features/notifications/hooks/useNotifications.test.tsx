@@ -48,7 +48,6 @@ describe('useNotifications hooks', () => {
         email: 'user@example.com',
         fullName: 'Test User',
         roles: ['INSPECTOR'],
-        actorZone: 'CUSTOMER',
       },
     });
   });

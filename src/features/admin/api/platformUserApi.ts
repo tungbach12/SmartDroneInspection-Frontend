@@ -16,14 +16,11 @@ export type PlatformUserRole =
 
 export type PlatformUserStatus = 'ACTIVE' | 'SUSPENDED' | 'DISABLED';
 
-export type ActorZone = 'PLATFORM' | 'CUSTOMER' | 'INSPECTOR';
-
 export interface PlatformUser {
   id: string;
   email: string;
   fullName: string;
   roles: string[];
-  actorZone: string;
 }
 
 /**
@@ -40,12 +37,10 @@ export interface ProvisionedPlatformUser {
 export interface CreatePlatformUserInput {
   email: string;
   fullName: string;
-  actorZone: ActorZone;
   roles: PlatformUserRole[];
 }
 
 export interface UpdatePlatformUserRolesInput {
-  actorZone: ActorZone;
   roles: PlatformUserRole[];
 }
 

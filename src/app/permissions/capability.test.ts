@@ -8,7 +8,6 @@ function makeUser(roles: Role[]): AuthUser {
     email: 'user@example.test',
     fullName: 'Test User',
     roles,
-    actorZone: 'CUSTOMER',
   };
 }
 
@@ -17,12 +16,12 @@ describe('canPerform capability gate', () => {
     expect(canPerform('inspections.authorReport', makeUser(['INSPECTOR']))).toBe(true);
     expect(canPerform('inspections.authorReport', makeUser(['CUSTOMER']))).toBe(false);
 
-    // MF3-09: the organization Customer reviews and publishes; the Inspector never does.
-    expect(canPerform('reports.review', makeUser(['CUSTOMER']))).toBe(true);
+    // MF3-09: only Platform Manager / Admin reviews and publishes; Customer and Inspector never do.
+    expect(canPerform('reports.review', makeUser(['CUSTOMER']))).toBe(false);
     expect(canPerform('reports.review', makeUser(['ADMIN']))).toBe(true);
     expect(canPerform('reports.review', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.review', makeUser(['INSPECTOR']))).toBe(false);
-    expect(canPerform('reports.publish', makeUser(['CUSTOMER']))).toBe(true);
+    expect(canPerform('reports.publish', makeUser(['CUSTOMER']))).toBe(false);
     expect(canPerform('reports.publish', makeUser(['ADMIN']))).toBe(true);
     expect(canPerform('reports.publish', makeUser(['MANAGER']))).toBe(true);
     expect(canPerform('reports.publish', makeUser(['INSPECTOR']))).toBe(false);

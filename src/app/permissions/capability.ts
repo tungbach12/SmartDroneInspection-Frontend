@@ -19,10 +19,10 @@ const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   'contracts.manage': ['MANAGER'],
   'inspections.capture': ['INSPECTOR'],
   'inspections.authorReport': ['INSPECTOR'],
-  // MF3-09: an organization CUSTOMER decides findings and the report. The backend separately refuses a
-  // reviewer who authored the report.
-  'reports.review': ['CUSTOMER', 'ADMIN', 'MANAGER'],
-  'reports.publish': ['CUSTOMER', 'ADMIN', 'MANAGER'],
+  // MF3-09: only Platform Manager / Admin reviews and publishes reports. The backend separately
+  // enforces separation of duties against the report author.
+  'reports.review': ['ADMIN', 'MANAGER'],
+  'reports.publish': ['ADMIN', 'MANAGER'],
   'findings.decide': ['CUSTOMER', 'ADMIN', 'MANAGER'],
   'assets.review': ['CUSTOMER', 'ADMIN', 'MANAGER'],
 };

@@ -7,7 +7,6 @@ export interface InspectorProfile {
   phoneNumber?: string | null;
   avatarUrl?: string | null;
   status: string;
-  actorZone: string;
   citizenId?: string | null;
   dateOfBirth?: string | null;
   address?: string | null;

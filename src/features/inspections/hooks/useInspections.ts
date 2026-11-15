@@ -16,7 +16,6 @@ import {
   type ManualFindingInput,
   type PlatformAiAnalytics,
   type ReviewFindingInput,
-  type ReportSectionsInput,
   type UpdatePlatformAiSettingsInput,
 } from '../api/inspectionApi';
 
@@ -557,30 +556,6 @@ export function useAuthorManualDraft(inspectionId: string | null) {
   });
 }
 
-/**
- * MF3-08: the author saves the Report 3 §3.7.2 sections they are accountable for.
- *
- * <p>Saving edits an existing draft version in place; it does not create a new version.
- */
-export function useSaveReportSections(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (input: { versionId: string; sections: ReportSectionsInput }) =>
-      inspectionApi.saveReportSections(inspectionId!, input.versionId, input.sections),
-    onSuccess: (_data, input) => {
-      showToast('Report sections saved.');
-      if (inspectionId) {
-        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
-        client.invalidateQueries({
-          queryKey: inspectionKeys.reportVersion(inspectionId, input.versionId),
-        });
-      }
-    },
-    onError: (error) => showToast(getErrorMessage(error, 'The report sections were not saved.'), 'error'),
-  });
-}
-
 /** MF3-08: the author verifies the draft against its sources, then submits it for review. */
 export function useVerifyReportVersion(inspectionId: string | null) {
   const client = useQueryClient();
@@ -851,5 +826,77 @@ export function useCancelInspection(inspectionId: string | null) {
       }
       showToast('Inspection cancelled');
     },
+  });
+}
+
+export function useAcceptInspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (targetId?: string) => inspectionApi.accept(targetId ?? inspectionId!),
+    onSuccess: (_data, targetId) => {
+      const resolvedId = targetId ?? inspectionId;
+      if (resolvedId) {
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(resolvedId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(resolvedId) });
+        void client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(resolvedId) });
+      }
+      void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+      void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      showToast('Mission accepted. You can now upload the flight permit and start preparation.');
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not accept inspection assignment.'), 'error'),
+  });
+}
+
+export function useDeclineInspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (reason: string) => inspectionApi.decline(inspectionId!, reason),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        void client.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Inspection declined; manager notified for reassignment');
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not decline inspection.'), 'error'),
+  });
+}
+
+export function useReassignCandidates(inspectionId: string | null, enabled = false) {
+  return useQuery({
+    queryKey: [...inspectionKeys.all, 'reassign-candidates', inspectionId] as const,
+    queryFn: () => inspectionApi.getReassignCandidates(inspectionId!),
+    enabled: enabled && Boolean(inspectionId),
+  });
+}
+
+export function useForceAbortFieldSession(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({ sessionId, reason }: { sessionId: string; reason: string }) =>
+      fieldSessionApi.forceAbort(inspectionId!, sessionId, reason),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        void client.invalidateQueries({ queryKey: inspectionKeys.all });
+      }
+      showToast('Field session force-aborted by manager');
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not force-abort field session.'), 'error'),
   });
 }
