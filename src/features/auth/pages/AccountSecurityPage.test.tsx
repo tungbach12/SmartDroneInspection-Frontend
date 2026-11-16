@@ -9,6 +9,12 @@ import AccountSecurityPage from './AccountSecurityPage';
 import * as authApi from '../api/authApi';
 import { useAuthStore } from '../store/authStore';
 
+vi.mock('@/features/admin/pages/InspectorOnboardingPage', () => ({
+  default: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid="inspector-onboarding" data-embedded={String(embedded ?? false)} />
+  ),
+}));
+
 vi.mock('../api/authApi', async (importOriginal) => {
   const actual = await importOriginal<typeof authApi>();
   return {
@@ -144,5 +150,28 @@ describe('AccountSecurityPage', () => {
     const switches = screen.getAllByRole('switch') as HTMLInputElement[];
     expect(switches).toHaveLength(3);
     expect(switches.every((item) => item.disabled)).toBe(true);
+  });
+
+  it('keeps the pilot-profile tab reachable for an Inspector dashboard CTA', () => {
+    useAuthStore.setState((state) => ({
+      ...state,
+      roles: ['INSPECTOR'],
+      user: state.user ? { ...state.user, roles: ['INSPECTOR'] } : state.user,
+    }));
+
+    renderSettings('/inspector/settings?tab=pilot-profile');
+
+    const onboarding = screen.getByTestId('inspector-onboarding');
+    expect(onboarding.getAttribute('data-embedded')).toBe('true');
+    expect(
+      screen.getByText('Pilot Profile & Contract'),
+    ).toBeTruthy();
+  });
+
+  it('falls back to the account tab when pilot-profile is requested by a non-Inspector', () => {
+    renderSettings('/client/settings?tab=pilot-profile');
+
+    expect(screen.queryByTestId('inspector-onboarding')).toBeNull();
+    expect(screen.getByText('Account Details')).toBeTruthy();
   });
 });

@@ -1,18 +1,22 @@
 import { Box, Stack, Typography } from '@mui/material';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
+import InspectorOnboardingPage from '@/features/admin/pages/InspectorOnboardingPage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { useAuthStore } from '../store/authStore';
 import { ProfileAccountTab } from '../components/profile/ProfileAccountTab';
 import { ProfileNotificationTab } from '../components/profile/ProfileNotificationTab';
 import { ProfileSecurityTab } from '../components/profile/ProfileSecurityTab';
 
-type ProfileTab = 'account' | 'security' | 'notification';
+type ProfileTab = 'account' | 'security' | 'notification' | 'pilot-profile';
 
-function resolveTab(raw: string | null): ProfileTab {
+function resolveTab(raw: string | null, isInspector: boolean): ProfileTab {
+  if (raw === 'pilot-profile' && isInspector) return 'pilot-profile';
   if (raw === 'security' || raw === 'notification') return raw;
   return 'account';
 }
@@ -21,7 +25,10 @@ export default function AccountSecurityPage() {
   const { locale, t } = useLocale();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = resolveTab(searchParams.get('tab'));
+  const isInspector = useAuthStore((state) =>
+    Boolean(state.user?.roles.includes('INSPECTOR')),
+  );
+  const activeTab = resolveTab(searchParams.get('tab'), isInspector);
 
   const pathPortal = location.pathname.split('/').filter(Boolean)[0];
   const portal: PortalId =
@@ -68,6 +75,19 @@ export default function AccountSecurityPage() {
       icon: NotificationsNoneOutlinedIcon,
     },
   ];
+
+  if (isInspector) {
+    navItems.push({
+      key: 'pilot-profile',
+      title:
+        locale === 'vi' ? 'Hồ sơ Phi công & Hợp đồng' : 'Pilot Profile & Contract',
+      subtitle:
+        locale === 'vi'
+          ? 'Giấy phép bay và hợp đồng đối tác'
+          : 'Pilot license and partner contract',
+      icon: BadgeOutlinedIcon,
+    });
+  }
 
   return (
     <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 } }}>
@@ -176,6 +196,9 @@ export default function AccountSecurityPage() {
           {activeTab === 'account' && <ProfileAccountTab />}
           {activeTab === 'security' && <ProfileSecurityTab />}
           {activeTab === 'notification' && <ProfileNotificationTab />}
+          {activeTab === 'pilot-profile' && isInspector && (
+            <InspectorOnboardingPage embedded />
+          )}
         </Box>
       </Box>
     </Box>
