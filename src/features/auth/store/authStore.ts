@@ -16,6 +16,7 @@ export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
+  phoneNumber?: string | null;
   roles: Role[];
   avatarUrl?: string | null | undefined;
   visionFallbackEnabled?: boolean;

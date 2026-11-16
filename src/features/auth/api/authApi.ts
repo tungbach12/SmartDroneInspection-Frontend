@@ -115,6 +115,7 @@ interface ApiUser {
   id: string;
   email: string;
   fullName: string;
+  phoneNumber?: string | null;
   roles: unknown;
   avatarUrl?: string | null;
   visionFallbackEnabled?: boolean;
@@ -162,6 +163,9 @@ function parseUser(value: unknown): AuthUser {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
+    ...(typeof user.phoneNumber === 'string' || user.phoneNumber === null
+      ? { phoneNumber: user.phoneNumber }
+      : {}),
     roles: user.roles.map(normalizeRole).filter((role): role is Role => role !== null),
     avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : null,
     visionFallbackEnabled:
@@ -356,6 +360,20 @@ export async function logoutAllSessions(): Promise<void> {
 export async function updateAvatar(avatarUrl: string): Promise<AuthUser> {
   const { data } = await api.patch<AuthUser>('/auth/profile/avatar', {
     avatarUrl,
+  });
+  return parseUser(data);
+}
+
+export interface UpdateProfileInput {
+  fullName: string;
+  phoneNumber?: string | null | undefined;
+}
+
+export async function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
+  const trimmedPhone = input.phoneNumber?.trim();
+  const { data } = await api.patch<AuthUser>('/users/me', {
+    fullName: input.fullName.trim(),
+    phoneNumber: trimmedPhone ? trimmedPhone : null,
   });
   return parseUser(data);
 }

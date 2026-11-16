@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const transport = vi.hoisted(() => ({
   postWithBrowserCsrf: vi.fn(),
+  apiGet: vi.fn(),
   apiPost: vi.fn(),
+  apiPatch: vi.fn(),
 }));
 
 vi.mock('@/shared/api/client', () => ({
-  api: { post: transport.apiPost },
+  api: { get: transport.apiGet, post: transport.apiPost, patch: transport.apiPatch },
   postWithBrowserCsrf: transport.postWithBrowserCsrf,
   withBrowserRefreshLock: (operation: () => Promise<unknown>) => operation(),
 }));
@@ -21,6 +23,7 @@ import {
   logoutCurrentSession,
   registerOrganization,
   restoreBrowserSession,
+  updateProfile,
 } from './authApi';
 
 
@@ -49,7 +52,9 @@ const authenticatedFlow = {
 describe('browser auth API', () => {
   beforeEach(() => {
     transport.postWithBrowserCsrf.mockReset();
+    transport.apiGet.mockReset();
     transport.apiPost.mockReset();
+    transport.apiPatch.mockReset();
   });
 
   it('does not expose retired provider onboarding or team APIs', () => {
@@ -318,5 +323,27 @@ describe('browser auth API', () => {
     });
     expect(evaluation.classification).toBe('NO_FLY_ZONE');
     expect(evaluation.portalUrl).toBe('https://cambay.mod.gov.vn');
+  });
+
+  it('updates fullName and phoneNumber via PATCH /users/me and parses the updated profile', async () => {
+    transport.apiPatch.mockResolvedValue({
+      data: {
+        ...user,
+        fullName: 'Updated Client',
+        phoneNumber: '+84 909 888 777',
+      },
+    });
+
+    const updated = await updateProfile({
+      fullName: '  Updated Client  ',
+      phoneNumber: '  +84 909 888 777  ',
+    });
+
+    expect(transport.apiPatch).toHaveBeenCalledWith('/users/me', {
+      fullName: 'Updated Client',
+      phoneNumber: '+84 909 888 777',
+    });
+    expect(updated.fullName).toBe('Updated Client');
+    expect(updated.phoneNumber).toBe('+84 909 888 777');
   });
 });

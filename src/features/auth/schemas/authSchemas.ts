@@ -76,6 +76,19 @@ export const passwordChangeSchema = z
     message: 'Passwords do not match.',
   });
 
+export const profileUpdateSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Enter your full name.')
+    .max(200, 'Name must be 200 characters or fewer.'),
+  phoneNumber: z
+    .string()
+    .trim()
+    .max(32, 'Phone number must be 32 characters or fewer.')
+    .optional(),
+});
+
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type FirstAssetFormValues = z.infer<typeof firstAssetSchema>;
 export type OrganizationRegistrationFormValues = z.infer<
@@ -83,3 +96,4 @@ export type OrganizationRegistrationFormValues = z.infer<
 >;
 export type PasswordSetupFormValues = z.infer<typeof passwordSetupSchema>;
 export type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
+export type ProfileUpdateFormValues = z.infer<typeof profileUpdateSchema>;
