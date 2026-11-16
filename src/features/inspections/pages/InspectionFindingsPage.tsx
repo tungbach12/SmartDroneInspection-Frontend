@@ -1,5 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -15,21 +18,30 @@ import {
   Typography,
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import SearchRounded from '@mui/icons-material/SearchRounded';
+import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import type {
-  EvidenceItem,
-  Finding,
-  FindingSeverity,
-  ManualFindingInput,
+import {
+  inspectionApi,
+  type EvidenceItem,
+  type Finding,
+  type FindingSeverity,
+  type ManualFindingInput,
 } from '../api/inspectionApi';
 import { AiMotionFigure } from '../components/AiMotionFigure';
+import { BoundingBoxEditorDialog } from '../components/BoundingBoxEditorDialog';
+import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
+import { EvidenceGpsMapDialog } from '../components/EvidenceGpsMapDialog';
+import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { parseBoundingBox, type BoundingBoxCoords } from '../utils/boundingBox';
 import {
   useAnalyzeEvidence,
   useCreateManualFinding,
@@ -42,11 +54,12 @@ import {
   useUpdateEvidenceLocation,
   useReportVersions,
   useConfirmFinding,
+  useInspection,
+  useReinspectionVerifications,
   useRemovedFindings,
   useRestoreFinding,
+  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
-import { usePlatformAiAnalytics } from '@/features/admin/hooks/usePlatformAiSettings';
-import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -59,7 +72,12 @@ export default function InspectionFindingsPage() {
   const isReviewer =
     roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN');
 
-  const aiSettingsQuery = usePlatformAiAnalytics?.(true);
+  const inspectionQuery = useInspection?.(inspectionId);
+  const isReinspection = inspectionQuery?.data?.inspectionType === 'RE_INSPECTION';
+  const reinspectionVerifications = useReinspectionVerifications?.(
+    isReinspection ? inspectionId : null,
+  );
+  const updateVerificationMutation = useUpdateReinspectionVerification?.(inspectionId);
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -121,7 +139,19 @@ export default function InspectionFindingsPage() {
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
   const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
   const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
+  const [revisedBoundingBoxes, setRevisedBoundingBoxes] = useState<Record<string, string | null>>({});
+  const [manualBoundingBoxes, setManualBoundingBoxes] = useState<Record<string, string | null>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
+  const [boxEditorState, setBoxEditorState] = useState<{
+    open: boolean;
+    evidenceId: string;
+    initialBox: BoundingBoxCoords | null;
+    defectLabel?: string | undefined;
+    target:
+      | { kind: 'candidate'; findingId: string }
+      | { kind: 'manual-group'; evidenceId: string }
+      | { kind: 'manual-register'; findingId: string };
+  } | null>(null);
   const [findingToDeleteId, setFindingToDeleteId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
 
@@ -311,6 +341,10 @@ export default function InspectionFindingsPage() {
       ...prev,
       [finding.id]: finding.recommendedAction ?? '',
     }));
+    setRevisedBoundingBoxes((prev) => ({
+      ...prev,
+      [finding.id]: finding.boundingBox ?? null,
+    }));
   };
 
   const saveCandidateCorrection = (finding: Finding) => {
@@ -319,6 +353,12 @@ export default function InspectionFindingsPage() {
     const recommendedAction = (
       revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? ''
     ).trim();
+    const hasEditedBox =
+      finding.id in revisedBoundingBoxes &&
+      revisedBoundingBoxes[finding.id] !== (finding.boundingBox ?? null);
+    const boundingBoxPatch = hasEditedBox
+      ? { boundingBox: revisedBoundingBoxes[finding.id] ?? '' }
+      : {};
 
     updateFinding.mutate(
       {
@@ -329,6 +369,7 @@ export default function InspectionFindingsPage() {
           severity: severityFor(finding),
           technicalNotes: technicalNotes || 'Corrected by assigned Inspector',
           recommendedAction: recommendedAction || undefined,
+          ...boundingBoxPatch,
         },
       },
       { onSuccess: () => setEditingCandidateId(null) },
@@ -340,12 +381,19 @@ export default function InspectionFindingsPage() {
     const formData = new FormData(event.currentTarget);
     const evidenceId = String(formData.get('evidenceId') ?? '');
     if (!evidenceId) return;
+    const rawBox = String(formData.get('boundingBox') ?? '').trim();
     createManualFinding.mutate({
       evidenceId,
       defectLabel: String(formData.get('defectLabel') ?? '').trim(),
       severity: String(formData.get('severity') ?? 'MEDIUM') as FindingSeverity,
       technicalNotes: String(formData.get('technicalNotes') ?? '').trim(),
       recommendedAction: String(formData.get('recommendedAction') ?? '').trim(),
+      ...(rawBox ? { boundingBox: rawBox } : {}),
+    });
+    setManualBoundingBoxes((prev) => {
+      const next = { ...prev };
+      delete next[evidenceId];
+      return next;
     });
     event.currentTarget.reset();
   };
@@ -370,131 +418,49 @@ export default function InspectionFindingsPage() {
 
   const defectDiscoveryWorkspace = (
     <Stack spacing={2.5}>
-      {/* 1. Page Header with Clean Single-Row Actions */}
-      <Paper
-        elevation={0}
-        className="trace-stage-panel trace-stage-panel--findings"
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: '10px',
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          boxShadow: 'none',
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 38,
-                height: 38,
-                borderRadius: '8px',
-                bgcolor: 'action.selected',
-                color: 'primary.main',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <AutoAwesomeOutlined sx={{ fontSize: 24 }} />
-            </Box>
-            <Box>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-                  {t('Findings')}
-                </Typography>
-                {aiSettingsQuery?.data?.autoConfirmEnabled && (
-                  <Chip
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                    label={`Auto-confirm ≥ ${Number(aiSettingsQuery.data.autoConfirmThreshold).toFixed(0)}%`}
-                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
-                  />
+      {isInspector && isFindingsLocked && (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {latestReportVersion?.status === 'SUBMITTED'
+              ? t(
+                  'Findings are locked while the report is submitted for review. Withdraw the submission on the Report tab if you need to make changes.',
+                )
+              : t(
+                  'This inspection report has been approved or published. Findings are read-only.',
                 )}
-              </Stack>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
-                {t('Review AI suggestions; confirm or correct findings before reporting.')}
-              </Typography>
-            </Box>
-          </Stack>
+          </Typography>
+        </Alert>
+      )}
 
-          {isInspector && analysisUnlocked && (
-            <Button
-              variant="contained"
-              startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-              disabled={isAnalysisPending || analysableImageIds.length === 0}
-              onClick={() => void analyzeMany(analysableImageIds)}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '10px',
-                boxShadow: 'none',
-                px: 2.25,
-                py: 1,
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                alignSelf: { xs: 'stretch', sm: 'auto' },
-                '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
-              }}
-            >
-              {isAnalysisPending
-                ? t('Analyzing…')
-                : `${t('Analyze all images')} (${analysableImageIds.length})`}
-            </Button>
+      {isInspector && isReturnedRevision && (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          {t('Returned for revision. Update findings, reconfirm, and resubmit the report.')}
+        </Alert>
+      )}
+      {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
+        </Alert>
+      )}
+
+      {isInspector && isAnalysisPending && (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          {t('Advisory detection is running. Each image card shows real-time analysis status.')}
+        </Alert>
+      )}
+      {isInspector && isAnalysisError && (
+        <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+          {getErrorMessage(
+            analysisError,
+            'AI analysis is unavailable; existing evidence remains available.',
           )}
-        </Stack>
-
-        {isInspector && isFindingsLocked && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {latestReportVersion?.status === 'SUBMITTED'
-                ? t(
-                    'Findings are locked while the report is submitted for review. Withdraw the submission on the Report tab if you need to make changes.',
-                  )
-                : t(
-                    'This inspection report has been approved or published. Findings are read-only.',
-                  )}
-            </Typography>
-          </Alert>
-        )}
-
-        {isInspector && isReturnedRevision && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            {t('Returned for revision. Update findings, reconfirm, and resubmit the report.')}
-          </Alert>
-        )}
-        {isInspector && workflow.data?.status === 'FIELD_COMPLETED' && Boolean(workflow.data?.findingsConfirmedAt) && latestReportVersion && !isReturnedRevision && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            {t('Findings remain editable while authoring the report. Confirm the current set again after changes before submitting a fresh report version.')}
-          </Alert>
-        )}
-
-        {isInspector && isAnalysisPending && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            {t('Advisory detection is running. Each image card shows real-time analysis status.')}
-          </Alert>
-        )}
-        {isInspector && isAnalysisError && (
-          <Alert severity="warning" sx={{ mt: 2, borderRadius: '10px' }}>
-            {getErrorMessage(
-              analysisError,
-              'AI analysis is unavailable; existing evidence remains available.',
-            )}
-          </Alert>
-        )}
-        {isInspector && analysableImageIds.length === 0 && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: '10px' }}>
-            {t('Upload current image captures before running advisory detection.')}
-          </Alert>
-        )}
-      </Paper>
+        </Alert>
+      )}
+      {isInspector && analysableImageIds.length === 0 && (
+        <Alert severity="info" sx={{ borderRadius: '10px' }}>
+          {t('Upload current image captures before running advisory detection.')}
+        </Alert>
+      )}
 
       <Paper
         variant="outlined"
@@ -551,25 +517,54 @@ export default function InspectionFindingsPage() {
               }}
             />
           </Stack>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button
-              size="small"
-              variant="outlined"
-              aria-expanded={filtersOpen}
-              onClick={() => setFiltersOpen((open) => !open)}
-              sx={{ borderRadius: '5px', textTransform: 'none' }}
-            >
-              {filtersOpen ? t('Hide filters') : t('More filters')}
-              {advancedFilterCount > 0 ? ` · ${advancedFilterCount}` : ''}
-            </Button>
-            {hasActiveFilters && (
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Button
                 size="small"
-                startIcon={<RestartAltRounded />}
-                onClick={resetFilters}
-                sx={{ textTransform: 'none', color: 'text.secondary', ml: 'auto' }}
+                variant="outlined"
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((open) => !open)}
+                sx={{ borderRadius: '5px', textTransform: 'none' }}
               >
-                {t('Clear filters')}
+                {filtersOpen ? t('Hide filters') : t('More filters')}
+                {advancedFilterCount > 0 ? ` · ${advancedFilterCount}` : ''}
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  size="small"
+                  startIcon={<RestartAltRounded />}
+                  onClick={resetFilters}
+                  sx={{ textTransform: 'none', color: 'text.secondary' }}
+                >
+                  {t('Clear filters')}
+                </Button>
+              )}
+            </Stack>
+            {isInspector && analysisUnlocked && (
+              <Button
+                variant="contained"
+                startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
+                disabled={isAnalysisPending || analysableImageIds.length === 0}
+                onClick={() => void analyzeMany(analysableImageIds)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  boxShadow: 'none',
+                  px: 2.25,
+                  py: 0.875,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
+                }}
+              >
+                {isAnalysisPending
+                  ? t('Analyzing…')
+                  : `${t('Analyze all images')} (${analysableImageIds.length})`}
               </Button>
             )}
           </Stack>
@@ -779,6 +774,24 @@ export default function InspectionFindingsPage() {
                 onRecommendedActionsChange={(fid, val) =>
                   setRevisedRecommendedActions((prev) => ({ ...prev, [fid]: val }))
                 }
+                revisedBoundingBoxes={revisedBoundingBoxes}
+                onEditBoundingBox={(finding) => {
+                  if (!finding.evidenceId) return;
+                  const currentRaw =
+                    finding.id in revisedBoundingBoxes
+                      ? revisedBoundingBoxes[finding.id]
+                      : finding.boundingBox;
+                  setBoxEditorState({
+                    open: true,
+                    evidenceId: finding.evidenceId,
+                    initialBox: parseBoundingBox(currentRaw),
+                    defectLabel: revisedDefectLabels[finding.id] ?? finding.defectLabel,
+                    target: { kind: 'candidate', findingId: finding.id },
+                  });
+                }}
+                onClearBoundingBox={(fid) =>
+                  setRevisedBoundingBoxes((prev) => ({ ...prev, [fid]: null }))
+                }
                 onConfirmFinding={(finding) =>
                   confirmFinding.mutate({
                     findingId: finding.id,
@@ -803,6 +816,18 @@ export default function InspectionFindingsPage() {
                   submitManualFinding(e);
                   setManualFindingEvidenceId(null);
                 }}
+                manualBoundingBox={manualBoundingBoxes[group.evidenceId] ?? null}
+                onEditManualBoundingBox={(evId) =>
+                  setBoxEditorState({
+                    open: true,
+                    evidenceId: evId,
+                    initialBox: parseBoundingBox(manualBoundingBoxes[evId]),
+                    target: { kind: 'manual-group', evidenceId: evId },
+                  })
+                }
+                onClearManualBoundingBox={() =>
+                  setManualBoundingBoxes((prev) => ({ ...prev, [group.evidenceId]: null }))
+                }
                 isCreateManualPending={createManualFinding.isPending}
                 createManualError={createManualFinding.error}
               />
@@ -912,15 +937,105 @@ export default function InspectionFindingsPage() {
         isEditable={isInspector && !isFindingsLocked}
         isPending={updateFinding.isPending || deleteFinding.isPending}
         error={updateFinding.error ?? deleteFinding.error}
+        editedBoxes={revisedBoundingBoxes}
+        onOpenBoxEditor={(finding) => {
+          if (!finding.evidenceId) return;
+          const currentRaw =
+            finding.id in revisedBoundingBoxes
+              ? revisedBoundingBoxes[finding.id]
+              : finding.boundingBox;
+          setBoxEditorState({
+            open: true,
+            evidenceId: finding.evidenceId,
+            initialBox: parseBoundingBox(currentRaw),
+            defectLabel: finding.defectLabel,
+            target: { kind: 'manual-register', findingId: finding.id },
+          });
+        }}
+        onClearBox={(findingId) =>
+          setRevisedBoundingBoxes((prev) => ({ ...prev, [findingId]: null }))
+        }
         onUpdate={(findingId, input) => updateFinding.mutate({ findingId, input })}
         onDelete={(findingId) => setFindingToDeleteId(findingId)}
       />
     </Stack>
   );
 
+  const editorEvidence = boxEditorState
+    ? (evidence.data ?? []).find((item) => item.id === boxEditorState.evidenceId)
+    : undefined;
+
   return (
     <Stack spacing={2.5}>
-      {defectDiscoveryWorkspace}
+      {isReinspection && updateVerificationMutation && (
+        <ReinspectionVerificationSection
+          inspectionId={inspectionId}
+          sourceInspectionId={inspectionQuery?.data?.sourceInspectionId}
+          items={reinspectionVerifications?.data ?? []}
+          evidenceList={activeEvidenceItems}
+          onUpdate={(verificationId, payload) =>
+            updateVerificationMutation.mutateAsync({ verificationId, payload })
+          }
+          readOnly={!isInspector || !analysisUnlocked}
+        />
+      )}
+
+      {isReinspection ? (
+        <Accordion
+          variant="outlined"
+          sx={{
+            borderRadius: '10px !important',
+            borderColor: 'divider',
+            '&:before': { display: 'none' },
+            boxShadow: 'none',
+            overflow: 'hidden',
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <AutoAwesomeOutlined color="action" />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
+                  {t('Additional New Defect Scanning (Optional)')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Only needed if fresh captures revealed unexpected defects outside the target re-inspection scope')}
+                </Typography>
+              </Box>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
+            {defectDiscoveryWorkspace}
+          </AccordionDetails>
+        </Accordion>
+      ) : (
+        defectDiscoveryWorkspace
+      )}
+
+      {boxEditorState && (
+        <BoundingBoxEditorDialog
+          key={`${boxEditorState.evidenceId}-${boxEditorState.target.kind}-${boxEditorState.open}`}
+          open={boxEditorState.open}
+          imageSrc={inspectionApi.evidenceContentUrl(inspectionId, boxEditorState.evidenceId)}
+          imageAlt={editorEvidence?.fileName ?? t('Inspection evidence photo')}
+          initialBox={boxEditorState.initialBox}
+          defectLabel={boxEditorState.defectLabel}
+          onClose={() => setBoxEditorState(null)}
+          onApply={(boxJson) => {
+            if (
+              boxEditorState.target.kind === 'candidate' ||
+              boxEditorState.target.kind === 'manual-register'
+            ) {
+              const targetId = boxEditorState.target.findingId;
+              setRevisedBoundingBoxes((prev) => ({ ...prev, [targetId]: boxJson }));
+            } else {
+              const evId = boxEditorState.target.evidenceId;
+              setManualBoundingBoxes((prev) => ({ ...prev, [evId]: boxJson }));
+            }
+            setBoxEditorState(null);
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={Boolean(findingToDeleteId)}
@@ -951,6 +1066,9 @@ function InspectorFindingRegister({
   isEditable,
   isPending,
   error,
+  editedBoxes,
+  onOpenBoxEditor,
+  onClearBox,
   onUpdate,
   onDelete,
 }: {
@@ -959,11 +1077,15 @@ function InspectorFindingRegister({
   isEditable: boolean;
   isPending: boolean;
   error: unknown;
+  editedBoxes: Record<string, string | null>;
+  onOpenBoxEditor: (finding: Finding) => void;
+  onClearBox: (findingId: string) => void;
   onUpdate: (findingId: string, input: ManualFindingInput) => void;
   onDelete: (findingId: string) => void;
 }) {
   const { t } = useLocale();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [mapEvidence, setMapEvidence] = useState<EvidenceItem | null>(null);
 
   if (!isEditable || findings.length === 0) return null;
   const activeEvidence = evidence.filter((item) => !item.isDeleted);
@@ -971,12 +1093,15 @@ function InspectorFindingRegister({
   const submitEdit = (event: FormEvent<HTMLFormElement>, finding: Finding) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const hasEditedBox =
+      finding.id in editedBoxes && editedBoxes[finding.id] !== (finding.boundingBox ?? null);
     onUpdate(finding.id, {
       evidenceId: String(data.get('evidenceId') ?? finding.evidenceId ?? ''),
       defectLabel: String(data.get('defectLabel') ?? '').trim(),
       severity: String(data.get('severity') ?? finding.severity) as FindingSeverity,
       technicalNotes: String(data.get('technicalNotes') ?? '').trim(),
       recommendedAction: String(data.get('recommendedAction') ?? '').trim() || undefined,
+      ...(hasEditedBox ? { boundingBox: editedBoxes[finding.id] ?? '' } : {}),
     });
     setEditingId(null);
   };
@@ -1001,33 +1126,119 @@ function InspectorFindingRegister({
                 </TextField>
                 <TextField name="technicalNotes" label={t('Technical notes')} size="small" multiline minRows={2} defaultValue={finding.technicalNotes} required sx={{ gridColumn: '1 / -1' }} />
                 <TextField name="recommendedAction" label={t('Recommended action')} size="small" multiline minRows={2} defaultValue={finding.recommendedAction ?? ''} sx={{ gridColumn: '1 / -1' }} />
+                {evidence.find((item) => item.id === finding.evidenceId)?.contentType.startsWith('image/') && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ gridColumn: '1 / -1', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+                  >
+                    {(() => {
+                      const raw =
+                        finding.id in editedBoxes ? editedBoxes[finding.id] : finding.boundingBox;
+                      const parsed = parseBoundingBox(raw);
+                      return parsed ? (
+                        <>
+                          <Chip
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            label={`${t('Region:')} ${Math.round((parsed.xMax - parsed.xMin) * 100)}% × ${Math.round((parsed.yMax - parsed.yMin) * 100)}%`}
+                          />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CropFreeRounded fontSize="small" />}
+                            onClick={() => onOpenBoxEditor(finding)}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                          >
+                            {t('Adjust box on photo')}
+                          </Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="text"
+                            onClick={() => onClearBox(finding.id)}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                          >
+                            {t('Clear region')}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Chip size="small" variant="outlined" label={t('No region box')} />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CropFreeRounded fontSize="small" />}
+                            onClick={() => onOpenBoxEditor(finding)}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                          >
+                            {t('Mark region on photo')}
+                          </Button>
+                        </>
+                      );
+                    })()}
+                  </Stack>
+                )}
                 <Stack direction="row" spacing={1} sx={{ gridColumn: '1 / -1' }}>
                   <Button type="submit" variant="contained" size="small" disabled={isPending || activeEvidence.length === 0}>{t('Save finding')}</Button>
                   <Button size="small" onClick={() => setEditingId(null)}>{t('Cancel')}</Button>
                 </Stack>
               </Box>
             ) : (
-              <Stack spacing={1}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
-                  <Chip size="small" label={finding.severity} />
-                  {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Included in report')} />}
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {evidence.find((item) => item.id === finding.evidenceId)?.locationDescription || 'Location not supplied'}
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={() => setEditingId(finding.id)}>{t('Edit')}</Button>
-                  <Button size="small" color="error" disabled={isPending} onClick={() => onDelete(finding.id)}>
-                    {t('Remove')}
-                  </Button>
-                </Stack>
-              </Stack>
+              (() => {
+                const linkedEvidence = evidence.find((item) => item.id === finding.evidenceId);
+                const hasGps =
+                  linkedEvidence?.latitude != null &&
+                  linkedEvidence?.longitude != null &&
+                  Number.isFinite(Number(linkedEvidence.latitude)) &&
+                  Number.isFinite(Number(linkedEvidence.longitude));
+                return (
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
+                      <Chip size="small" label={finding.severity} />
+                      {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Included in report')} />}
+                      {hasGps && linkedEvidence && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                          label={t('View on map')}
+                          onClick={() => setMapEvidence(linkedEvidence)}
+                          sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                        />
+                      )}
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {linkedEvidence?.locationDescription || 'Location not supplied'}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button size="small" onClick={() => setEditingId(finding.id)}>{t('Edit')}</Button>
+                      <Button size="small" color="error" disabled={isPending} onClick={() => onDelete(finding.id)}>
+                        {t('Remove')}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                );
+              })()
             )}
           </Box>
         ))}
         {error != null && <Alert severity="error">{getErrorMessage(error, 'The finding change was not saved.')}</Alert>}
       </Stack>
+      {mapEvidence && mapEvidence.latitude != null && mapEvidence.longitude != null && (
+        <EvidenceGpsMapDialog
+          open
+          onClose={() => setMapEvidence(null)}
+          fileName={mapEvidence.fileName}
+          latitude={Number(mapEvidence.latitude)}
+          longitude={Number(mapEvidence.longitude)}
+          captureTime={mapEvidence.captureTime}
+          locationDescription={mapEvidence.locationDescription}
+        />
+      )}
     </Paper>
   );
 }
@@ -1040,7 +1251,9 @@ function OrganizationFindingsOverview({
   inspectionId: string;
 }) {
   const { t } = useLocale();
+
   const evidence = useInspectionEvidence(inspectionId);
+  const [mapEvidence, setMapEvidence] = useState<EvidenceItem | null>(null);
   const officialFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const pendingFindings = findings.filter((finding) => finding.status === 'PENDING');
   const severityOrder: FindingSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -1070,23 +1283,42 @@ function OrganizationFindingsOverview({
           <Alert severity="info">{t('The Inspector has not confirmed any report findings for this inspection.')}</Alert>
         ) : (
           <Stack spacing={1.5}>
-            {officialFindings.map((finding) => (
+            {officialFindings.map((finding) => {
+              const linkedEvidence = (evidence.data ?? []).find((item) => item.id === finding.evidenceId);
+              const hasGps =
+                linkedEvidence?.latitude != null &&
+                linkedEvidence?.longitude != null &&
+                Number.isFinite(Number(linkedEvidence.latitude)) &&
+                Number.isFinite(Number(linkedEvidence.longitude));
+              return (
               <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                     <Chip size="small" label={finding.severity} />
                     <Chip size="small" color="success" label={t('Inspector-confirmed')} />
+                    {hasGps && linkedEvidence && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                        label={t('View on map')}
+                        onClick={() => setMapEvidence(linkedEvidence)}
+                        sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                      />
+                    )}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {(evidence.data ?? []).find((item) => item.id === finding.evidenceId)?.locationDescription ?? 'Location not recorded'}
+                    {linkedEvidence?.locationDescription ?? 'Location not recorded'}
                   </Typography>
                   {finding.technicalNotes && <Typography variant="body2" color="text.secondary">{finding.technicalNotes}</Typography>}
                   {finding.recommendedAction && <Typography variant="body2"><strong>{t('Recommended action:')}</strong> {finding.recommendedAction}</Typography>}
                   {finding.evidenceId && <Typography variant="caption" color="text.secondary">{t('Linked evidence ·')} {finding.evidenceId.slice(0, 8)}…</Typography>}
                 </Stack>
               </Box>
-            ))}
+              );
+            })}
           </Stack>
         )}
       </Paper>
@@ -1097,7 +1329,14 @@ function OrganizationFindingsOverview({
             {t('These are not official findings. The assigned Inspector confirms or removes them.')}
           </Typography>
           <Stack spacing={1}>
-            {pendingFindings.map((finding) => (
+            {pendingFindings.map((finding) => {
+              const linkedEvidence = (evidence.data ?? []).find((item) => item.id === finding.evidenceId);
+              const hasGps =
+                linkedEvidence?.latitude != null &&
+                linkedEvidence?.longitude != null &&
+                Number.isFinite(Number(linkedEvidence.latitude)) &&
+                Number.isFinite(Number(linkedEvidence.longitude));
+              return (
               <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
@@ -1109,6 +1348,17 @@ function OrganizationFindingsOverview({
                     />
                   )}
                   <Chip size="small" color="warning" label={t('Pending Inspector review')} />
+                  {hasGps && linkedEvidence && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                      label={t('View on map')}
+                      onClick={() => setMapEvidence(linkedEvidence)}
+                      sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                    />
+                  )}
                   {finding.modelName && (
                     <Typography variant="caption" color="text.secondary">
                       {finding.modelName}
@@ -1116,9 +1366,21 @@ function OrganizationFindingsOverview({
                   )}
                 </Stack>
               </Box>
-            ))}
+              );
+            })}
           </Stack>
         </Paper>
+      )}
+      {mapEvidence && mapEvidence.latitude != null && mapEvidence.longitude != null && (
+        <EvidenceGpsMapDialog
+          open
+          onClose={() => setMapEvidence(null)}
+          fileName={mapEvidence.fileName}
+          latitude={Number(mapEvidence.latitude)}
+          longitude={Number(mapEvidence.longitude)}
+          captureTime={mapEvidence.captureTime}
+          locationDescription={mapEvidence.locationDescription}
+        />
       )}
     </Stack>
   );

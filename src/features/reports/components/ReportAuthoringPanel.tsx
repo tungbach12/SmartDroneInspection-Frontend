@@ -19,8 +19,10 @@ import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import type {
   EvidenceItem,
+  FieldSession,
   InspectionReport,
   Finding,
+  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -31,6 +33,8 @@ export interface ReportAuthoringPanelProps {
   version: InspectionReport;
   findings: Finding[];
   evidenceList: EvidenceItem[];
+  fieldSessions?: FieldSession[] | undefined;
+  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   inspectionId: string;
   canEdit?: boolean;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
@@ -53,6 +57,8 @@ export function ReportAuthoringPanel({
   version,
   findings,
   evidenceList,
+  fieldSessions,
+  reinspectionVerifications,
   inspectionId,
   canEdit = false,
   droneSummary,
@@ -192,8 +198,9 @@ export function ReportAuthoringPanel({
         version={version}
         findings={findings}
         evidenceList={evidenceList}
+        fieldSessions={fieldSessions}
+        reinspectionVerifications={reinspectionVerifications}
         inspectionId={inspectionId}
-
         droneSummary={droneSummary}
         flightPermitFileName={flightPermitFileName}
       />

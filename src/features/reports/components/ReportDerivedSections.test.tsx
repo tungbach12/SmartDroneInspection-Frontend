@@ -5,11 +5,28 @@ import type {
   InspectionReport,
   Finding,
 } from '@/features/inspections/api/inspectionApi';
+import { getOrGeneratePersistedAiSummary } from './ReportAiSummaryCard';
 import { ReportDerivedSections } from './ReportDerivedSections';
 
 vi.mock('@/shared/ui/AuthenticatedImage', () => ({
   AuthenticatedImage: ({ src }: { src: string }) => (
     <div data-testid="authenticated-image" data-src={src} />
+  ),
+}));
+
+vi.mock('@/shared/ui/AuthenticatedMedia', () => ({
+  AuthenticatedMedia: ({
+    src,
+    seekRequest,
+  }: {
+    src: string;
+    seekRequest?: { timestampSeconds: number; nonce: number } | null;
+  }) => (
+    <div
+      data-testid="authenticated-media"
+      data-src={src}
+      data-seek={seekRequest ? String(seekRequest.timestampSeconds) : ''}
+    />
   ),
 }));
 
@@ -177,11 +194,69 @@ describe('ReportDerivedSections source context', () => {
       />,
     );
 
-    expect(screen.getByText('Pre-flight safety checklist')).toBeTruthy();
+    const preBtn = screen.getByRole('button', { name: /Pre-flight safety checklist/i });
+    const postBtn = screen.getByRole('button', {
+      name: /Post-flight outcome & completion checklist/i,
+    });
+    expect(preBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(postBtn.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(preBtn);
+    expect(preBtn.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('Airframe, propellers & gimbal camera intact')).toBeTruthy();
-    expect(screen.getByText('Post-flight outcome & completion checklist')).toBeTruthy();
+
+    fireEvent.click(postBtn);
+    expect(postBtn.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('Drone landed safely, motors disarmed & airframe undamaged')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'View permit' })).toBeTruthy();
+  });
+
+  it('separates Inspected items into an independent collapsed Inspection items checklist card', () => {
+    const versionWithInspectedItems: InspectionReport = {
+      ...version,
+      reportContext: {
+        ...version.reportContext!,
+        fieldSessions: [
+          {
+            id: 'session-insp-items',
+            status: 'FIELD_COMPLETED',
+            startedAt: '2026-11-15T13:15:00Z',
+            endedAt: '2026-11-15T13:20:00Z',
+            preFlightChecklistNote: '[✓] Airframe, propellers & mounting secure',
+            postponementReason: null,
+            abortReason: null,
+            outcomeNotes:
+              '[✓] Aircraft landed safely & propulsion disarmed · [✓] Inspected: Tru thap chinh T1 · [✓] Inspected: He cap vang chinh',
+            droneSerialNumber: 'DR-17',
+            droneManufacturer: 'SurveyCo',
+            droneModel: 'S2',
+          },
+        ],
+      },
+    };
+
+    render(
+      <ReportDerivedSections
+        version={versionWithInspectedItems}
+        findings={[]}
+        evidenceList={[]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    const postBtn = screen.getByRole('button', {
+      name: /Post-flight outcome & completion checklist/i,
+    });
+    const inspItemsBtn = screen.getByRole('button', { name: /Inspection items/i });
+    expect(postBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(inspItemsBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(within(postBtn).getByText('1 verified')).toBeTruthy();
+    expect(within(inspItemsBtn).getByText('2 verified')).toBeTruthy();
+
+    fireEvent.click(inspItemsBtn);
+    expect(inspItemsBtn.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Tru thap chinh T1')).toBeTruthy();
+    expect(screen.getByText('He cap vang chinh')).toBeTruthy();
   });
 });
 
@@ -217,9 +292,7 @@ describe('ReportDerivedSections confirmed findings', () => {
     ]);
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
-    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('Inspector-confirmed')).toBeTruthy();
+    expect(within(section!).getByText('GussetPlateSectionLoss · HIGH')).toBeTruthy();
   });
 
   it('excludes reviewer-rejected findings from the section', () => {
@@ -231,7 +304,7 @@ describe('ReportDerivedSections confirmed findings', () => {
   });
 
   it('always displays Technical notes and Recommended action even when empty or null', () => {
-    renderConfirmedFindings([
+    const section = renderConfirmedFindings([
       finding({
         defectLabel: 'Crack',
         status: 'CONFIRMED',
@@ -240,14 +313,12 @@ describe('ReportDerivedSections confirmed findings', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/Technical notes:/)).toBeTruthy();
-    expect(within(dialog).getByText(/Recommended action:/)).toBeTruthy();
+    expect(within(section!).getByText(/Technical notes:/)).toBeTruthy();
+    expect(within(section!).getByText(/Recommended action:/)).toBeTruthy();
   });
 
   it('displays Technical notes and Recommended action content when provided', () => {
-    renderConfirmedFindings([
+    const section = renderConfirmedFindings([
       finding({
         defectLabel: 'Corrosion',
         status: 'CONFIRMED',
@@ -256,13 +327,11 @@ describe('ReportDerivedSections confirmed findings', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /View finding details/i }));
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/Surface rust visible on bracket/)).toBeTruthy();
-    expect(within(dialog).getByText(/Apply anti-corrosion primer/)).toBeTruthy();
+    expect(within(section!).getByText(/Surface rust visible on bracket/)).toBeTruthy();
+    expect(within(section!).getByText(/Apply anti-corrosion primer/)).toBeTruthy();
   });
 
-  it('renders findings preview on evidence item and opens modal via the small link', () => {
+  it('renders confirmed findings inline next to the evidence thumbnail without a redundant details modal link', () => {
     render(
       <ReportDerivedSections
         version={version}
@@ -286,14 +355,290 @@ describe('ReportDerivedSections confirmed findings', () => {
       screen.getByTestId('authenticated-image').getAttribute('data-src'),
     ).toBe('/api/v1/inspections/inspection-1/evidence/evidence-1/content?variant=thumb');
 
-    const openModalBtn = screen.getByRole('button', { name: /View finding details/i });
-    expect(openModalBtn).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /View finding details/i })).toBeNull();
+    expect(screen.getByText(/Longitudinal crack near seam/)).toBeTruthy();
+    expect(screen.getByText(/Seal and monitor/)).toBeTruthy();
+  });
 
-    fireEvent.click(openModalBtn);
+  it('organizes defect photos, flight video, and clear captures into 3 separate tiers with video seek', () => {
+    const flightVideo: EvidenceItem = {
+      ...evidence,
+      id: 'video-1',
+      fileName: 'tower_orbit.mp4',
+      contentType: 'video/mp4',
+      durationSeconds: 20,
+    };
+    const defectFromVideo: EvidenceItem = {
+      ...evidence,
+      id: 'defect-img-1',
+      fileName: 'defect_parapet.jpg',
+      sourceVideoEvidenceId: 'video-1',
+      sourceTimestampSeconds: 8,
+    };
+    const clearPhoto: EvidenceItem = {
+      ...evidence,
+      id: 'clear-img-1',
+      fileName: 'clear_curtainwall.jpg',
+    };
+
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-confirmed',
+            evidenceId: 'defect-img-1',
+            defectLabel: 'abscission',
+            status: 'CONFIRMED',
+          }),
+        ]}
+        evidenceList={[flightVideo, defectFromVideo, clearPhoto]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    // Tier 1 (Defect evidence), Tier 2 (Flight videos), and Tier 3 (Clear captures) all render as standalone sections without collapsible thumbnail toggles
+    expect(screen.getByText(/Defect evidence & confirmed findings \(1\)/i)).toBeTruthy();
+    expect(screen.getByText(/Flight video captures \(1\)/i)).toBeTruthy();
+    expect(screen.getByText(/Clear \/ reference captures \(no findings\) \(1\)/i)).toBeTruthy();
+    expect(screen.getByText('clear_curtainwall.jpg')).toBeTruthy();
+    expect(screen.queryByText(/Hide thumbnails|Show thumbnails/i)).toBeNull();
+
+    // Filter chips let reviewer focus a single evidence tier or restore all
+    fireEvent.click(screen.getByRole('button', { name: /1 clear captures/i }));
+    expect(screen.queryByText(/Defect evidence & confirmed findings/i)).toBeNull();
+    expect(screen.getByText('clear_curtainwall.jpg')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /All \(3\)/i }));
+    expect(screen.getByText(/Defect evidence & confirmed findings \(1\)/i)).toBeTruthy();
+
+    // Video trace button opens modal seeking the flight video to 00:08
+    const watchBtn = screen.getByRole('button', { name: /Watch in video @ 00:08/i });
+    fireEvent.click(watchBtn);
     const dialog = screen.getByRole('dialog');
-    expect(dialog).toBeTruthy();
-    expect(within(dialog).getByText('Surface crack')).toBeTruthy();
-    expect(within(dialog).getByText(/Longitudinal crack near seam/)).toBeTruthy();
-    expect(within(dialog).getByText(/Seal and monitor/)).toBeTruthy();
+    expect(within(dialog).getByText(/Focused at timestamp @ 00:08/i)).toBeTruthy();
+    expect(within(dialog).getByTestId('authenticated-media').getAttribute('data-seek')).toBe('8');
+  });
+
+  it('formats raw JSON assetLocation text instead of rendering raw JSON in Identification', () => {
+    const versionWithJsonLocation: InspectionReport = {
+      ...version,
+      reportContext: {
+        ...version.reportContext!,
+        assetLocation:
+          '{"label": "Ha Noi, Viet Nam", "latitude": 21.0921, "longitude": 105.8194}',
+      },
+    };
+    const { container } = render(
+      <ReportDerivedSections
+        version={versionWithJsonLocation}
+        findings={[]}
+        evidenceList={[]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(container.textContent).toContain('Ha Noi, Viet Nam');
+    expect(container.textContent).not.toContain('{"label"');
+  });
+
+  it('shows telemetry acquisition origin in Field session and normalizes legacy Vietnamese crop notes in EN locale', () => {
+    const cropItem: EvidenceItem = {
+      ...evidence,
+      id: 'crop-1',
+      fileName: 'crop_01.jpg',
+      locationDescription: 'Trích xuất & cắt từ video site_tour.mp4 tại 00m03s',
+    };
+
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-crop',
+            evidenceId: 'crop-1',
+            status: 'CONFIRMED',
+          }),
+        ]}
+        evidenceList={[cropItem]}
+        fieldSessions={[
+          {
+            id: 'session-1',
+            inspectionId: 'inspection-1',
+            status: 'FIELD_COMPLETED',
+            preFlightChecklistNote: null,
+            startedAt: '2026-01-02T10:30:00Z',
+            endedAt: '2026-01-02T10:50:00Z',
+            postponementReason: null,
+            abortReason: null,
+            outcomeNotes: null,
+            telemetrySource: 'IMPORTED_LOG_SRT',
+          },
+        ]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(screen.getByText('Telemetry source: Uploaded flight log file (SRT)')).toBeTruthy();
+    expect(screen.getByText('Extracted from video site_tour.mp4 @ 00m03s')).toBeTruthy();
+    expect(screen.queryByText(/Trích xuất & cắt từ video/)).toBeNull();
+  });
+
+  it('renders Findings location map with clickable pins and 1-row-per-evidence layout with inline findings', () => {
+    const northPhoto: EvidenceItem = {
+      ...evidence,
+      id: 'ev-north',
+      fileName: 'photo-01-defect-north.jpg',
+      latitude: 10.875333,
+      longitude: 106.800525,
+      locationDescription: 'North Crown',
+    };
+    const eastPhoto: EvidenceItem = {
+      ...evidence,
+      id: 'ev-east',
+      fileName: 'photo-02-defect-east.jpg',
+      latitude: 10.875167,
+      longitude: 106.801028,
+      locationDescription: 'East Wing',
+    };
+
+    const { container } = render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-north',
+            evidenceId: 'ev-north',
+            findingCode: 'F-1',
+            defectLabel: 'crack',
+            severity: 'HIGH',
+            status: 'CONFIRMED',
+            technicalNotes: 'North parapet crack',
+            recommendedAction: 'Inject epoxy',
+          }),
+          finding({
+            id: 'f-east',
+            evidenceId: 'ev-east',
+            findingCode: 'F-2',
+            defectLabel: 'abscission',
+            severity: 'MEDIUM',
+            status: 'CONFIRMED',
+            technicalNotes: 'East facade coat delamination',
+            recommendedAction: 'Patch render',
+          }),
+        ]}
+        evidenceList={[northPhoto, eastPhoto]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    // Findings location map shows clickable pins for both geotagged captures
+    const mapSection = container.querySelector('#report-findings-map') as HTMLElement;
+    expect(mapSection).toBeTruthy();
+    expect(within(mapSection).getByText('Findings location map')).toBeTruthy();
+
+    // Clicking pin F-2 updates the map's right-hand findings inspector to ev-east
+    fireEvent.click(within(mapSection).getByRole('button', { name: 'Finding pin photo-02-defect-east.jpg' }));
+    expect(within(mapSection).getByText('East facade coat delamination')).toBeTruthy();
+    expect(within(mapSection).getByText('Patch render')).toBeTruthy();
+
+    // Tier 1 renders 1 evidence row per capture with inline confirmed finding details & clickable View on map
+    const northRow = container.querySelector('#report-evidence-ev-north') as HTMLElement;
+    expect(northRow).toBeTruthy();
+    expect(within(northRow).getByText('North parapet crack')).toBeTruthy();
+    expect(within(northRow).getByText('Inject epoxy')).toBeTruthy();
+    expect(within(northRow).queryByText(/10\.875333/)).toBeNull();
+
+    // Clicking the single "View on map" chip (next to filename, outside findings box) switches the map back to northPhoto
+    const northMapButtons = within(northRow).getAllByRole('button', { name: /View on map/i });
+    expect(northMapButtons).toHaveLength(1);
+    fireEvent.click(northMapButtons[0]!);
+    expect(within(mapSection).getByText('North parapet crack')).toBeTruthy();
+  });
+
+  it('hides KPI bottom subtitle descriptions and renders AI Executive Summary collapsed by default until clicked', () => {
+    window.localStorage.clear();
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-ai-1',
+            defectLabel: 'Spalling',
+            severity: 'HIGH',
+            status: 'CONFIRMED',
+            technicalNotes: 'Exposed rebar on north column',
+            recommendedAction: 'Patch spalled concrete',
+          }),
+        ]}
+        evidenceList={[evidence]}
+        inspectionId="inspection-ai-test"
+      />,
+    );
+
+    expect(screen.queryByText('Confirmed on inspection captures')).toBeNull();
+    expect(screen.queryByText('Checklist items verified')).toBeNull();
+    expect(screen.queryByText('Field session status')).toBeNull();
+
+    expect(screen.getByText('AI Executive Summary')).toBeTruthy();
+    expect(screen.queryByText('Auto-generated')).toBeNull();
+    expect(screen.queryByText('North span covered; east face not observed.')).toBeNull();
+    expect(screen.queryByText('Key Highlights')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Show details/i }));
+
+    expect(screen.getByText('North span covered; east face not observed.')).toBeTruthy();
+    expect(screen.getByText('Key Highlights')).toBeTruthy();
+    expect(screen.getByText('Recommended Actions')).toBeTruthy();
+  });
+
+  it('auto-generates and persists grouped AI Executive Summary without duplicate note echo', () => {
+    window.localStorage.clear();
+    const findingsSet: Finding[] = [
+      finding({
+        id: 'f-persist-1',
+        findingCode: 'F-9',
+        defectLabel: 'leakage',
+        severity: 'MEDIUM',
+        status: 'CONFIRMED',
+        confidence: 0.88,
+        technicalNotes: 'leakage',
+        recommendedAction: null,
+      }),
+      finding({
+        id: 'f-persist-2',
+        findingCode: 'F-10',
+        defectLabel: 'abscission',
+        severity: 'MEDIUM',
+        status: 'CONFIRMED',
+        confidence: 0.86,
+        technicalNotes: 'abscission',
+        recommendedAction: null,
+      }),
+    ];
+
+    const firstRun = getOrGeneratePersistedAiSummary({
+      inspectionId: 'inspection-persist-1',
+      assetName: 'North span bridge',
+      findings: findingsSet,
+      evidenceCount: 15,
+      locale: 'en',
+    });
+    expect(firstRun.wasCached).toBe(false);
+    expect(firstRun.summaryData.overallRisk).toBe('MEDIUM');
+    expect(firstRun.summaryData.summary).toContain('2 confirmed defects');
+    expect(firstRun.summaryData.summary).toContain('86%–88%');
+    expect(firstRun.summaryData.keyHighlights.some((h) => h.includes('F-9 · leakage'))).toBe(true);
+    expect(firstRun.summaryData.keyHighlights.some((h) => h.includes('— leakage'))).toBe(false);
+    expect(firstRun.summaryData.recommendedActions).toContain('waterproof');
+
+    const secondRun = getOrGeneratePersistedAiSummary({
+      inspectionId: 'inspection-persist-1',
+      assetName: 'North span bridge',
+      findings: findingsSet,
+      evidenceCount: 15,
+      locale: 'en',
+    });
+    expect(secondRun.wasCached).toBe(true);
+    expect(secondRun.summaryData).toEqual(firstRun.summaryData);
   });
 });

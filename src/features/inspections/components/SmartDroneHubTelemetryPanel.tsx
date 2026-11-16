@@ -16,6 +16,7 @@ interface Props {
   inspectionId: string;
   fieldSessionId: string;
   sessionActive: boolean;
+  allowFlightLogImport?: boolean | undefined;
   hasFlightReport?: boolean | undefined;
   telemetrySource?: string | null | undefined;
   onTelemetryChange?: ((telemetry: SmartDroneHubTelemetry | null) => void) | undefined;
@@ -117,6 +118,7 @@ export function SmartDroneHubTelemetryPanel({
   inspectionId,
   fieldSessionId,
   sessionActive,
+  allowFlightLogImport = false,
   hasFlightReport = false,
   telemetrySource,
   onTelemetryChange,
@@ -191,10 +193,23 @@ export function SmartDroneHubTelemetryPanel({
     retry: false,
   });
 
+  const canImportFallbackLog = (sessionActive || allowFlightLogImport) && isInspector;
+  const persistedReport = useQuery({
+    queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId],
+    queryFn: () => smartDroneHubApi.flightReport(inspectionId, fieldSessionId),
+    enabled:
+      !sessionActive &&
+      Boolean(hasFlightReport) &&
+      !savedReport &&
+      typeof smartDroneHubApi.flightReport === 'function',
+    retry: false,
+  });
+
   const data: SmartDroneHubTelemetry | undefined = telemetry.data ?? startMission.data;
+  const effectiveReport = savedReport ?? persistedReport.data ?? null;
   const isMissionStarted = started || Boolean(data);
   const isConnected = Boolean(data?.connected);
-  const reportSource = savedReport?.telemetrySource ?? (hasFlightReport ? telemetrySource : null);
+  const reportSource = effectiveReport?.telemetrySource ?? (hasFlightReport ? telemetrySource : null);
   const hasFallbackReport = isFallbackSource(reportSource);
   const isManualReport = reportSource === 'MANUAL_DECLARATION';
   const sourceLabel = flightLogSourceLabel(reportSource, t);
@@ -264,8 +279,8 @@ export function SmartDroneHubTelemetryPanel({
           )}
         </Stack>
 
-        {!sessionActive && hasFallbackReport ? (
-          <FlightReportSummary report={savedReport} sourceLabel={sourceLabel} isManual={isManualReport} />
+        {!sessionActive && !canImportFallbackLog && hasFallbackReport ? (
+          <FlightReportSummary report={effectiveReport} sourceLabel={sourceLabel} isManual={isManualReport} />
         ) : null}
 
         {!sessionActive ? (
@@ -381,12 +396,12 @@ export function SmartDroneHubTelemetryPanel({
           </>
         ) : null}
 
-        {sessionActive && isInspector && (
+        {canImportFallbackLog && (
           <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: '10px', bgcolor: 'background.paper' }}>
             <Stack spacing={1.5}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t('No MAVLink? Import a flight log')}</Typography>
               <Typography variant="body2" color="text.secondary">{t('Import a GPS track from SRT, CSV, KML or GPX.')}</Typography>
-              {hasFallbackReport && <FlightReportSummary report={savedReport} sourceLabel={sourceLabel} isManual={isManualReport} selectedFile={selectedFile} />}
+              {hasFallbackReport && <FlightReportSummary report={effectiveReport} sourceLabel={sourceLabel} isManual={isManualReport} selectedFile={selectedFile} />}
               <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, alignItems: { sm: 'center' } }}>
                 <Button component="label" variant="outlined" disabled={isSaving} sx={{ alignSelf: 'flex-start', borderRadius: '8px', textTransform: 'none' }}>
                   {importFlightLog.isPending ? t('Parsing flight log…') : hasFallbackReport ? t('Upload another log') : t('Choose log')}

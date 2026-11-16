@@ -34,6 +34,7 @@ import {
   useInspectionEvidence,
   useInspectionWorkflowState,
   useInspection,
+  useReinspectionVerifications,
   useReportPaymentStatus,
 } from '@/features/inspections/hooks/useInspections';
 import ManagerReportReviewPage from './ManagerReportReviewPage';
@@ -103,6 +104,7 @@ export default function ReportDetailPage() {
   const evidence = useInspectionEvidence(inspectionId);
   const workflowState = useInspectionWorkflowState(inspectionId);
   const inspectionQuery = useInspection(inspectionId);
+  const reinspectionVerifications = useReinspectionVerifications?.(inspectionId);
   const inspectionStatus = workflowState.data?.status;
 
   const versions = useReportVersions(inspectionId);
@@ -510,6 +512,7 @@ export default function ReportDetailPage() {
                 openVersion={openVersion}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
+                reinspectionVerifications={reinspectionVerifications?.data}
                 canEdit={canAuthor && canEditReturnedText}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}

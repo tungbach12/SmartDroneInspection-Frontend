@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   importFlightLog: vi.fn(),
   declareManualFlight: vi.fn(),
   telemetry: vi.fn(),
+  flightReport: vi.fn(),
   start: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock('../api/smartDroneHubApi', async (importOriginal) => {
       importFlightLog: mocks.importFlightLog,
       declareManualFlight: mocks.declareManualFlight,
       telemetry: mocks.telemetry,
+      flightReport: mocks.flightReport,
       start: mocks.start,
     },
   };
@@ -73,12 +75,16 @@ function deferred<T>() {
 }
 
 function renderPanel({
+  sessionActive = true,
+  allowFlightLogImport = false,
   hasFlightReport = false,
   telemetrySource = null,
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
 }: {
+  sessionActive?: boolean;
+  allowFlightLogImport?: boolean;
   hasFlightReport?: boolean;
   telemetrySource?: string | null;
   queryClient?: QueryClient;
@@ -88,7 +94,8 @@ function renderPanel({
       <SmartDroneHubTelemetryPanel
         inspectionId="inspection-1"
         fieldSessionId="session-1"
-        sessionActive
+        sessionActive={sessionActive}
+        allowFlightLogImport={allowFlightLogImport}
         hasFlightReport={hasFlightReport}
         telemetrySource={telemetrySource}
       />
@@ -256,5 +263,30 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
     expect(screen.getByText('Source: Imported log · CSV')).toBeTruthy();
     expect(screen.getByText('Duration: —')).toBeTruthy();
     expect(screen.getByText('Recorded flight state: —')).toBeTruthy();
+  });
+
+  it('allows replacing a previously imported log when session is closed but allowFlightLogImport is true', async () => {
+    mocks.flightReport.mockResolvedValue({ ...importedReport, durationSeconds: 90 });
+    mocks.importFlightLog.mockResolvedValue({
+      ...importedReport,
+      telemetrySource: 'IMPORTED_LOG_CSV',
+      durationSeconds: 180,
+    });
+    const { container } = renderPanel({
+      sessionActive: false,
+      allowFlightLogImport: true,
+      hasFlightReport: true,
+      telemetrySource: 'IMPORTED_LOG_SRT',
+    });
+
+    expect(await screen.findByText('Duration: 1:30')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Upload another log' })).toBeTruthy();
+
+    fireEvent.change(fileInput(container), {
+      target: { files: [new File(['csv'], 'corrected.csv', { type: 'text/csv' })] },
+    });
+
+    expect(await screen.findByText('Source: Imported log · CSV')).toBeTruthy();
+    expect(screen.getByText('Duration: 3:00')).toBeTruthy();
   });
 });

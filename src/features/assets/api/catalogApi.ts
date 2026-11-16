@@ -23,6 +23,7 @@ export interface ChecklistTemplate {
   label: string;
   sortOrder: number;
   active: boolean;
+  required: boolean;
 }
 
 export interface CreateChecklistTemplateInput {
@@ -30,12 +31,14 @@ export interface CreateChecklistTemplateInput {
   categoryId?: string | null;
   label: string;
   sortOrder?: number;
+  required?: boolean;
 }
 
 export interface UpdateChecklistTemplateInput {
   label: string;
   sortOrder?: number;
   active?: boolean;
+  required?: boolean;
 }
 
 export const catalogKeys = {

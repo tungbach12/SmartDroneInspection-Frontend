@@ -37,6 +37,26 @@ export interface FlightPermitVerificationPanelProps {
   canReview?: boolean;
   onPreviewPermit?: () => void;
   compact?: boolean;
+  hideHeader?: boolean;
+  hideEmptyNotice?: boolean;
+}
+
+function formatDigestShort(digest: string): string {
+  return digest.length > 20 ? `${digest.slice(0, 12)}…${digest.slice(-8)}` : digest;
+}
+
+function resolveAirspaceLabel(
+  classification: 'NO_FLY_ZONE' | 'RESTRICTED_ZONE' | 'CLEAR_ZONE',
+  t: (text: string) => string,
+): string {
+  switch (classification) {
+    case 'NO_FLY_ZONE':
+      return t('No-Fly Zone');
+    case 'RESTRICTED_ZONE':
+      return t('Restricted Zone');
+    default:
+      return t('Clear Zone');
+  }
 }
 
 function formatFileSize(bytes: number | null | undefined): string {
@@ -83,6 +103,8 @@ export function FlightPermitVerificationPanel({
   canReview = false,
   onPreviewPermit,
   compact = false,
+  hideHeader = false,
+  hideEmptyNotice = false,
 }: FlightPermitVerificationPanelProps) {
   const { t, formatDateTime } = useLocale();
   const reviewPermit = useReviewFlightPermit(inspection.id);
@@ -138,8 +160,12 @@ export function FlightPermitVerificationPanel({
   const isPermitExpired =
     hasPermit && Number.isFinite(validToMs) && validToMs < Date.now();
 
+  const canApprovePermit = verificationStatus === 'PENDING_REVIEW';
   const reviewAllowed =
-    canReview && hasPermit && inspection.status === 'SCHEDULED';
+    canReview &&
+    hasPermit &&
+    inspection.status === 'SCHEDULED' &&
+    (verificationStatus === 'PENDING_REVIEW' || verificationStatus === 'APPROVED');
 
   return (
     <Paper
@@ -156,68 +182,80 @@ export function FlightPermitVerificationPanel({
         bgcolor: 'background.paper',
       }}
     >
-      <Stack spacing={2}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          sx={{
-            alignItems: { sm: 'center' },
-            justifyContent: 'space-between',
-          }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <VerifiedUserRounded color="primary" fontSize="small" />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('Flight Permit Verification')}
-            </Typography>
-            <StatusChip status={verificationStatus} />
-          </Stack>
+      <Stack spacing={1.5}>
+        {!hideHeader && (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{
+              alignItems: { sm: 'center' },
+              justifyContent: 'space-between',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+              <VerifiedUserRounded color="primary" fontSize="small" />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {t('Flight Permit Verification')}
+              </Typography>
+              <StatusChip status={verificationStatus} />
+            </Stack>
 
-          {hasPermit && onPreviewPermit && (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<VisibilityOutlined fontSize="small" />}
-              onClick={onPreviewPermit}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', alignSelf: { xs: 'flex-start', sm: 'center' } }}
-            >
-              {t('View permit document')}
-            </Button>
-          )}
-        </Stack>
+            {hasPermit && onPreviewPermit && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<VisibilityOutlined fontSize="small" />}
+                onClick={onPreviewPermit}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', alignSelf: { xs: 'flex-start', sm: 'center' } }}
+              >
+                {t('View permit document')}
+              </Button>
+            )}
+          </Stack>
+        )}
 
         {airspace && (
-          <Alert
-            severity={
-              airspace.classification === 'NO_FLY_ZONE'
-                ? 'error'
-                : airspace.classification === 'RESTRICTED_ZONE'
-                  ? 'warning'
-                  : 'info'
-            }
-            icon={
-              airspace.classification === 'NO_FLY_ZONE' ? (
-                <GppBadRounded fontSize="small" />
-              ) : airspace.classification === 'RESTRICTED_ZONE' ? (
-                <WarningAmberRounded fontSize="small" />
-              ) : (
-                <SecurityRounded fontSize="small" />
-              )
-            }
-            sx={{ borderRadius: '10px' }}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              px: 1.5,
+              py: 1,
+              borderRadius: '8px',
+              bgcolor: 'action.hover',
+            }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t('Airspace zone classification')}: {airspace.classification}
-              {airspace.matchingZones[0]
-                ? ` — ${airspace.matchingZones[0].name} (${airspace.matchingZones[0].authority})`
-                : ''}
+            {airspace.classification === 'NO_FLY_ZONE' ? (
+              <GppBadRounded fontSize="small" color="error" />
+            ) : airspace.classification === 'RESTRICTED_ZONE' ? (
+              <WarningAmberRounded fontSize="small" color="warning" />
+            ) : (
+              <SecurityRounded fontSize="small" color="info" />
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+              {t('Airspace')}:
             </Typography>
-            <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
-              {t(
-                'Platform policy requires mandatory Platform Manager verification for every flight permit regardless of airspace zone.',
-              )}
-            </Typography>
-          </Alert>
+            <Chip
+              size="small"
+              label={resolveAirspaceLabel(airspace.classification, t)}
+              color={
+                airspace.classification === 'NO_FLY_ZONE'
+                  ? 'error'
+                  : airspace.classification === 'RESTRICTED_ZONE'
+                    ? 'warning'
+                    : 'info'
+              }
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+            />
+            {airspace.matchingZones[0] && (
+              <Typography variant="caption" color="text.secondary">
+                {airspace.matchingZones[0].name} ({airspace.matchingZones[0].authority})
+              </Typography>
+            )}
+          </Stack>
         )}
 
         {verificationStatus === 'REJECTED' && inspection.flightPermitRejectionReason && (
@@ -240,8 +278,8 @@ export function FlightPermitVerificationPanel({
           <Alert severity="warning" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {canReview
-                ? t('Flight permit submitted by the Inspector and awaiting your verification decision.')
-                : t('Submitted for Platform Manager verification. Pre-flight checklist and field session start remain locked until approved.')}
+                ? t('Submitted by the Inspector — review the document and approve or reject.')
+                : t('Awaiting Platform Manager verification. Pre-flight check stays locked until approved.')}
             </Typography>
           </Alert>
         )}
@@ -249,7 +287,7 @@ export function FlightPermitVerificationPanel({
         {verificationStatus === 'APPROVED' && (
           <Alert severity="success" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t('Flight permit verified and approved for this mission window.')}
+              {t('Verified and approved for this mission window.')}
             </Typography>
             {inspection.flightPermitVerifiedByName && (
               <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
@@ -262,9 +300,9 @@ export function FlightPermitVerificationPanel({
           </Alert>
         )}
 
-        {!hasPermit && (
+        {!hasPermit && !hideEmptyNotice && (
           <Alert severity="info" sx={{ borderRadius: '10px' }}>
-            {t('No flight permit document has been uploaded for this inspection yet.')}
+            {t('No flight permit document has been uploaded yet.')}
           </Alert>
         )}
 
@@ -293,96 +331,108 @@ export function FlightPermitVerificationPanel({
 
         {hasPermit && (
           <Grid container spacing={1.5}>
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Permit Number')}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {inspection.flightPermitNumber || '—'}
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Issuing Authority')}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {inspection.flightPermitAuthority || '—'}
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Permitted Drone Serial')}
-              </Typography>
-              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection.flightPermitDroneSerial || t('Not specified on permit')}
+            {inspection.flightPermitNumber && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Permit Number')}
                 </Typography>
-                {inspection.flightPermitDroneSerial && inspection.droneSerialNumber && (
-                  <Chip
-                    size="small"
-                    label={serialMismatch ? t('Mismatch') : t('Matches drone')}
-                    color={serialMismatch ? 'error' : 'success'}
-                    variant="outlined"
-                  />
-                )}
-              </Stack>
-            </Grid>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {inspection.flightPermitNumber}
+                </Typography>
+              </Grid>
+            )}
+
+            {inspection.flightPermitAuthority && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Issuing Authority')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {inspection.flightPermitAuthority}
+                </Typography>
+              </Grid>
+            )}
+
+            {inspection.flightPermitDroneSerial && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Permitted Drone Serial')}
+                </Typography>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {inspection.flightPermitDroneSerial}
+                  </Typography>
+                  {inspection.droneSerialNumber && (
+                    <Chip
+                      size="small"
+                      label={serialMismatch ? t('Mismatch') : t('Matches drone')}
+                      color={serialMismatch ? 'error' : 'success'}
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+              </Grid>
+            )}
+
+            {inspection.flightPermitValidFrom && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Valid From')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {formatDateTime(new Date(inspection.flightPermitValidFrom))}
+                </Typography>
+              </Grid>
+            )}
+
+            {inspection.flightPermitValidTo && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Valid To')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {formatDateTime(new Date(inspection.flightPermitValidTo))}
+                </Typography>
+              </Grid>
+            )}
+
+            {inspection.flightPermitMaxAltitudeM != null && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Max Permitted Altitude')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {`${inspection.flightPermitMaxAltitudeM} m AGL`}
+                </Typography>
+              </Grid>
+            )}
 
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
-                {t('Valid From')}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {inspection.flightPermitValidFrom
-                  ? formatDateTime(new Date(inspection.flightPermitValidFrom))
-                  : '—'}
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Valid To')}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {inspection.flightPermitValidTo
-                  ? formatDateTime(new Date(inspection.flightPermitValidTo))
-                  : '—'}
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('Max Permitted Altitude')}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {inspection.flightPermitMaxAltitudeM != null
-                  ? `${inspection.flightPermitMaxAltitudeM} m AGL`
-                  : '—'}
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('File Name & Size')}
+                {t('Uploaded File')}
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap title={inspection.flightPermitFileName ?? ''}>
-                {inspection.flightPermitFileName} · {formatFileSize(inspection.flightPermitFileSizeBytes)}
+                {inspection.flightPermitFileName}
+                {inspection.flightPermitFileSizeBytes != null && inspection.flightPermitFileSizeBytes > 0
+                  ? ` (${formatFileSize(inspection.flightPermitFileSizeBytes)})`
+                  : ''}
               </Typography>
             </Grid>
 
-            <Grid size={{ xs: 12, sm: 6, md: 8 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('SHA-256 Digest')}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ fontFamily: 'monospace', fontSize: '0.8125rem', wordBreak: 'break-all' }}
-              >
-                {inspection.flightPermitFileSha256 || '—'}
-              </Typography>
-            </Grid>
+            {inspection.flightPermitFileSha256 && (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t('SHA-256 Digest')}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  title={inspection.flightPermitFileSha256}
+                  sx={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}
+                >
+                  {formatDigestShort(inspection.flightPermitFileSha256)}
+                </Typography>
+              </Grid>
+            )}
 
             {inspection.flightPermitReviewNotes && (
               <Grid size={{ xs: 12 }}>
@@ -407,14 +457,16 @@ export function FlightPermitVerificationPanel({
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                 {t('Manager Verification Decision')}
               </Typography>
-              <TextField
-                size="small"
-                label={t('Verification notes (optional)')}
-                placeholder={t('Record cross-check remarks, airspace authority reference, or conditions')}
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                fullWidth
-              />
+              {(canApprovePermit || rejectOpen) && (
+                <TextField
+                  size="small"
+                  label={t('Verification notes (optional)')}
+                  placeholder={t('Record cross-check remarks, airspace authority reference, or conditions')}
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  fullWidth
+                />
+              )}
 
               {rejectOpen ? (
                 <Stack spacing={1.25}>
@@ -470,21 +522,33 @@ export function FlightPermitVerificationPanel({
                 </Stack>
               ) : (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                  <LoadingButton
-                    variant="contained"
-                    color="success"
-                    loading={reviewPermit.isPending}
-                    disabled={serialMismatch || scheduleOutOfPermitWindow || isPermitExpired}
-                    onClick={() =>
-                      reviewPermit.mutate({
-                        decision: 'APPROVED',
-                        notes: reviewNotes.trim() || undefined,
-                      })
-                    }
-                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                  >
-                    {t('Approve flight permit')}
-                  </LoadingButton>
+                  {canApprovePermit ? (
+                    <LoadingButton
+                      variant="contained"
+                      color="success"
+                      loading={reviewPermit.isPending}
+                      disabled={serialMismatch || scheduleOutOfPermitWindow || isPermitExpired}
+                      onClick={() =>
+                        reviewPermit.mutate({
+                          decision: 'APPROVED',
+                          notes: reviewNotes.trim() || undefined,
+                        })
+                      }
+                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+                    >
+                      {t('Approve flight permit')}
+                    </LoadingButton>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      disabled
+                      startIcon={<CheckCircleRounded />}
+                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+                    >
+                      {t('Already approved')}
+                    </Button>
+                  )}
                   <Button
                     variant="outlined"
                     color="error"

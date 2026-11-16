@@ -46,10 +46,15 @@ export const fieldSessionApi = {
    * MF2-10. The pre-flight note is the Inspector's own record that MF2-09's checklist was
    * completed on site, so it is prose the Inspector writes rather than a flag the client sets.
    */
-  start: (inspectionId: string, preFlightChecklistNote: string) =>
+  start: (
+    inspectionId: string,
+    preFlightChecklistNote: string,
+    startNow?: boolean,
+  ) =>
     api
       .post<FieldSession>(`/inspections/${inspectionId}/field-sessions`, {
         preFlightChecklistNote,
+        ...(startNow ? { startNow: true } : {}),
       })
       .then((r) => r.data),
 

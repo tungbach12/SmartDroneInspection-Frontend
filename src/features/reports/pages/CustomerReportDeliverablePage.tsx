@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -8,23 +8,28 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
+  useCreateDirectReinspection,
   useCreateInspectionPayOSLink,
   useCreateInspectionVnPayUrl,
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
+  useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
   useRequestReportClarification,
 } from '@/features/inspections/hooks/useInspections';
+import { CreateRequestDialog } from '@/features/contracts/components/CreateRequestDialog';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -45,6 +50,7 @@ export default function CustomerReportDeliverablePage({
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const showReportContent = !stage || stage === 'report';
   const showSettlementContent = !stage || stage === 'settlement';
 
@@ -53,6 +59,8 @@ export default function CustomerReportDeliverablePage({
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
+  const [reinspectionOpen, setReinspectionOpen] = useState(false);
+  const [mf2RequestOpen, setMf2RequestOpen] = useState(false);
 
   useEffect(() => {
     if (!inspectionId || typeof localStorage === 'undefined') return;
@@ -79,12 +87,17 @@ export default function CustomerReportDeliverablePage({
   }, [inspectionId]);
 
   const inspectionQuery = useInspection(inspectionId);
+  const isReinspection = inspectionQuery.data?.inspectionType === 'RE_INSPECTION';
 
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
+  const reinspectionVerifications = useReinspectionVerifications?.(
+    isReinspection ? inspectionId : null,
+  );
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
+  const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const payosLink = useCreateInspectionPayOSLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
@@ -105,6 +118,10 @@ export default function CustomerReportDeliverablePage({
     versions.data?.find((version) => version.id === openVersionId) ??
     versions.data?.[0] ??
     null;
+
+  const confirmedFindingsList = (findings.data ?? []).filter(
+    (item) => item.status === 'CONFIRMED' && !item.isDeleted,
+  );
 
   const resolvedDroneSummary =
     [
@@ -198,6 +215,57 @@ export default function CustomerReportDeliverablePage({
               />
             )}
 
+            {showSettlementContent &&
+              openVersion.status === 'PUBLISHED' &&
+              confirmedFindingsList.length > 0 &&
+              !isReinspection && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: '10px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 2,
+                  }}
+                >
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
+                    <FlightTakeoffRounded color="primary" sx={{ mt: 0.25 }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t('Post-Remediation Re-inspection')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {t(
+                          'After remediating confirmed defects on site, schedule a targeted re-inspection flight to verify before-and-after results.',
+                        )}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="contained"
+                      onClick={() => setReinspectionOpen(true)}
+                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+                    >
+                      {t('Schedule Re-inspection')}
+                    </Button>
+                  </Stack>
+                </Paper>
+              )}
+
+            {showSettlementContent && openVersion.status === 'PUBLISHED' && isReinspection && (
+              <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                {t(
+                  'This is a re-inspection deliverable verifying confirmed target defects from the prior inspection.',
+                )}
+              </Alert>
+            )}
+
             {showReportContent && (
               <ReportDeliverableTabs
                 inspectionId={inspectionId}
@@ -206,6 +274,7 @@ export default function CustomerReportDeliverablePage({
                 onSelectVersion={setOpenVersionId}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
+                reinspectionVerifications={reinspectionVerifications?.data}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
@@ -302,6 +371,103 @@ export default function CustomerReportDeliverablePage({
         </DialogActions>
       </Dialog>
 
+      <Dialog
+        open={reinspectionOpen}
+        onClose={() => setReinspectionOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {t('Schedule Post-Remediation Re-inspection')}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                'Choose how you would like to initiate re-inspection verification for the confirmed defects in this report:',
+              )}
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 1.75, borderRadius: '10px' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                {t('Option 1: Quick Re-inspection')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {t(
+                  'Immediately create a targeted RE_INSPECTION mission pre-loaded with all confirmed defects using the existing assignment context.',
+                )}
+              </Typography>
+              <Button
+                variant="contained"
+                disabled={createDirectReinspection.isPending}
+                onClick={() => {
+                  createDirectReinspection.mutate(
+                    {},
+                    {
+                      onSuccess: (created) => {
+                        setReinspectionOpen(false);
+                        navigate(`${getSectionPath('client', 'inspections')}/${created.id}/tracking`);
+                      },
+                    },
+                  );
+                }}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+              >
+                {createDirectReinspection.isPending
+                  ? t('Scheduling…')
+                  : t('Start Quick Re-inspection')}
+              </Button>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 1.75, borderRadius: '10px' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                {t('Option 2: Request Quote via Service Contract (MF2)')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {t(
+                  'Submit a formal service request linked to this source inspection so the Platform Manager can quote, schedule, and dispatch a partner crew.',
+                )}
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setReinspectionOpen(false);
+                  setMf2RequestOpen(true);
+                }}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+              >
+                {t('Create MF2 Re-inspection Request')}
+              </Button>
+            </Paper>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReinspectionOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
+            {t('Cancel')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {inspectionQuery.data?.assetId && (
+        <CreateRequestDialog
+          open={mf2RequestOpen}
+          onClose={() => setMf2RequestOpen(false)}
+          assets={[
+            {
+              id: inspectionQuery.data.assetId,
+              name: inspectionQuery.data.assetName ?? t('Inspected structure'),
+              code: '',
+            },
+          ]}
+          initialAssetId={inspectionQuery.data.assetId}
+          sourceInspectionId={inspectionId}
+          sourceInspectionLabel={inspectionQuery.data.assetName ?? undefined}
+          onCreated={(requestId) => {
+            navigate(`${getSectionPath('client', 'contracts')}?request=${requestId}`);
+          }}
+          onError={() => {}}
+        />
+      )}
     </Box>
   );
 }
