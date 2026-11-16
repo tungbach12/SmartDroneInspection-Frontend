@@ -67,6 +67,7 @@ export interface InspectionReportContext {
     droneSerialNumber: string | null;
     droneManufacturer: string | null;
     droneModel: string | null;
+    telemetrySource?: string | null;
   }>;
   reviewerQualificationDisclosure: string | null;
   findingsConfirmedAt: string | null;
@@ -119,6 +120,46 @@ export interface EvidenceItem {
   isDeleted: boolean;
   locationDescription: string | null;
   deduplicated: boolean;
+  sourceVideoEvidenceId?: string | null;
+  sourceTimestampSeconds?: number | null;
+}
+
+export interface VideoScanMarkerDetection {
+  modelName: string;
+  modelVersion?: string | null;
+  predictedLabel: string;
+  confidence: number;
+  boundingBox: string;
+}
+
+export interface VideoScanMarker {
+  timestampSeconds: number;
+  imageWidth: number;
+  imageHeight: number;
+  previewBase64: string;
+  primaryLabel: string;
+  maxConfidence: number;
+  detections: VideoScanMarkerDetection[];
+}
+
+export interface VideoScanResponse {
+  videoEvidenceId: string;
+  videoDurationSeconds: number;
+  scannedFrames: number;
+  markers: VideoScanMarker[];
+}
+
+export interface PromoteVideoKeyframeItem {
+  timestampSeconds: number;
+  fileName?: string;
+  locationDescription?: string;
+  imageBase64?: string;
+  detections?: Array<{
+    modelName?: string;
+    predictedLabel: string;
+    confidence?: number;
+    boundingBox?: string;
+  }>;
 }
 
 export interface EvidenceUploadSession {
@@ -229,6 +270,7 @@ export interface ReviewFindingInput {
   severity?: FindingSeverity;
   technicalNotes?: string;
   recommendedAction?: string;
+  boundingBox?: string | null | undefined;
 }
 
 export interface ManualFindingInput {
@@ -237,6 +279,7 @@ export interface ManualFindingInput {
   severity: FindingSeverity;
   technicalNotes: string;
   recommendedAction?: string | undefined;
+  boundingBox?: string | null | undefined;
 }
 
 export interface PayOSCheckoutDetails {
@@ -617,10 +660,21 @@ export const inspectionApi = {
       .get<EvidencePage>(`/inspections/${inspectionId}/evidence/query`, { params: filters })
       .then((response) => response.data),
 
-  uploadEvidence: (inspectionId: string, file: File, fieldSessionId?: string) => {
+  uploadEvidence: (
+    inspectionId: string,
+    file: File,
+    fieldSessionId?: string,
+    sourceLink?: { sourceVideoEvidenceId?: string; sourceTimestampSeconds?: number },
+  ) => {
     const form = new FormData();
     form.append('file', file);
     if (fieldSessionId) form.append('fieldSessionId', fieldSessionId);
+    if (sourceLink?.sourceVideoEvidenceId) {
+      form.append('sourceVideoEvidenceId', sourceLink.sourceVideoEvidenceId);
+    }
+    if (typeof sourceLink?.sourceTimestampSeconds === 'number') {
+      form.append('sourceTimestampSeconds', String(sourceLink.sourceTimestampSeconds));
+    }
     return api
       .post<EvidenceItem>(`/inspections/${inspectionId}/evidence`, form)
       .then((response) => response.data);
@@ -775,6 +829,45 @@ export const inspectionApi = {
         `/inspections/${inspectionId}/evidence/${evidenceId}/analyze`,
         null,
         { params: { replace } },
+      )
+      .then((response) => response.data),
+
+  scanVideoEvidence: (
+    inspectionId: string,
+    evidenceId: string,
+    options?: { intervalSeconds?: number; maxFrames?: number },
+  ) =>
+    api
+      .post<VideoScanResponse>(
+        `/inspections/${inspectionId}/evidence/${evidenceId}/video-scan`,
+        null,
+        {
+          params: options,
+          timeout: 180000,
+        },
+      )
+      .then((response) => response.data),
+
+  promoteVideoKeyframes: (
+    inspectionId: string,
+    evidenceId: string,
+    keyframes: PromoteVideoKeyframeItem[],
+  ) =>
+    api
+      .post<{
+        videoEvidenceId: string;
+        scannedFrames: number;
+        extractedEvidenceCount: number;
+        createdFindingsCount: number;
+        keyframes: Array<{
+          timestampSeconds: number;
+          evidence: EvidenceItem;
+          findings: Finding[];
+        }>;
+      }>(
+        `/inspections/${inspectionId}/evidence/${evidenceId}/video-keyframes`,
+        { keyframes },
+        { timeout: 120000 },
       )
       .then((response) => response.data),
 

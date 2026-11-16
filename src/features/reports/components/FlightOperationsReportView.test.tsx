@@ -105,6 +105,9 @@ describe('FlightOperationsReportView', () => {
 
     expect(await screen.findByText('Imported flight log summary')).toBeTruthy();
     expect(screen.getByText('Real log · Imported flight log (SRT)')).toBeTruthy();
+    expect(screen.getByText('Data source: Uploaded file after flight')).toBeTruthy();
+    expect(screen.getByText('Uploaded file after flight · clip_01.srt')).toBeTruthy();
+    expect(screen.queryByText(/unavailable telemetry fields are not inferred/i)).toBeNull();
     expect(
       screen.getByText('SRT records a video segment; it does not establish the full flight duration or milestones.'),
     ).toBeTruthy();
@@ -218,6 +221,7 @@ describe('FlightOperationsReportView', () => {
     renderReport();
 
     expect(await screen.findByText('Real telemetry · MAVLink telemetry')).toBeTruthy();
+    expect(screen.getByText('Data source: Live stream during flight')).toBeTruthy();
     expect(screen.getByText('Reported state: LANDED')).toBeTruthy();
     expect(screen.getByText('Recorded telemetry samples & evidence geotags')).toBeTruthy();
     expect(screen.getByText('First recorded sample')).toBeTruthy();
@@ -260,6 +264,44 @@ describe('FlightOperationsReportView', () => {
     expect(await screen.findByText('Simulated flight telemetry')).toBeTruthy();
     expect(screen.getByText('Simulation · Simulation telemetry')).toBeTruthy();
     expect(screen.queryByText(/Real telemetry|Real log|Verified MAVLink/i)).toBeNull();
+  });
+
+  it('extracts [WARN: First GPS point is X km ...] from imported log notes into a structured alert instead of a long raw field', async () => {
+    mocks.report.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      telemetrySource: 'IMPORTED_LOG_SRT',
+      startedAt: '2026-11-15T08:30:00Z',
+      endedAt: '2026-11-15T08:33:00Z',
+      durationSeconds: 180,
+      distanceFlownMeters: 240.7,
+      maxAltitudeMeters: 64.5,
+      startBatteryPercent: null,
+      endBatteryPercent: null,
+      finalState: 'UNKNOWN',
+      note: 'Imported flight log: nvhsv-waypoint-mission.srt. Flight trace parsed from the uploaded SRT file; unavailable telemetry fields are not inferred. [WARN: First GPS point is 19.8 km from registered asset coordinates.]',
+      flightTrace: [
+        {
+          latitude: 10.875,
+          longitude: 106.8,
+          altitudeMeters: 30.0,
+          groundSpeedMps: null,
+          headingDeg: null,
+          batteryPercent: null,
+          flightMode: null,
+          waypoint: 1,
+          recordedAt: '2026-11-15T08:30:00Z',
+        },
+      ],
+    });
+
+    renderReport();
+
+    expect(await screen.findByText('Uploaded file after flight · nvhsv-waypoint-mission.srt')).toBeTruthy();
+    expect(
+      screen.getByText('First recorded GPS point is 19.8 km from the registered asset coordinates.'),
+    ).toBeTruthy();
+    expect(screen.queryByText(/\[WARN:/i)).toBeNull();
   });
 });
 

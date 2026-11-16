@@ -353,6 +353,7 @@ export default function ManagerReportReviewPage({
                 onSelectVersion={setOpenVersionId}
                 findings={findings.data ?? []}
                 evidenceList={evidence.data ?? []}
+                fieldSessions={fieldSessionsQuery.data}
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}

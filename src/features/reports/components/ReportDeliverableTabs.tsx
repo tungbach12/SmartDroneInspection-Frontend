@@ -4,6 +4,7 @@ import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import type {
   EvidenceItem,
+  FieldSession,
   Finding,
   InspectionReport,
 } from '@/features/inspections/api/inspectionApi';
@@ -18,6 +19,7 @@ export interface ReportDeliverableTabsProps {
   onSelectVersion?: ((versionId: string) => void) | undefined;
   findings: Finding[];
   evidenceList: EvidenceItem[];
+  fieldSessions?: FieldSession[] | undefined;
   canEdit?: boolean;
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
@@ -31,6 +33,7 @@ export function ReportDeliverableTabs({
   onSelectVersion,
   findings,
   evidenceList,
+  fieldSessions,
   canEdit = false,
   assetName,
   droneSummary,
@@ -113,6 +116,7 @@ export function ReportDeliverableTabs({
           version={openVersion}
           findings={findings}
           evidenceList={evidenceList}
+          fieldSessions={fieldSessions}
           inspectionId={inspectionId}
           canEdit={canEdit}
           droneSummary={droneSummary}

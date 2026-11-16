@@ -471,6 +471,7 @@ export default function InspectionReportPage() {
                   version={draftPreviewVersion}
                   findings={findings.data ?? []}
                   evidenceList={activeEvidenceList}
+                  fieldSessions={fieldSessionsQuery?.data}
                   inspectionId={inspectionId}
                 />
               ) : (
@@ -531,6 +532,7 @@ export default function InspectionReportPage() {
                 version={openVersion}
                 findings={findings.data ?? []}
                 evidenceList={activeEvidenceList}
+                fieldSessions={fieldSessionsQuery?.data}
                 inspectionId={inspectionId}
                 canEdit={canEditOpenVersion}
                 onDirtyChange={onReportDirtyChange}

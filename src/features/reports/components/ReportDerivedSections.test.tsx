@@ -13,6 +13,22 @@ vi.mock('@/shared/ui/AuthenticatedImage', () => ({
   ),
 }));
 
+vi.mock('@/shared/ui/AuthenticatedMedia', () => ({
+  AuthenticatedMedia: ({
+    src,
+    seekRequest,
+  }: {
+    src: string;
+    seekRequest?: { timestampSeconds: number; nonce: number } | null;
+  }) => (
+    <div
+      data-testid="authenticated-media"
+      data-src={src}
+      data-seek={seekRequest ? String(seekRequest.timestampSeconds) : ''}
+    />
+  ),
+}));
+
 const version: InspectionReport = {
   id: 'version-1',
   inspectionReportId: 'report-1',
@@ -295,5 +311,128 @@ describe('ReportDerivedSections confirmed findings', () => {
     expect(within(dialog).getByText('Surface crack')).toBeTruthy();
     expect(within(dialog).getByText(/Longitudinal crack near seam/)).toBeTruthy();
     expect(within(dialog).getByText(/Seal and monitor/)).toBeTruthy();
+  });
+
+  it('organizes defect photos, flight video, and clear captures into 3 separate tiers with video seek', () => {
+    const flightVideo: EvidenceItem = {
+      ...evidence,
+      id: 'video-1',
+      fileName: 'tower_orbit.mp4',
+      contentType: 'video/mp4',
+      durationSeconds: 20,
+    };
+    const defectFromVideo: EvidenceItem = {
+      ...evidence,
+      id: 'defect-img-1',
+      fileName: 'defect_parapet.jpg',
+      sourceVideoEvidenceId: 'video-1',
+      sourceTimestampSeconds: 8,
+    };
+    const clearPhoto: EvidenceItem = {
+      ...evidence,
+      id: 'clear-img-1',
+      fileName: 'clear_curtainwall.jpg',
+    };
+
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-confirmed',
+            evidenceId: 'defect-img-1',
+            defectLabel: 'abscission',
+            status: 'CONFIRMED',
+          }),
+        ]}
+        evidenceList={[flightVideo, defectFromVideo, clearPhoto]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    // Tier 1 (Defect evidence), Tier 2 (Flight videos), and Tier 3 (Clear captures) all render as standalone sections without collapsible thumbnail toggles
+    expect(screen.getByText(/Defect evidence & confirmed findings \(1\)/i)).toBeTruthy();
+    expect(screen.getByText(/Flight video captures \(1\)/i)).toBeTruthy();
+    expect(screen.getByText(/Clear \/ reference captures \(no findings\) \(1\)/i)).toBeTruthy();
+    expect(screen.getByText('clear_curtainwall.jpg')).toBeTruthy();
+    expect(screen.queryByText(/Hide thumbnails|Show thumbnails/i)).toBeNull();
+
+    // Filter chips let reviewer focus a single evidence tier or restore all
+    fireEvent.click(screen.getByRole('button', { name: /1 clear captures/i }));
+    expect(screen.queryByText(/Defect evidence & confirmed findings/i)).toBeNull();
+    expect(screen.getByText('clear_curtainwall.jpg')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /All \(3\)/i }));
+    expect(screen.getByText(/Defect evidence & confirmed findings \(1\)/i)).toBeTruthy();
+
+    // Video trace button opens modal seeking the flight video to 00:08
+    const watchBtn = screen.getByRole('button', { name: /Watch in video @ 00:08/i });
+    fireEvent.click(watchBtn);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/Focused at timestamp @ 00:08/i)).toBeTruthy();
+    expect(within(dialog).getByTestId('authenticated-media').getAttribute('data-seek')).toBe('8');
+  });
+
+  it('formats raw JSON assetLocation text instead of rendering raw JSON in Identification', () => {
+    const versionWithJsonLocation: InspectionReport = {
+      ...version,
+      reportContext: {
+        ...version.reportContext!,
+        assetLocation:
+          '{"label": "Ha Noi, Viet Nam", "latitude": 21.0921, "longitude": 105.8194}',
+      },
+    };
+    const { container } = render(
+      <ReportDerivedSections
+        version={versionWithJsonLocation}
+        findings={[]}
+        evidenceList={[]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(container.textContent).toContain('Ha Noi, Viet Nam');
+    expect(container.textContent).not.toContain('{"label"');
+  });
+
+  it('shows telemetry acquisition origin in Field session and normalizes legacy Vietnamese crop notes in EN locale', () => {
+    const cropItem: EvidenceItem = {
+      ...evidence,
+      id: 'crop-1',
+      fileName: 'crop_01.jpg',
+      locationDescription: 'Trích xuất & cắt từ video site_tour.mp4 tại 00m03s',
+    };
+
+    render(
+      <ReportDerivedSections
+        version={version}
+        findings={[
+          finding({
+            id: 'f-crop',
+            evidenceId: 'crop-1',
+            status: 'CONFIRMED',
+          }),
+        ]}
+        evidenceList={[cropItem]}
+        fieldSessions={[
+          {
+            id: 'session-1',
+            inspectionId: 'inspection-1',
+            status: 'FIELD_COMPLETED',
+            preFlightChecklistNote: null,
+            startedAt: '2026-01-02T10:30:00Z',
+            endedAt: '2026-01-02T10:50:00Z',
+            postponementReason: null,
+            abortReason: null,
+            outcomeNotes: null,
+            telemetrySource: 'IMPORTED_LOG_SRT',
+          },
+        ]}
+        inspectionId="inspection-1"
+      />,
+    );
+
+    expect(screen.getByText('Telemetry source: Uploaded flight log file (SRT)')).toBeTruthy();
+    expect(screen.getByText('Extracted from video site_tour.mp4 @ 00m03s')).toBeTruthy();
+    expect(screen.queryByText(/Trích xuất & cắt từ video/)).toBeNull();
   });
 });

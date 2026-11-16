@@ -101,7 +101,7 @@ export function getSectionLabel(
 export function getPageLabel(pathname: string, portal: PortalId, locale: Locale): string {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.includes('inspections') && segments.length > 2) {
-    return locale === 'vi' ? 'Chi tiết đợt kiểm tra' : 'Inspection detail';
+    return locale === 'vi' ? 'Không gian làm việc kiểm tra' : 'Inspection workspace';
   }
   if (segments.includes('reports') && segments.length > 2) {
     return locale === 'vi' ? 'Chi tiết báo cáo' : 'Report detail';

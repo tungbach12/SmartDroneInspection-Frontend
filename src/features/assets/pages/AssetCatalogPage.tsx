@@ -70,7 +70,9 @@ function ChecklistTemplateCrudList({
   const updateTemplate = useUpdateChecklistTemplate();
   const deleteTemplate = useDeleteChecklistTemplate();
 
+  const showRequiredToggle = templateType !== 'CATEGORY_INSPECTION_ITEM';
   const [newLabel, setNewLabel] = useState('');
+  const [newRequired, setNewRequired] = useState(templateType !== 'POST_FLIGHT');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
   const [deletingItem, setDeletingItem] = useState<ChecklistTemplate | null>(null);
@@ -87,11 +89,24 @@ function ChecklistTemplateCrudList({
         categoryId: templateType === 'CATEGORY_INSPECTION_ITEM' ? categoryId : null,
         label: trimmed,
         sortOrder: items.length + 1,
+        ...(showRequiredToggle ? { required: newRequired } : {}),
       },
       {
         onSuccess: () => setNewLabel(''),
       },
     );
+  };
+
+  const toggleRequired = (item: ChecklistTemplate) => {
+    updateTemplate.mutate({
+      id: item.id,
+      input: {
+        label: item.label,
+        sortOrder: item.sortOrder,
+        active: item.active,
+        required: !item.required,
+      },
+    });
   };
 
   const startEdit = (item: ChecklistTemplate) => {
@@ -205,7 +220,20 @@ function ChecklistTemplateCrudList({
                         </Box>
                         {item.label}
                       </Typography>
-                      <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                      <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
+                        {showRequiredToggle && (
+                          <Tooltip title={t('Click to toggle Required / Optional')}>
+                            <Chip
+                              size="small"
+                              label={item.required ? t('Required') : t('Optional')}
+                              color={item.required ? 'primary' : 'default'}
+                              variant={item.required ? 'filled' : 'outlined'}
+                              onClick={() => toggleRequired(item)}
+                              disabled={updateTemplate.isPending}
+                              sx={{ cursor: 'pointer', fontWeight: 600 }}
+                            />
+                          </Tooltip>
+                        )}
                         <Tooltip title={t('Edit item')}>
                           <IconButton
                             size="small"
@@ -237,7 +265,7 @@ function ChecklistTemplateCrudList({
       </QueryState>
 
       <Box component="form" onSubmit={handleCreate}>
-        <Stack direction="row" spacing={1}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
           <TextField
             size="small"
             fullWidth
@@ -245,6 +273,18 @@ function ChecklistTemplateCrudList({
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
           />
+          {showRequiredToggle && (
+            <Button
+              type="button"
+              size="small"
+              variant={newRequired ? 'contained' : 'outlined'}
+              color={newRequired ? 'primary' : 'inherit'}
+              onClick={() => setNewRequired((prev) => !prev)}
+              sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 600, minWidth: 92 }}
+            >
+              {newRequired ? t('Required') : t('Optional')}
+            </Button>
+          )}
           <Button
             type="submit"
             variant="contained"
@@ -554,9 +594,9 @@ export default function AssetCatalogPage() {
                 <Typography variant="h6" component="h2">{t('Pre-flight Safety Checklist')}</Typography>
               </Stack>
               <ChecklistTemplateCrudList
-                title={t('Mandatory Pre-flight Checks')}
+                title={t('Pre-flight Check Items')}
                 subtitle={t(
-                  'Shown to Inspectors in the Start Field Session dialog before takeoff.',
+                  'General pre-flight checks shown to Inspectors before takeoff. Toggle Required vs Optional per item.',
                 )}
                 templateType="PRE_FLIGHT"
                 placeholder={t('Add pre-flight safety check item...')}
@@ -573,7 +613,7 @@ export default function AssetCatalogPage() {
               <ChecklistTemplateCrudList
                 title={t('Post-flight Verification Checks')}
                 subtitle={t(
-                  'Shown to Inspectors in the Complete Session dialog after landing.',
+                  'General post-flight advisory checks shown after landing. Defaults to Optional.',
                 )}
                 templateType="POST_FLIGHT"
                 placeholder={t('Add post-flight completion check item...')}

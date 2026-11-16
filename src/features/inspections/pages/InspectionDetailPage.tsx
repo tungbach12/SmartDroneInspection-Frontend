@@ -757,16 +757,16 @@ export default function InspectionDetailPage() {
               label:
                 inspection?.assetName ||
                 (isCustomer
-                  ? t('Inspection detail')
+                  ? t('Inspection workspace')
                   : isReviewerAdmin
                     ? t('Inspection review')
-                    : t('Inspection detail')),
+                    : t('Inspection workspace')),
             },
           ]}
         />
 
         <PageHeader
-          title={isCustomer ? t('Inspection detail') : isReviewerAdmin ? t('Inspection review') : t('Inspection detail')}
+          title={isCustomer ? t('Inspection workspace') : isReviewerAdmin ? t('Inspection review') : t('Inspection workspace')}
           actions={workspaceActions}
         />
 
@@ -1039,10 +1039,10 @@ export default function InspectionDetailPage() {
                     justifyContent: 'flex-start',
                     textAlign: 'center',
                     borderRadius: '10px',
-                    transition: 'background-color 160ms ease',
-                    bgcolor: isCurrent ? 'action.hover' : 'transparent',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
+                    transition: 'color 160ms ease',
+                    bgcolor: 'transparent',
+                    '&:hover .trace-stage-title': {
+                      color: 'text.primary',
                     },
                     '&:focus-visible': {
                       outline: '2px solid',
@@ -1092,17 +1092,16 @@ export default function InspectionDetailPage() {
                               : 'divider',
                         bgcolor: isCompleted
                           ? completeGreen
-                          : 'background.paper',
-                        color: isCompleted
-                          ? '#ffffff'
                           : isCurrent
                             ? activePrimary
+                            : 'background.paper',
+                        color:
+                          isCompleted || isCurrent
+                            ? '#ffffff'
                             : state === 'ready'
                               ? 'text.primary'
                               : 'text.secondary',
-                        boxShadow: isCurrent
-                          ? '0 0 0 4px rgba(43, 132, 235, 0.20)'
-                          : 'none',
+                        boxShadow: 'none',
                         fontSize: '0.8rem',
                         fontWeight: 700,
                         transition: 'all 180ms ease',
@@ -1130,14 +1129,17 @@ export default function InspectionDetailPage() {
                     />
                   </Box>
 
-                  {/* Step Title & Status Subtitle */}
+                  {/* Step Title */}
                   <Box sx={{ mt: 1.1, px: 0.75, minWidth: 0, width: '100%' }}>
                     <Typography
                       component="span"
+                      className="trace-stage-title"
                       sx={{
                         display: 'block',
                         color: isCurrent
-                          ? 'text.primary'
+                          ? isCompleted
+                            ? completeGreen
+                            : activePrimary
                           : isCompleted
                             ? 'text.primary'
                             : 'text.secondary',
@@ -1151,21 +1153,6 @@ export default function InspectionDetailPage() {
                     >
                       {t(step.title)}
                     </Typography>
-                    {isCurrent && state === 'active' && (
-                      <Typography
-                        component="span"
-                        sx={{
-                          display: 'block',
-                          mt: 0.3,
-                          color: activePrimary,
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {t(STEP_STATE_COPY[state])}
-                      </Typography>
-                    )}
                   </Box>
                 </ButtonBase>
               );

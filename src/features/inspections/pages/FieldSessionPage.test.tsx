@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   uploadFlightPermit: vi.fn(),
   importFlightLog: vi.fn(),
   declareManualFlight: vi.fn(),
+  flightReport: vi.fn(),
 }));
 
 vi.mock('../api/fieldSessionApi', async (importOriginal) => {
@@ -53,6 +54,7 @@ vi.mock('../api/smartDroneHubApi', async (importOriginal) => {
       ...actual.smartDroneHubApi,
       importFlightLog: mocks.importFlightLog,
       declareManualFlight: mocks.declareManualFlight,
+      flightReport: mocks.flightReport,
     },
   };
 });
@@ -81,7 +83,7 @@ const INSPECTION = {
   inspectionItems: ['Mố cầu', 'Dầm chính'],
 };
 
-function renderWithClient() {
+function renderWithClient(stage?: 'permit' | 'pre-flight' | 'flight' | 'post-flight') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -91,7 +93,7 @@ function renderWithClient() {
         <Routes>
           <Route
             path="/operations/inspections/:inspectionId/field-session"
-            element={<FieldSessionPage />}
+            element={stage ? <FieldSessionPage stage={stage} /> : <FieldSessionPage />}
           />
           <Route path="/operations/inspections/:inspectionId" element={<div>inspection</div>} />
         </Routes>
@@ -113,6 +115,21 @@ describe('FieldSessionPage', () => {
     });
     mocks.postpone.mockResolvedValue({ ...SESSION, status: 'POSTPONED' });
     mocks.abort.mockResolvedValue({ ...SESSION, status: 'ABORTED' });
+    mocks.flightReport.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      telemetrySource: 'NONE',
+      startedAt: null,
+      endedAt: null,
+      durationSeconds: null,
+      distanceFlownMeters: null,
+      maxAltitudeMeters: null,
+      startBatteryPercent: null,
+      endBatteryPercent: null,
+      finalState: 'UNKNOWN',
+      note: '',
+      flightTrace: [],
+    });
   });
 
   afterEach(() => {
@@ -151,7 +168,7 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByText('Flight permit')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(
-      screen.getByText(/Every permit must be verified by a Platform Manager before pre-flight execution/i),
+      screen.getByText(/Upload the permit document and details for Platform Manager verification/i),
     ).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -169,8 +186,11 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/Submitted for Platform Manager verification/i),
+      await screen.findByText(/Awaiting Platform Manager verification/i),
     ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Submit flight permit for verification' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Replace permit' }));
+    expect(screen.getByRole('button', { name: 'Submit flight permit for verification' })).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -248,7 +268,7 @@ describe('FieldSessionPage', () => {
     );
   });
 
-  it('displays a warning alert when previous flight session was aborted', async () => {
+  it('does not duplicate the aborted-session alert owned by InspectionDetailPage', async () => {
     mocks.list.mockResolvedValue([
       {
         ...SESSION,
@@ -259,8 +279,8 @@ describe('FieldSessionPage', () => {
     ]);
     renderWithClient();
 
-    expect(await screen.findByText('Previous flight session was aborted')).toBeTruthy();
-    expect(screen.getByText(/Heavy rain and storm/)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Start session' })).toBeTruthy();
+    expect(screen.queryByText('Previous flight session was aborted')).toBeNull();
   });
 
   it('records session completion with the inspector outcome notes and displays them when completed', async () => {
@@ -368,7 +388,7 @@ describe('FieldSessionPage', () => {
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith(
         'inspection-1',
-        expect.stringContaining('[✓] Drone airframe, propellers & camera gimbal inspected and intact'),
+        expect.stringContaining('[✓] Airframe, propellers & mounting secure'),
       ),
     );
   });
@@ -408,13 +428,189 @@ describe('FieldSessionPage', () => {
 
     renderWithClient();
 
-    expect(await screen.findByText('Previous flight session was aborted')).toBeTruthy();
     expect(
-      screen.getAllByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i)
-        .length,
-    ).toBeGreaterThan(0);
+      await screen.findByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i),
+    ).toBeTruthy();
+    expect(screen.queryByText('Previous flight session was aborted')).toBeNull();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  it('warns and requires confirmation before replacing an already approved flight permit', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'SCHEDULED',
+      flightPermitVerificationStatus: 'APPROVED',
+      flightPermitNumber: '184/GP-TC',
+      flightPermitAuthority: 'Cục Tác chiến',
+      flightPermitValidFrom: '2026-12-20T01:00:00Z',
+      flightPermitValidTo: '2026-12-20T05:00:00Z',
+    });
+    mocks.list.mockResolvedValue([]);
+    mocks.uploadFlightPermit.mockResolvedValue({
+      ...INSPECTION,
+      flightPermitVerificationStatus: 'PENDING_REVIEW',
+    });
+
+    renderWithClient();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace permit' }));
+    expect(
+      screen.getByText(
+        /Replacing an approved permit revokes the current approval and resets verification to Pending Review/i,
+      ),
+    ).toBeTruthy();
+
+    const fileInput = screen.getByLabelText('Choose permit file') as HTMLInputElement;
+    const replacementFile = new File(['%PDF-1.4\n'], 'replacement-permit.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.change(fileInput, { target: { files: [replacementFile] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit flight permit for verification' }));
+
+    expect(await screen.findByText('Replace approved flight permit?')).toBeTruthy();
+    expect(mocks.uploadFlightPermit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replace & resubmit' }));
+
+    await waitFor(() => expect(mocks.uploadFlightPermit).toHaveBeenCalledTimes(1));
+  });
+
+  it('separates required and optional general pre-flight checks and only gates takeoff on required checks', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'SCHEDULED',
+      flightPermitVerificationStatus: 'APPROVED',
+    });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient('pre-flight');
+
+    expect(await screen.findByText('Pre-flight safety checklist')).toBeTruthy();
+    expect(screen.getByText('Required checks')).toBeTruthy();
+    expect(screen.getByText('Optional checks')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Check all' })).toHaveLength(1);
+
+    const codes = screen
+      .getAllByText(/^PF-0[1-7]$/)
+      .map((el) => el.textContent?.trim());
+    expect(codes).toEqual(['PF-01', 'PF-02', 'PF-03', 'PF-04', 'PF-05', 'PF-06', 'PF-07']);
+
+    const submitButton = screen.getByRole('button', {
+      name: 'Start session & Continue to Flight',
+    }) as HTMLButtonElement;
+    expect(submitButton.disabled).toBe(true);
+
+    // Tick only the 4 required items (leave PF-05..PF-07 optional unchecked)
+    fireEvent.click(screen.getByText('Airframe, propellers & mounting secure'));
+    fireEvent.click(screen.getByText('Battery levels sufficient for planned flight'));
+    fireEvent.click(screen.getByText('Weather & visibility within safe operating limits'));
+    fireEvent.click(screen.getByText('Takeoff/landing zone clear of people & hazards'));
+
+    expect(submitButton.disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check all' }));
+    expect(screen.getByText('7/7 verified')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Clear all' })).toBeTruthy();
+  });
+
+  it('treats default post-flight checks as optional while still gating on unchecked building inspection items', async () => {
+    mocks.list.mockResolvedValue([
+      { ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' },
+    ]);
+
+    renderWithClient('post-flight');
+
+    expect(await screen.findByText('Post-flight & Inspection Items')).toBeTruthy();
+    expect(screen.getByText('Optional')).toBeTruthy();
+
+    const completeButton = screen.getByRole('button', {
+      name: 'Complete session & Continue to Evidence',
+    }) as HTMLButtonElement;
+    // Unchecked building inspection items still require checking or explanation
+    expect(completeButton.disabled).toBe(true);
+
+    // Checking only Target Building Inspection Items unlocks completion even with optional post-flight items unchecked
+    fireEvent.click(screen.getByText('Mố cầu'));
+    fireEvent.click(screen.getByText('Dầm chính'));
+    expect(completeButton.disabled).toBe(false);
+  });
+
+  it('opens the hidden 3D flight simulation demo dialog from Step 3 flight panel', async () => {
+    renderWithClient('flight');
+
+    const hiddenBtn = await screen.findByTestId('step3-hidden-3d-demo-trigger');
+    expect(hiddenBtn).toBeTruthy();
+
+    fireEvent.click(hiddenBtn);
+
+    expect(await screen.findByText('3D WAYPOINT SIMULATION')).toBeTruthy();
+    expect(screen.getByText('Gazebo Gimbal Feed (Synced)')).toBeTruthy();
+  });
+
+  it('starts immediately with startNow=true via the hidden pre-flight Start now trigger', async () => {
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'SCHEDULED',
+      flightPermitVerificationStatus: 'APPROVED',
+    });
+    mocks.list.mockResolvedValue([]);
+
+    renderWithClient('pre-flight');
+
+    const hiddenStartNow = await screen.findByTestId('preflight-hidden-start-now-trigger');
+    fireEvent.change(screen.getByLabelText(/Pre-flight note/), {
+      target: { value: 'Immediate demo start requested' },
+    });
+    fireEvent.click(hiddenStartNow);
+
+    await waitFor(() =>
+      expect(mocks.start).toHaveBeenCalledWith(
+        'inspection-1',
+        'Immediate demo start requested',
+        true,
+      ),
+    );
+  });
+
+  it('keeps flight log re-upload available on Step 3 after Step 4 completes (FIELD_COMPLETED)', async () => {
+    useAuthStore.setState({ roles: ['INSPECTOR'] });
+    mocks.getById.mockResolvedValue({
+      ...INSPECTION,
+      status: 'FIELD_COMPLETED',
+      flightPermitVerificationStatus: 'APPROVED',
+    });
+    mocks.list.mockResolvedValue([
+      {
+        ...SESSION,
+        status: 'FIELD_COMPLETED',
+        endedAt: '2026-10-20T03:00:00Z',
+        hasFlightReport: true,
+        telemetrySource: 'IMPORTED_LOG_SRT',
+      },
+    ]);
+    mocks.flightReport.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      telemetrySource: 'IMPORTED_LOG_SRT',
+      startedAt: null,
+      endedAt: null,
+      durationSeconds: 24,
+      distanceFlownMeters: 210.5,
+      maxAltitudeMeters: 36,
+      startBatteryPercent: null,
+      endBatteryPercent: null,
+      finalState: 'UNKNOWN',
+      note: 'Imported SRT',
+      flightTrace: [],
+    });
+
+    renderWithClient('flight');
+
+    expect(await screen.findByText('Field session complete')).toBeTruthy();
+    expect(screen.getByText('No MAVLink? Import a flight log')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Upload another log' })).toBeTruthy();
   });
 });

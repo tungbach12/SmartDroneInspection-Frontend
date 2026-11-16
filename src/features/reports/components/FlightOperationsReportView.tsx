@@ -104,6 +104,60 @@ function fmtOffsetSec(sec: number | null | undefined): string {
   return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
 }
 
+interface ParsedFlightNote {
+  importedFileName: string | null;
+  proximityWarningKm: string | null;
+  conciseNote: string | null;
+}
+
+function parseFlightReportNote(
+  rawNote: string | null | undefined,
+  t: (key: string) => string,
+): ParsedFlightNote {
+  if (!rawNote || !rawNote.trim()) {
+    return { importedFileName: null, proximityWarningKm: null, conciseNote: null };
+  }
+  let text = rawNote.trim();
+  let proximityWarningKm: string | null = null;
+  const warnMatch = text.match(
+    /\[WARN:\s*First GPS point is\s+([\d.]+)\s*km\s+from registered asset coordinates\.\]/i,
+  );
+  if (warnMatch) {
+    proximityWarningKm = warnMatch[1] ?? null;
+    text = text.replace(warnMatch[0], '').trim();
+  }
+
+  let importedFileName: string | null = null;
+  const importedMatch = text.match(
+    /^Imported flight log:\s*([^\n]+?)\.(?:\s+Flight trace parsed from the uploaded [A-Z0-9]+ file; unavailable telemetry fields are not inferred\.)?\s*$/i,
+  );
+  if (importedMatch) {
+    importedFileName = importedMatch[1]?.trim() ?? null;
+    return { importedFileName, proximityWarningKm, conciseNote: null };
+  }
+
+  const manualMatch = text.match(/^Manual flight declaration \(no telemetry\)\.\s*(.+)$/i);
+  if (manualMatch) {
+    const body = manualMatch[1] ?? '';
+    const notePartMatch = body.match(/Inspector note=(.+)$/i);
+    const reasonMatch = body.match(/Reason=([A-Z_]+)/i);
+    const reasonLabel = reasonMatch?.[1] ? t(reasonMatch[1]) : null;
+    const noteText = notePartMatch?.[1]?.trim() ?? '';
+    const summaryParts = [reasonLabel, noteText].filter(Boolean);
+    return {
+      importedFileName: null,
+      proximityWarningKm,
+      conciseNote: summaryParts.length > 0 ? summaryParts.join(' · ') : t(text),
+    };
+  }
+
+  return {
+    importedFileName: null,
+    proximityWarningKm,
+    conciseNote: text ? t(text) : null,
+  };
+}
+
 export function FlightOperationsReportView({
   inspectionId,
   fieldSessionId,
@@ -269,6 +323,19 @@ export function FlightOperationsReportView({
     report?.finalState && report.finalState !== 'UNKNOWN' ? report.finalState : null;
   const hasFlightTrace = trace.length > 0;
   const isManualDeclaration = report?.telemetrySource === 'MANUAL_DECLARATION';
+  const parsedNote = useMemo(
+    () => parseFlightReportNote(report?.note, t),
+    [report?.note, t],
+  );
+  const acquisitionMethodLabel = isLiveMavlink
+    ? t('Live stream during flight')
+    : isImportedSource
+      ? t('Uploaded file after flight')
+      : isSimulationSource
+        ? t('Simulated telemetry')
+        : isManualDeclaration
+          ? t('Manual declaration')
+          : t('Telemetry source unavailable');
   const hasAnyReportData = Boolean(
     report &&
       (hasFlightTrace ||
@@ -319,7 +386,10 @@ export function FlightOperationsReportView({
                 label={t('Estimated maximum altitude')}
                 value={report.maxAltitudeMeters == null ? '—' : `${fmtNum(report.maxAltitudeMeters, 1)} m`}
               />
-              <MetaItem label={t('Inspector field note')} value={report.note ?? '—'} />
+              <MetaItem
+                label={t('Inspector field note')}
+                value={parsedNote.conciseNote ?? report.note ?? '—'}
+              />
             </Stack>
           </Paper>
         </Stack>
@@ -393,6 +463,13 @@ export function FlightOperationsReportView({
                         : `${t('Real log')} · ${telemetrySourceLabel}`
                   }
                   sx={{ fontWeight: 700 }}
+                />
+                <Chip
+                  size="small"
+                  color={isLiveMavlink ? 'success' : isImportedSource ? 'info' : 'warning'}
+                  variant="outlined"
+                  label={`${t('Data source')}: ${acquisitionMethodLabel}`}
+                  sx={{ fontWeight: 650 }}
                 />
                 {reportedFinalState && (
                   <Chip
@@ -473,7 +550,17 @@ export function FlightOperationsReportView({
                 label={t('Ended at')}
                 value={report.endedAt ? formatDateTime(report.endedAt) : '—'}
               />
-              <MetaItem label={t('Flight data note')} value={report.note ?? '—'} />
+              <MetaItem
+                label={t('Data source')}
+                value={
+                  parsedNote.importedFileName
+                    ? `${acquisitionMethodLabel} · ${parsedNote.importedFileName}`
+                    : acquisitionMethodLabel
+                }
+              />
+              {parsedNote.conciseNote && (
+                <MetaItem label={t('Flight data note')} value={parsedNote.conciseNote} />
+              )}
             </Box>
           </Paper>
 
@@ -486,6 +573,12 @@ export function FlightOperationsReportView({
             assetName={resolvedAsset !== '—' ? resolvedAsset : null}
             droneSummary={resolvedDrone !== '—' ? resolvedDrone : null}
           />
+
+          {parsedNote.proximityWarningKm && (
+            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+              {`${t('First recorded GPS point is')} ${parsedNote.proximityWarningKm} km ${t('from the registered asset coordinates.')}`}
+            </Alert>
+          )}
 
           <Alert severity="info" sx={{ borderRadius: '10px' }}>
             {report.telemetrySource === 'IMPORTED_LOG_SRT'
@@ -570,7 +663,7 @@ export function FlightOperationsReportView({
               <SingleSeriesTimelineCard
                 icon={<TerrainRounded fontSize="small" color="primary" />}
                 title={t('Altitude Profile (m)')}
-                summaryLabel={`Avg ${fmtNum(metrics.avgAlt, 1)} m · Peak ${fmtNum(metrics.maxAlt, 1)} m`}
+                summaryLabel={`${t('Avg')} ${fmtNum(metrics.avgAlt, 1)} m · ${t('Peak')} ${fmtNum(metrics.maxAlt, 1)} m`}
                 unit="m"
                 color={pal.series1}
                 samples={enrichedSamples}
@@ -590,7 +683,7 @@ export function FlightOperationsReportView({
               <SingleSeriesTimelineCard
                 icon={<SpeedRounded fontSize="small" color="primary" />}
                 title={t('Ground Speed (m/s)')}
-                summaryLabel={`Avg ${fmtNum(metrics.avgSpeed, 1)} m/s · Peak ${fmtNum(metrics.maxSpeed, 1)} m/s`}
+                summaryLabel={`${t('Avg')} ${fmtNum(metrics.avgSpeed, 1)} m/s · ${t('Peak')} ${fmtNum(metrics.maxSpeed, 1)} m/s`}
                 unit="m/s"
                 color={pal.series2}
                 samples={enrichedSamples}
@@ -891,7 +984,7 @@ function GpsTrajectoryMapCard({
               }
               sx={{ textTransform: 'none', fontWeight: 600 }}
             >
-              {effectiveDimension === '3d' ? '3D View' : '2D View'}
+              {effectiveDimension === '3d' ? t('3D View') : t('2D View')}
             </Button>
             <Button
               size="small"
@@ -1536,7 +1629,7 @@ function AutomatedEventLogTable({
       .forEach((ev, idx) => {
         list.push({
           id: `evt-ev-${ev.id}`,
-          event: `Evidence #${idx + 1}: ${ev.fileName}`,
+          event: `${t('Evidence')} #${idx + 1}: ${ev.fileName}`,
           timestamp: ev.captureTime ?? startedAt ?? null,
           gps:
             ev.latitude != null && ev.longitude != null

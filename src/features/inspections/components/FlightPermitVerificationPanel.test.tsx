@@ -80,15 +80,11 @@ describe('FlightPermitVerificationPanel', () => {
 
   afterEach(() => cleanup());
 
-  it('requires mandatory Platform Manager verification even in CLEAR_ZONE and allows approving', async () => {
+  it('allows approving in CLEAR_ZONE when manager verification is required', async () => {
     renderPanel(BASE_INSPECTION, true);
 
-    expect(screen.getByText(/CLEAR_ZONE/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        /mandatory Platform Manager verification for every flight permit regardless of airspace zone/i,
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText(/Clear Zone/i)).toBeTruthy();
+    expect(screen.getByText(/Submitted by the Inspector — review the document and approve or reject/i)).toBeTruthy();
     expect(screen.getByText('184/GP-TC')).toBeTruthy();
     expect(screen.getByText(/Matches drone/i)).toBeTruthy();
 
@@ -141,5 +137,37 @@ describe('FlightPermitVerificationPanel', () => {
     expect(
       (screen.getByRole('button', { name: 'Approve flight permit' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  it('replaces Approve with a disabled Already approved sign once permit is APPROVED', () => {
+    renderPanel(
+      {
+        ...BASE_INSPECTION,
+        flightPermitVerificationStatus: 'APPROVED',
+        flightPermitVerifiedByName: 'Platform Manager 2',
+        flightPermitVerifiedAt: new Date().toISOString(),
+      },
+      true,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Approve flight permit' })).toBeNull();
+    const alreadyApproved = screen.getByRole('button', { name: 'Already approved' }) as HTMLButtonElement;
+    expect(alreadyApproved.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Reject flight permit' })).toBeTruthy();
+  });
+
+  it('hides verification decision controls when permit is REJECTED', () => {
+    renderPanel(
+      {
+        ...BASE_INSPECTION,
+        flightPermitVerificationStatus: 'REJECTED',
+        flightPermitRejectionReason: 'Blurry scan',
+      },
+      true,
+    );
+
+    expect(screen.queryByText('Manager Verification Decision')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Approve flight permit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reject flight permit' })).toBeNull();
   });
 });

@@ -13,42 +13,16 @@ import {
   Typography,
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { inspectionApi } from '../api/inspectionApi';
 import type { EvidenceItem, Finding, FindingSeverity } from '../api/inspectionApi';
+import { parseBoundingBox } from '../utils/boundingBox';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
-interface BoundingBoxCoords {
-  xMin: number;
-  yMin: number;
-  xMax: number;
-  yMax: number;
-}
-
-function parseBoundingBox(raw?: string): BoundingBoxCoords | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed.xMin === 'number' &&
-      typeof parsed.yMin === 'number' &&
-      typeof parsed.xMax === 'number' &&
-      typeof parsed.yMax === 'number' &&
-      parsed.xMin >= 0 && parsed.yMin >= 0 &&
-      parsed.xMax <= 1 && parsed.yMax <= 1 &&
-      parsed.xMin < parsed.xMax && parsed.yMin < parsed.yMax
-    ) {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 export interface EvidenceCaptureGroupProps {
   inspectionId: string;
@@ -77,6 +51,9 @@ export interface EvidenceCaptureGroupProps {
   onTechnicalNotesChange: (findingId: string, val: string) => void;
   revisedRecommendedActions: Record<string, string>;
   onRecommendedActionsChange: (findingId: string, val: string) => void;
+  revisedBoundingBoxes?: Record<string, string | null> | undefined;
+  onEditBoundingBox?: ((finding: Finding) => void) | undefined;
+  onClearBoundingBox?: ((findingId: string) => void) | undefined;
   onConfirmFinding: (finding: Finding) => void;
   onDeleteFinding: (findingId: string) => void;
   onRestoreFinding?: (findingId: string) => void;
@@ -90,6 +67,9 @@ export interface EvidenceCaptureGroupProps {
   onOpenManualFinding: () => void;
   onCloseManualFinding: () => void;
   onSubmitManualFinding: (event: FormEvent<HTMLFormElement>) => void;
+  manualBoundingBox?: string | null | undefined;
+  onEditManualBoundingBox?: ((evidenceId: string) => void) | undefined;
+  onClearManualBoundingBox?: (() => void) | undefined;
   isCreateManualPending: boolean;
   createManualError: unknown;
 }
@@ -247,15 +227,29 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   />
                   {showBoundingBoxes &&
                     props.findings.map((finding, index) => {
-                      const box = parseBoundingBox(finding.boundingBox ?? undefined);
+                      const rawBox =
+                        props.editingCandidateId === finding.id &&
+                        props.revisedBoundingBoxes &&
+                        finding.id in props.revisedBoundingBoxes
+                          ? props.revisedBoundingBoxes[finding.id]
+                          : finding.boundingBox;
+                      const box = parseBoundingBox(rawBox ?? undefined);
                       if (!box) return null;
-                      const active = hoveredCandidateId === finding.id;
+                      const active =
+                        hoveredCandidateId === finding.id || props.editingCandidateId === finding.id;
                       const color = ['#d32f2f', '#1976d2', '#2e7d32', '#ed6c02'][index % 4];
+                      const hasConfidence = finding.confidence !== null && finding.confidence !== undefined;
+                      const boxTag = hasConfidence
+                        ? `${finding.defectLabel} · ${Math.round(finding.confidence! * 100)}%`
+                        : finding.defectLabel;
+                      const boxAria = hasConfidence
+                        ? `${finding.defectLabel}, ${Math.round(finding.confidence! * 100)} percent confidence`
+                        : finding.defectLabel;
                       return (
                         <Box
                           key={finding.id}
                           role="img"
-                          aria-label={`${finding.defectLabel}, ${Math.round((finding.confidence ?? 0) * 100)} percent confidence`}
+                          aria-label={boxAria}
                           sx={{
                             position: 'absolute',
                             left: `${box.xMin * 100}%`,
@@ -267,7 +261,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                             pointerEvents: 'none',
                             zIndex: 2,
                             '&::before': {
-                              content: `"${finding.defectLabel} · ${Math.round((finding.confidence ?? 0) * 100)}%"`,
+                              content: `"${boxTag}"`,
                               position: 'absolute',
                               top: -22,
                               left: -2,
@@ -471,6 +465,66 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 input: { sx: { borderRadius: '8px', bgcolor: 'background.paper' } },
                               }}
                             />
+
+                            {isImage && props.onEditBoundingBox && (
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+                              >
+                                {(() => {
+                                  const raw =
+                                    props.revisedBoundingBoxes &&
+                                    finding.id in props.revisedBoundingBoxes
+                                      ? props.revisedBoundingBoxes[finding.id]
+                                      : finding.boundingBox;
+                                  const parsed = parseBoundingBox(raw);
+                                  return parsed ? (
+                                    <>
+                                      <Chip
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        label={`${t('Region:')} ${Math.round((parsed.xMax - parsed.xMin) * 100)}% × ${Math.round((parsed.yMax - parsed.yMin) * 100)}%`}
+                                      />
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<CropFreeRounded fontSize="small" />}
+                                        onClick={() => props.onEditBoundingBox?.(finding)}
+                                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                                      >
+                                        {t('Adjust box on photo')}
+                                      </Button>
+                                      {props.onClearBoundingBox && (
+                                        <Button
+                                          size="small"
+                                          color="error"
+                                          variant="text"
+                                          onClick={() => props.onClearBoundingBox?.(finding.id)}
+                                          sx={{ borderRadius: '8px', textTransform: 'none' }}
+                                        >
+                                          {t('Clear region')}
+                                        </Button>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Chip size="small" variant="outlined" label={t('No region box')} />
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<CropFreeRounded fontSize="small" />}
+                                        onClick={() => props.onEditBoundingBox?.(finding)}
+                                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                                      >
+                                        {t('Mark region on photo')}
+                                      </Button>
+                                    </>
+                                  );
+                                })()}
+                              </Stack>
+                            )}
 
                             <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
                               <Button
@@ -782,6 +836,61 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                   sx={{ gridColumn: '1 / -1' }}
                   slotProps={{ htmlInput: { maxLength: 4000 } }}
                 />
+                <input type="hidden" name="boundingBox" value={props.manualBoundingBox ?? ''} />
+                {isImage && props.onEditManualBoundingBox && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ gridColumn: '1 / -1', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+                  >
+                    {(() => {
+                      const manualBox = parseBoundingBox(props.manualBoundingBox);
+                      return manualBox ? (
+                        <>
+                          <Chip
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            label={`${t('Region:')} ${Math.round((manualBox.xMax - manualBox.xMin) * 100)}% × ${Math.round((manualBox.yMax - manualBox.yMin) * 100)}%`}
+                          />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CropFreeRounded fontSize="small" />}
+                            onClick={() => props.onEditManualBoundingBox?.(props.evidenceId)}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                          >
+                            {t('Adjust box on photo')}
+                          </Button>
+                          {props.onClearManualBoundingBox && (
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="text"
+                              onClick={() => props.onClearManualBoundingBox?.()}
+                              sx={{ borderRadius: '8px', textTransform: 'none' }}
+                            >
+                              {t('Clear region')}
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Chip size="small" variant="outlined" label={t('No region box')} />
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CropFreeRounded fontSize="small" />}
+                            onClick={() => props.onEditManualBoundingBox?.(props.evidenceId)}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                          >
+                            {t('Mark region on photo')}
+                          </Button>
+                        </>
+                      );
+                    })()}
+                  </Stack>
+                )}
                 <Button
                   type="submit"
                   variant="contained"

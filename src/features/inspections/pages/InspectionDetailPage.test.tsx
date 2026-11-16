@@ -234,7 +234,7 @@ describe('InspectionDetailPage', () => {
     signInAs('CUSTOMER');
     renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
 
-    expect(screen.getByRole('heading', { name: 'Inspection detail' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Inspection workspace' })).toBeTruthy();
     const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
     expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();

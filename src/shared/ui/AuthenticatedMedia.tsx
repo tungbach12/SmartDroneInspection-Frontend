@@ -1,9 +1,14 @@
-import { type RefObject, useEffect, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
 import BrokenImageOutlined from '@mui/icons-material/BrokenImageOutlined';
 import VideocamOffOutlined from '@mui/icons-material/VideocamOffOutlined';
 import { api } from '@/shared/api/client';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+export interface MediaSeekRequest {
+  timestampSeconds: number;
+  nonce: number;
+}
 
 interface AuthenticatedMediaProps {
   src: string;
@@ -13,6 +18,10 @@ interface AuthenticatedMediaProps {
   sx?: Record<string, unknown> | undefined;
   maxHeight?: number | string | undefined;
   videoRef?: RefObject<HTMLVideoElement | null> | undefined;
+  seekRequest?: MediaSeekRequest | null | undefined;
+  onVideoStateChange?:
+    | ((state: { currentTime: number; duration: number; paused: boolean }) => void)
+    | undefined;
 }
 
 function toApiRelativePath(src: string): string {
@@ -47,8 +56,11 @@ export function AuthenticatedMedia({
   sx,
   maxHeight = 420,
   videoRef,
+  seekRequest,
+  onVideoStateChange,
 }: AuthenticatedMediaProps) {
   const { t } = useLocale();
+  const internalVideoRef = useRef<HTMLVideoElement | null>(null);
   const [prevKey, setPrevKey] = useState(`${src}|${posterSrc ?? ''}|${contentType}`);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
@@ -130,6 +142,29 @@ export function AuthenticatedMedia({
     };
   }, [src, posterSrc, isVideo]);
 
+  useEffect(() => {
+    if (!isVideo || !seekRequest) return;
+    const videoEl = videoRef?.current ?? internalVideoRef.current;
+    if (!videoEl) return;
+    const targetTime = Math.max(0, seekRequest.timestampSeconds);
+    const applySeek = () => {
+      try {
+        videoEl.currentTime = targetTime;
+        videoEl.pause();
+      } catch {
+        // Ignore seek errors on unready mock elements in unit tests.
+      }
+    };
+    if (videoEl.readyState >= 1) {
+      applySeek();
+      return;
+    }
+    videoEl.addEventListener('loadedmetadata', applySeek, { once: true });
+    return () => {
+      videoEl.removeEventListener('loadedmetadata', applySeek);
+    };
+  }, [isVideo, mediaUrl, seekRequest, videoRef]);
+
   if (error && !mediaUrl) {
     return (
       <Box
@@ -171,16 +206,73 @@ export function AuthenticatedMedia({
       {isVideo ? (
         <Box
           component="video"
-          ref={videoRef}
+          ref={(el: HTMLVideoElement | null) => {
+            internalVideoRef.current = el;
+            if (videoRef && 'current' in videoRef) {
+              (videoRef as { current: HTMLVideoElement | null }).current = el;
+            }
+          }}
           controls
           preload="metadata"
+          onLoadedMetadata={(e) => {
+            if (seekRequest && seekRequest.timestampSeconds > 0) {
+              try {
+                e.currentTarget.currentTime = seekRequest.timestampSeconds;
+                e.currentTarget.pause();
+              } catch {
+                // Ignore if element is mocked.
+              }
+            }
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: e.currentTarget.paused,
+            });
+          }}
+          onDurationChange={(e) => {
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: e.currentTarget.paused,
+            });
+          }}
+          onTimeUpdate={(e) => {
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: e.currentTarget.paused,
+            });
+          }}
+          onSeeked={(e) => {
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: e.currentTarget.paused,
+            });
+          }}
+          onPlay={(e) => {
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: false,
+            });
+          }}
+          onPause={(e) => {
+            onVideoStateChange?.({
+              currentTime: e.currentTarget.currentTime || 0,
+              duration: Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0,
+              paused: true,
+            });
+          }}
           poster={posterUrl ?? undefined}
           src={mediaUrl ?? undefined}
           data-src={src}
           aria-label={alt}
           sx={{
+            width: '100%',
             maxWidth: '100%',
             maxHeight,
+            objectFit: 'contain',
             borderRadius: '12px',
             display: loading ? 'none' : 'block',
             bgcolor: '#000000',
@@ -199,6 +291,7 @@ export function AuthenticatedMedia({
             objectFit: 'contain',
             borderRadius: '12px',
             display: loading ? 'none' : 'block',
+            mx: 'auto',
             bgcolor: 'background.paper',
             ...sx,
           }}

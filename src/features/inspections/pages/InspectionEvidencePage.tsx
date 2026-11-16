@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  ButtonGroup,
   Checkbox,
   Chip,
   LinearProgress,
@@ -14,20 +15,23 @@ import {
   TablePagination,
   Typography,
 } from '@mui/material';
-import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CropRounded from '@mui/icons-material/CropRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
+import MovieOutlined from '@mui/icons-material/MovieOutlined';
+import PauseRounded from '@mui/icons-material/PauseRounded';
+import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
+import PlayCircleOutlineRounded from '@mui/icons-material/PlayCircleOutlineRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
-import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { inspectionApi } from '../api/inspectionApi';
 import {
   useInvalidateInspectionEvidence,
   useInspectionEvidenceQuery,
+  useInspectionFindings,
   useInspectionWorkflowState,
   useFieldSessions,
   useReportVersions,
@@ -37,7 +41,7 @@ import {
   useUploadInspectionEvidence,
 } from '../hooks/useInspections';
 import { VideoFrameCropDialog } from '../components/VideoFrameCropDialog';
-import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
+import { AuthenticatedMedia, type MediaSeekRequest } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
@@ -96,6 +100,20 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+function formatMmSs(seconds: number | null | undefined): string {
+  const safe = Math.max(0, Math.floor(seconds ?? 0));
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatMmSsTenths(seconds: number | null | undefined): string {
+  const safe = Math.max(0, seconds ?? 0);
+  const mins = Math.floor(safe / 60);
+  const secs = safe - mins * 60;
+  return `${String(mins).padStart(2, '0')}:${secs.toFixed(1).padStart(4, '0')}`;
+}
+
 export default function InspectionEvidencePage() {
   const { t } = useLocale();
   const { inspectionId = '' } = useParams();
@@ -114,6 +132,7 @@ export default function InspectionEvidencePage() {
     pageSize,
   });
   const workflow = useInspectionWorkflowState(inspectionId);
+  const findingsQuery = useInspectionFindings(inspectionId);
   const sessionHistory = useFieldSessions(inspectionId, isInspector);
   const versions = useReportVersions(inspectionId);
   const invalidateEvidence = useInvalidateInspectionEvidence(inspectionId);
@@ -138,8 +157,18 @@ export default function InspectionEvidencePage() {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingLinkedFindings, setDeletingLinkedFindings] = useState(false);
+  const [deleteLinkedError, setDeleteLinkedError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const seekNonceRef = useRef(0);
+  const [seekRequest, setSeekRequest] = useState<MediaSeekRequest | null>(null);
+  const [videoPlayback, setVideoPlayback] = useState<{
+    evidenceId: string | null;
+    currentTime: number;
+    duration: number;
+    paused: boolean;
+  }>({ evidenceId: null, currentTime: 0, duration: 0, paused: true });
   const [cropDialogState, setCropDialogState] = useState<{
     open: boolean;
     frameDataUrl: string | null;
@@ -154,17 +183,8 @@ export default function InspectionEvidencePage() {
     timestampSeconds: 0,
   });
   const [savingCropped, setSavingCropped] = useState(false);
-  const [autoDetectingVideo, setAutoDetectingVideo] = useState(false);
-  const [videoDetectResult, setVideoDetectResult] = useState<{
-    extractedEvidenceCount: number;
-    createdFindingsCount: number;
-    keyframes: Array<{
-      timestampSeconds: number;
-      evidenceFileName: string;
-      primaryDefect: string;
-    }>;
-  } | null>(null);
   const [videoActionError, setVideoActionError] = useState<string | null>(null);
+  const [videoCaptureNotice, setVideoCaptureNotice] = useState<string | null>(null);
 
   const displayedEvidenceItems = evidence.data?.items ?? [];
   const totalEvidenceCount = evidence.data?.totalCount ?? 0;
@@ -195,6 +215,12 @@ export default function InspectionEvidencePage() {
     displayedEvidenceItems.find((item) => item.id === selectedEvidenceId) ??
     displayedEvidenceItems[0] ??
     null;
+  const isPlaybackForSelected = Boolean(
+    selectedEvidence && videoPlayback.evidenceId === selectedEvidence.id,
+  );
+  const activeVideoTime = isPlaybackForSelected ? videoPlayback.currentTime : 0;
+  const activeVideoDuration = isPlaybackForSelected ? videoPlayback.duration : 0;
+  const activeVideoPaused = isPlaybackForSelected ? videoPlayback.paused : true;
 
   const hasPendingProcessing = displayedEvidenceItems.some(
     (item) => item.processingStatus === 'PENDING' || item.processingStatus === 'PROCESSING',
@@ -484,13 +510,55 @@ export default function InspectionEvidencePage() {
       ? `${t('Delete selected')} (${selectedBatchIds.length})`
       : t('Delete evidence');
 
+  const deleteTargetIds = hasBatchSelection
+    ? selectedBatchIds.length > 0
+      ? selectedBatchIds
+      : currentEvidenceItems.map((e) => e.id)
+    : selectedEvidence && !selectedEvidence.isDeleted
+      ? [selectedEvidence.id]
+      : [];
+  const linkedFindingsForTargets = (findingsQuery.data ?? []).filter(
+    (finding) => !finding.isDeleted && Boolean(finding.evidenceId) && deleteTargetIds.includes(finding.evidenceId!),
+  );
+
+  const handleOpenDeleteConfirm = () => {
+    setDeleteLinkedError(null);
+    setShowDeleteConfirm(true);
+    void findingsQuery.refetch?.();
+  };
+
   const handleDeleteAction = async () => {
+    if (deleteTargetIds.length === 0) return;
+    setDeleteLinkedError(null);
+
+    if (linkedFindingsForTargets.length > 0) {
+      setDeletingLinkedFindings(true);
+      try {
+        // Delete sequentially to avoid concurrent confirmation-reopen lock contention on the inspection row.
+        for (const finding of linkedFindingsForTargets) {
+          await inspectionApi.deleteFinding(inspectionId, finding.id);
+        }
+        await invalidateEvidence();
+        void findingsQuery.refetch?.();
+      } catch (error) {
+        setDeleteLinkedError(
+          getErrorMessage(error, 'Could not remove linked findings before deleting captures.'),
+        );
+        return;
+      } finally {
+        setDeletingLinkedFindings(false);
+      }
+    }
+
     if (hasBatchSelection) {
-      const targets =
-        selectedBatchIds.length > 0 ? selectedBatchIds : currentEvidenceItems.map((e) => e.id);
-      await bulkRetire.mutateAsync(targets);
-      setSelectedBatchIds([]);
-      setShowDeleteConfirm(false);
+      try {
+        await bulkRetire.mutateAsync(deleteTargetIds);
+        setSelectedBatchIds([]);
+        setShowDeleteConfirm(false);
+      } catch (error) {
+        void findingsQuery.refetch?.();
+        setDeleteLinkedError(getErrorMessage(error, 'Bulk delete was not completed.'));
+      }
     } else if (selectedEvidence && !selectedEvidence.isDeleted) {
       retire.mutate(selectedEvidence.id);
       setShowDeleteConfirm(false);
@@ -499,6 +567,7 @@ export default function InspectionEvidencePage() {
 
   const handleOpenCropFromVideo = () => {
     setVideoActionError(null);
+    setVideoCaptureNotice(null);
     const videoEl = videoRef.current;
     if (!videoEl || videoEl.readyState < 2) {
       setVideoActionError(t('Wait for the video to load before capturing a frame.'));
@@ -525,102 +594,92 @@ export default function InspectionEvidencePage() {
 
   const handleSaveCroppedFrame = async (file: File, locationDescription: string) => {
     if (!selectedEvidence) return;
+    const sourceVideoId = selectedEvidence.id;
+    const capturedTimestamp = Math.round(cropDialogState.timestampSeconds * 10) / 10;
     setSavingCropped(true);
     try {
+      // Pin selection to the source video so refetching keeps the video and timeline intact.
+      setSelectedEvidenceId(sourceVideoId);
       const sessionTarget = selectedEvidence.fieldSessionId ?? completedFieldSessionId;
       const saved = await upload.mutateAsync({
         file,
         ...(sessionTarget ? { fieldSessionId: sessionTarget } : {}),
+        sourceVideoEvidenceId: sourceVideoId,
+        sourceTimestampSeconds: capturedTimestamp,
       });
       if (locationDescription) {
         await inspectionApi.updateEvidenceLocation(inspectionId, saved.id, locationDescription);
       }
       await evidence.refetch();
       setCropDialogState((prev) => ({ ...prev, open: false }));
-      setSelectedEvidenceId(saved.id);
+      setVideoCaptureNotice(
+        `${t('Saved captured frame')} ${saved.fileName} (${formatMmSs(capturedTimestamp)}).`,
+      );
     } finally {
       setSavingCropped(false);
     }
   };
 
-  const handleAutoDetectFromVideo = async () => {
-    if (!selectedEvidence) return;
-    const videoEl = videoRef.current;
-    if (!videoEl || !videoEl.src) {
-      setVideoActionError(t('Wait for the video preview to finish loading before running AI detection.'));
-      return;
-    }
+  const nextSeekNonce = () => {
+    seekNonceRef.current += 1;
+    return seekNonceRef.current;
+  };
+
+  const openVideoAtTimestamp = (videoEvidenceId: string, timestampSeconds: number) => {
     setVideoActionError(null);
-    setAutoDetectingVideo(true);
-    try {
-      const probe = document.createElement('video');
-      probe.src = videoEl.src;
-      probe.muted = true;
-      probe.playsInline = true;
-      await new Promise<void>((resolve, reject) => {
-        probe.onloadedmetadata = () => resolve();
-        probe.onerror = () => reject(new Error('Could not read video stream metadata'));
-      });
-      const duration = Number.isFinite(probe.duration) && probe.duration > 0 ? probe.duration : 12;
-      const sampleCount = 6;
-      const sampledFrames: Array<{
-        timestampSeconds: number;
-        fileName: string;
-        imageBase64: string;
-        locationDescription: string;
-      }> = [];
+    setVideoCaptureNotice(null);
+    if (fileTypeFilter === 'IMAGE') {
+      setFileTypeFilter('ALL');
+    }
+    setSelectedEvidenceId(videoEvidenceId);
+    setSeekRequest({ timestampSeconds, nonce: nextSeekNonce() });
+    setVideoPlayback((prev) => ({
+      evidenceId: videoEvidenceId,
+      currentTime: Math.max(0, timestampSeconds),
+      duration: prev.evidenceId === videoEvidenceId ? prev.duration : 0,
+      paused: true,
+    }));
+  };
 
-      const canvas = document.createElement('canvas');
-      for (let i = 0; i < sampleCount; i++) {
-        const ts = Math.min(duration - 0.2, Math.max(0.5, ((i + 0.6) / sampleCount) * duration));
-        probe.currentTime = ts;
-        await new Promise<void>((resolve) => {
-          const onSeeked = () => {
-            probe.removeEventListener('seeked', onSeeked);
-            resolve();
-          };
-          probe.addEventListener('seeked', onSeeked);
-        });
-        const w = probe.videoWidth || 960;
-        const h = probe.videoHeight || 720;
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) continue;
-        ctx.drawImage(probe, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-        const mins = Math.floor(ts / 60);
-        const secs = Math.floor(ts % 60);
-        const tag = `${String(mins).padStart(2, '0')}m${String(secs).padStart(2, '0')}s`;
-        sampledFrames.push({
-          timestampSeconds: Math.round(ts * 10) / 10,
-          fileName: `video_auto_wp${i + 1}_${tag}.jpg`,
-          imageBase64: dataUrl,
-          locationDescription: `AI YOLO11 trích xuất tự động từ video ${selectedEvidence.fileName} tại ${tag} (WP#${i + 1})`,
-        });
-      }
+  const seekCurrentVideo = (timestampSeconds: number) => {
+    const target = Math.max(0, timestampSeconds);
+    setSeekRequest({ timestampSeconds: target, nonce: nextSeekNonce() });
+    if (videoRef.current && videoRef.current.readyState >= 1) {
+      videoRef.current.currentTime = target;
+      videoRef.current.pause();
+    }
+    if (selectedEvidence) {
+      setVideoPlayback((prev) => ({
+        evidenceId: selectedEvidence.id,
+        currentTime: target,
+        duration: prev.evidenceId === selectedEvidence.id ? prev.duration : 0,
+        paused: true,
+      }));
+    }
+  };
 
-      const result = await inspectionApi.analyzeVideoEvidence(
-        inspectionId,
-        selectedEvidence.id,
-        sampledFrames,
-      );
-      setVideoDetectResult({
-        extractedEvidenceCount: result.extractedEvidenceCount,
-        createdFindingsCount: result.createdFindingsCount,
-        keyframes: result.keyframes.map((kf) => ({
-          timestampSeconds: kf.timestampSeconds,
-          evidenceFileName: kf.evidence.fileName,
-          primaryDefect: kf.findings[0]?.defectLabel ?? 'defect',
-        })),
-      });
-      await evidence.refetch();
-    } catch (err) {
-      setVideoActionError(
-        getErrorMessage(err, 'Automated video defect detection could not complete.'),
-      );
-    } finally {
-      setAutoDetectingVideo(false);
+  const stepVideoTime = (deltaSeconds: number) => {
+    const videoEl = videoRef.current;
+    const activeDuration =
+      videoEl && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+        ? videoEl.duration
+        : activeVideoDuration;
+    const baseTime =
+      videoEl && videoEl.readyState >= 1 ? videoEl.currentTime : activeVideoTime;
+    const clamped = Math.max(
+      0,
+      activeDuration > 0 ? Math.min(activeDuration, baseTime + deltaSeconds) : baseTime + deltaSeconds,
+    );
+    seekCurrentVideo(Math.round(clamped * 10) / 10);
+  };
+
+  const handleToggleVideoPlayPause = () => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    if (videoEl.paused) {
+      void videoEl.play?.();
+    } else {
+      videoEl.pause?.();
     }
   };
 
@@ -915,7 +974,11 @@ export default function InspectionEvidencePage() {
                         bgcolor: isSelected ? 'action.selected' : 'background.paper',
                         transition: 'border-color 0.15s ease, background-color 0.15s ease',
                       }}
-                      onClick={() => setSelectedEvidenceId(item.id)}
+                      onClick={() => {
+                        setVideoActionError(null);
+                        setVideoCaptureNotice(null);
+                        setSelectedEvidenceId(item.id);
+                      }}
                     >
                       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         {canEditEvidence && !item.isDeleted && (
@@ -975,6 +1038,16 @@ export default function InspectionEvidencePage() {
                                 sx={{ height: 20, fontSize: '0.7rem' }}
                               />
                             )}
+                            {item.sourceVideoEvidenceId && (
+                              <Chip
+                                size="small"
+                                icon={<MovieOutlined sx={{ fontSize: 13 }} />}
+                                label={formatMmSs(item.sourceTimestampSeconds)}
+                                color="secondary"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: '0.7rem' }}
+                              />
+                            )}
                           </Stack>
                           <Typography
                             variant="caption"
@@ -1030,168 +1103,295 @@ export default function InspectionEvidencePage() {
                   }}
                 >
                   <Stack spacing={2}>
+                    {selectedEvidence.sourceVideoEvidenceId && (
+                      <Alert
+                        severity="info"
+                        icon={<MovieOutlined fontSize="small" />}
+                        action={
+                          <Button
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            startIcon={<PlayCircleOutlineRounded fontSize="small" />}
+                            onClick={() =>
+                              openVideoAtTimestamp(
+                                selectedEvidence.sourceVideoEvidenceId!,
+                                selectedEvidence.sourceTimestampSeconds ?? 0,
+                              )
+                            }
+                            sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+                          >
+                            {`${t('Watch in video')} @ ${formatMmSs(selectedEvidence.sourceTimestampSeconds)}`}
+                          </Button>
+                        }
+                        sx={{ borderRadius: '8px', alignItems: 'center' }}
+                      >
+                        {`${t('Captured from video frame')} (${formatMmSs(selectedEvidence.sourceTimestampSeconds)})`}
+                      </Alert>
+                    )}
+
                     {/* Top: Media Preview (Photo or Video) */}
                     {selectedEvidence.contentType.startsWith('image/') ||
                     selectedEvidence.contentType.startsWith('video/') ? (
-                      <Box
-                        sx={{
-                          p: 1.5,
-                          borderRadius: '10px',
-                          bgcolor: 'action.hover',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        }}
-                      >
-                        {selectedEvidence.contentType.startsWith('video/') &&
-                        selectedEvidence.processingStatus &&
-                        selectedEvidence.processingStatus !== 'READY' ? (
-                          <Alert
-                            severity={
-                              selectedEvidence.processingStatus === 'FAILED' ? 'error' : 'info'
-                            }
-                            action={
-                              selectedEvidence.processingStatus === 'FAILED' && canUploadEvidence ? (
-                                <Button
-                                  size="small"
-                                  color="inherit"
-                                  startIcon={<RefreshRounded fontSize="small" />}
-                                  disabled={retryProcessing.isPending}
-                                  onClick={() => retryProcessing.mutate(selectedEvidence.id)}
-                                >
-                                  {t('Retry processing')}
-                                </Button>
-                              ) : undefined
-                            }
-                          >
-                            {selectedEvidence.processingStatus === 'FAILED'
-                              ? selectedEvidence.processingError ||
-                                t('Video transcoding failed. Retry processing to try again.')
-                              : t(
-                                  'Video is being processed into a streamable 1080p rendition. Playback will become available once ready.',
-                                )}
-                          </Alert>
-                        ) : (
-                          <AuthenticatedMedia
-                            src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
-                            posterSrc={
-                              selectedEvidence.contentType.startsWith('video/') &&
-                              selectedEvidence.hasThumbnail
-                                ? inspectionApi.evidenceContentUrl(
-                                    inspectionId,
-                                    selectedEvidence.id,
-                                    'thumb',
-                                  )
-                                : undefined
-                            }
-                            alt={selectedEvidence.fileName}
-                            contentType={selectedEvidence.contentType}
-                            videoRef={videoRef}
-                            maxHeight={460}
-                            sx={{ borderRadius: '8px' }}
-                          />
-                        )}
+                      <Stack spacing={1.5}>
+                        <Box
+                          sx={{
+                            p: selectedEvidence.contentType.startsWith('video/') ? 1 : 1.5,
+                            borderRadius: '10px',
+                            bgcolor: selectedEvidence.contentType.startsWith('video/')
+                              ? '#0b0f17'
+                              : 'action.hover',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {selectedEvidence.contentType.startsWith('video/') &&
+                          selectedEvidence.processingStatus &&
+                          selectedEvidence.processingStatus !== 'READY' ? (
+                            <Alert
+                              severity={
+                                selectedEvidence.processingStatus === 'FAILED' ? 'error' : 'info'
+                              }
+                              action={
+                                selectedEvidence.processingStatus === 'FAILED' && canUploadEvidence ? (
+                                  <Button
+                                    size="small"
+                                    color="inherit"
+                                    startIcon={<RefreshRounded fontSize="small" />}
+                                    disabled={retryProcessing.isPending}
+                                    onClick={() => retryProcessing.mutate(selectedEvidence.id)}
+                                  >
+                                    {t('Retry processing')}
+                                  </Button>
+                                ) : undefined
+                              }
+                            >
+                              {selectedEvidence.processingStatus === 'FAILED'
+                                ? selectedEvidence.processingError ||
+                                  t('Video transcoding failed. Retry processing to try again.')
+                                : t(
+                                    'Video is being processed into a streamable 1080p rendition. Playback will become available once ready.',
+                                  )}
+                            </Alert>
+                          ) : (
+                            <AuthenticatedMedia
+                              src={inspectionApi.evidenceContentUrl(inspectionId, selectedEvidence.id)}
+                              posterSrc={
+                                selectedEvidence.contentType.startsWith('video/') &&
+                                selectedEvidence.hasThumbnail
+                                  ? inspectionApi.evidenceContentUrl(
+                                      inspectionId,
+                                      selectedEvidence.id,
+                                      'thumb',
+                                    )
+                                  : undefined
+                              }
+                              alt={selectedEvidence.fileName}
+                              contentType={selectedEvidence.contentType}
+                              videoRef={videoRef}
+                              seekRequest={seekRequest}
+                              onVideoStateChange={(state) =>
+                                setVideoPlayback({
+                                  evidenceId: selectedEvidence.id,
+                                  ...state,
+                                })
+                              }
+                              maxHeight={480}
+                              sx={{ borderRadius: '8px' }}
+                            />
+                          )}
+                        </Box>
                         {selectedEvidence.contentType.startsWith('video/') && canUploadEvidence && (
-                          <Stack
-                            spacing={1.25}
+                          <Paper
+                            variant="outlined"
                             sx={{
-                              mt: 1.5,
-                              pt: 1.5,
-                              borderTop: '1px dashed',
+                              p: 1.5,
+                              borderRadius: '10px',
+                              bgcolor: 'action.hover',
                               borderColor: 'divider',
                             }}
                           >
-                            <Stack
-                              direction={{ xs: 'column', sm: 'row' }}
-                              spacing={1}
-                              sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
-                            >
-                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                {t('Video tools')}
-                              </Typography>
-                              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                            <Stack spacing={1.25}>
+                              <Stack
+                                direction={{ xs: 'column', sm: 'row' }}
+                                spacing={1}
+                                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
+                              >
+                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                    {t('Video tools')}
+                                  </Typography>
+                                  <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    label={
+                                      activeVideoDuration > 0
+                                        ? `${formatMmSsTenths(activeVideoTime)} / ${formatMmSsTenths(activeVideoDuration)}`
+                                        : formatMmSsTenths(activeVideoTime)
+                                    }
+                                    sx={{
+                                      height: 22,
+                                      fontSize: '0.72rem',
+                                      fontVariantNumeric: 'tabular-nums',
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                </Stack>
+                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={
+                                      activeVideoPaused ? (
+                                        <PlayArrowRounded fontSize="small" />
+                                      ) : (
+                                        <PauseRounded fontSize="small" />
+                                      )
+                                    }
+                                    disabled={Boolean(
+                                      selectedEvidence.processingStatus &&
+                                        selectedEvidence.processingStatus !== 'READY',
+                                    )}
+                                    onClick={handleToggleVideoPlayPause}
+                                    sx={{ textTransform: 'none', fontWeight: 600, bgcolor: 'background.paper' }}
+                                  >
+                                    {activeVideoPaused ? t('Play') : t('Pause')}
+                                  </Button>
+                                  <ButtonGroup
+                                    size="small"
+                                    variant="outlined"
+                                    disabled={Boolean(
+                                      selectedEvidence.processingStatus &&
+                                        selectedEvidence.processingStatus !== 'READY',
+                                    )}
+                                    sx={{ bgcolor: 'background.paper' }}
+                                  >
+                                    <Button onClick={() => stepVideoTime(-1)} sx={{ px: 1 }}>
+                                      -1s
+                                    </Button>
+                                    <Button onClick={() => stepVideoTime(-0.1)} sx={{ px: 1 }}>
+                                      -0.1s
+                                    </Button>
+                                    <Button onClick={() => stepVideoTime(0.1)} sx={{ px: 1 }}>
+                                      +0.1s
+                                    </Button>
+                                    <Button onClick={() => stepVideoTime(1)} sx={{ px: 1 }}>
+                                      +1s
+                                    </Button>
+                                  </ButtonGroup>
                                 <Button
                                   size="small"
-                                  variant="outlined"
+                                  variant="contained"
+                                  aria-label={t('Capture frame')}
                                   startIcon={<CropRounded fontSize="small" />}
                                   disabled={
                                     Boolean(
                                       selectedEvidence.processingStatus &&
                                         selectedEvidence.processingStatus !== 'READY',
-                                    )
+                                     )
                                   }
                                   onClick={handleOpenCropFromVideo}
                                   sx={{ textTransform: 'none', fontWeight: 600 }}
                                 >
-                                  {t('Capture frame')}
+                                  {`${t('Capture frame')} · ${formatMmSs(activeVideoTime)}`}
                                 </Button>
-                                <LoadingButton
-                                  size="small"
-                                  variant="contained"
-                                  startIcon={<AutoAwesomeRounded fontSize="small" />}
-                                  loading={autoDetectingVideo}
-                                  disabled={
-                                    Boolean(
-                                      selectedEvidence.processingStatus &&
-                                        selectedEvidence.processingStatus !== 'READY',
-                                    )
-                                  }
-                                  onClick={() => void handleAutoDetectFromVideo()}
-                                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                                >
-                                  {autoDetectingVideo
-                                    ? t('Scanning video…')
-                                    : t('Scan video for defects')}
-                                </LoadingButton>
                               </Stack>
                             </Stack>
+
+                            {displayedEvidenceItems.some(
+                              (ev) => ev.sourceVideoEvidenceId === selectedEvidence.id,
+                            ) && (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                sx={{
+                                  pt: 1,
+                                  borderTop: '1px dashed',
+                                  borderColor: 'divider',
+                                  flexWrap: 'wrap',
+                                  gap: 0.75,
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                  {t('Extracted frames:')}
+                                </Typography>
+                                {displayedEvidenceItems
+                                  .filter((ev) => ev.sourceVideoEvidenceId === selectedEvidence.id)
+                                  .sort(
+                                    (a, b) =>
+                                      (a.sourceTimestampSeconds ?? 0) -
+                                      (b.sourceTimestampSeconds ?? 0),
+                                  )
+                                  .map((child) => (
+                                    <Chip
+                                      key={child.id}
+                                      size="small"
+                                      variant="outlined"
+                                      color="secondary"
+                                      icon={<PlayCircleOutlineRounded sx={{ fontSize: 15 }} />}
+                                      label={`${formatMmSs(child.sourceTimestampSeconds)} · ${child.fileName}`}
+                                      onClick={() =>
+                                        seekCurrentVideo(child.sourceTimestampSeconds ?? 0)
+                                      }
+                                      sx={{ cursor: 'pointer', bgcolor: 'background.paper' }}
+                                    />
+                                  ))}
+                              </Stack>
+                            )}
+
+                            {videoCaptureNotice && (
+                              <Alert severity="success" onClose={() => setVideoCaptureNotice(null)}>
+                                {videoCaptureNotice}
+                              </Alert>
+                            )}
 
                             {videoActionError && (
                               <Alert severity="error" onClose={() => setVideoActionError(null)}>
                                 {videoActionError}
                               </Alert>
                             )}
-
-                            {videoDetectResult && (
-                              <Alert severity="success" onClose={() => setVideoDetectResult(null)}>
-                                <Stack spacing={1}>
-                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                    {`AI extracted ${videoDetectResult.extractedEvidenceCount} frame(s) into Evidence and proposed ${videoDetectResult.createdFindingsCount} unconfirmed finding(s).`}
-                                  </Typography>
-                                  {videoDetectResult.keyframes.length > 0 && (
-                                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-                                      {videoDetectResult.keyframes.map((kf, idx) => (
-                                        <Chip
-                                          key={`${kf.evidenceFileName}-${idx}`}
-                                          size="small"
-                                          color="primary"
-                                          variant="outlined"
-                                          onClick={() => {
-                                            if (videoRef.current) {
-                                              videoRef.current.currentTime = kf.timestampSeconds;
-                                              videoRef.current.pause();
-                                            }
-                                          }}
-                                          label={`⏱ ${kf.timestampSeconds.toFixed(1)}s · ${kf.primaryDefect}`}
-                                        />
-                                      ))}
-                                      <Button
-                                        size="small"
-                                        component={RouterLink}
-                                        to="../findings"
-                                        variant="contained"
-                                        color="success"
-                                        sx={{ textTransform: 'none', fontWeight: 600, ml: 1 }}
-                                      >
-                                        {t('Review findings')}
-                                      </Button>
-                                    </Stack>
-                                  )}
-                                </Stack>
-                              </Alert>
-                            )}
                           </Stack>
+                        </Paper>
                         )}
-                      </Box>
+                        {selectedEvidence.contentType.startsWith('video/') &&
+                          !canUploadEvidence &&
+                          displayedEvidenceItems.some(
+                            (ev) => ev.sourceVideoEvidenceId === selectedEvidence.id,
+                          ) && (
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}
+                            >
+                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                                {t('Extracted frames:')}
+                              </Typography>
+                              {displayedEvidenceItems
+                                .filter((ev) => ev.sourceVideoEvidenceId === selectedEvidence.id)
+                                .sort(
+                                  (a, b) =>
+                                    (a.sourceTimestampSeconds ?? 0) -
+                                    (b.sourceTimestampSeconds ?? 0),
+                                )
+                                .map((child) => (
+                                  <Chip
+                                    key={child.id}
+                                    size="small"
+                                    variant="outlined"
+                                    color="secondary"
+                                    icon={<PlayCircleOutlineRounded sx={{ fontSize: 15 }} />}
+                                    label={`${formatMmSs(child.sourceTimestampSeconds)} · ${child.fileName}`}
+                                    onClick={() =>
+                                      seekCurrentVideo(child.sourceTimestampSeconds ?? 0)
+                                    }
+                                    sx={{ cursor: 'pointer' }}
+                                  />
+                                ))}
+                            </Stack>
+                          )}
+                      </Stack>
                     ) : (
                       <Alert severity="info">
                         {selectedEvidence.contentType} {t('has no inline preview.')}
@@ -1230,11 +1430,11 @@ export default function InspectionEvidencePage() {
                             color="error"
                             variant="outlined"
                             startIcon={<DeleteOutlineRounded fontSize="small" />}
-                            disabled={retire.isPending || bulkRetire.isPending}
-                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={deletingLinkedFindings || retire.isPending || bulkRetire.isPending}
+                            onClick={handleOpenDeleteConfirm}
                             sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                           >
-                            {retire.isPending || bulkRetire.isPending
+                            {deletingLinkedFindings || retire.isPending || bulkRetire.isPending
                               ? t('Deleting…')
                               : deleteButtonLabel}
                           </Button>
@@ -1284,7 +1484,14 @@ export default function InspectionEvidencePage() {
 
       <ConfirmDialog
         open={showDeleteConfirm}
-        title={hasBatchSelection ? t('Confirm Batch Deletion') : t('Confirm Evidence Deletion')}
+        maxWidth={linkedFindingsForTargets.length > 0 ? 'sm' : 'xs'}
+        title={
+          linkedFindingsForTargets.length > 0
+            ? t('Confirm Deletion with Linked Findings')
+            : hasBatchSelection
+              ? t('Confirm Batch Deletion')
+              : t('Confirm Evidence Deletion')
+        }
         message={
           hasBatchSelection
             ? t(
@@ -1295,20 +1502,72 @@ export default function InspectionEvidencePage() {
               )
         }
         severity="danger"
-        confirmLabel={t('Confirm delete')}
+        confirmLabel={
+          linkedFindingsForTargets.length > 0
+            ? t('Delete findings & captures')
+            : t('Confirm delete')
+        }
         cancelLabel={t('Cancel')}
-        loading={retire.isPending || bulkRetire.isPending}
-        onCancel={() => setShowDeleteConfirm(false)}
+        loading={deletingLinkedFindings || retire.isPending || bulkRetire.isPending}
+        onCancel={() => {
+          setDeleteLinkedError(null);
+          setShowDeleteConfirm(false);
+        }}
         onConfirm={handleDeleteAction}
-      />
+      >
+        {linkedFindingsForTargets.length > 0 && (
+          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '8px' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              {linkedFindingsForTargets.length}{' '}
+              {t('active finding(s) cite the selected capture(s).')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                'If you accept, these linked findings will be removed before deleting the selected capture(s). Historical audit records remain preserved.',
+              )}
+            </Typography>
+            <Stack component="ul" spacing={0.25} sx={{ mt: 0.75, mb: 0, pl: 2.25 }}>
+              {linkedFindingsForTargets.slice(0, 5).map((finding) => {
+                const citedCapture = displayedEvidenceItems.find(
+                  (ev) => ev.id === finding.evidenceId,
+                );
+                return (
+                  <Typography component="li" variant="caption" key={finding.id}>
+                    <strong>{finding.findingCode || finding.defectLabel}</strong>
+                    {finding.defectLabel && finding.findingCode ? ` · ${finding.defectLabel}` : ''}
+                    {` (${finding.severity})`}
+                    {citedCapture ? ` — ${citedCapture.fileName}` : ''}
+                  </Typography>
+                );
+              })}
+              {linkedFindingsForTargets.length > 5 && (
+                <Typography component="li" variant="caption" color="text.secondary">
+                  +{linkedFindingsForTargets.length - 5} {t('more linked finding(s)')}
+                </Typography>
+              )}
+            </Stack>
+          </Alert>
+        )}
+        {deleteLinkedError && (
+          <Alert severity="error" sx={{ mt: 1.5, borderRadius: '8px' }}>
+            {deleteLinkedError}
+          </Alert>
+        )}
+      </ConfirmDialog>
 
       <VideoFrameCropDialog
+        key={
+          cropDialogState.open
+            ? `${selectedEvidence?.id ?? 'video'}-${cropDialogState.timestampSeconds}`
+            : 'closed'
+        }
         open={cropDialogState.open}
         frameDataUrl={cropDialogState.frameDataUrl}
         naturalWidth={cropDialogState.naturalWidth}
         naturalHeight={cropDialogState.naturalHeight}
         timestampSeconds={cropDialogState.timestampSeconds}
         sourceVideoName={selectedEvidence?.fileName ?? 'mission.mp4'}
+        existingFileNames={displayedEvidenceItems.map((item) => item.fileName)}
         saving={savingCropped}
         onClose={() => setCropDialogState((prev) => ({ ...prev, open: false }))}
         onSaveCroppedFile={handleSaveCroppedFrame}

@@ -345,7 +345,9 @@ describe('InspectionFindingsPage', () => {
     renderWithRouter(<InspectionFindingsPage />);
 
     // Idle must be still: the motion is a signal that a request is running, not decoration.
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('button', { name: /Analyze all images/ });
+    expect(screen.queryByRole('heading', { name: 'Findings' })).toBeNull();
+    expect(screen.queryByText(/Review AI suggestions; confirm or correct findings before reporting/)).toBeNull();
     expect(screen.queryByRole('img', { name: 'Advisory detection in progress' })).toBeNull();
   });
 
@@ -371,7 +373,7 @@ describe('InspectionFindingsPage', () => {
     };
     reopened.rerender(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('button', { name: /Analyze all images/ });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
   });
 
@@ -476,7 +478,7 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    await screen.findByRole('heading', { name: 'Findings' });
+    await screen.findByRole('button', { name: /Analyze all images/ });
     expect(mocks.analyze.analyzeMany).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Analyze all images/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reopen Findings' })).toBeNull();
@@ -881,5 +883,65 @@ describe('InspectionFindingsPage', () => {
     expect(screen.getByText('Notes:')).toBeTruthy();
     expect(screen.getByText('Recommended action:')).toBeTruthy();
     expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('allows adjusting boundingBox without altering AI confidence and supports manual box with no confidence', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [
+        {
+          ...undecidedFinding(),
+          id: 'ai-box-1',
+          modelName: 'yolo11s',
+          confidence: 0.7,
+          status: 'CONFIRMED',
+          defectLabel: 'abscission',
+          boundingBox: '{"xMin":0.1,"yMin":0.1,"xMax":0.4,"yMax":0.4}',
+        },
+        {
+          ...undecidedFinding(),
+          id: 'manual-box-1',
+          modelName: null,
+          confidence: null,
+          status: 'PENDING',
+          defectLabel: 'Manual hairline crack',
+          boundingBox: '{"xMin":0.2,"yMin":0.2,"xMax":0.5,"yMax":0.5}',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    // AI finding shows 70% confidence on its box; manual finding with box shows only defect label (no 0%).
+    expect(document.querySelector('[aria-label="abscission, 70 percent confidence"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="Manual hairline crack"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label*=", 0 percent confidence"]')).toBeNull();
+
+    // Edit AI finding's bounding box via dialog without any confidence input.
+    const editButtons = screen.getAllByRole('button', { name: 'Edit / Change defect' });
+    fireEvent.click(editButtons[0]!);
+    expect(screen.queryByRole('textbox', { name: /Confidence/i })).toBeNull();
+    expect(screen.queryByRole('spinbutton', { name: /Confidence/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust box on photo' }));
+    expect(await screen.findByText(/Mark defect region on photo/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Center 50%' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply region' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save correction' }));
+    expect(mocks.updateFinding.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        findingId: 'ai-box-1',
+        input: expect.objectContaining({
+          boundingBox: '{"xMin":0.25,"yMin":0.25,"xMax":0.75,"yMax":0.75}',
+        }),
+      }),
+      expect.anything(),
+    );
   });
 });

@@ -124,4 +124,32 @@ describe('inspectionApi.generateDraft', () => {
       { params: { variant: 'primary' } },
     );
   });
+
+  it('includes sourceVideoEvidenceId and sourceTimestampSeconds and supports 2-step video scan & promotion', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { id: 'ev-crop' } } as never);
+    const cropFile = new File(['jpg'], 'crop.jpg', { type: 'image/jpeg' });
+
+    await inspectionApi.uploadEvidence('i1', cropFile, 's1', {
+      sourceVideoEvidenceId: 'video-1',
+      sourceTimestampSeconds: 12.5,
+    });
+    const form = post.mock.calls[0]?.[1] as FormData;
+    expect(form.get('sourceVideoEvidenceId')).toBe('video-1');
+    expect(form.get('sourceTimestampSeconds')).toBe('12.5');
+
+    await inspectionApi.scanVideoEvidence('i1', 'video-1', { intervalSeconds: 1.0, maxFrames: 24 });
+    expect(post).toHaveBeenCalledWith('/inspections/i1/evidence/video-1/video-scan', null, {
+      params: { intervalSeconds: 1.0, maxFrames: 24 },
+      timeout: 180000,
+    });
+
+    await inspectionApi.promoteVideoKeyframes('i1', 'video-1', [
+      { timestampSeconds: 8, fileName: 'k1.jpg' },
+    ]);
+    expect(post).toHaveBeenCalledWith(
+      '/inspections/i1/evidence/video-1/video-keyframes',
+      { keyframes: [{ timestampSeconds: 8, fileName: 'k1.jpg' }] },
+      { timeout: 120000 },
+    );
+  });
 });

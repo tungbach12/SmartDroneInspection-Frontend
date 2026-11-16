@@ -174,8 +174,28 @@ export function useUploadInspectionEvidence(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: ({ file, fieldSessionId }: { file: File; fieldSessionId?: string }) =>
-      inspectionApi.uploadEvidence(inspectionId!, file, fieldSessionId),
+    mutationFn: ({
+      file,
+      fieldSessionId,
+      sourceVideoEvidenceId,
+      sourceTimestampSeconds,
+    }: {
+      file: File;
+      fieldSessionId?: string;
+      sourceVideoEvidenceId?: string;
+      sourceTimestampSeconds?: number;
+    }) =>
+      inspectionApi.uploadEvidence(
+        inspectionId!,
+        file,
+        fieldSessionId,
+        sourceVideoEvidenceId !== undefined || sourceTimestampSeconds !== undefined
+          ? {
+              ...(sourceVideoEvidenceId ? { sourceVideoEvidenceId } : {}),
+              ...(sourceTimestampSeconds !== undefined ? { sourceTimestampSeconds } : {}),
+            }
+          : undefined,
+      ),
     onSuccess: (item) => {
       showToast(item.deduplicated ? `Already uploaded: ${item.fileName}` : `Uploaded ${item.fileName}`,
         item.deduplicated ? 'info' : 'success');
@@ -197,6 +217,8 @@ export function useInvalidateInspectionEvidence(inspectionId: string | null) {
     await Promise.all([
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) }),
       client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] }),
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) }),
+      client.invalidateQueries({ queryKey: inspectionKeys.removedFindings(inspectionId) }),
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) }),
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) }),
     ]);
@@ -250,6 +272,8 @@ export function useRetireEvidence(inspectionId: string | null) {
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
       client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.removedFindings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
@@ -268,6 +292,8 @@ export function useBulkRetireEvidence(inspectionId: string | null) {
       if (!inspectionId) return;
       client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
       client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
+      client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      client.invalidateQueries({ queryKey: inspectionKeys.removedFindings(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
       client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
     },
@@ -771,12 +797,25 @@ export function useReportPaymentStatus(inspectionId: string | null) {
  * Starting also moves the inspection into `IN_PROGRESS`, so the inspection collection and the
  * session list are both refetched rather than patched.
  */
+export type StartFieldSessionVariables =
+  | string
+  | {
+      preFlightChecklistNote: string;
+      startNow?: boolean;
+    };
+
 export function useStartFieldSession(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
   return useMutation({
-    mutationFn: (preFlightChecklistNote: string) =>
-      fieldSessionApi.start(inspectionId!, preFlightChecklistNote),
+    mutationFn: (variables: StartFieldSessionVariables) => {
+      if (typeof variables === 'string') {
+        return fieldSessionApi.start(inspectionId!, variables);
+      }
+      return variables.startNow
+        ? fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote, true)
+        : fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote);
+    },
     onSuccess: () => {
       if (inspectionId) {
         void client.invalidateQueries({

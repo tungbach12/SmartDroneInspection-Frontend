@@ -147,7 +147,9 @@ export default function InspectionsPage() {
   const displayedItems = useMemo(() => {
     let result = visibleItems;
     if (statusFilter !== 'ALL') {
-      if (statusFilter === 'UNDER_REVIEW') {
+      if (statusFilter === 'PERMIT_REVIEW') {
+        result = result.filter((item) => item.pendingAction === 'PERMIT_REVIEW');
+      } else if (statusFilter === 'UNDER_REVIEW') {
         result = result.filter(
           (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
         );
@@ -341,8 +343,34 @@ export default function InspectionsPage() {
             </Alert>
           )}
           {isPlatformManager && view === 'all' && permitDueCount > 0 && (
-            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-              {permitDueCount} {t('inspections have flight permits pending manager verification')}
+            <Alert severity="warning" sx={{ borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.25}
+                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {permitDueCount} {t('inspections have flight permits pending manager verification')}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => {
+                    setStatusFilter(statusFilter === 'PERMIT_REVIEW' ? 'ALL' : 'PERMIT_REVIEW');
+                    setPage(1);
+                  }}
+                  sx={{
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    alignSelf: { xs: 'flex-start', sm: 'center' },
+                    minHeight: 36,
+                  }}
+                >
+                  {statusFilter === 'PERMIT_REVIEW' ? t('Show all') : t('View pending permits')}
+                </Button>
+              </Stack>
             </Alert>
           )}
           {isPlatformManager && view === 'all' && declinedReassignCount > 0 && (
@@ -447,6 +475,20 @@ export default function InspectionsPage() {
                 searchPlaceholder={t('Search by asset name, code, or location…')}
                 statusFilter={statusFilter}
                 onStatusFilterChange={setStatusFilter}
+                {...(isPlatformManager && view === 'all'
+                  ? {
+                      statusOptions: [
+                        { value: 'ALL', label: t('All statuses') },
+                        { value: 'PERMIT_REVIEW', label: t('Permit review due') },
+                        { value: 'SCHEDULED', label: t('Scheduled') },
+                        { value: 'IN_PROGRESS', label: t('In Progress') },
+                        { value: 'FIELD_COMPLETED', label: t('Field Completed') },
+                        { value: 'UNDER_REVIEW', label: t('Under Review') },
+                        { value: 'COMPLETED', label: t('Completed') },
+                        { value: 'CANCELLED', label: t('Cancelled') },
+                      ],
+                    }
+                  : {})}
                 actions={newInspectionButton}
               />
             </QueryState>
