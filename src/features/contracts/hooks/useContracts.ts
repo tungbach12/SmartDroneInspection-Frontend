@@ -16,6 +16,7 @@ import {
   type PartnerCandidate,
   type PartnerCapabilityOption,
   type ServiceRequest,
+  type ServiceManagerOption,
 } from '../api/contractApi';
 
 export function useServiceRequests(enabled = true, realtime = true) {
@@ -59,6 +60,40 @@ function useContractMutation<TInput, TOutput = ServiceRequest>(
   });
 }
 
+export function useClaimServiceRequest() {
+  return useContractMutation<string>(
+    (requestId) => contractApi.claimRequest(requestId),
+    'Service request assigned to you.',
+  );
+}
+
+export function useAdminReassignServiceRequest() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ requestId, managerId }: { requestId: string; managerId: string }) =>
+      contractApi.reassignRequest(requestId, managerId),
+    onSuccess: async (updatedRequest) => {
+      queryClient.setQueryData(contractQueryKeys.request(updatedRequest.id), updatedRequest);
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
+      showToast('Service request reassigned.', 'success');
+    },
+  });
+}
+
+export function useAdminUnassignServiceRequest() {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (requestId: string) => contractApi.unassignRequest(requestId),
+    onSuccess: async (updatedRequest) => {
+      queryClient.setQueryData(contractQueryKeys.request(updatedRequest.id), updatedRequest);
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
+      showToast('Service request unassigned.', 'success');
+    },
+  });
+}
+
 export function useCreateServiceRequest() {
   return useContractMutation<CreateServiceRequestInput>(
     contractApi.createRequest,
@@ -67,8 +102,11 @@ export function useCreateServiceRequest() {
 }
 
 export function usePostRequestMessage(requestId: string) {
-  return useContractMutation<string>(
-    (body) => contractApi.postMessage(requestId, body),
+  return useContractMutation<string | { body: string; files: File[] }>(
+    (input) =>
+      typeof input === 'string'
+        ? contractApi.postMessage(requestId, input)
+        : contractApi.postMessage(requestId, input.body, input.files),
     undefined,
     requestId,
   );
@@ -208,6 +246,14 @@ export function usePartnerInspectors(enabled = true) {
   return useQuery({
     queryKey: [...contractQueryKeys.partners(), 'inspectors'],
     queryFn: contractApi.listPartnerInspectors,
+    enabled,
+  });
+}
+
+export function useServiceManagers(enabled = true) {
+  return useQuery<ServiceManagerOption[]>({
+    queryKey: contractQueryKeys.serviceManagers(),
+    queryFn: contractApi.listServiceManagers,
     enabled,
   });
 }

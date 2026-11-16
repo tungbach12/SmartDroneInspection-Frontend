@@ -10,6 +10,15 @@ export type ServiceRequestStatus =
 
 export type ServiceRequestType = 'ONE_TIME' | 'RECURRING';
 
+export interface ServiceRequestMessageAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  createdAt: string;
+}
+
 export interface ServiceRequestMessage {
   id: string;
   authorUserId: string;
@@ -18,6 +27,15 @@ export interface ServiceRequestMessage {
   body: string;
   createdAt: string;
   readAt?: string | null;
+  attachments?: ServiceRequestMessageAttachment[];
+}
+
+export interface ServiceManagerContact {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  avatarUrl: string | null;
 }
 
 export interface ServiceRequestQuote {
@@ -187,6 +205,11 @@ export interface ServiceRequest {
   contractUploadedAt: string | null;
   createdAt: string;
   currentQuote: ServiceRequestQuote | null;
+  assignedManagerId?: string | null;
+  managerAssignedAt?: string | null;
+  managerAssignedByUserId?: string | null;
+  serviceManager?: ServiceManagerContact | null;
+  canClaim?: boolean;
   occurrences: ServiceRequestOccurrence[];
   messages: ServiceRequestMessage[];
 }
@@ -275,6 +298,12 @@ export interface PartnerInspector {
   avatarUrl: string | null;
 }
 
+export interface ServiceManagerOption {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export interface PartnerDrone {
   id: string;
   inspectorOwnerId: string;
@@ -288,6 +317,7 @@ export const contractQueryKeys = {
   requests: () => [...contractQueryKeys.all, 'requests'] as const,
   request: (id: string) => [...contractQueryKeys.requests(), id] as const,
   partners: () => [...contractQueryKeys.all, 'partners'] as const,
+  serviceManagers: () => [...contractQueryKeys.all, 'service-managers'] as const,
 };
 
 export const contractApi = {
@@ -306,10 +336,45 @@ export const contractApi = {
     return data;
   },
 
-  async postMessage(requestId: string, body: string): Promise<ServiceRequest> {
+  async claimRequest(requestId: string): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(`/contracts/requests/${requestId}/claim`);
+    return data;
+  },
+
+  async reassignRequest(requestId: string, managerId: string): Promise<ServiceRequest> {
+    const { data } = await api.put<ServiceRequest>(
+      `/contracts/requests/${requestId}/manager-assignment`,
+      { managerId },
+    );
+    return data;
+  },
+
+  async unassignRequest(requestId: string): Promise<ServiceRequest> {
+    const { data } = await api.delete<ServiceRequest>(
+      `/contracts/requests/${requestId}/manager-assignment`,
+    );
+    return data;
+  },
+
+  async postMessage(requestId: string, body: string, files: File[] = []): Promise<ServiceRequest> {
+    const form = new FormData();
+    if (body.trim()) form.append('body', body.trim());
+    files.forEach((file) => form.append('files', file));
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/messages`,
-      { body },
+      form,
+    );
+    return data;
+  },
+
+  async downloadMessageAttachment(
+    requestId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `/contracts/requests/${requestId}/messages/${messageId}/attachments/${attachmentId}`,
+      { responseType: 'blob' },
     );
     return data;
   },
@@ -463,6 +528,11 @@ export const contractApi = {
 
   async listPartnerInspectors(): Promise<PartnerInspector[]> {
     const { data } = await api.get<PartnerInspector[]>('/contracts/partners/inspectors');
+    return data;
+  },
+
+  async listServiceManagers(): Promise<ServiceManagerOption[]> {
+    const { data } = await api.get<ServiceManagerOption[]>('/contracts/requests/managers');
     return data;
   },
 
