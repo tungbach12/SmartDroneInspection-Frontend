@@ -104,7 +104,7 @@ describe('FlightOperationsReportView', () => {
     renderReport();
 
     expect(await screen.findByText('Imported flight log summary')).toBeTruthy();
-    expect(screen.getByText('Real log · Imported flight log (SRT)')).toBeTruthy();
+    expect(screen.getByText(/Imported flight log \(SRT\)/)).toBeTruthy();
     expect(screen.getByText('Data source: Uploaded file after flight')).toBeTruthy();
     expect(screen.getByText('Uploaded file after flight · clip_01.srt')).toBeTruthy();
     expect(screen.queryByText(/unavailable telemetry fields are not inferred/i)).toBeNull();
@@ -161,7 +161,7 @@ describe('FlightOperationsReportView', () => {
 
     renderReport();
 
-    expect(await screen.findByText('Real log · Imported flight log (CSV)')).toBeTruthy();
+    expect(await screen.findByText(/Imported flight log \(CSV\)/)).toBeTruthy();
     expect(screen.getByText('Altitude data not included in this log')).toBeTruthy();
     expect(screen.getByTestId('trajectory-map').getAttribute('data-dimension')).toBe('2d');
     expect(screen.queryByText(/0m 00s|100%|GUIDED|LANDED|Takeoff|Landing/i)).toBeNull();
@@ -220,7 +220,7 @@ describe('FlightOperationsReportView', () => {
 
     renderReport();
 
-    expect(await screen.findByText('Real telemetry · MAVLink telemetry')).toBeTruthy();
+    expect(await screen.findByText(/MAVLink telemetry/)).toBeTruthy();
     expect(screen.getByText('Data source: Live stream during flight')).toBeTruthy();
     expect(screen.getByText('Reported state: LANDED')).toBeTruthy();
     expect(screen.getByText('Recorded telemetry samples & evidence geotags')).toBeTruthy();
@@ -262,7 +262,8 @@ describe('FlightOperationsReportView', () => {
     renderReport();
 
     expect(await screen.findByText('Simulated flight telemetry')).toBeTruthy();
-    expect(screen.getByText('Simulation · Simulation telemetry')).toBeTruthy();
+    expect(screen.getByText(/Simulation telemetry/)).toBeTruthy();
+    expect(screen.getByText('Data source: Simulated telemetry')).toBeTruthy();
     expect(screen.queryByText(/Real telemetry|Real log|Verified MAVLink/i)).toBeNull();
   });
 

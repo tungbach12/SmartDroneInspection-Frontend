@@ -418,6 +418,8 @@ export interface InspectionListItem {
   reportId: string | null;
   reportStatus: ReportStatus | null;
   reportVersionNo: number | null;
+  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
+  sourceInspectionId?: string | null;
   assetName?: string | null;
   assetCode?: string | null;
   assetLocation?: string | null;
@@ -530,6 +532,8 @@ export interface InspectionDetail {
   status: InspectionStatus;
   createdAt: string;
   updatedAt: string;
+  inspectionType?: 'INITIAL' | 'RE_INSPECTION';
+  sourceInspectionId?: string | null;
   reassignmentRequired?: boolean;
   declineReason?: string | null;
   declinedAt?: string | null;
@@ -539,6 +543,40 @@ export interface InspectionDetail {
   clarificationCount?: number;
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
+}
+
+export interface ReinspectionVerificationItem {
+  id: string;
+  reinspectionId: string;
+  sourceFindingId: string;
+  sourceFindingCode?: string | null;
+  sourceDefectLabel?: string | null;
+  sourceSeverity?: string | null;
+  sourceTechnicalNotes?: string | null;
+  sourceEvidenceId?: string | null;
+  sourceEvidenceFileKey?: string | null;
+  sourceLocationDescription?: string | null;
+  sourceLatitude?: number | null;
+  sourceLongitude?: number | null;
+  newEvidenceId?: string | null;
+  newEvidenceFileKey?: string | null;
+  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
+  inspectorNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateDefectVerificationPayload {
+  resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
+  newEvidenceId?: string | null;
+  inspectorNotes?: string | null;
+}
+
+export interface CreateReinspectionPayload {
+  inspectorId?: string | null;
+  droneId?: string | null;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
 }
 
 export type FieldSessionStatus =
@@ -1074,5 +1112,31 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Customer or Manager creates a quick RE_INSPECTION directly from a completed inspection. */
+  createDirectReinspection: (
+    inspectionId: string,
+    payload: CreateReinspectionPayload = {},
+  ) =>
+    api
+      .post<InspectionDetail>(`/inspections/${inspectionId}/reinspections`, payload)
+      .then((response) => response.data),
 
+  getReinspectionVerifications: (inspectionId: string) =>
+    api
+      .get<ReinspectionVerificationItem[]>(
+        `/inspections/${inspectionId}/reinspection-verifications`,
+      )
+      .then((response) => response.data),
+
+  updateReinspectionVerification: (
+    inspectionId: string,
+    verificationId: string,
+    payload: UpdateDefectVerificationPayload,
+  ) =>
+    api
+      .put<ReinspectionVerificationItem>(
+        `/inspections/${inspectionId}/reinspection-verifications/${verificationId}`,
+        payload,
+      )
+      .then((response) => response.data),
 };

@@ -7,6 +7,7 @@ import type {
   FieldSession,
   Finding,
   InspectionReport,
+  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { ReportAuthoringPanel } from './ReportAuthoringPanel';
 import { FlightOperationsReportView } from './FlightOperationsReportView';
@@ -20,6 +21,7 @@ export interface ReportDeliverableTabsProps {
   findings: Finding[];
   evidenceList: EvidenceItem[];
   fieldSessions?: FieldSession[] | undefined;
+  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   canEdit?: boolean;
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
@@ -34,6 +36,7 @@ export function ReportDeliverableTabs({
   findings,
   evidenceList,
   fieldSessions,
+  reinspectionVerifications,
   canEdit = false,
   assetName,
   droneSummary,
@@ -117,6 +120,7 @@ export function ReportDeliverableTabs({
           findings={findings}
           evidenceList={evidenceList}
           fieldSessions={fieldSessions}
+          reinspectionVerifications={reinspectionVerifications}
           inspectionId={inspectionId}
           canEdit={canEdit}
           droneSummary={droneSummary}

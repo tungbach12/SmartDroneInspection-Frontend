@@ -748,6 +748,15 @@ export function InspectionListTable({
                               }}
                             />
                           )}
+                          {row.inspectionType === 'RE_INSPECTION' && (
+                            <Chip
+                              size="small"
+                              color="secondary"
+                              variant="outlined"
+                              label={t('Re-inspection')}
+                              sx={{ height: 18, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+                            />
+                          )}
                         </Stack>
 
                         {reviewerMode ? (

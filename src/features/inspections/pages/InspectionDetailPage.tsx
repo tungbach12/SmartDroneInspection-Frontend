@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   ButtonBase,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -143,6 +144,63 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
   },
 ] as const;
 
+const REINSPECTION_STEPS: readonly WorkflowStep[] = [
+  {
+    step: 1,
+    value: 'permit',
+    label: 'Flight Permit',
+    title: 'Flight Permit',
+    sublabel: 'Upload & Preview',
+    to: 'permit',
+    icon: DescriptionOutlined,
+  },
+  {
+    step: 2,
+    value: 'pre-flight',
+    label: 'Pre-flight',
+    title: 'Pre-flight Check',
+    sublabel: 'Safety Checklist',
+    to: 'pre-flight',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 3,
+    value: 'field-session',
+    label: 'Field session',
+    title: 'Re-flight Operation',
+    sublabel: 'Flight & Target Site',
+    to: 'field-session',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 4,
+    value: 'post-flight',
+    label: 'Post-flight',
+    title: 'Post-flight Check',
+    sublabel: 'Checklist & Completion',
+    to: 'post-flight',
+    icon: PlaylistAddCheckRounded,
+  },
+  {
+    step: 5,
+    value: 'findings',
+    label: 'Findings',
+    title: 'Defect Verification',
+    sublabel: 'Before ↔ After',
+    to: 'findings',
+    icon: AutoAwesomeOutlined,
+  },
+  {
+    step: 6,
+    value: 'report',
+    label: 'Report',
+    title: 'Verify & Submit',
+    sublabel: 'Verify & Submit',
+    to: 'report',
+    icon: AssignmentTurnedInOutlined,
+  },
+] as const;
+
 /**
  * Platform Manager workspace stages (3 steps):
  * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
@@ -258,11 +316,14 @@ export default function InspectionDetailPage() {
   const canDispatch = roles.includes('MANAGER') && location.pathname.startsWith('/manager/');
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
+  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
   const steps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
       ? REVIEWER_STEPS
-      : INSPECTOR_STEPS;
+      : isReinspection
+        ? REINSPECTION_STEPS
+        : INSPECTOR_STEPS;
   const current = location.pathname.split('/').filter(Boolean).pop() ?? 'field-session';
   const workflowQuery = useInspectionWorkflowState(inspectionId);
   const evidenceQuery = useInspectionEvidence(inspectionId);
@@ -452,7 +513,9 @@ export default function InspectionDetailPage() {
         ? reviewerSourceRoutes.includes(current)
           ? 'review'
           : visibleSteps[0]?.value ?? 'review'
-        : 'field-session';
+        : isReinspection && current === 'evidence'
+          ? 'findings'
+          : 'field-session';
 
   // Guard against Customer directly visiting forbidden operational or reviewer URLs.
   useEffect(() => {
@@ -602,7 +665,7 @@ export default function InspectionDetailPage() {
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
-    if (step.value === 'findings') return hasEvidence ? 'ready' : 'blocked';
+    if (step.value === 'findings') return (isReinspection ? isFieldWorkComplete : hasEvidence) ? 'ready' : 'blocked';
     if (step.value === 'report') return findingsComplete ? 'ready' : 'blocked';
     return 'pending';
   };
@@ -631,7 +694,10 @@ export default function InspectionDetailPage() {
     }
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
-    if (step.value === 'findings' && !hasEvidence) return t('Upload evidence to review findings.');
+    if (step.value === 'findings' && isReinspection && !isFieldWorkComplete) {
+      return t('Complete the re-inspection flight session before verifying target defects.');
+    }
+    if (step.value === 'findings' && !isReinspection && !hasEvidence) return t('Upload evidence to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
     return null;
   };
@@ -803,6 +869,24 @@ export default function InspectionDetailPage() {
                 <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                   {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                 </Typography>
+
+                {inspection.inspectionType === 'RE_INSPECTION' && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color="secondary"
+                    label={
+                      inspection.sourceInspectionId
+                        ? `${t('Re-inspection')} · #${inspection.sourceInspectionId.slice(0, 8)}`
+                        : t('Re-inspection')
+                    }
+                    sx={{
+                      height: 22,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                    }}
+                  />
+                )}
 
                 {isReviewerAdmin && <StatusChip status={inspection.status} />}
 

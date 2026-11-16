@@ -14,10 +14,12 @@ import {
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { AiMotionFigure } from '../components/AiMotionFigure';
+import { EvidenceGpsMapDialog } from './EvidenceGpsMapDialog';
 import { inspectionApi } from '../api/inspectionApi';
 import type { EvidenceItem, Finding, FindingSeverity } from '../api/inspectionApi';
 import { parseBoundingBox } from '../utils/boundingBox';
@@ -78,9 +80,14 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
   const { t } = useLocale();
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
   const [hoveredCandidateId, setHoveredCandidateId] = useState<string | null>(null);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
 
   const hasFindings = props.findings.length > 0;
   const isImage = props.evidence?.contentType.startsWith('image/');
+  const lat = props.evidence?.latitude;
+  const lon = props.evidence?.longitude;
+  const hasGps =
+    lat != null && lon != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon));
 
   return (
     <Paper
@@ -107,7 +114,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
           gap: 1.5,
         }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap', gap: 0.75 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
             {props.evidence?.fileName ?? `Evidence ${props.evidenceId.slice(0, 8)}…`}
           </Typography>
@@ -122,6 +129,17 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
             }
             sx={{ fontWeight: 600, fontSize: '0.75rem' }}
           />
+          {hasGps && (
+            <Chip
+              size="small"
+              variant="outlined"
+              color="primary"
+              icon={<PlaceOutlined sx={{ fontSize: 15 }} />}
+              label={t('View on map')}
+              onClick={() => setMapDialogOpen(true)}
+              sx={{ fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+            />
+          )}
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
@@ -925,6 +943,18 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
           </Box>
         ) : null}
       </Box>
+
+      {hasGps && props.evidence && (
+        <EvidenceGpsMapDialog
+          open={mapDialogOpen}
+          onClose={() => setMapDialogOpen(false)}
+          fileName={props.evidence.fileName}
+          latitude={Number(lat)}
+          longitude={Number(lon)}
+          captureTime={props.evidence.captureTime}
+          locationDescription={props.evidence.locationDescription}
+        />
+      )}
     </Paper>
   );
 }

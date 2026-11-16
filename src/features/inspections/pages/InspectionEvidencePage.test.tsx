@@ -100,6 +100,8 @@ vi.mock('../hooks/useInspections', () => ({
   useInvalidateInspectionEvidence: () => vi.fn().mockResolvedValue(undefined),
   useUploadInspectionEvidence: () => mocks.upload,
   useInspection: () => ({ data: { id: 'inspection-1' }, isLoading: false }),
+  useReinspectionVerifications: () => ({ data: [], isLoading: false, error: null }),
+  useUpdateReinspectionVerification: () => ({ mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -858,5 +860,104 @@ describe('InspectionEvidencePage', () => {
     } finally {
       vi.restoreAllMocks();
     }
+  });
+
+  it('notifies about duplicate filenames, predicts (1) (2) suffixes, and uploads without blocking', async () => {
+    mocks.evidenceQuery = {
+      data: {
+        items: [{ ...imageEvidence(), isDeleted: true }],
+        page: 1,
+        pageSize: 50,
+        totalCount: 0,
+        totalPages: 1,
+        activeCount: 0,
+        retiredCount: 1,
+        latestCreatedAt: '2026-10-08T08:15:00Z',
+        latestRetiredAt: '2026-10-17T10:00:00Z',
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    const first = new File(['one'], 'span.png', { type: 'image/png' });
+    const second = new File(['two'], 'span.png', { type: 'image/png' });
+    mocks.upload.mutateAsync
+      .mockResolvedValueOnce({ id: 'evidence-2', fileName: 'span (1).png' })
+      .mockResolvedValueOnce({ id: 'evidence-3', fileName: 'span (2).png' });
+
+    renderWithRouter(<InspectionEvidencePage />);
+
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [first, second] },
+    });
+
+    // Duplicate notice appears when staged, predicts (1) & (2), and Upload remains enabled.
+    expect(screen.getByText(/Duplicate filename detected/i)).toBeTruthy();
+    expect(screen.getAllByText(/span \(1\)\.png/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/span \(2\)\.png/).length).toBeGreaterThan(0);
+    const uploadButton = screen.getByRole('button', { name: /^Upload$/i }) as HTMLButtonElement;
+    expect(uploadButton.disabled).toBe(false);
+
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => expect(mocks.upload.mutateAsync).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/Duplicate filename notice — automatically renamed on upload/i)).toBeTruthy();
+    expect(screen.getByText('span (1).png')).toBeTruthy();
+    expect(screen.getByText('span (2).png')).toBeTruthy();
+  });
+
+  it('displays a clickable View on map action instead of raw GPS coordinates and opens the map dialog', async () => {
+    mocks.evidenceQuery = {
+      data: {
+        items: [
+          {
+            ...imageEvidence(),
+            fileName: 'photo-01-defect-north-crown-spalling.jpg',
+            contentType: 'image/jpeg',
+            latitude: 10.875333,
+            longitude: 106.800525,
+          },
+        ],
+        page: 1,
+        pageSize: 50,
+        totalCount: 1,
+        totalPages: 1,
+        activeCount: 1,
+        retiredCount: 0,
+        latestCreatedAt: '2026-10-08T08:15:00Z',
+        latestRetiredAt: null,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderWithRouter(<InspectionEvidencePage />);
+
+    // Raw GPS text must not be rendered inline on the cards.
+    expect(screen.queryByText(/10\.875333/)).toBeNull();
+    const viewOnMapButtons = screen.getAllByRole('button', { name: /View on map/i });
+    expect(viewOnMapButtons.length).toBeGreaterThanOrEqual(2);
+
+    fireEvent.click(viewOnMapButtons[0]!);
+
+    expect(await screen.findByText('Capture location on map')).toBeTruthy();
+    expect(screen.getByText(/10\.875333° N, 106\.800525° E/)).toBeTruthy();
+    const mapSurface = screen.getByTitle(
+      'Map location for photo-01-defect-north-crown-spalling.jpg',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Capture pin photo-01-defect-north-crown-spalling.jpg' }),
+    ).toBeTruthy();
+    const initialTile = mapSurface.querySelector('img') as HTMLImageElement;
+    expect(initialTile.src).toContain('lyrs=s');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Street map' }));
+    const streetTile = mapSurface.querySelector('img') as HTMLImageElement;
+    expect(streetTile.src).toContain('lyrs=m');
+    expect(streetTile.src).toContain('apistyle=s.t:2%7Cs.e:a%7Cp.v:off');
+
+    const externalLink = screen.getByRole('link', { name: /Open in Google Maps/i }) as HTMLAnchorElement;
+    expect(externalLink.href).toContain('https://www.google.com/maps?q=10.875333,106.800525');
   });
 });

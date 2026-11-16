@@ -1,5 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -16,9 +19,11 @@ import {
 } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
-import SearchRounded from '@mui/icons-material/SearchRounded';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -31,6 +36,9 @@ import {
 } from '../api/inspectionApi';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { BoundingBoxEditorDialog } from '../components/BoundingBoxEditorDialog';
+import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
+import { EvidenceGpsMapDialog } from '../components/EvidenceGpsMapDialog';
+import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { parseBoundingBox, type BoundingBoxCoords } from '../utils/boundingBox';
@@ -46,10 +54,12 @@ import {
   useUpdateEvidenceLocation,
   useReportVersions,
   useConfirmFinding,
+  useInspection,
+  useReinspectionVerifications,
   useRemovedFindings,
   useRestoreFinding,
+  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
-import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -61,6 +71,13 @@ export default function InspectionFindingsPage() {
   const isInspector = roles.includes('INSPECTOR');
   const isReviewer =
     roles.includes('CUSTOMER') || roles.includes('MANAGER') || roles.includes('ADMIN');
+
+  const inspectionQuery = useInspection?.(inspectionId);
+  const isReinspection = inspectionQuery?.data?.inspectionType === 'RE_INSPECTION';
+  const reinspectionVerifications = useReinspectionVerifications?.(
+    isReinspection ? inspectionId : null,
+  );
+  const updateVerificationMutation = useUpdateReinspectionVerification?.(inspectionId);
 
   const evidence = useInspectionEvidence(inspectionId);
   const findings = useInspectionFindings(inspectionId);
@@ -950,7 +967,50 @@ export default function InspectionFindingsPage() {
 
   return (
     <Stack spacing={2.5}>
-      {defectDiscoveryWorkspace}
+      {isReinspection && updateVerificationMutation && (
+        <ReinspectionVerificationSection
+          inspectionId={inspectionId}
+          sourceInspectionId={inspectionQuery?.data?.sourceInspectionId}
+          items={reinspectionVerifications?.data ?? []}
+          evidenceList={activeEvidenceItems}
+          onUpdate={(verificationId, payload) =>
+            updateVerificationMutation.mutateAsync({ verificationId, payload })
+          }
+          readOnly={!isInspector || !analysisUnlocked}
+        />
+      )}
+
+      {isReinspection ? (
+        <Accordion
+          variant="outlined"
+          sx={{
+            borderRadius: '10px !important',
+            borderColor: 'divider',
+            '&:before': { display: 'none' },
+            boxShadow: 'none',
+            overflow: 'hidden',
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <AutoAwesomeOutlined color="action" />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
+                  {t('Additional New Defect Scanning (Optional)')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('Only needed if fresh captures revealed unexpected defects outside the target re-inspection scope')}
+                </Typography>
+              </Box>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
+            {defectDiscoveryWorkspace}
+          </AccordionDetails>
+        </Accordion>
+      ) : (
+        defectDiscoveryWorkspace
+      )}
 
       {boxEditorState && (
         <BoundingBoxEditorDialog
@@ -1025,6 +1085,7 @@ function InspectorFindingRegister({
 }) {
   const { t } = useLocale();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [mapEvidence, setMapEvidence] = useState<EvidenceItem | null>(null);
 
   if (!isEditable || findings.length === 0) return null;
   const activeEvidence = evidence.filter((item) => !item.isDeleted);
@@ -1125,27 +1186,59 @@ function InspectorFindingRegister({
                 </Stack>
               </Box>
             ) : (
-              <Stack spacing={1}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
-                  <Chip size="small" label={finding.severity} />
-                  {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Included in report')} />}
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {evidence.find((item) => item.id === finding.evidenceId)?.locationDescription || 'Location not supplied'}
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button size="small" onClick={() => setEditingId(finding.id)}>{t('Edit')}</Button>
-                  <Button size="small" color="error" disabled={isPending} onClick={() => onDelete(finding.id)}>
-                    {t('Remove')}
-                  </Button>
-                </Stack>
-              </Stack>
+              (() => {
+                const linkedEvidence = evidence.find((item) => item.id === finding.evidenceId);
+                const hasGps =
+                  linkedEvidence?.latitude != null &&
+                  linkedEvidence?.longitude != null &&
+                  Number.isFinite(Number(linkedEvidence.latitude)) &&
+                  Number.isFinite(Number(linkedEvidence.longitude));
+                return (
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
+                      <Chip size="small" label={finding.severity} />
+                      {finding.status === 'CONFIRMED' && <Chip size="small" color="success" label={t('Included in report')} />}
+                      {hasGps && linkedEvidence && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                          label={t('View on map')}
+                          onClick={() => setMapEvidence(linkedEvidence)}
+                          sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                        />
+                      )}
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {linkedEvidence?.locationDescription || 'Location not supplied'}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button size="small" onClick={() => setEditingId(finding.id)}>{t('Edit')}</Button>
+                      <Button size="small" color="error" disabled={isPending} onClick={() => onDelete(finding.id)}>
+                        {t('Remove')}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                );
+              })()
             )}
           </Box>
         ))}
         {error != null && <Alert severity="error">{getErrorMessage(error, 'The finding change was not saved.')}</Alert>}
       </Stack>
+      {mapEvidence && mapEvidence.latitude != null && mapEvidence.longitude != null && (
+        <EvidenceGpsMapDialog
+          open
+          onClose={() => setMapEvidence(null)}
+          fileName={mapEvidence.fileName}
+          latitude={Number(mapEvidence.latitude)}
+          longitude={Number(mapEvidence.longitude)}
+          captureTime={mapEvidence.captureTime}
+          locationDescription={mapEvidence.locationDescription}
+        />
+      )}
     </Paper>
   );
 }
@@ -1158,7 +1251,9 @@ function OrganizationFindingsOverview({
   inspectionId: string;
 }) {
   const { t } = useLocale();
+
   const evidence = useInspectionEvidence(inspectionId);
+  const [mapEvidence, setMapEvidence] = useState<EvidenceItem | null>(null);
   const officialFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const pendingFindings = findings.filter((finding) => finding.status === 'PENDING');
   const severityOrder: FindingSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -1188,23 +1283,42 @@ function OrganizationFindingsOverview({
           <Alert severity="info">{t('The Inspector has not confirmed any report findings for this inspection.')}</Alert>
         ) : (
           <Stack spacing={1.5}>
-            {officialFindings.map((finding) => (
+            {officialFindings.map((finding) => {
+              const linkedEvidence = (evidence.data ?? []).find((item) => item.id === finding.evidenceId);
+              const hasGps =
+                linkedEvidence?.latitude != null &&
+                linkedEvidence?.longitude != null &&
+                Number.isFinite(Number(linkedEvidence.latitude)) &&
+                Number.isFinite(Number(linkedEvidence.longitude));
+              return (
               <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Typography sx={{ fontWeight: 700 }}>{finding.defectLabel}</Typography>
                     <Chip size="small" label={finding.severity} />
                     <Chip size="small" color="success" label={t('Inspector-confirmed')} />
+                    {hasGps && linkedEvidence && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                        label={t('View on map')}
+                        onClick={() => setMapEvidence(linkedEvidence)}
+                        sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                      />
+                    )}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {(evidence.data ?? []).find((item) => item.id === finding.evidenceId)?.locationDescription ?? 'Location not recorded'}
+                    {linkedEvidence?.locationDescription ?? 'Location not recorded'}
                   </Typography>
                   {finding.technicalNotes && <Typography variant="body2" color="text.secondary">{finding.technicalNotes}</Typography>}
                   {finding.recommendedAction && <Typography variant="body2"><strong>{t('Recommended action:')}</strong> {finding.recommendedAction}</Typography>}
                   {finding.evidenceId && <Typography variant="caption" color="text.secondary">{t('Linked evidence ·')} {finding.evidenceId.slice(0, 8)}…</Typography>}
                 </Stack>
               </Box>
-            ))}
+              );
+            })}
           </Stack>
         )}
       </Paper>
@@ -1215,7 +1329,14 @@ function OrganizationFindingsOverview({
             {t('These are not official findings. The assigned Inspector confirms or removes them.')}
           </Typography>
           <Stack spacing={1}>
-            {pendingFindings.map((finding) => (
+            {pendingFindings.map((finding) => {
+              const linkedEvidence = (evidence.data ?? []).find((item) => item.id === finding.evidenceId);
+              const hasGps =
+                linkedEvidence?.latitude != null &&
+                linkedEvidence?.longitude != null &&
+                Number.isFinite(Number(linkedEvidence.latitude)) &&
+                Number.isFinite(Number(linkedEvidence.longitude));
+              return (
               <Box key={finding.id} sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography sx={{ fontWeight: 600 }}>{finding.defectLabel}</Typography>
@@ -1227,6 +1348,17 @@ function OrganizationFindingsOverview({
                     />
                   )}
                   <Chip size="small" color="warning" label={t('Pending Inspector review')} />
+                  {hasGps && linkedEvidence && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      icon={<PlaceOutlined sx={{ fontSize: 14 }} />}
+                      label={t('View on map')}
+                      onClick={() => setMapEvidence(linkedEvidence)}
+                      sx={{ fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
+                    />
+                  )}
                   {finding.modelName && (
                     <Typography variant="caption" color="text.secondary">
                       {finding.modelName}
@@ -1234,9 +1366,21 @@ function OrganizationFindingsOverview({
                   )}
                 </Stack>
               </Box>
-            ))}
+              );
+            })}
           </Stack>
         </Paper>
+      )}
+      {mapEvidence && mapEvidence.latitude != null && mapEvidence.longitude != null && (
+        <EvidenceGpsMapDialog
+          open
+          onClose={() => setMapEvidence(null)}
+          fileName={mapEvidence.fileName}
+          latitude={Number(mapEvidence.latitude)}
+          longitude={Number(mapEvidence.longitude)}
+          captureTime={mapEvidence.captureTime}
+          locationDescription={mapEvidence.locationDescription}
+        />
       )}
     </Stack>
   );

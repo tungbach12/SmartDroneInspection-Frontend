@@ -447,25 +447,6 @@ export function FlightOperationsReportView({
               >
                 <Chip
                   size="small"
-                  color={
-                    isLiveMavlink
-                      ? 'success'
-                      : isSimulationSource
-                        ? 'warning'
-                        : 'info'
-                  }
-                  variant={isSimulationSource ? 'outlined' : 'filled'}
-                  label={
-                    isLiveMavlink
-                      ? `${t('Real telemetry')} · ${telemetrySourceLabel}`
-                      : isSimulationSource
-                        ? `${t('Simulation')} · ${telemetrySourceLabel}`
-                        : `${t('Real log')} · ${telemetrySourceLabel}`
-                  }
-                  sx={{ fontWeight: 700 }}
-                />
-                <Chip
-                  size="small"
                   color={isLiveMavlink ? 'success' : isImportedSource ? 'info' : 'warning'}
                   variant="outlined"
                   label={`${t('Data source')}: ${acquisitionMethodLabel}`}

@@ -26,12 +26,14 @@ import {
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
+  useReinspectionVerifications,
   useReportVersions,
   useSubmitReportVersion,
   useWithdrawReportVersion,
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
+import { getOrGeneratePersistedAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
@@ -51,7 +53,7 @@ const NEXT_STEP: Record<string, string> = {
  * submission for Platform Manager review, and version history.
  */
 export default function InspectionReportPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
     | { onReportDirtyChange?: (dirty: boolean) => void }
     | null;
@@ -64,6 +66,7 @@ export default function InspectionReportPage() {
   const versions = useReportVersions(inspectionId);
   const findings = useInspectionFindings(inspectionId);
   const evidence = useInspectionEvidence(inspectionId);
+  const reinspectionVerifications = useReinspectionVerifications?.(inspectionId);
   const fieldSessionsQuery = useFieldSessions?.(inspectionId);
 
   const createDraft = useGenerateReportDraft(inspectionId);
@@ -124,10 +127,33 @@ export default function InspectionReportPage() {
     fieldSessionItems.at(-1)?.id ??
     null;
 
+  const activeEvidenceList = useMemo(
+    () => (evidence.data ?? []).filter((item) => !item.isDeleted),
+    [evidence.data],
+  );
+
   const draftPreviewVersion: InspectionReport = useMemo(() => {
-    const reportable = (findings.data ?? []).filter((f) => f.status === 'CONFIRMED');
-    const assetLabel = inspectionData?.assetName || t('the inspected structure');
-    const autoSummary = `${t('Inspection report for')} ${assetLabel}. ${reportable.length} ${t('confirmed defects')}; ${(evidence.data ?? []).length} ${t('evidence captures')}.`;
+    const verifications = reinspectionVerifications?.data ?? [];
+    const isReinspection =
+      inspectionData?.inspectionType === 'RE_INSPECTION' || verifications.length > 0;
+    const resolvedCount = verifications.filter((v) => v.resolutionStatus === 'RESOLVED').length;
+    const unresolvedCount = verifications.filter((v) => v.resolutionStatus === 'UNRESOLVED').length;
+    const inconclusiveCount = verifications.filter((v) => v.resolutionStatus === 'INCONCLUSIVE').length;
+
+    const autoSummary = getOrGeneratePersistedAiSummary({
+      inspectionId,
+      assetName: inspectionData?.assetName,
+      findings: findings.data ?? [],
+      evidenceList: activeEvidenceList,
+      evidenceCount: activeEvidenceList.length,
+      locale,
+      persist: findingsConfirmed && !findings.isLoading,
+    }).summaryData.summary;
+
+    const reinspectionSummary =
+      locale === 'vi'
+        ? `Báo cáo bay kiểm tra lại đối chiếu Trước ↔ Sau cho công trình ${inspectionData?.assetName || 'công trình'}. Đã đối soát ${verifications.length} khuyết tật mục tiêu (${resolvedCount} ĐÃ KHẮC PHỤC${unresolvedCount > 0 ? `, ${unresolvedCount} CHƯA KHẮC PHỤC` : ''}${inconclusiveCount > 0 ? `, ${inconclusiveCount} CHƯA KẾT LUẬN` : ''}) cùng ${activeEvidenceList.length} bằng chứng bay lại.`
+        : `Post-remediation re-inspection Before vs After verification report for ${inspectionData?.assetName || 'the inspected structure'}. Verified ${verifications.length} target defect(s) (${resolvedCount} RESOLVED${unresolvedCount > 0 ? `, ${unresolvedCount} UNRESOLVED` : ''}${inconclusiveCount > 0 ? `, ${inconclusiveCount} INCONCLUSIVE` : ''}) with ${activeEvidenceList.length} field evidence capture(s).`;
 
     return {
       id: `preview-${inspectionId}`,
@@ -141,7 +167,7 @@ export default function InspectionReportPage() {
       returnReason: null,
       publishedAt: null,
       createdAt: new Date().toISOString(),
-      summary: autoSummary,
+      summary: isReinspection ? reinspectionSummary : autoSummary,
       omissionDisclosure: null,
       reportContext: {
         organizationName: null,
@@ -180,17 +206,15 @@ export default function InspectionReportPage() {
     inspectionId,
     userId,
     findings.data,
-    evidence.data,
+    findings.isLoading,
+    findingsConfirmed,
+    activeEvidenceList,
+    reinspectionVerifications?.data,
     inspectionData,
     workflow.data,
     fieldSessionItems,
-    t,
+    locale,
   ]);
-
-  const activeEvidenceList = useMemo(
-    () => (evidence.data ?? []).filter((item) => !item.isDeleted),
-    [evidence.data],
-  );
 
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
@@ -473,6 +497,7 @@ export default function InspectionReportPage() {
                   evidenceList={activeEvidenceList}
                   fieldSessions={fieldSessionsQuery?.data}
                   inspectionId={inspectionId}
+                  reinspectionVerifications={reinspectionVerifications?.data}
                 />
               ) : (
                 <FlightOperationsReportView
@@ -534,6 +559,7 @@ export default function InspectionReportPage() {
                 evidenceList={activeEvidenceList}
                 fieldSessions={fieldSessionsQuery?.data}
                 inspectionId={inspectionId}
+                reinspectionVerifications={reinspectionVerifications?.data}
                 canEdit={canEditOpenVersion}
                 onDirtyChange={onReportDirtyChange}
               />

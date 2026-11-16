@@ -74,6 +74,7 @@ vi.mock('../hooks/useInspections', () => ({
   useWithdrawReportVersion: () => mocks.withdrawVersion,
   useInspection: () => ({ data: undefined }),
   useFieldSessions: () => ({ data: [] }),
+  useReinspectionVerifications: () => ({ data: [], isLoading: false, error: null }),
 }));
 
 vi.mock('react-router-dom', async () => {

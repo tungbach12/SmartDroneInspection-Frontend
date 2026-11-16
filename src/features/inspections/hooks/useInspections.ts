@@ -46,6 +46,8 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'report-versions'] as const,
   reportVersion: (inspectionId: string, versionId: string) =>
     [...inspectionKeys.all, inspectionId, 'report-version', versionId] as const,
+  reinspectionVerifications: (inspectionId: string) =>
+    [...inspectionKeys.all, inspectionId, 'reinspection-verifications'] as const,
 };
 
 export function useInspections(filters: InspectionListFilters, enabled = true) {
@@ -196,9 +198,17 @@ export function useUploadInspectionEvidence(inspectionId: string | null) {
             }
           : undefined,
       ),
-    onSuccess: (item) => {
-      showToast(item.deduplicated ? `Already uploaded: ${item.fileName}` : `Uploaded ${item.fileName}`,
-        item.deduplicated ? 'info' : 'success');
+    onSuccess: (item, variables) => {
+      const displayName = item.fileName || variables.file.name;
+      const renamed = Boolean(item.fileName && item.fileName !== variables.file.name);
+      showToast(
+        renamed
+          ? `Duplicate filename "${variables.file.name}" saved as "${item.fileName}"`
+          : item.deduplicated
+            ? `Already uploaded: ${displayName}`
+            : `Uploaded ${displayName}`,
+        renamed || item.deduplicated ? 'info' : 'success',
+      );
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
         client.invalidateQueries({ queryKey: [...inspectionKeys.all, inspectionId, 'evidence-query'] });
@@ -994,5 +1004,62 @@ export function useForceAbortFieldSession(inspectionId: string | null) {
     },
     onError: (error) =>
       showToast(getErrorMessage(error, 'Could not force-abort field session.'), 'error'),
+  });
+}
+
+export function useCreateDirectReinspection(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: (payload: import('../api/inspectionApi').CreateReinspectionPayload = {}) =>
+      inspectionApi.createDirectReinspection(inspectionId!, payload),
+    onSuccess: () => {
+      showToast('Re-inspection mission scheduled with target defects.');
+      void client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+      void client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not schedule re-inspection.'), 'error'),
+  });
+}
+
+export function useReinspectionVerifications(inspectionId: string | null | undefined) {
+  return useQuery({
+    queryKey: inspectionKeys.reinspectionVerifications(inspectionId ?? ''),
+    queryFn: () => inspectionApi.getReinspectionVerifications(inspectionId!),
+    enabled: Boolean(inspectionId),
+  });
+}
+
+export function useUpdateReinspectionVerification(inspectionId: string | null | undefined) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: ({
+      verificationId,
+      payload,
+    }: {
+      verificationId: string;
+      payload: import('../api/inspectionApi').UpdateDefectVerificationPayload;
+    }) =>
+      inspectionApi.updateReinspectionVerification(
+        inspectionId!,
+        verificationId,
+        payload,
+      ),
+    onSuccess: () => {
+      if (inspectionId) {
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.reinspectionVerifications(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: inspectionKeys.workflowState(inspectionId),
+        });
+        void client.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+      }
+      showToast('Defect verification updated');
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not save verification assessment.'), 'error'),
   });
 }

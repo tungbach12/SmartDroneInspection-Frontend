@@ -51,7 +51,6 @@ const GOOGLE_HYBRID_SATELLITE_TILES = [
   'https://mt2.google.com/vt/lyrs=y&hl=vi&x={x}&y={y}&z={z}',
   'https://mt3.google.com/vt/lyrs=y&hl=vi&x={x}&y={y}&z={z}',
 ];
-const OPENFREEMAP_VECTOR_SOURCE = 'https://tiles.openfreemap.org/planet';
 
 // Convert meters offset to [lon, lat] degrees at a given latitude
 function offsetMeters(
@@ -413,10 +412,6 @@ export function MapLibreFlightTrajectoryCanvas({
             tileSize: 256,
             maxzoom: 20,
           },
-          'openfreemap-buildings': {
-            type: 'vector',
-            url: OPENFREEMAP_VECTOR_SOURCE,
-          },
           'trajectory-line': {
             type: 'geojson',
             data: geoData.lineFeature,
@@ -442,29 +437,6 @@ export function MapLibreFlightTrajectoryCanvas({
             type: 'raster',
             source: 'google-satellite',
             layout: { visibility: isSat ? 'visible' : 'none' },
-          },
-          // 3D Real Buildings from OpenFreeMap / OSM overlaid on Google Maps
-          {
-            id: 'osm-3d-buildings',
-            type: 'fill-extrusion',
-            source: 'openfreemap-buildings',
-            'source-layer': 'building',
-            minzoom: 14,
-            layout: { visibility: is3D ? 'visible' : 'none' },
-            paint: {
-              'fill-extrusion-color': isSat ? '#cbd5e1' : '#94a3b8',
-              'fill-extrusion-height': [
-                'coalesce',
-                ['get', 'render_height'],
-                12,
-              ],
-              'fill-extrusion-base': [
-                'coalesce',
-                ['get', 'render_min_height'],
-                0,
-              ],
-              'fill-extrusion-opacity': 0.5,
-            },
           },
           // Ground Track Shadow/Casing
           {
@@ -612,13 +584,6 @@ export function MapLibreFlightTrajectoryCanvas({
     if (!map || !styleReadyRef.current) return;
     const is3D = viewDimension === '3d';
 
-    if (map.getLayer('osm-3d-buildings')) {
-      map.setLayoutProperty(
-        'osm-3d-buildings',
-        'visibility',
-        is3D ? 'visible' : 'none',
-      );
-    }
     if (map.getLayer('flight-3d-curtain')) {
       map.setLayoutProperty(
         'flight-3d-curtain',

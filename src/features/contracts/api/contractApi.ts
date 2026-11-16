@@ -175,6 +175,7 @@ export interface ServiceRequest {
   recurrenceInterval: number | null;
   occurrenceCount: number | null;
   recurrenceEndDate: string | null;
+  sourceInspectionId?: string | null;
   status: ServiceRequestStatus;
   acceptedQuoteId: string | null;
   acceptedAt: string | null;
@@ -203,6 +204,7 @@ export interface CreateServiceRequestInput {
   recurrenceInterval?: number;
   occurrenceCount?: number;
   recurrenceEndDate?: string;
+  sourceInspectionId?: string;
 }
 
 export interface PartnerCapabilityOption {

@@ -22,6 +22,7 @@ import type {
   FieldSession,
   InspectionReport,
   Finding,
+  ReinspectionVerificationItem,
 } from '@/features/inspections/api/inspectionApi';
 import { inspectionApi } from '@/features/inspections/api/inspectionApi';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -33,6 +34,7 @@ export interface ReportAuthoringPanelProps {
   findings: Finding[];
   evidenceList: EvidenceItem[];
   fieldSessions?: FieldSession[] | undefined;
+  reinspectionVerifications?: ReinspectionVerificationItem[] | undefined;
   inspectionId: string;
   canEdit?: boolean;
   onDirtyChange?: ((dirty: boolean) => void) | undefined;
@@ -56,6 +58,7 @@ export function ReportAuthoringPanel({
   findings,
   evidenceList,
   fieldSessions,
+  reinspectionVerifications,
   inspectionId,
   canEdit = false,
   droneSummary,
@@ -196,6 +199,7 @@ export function ReportAuthoringPanel({
         findings={findings}
         evidenceList={evidenceList}
         fieldSessions={fieldSessions}
+        reinspectionVerifications={reinspectionVerifications}
         inspectionId={inspectionId}
         droneSummary={droneSummary}
         flightPermitFileName={flightPermitFileName}

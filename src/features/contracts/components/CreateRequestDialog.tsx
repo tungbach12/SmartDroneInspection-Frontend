@@ -39,6 +39,9 @@ interface CreateRequestDialogProps {
   assets: { id: string; name: string; code: string; status?: string }[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
+  initialAssetId?: string | undefined;
+  sourceInspectionId?: string | undefined;
+  sourceInspectionLabel?: string | undefined;
 }
 
 const MINIMUM_LEAD_DAYS = MINIMUM_INSPECTION_LEAD_DAYS;
@@ -229,10 +232,13 @@ export function CreateRequestDialog({
   assets,
   onCreated,
   onError,
+  initialAssetId,
+  sourceInspectionId,
+  sourceInspectionLabel,
 }: CreateRequestDialogProps) {
   const { locale, t } = useLocale();
   const create = useCreateServiceRequest();
-  const [assetId, setAssetId] = useState('');
+  const [assetId, setAssetId] = useState(initialAssetId ?? '');
   const [from, setFrom] = useState('');
   const [requestType, setRequestType] = useState<'ONE_TIME' | 'RECURRING'>('ONE_TIME');
   const [intervalPreset, setIntervalPreset] = useState('1');
@@ -297,11 +303,13 @@ export function CreateRequestDialog({
       }
     }
 
+    const effectiveAssetId = assetId || initialAssetId || '';
     const input: CreateServiceRequestInput = {
-      assetId,
+      assetId: effectiveAssetId,
       requestedFrom: from,
       timezone,
       requestType,
+      ...(sourceInspectionId ? { sourceInspectionId } : {}),
       ...(requestType === 'RECURRING'
         ? {
             recurrenceUnit: 'MONTH',
@@ -362,12 +370,20 @@ export function CreateRequestDialog({
             </Alert>
           )}
 
+          {sourceInspectionId && (
+            <Alert severity="info" sx={{ borderRadius: '8px' }}>
+              {t('Re-inspection linked to source inspection')}
+              {sourceInspectionLabel ? `: ${sourceInspectionLabel}` : ` #${sourceInspectionId.slice(0, 8)}`}
+            </Alert>
+          )}
+
           <FormControl fullWidth size="small" required>
             <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
             <Select
               labelId="dialog-asset-label"
               label={t('Asset / structure')}
-              value={assetId}
+              value={assetId || initialAssetId || ''}
+              disabled={Boolean(sourceInspectionId && initialAssetId)}
               onChange={(event) => setAssetId(event.target.value)}
             >
               {assets
@@ -529,7 +545,7 @@ export function CreateRequestDialog({
           variant="contained"
           loading={create.isPending}
           onClick={() => void handleSubmit()}
-          disabled={!assetId || !from || from < minStartDate}
+          disabled={!(assetId || initialAssetId) || !from || from < minStartDate}
         >
           {t('Submit service request')}
         </LoadingButton>

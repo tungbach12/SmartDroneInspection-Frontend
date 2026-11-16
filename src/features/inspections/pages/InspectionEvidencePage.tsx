@@ -21,15 +21,18 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import MovieOutlined from '@mui/icons-material/MovieOutlined';
 import PauseRounded from '@mui/icons-material/PauseRounded';
+import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
 import PlayCircleOutlineRounded from '@mui/icons-material/PlayCircleOutlineRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
-import { inspectionApi } from '../api/inspectionApi';
+import { useToastStore } from '@/shared/ui/Toast';
+import { inspectionApi, type EvidenceItem } from '../api/inspectionApi';
 import {
   useInvalidateInspectionEvidence,
+  useInspectionEvidence,
   useInspectionEvidenceQuery,
   useInspectionFindings,
   useInspectionWorkflowState,
@@ -39,18 +42,38 @@ import {
   useRetryEvidenceProcessing,
   useBulkRetireEvidence,
   useUploadInspectionEvidence,
+  useInspection,
+  useReinspectionVerifications,
+  useUpdateReinspectionVerification,
 } from '../hooks/useInspections';
+import { EvidenceGpsMapDialog } from '../components/EvidenceGpsMapDialog';
+import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { VideoFrameCropDialog } from '../components/VideoFrameCropDialog';
 import { AuthenticatedMedia, type MediaSeekRequest } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import type { EvidenceQueryFilters } from '../hooks/useInspections';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  resolveUniqueEvidenceFileName,
+  type DuplicateFilenameResolution,
+} from '../utils/evidenceFileName';
 
 const MAX_IMAGE_OR_DOC_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
 const DEFAULT_CHUNK_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_CHUNK_RETRIES = 3;
+
+interface QueuedUploadFile {
+  id: string;
+  file: File;
+}
+
+interface DuplicateUploadNotice {
+  id: string;
+  originalName: string;
+  resolvedName: string;
+}
 
 interface SavedUploadRef {
   sessionId: string;
@@ -89,10 +112,6 @@ function writeSavedUploads(inspectionId: string, entries: Record<string, SavedUp
   }
 }
 
-function queueItemKey(file: File): string {
-  return `${file.name}::${file.size}`;
-}
-
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -114,8 +133,21 @@ function formatMmSsTenths(seconds: number | null | undefined): string {
   return `${String(mins).padStart(2, '0')}:${secs.toFixed(1).padStart(4, '0')}`;
 }
 
+function hasValidGps(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+): boolean {
+  return (
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(Number(latitude)) &&
+    Number.isFinite(Number(longitude))
+  );
+}
+
 export default function InspectionEvidencePage() {
   const { t } = useLocale();
+  const showToast = useToastStore((state) => state.showToast);
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
 
@@ -131,6 +163,7 @@ export default function InspectionEvidencePage() {
     page,
     pageSize,
   });
+  const allEvidence = useInspectionEvidence(isInspector ? inspectionId : null);
   const workflow = useInspectionWorkflowState(inspectionId);
   const findingsQuery = useInspectionFindings(inspectionId);
   const sessionHistory = useFieldSessions(inspectionId, isInspector);
@@ -141,20 +174,45 @@ export default function InspectionEvidencePage() {
   const retryProcessing = useRetryEvidenceProcessing(inspectionId);
   const bulkRetire = useBulkRetireEvidence(inspectionId);
 
-  const [queue, setQueue] = useState<File[]>([]);
+  const inspectionQuery = useInspection?.(inspectionId);
+  const inspection = inspectionQuery?.data;
+  const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
+  const reinspectionVerifications = useReinspectionVerifications?.(
+    isReinspection ? inspectionId : '',
+  );
+  const updateVerificationMutation = useUpdateReinspectionVerification?.(inspectionId);
+
+  const handleLinkEvidence = async (verificationId: string, evidenceId: string) => {
+    const item = reinspectionVerifications?.data?.find((v) => v.id === verificationId);
+    if (!item || !updateVerificationMutation) return;
+    await updateVerificationMutation.mutateAsync({
+      verificationId,
+      payload: {
+        resolutionStatus: item.resolutionStatus,
+        newEvidenceId: evidenceId ? evidenceId : null,
+        inspectorNotes: item.inspectorNotes ?? null,
+      },
+    });
+  };
+
+  const [queue, setQueue] = useState<QueuedUploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const [fileErrors, setFileErrors] = useState<Record<string, { label: string; message: string }>>({});
   const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
+  const [duplicateUploadNotices, setDuplicateUploadNotices] = useState<DuplicateUploadNotice[]>([]);
   const [activeUploadSession, setActiveUploadSession] = useState<{
+    queueId: string;
     fileName: string;
     sessionId: string;
   } | null>(null);
   const [savedUploads, setSavedUploads] = useState<Record<string, SavedUploadRef>>(() =>
     readSavedUploads(inspectionId),
   );
+  const queueCounterRef = useRef(0);
   const activeAbortRef = useRef<AbortController | null>(null);
   const cancelledFilesRef = useRef<Set<string>>(new Set());
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [mapDialogEvidence, setMapDialogEvidence] = useState<EvidenceItem | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingLinkedFindings, setDeletingLinkedFindings] = useState(false);
@@ -270,29 +328,41 @@ export default function InspectionEvidencePage() {
   const handleStageFiles = (chosen: File[]) => {
     if (chosen.length === 0) return;
     const existingVideoBytes = queue
-      .filter((f) => f.type === 'video/mp4')
-      .reduce((sum, f) => sum + f.size, 0);
+      .filter((item) => item.file.type === 'video/mp4')
+      .reduce((sum, item) => sum + item.file.size, 0);
     let runningVideoBytes = existingVideoBytes;
-    const accepted: File[] = [];
-    const errors: Record<string, string> = {};
+    const accepted: QueuedUploadFile[] = [];
+    const errors: Record<string, { label: string; message: string }> = {};
 
     for (const file of chosen) {
       if (file.size <= 0) {
-        errors[file.name] = t('File is empty and cannot be uploaded.');
+        errors[`stage:${file.name}:${queueCounterRef.current++}`] = {
+          label: file.name,
+          message: t('File is empty and cannot be uploaded.'),
+        };
         continue;
       }
       const isMp4 = file.type === 'video/mp4';
       if (isMp4) {
         if (file.size > MAX_VIDEO_BYTES || runningVideoBytes + file.size > MAX_VIDEO_BYTES) {
-          errors[file.name] = t('Video uploads cannot exceed 2 GB in total.');
+          errors[`stage:${file.name}:${queueCounterRef.current++}`] = {
+            label: file.name,
+            message: t('Video uploads cannot exceed 2 GB in total.'),
+          };
           continue;
         }
         runningVideoBytes += file.size;
       } else if (file.size > MAX_IMAGE_OR_DOC_BYTES) {
-        errors[file.name] = t('Images and PDFs cannot exceed 10 MB.');
+        errors[`stage:${file.name}:${queueCounterRef.current++}`] = {
+          label: file.name,
+          message: t('Images and PDFs cannot exceed 10 MB.'),
+        };
         continue;
       }
-      accepted.push(file);
+      accepted.push({
+        id: `${file.name}::${file.size}::${queueCounterRef.current++}`,
+        file,
+      });
     }
 
     if (accepted.length > 0) {
@@ -303,23 +373,24 @@ export default function InspectionEvidencePage() {
     }
   };
 
-  const removeFromQueue = (name: string) => {
-    setQueue((prev) => prev.filter((file) => file.name !== name));
+  const removeFromQueue = (queueId: string) => {
+    setQueue((prev) => prev.filter((item) => item.id !== queueId));
     setFileErrors((prev) => {
-      if (!(name in prev)) return prev;
+      if (!(queueId in prev)) return prev;
       const next = { ...prev };
-      delete next[name];
+      delete next[queueId];
       return next;
     });
     setFileProgress((prev) => {
-      if (!(name in prev)) return prev;
+      if (!(queueId in prev)) return prev;
       const next = { ...prev };
-      delete next[name];
+      delete next[queueId];
       return next;
     });
   };
 
-  const uploadResumableVideo = async (file: File) => {
+  const uploadResumableVideo = async (item: QueuedUploadFile): Promise<string | null> => {
+    const { file } = item;
     const entryKey = savedUploadEntryKey(file.name, file.size);
     let session = null as Awaited<ReturnType<typeof inspectionApi.beginEvidenceUpload>> | null;
     const existingRef = readSavedUploads(inspectionId)[entryKey];
@@ -338,8 +409,8 @@ export default function InspectionEvidencePage() {
             delete next[entryKey];
             return next;
           });
-          setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
-          return;
+          setFileProgress((prev) => ({ ...prev, [item.id]: 100 }));
+          return remoteStatus.fileName;
         }
       } catch {
         // Session expired/not found; clear stale reference and create a fresh session below.
@@ -363,7 +434,11 @@ export default function InspectionEvidencePage() {
       }));
     }
 
-    setActiveUploadSession({ fileName: file.name, sessionId: session.sessionId });
+    setActiveUploadSession({
+      queueId: item.id,
+      fileName: session.fileName || file.name,
+      sessionId: session.sessionId,
+    });
     const chunkSize = session.chunkSizeBytes || DEFAULT_CHUNK_SIZE_BYTES;
     const completedSet = new Set(session.uploadedPartNumbers ?? []);
     const initialCompletedBytes = Array.from(completedSet).reduce((sum, partNo) => {
@@ -373,12 +448,12 @@ export default function InspectionEvidencePage() {
     }, 0);
     setFileProgress((prev) => ({
       ...prev,
-      [file.name]: Math.min(99, Math.round((initialCompletedBytes / file.size) * 100)),
+      [item.id]: Math.min(99, Math.round((initialCompletedBytes / file.size) * 100)),
     }));
 
     for (let partNo = 1; partNo <= session.totalParts; partNo++) {
-      if (cancelledFilesRef.current.has(queueItemKey(file))) {
-        return;
+      if (cancelledFilesRef.current.has(item.id)) {
+        return null;
       }
       if (completedSet.has(partNo)) continue;
       const start = (partNo - 1) * chunkSize;
@@ -388,8 +463,8 @@ export default function InspectionEvidencePage() {
       let attempt = 0;
       let uploaded = false;
       while (!uploaded) {
-        if (cancelledFilesRef.current.has(queueItemKey(file))) {
-          return;
+        if (cancelledFilesRef.current.has(item.id)) {
+          return null;
         }
         attempt += 1;
         const controller = new AbortController();
@@ -405,7 +480,7 @@ export default function InspectionEvidencePage() {
               onProgress: (loaded) => {
                 const confirmedBytes = (partNo - 1) * chunkSize;
                 const pct = Math.min(99, Math.round(((confirmedBytes + loaded) / file.size) * 100));
-                setFileProgress((prev) => ({ ...prev, [file.name]: pct }));
+                setFileProgress((prev) => ({ ...prev, [item.id]: pct }));
               },
             },
           );
@@ -414,7 +489,7 @@ export default function InspectionEvidencePage() {
           }
           uploaded = true;
         } catch (chunkErr) {
-          if (cancelledFilesRef.current.has(queueItemKey(file)) || attempt >= MAX_CHUNK_RETRIES) {
+          if (cancelledFilesRef.current.has(item.id) || attempt >= MAX_CHUNK_RETRIES) {
             throw chunkErr;
           }
           await new Promise((resolve) => window.setTimeout(resolve, attempt * 400));
@@ -426,19 +501,32 @@ export default function InspectionEvidencePage() {
       }
     }
 
-    await inspectionApi.completeEvidenceUpload(inspectionId, session.sessionId);
+    const completedSession = await inspectionApi.completeEvidenceUpload(
+      inspectionId,
+      session.sessionId,
+    );
     updateSavedUploadMap((prev) => {
       const next = { ...prev };
       delete next[entryKey];
       return next;
     });
-    setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
+    setFileProgress((prev) => ({ ...prev, [item.id]: 100 }));
     await invalidateEvidence();
+    const resolvedFileName = completedSession.fileName || session.fileName || file.name;
+    if (resolvedFileName !== file.name) {
+      showToast(
+        `${t('Duplicate filename')} "${file.name}" → ${t('saved as')} "${resolvedFileName}"`,
+        'info',
+      );
+    } else {
+      showToast(`Uploaded ${resolvedFileName}`, 'success');
+    }
+    return resolvedFileName;
   };
 
-  const handleCancelResumableUpload = async (file: File) => {
-    const key = queueItemKey(file);
-    cancelledFilesRef.current.add(key);
+  const handleCancelResumableUpload = async (item: QueuedUploadFile) => {
+    const { file } = item;
+    cancelledFilesRef.current.add(item.id);
     activeAbortRef.current?.abort();
     const saved = savedUploads[savedUploadEntryKey(file.name, file.size)];
     if (saved) {
@@ -453,52 +541,81 @@ export default function InspectionEvidencePage() {
         return next;
       });
     }
-    setActiveUploadSession((curr) => (curr?.fileName === file.name ? null : curr));
-    removeFromQueue(file.name);
+    setActiveUploadSession((curr) => (curr?.queueId === item.id ? null : curr));
+    removeFromQueue(item.id);
   };
 
   const uploadQueue = async () => {
     if (uploading || queue.length === 0) return;
     setUploading(true);
     cancelledFilesRef.current.clear();
-    for (const file of [...queue]) {
-      if (cancelledFilesRef.current.has(queueItemKey(file))) continue;
+    for (const item of [...queue]) {
+      const { file } = item;
+      if (cancelledFilesRef.current.has(item.id)) continue;
       try {
+        let resolvedName: string | null = null;
         if (file.type === 'video/mp4') {
-          await uploadResumableVideo(file);
+          resolvedName = await uploadResumableVideo(item);
         } else {
-          await upload.mutateAsync({
+          const uploaded = await upload.mutateAsync({
             file,
             ...(completedFieldSessionId ? { fieldSessionId: completedFieldSessionId } : {}),
           });
+          resolvedName = uploaded?.fileName ?? null;
         }
-        if (!cancelledFilesRef.current.has(queueItemKey(file))) {
-          setQueue((prev) => prev.filter((queued) => queued !== file));
+        if (resolvedName && resolvedName !== file.name) {
+          setDuplicateUploadNotices((prev) => [
+            ...prev,
+            { id: item.id, originalName: file.name, resolvedName },
+          ]);
+        }
+        if (!cancelledFilesRef.current.has(item.id)) {
+          setQueue((prev) => prev.filter((queued) => queued.id !== item.id));
           setFileErrors((prev) => {
-            if (!(file.name in prev)) return prev;
+            if (!(item.id in prev)) return prev;
             const next = { ...prev };
-            delete next[file.name];
+            delete next[item.id];
             return next;
           });
           setFileProgress((prev) => {
-            if (!(file.name in prev)) return prev;
+            if (!(item.id in prev)) return prev;
             const next = { ...prev };
-            delete next[file.name];
+            delete next[item.id];
             return next;
           });
         }
       } catch (error) {
-        if (cancelledFilesRef.current.has(queueItemKey(file))) continue;
+        if (cancelledFilesRef.current.has(item.id)) continue;
         setFileErrors((prev) => ({
           ...prev,
-          [file.name]: getErrorMessage(error, 'Upload failed. Retry to safely try again.'),
+          [item.id]: {
+            label: file.name,
+            message: getErrorMessage(error, 'Upload failed. Retry to safely try again.'),
+          },
         }));
       } finally {
-        setActiveUploadSession((curr) => (curr?.fileName === file.name ? null : curr));
+        setActiveUploadSession((curr) => (curr?.queueId === item.id ? null : curr));
       }
     }
     setUploading(false);
   };
+
+  const knownEvidenceItems = Array.isArray(allEvidence.data)
+    ? allEvidence.data
+    : ((allEvidence.data as { items?: typeof displayedEvidenceItems } | undefined)?.items ??
+      displayedEvidenceItems);
+  const stagedResolutionById = new Map<string, DuplicateFilenameResolution>();
+  const takenLowerNames = new Set(
+    knownEvidenceItems
+      .map((item) => item.fileName?.toLowerCase())
+      .filter((name): name is string => Boolean(name)),
+  );
+  for (const item of queue) {
+    stagedResolutionById.set(item.id, resolveUniqueEvidenceFileName(item.file.name, takenLowerNames));
+  }
+  const stagedDuplicates = queue
+    .map((item) => ({ item, resolution: stagedResolutionById.get(item.id)! }))
+    .filter(({ resolution }) => resolution.isDuplicate);
 
   const allPageActiveSelected =
     currentEvidenceItems.length > 0 && selectedBatchIds.length === currentEvidenceItems.length;
@@ -683,8 +800,21 @@ export default function InspectionEvidencePage() {
     }
   };
 
+  const selectedHasGps = hasValidGps(selectedEvidence?.latitude, selectedEvidence?.longitude);
+
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
+      {isReinspection && (
+        <TargetFlightShotList
+          mode="evidence-assignment"
+          inspectionId={inspectionId}
+          sourceInspectionId={inspection?.sourceInspectionId}
+          items={reinspectionVerifications?.data ?? []}
+          evidenceList={currentEvidenceItems}
+          onLinkEvidence={handleLinkEvidence}
+          readOnly={!canEditEvidence}
+        />
+      )}
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           Review the current evidence set below. Original captures are read-only for Organization
@@ -774,7 +904,14 @@ export default function InspectionEvidencePage() {
           )}
 
           {Object.values(savedUploads)
-            .filter((entry) => !queue.some((q) => savedUploadEntryKey(q.name, q.size) === savedUploadEntryKey(entry.fileName, entry.sizeBytes)))
+            .filter(
+              (entry) =>
+                !queue.some(
+                  (q) =>
+                    savedUploadEntryKey(q.file.name, q.file.size) ===
+                    savedUploadEntryKey(entry.fileName, entry.sizeBytes),
+                ),
+            )
             .map((entry) => (
               <Alert key={entry.sessionId} severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
                 {t('Interrupted upload found for')} <strong>{entry.fileName}</strong> ({formatBytes(entry.sizeBytes)}).{' '}
@@ -782,41 +919,87 @@ export default function InspectionEvidencePage() {
               </Alert>
             ))}
 
+          {stagedDuplicates.length > 0 && (
+            <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px' }}>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {t(
+                    'Duplicate filename detected — existing captures are preserved and upload is not blocked. Will be auto-numbered as:',
+                  )}
+                </Typography>
+                <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+                  {stagedDuplicates.map(({ item, resolution }) => (
+                    <Typography key={item.id} variant="caption" component="div">
+                      <strong>{resolution.originalName}</strong> → <strong>{resolution.resolvedName}</strong>
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            </Alert>
+          )}
+
+          {duplicateUploadNotices.length > 0 && (
+            <Alert
+              severity="info"
+              sx={{ mt: 1.5, borderRadius: '10px' }}
+              onClose={() => setDuplicateUploadNotices([])}
+            >
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {t('Duplicate filename notice — automatically renamed on upload:')}
+                </Typography>
+                <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+                  {duplicateUploadNotices.map((notice) => (
+                    <Typography key={notice.id} variant="caption" component="div">
+                      <strong>{notice.originalName}</strong> → <strong>{notice.resolvedName}</strong>
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            </Alert>
+          )}
+
           {Object.entries(fileErrors)
-            .filter(([name]) => !queue.some((q) => q.name === name))
-            .map(([name, message]) => (
+            .filter(([key]) => !queue.some((q) => q.id === key))
+            .map(([key, err]) => (
               <Alert
-                key={name}
+                key={key}
                 severity="error"
                 sx={{ mt: 1.5, borderRadius: '10px' }}
                 onClose={() =>
                   setFileErrors((prev) => {
                     const next = { ...prev };
-                    delete next[name];
+                    delete next[key];
                     return next;
                   })
                 }
               >
-                <strong>{name}:</strong> {message}
+                <strong>{err.label}:</strong> {err.message}
               </Alert>
             ))}
 
           {queue.length > 0 && canEditEvidence && (
             <Stack spacing={0.75} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-              {queue.map((file) => {
-                const pct = fileProgress[file.name];
-                const isActiveResumable = activeUploadSession?.fileName === file.name;
+              {queue.map((item) => {
+                const { file } = item;
+                const pct = fileProgress[item.id];
+                const isActiveResumable = activeUploadSession?.queueId === item.id;
                 const hasSavedSession = Boolean(
                   savedUploads[savedUploadEntryKey(file.name, file.size)],
                 );
+                const resolution = stagedResolutionById.get(item.id);
+                const itemError = fileErrors[item.id];
                 return (
-                  <Box key={`${file.name}-${file.size}`}>
+                  <Box key={item.id}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <InsertDriveFileOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
                       <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
                         {file.name}{' '}
                         <Typography component="span" variant="caption" color="text.secondary">
                           ({formatBytes(file.size)})
+                          {resolution?.isDuplicate
+                            ? ` · ${t('Will save as')}: ${resolution.resolvedName}`
+                            : ''}
                           {typeof pct === 'number' ? ` · ${pct}%` : ''}
                           {hasSavedSession && !isActiveResumable ? ` · ${t('Resumable')}` : ''}
                         </Typography>
@@ -825,12 +1008,12 @@ export default function InspectionEvidencePage() {
                         <Button
                           size="small"
                           color="warning"
-                          onClick={() => void handleCancelResumableUpload(file)}
+                          onClick={() => void handleCancelResumableUpload(item)}
                         >
                           {t('Cancel upload')}
                         </Button>
                       ) : (
-                        <Button size="small" color="error" onClick={() => removeFromQueue(file.name)}>
+                        <Button size="small" color="error" onClick={() => removeFromQueue(item.id)}>
                           {t('Remove')}
                         </Button>
                       )}
@@ -842,9 +1025,9 @@ export default function InspectionEvidencePage() {
                         sx={{ mt: 0.5, borderRadius: 1 }}
                       />
                     )}
-                    {fileErrors[file.name] && (
+                    {itemError && (
                       <Alert severity="error" sx={{ mt: 0.5 }}>
-                        {fileErrors[file.name]}
+                        {itemError.message}
                       </Alert>
                     )}
                   </Box>
@@ -960,6 +1143,7 @@ export default function InspectionEvidencePage() {
                 {displayedEvidenceItems.map((item) => {
                   const isSelected = item.id === selectedEvidence?.id;
                   const isChecked = selectedBatchIds.includes(item.id);
+                  const itemHasGps = hasValidGps(item.latitude, item.longitude);
                   return (
                     <Paper
                       key={item.id}
@@ -1049,12 +1233,29 @@ export default function InspectionEvidencePage() {
                               />
                             )}
                           </Stack>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mt: 0.25 }}
                           >
-                            {item.contentType} · {formatBytes(item.sizeBytes)}
-                          </Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {item.contentType} · {formatBytes(item.sizeBytes)}
+                            </Typography>
+                            {itemHasGps && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                icon={<PlaceOutlined sx={{ fontSize: 13 }} />}
+                                label={t('View on map')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMapDialogEvidence(item);
+                                }}
+                                sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                              />
+                            )}
+                          </Stack>
                         </Box>
                       </Stack>
                     </Paper>
@@ -1417,10 +1618,27 @@ export default function InspectionEvidencePage() {
                         >
                           {selectedEvidence.fileName}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {selectedEvidence.contentType} · {formatBytes(selectedEvidence.sizeBytes)}
-                          {selectedEvidence.captureTime ? ` · ${t('Captured')} ${selectedEvidence.captureTime}` : ''}
-                        </Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75, mt: 0.25 }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            {selectedEvidence.contentType} · {formatBytes(selectedEvidence.sizeBytes)}
+                            {selectedEvidence.captureTime ? ` · ${t('Captured')} ${selectedEvidence.captureTime}` : ''}
+                          </Typography>
+                          {selectedHasGps && (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              icon={<PlaceOutlined sx={{ fontSize: 15 }} />}
+                              label={t('View on map')}
+                              onClick={() => setMapDialogEvidence(selectedEvidence)}
+                              sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                            />
+                          )}
+                        </Stack>
                       </Box>
 
                       {canEditEvidence && (!selectedEvidence.isDeleted || hasBatchSelection) && (
@@ -1572,6 +1790,18 @@ export default function InspectionEvidencePage() {
         onClose={() => setCropDialogState((prev) => ({ ...prev, open: false }))}
         onSaveCroppedFile={handleSaveCroppedFrame}
       />
+
+      {mapDialogEvidence && hasValidGps(mapDialogEvidence.latitude, mapDialogEvidence.longitude) && (
+        <EvidenceGpsMapDialog
+          open
+          onClose={() => setMapDialogEvidence(null)}
+          fileName={mapDialogEvidence.fileName}
+          latitude={Number(mapDialogEvidence.latitude)}
+          longitude={Number(mapDialogEvidence.longitude)}
+          captureTime={mapDialogEvidence.captureTime}
+          locationDescription={mapDialogEvidence.locationDescription}
+        />
+      )}
     </Stack>
   );
 }

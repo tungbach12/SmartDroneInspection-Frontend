@@ -76,6 +76,8 @@ vi.mock('../hooks/useInspections', () => ({
   useDeleteFinding: () => mocks.deleteFinding,
   useUpdateEvidenceLocation: () => mocks.updateLocation,
   useInspection: () => ({ data: {} }),
+  useReinspectionVerifications: () => ({ data: [], isLoading: false, error: null }),
+  useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
 vi.mock('@/shared/api/client', async (importOriginal) => {

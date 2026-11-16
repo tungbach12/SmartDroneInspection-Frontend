@@ -156,7 +156,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     const approve = (await screen.findByRole('button', { name: 'Approve & publish' })) as HTMLButtonElement;
     expect(approve.disabled).toBe(false);
-    expect(screen.getByText('Inspector-confirmed')).toBeTruthy();
+    expect(screen.getByText('Surface crack')).toBeTruthy();
     expect(screen.queryByText(/Decide every proposed finding/)).toBeNull();
   });
 
