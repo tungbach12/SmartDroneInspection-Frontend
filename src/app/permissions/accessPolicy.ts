@@ -124,7 +124,7 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
 const SECTION_ROLE_ACCESS = {
   admin: {
     dashboard: ['ADMIN'],
-    contracts: [],
+    contracts: ['ADMIN'],
     messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],

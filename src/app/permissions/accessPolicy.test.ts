@@ -22,7 +22,7 @@ const expectedAccess: Record<
 > = {
   admin: {
     dashboard: ['ADMIN'],
-    contracts: [],
+    contracts: ['ADMIN'],
     messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],

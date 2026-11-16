@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -46,6 +46,11 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+function openTrackProgress() {
+  fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Track progress' }));
 }
 
 describe('ContractsPage', () => {
@@ -112,6 +117,22 @@ describe('ContractsPage', () => {
       data: [],
       isPending: false,
     } as any);
+    vi.spyOn(contractsHook, 'useClaimServiceRequest').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-claim' }),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useAdminReassignServiceRequest').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-admin' }),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useAdminUnassignServiceRequest').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-admin' }),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceManagers').mockReturnValue({
+      data: [{ id: 'manager-1', fullName: 'Manager One', email: 'manager@example.test' }],
+      isPending: false,
+    } as any);
   });
 
   it('renders request list and allows customer to submit a new request', () => {
@@ -144,6 +165,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -173,6 +195,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -202,6 +225,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: '2026-10-29T00:00:00Z',
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -227,19 +251,162 @@ describe('ContractsPage', () => {
     const openStatusCell = screen.getByText('Open').closest('td');
     expect(openStatusCell).toBeTruthy();
     expect(openStatusCell?.querySelector('[data-status="OPEN"]')).toBeTruthy();
-    expect(screen.getByText('Step 1/5 · Request submitted')).toBeTruthy();
     const quotedStatusCell = screen.getByText('Quoted').closest('td');
     expect(quotedStatusCell?.querySelector('[data-status="QUOTED"]')).toBeTruthy();
-    expect(screen.getByText('Step 3/5 · Quote review')).toBeTruthy();
     const signedStatusCell = screen.getByText('Contract Signed').closest('td');
     expect(signedStatusCell?.querySelector('[data-status="CONTRACT_SIGNED"]')).toBeTruthy();
-    expect(screen.getByText('Step 4/5 · Signed agreement')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'New service request' }));
     expect(screen.getByRole('dialog', { name: 'Create inspection request' })).toBeTruthy();
     expect(screen.getByText(/Select a date at least 20 days from today\. Earliest date:/)).toBeTruthy();
     expect(screen.getAllByText(/Select a date at least 20 days from today\. Earliest date:/)).toHaveLength(1);
     expect(screen.queryByLabelText('Phạm vi & Yêu cầu khảo sát')).toBeNull();
     expect(screen.getByRole('button', { name: 'Submit service request' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shows the assigned Manager profile to the owning Customer only', () => {
+    const request = {
+      id: 'req-profile',
+      ownerCustomerId: 'org-1',
+      assetId: 'asset-1',
+      description: 'Assigned bridge inspection',
+      requestedFrom: '2026-12-10',
+      requestedUntil: '2026-12-10',
+      timezone: 'Asia/Ho_Chi_Minh',
+      windowStart: '08:00',
+      windowEnd: '17:00',
+      requestType: 'ONE_TIME',
+      recurrenceUnit: null,
+      recurrenceInterval: null,
+      occurrenceCount: null,
+      recurrenceEndDate: null,
+      status: 'OPEN',
+      acceptedQuoteId: null,
+      acceptedAt: null,
+      acceptedByUserId: null,
+      acceptedTermsSnapshot: null,
+      contractFileName: null,
+      contractContentType: null,
+      contractSizeBytes: null,
+      contractUploadedAt: null,
+      createdAt: '2026-11-14T00:00:00Z',
+      currentQuote: null,
+      assignedManagerId: 'manager-1',
+      serviceManager: {
+        id: 'manager-1',
+        fullName: 'Assigned Manager',
+        email: 'assigned.manager@example.test',
+        phoneNumber: '+84 901 234 567',
+        avatarUrl: null,
+      },
+      occurrences: [],
+      messages: [],
+    };
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [request], isPending: false, isError: false, error: null, refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Manager profile' }));
+    expect(screen.getByRole('dialog', { name: 'Service manager profile' })).toBeTruthy();
+    expect(screen.getByText('assigned.manager@example.test')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Call' }).getAttribute('href')).toBe('tel:+84 901 234 567');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Assigned Manager',
+      email: 'assigned.manager@example.test',
+    });
+    cleanup();
+    renderPage();
+    expect(screen.queryByRole('menuitem', { name: 'Manager profile' })).toBeNull();
+  });
+
+  it('lets a Manager claim an unassigned request from the action menu', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Platform Manager',
+      email: 'manager@test.local',
+    });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-claim' });
+    vi.spyOn(contractsHook, 'useClaimServiceRequest').mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [{
+        id: 'req-claim', ownerCustomerId: 'org-1', assetId: 'asset-1',
+        description: 'Claimable bridge inspection', requestedFrom: '2026-12-10',
+        requestedUntil: '2026-12-10', timezone: 'Asia/Ho_Chi_Minh',
+        windowStart: '08:00', windowEnd: '17:00', requestType: 'ONE_TIME',
+        recurrenceUnit: null, recurrenceInterval: null, occurrenceCount: null,
+        recurrenceEndDate: null, status: 'OPEN', acceptedQuoteId: null,
+        acceptedAt: null, acceptedByUserId: null, acceptedTermsSnapshot: null,
+        contractFileName: null, contractContentType: null, contractSizeBytes: null,
+        contractUploadedAt: null, createdAt: '2026-11-14T00:00:00Z',
+        currentQuote: null, assignedManagerId: null, canClaim: true,
+        serviceManager: null, occurrences: [], messages: [],
+      }],
+      isPending: false, isError: false, error: null, refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Claim request' }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith('req-claim'));
+  });
+
+  it('lets ADMIN assign a manager without opening Manager request details', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['ADMIN'],
+      userId: 'admin-1',
+      userName: 'Platform Admin',
+      email: 'admin@test.local',
+    });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-admin' });
+    vi.spyOn(contractsHook, 'useAdminReassignServiceRequest').mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [{
+        id: 'req-admin', ownerCustomerId: 'org-1', assetId: 'asset-1',
+        description: 'Admin assignment bridge', requestedFrom: '2026-12-10',
+        requestedUntil: '2026-12-10', timezone: 'Asia/Ho_Chi_Minh',
+        windowStart: '08:00', windowEnd: '17:00', requestType: 'ONE_TIME',
+        recurrenceUnit: null, recurrenceInterval: null, occurrenceCount: null,
+        recurrenceEndDate: null, status: 'OPEN', acceptedQuoteId: null,
+        acceptedAt: null, acceptedByUserId: null, acceptedTermsSnapshot: null,
+        contractFileName: null, contractContentType: null, contractSizeBytes: null,
+        contractUploadedAt: null, createdAt: '2026-11-14T00:00:00Z',
+        currentQuote: null, assignedManagerId: null, canClaim: false,
+        serviceManager: null, occurrences: [], messages: [],
+      }],
+      isPending: false, isError: false, error: null, refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+    fireEvent.click(screen.getByText('Admin assignment bridge'));
+    expect(screen.queryByText('1. Review customer request')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assign manager' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Service manager' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Manager One · manager@example.test' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save assignment' }));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({
+      requestId: 'req-admin', managerId: 'manager-1',
+    }));
   });
 
   it('allows customer to download the signed contract attachment when recorded', () => {
@@ -272,6 +439,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: '2026-10-30T00:00:00Z',
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -291,7 +459,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    openTrackProgress();
     expect(screen.getByText(/Signed scan recorded: signed-contract.pdf/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download signed contract' })).toBeTruthy();
   });
@@ -332,6 +500,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -362,12 +531,9 @@ describe('ContractsPage', () => {
     vi.spyOn(contractsHook, 'usePartnerCapabilities').mockReturnValue({ data: [], isPending: false } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    openTrackProgress();
     expect(screen.getByText('1. Review customer request')).toBeTruthy();
-    expect(screen.getByText('2. Select Inspector & drone')).toBeTruthy();
-    expect(screen.getByText('3. Prepare quotation')).toBeTruthy();
-    expect(screen.getByText('4. Record signed agreement')).toBeTruthy();
-    expect(screen.getByText('5. Dispatch inspection team')).toBeTruthy();
+    expect(screen.getByText('2. Prepare')).toBeTruthy();
     expect(screen.queryByText('Customer creates inspection request')).toBeNull();
     expect(screen.getByText('Request review')).toBeTruthy();
     expect(screen.queryByLabelText('Partner Inspector')).toBeNull();
@@ -394,6 +560,7 @@ describe('ContractsPage', () => {
           id: 'req-recurring-expiry',
           ownerCustomerId: 'org-1',
           assetId: 'asset-1',
+          assignedManagerId: 'manager-1',
           description: 'Recurring bridge survey',
           requestedFrom: '2026-12-04',
           requestedUntil: '2028-06-04',
@@ -454,7 +621,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    openTrackProgress();
     fireEvent.click(screen.getByRole('button', { name: 'Select Inspector and drone' }));
     expect(await screen.findByText('Select partner Inspector and drone')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
@@ -466,16 +633,16 @@ describe('ContractsPage', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('blocks users without customer or platform manager role', () => {
+  it('blocks users without customer, manager, or admin role', () => {
     useAuthStore.setState({
       status: 'authenticated',
-      roles: ['ADMIN'],
-      userId: 'admin-1',
-      userName: 'Admin User',
-      email: 'admin@test.local',
+      roles: ['INSPECTOR'],
+      userId: 'inspector-1',
+      userName: 'Inspector One',
+      email: 'inspector@test.local',
     });
     renderPage();
-    expect(screen.getByText('MF2 is available to Customer and Platform Manager accounts.')).toBeTruthy();
+    expect(screen.getByText(/MF2 is available to Customer and Platform Manager accounts\./)).toBeTruthy();
   });
 
   it('allows customer to accept the current quote when status is QUOTED', () => {
@@ -541,12 +708,11 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
-    expect(screen.getByText('1. Submit request')).toBeTruthy();
-    expect(screen.getByText('2. Manager selects partner')).toBeTruthy();
-    expect(screen.getByText('3. Review quotation')).toBeTruthy();
-    expect(screen.getByText('4. Accept terms and sign agreement')).toBeTruthy();
-    expect(screen.getByText('5. Inspection dispatched')).toBeTruthy();
+    openTrackProgress();
+    expect(screen.getByText('1. Request submitted')).toBeTruthy();
+    expect(screen.getByText('2. Review manager quote')).toBeTruthy();
+    expect(screen.getByText('3. Accept terms & sign contract')).toBeTruthy();
+    expect(screen.getByText('4. Inspection scheduled')).toBeTruthy();
     expect(screen.queryByText('Customer creates inspection request')).toBeNull();
     expect(screen.getByText('Current quote')).toBeTruthy();
     expect(screen.getByText('Revised scope')).toBeTruthy();
@@ -571,6 +737,7 @@ describe('ContractsPage', () => {
       data: [
         {
           id: 'req-signed',
+          assignedManagerId: 'manager-1',
           ownerCustomerId: 'org-1',
           assetId: 'asset-1',
           description: 'Bridge survey',
@@ -661,7 +828,7 @@ describe('ContractsPage', () => {
     vi.spyOn(contractsHook, 'usePartnerCapabilities').mockReturnValue({ data: [], isPending: false } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    openTrackProgress();
     expect(screen.getByText('Occurrence 1')).toBeTruthy();
     const assignButton = screen.getByRole('button', { name: 'Assign occurrence' });
     expect(assignButton.hasAttribute('disabled')).toBe(true);
@@ -755,6 +922,7 @@ describe('ContractsPage', () => {
           contractUploadedAt: null,
           createdAt: '2026-10-29T00:00:00Z',
           currentQuote: null,
+          assignedManagerId: 'manager-1',
           occurrences: [],
           messages: [],
         },
@@ -778,7 +946,7 @@ describe('ContractsPage', () => {
     } as any);
 
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Track progress' }));
+    openTrackProgress();
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Inspector and drone' }));
 
@@ -825,6 +993,7 @@ describe('ContractsPage', () => {
         id: 'req-1',
         ownerCustomerId: 'org-1',
         assetId: 'asset-1',
+        assignedManagerId: 'manager-1',
         description: 'Crack check',
         requestedFrom: '2026-11-01',
         requestedUntil: '2026-11-10',

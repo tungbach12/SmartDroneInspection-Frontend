@@ -7,6 +7,7 @@ vi.mock('@/shared/api/client', () => ({
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -19,6 +20,55 @@ describe('contractApi', () => {
 
     await expect(contractApi.listRequests()).resolves.toBe(requests);
     expect(api.get).toHaveBeenCalledWith('/contracts/requests');
+  });
+
+  it('claims, reassigns, and unassigns a service request through assignment endpoints', async () => {
+    const request = { data: { id: 'req-1' } };
+    vi.mocked(api.post).mockResolvedValue(request as never);
+    vi.mocked(api.put).mockResolvedValue(request as never);
+    vi.mocked(api.delete).mockResolvedValue(request as never);
+
+    await expect(contractApi.claimRequest('req-1')).resolves.toBe(request.data);
+    expect(api.post).toHaveBeenCalledWith('/contracts/requests/req-1/claim');
+
+    await expect(contractApi.reassignRequest('req-1', 'manager-1')).resolves.toBe(request.data);
+    expect(api.put).toHaveBeenCalledWith('/contracts/requests/req-1/manager-assignment', {
+      managerId: 'manager-1',
+    });
+
+    await expect(contractApi.unassignRequest('req-1')).resolves.toBe(request.data);
+    expect(api.delete).toHaveBeenCalledWith('/contracts/requests/req-1/manager-assignment');
+  });
+
+  it('lists active Managers for the ADMIN assignment selector', async () => {
+    const managers = [{ id: 'manager-1', fullName: 'Manager One', email: 'manager@example.test' }];
+    vi.mocked(api.get).mockResolvedValue({ data: managers } as never);
+
+    await expect(contractApi.listServiceManagers()).resolves.toBe(managers);
+    expect(api.get).toHaveBeenCalledWith('/contracts/requests/managers');
+  });
+
+  it('posts chat text and files as multipart form data', async () => {
+    const file = new File(['image'], 'site.png', { type: 'image/png' });
+    const response = { data: { id: 'req-1' } };
+    vi.mocked(api.post).mockResolvedValue(response as never);
+
+    await expect(contractApi.postMessage('req-1', 'See attached', [file])).resolves.toBe(response.data);
+
+    const [, form] = vi.mocked(api.post).mock.calls[0] as [string, FormData];
+    expect(form.get('body')).toBe('See attached');
+    expect(form.getAll('files')).toEqual([file]);
+  });
+
+  it('downloads chat attachment through its scoped endpoint as a Blob', async () => {
+    const attachment = new Blob(['image'], { type: 'image/png' });
+    vi.mocked(api.get).mockResolvedValue({ data: attachment } as never);
+
+    await expect(contractApi.downloadMessageAttachment('req-1', 'msg-1', 'att-1')).resolves.toBe(attachment);
+    expect(api.get).toHaveBeenCalledWith(
+      '/contracts/requests/req-1/messages/msg-1/attachments/att-1',
+      { responseType: 'blob' },
+    );
   });
 
   it('saves a quote via PUT /contracts/requests/:requestId/quote', async () => {
