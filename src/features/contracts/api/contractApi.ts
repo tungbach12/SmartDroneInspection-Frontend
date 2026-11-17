@@ -106,6 +106,11 @@ export interface ServiceRefundSummary {
   amount: number;
   status: 'INITIATED' | 'COMPLETED' | 'CANCELLED';
   requestReference: string | null;
+  reasonCode: string | null;
+  serviceStage: string | null;
+  contractClauseReference: string | null;
+  evidenceReference: string | null;
+  caseReason: string | null;
   inspectorReceivableAmount: number | null;
   platformAbsorbedPlanAmount: number | null;
   initiatedByUserId: string | null;
@@ -471,7 +476,8 @@ export const contractApi = {
   },
 
   async initiateOccurrenceRefund(requestId: string, occurrenceId: string, input: {
-    amount: number; requestReference: string; reason: string;
+    amount: number; requestReference: string; reasonCode: string; serviceStage: string;
+    reason: string; contractClauseReference: string; evidenceReference: string;
     inspectorReceivableAmount: number; platformAbsorbedAmount: number;
   }): Promise<ServiceRequest> {
     const { data } = await api.post<ServiceRequest>(

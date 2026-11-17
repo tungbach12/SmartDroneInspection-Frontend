@@ -201,7 +201,7 @@ export function useConfirmOccurrencePayment(requestId: string, occurrenceId: str
 }
 
 export function useInitiateOccurrenceRefund(requestId: string, occurrenceId: string) {
-  return useContractMutation<{ amount: number; requestReference: string; reason: string; inspectorReceivableAmount: number; platformAbsorbedAmount: number }>(
+  return useContractMutation<{ amount: number; requestReference: string; reasonCode: string; serviceStage: string; reason: string; contractClauseReference: string; evidenceReference: string; inspectorReceivableAmount: number; platformAbsorbedAmount: number }>(
     (input) => contractApi.initiateOccurrenceRefund(requestId, occurrenceId, input),
     'Refund initiated; payout is held until the external transfer is confirmed.', requestId);
 }
