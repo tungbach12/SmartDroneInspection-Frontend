@@ -2573,4 +2573,9 @@
   "Evidence captures": "Ảnh/video bằng chứng",
   "Post-remediation inspection": "Kiểm tra lại sau khắc phục",
   "Target defect(s)": "khuyết tật mục tiêu",
+  "Validity Window": "Hiệu lực giấy phép",
+  "Show flight report": "Xem báo cáo bay",
+  "Hide flight report": "Thu gọn báo cáo bay",
+  "Manager": "Quản lý",
+  "Schedule": "Lịch dự kiến",
 };

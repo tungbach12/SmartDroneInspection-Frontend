@@ -6,11 +6,13 @@ import {
   Button,
   ButtonBase,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  Grid,
   IconButton,
   Menu,
   MenuItem,
@@ -29,13 +31,19 @@ import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
+import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
-import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  platformUserApi,
+  type PlatformUser,
+} from '@/features/admin/api/platformUserApi';
 import '../styles/trace-ledger.css';
 import {
   useAcceptInspection,
@@ -51,6 +59,7 @@ import {
   useRescheduleInspection,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
+import { OverviewStakeholdersSection } from '../components/OverviewStakeholdersSection';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
 import {
@@ -331,6 +340,43 @@ export default function InspectionDetailPage() {
 
   const activeEvidenceCount = (evidenceQuery.data ?? []).filter((item) => !item.isDeleted).length;
   const versions = useReportVersions(inspectionId);
+  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+  const [contextOverviewOpen, setContextOverviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isReviewerAdmin || !inspection?.id) return;
+    let active = true;
+    platformUserApi
+      .list()
+      .then((users) => {
+        if (active && Array.isArray(users)) setPlatformUsers(users);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isReviewerAdmin, inspection?.id]);
+
+  const matchedCustomer = platformUsers.find((u) => u.id === inspection?.ownerCustomerId);
+  const matchedInspector = platformUsers.find((u) => u.id === inspection?.inspectorId);
+  const customerLabel =
+    inspection?.ownerCustomerName ||
+    matchedCustomer?.fullName ||
+    versions.data?.[0]?.reportContext?.organizationName ||
+    (inspection?.ownerCustomerId ? `#${inspection.ownerCustomerId.slice(0, 8)}` : null);
+  const inspectorLabel =
+    inspection?.inspectorName ||
+    matchedInspector?.fullName ||
+    (inspection?.inspectorId ? `#${inspection.inspectorId.slice(0, 8)}` : null);
+  const managerLabel =
+    inspection?.managerName ||
+    inspection?.flightPermitVerifiedByName ||
+    null;
+  const droneShortName =
+    inspection?.droneModel || inspection?.droneSerialNumber || t('Unassigned');
+  const shortScheduleLabel = inspection?.plannedStartAt
+    ? formatDate(new Date(inspection.plannedStartAt))
+    : null;
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
@@ -808,15 +854,11 @@ export default function InspectionDetailPage() {
               ),
             },
             {
-              label: isCustomer
-                ? t('Inspections')
-                : isReviewerAdmin
-                  ? t('Review queue')
-                  : t('Inspections'),
+              label: t('Inspections'),
               to: isCustomer
                 ? getSectionPath('client', 'inspections')
                 : isReviewerAdmin
-                  ? `${getSectionPath(reviewerPortal, 'inspections')}?view=reports`
+                  ? getSectionPath(reviewerPortal, 'inspections')
                   : getSectionPath('operations', 'inspections'),
             },
             {
@@ -851,89 +893,205 @@ export default function InspectionDetailPage() {
               boxShadow: 'none',
             }}
           >
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1.5}
-              sx={{
-                alignItems: { md: 'center' },
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                rowGap: 0.75,
-              }}
-            >
+            <Stack spacing={0}>
               <Stack
-                direction="row"
-                spacing={2}
-                sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.75 }}
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={1.5}
+                sx={{
+                  alignItems: { md: 'center' },
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  rowGap: 0.75,
+                }}
               >
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
-                </Typography>
-
-                {inspection.inspectionType === 'RE_INSPECTION' && (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    color="secondary"
-                    label={
-                      inspection.sourceInspectionId
-                        ? `${t('Re-inspection')} · #${inspection.sourceInspectionId.slice(0, 8)}`
-                        : t('Re-inspection')
-                    }
-                    sx={{
-                      height: 22,
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-
-                {isReviewerAdmin && <StatusChip status={inspection.status} />}
-
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t('Drone')}:{' '}
-                  <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                    {inspection.droneSerialNumber ?? t('Unassigned')}
-                    {inspection.droneModel ? ` (${inspection.droneModel})` : ''}
-                  </Box>
-                </Typography>
-
-                {isReviewerAdmin && inspection.plannedStartAt && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                    {t('Planned Start')}:{' '}
-                    <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                      {formatDateTime(new Date(inspection.plannedStartAt))}
-                      {inspection.plannedEndAt
-                        ? ` – ${formatDateTime(new Date(inspection.plannedEndAt))}`
-                        : ''}
-                    </Box>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  onClick={() => setContextOverviewOpen((prev) => !prev)}
+                  sx={{
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    rowGap: 0.75,
+                    cursor: 'pointer',
+                    flex: 1,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                   </Typography>
-                )}
+
+                  {inspection.inspectionType === 'RE_INSPECTION' && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="secondary"
+                      label={
+                        inspection.sourceInspectionId
+                          ? `${t('Re-inspection')} · #${inspection.sourceInspectionId.slice(0, 8)}`
+                          : t('Re-inspection')
+                      }
+                      sx={{
+                        height: 22,
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
+
+                  {!isCustomer && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('Drone')}:{' '}
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {droneShortName}
+                      </Box>
+                    </Typography>
+                  )}
+
+                  {!isCustomer && customerLabel && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('Customer')}:{' '}
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {customerLabel}
+                      </Box>
+                    </Typography>
+                  )}
+
+                  {!isReviewerAdmin && managerLabel && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('Manager')}:{' '}
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {managerLabel}
+                      </Box>
+                    </Typography>
+                  )}
+
+                  {(isReviewerAdmin || isCustomer) && inspectorLabel && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {t('Inspector')}:{' '}
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {inspectorLabel}
+                      </Box>
+                    </Typography>
+                  )}
+
+                  {!isReviewerAdmin && shortScheduleLabel && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                      {t('Schedule')}:{' '}
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+                        {shortScheduleLabel}
+                      </Box>
+                    </Typography>
+                  )}
+                </Stack>
+
+                <Button
+                  size="small"
+                  variant="text"
+                  aria-expanded={contextOverviewOpen}
+                  endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                  onClick={() => setContextOverviewOpen((prev) => !prev)}
+                  sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1 }}
+                >
+                  {t('Overview')}
+                </Button>
               </Stack>
 
-
-              {!isOrganizationAdmin && !isCustomer && (
-                <Box
-                  role="region"
-                  className="inspection-evidence-trace"
-                  aria-label={t('Inspection evidence trace')}
-                  sx={{ p: 0, border: 'none !important', bgcolor: 'transparent' }}
+              <Collapse in={contextOverviewOpen} unmountOnExit>
+                <Stack
+                  spacing={2}
+                  sx={{
+                    mt: 1.5,
+                    pt: 1.5,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                  }}
                 >
-                  <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                    <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
-                    <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
-                    <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
-                  </Stack>
-                </Box>
-              )}
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {t('Asset')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {t('Location')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {formatLocation(inspection.locationText)}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {t('Drone')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {isCustomer
+                          ? droneShortName
+                          : [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') || t('Unassigned')}
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {t('Planned Start')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        {inspection.plannedStartAt
+                          ? `${formatDateTime(new Date(inspection.plannedStartAt))}${inspection.plannedEndAt ? ` – ${formatDateTime(new Date(inspection.plannedEndAt))}` : ''}`
+                          : '—'}
+                      </Typography>
+                    </Grid>
+                    {inspection.inspectionItems?.length > 0 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {t('Inspection items')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {inspection.inspectionItems.join(', ')}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+
+                  {!isCustomer ? (
+                    <Box
+                      role="region"
+                      className="inspection-evidence-trace"
+                      aria-label={t('Inspection evidence trace')}
+                      sx={{ p: 0, border: 'none !important', bgcolor: 'transparent' }}
+                    >
+                      <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+                        <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
+                        <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
+                        <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>{t('Report')}</strong> ·{' '}
+                        {hasPublishedVersion ? t('Published') : t('Pending')}
+                      </Typography>
+                    </Stack>
+                  )}
+
+                  {!isOrganizationAdmin && !isCustomer && (
+                    <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
+                  )}
+
+                  {isReviewerAdmin && (
+                    <OverviewStakeholdersSection
+                      inspection={inspection}
+                      portal={reviewerPortal}
+                      onNavigateAway={() => setContextOverviewOpen(false)}
+                    />
+                  )}
+                </Stack>
+              </Collapse>
             </Stack>
           </Paper>
-        )}
-
-        {!isOrganizationAdmin && !isCustomer && inspection && (
-          <Box sx={{ mt: 1.25 }}>
-            <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
-          </Box>
         )}
 
         {isPendingAcceptance && (

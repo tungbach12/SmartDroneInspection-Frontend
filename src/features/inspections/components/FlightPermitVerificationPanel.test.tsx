@@ -170,4 +170,30 @@ describe('FlightPermitVerificationPanel', () => {
     expect(screen.queryByRole('button', { name: 'Approve flight permit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reject flight permit' })).toBeNull();
   });
+
+  it('hides airspace strip and pending review prompt when showAirspace and showPendingPrompt are false', () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <FlightPermitVerificationPanel
+          inspection={{ ...BASE_INSPECTION, flightPermitVerificationStatus: 'APPROVED' }}
+          canReview
+          onPreviewPermit={vi.fn()}
+          compact
+          showAirspace={false}
+          showPendingPrompt={false}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByText(/Airspace:/i)).toBeNull();
+    expect(screen.queryByText(/Clear Zone/i)).toBeNull();
+    expect(screen.queryByText(/Submitted by the Inspector — review the document and approve or reject/i)).toBeNull();
+    expect(screen.queryByText('SHA-256 Digest')).toBeNull();
+    expect(screen.queryByText('Verified and approved for this mission window.')).toBeNull();
+    expect(screen.getByText('Validity Window')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Already approved' })).toBeTruthy();
+  });
 });

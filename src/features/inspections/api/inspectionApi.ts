@@ -496,6 +496,8 @@ export interface CreateInspectionInput {
 export interface InspectionDetail {
   id: string;
   ownerCustomerId: string;
+  ownerCustomerName?: string | null;
+  managerName?: string | null;
   assetId: string;
   assetName: string | null;
   locationText?: string | null | undefined;

@@ -109,8 +109,8 @@ export default function ManagerReportReviewPage({
             items={[
               { label: t('Dashboard'), to: getSectionPath(portal, 'dashboard') },
               {
-                label: t('Review queue'),
-                to: `${getSectionPath(portal, 'inspections')}?view=reports`,
+                label: t('Inspections'),
+                to: getSectionPath(portal, 'inspections'),
               },
               { label: t('Inspection Report') },
             ]}
@@ -131,43 +131,14 @@ export default function ManagerReportReviewPage({
 
       {showAuditStage ? (
         <Stack spacing={2.5}>
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              borderRadius: '10px',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              alignItems: { sm: 'center' },
-              justifyContent: 'space-between',
-              gap: 1.5,
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Field & Evidence Audit')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {`${t('Captures')}: ${(evidence.data ?? []).filter((e) => !e.isDeleted).length} · ${t('Confirmed findings')}: ${(findings.data ?? []).filter((f) => f.status === 'CONFIRMED' && !f.isDeleted).length}`}
-              </Typography>
-            </Box>
-            <Button
-              component={RouterLink}
-              to="../review"
-              variant="contained"
-              sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
-            >
-              {t('Continue to Report Decision')}
-            </Button>
-          </Paper>
-
           {inspectionQuery.data && (
             <FlightPermitVerificationPanel
               inspection={inspectionQuery.data}
               canReview={canVerifyPermit}
               onPreviewPermit={() => setPermitPreviewOpen(true)}
+              compact
+              showAirspace={false}
+              showPendingPrompt={false}
             />
           )}
 
@@ -201,7 +172,19 @@ export default function ManagerReportReviewPage({
             assetName={inspectionQuery.data?.assetName}
             droneSummary={resolvedDroneSummary}
             flightPermitFileName={resolvedPermitFileName}
+            collapsible
           />
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              component={RouterLink}
+              to="../review"
+              variant="contained"
+              sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
+            >
+              {t('Continue to Report Decision')}
+            </Button>
+          </Box>
         </Stack>
       ) : showSettlementStage && stage === 'settlement' ? (
         <Stack spacing={2.5}>

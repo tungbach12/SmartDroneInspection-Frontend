@@ -39,6 +39,8 @@ export interface FlightPermitVerificationPanelProps {
   compact?: boolean;
   hideHeader?: boolean;
   hideEmptyNotice?: boolean;
+  showAirspace?: boolean;
+  showPendingPrompt?: boolean;
 }
 
 function formatDigestShort(digest: string): string {
@@ -105,6 +107,8 @@ export function FlightPermitVerificationPanel({
   compact = false,
   hideHeader = false,
   hideEmptyNotice = false,
+  showAirspace = true,
+  showPendingPrompt = true,
 }: FlightPermitVerificationPanelProps) {
   const { t, formatDateTime } = useLocale();
   const reviewPermit = useReviewFlightPermit(inspection.id);
@@ -214,7 +218,7 @@ export function FlightPermitVerificationPanel({
           </Stack>
         )}
 
-        {airspace && (
+        {showAirspace && airspace && (
           <Stack
             direction="row"
             spacing={1}
@@ -274,7 +278,7 @@ export function FlightPermitVerificationPanel({
           </Alert>
         )}
 
-        {verificationStatus === 'PENDING_REVIEW' && (
+        {showPendingPrompt && verificationStatus === 'PENDING_REVIEW' && (
           <Alert severity="warning" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {canReview
@@ -284,7 +288,7 @@ export function FlightPermitVerificationPanel({
           </Alert>
         )}
 
-        {verificationStatus === 'APPROVED' && (
+        {!compact && verificationStatus === 'APPROVED' && (
           <Alert severity="success" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {t('Verified and approved for this mission window.')}
@@ -374,29 +378,53 @@ export function FlightPermitVerificationPanel({
               </Grid>
             )}
 
-            {inspection.flightPermitValidFrom && (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Valid From')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {formatDateTime(new Date(inspection.flightPermitValidFrom))}
-                </Typography>
-              </Grid>
+            {compact ? (
+              (inspection.flightPermitValidFrom || inspection.flightPermitValidTo) && (
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('Validity Window')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {[
+                      inspection.flightPermitValidFrom
+                        ? formatDateTime(new Date(inspection.flightPermitValidFrom))
+                        : null,
+                      inspection.flightPermitValidTo
+                        ? formatDateTime(new Date(inspection.flightPermitValidTo))
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' – ')}
+                  </Typography>
+                </Grid>
+              )
+            ) : (
+              <>
+                {inspection.flightPermitValidFrom && (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Valid From')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatDateTime(new Date(inspection.flightPermitValidFrom))}
+                    </Typography>
+                  </Grid>
+                )}
+
+                {inspection.flightPermitValidTo && (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('Valid To')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatDateTime(new Date(inspection.flightPermitValidTo))}
+                    </Typography>
+                  </Grid>
+                )}
+              </>
             )}
 
-            {inspection.flightPermitValidTo && (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Valid To')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {formatDateTime(new Date(inspection.flightPermitValidTo))}
-                </Typography>
-              </Grid>
-            )}
-
-            {inspection.flightPermitMaxAltitudeM != null && (
+            {!compact && inspection.flightPermitMaxAltitudeM != null && (
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Typography variant="caption" color="text.secondary">
                   {t('Max Permitted Altitude')}
@@ -413,13 +441,15 @@ export function FlightPermitVerificationPanel({
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap title={inspection.flightPermitFileName ?? ''}>
                 {inspection.flightPermitFileName}
-                {inspection.flightPermitFileSizeBytes != null && inspection.flightPermitFileSizeBytes > 0
+                {!compact &&
+                inspection.flightPermitFileSizeBytes != null &&
+                inspection.flightPermitFileSizeBytes > 0
                   ? ` (${formatFileSize(inspection.flightPermitFileSizeBytes)})`
                   : ''}
               </Typography>
             </Grid>
 
-            {inspection.flightPermitFileSha256 && (
+            {!compact && inspection.flightPermitFileSha256 && (
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Typography variant="caption" color="text.secondary">
                   {t('SHA-256 Digest')}

@@ -552,74 +552,70 @@ export function InspectionListTable({
                 }}
               >
                 <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  {reviewerMode ? t('Inspection') : t('Asset')}
+                  {t('Asset')}
                   <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
                 </Box>
               </TableCell>
-              {!reviewerMode && (
-                <>
-                  <TableCell
-                    sx={{
-                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                      color: '#71717A',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      letterSpacing: '0.01em',
-                      py: 1.5,
-                      px: 2,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      width: 140,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                      {t('Schedule')}
-                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                    </Box>
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                      color: '#71717A',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      letterSpacing: '0.01em',
-                      py: 1.5,
-                      px: 2,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      width: 140,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                      {t('Stage')}
-                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                    </Box>
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                      color: '#71717A',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      letterSpacing: '0.01em',
-                      py: 1.5,
-                      px: 2,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      width: 130,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                      {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
-                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                    </Box>
-                  </TableCell>
-                </>
-              )}
+              <TableCell
+                sx={{
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 140,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  {t('Schedule')}
+                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                </Box>
+              </TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 140,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  {t('Stage')}
+                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                </Box>
+              </TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 130,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
+                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
+                </Box>
+              </TableCell>
               {(showReportColumn || reviewerMode) && (
                 <TableCell
                   sx={{
@@ -636,7 +632,7 @@ export function InspectionListTable({
                     width: 125,
                   }}
                 >
-                  {reviewerMode ? 'Decision due' : 'Report'}
+                  {t('Report')}
                 </TableCell>
               )}
               <TableCell
@@ -656,14 +652,14 @@ export function InspectionListTable({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {reviewerMode ? 'Reviewer action' : t('Action')}
+                {t('Action')}
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={reviewerMode ? 3 : showReportColumn ? 6 : 5}>
+                <TableCell colSpan={showReportColumn || reviewerMode ? 6 : 5}>
                   <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
                     {t('No inspections match this view yet.')}
                   </Typography>
@@ -759,11 +755,7 @@ export function InspectionListTable({
                           )}
                         </Stack>
 
-                        {reviewerMode ? (
-                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
-                            {meta.displayName} · {(row as { assignedInspectorName?: string | null }).assignedInspectorName ?? t('Assigned partner inspector')}
-                          </Typography>
-                        ) : (locationLabel || meta.objective) ? (
+                        {(locationLabel || meta.objective) ? (
                           <Typography
                             variant="caption"
                             noWrap
@@ -780,8 +772,6 @@ export function InspectionListTable({
                       </Stack>
                     </TableCell>
 
-                    {!reviewerMode && (
-                      <>
                       <TableCell
                         sx={{
                           py: 1.75,
@@ -903,8 +893,6 @@ export function InspectionListTable({
                           </Typography>
                         )}
                       </TableCell>
-                      </>
-                    )}
 
                     {(showReportColumn || reviewerMode) && (
                       <TableCell

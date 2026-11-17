@@ -109,8 +109,8 @@ describe('FlightOperationsReportView', () => {
     expect(screen.getByText('Uploaded file after flight · clip_01.srt')).toBeTruthy();
     expect(screen.queryByText(/unavailable telemetry fields are not inferred/i)).toBeNull();
     expect(
-      screen.getByText('SRT records a video segment; it does not establish the full flight duration or milestones.'),
-    ).toBeTruthy();
+      screen.queryByText('SRT records a video segment; it does not establish the full flight duration or milestones.'),
+    ).toBeNull();
     expect(screen.getByText('Duration unavailable in this source')).toBeTruthy();
     expect(screen.getAllByText('Speed data not included in this log').length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText('Battery data not included in this log').length).toBeGreaterThanOrEqual(2);
@@ -300,8 +300,8 @@ describe('FlightOperationsReportView', () => {
 
     expect(await screen.findByText('Uploaded file after flight · nvhsv-waypoint-mission.srt')).toBeTruthy();
     expect(
-      screen.getByText('First recorded GPS point is 19.8 km from the registered asset coordinates.'),
-    ).toBeTruthy();
+      screen.queryByText('First recorded GPS point is 19.8 km from the registered asset coordinates.'),
+    ).toBeNull();
     expect(screen.queryByText(/\[WARN:/i)).toBeNull();
   });
 });
