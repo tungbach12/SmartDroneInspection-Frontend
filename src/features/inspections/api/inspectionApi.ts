@@ -547,6 +547,8 @@ export interface InspectionDetail {
   clarificationCount?: number;
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
+  workOrderId?: string | null;
+  sourceReportVersionId?: string | null;
 }
 
 export interface ReinspectionVerificationItem {
@@ -1107,6 +1109,11 @@ export const inspectionApi = {
       .post<VnPayCheckoutDetails>(
         `/inspections/${inspectionId}/vnpay/create-payment-url`,
       )
+      .then((response) => response.data),
+
+  downloadPaymentDocument: (inspectionId: string) =>
+    api
+      .get<Blob>(`/inspections/${inspectionId}/report/payment-document`, { responseType: 'blob' })
       .then((response) => response.data),
 
   getReportPaymentStatus: (inspectionId: string) =>

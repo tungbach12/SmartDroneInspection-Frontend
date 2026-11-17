@@ -17,6 +17,18 @@ describe('inspectionApi MF3 simplified contracts', () => {
     expect(form.has('source')).toBe(false);
   });
 
+  it('downloads the payment notice or receipt as a PDF blob', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue({ data: new Blob(['%PDF']) } as never);
+
+    const document = await inspectionApi.downloadPaymentDocument('inspection-1');
+
+    expect(get).toHaveBeenCalledWith(
+      '/inspections/inspection-1/report/payment-document',
+      { responseType: 'blob' },
+    );
+    expect(document).toBeInstanceOf(Blob);
+  });
+
   it('uploads flight permit with structured metadata through the flight-permit endpoint', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({
       data: { id: 'inspection-1', status: 'SCHEDULED', flightPermitVerificationStatus: 'PENDING_REVIEW' },
