@@ -40,25 +40,26 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { ReportAiSummaryCard } from './ReportAiSummaryCard';
 import { ReportFindingsMapPanel } from './ReportFindingsMapPanel';
 
-function getTelemetryShortLabel(
-  telemetrySource: string | null | undefined,
-  t: (key: string) => string,
-): string {
-  if (!telemetrySource) return t('Not recorded');
-  if (telemetrySource === 'MISSION_PLANNER_MAVLINK') {
-    return `${t('Live stream during flight')} (MAVLink)`;
+function getMeaningfulTechnicalNotes(finding: Finding): string | null {
+  const trimmed = finding.technicalNotes?.trim();
+  if (!trimmed) return null;
+  if (trimmed.toLowerCase() === finding.defectLabel.trim().toLowerCase()) {
+    return null;
   }
-  if (telemetrySource.startsWith('IMPORTED_LOG_')) {
-    const fmt = telemetrySource.replace('IMPORTED_LOG_', '');
-    return `${t('Uploaded flight log file')} (${fmt})`;
-  }
-  if (telemetrySource === 'SMARTDRONEHUB_SIMULATION') {
-    return t('Simulated telemetry');
-  }
-  if (telemetrySource === 'MANUAL_DECLARATION') {
-    return t('Manual declaration');
-  }
-  return t('Not recorded');
+  return trimmed;
+}
+
+function CaptureLocationField({
+  locationDescription,
+  stacked = false,
+}: {
+  locationDescription: string | null | undefined;
+  stacked?: boolean;
+}) {
+  const { t } = useLocale();
+  const formatted = formatEvidenceLocationDescription(locationDescription, t)?.trim();
+  if (!formatted) return null;
+  return <Field label={t('Capture location')} value={formatted} stacked={stacked} />;
 }
 
 function evidenceGridColumns(count: number) {
@@ -155,23 +156,23 @@ function formatChecklistLabel(rawItem: string, t: (key: string) => string): stri
 function getTelemetryOriginBadge(
   telemetrySource: string | null | undefined,
   t: (key: string) => string,
-): { label: string; color: 'success' | 'info' | 'warning' | 'default' } | null {
+): { label: string } | null {
   if (!telemetrySource) return null;
   if (telemetrySource === 'MISSION_PLANNER_MAVLINK') {
-    return { label: `${t('Telemetry source')}: ${t('Live stream during flight')} (MAVLink)`, color: 'success' };
+    return { label: `${t('Telemetry source')}: ${t('Live stream during flight')} (MAVLink)` };
   }
   if (telemetrySource.startsWith('IMPORTED_LOG_')) {
     const fmt = telemetrySource.replace('IMPORTED_LOG_', '');
-    return { label: `${t('Telemetry source')}: ${t('Uploaded flight log file')} (${fmt})`, color: 'info' };
+    return { label: `${t('Telemetry source')}: ${t('Uploaded flight log file')} (${fmt})` };
   }
   if (telemetrySource === 'SMARTDRONEHUB_SIMULATION') {
-    return { label: `${t('Telemetry source')}: ${t('Simulated telemetry')}`, color: 'warning' };
+    return { label: `${t('Telemetry source')}: ${t('Simulated telemetry')}` };
   }
   if (telemetrySource === 'MANUAL_DECLARATION') {
-    return { label: `${t('Telemetry source')}: ${t('Manual declaration (no file or stream)')}`, color: 'warning' };
+    return { label: `${t('Telemetry source')}: ${t('Manual declaration (no file or stream)')}` };
   }
   if (telemetrySource === 'NONE') {
-    return { label: `${t('Telemetry source')}: ${t('Not recorded')}`, color: 'default' };
+    return { label: `${t('Telemetry source')}: ${t('Not recorded')}` };
   }
   return null;
 }
@@ -300,27 +301,11 @@ function SessionChecklistBlock({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const { checkedItems, skippedItems, remark } =
     parsedChecklist ?? parseSessionChecklist(rawNote);
+  const noteText = (remark ?? rawNote)?.trim() || null;
+  const hasChecklistItems = checkedItems.length > 0 || skippedItems.length > 0;
 
-  if (checkedItems.length === 0 && skippedItems.length === 0) {
-    if (!rawNote?.trim() && !remark) return null;
-    return (
-      <Box
-        sx={{
-          p: 1.25,
-          borderRadius: '8px',
-          bgcolor: 'action.hover',
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, display: 'block', mb: 0.25 }}>
-          {label}
-        </Typography>
-        <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'text.primary' }}>
-          {remark ?? rawNote}
-        </Typography>
-      </Box>
-    );
+  if (!hasChecklistItems && !noteText) {
+    return null;
   }
 
   return (
@@ -378,36 +363,16 @@ function SessionChecklistBlock({
             {label}
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexShrink: 0 }}>
           {checkedItems.length > 0 && (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`${checkedItems.length} ${t('verified')}`}
-              sx={{
-                height: 20,
-                fontSize: '0.75rem',
-                fontWeight: 650,
-                bgcolor: '#f0fdf4',
-                color: '#166534',
-                borderColor: '#bbf7d0',
-              }}
-            />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem' }}>
+              {checkedItems.length} {t('verified')}
+            </Typography>
           )}
           {skippedItems.length > 0 && (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`${skippedItems.length} ${t('skipped')}`}
-              sx={{
-                height: 20,
-                fontSize: '0.75rem',
-                fontWeight: 650,
-                bgcolor: '#fef9c3',
-                color: '#713f12',
-                borderColor: '#fde047',
-              }}
-            />
+            <Typography variant="caption" sx={{ color: 'warning.dark', fontWeight: 600, fontSize: '0.75rem' }}>
+              {skippedItems.length} {t('skipped')}
+            </Typography>
           )}
           {expanded ? (
             <ExpandLessRounded fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -418,64 +383,72 @@ function SessionChecklistBlock({
       </Stack>
 
       <Collapse in={expanded} timeout="auto">
-        <Stack spacing={0}>
-          {checkedItems.map((item, idx) => (
-            <Box
-              key={`chk-${idx}`}
-              sx={{
-                py: 0.65,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 0.85,
-                borderTop: idx === 0 ? 'none' : '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <CheckCircleRounded color="success" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
-              <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                {formatChecklistLabel(item, t)}
-              </Typography>
-            </Box>
-          ))}
-          {skippedItems.map((item, idx) => (
-            <Box
-              key={`skp-${idx}`}
-              sx={{
-                py: 0.65,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 0.85,
-                borderTop: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <WarningAmberRounded color="warning" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
-              <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
-                {formatChecklistLabel(item, t)}
-              </Typography>
-            </Box>
-          ))}
-        </Stack>
+        {hasChecklistItems ? (
+          <>
+            <Stack spacing={0}>
+              {checkedItems.map((item, idx) => (
+                <Box
+                  key={`chk-${idx}`}
+                  sx={{
+                    py: 0.65,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 0.85,
+                    borderTop: idx === 0 ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <CheckCircleRounded color="success" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
+                    {formatChecklistLabel(item, t)}
+                  </Typography>
+                </Box>
+              ))}
+              {skippedItems.map((item, idx) => (
+                <Box
+                  key={`skp-${idx}`}
+                  sx={{
+                    py: 0.65,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 0.85,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <WarningAmberRounded color="warning" sx={{ fontSize: 15, mt: '2px', flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.primary', lineHeight: 1.4 }}>
+                    {formatChecklistLabel(item, t)}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
 
-        {remark && (
-          <Stack
-            direction="row"
-            spacing={0.75}
-            sx={{
-              mt: 0.75,
-              pt: 1,
-              borderTop: '1px dashed',
-              borderColor: 'divider',
-              alignItems: 'baseline',
-            }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flexShrink: 0 }}>
-              {t('Inspector note')}:
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
-              {remark}
-            </Typography>
-          </Stack>
+            {remark && (
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{
+                  mt: 0.75,
+                  pt: 1,
+                  borderTop: '1px dashed',
+                  borderColor: 'divider',
+                  alignItems: 'baseline',
+                }}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', flexShrink: 0 }}>
+                  {t('Inspector note')}:
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.primary', fontWeight: 500 }}>
+                  {remark}
+                </Typography>
+              </Stack>
+            )}
+          </>
+        ) : (
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.primary', lineHeight: 1.5, pt: 0.25 }}>
+            {noteText}
+          </Typography>
         )}
       </Collapse>
     </Box>
@@ -496,21 +469,30 @@ function formatDateTime(
 function ReadOnlySection({
   title,
   count,
+  headerAction,
   children,
 }: {
   title: string;
   count?: number;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Box component="section" sx={{ mb: 3 }}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
-        <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary' }}>
-          {title}
-        </Typography>
-        {typeof count === 'number' && (
-          <Chip size="small" label={count} sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
-        )}
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1.25 }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary' }}>
+            {title}
+          </Typography>
+          {typeof count === 'number' && (
+            <Chip size="small" label={count} sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }} />
+          )}
+        </Stack>
+        {headerAction}
       </Stack>
       {children}
     </Box>
@@ -646,12 +628,16 @@ export function ReportDerivedSections({
   const reportableFindings = findings.filter((finding) => finding.status === 'CONFIRMED');
   const context = version.reportContext;
   const sessionDrone = context?.fieldSessions?.at(-1);
+  const droneManufacturer = (context?.assignedDrone?.manufacturer ?? sessionDrone?.droneManufacturer ?? '').trim();
+  const droneModel = (context?.assignedDrone?.model ?? sessionDrone?.droneModel ?? '').trim();
+  const droneModelDisplay =
+    droneManufacturer && droneModel
+      ? droneModel.toLowerCase().startsWith(droneManufacturer.toLowerCase())
+        ? droneModel
+        : `${droneManufacturer} ${droneModel}`
+      : droneModel || droneManufacturer;
   const droneSummary =
-    [
-      context?.assignedDrone?.manufacturer ?? sessionDrone?.droneManufacturer,
-      context?.assignedDrone?.model ?? sessionDrone?.droneModel,
-      context?.assignedDrone?.serialNumber ?? sessionDrone?.droneSerialNumber,
-    ]
+    [droneModelDisplay, context?.assignedDrone?.serialNumber ?? sessionDrone?.droneSerialNumber]
       .filter(Boolean)
       .join(' · ') ||
     externalDroneSummary ||
@@ -710,28 +696,14 @@ export function ReportDerivedSections({
     });
   };
   const reportSummaryText = version.summary?.trim() || null;
+  const isDraftPreview = version.id.startsWith('preview-');
   const latestContextSession = context?.fieldSessions?.at(-1);
   const latestLiveSession = latestContextSession
     ? fieldSessions?.find((s) => s.id === latestContextSession.id)
     : fieldSessions?.at(-1);
-  const primaryTelemetrySource =
-    latestContextSession?.telemetrySource ?? latestLiveSession?.telemetrySource ?? null;
-
-  const totalChecklistStats = (context?.fieldSessions ?? []).reduce(
-    (acc, sess) => {
-      const pre = parseSessionChecklist(sess.preFlightChecklistNote);
-      const post = parseSessionChecklist(sess.outcomeNotes);
-      return {
-        verified: acc.verified + pre.checkedItems.length + post.checkedItems.length,
-        total:
-          acc.total +
-          pre.checkedItems.length +
-          pre.skippedItems.length +
-          post.checkedItems.length +
-          post.skippedItems.length,
-      };
-    },
-    { verified: 0, total: 0 },
+  const telemetryOrigin = getTelemetryOriginBadge(
+    latestContextSession?.telemetrySource ?? latestLiveSession?.telemetrySource,
+    t,
   );
 
   return (
@@ -748,103 +720,26 @@ export function ReportDerivedSections({
         />
       </Box>
 
-      {/* Executive at-a-glance strip so reviewer immediately knows key counts & flight origin */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
-          gap: 1.5,
-          mb: 3,
-        }}
+      <ReadOnlySection
+        title={t('Identification')}
+        headerAction={
+          telemetryOrigin ? (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={telemetryOrigin.label}
+              sx={{
+                height: 22,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                bgcolor: 'background.paper',
+                borderColor: 'divider',
+                color: 'text.secondary',
+              }}
+            />
+          ) : null
+        }
       >
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: reportableFindings.length > 0 ? 'warning.light' : 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-            {t('Confirmed findings')}
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '1.25rem',
-              fontWeight: 800,
-              color: reportableFindings.length > 0 ? 'warning.dark' : 'success.main',
-              lineHeight: 1.3,
-              mt: 0.25,
-            }}
-          >
-            {reportableFindings.length}
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-            {t('Evidence register')}
-          </Typography>
-          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: 'text.primary', lineHeight: 1.3, mt: 0.25 }}>
-            {evidenceList.length}
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-            {t('Field safety & completion')}
-          </Typography>
-          <Typography sx={{ fontSize: '1.25rem', fontWeight: 800, color: 'success.main', lineHeight: 1.3, mt: 0.25 }}>
-            {totalChecklistStats.total > 0
-              ? `${totalChecklistStats.verified}/${totalChecklistStats.total}`
-              : (context?.fieldSessions?.at(-1)?.status ?? '—')}
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>
-            {t('Telemetry source')}
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '0.925rem',
-              fontWeight: 700,
-              color: 'text.primary',
-              lineHeight: 1.35,
-              mt: 0.5,
-            }}
-          >
-            {getTelemetryShortLabel(primaryTelemetrySource, t)}
-          </Typography>
-        </Box>
-      </Box>
-
-      <ReadOnlySection title={t('Identification')}>
         <Box
           sx={{
             p: 1.75,
@@ -863,13 +758,18 @@ export function ReportDerivedSections({
           >
             <SummaryItem
               label={t('Report reference')}
-              value={`SDI-RPT-${version.id.slice(0, 8).toUpperCase()}-V${version.versionNo}`}
+              value={
+                isDraftPreview
+                  ? t('Pending submission')
+                  : `SDI-RPT-${version.id.slice(0, 8).toUpperCase()}-V${version.versionNo}`
+              }
             />
-            <SummaryItem
-              label={t('Version / status')}
-              value={`v${version.versionNo} · ${version.status}`}
-            />
-            <SummaryItem label={t('Organization')} value={context?.organizationName} />
+            {!isDraftPreview && (
+              <SummaryItem
+                label={t('Version / status')}
+                value={`v${version.versionNo} · ${version.status}`}
+              />
+            )}
             <SummaryItem
               label={t('Asset')}
               value={[context?.assetName, context?.assetCode].filter(Boolean).join(' · ')}
@@ -882,47 +782,41 @@ export function ReportDerivedSections({
             <SummaryItem label={t('Assigned Drone')} value={droneSummary} />
             {resolvedPermitFileName && (
               <Box sx={{ minWidth: 0 }}>
-                <Stack
-                  direction="row"
-                  sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75, mb: 0.25 }}
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.25 }}
                 >
+                  {t('Flight permit')}
+                </Typography>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                   <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', fontWeight: 600 }}
+                    variant="body2"
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 500,
+                      fontSize: '0.875rem',
+                      wordBreak: 'break-word',
+                    }}
                   >
-                    {t('Flight permit')}
+                    {resolvedPermitFileName}
                   </Typography>
                   <Button
                     size="small"
-                    variant="outlined"
-                    startIcon={<VisibilityOutlined sx={{ fontSize: 13 }} />}
+                    variant="text"
+                    startIcon={<VisibilityOutlined sx={{ fontSize: 14 }} />}
                     onClick={() => setPermitDialogOpen(true)}
                     sx={{
-                      height: 20,
                       minHeight: 20,
                       py: 0,
-                      px: 0.85,
-                      fontSize: '0.7rem',
+                      px: 0.5,
+                      fontSize: '0.75rem',
                       fontWeight: 600,
                       textTransform: 'none',
-                      borderRadius: '6px',
-                      lineHeight: 1,
                     }}
                   >
                     {t('View permit')}
                   </Button>
                 </Stack>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: 'text.primary',
-                    fontWeight: 500,
-                    fontSize: '0.875rem',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {resolvedPermitFileName}
-                </Typography>
               </Box>
             )}
             {context?.findingsConfirmedAt && (
@@ -959,12 +853,7 @@ export function ReportDerivedSections({
               spacing={1.25}
               sx={{ mt: 2, pt: 1.75, borderTop: '1px solid', borderColor: 'divider' }}
             >
-              {context.fieldSessions.map((session) => {
-                const liveSession = fieldSessions?.find((s) => s.id === session.id);
-                const originBadge = getTelemetryOriginBadge(
-                  session.telemetrySource ?? liveSession?.telemetrySource,
-                  t,
-                );
+              {context.fieldSessions.map((session, idx) => {
                 const { postFlightChecklist, inspectionChecklist, isUnstructuredRemarkOnly } =
                   splitOutcomeAndInspectionChecklists(
                     session.outcomeNotes,
@@ -988,11 +877,15 @@ export function ReportDerivedSections({
                 return (
                 <Box
                   key={session.id}
-                  sx={{
-                    pt: 1.5,
-                    borderTop: '1px solid',
-                    borderColor: 'divider',
-                  }}
+                  sx={
+                    idx > 0
+                      ? {
+                          pt: 1.5,
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                        }
+                      : undefined
+                  }
                 >
                   <Stack spacing={1.25}>
                     <Stack
@@ -1009,15 +902,6 @@ export function ReportDerivedSections({
                         <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           {t('Field session')}
                         </Typography>
-                        {originBadge && (
-                          <Chip
-                            size="small"
-                            color={originBadge.color}
-                            variant="outlined"
-                            label={originBadge.label}
-                            sx={{ height: 20, fontSize: '0.75rem', fontWeight: 650 }}
-                          />
-                        )}
                       </Stack>
 
                       <Stack
@@ -1065,7 +949,7 @@ export function ReportDerivedSections({
 
                       {hasPostChecklist && (
                         <SessionChecklistBlock
-                          label={t('Post-flight outcome & completion checklist')}
+                          label={t('Post-flight checklist')}
                           rawNote={session.outcomeNotes ?? undefined}
                           parsedChecklist={postFlightChecklist}
                         />
@@ -1178,7 +1062,7 @@ export function ReportDerivedSections({
         </ReadOnlySection>
       )}
 
-      <ReadOnlySection title={t('Evidence register')} count={evidenceList.length}>
+      <ReadOnlySection title={t('Evidence register')}>
         {evidenceList.length === 0 && unlinkedFindings.length === 0 ? (
           <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', fontSize: '0.875rem' }}>
             {t('No evidence was linked to this version.')}
@@ -1191,67 +1075,37 @@ export function ReportDerivedSections({
                 spacing={1}
                 sx={{ flexWrap: 'wrap', gap: 1, alignItems: 'center' }}
               >
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', mr: 0.5 }}>
-                  {reportableFindings.length} {t('confirmed findings across')} {evidenceList.length} {t('captures')}
-                </Typography>
-                <Chip
-                  size="small"
-                  clickable
-                  color={evidenceFilter === 'all' ? 'primary' : 'default'}
-                  variant={evidenceFilter === 'all' ? 'filled' : 'outlined'}
-                  label={`${t('All')} (${evidenceList.length})`}
-                  onClick={() => setEvidenceFilter('all')}
-                />
-                {defectEvidence.length > 0 && (
-                  <Chip
-                    size="small"
-                    clickable
-                    variant="outlined"
-                    label={`${defectEvidence.length} ${t('defect evidence')}`}
-                    onClick={() =>
-                      setEvidenceFilter((prev) => (prev === 'defects' ? 'all' : 'defects'))
-                    }
-                    sx={(theme) => ({
-                      fontWeight: 600,
-                      bgcolor:
-                        evidenceFilter === 'defects'
-                          ? theme.palette.mode === 'dark'
-                            ? 'rgba(245, 158, 11, 0.22)'
-                            : '#fef3c7'
-                          : 'transparent',
-                      borderColor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(245, 158, 11, 0.45)'
-                          : '#f59e0b',
-                      color: theme.palette.mode === 'dark' ? '#fcd34d' : '#b45309',
-                    })}
-                  />
-                )}
-                {flightVideos.length > 0 && (
-                  <Chip
-                    size="small"
-                    clickable
-                    color="primary"
-                    variant={evidenceFilter === 'videos' ? 'filled' : 'outlined'}
-                    icon={<MovieOutlined sx={{ fontSize: 15 }} />}
-                    label={`${flightVideos.length} ${t('flight videos')}`}
-                    onClick={() =>
-                      setEvidenceFilter((prev) => (prev === 'videos' ? 'all' : 'videos'))
-                    }
-                  />
-                )}
-                {clearCaptures.length > 0 && (
-                  <Chip
-                    size="small"
-                    clickable
-                    color={evidenceFilter === 'clear' ? 'success' : 'default'}
-                    variant={evidenceFilter === 'clear' ? 'filled' : 'outlined'}
-                    label={`${clearCaptures.length} ${t('clear captures')}`}
-                    onClick={() =>
-                      setEvidenceFilter((prev) => (prev === 'clear' ? 'all' : 'clear'))
-                    }
-                  />
-                )}
+                {[
+                  { key: 'all' as const, label: `${t('All')} (${evidenceList.length})`, show: true },
+                  { key: 'defects' as const, label: `${defectEvidence.length} ${t('defect evidence')}`, show: defectEvidence.length > 0 },
+                  { key: 'videos' as const, label: `${flightVideos.length} ${t('flight videos')}`, show: flightVideos.length > 0, icon: <MovieOutlined sx={{ fontSize: 15 }} /> },
+                  { key: 'clear' as const, label: `${clearCaptures.length} ${t('clear captures')}`, show: clearCaptures.length > 0 },
+                ]
+                  .filter((opt) => opt.show)
+                  .map((opt) => {
+                    const active = evidenceFilter === opt.key;
+                    return (
+                      <Chip
+                        key={opt.key}
+                        size="small"
+                        clickable
+                        variant="outlined"
+                        {...(opt.icon ? { icon: opt.icon } : {})}
+                        label={opt.label}
+                        onClick={() =>
+                          setEvidenceFilter((prev) =>
+                            opt.key === 'all' ? 'all' : prev === opt.key ? 'all' : opt.key,
+                          )
+                        }
+                        sx={{
+                          fontWeight: active ? 700 : 500,
+                          bgcolor: active ? 'action.selected' : 'transparent',
+                          borderColor: active ? 'text.primary' : 'divider',
+                          color: active ? 'text.primary' : 'text.secondary',
+                        }}
+                      />
+                    );
+                  })}
               </Stack>
             )}
 
@@ -1290,6 +1144,10 @@ export function ReportDerivedSections({
                       Number.isFinite(Number(item.latitude)) &&
                       Number.isFinite(Number(item.longitude));
                     const isMapHighlighted = selectedMapEvidenceId === item.id;
+                    const formattedCaptureLocation = formatEvidenceLocationDescription(
+                      item.locationDescription,
+                      t,
+                    )?.trim();
 
                     return (
                       <Box
@@ -1304,206 +1162,258 @@ export function ReportDerivedSections({
                           display: 'grid',
                           gridTemplateColumns: {
                             xs: '1fr',
-                            md: 'minmax(280px, 360px) minmax(0, 1fr)',
+                            md: 'minmax(220px, 270px) minmax(0, 1fr)',
                           },
-                          gap: 2.5,
-                          alignItems: 'start',
+                          gap: 2.25,
+                          alignItems: 'stretch',
                         }}
                       >
-                        {/* Left Column: Evidence Image, File Info & Map / Video Actions */}
-                        <Stack spacing={1}>
-                          {item.contentType.startsWith('image/') && (
-                            <Box
-                              sx={{
-                                position: 'relative',
-                                width: '100%',
-                                lineHeight: 0,
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                bgcolor: 'action.hover',
-                              }}
-                            >
-                              <AuthenticatedImage
-                                src={inspectionApi.evidenceContentUrl(inspectionId, item.id, 'thumb')}
-                                alt={item.fileName}
-                                maxHeight="none"
-                                sx={{ width: '100%', height: 'auto', borderRadius: 0 }}
-                              />
-                              {linkedFindings.map((finding, index) => {
-                                const box = parseBoundingBox(finding.boundingBox);
-                                if (!box) return null;
-                                const boxColor = ['#d32f2f', '#1976d2', '#2e7d32', '#ed6c02'][index % 4];
-                                return (
-                                  <Box
-                                    key={finding.id}
-                                    sx={{
-                                      position: 'absolute',
-                                      left: `${box.xMin * 100}%`,
-                                      top: `${box.yMin * 100}%`,
-                                      width: `${(box.xMax - box.xMin) * 100}%`,
-                                      height: `${(box.yMax - box.yMin) * 100}%`,
-                                      border: `2px solid ${boxColor}`,
-                                      pointerEvents: 'none',
-                                    }}
-                                  />
-                                );
-                              })}
-                            </Box>
-                          )}
-
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 700,
-                              fontSize: '0.875rem',
-                              wordBreak: 'break-word',
-                            }}
-                            title={item.fileName}
-                          >
-                            {item.fileName}
-                          </Typography>
-
-                          <Field
-                            label={t('Asset location')}
-                            value={formatEvidenceLocationDescription(item.locationDescription, t)}
-                            stacked
-                          />
-                          {item.captureTime && (
-                            <Field
-                              label={t('Capture time')}
-                              value={formatDateTime(item.captureTime, formatDateTimeValue, '')}
-                            />
-                          )}
-
-                          {hasSourceVideo && (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              sx={{ pt: 0.5, flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}
-                            >
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="secondary"
-                                startIcon={<PlayCircleOutlineRounded sx={{ fontSize: '0.95rem !important' }} />}
-                                onClick={() =>
-                                  openSourceVideoAtFrame(
-                                    item.sourceVideoEvidenceId!,
-                                    item.sourceTimestampSeconds ?? 0,
-                                  )
-                                }
-                                sx={{
-                                  py: 0.25,
-                                  px: 1,
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
-                                  textTransform: 'none',
-                                }}
-                              >
-                                {`${t('Watch in video')} @ ${formatVideoMmSs(item.sourceTimestampSeconds)}`}
-                              </Button>
-                            </Stack>
-                          )}
-                        </Stack>
-
-                        {/* Right Column: Confirmed Findings on this Evidence */}
-                        <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+                        {/* Left Column: Evidence Photo Thumbnail */}
+                        {item.contentType.startsWith('image/') && (
                           <Box
                             sx={{
-                              pb: 0.75,
-                              borderBottom: '1px solid',
+                              position: 'relative',
+                              width: '100%',
+                              alignSelf: 'start',
+                              lineHeight: 0,
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              border: '1px solid',
                               borderColor: 'divider',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 1,
-                              flexWrap: 'wrap',
+                              bgcolor: 'action.hover',
                             }}
                           >
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                              {t('Findings preview')}
-                            </Typography>
-                            {hasGps && (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                                icon={<PlaceOutlined sx={{ fontSize: 15 }} />}
-                                label={t('View on map')}
-                                onClick={() => focusEvidenceOnReportMap(item)}
-                                sx={{ height: 22, fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
-                              />
-                            )}
+                            <AuthenticatedImage
+                              src={inspectionApi.evidenceContentUrl(inspectionId, item.id, 'thumb')}
+                              alt={item.fileName}
+                              maxHeight="none"
+                              sx={{ width: '100%', height: 'auto', borderRadius: 0 }}
+                            />
+                            {linkedFindings.map((finding, index) => {
+                              const box = parseBoundingBox(finding.boundingBox);
+                              if (!box) return null;
+                              const boxColor = ['#d32f2f', '#1976d2', '#2e7d32', '#ed6c02'][index % 4];
+                              return (
+                                <Box
+                                  key={finding.id}
+                                  sx={{
+                                    position: 'absolute',
+                                    left: `${box.xMin * 100}%`,
+                                    top: `${box.yMin * 100}%`,
+                                    width: `${(box.xMax - box.xMin) * 100}%`,
+                                    height: `${(box.yMax - box.yMin) * 100}%`,
+                                    border: `2px solid ${boxColor}`,
+                                    pointerEvents: 'none',
+                                  }}
+                                />
+                              );
+                            })}
                           </Box>
+                        )}
 
-                          <Stack spacing={1.25}>
-                            {linkedFindings.map((finding) => (
-                              <Box
-                                key={finding.id}
+                        {/* Right Column: Confirmed Findings + Compact Capture Metadata */}
+                        <Stack
+                          spacing={1.5}
+                          sx={{
+                            minWidth: 0,
+                            gridColumn: item.contentType.startsWith('image/') ? undefined : '1 / -1',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <Stack spacing={1.5}>
+                            {linkedFindings.map((finding, idx) => {
+                              const note = getMeaningfulTechnicalNotes(finding);
+                              const titleLabel = [finding.findingCode, finding.defectLabel]
+                                .filter(Boolean)
+                                .join(' · ');
+                              return (
+                                <Box
+                                  key={finding.id}
+                                  sx={{
+                                    pt: idx > 0 ? 1.5 : 0,
+                                    borderTop: idx > 0 ? '1px solid' : 'none',
+                                    borderColor: 'divider',
+                                  }}
+                                >
+                                  <Stack
+                                    direction="row"
+                                    spacing={0.75}
+                                    sx={{
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      flexWrap: 'wrap',
+                                      gap: 0.75,
+                                      mb: note ? 0.75 : 0,
+                                    }}
+                                  >
+                                    <Stack
+                                      direction="row"
+                                      spacing={0.75}
+                                      sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5, minWidth: 0 }}
+                                    >
+                                      <Typography
+                                        variant="subtitle2"
+                                        sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.875rem' }}
+                                      >
+                                        {titleLabel}
+                                      </Typography>
+                                      <Chip
+                                        size="small"
+                                        variant="outlined"
+                                        label={finding.severity}
+                                        sx={getSoftSeverityChipSx(finding.severity)}
+                                      />
+                                      {finding.confidence !== null && (
+                                        <Typography
+                                          variant="caption"
+                                          sx={{ color: 'text.secondary', fontWeight: 500 }}
+                                        >
+                                          {`${Math.round(finding.confidence * 100)}% ${t('confidence')}`}
+                                        </Typography>
+                                      )}
+                                    </Stack>
+                                    {idx === 0 && (hasSourceVideo || hasGps) && (
+                                      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                                        {hasSourceVideo && (
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="secondary"
+                                            startIcon={<PlayCircleOutlineRounded sx={{ fontSize: '0.95rem !important' }} />}
+                                            onClick={() =>
+                                              openSourceVideoAtFrame(
+                                                item.sourceVideoEvidenceId!,
+                                                item.sourceTimestampSeconds ?? 0,
+                                              )
+                                            }
+                                            sx={{
+                                              py: 0.25,
+                                              px: 1,
+                                              fontSize: '0.72rem',
+                                              fontWeight: 600,
+                                              textTransform: 'none',
+                                            }}
+                                          >
+                                            {`${t('Watch in video')} @ ${formatVideoMmSs(item.sourceTimestampSeconds)}`}
+                                          </Button>
+                                        )}
+                                        {hasGps && (
+                                          <Button
+                                            size="small"
+                                            variant="text"
+                                            startIcon={<PlaceOutlined sx={{ fontSize: 15 }} />}
+                                            onClick={() => focusEvidenceOnReportMap(item)}
+                                            sx={{
+                                              fontWeight: 600,
+                                              fontSize: '0.78rem',
+                                              textTransform: 'none',
+                                              py: 0.25,
+                                              px: 0.75,
+                                              minHeight: 'auto',
+                                              flexShrink: 0,
+                                            }}
+                                          >
+                                            {t('View on map')}
+                                          </Button>
+                                        )}
+                                      </Stack>
+                                    )}
+                                  </Stack>
+
+                                  {note && (
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: 'text.primary',
+                                        fontSize: '0.84rem',
+                                        lineHeight: 1.55,
+                                      }}
+                                    >
+                                      <b>{t('Note')}:</b> {note}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+
+                          {/* Compact Capture Metadata Strip */}
+                          <Box
+                            sx={{
+                              pt: 1.25,
+                              borderTop: '1px solid',
+                              borderColor: 'divider',
+                              display: 'grid',
+                              gridTemplateColumns: {
+                                xs: '1fr',
+                                sm: 'repeat(3, minmax(0, 1fr))',
+                              },
+                              gap: 1.5,
+                            }}
+                          >
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem' }}
+                              >
+                                {t('File')}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                title={item.fileName}
                                 sx={{
-                                  p: 1.5,
-                                  borderRadius: '8px',
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  bgcolor: 'background.default',
+                                  color: 'text.primary',
+                                  fontWeight: 600,
+                                  fontSize: '0.8125rem',
+                                  wordBreak: 'break-word',
                                 }}
                               >
-                                <Stack
-                                  direction="row"
-                                  spacing={0.75}
-                                  sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 0.75 }}
-                                >
-                                  {finding.findingCode && (
-                                    <Chip
-                                      size="small"
-                                      label={finding.findingCode}
-                                      sx={{ height: 20, fontWeight: 700, fontSize: '0.75rem' }}
-                                    />
-                                  )}
-                                  <Chip
-                                    size="small"
-                                    variant="outlined"
-                                    label={`${finding.defectLabel} · ${finding.severity}`}
-                                    sx={getSoftSeverityChipSx(finding.severity)}
-                                  />
-                                  {finding.confidence !== null && (
-                                    <Chip
-                                      size="small"
-                                      variant="outlined"
-                                      label={`${Math.round(finding.confidence * 100)}% confidence`}
-                                      sx={{ height: 20, fontSize: '0.72rem', fontWeight: 600 }}
-                                    />
-                                  )}
-                                </Stack>
-
+                                {item.fileName}
+                              </Typography>
+                            </Box>
+                            {formattedCaptureLocation && (
+                              <Box sx={{ minWidth: 0 }}>
                                 <Typography
                                   variant="body2"
-                                  sx={{
-                                    color: finding.technicalNotes?.trim() ? 'text.primary' : 'text.secondary',
-                                    fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic',
-                                    fontSize: '0.84rem',
-                                    mb: 0.35,
-                                  }}
+                                  sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem' }}
                                 >
-                                  <b>{t('Technical notes')}:</b>{' '}
-                                  {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
+                                  {t('Capture location')}
                                 </Typography>
                                 <Typography
                                   variant="body2"
+                                  title={formattedCaptureLocation}
                                   sx={{
-                                    color: 'text.secondary',
-                                    fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic',
-                                    fontSize: '0.84rem',
+                                    color: 'text.primary',
+                                    fontWeight: 500,
+                                    fontSize: '0.8125rem',
+                                    wordBreak: 'break-word',
                                   }}
                                 >
-                                  <b>{t('Recommended action')}:</b>{' '}
-                                  {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
+                                  {formattedCaptureLocation}
                                 </Typography>
                               </Box>
-                            ))}
-                          </Stack>
+                            )}
+                            {item.captureTime && (
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem' }}
+                                >
+                                  {t('Capture time')}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    color: 'text.primary',
+                                    fontWeight: 500,
+                                    fontSize: '0.8125rem',
+                                  }}
+                                >
+                                  {formatDateTime(item.captureTime, formatDateTimeValue, '')}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Stack>
                       </Box>
                     );
@@ -1570,7 +1480,7 @@ export function ReportDerivedSections({
                                   : null
                               }
                             />
-                            <Field label={t('Asset location')} value={formatEvidenceLocationDescription(video.locationDescription, t)} />
+                            <CaptureLocationField locationDescription={video.locationDescription} />
                             {video.captureTime && (
                               <Field
                                 label={t('Capture time')}
@@ -1679,11 +1589,7 @@ export function ReportDerivedSections({
                         >
                           {item.fileName}
                         </Typography>
-                        <Field
-                          label={t('Asset location')}
-                          value={formatEvidenceLocationDescription(item.locationDescription, t)}
-                          stacked
-                        />
+                        <CaptureLocationField locationDescription={item.locationDescription} stacked />
                         {item.captureTime && (
                           <Field
                             label={t('Capture time')}
@@ -1768,34 +1674,36 @@ export function ReportDerivedSections({
                     gap: 1.5,
                   }}
                 >
-                  {unlinkedFindings.map((finding) => (
-                    <Box
-                      key={finding.id}
-                      sx={{
-                        p: 1.25,
-                        borderRadius: '8px',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                      }}
-                    >
-                      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-                        <Typography sx={{ fontWeight: 700, fontSize: '0.875rem' }}>{finding.defectLabel}</Typography>
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={finding.severity}
-                          sx={getSoftSeverityChipSx(finding.severity)}
-                        />
-                      </Stack>
-                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic' }}>
-                        <b>{t('Technical notes')}:</b> {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
-                      </Typography>
-                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic' }}>
-                        <b>{t('Recommended action')}:</b> {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
-                      </Typography>
-                    </Box>
-                  ))}
+                  {unlinkedFindings.map((finding) => {
+                    const note = getMeaningfulTechnicalNotes(finding);
+                    return (
+                      <Box
+                        key={finding.id}
+                        sx={{
+                          p: 1.25,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                        }}
+                      >
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: note ? 0.5 : 0, flexWrap: 'wrap', gap: 0.5 }}>
+                          <Typography sx={{ fontWeight: 700, fontSize: '0.875rem' }}>{finding.defectLabel}</Typography>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={finding.severity}
+                            sx={getSoftSeverityChipSx(finding.severity)}
+                          />
+                        </Stack>
+                        {note && (
+                          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                            <b>{t('Note')}:</b> {note}
+                          </Typography>
+                        )}
+                      </Box>
+                    );
+                  })}
                 </Box>
               </Box>
             )}

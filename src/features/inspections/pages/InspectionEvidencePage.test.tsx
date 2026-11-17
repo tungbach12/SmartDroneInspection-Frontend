@@ -802,7 +802,6 @@ describe('InspectionEvidencePage', () => {
           defectLabel: 'abscission',
           severity: 'MEDIUM',
           technicalNotes: '',
-          recommendedAction: null,
           boundingBox: null,
           modelName: 'yolo11',
           confidence: 0.9,
@@ -817,7 +816,6 @@ describe('InspectionEvidencePage', () => {
           defectLabel: 'crack',
           severity: 'HIGH',
           technicalNotes: '',
-          recommendedAction: null,
           boundingBox: null,
           modelName: 'yolo11',
           confidence: 0.85,
@@ -937,7 +935,7 @@ describe('InspectionEvidencePage', () => {
     // Raw GPS text must not be rendered inline on the cards.
     expect(screen.queryByText(/10\.875333/)).toBeNull();
     const viewOnMapButtons = screen.getAllByRole('button', { name: /View on map/i });
-    expect(viewOnMapButtons.length).toBeGreaterThanOrEqual(2);
+    expect(viewOnMapButtons).toHaveLength(1);
 
     fireEvent.click(viewOnMapButtons[0]!);
 

@@ -161,7 +161,7 @@ function computeConfirmedSignature(confirmed: Finding[]): string {
   return confirmed
     .map(
       (f) =>
-        `${f.id}:${f.findingCode ?? ''}:${f.defectLabel}:${f.severity}:${f.confidence ?? ''}:${f.technicalNotes ?? ''}:${f.recommendedAction ?? ''}`,
+        `${f.id}:${f.findingCode ?? ''}:${f.defectLabel}:${f.severity}:${f.confidence ?? ''}:${f.technicalNotes ?? ''}`,
     )
     .join('|');
 }
@@ -232,7 +232,7 @@ function isLegacyTemplateSummary(text: string): boolean {
 function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
   const groups = new Map<
     string,
-    { label: string; categoryText: string; count: number; codes: string[]; customActions: string[] }
+    { label: string; categoryText: string; count: number; codes: string[] }
   >();
 
   for (const f of confirmed) {
@@ -240,19 +240,10 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
     const descriptor = matchDescriptor(f.defectLabel);
     const existing = groups.get(rawKey);
     const code = f.findingCode?.trim() || '';
-    const customAction =
-      f.recommendedAction?.trim() &&
-      f.recommendedAction.trim().toLowerCase() !== 'none' &&
-      f.recommendedAction.trim().toLowerCase() !== 'không có'
-        ? f.recommendedAction.trim()
-        : '';
 
     if (existing) {
       existing.count += 1;
       if (code) existing.codes.push(code);
-      if (customAction && !existing.customActions.includes(customAction)) {
-        existing.customActions.push(customAction);
-      }
     } else {
       groups.set(rawKey, {
         label: f.defectLabel.trim(),
@@ -263,7 +254,6 @@ function groupDefectTypes(confirmed: Finding[], isVi: boolean) {
           : f.defectLabel.trim(),
         count: 1,
         codes: code ? [code] : [],
-        customActions: customAction ? [customAction] : [],
       });
     }
   }
@@ -401,21 +391,17 @@ function buildSynthesizedAiSummary({
   const actionLines: string[] = [];
   for (const group of groups) {
     const codeTag = group.codes.length > 0 ? ` (${group.codes.join(', ')})` : '';
-    if (group.customActions.length > 0) {
-      actionLines.push(`${group.label}${codeTag}: ${group.customActions.join('; ')}.`);
+    const descriptor = matchDescriptor(group.label);
+    if (descriptor) {
+      actionLines.push(
+        `${group.label}${codeTag}: ${isVi ? descriptor.viAction : descriptor.enAction}.`,
+      );
     } else {
-      const descriptor = matchDescriptor(group.label);
-      if (descriptor) {
-        actionLines.push(
-          `${group.label}${codeTag}: ${isVi ? descriptor.viAction : descriptor.enAction}.`,
-        );
-      } else {
-        actionLines.push(
-          isVi
-            ? `${group.label}${codeTag}: Kiểm tra chi tiết ngoài hiện trường và lập phiếu công việc sửa chữa phù hợp.`
-            : `${group.label}${codeTag}: Inspect defect extent on-site and execute targeted surface repair work order.`,
-        );
-      }
+      actionLines.push(
+        isVi
+          ? `${group.label}${codeTag}: Kiểm tra chi tiết ngoài hiện trường và lập phiếu công việc sửa chữa phù hợp.`
+          : `${group.label}${codeTag}: Inspect defect extent on-site and execute targeted surface repair work order.`,
+      );
     }
   }
 
@@ -703,13 +689,6 @@ export function ReportAiSummaryCard({
           </Stack>
 
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-            <Chip
-              size="small"
-              variant="outlined"
-              icon={riskIcon}
-              label={`${t('Overall Risk')}: ${t(aiSummary.overallRisk)}`}
-              sx={getSoftRiskChipSx(aiSummary.overallRisk)}
-            />
             <Button
               size="small"
               variant="text"
@@ -744,7 +723,7 @@ export function ReportAiSummaryCard({
               borderColor: 'rgba(14, 165, 233, 0.22)',
             }}
           >
-            {/* Narrative + Defect Breakdown Chips */}
+            {/* Narrative + Risk & Defect Breakdown Chips */}
             <Box>
               <Typography
                 variant="body2"
@@ -753,26 +732,31 @@ export function ReportAiSummaryCard({
                 {aiSummary.summary}
               </Typography>
 
-              {categoryBadges.length > 0 && (
-                <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
-                  {categoryBadges.map(([label, count]) => (
-                    <Chip
-                      key={label}
-                      size="small"
-                      variant="outlined"
-                      label={`${label} ×${count}`}
-                      sx={{
-                        height: 22,
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        bgcolor: 'background.paper',
-                        borderColor: 'divider',
-                        color: 'text.primary',
-                      }}
-                    />
-                  ))}
-                </Stack>
-              )}
+              <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={riskIcon}
+                  label={`${t('Overall Risk')}: ${t(aiSummary.overallRisk)}`}
+                  sx={getSoftRiskChipSx(aiSummary.overallRisk)}
+                />
+                {categoryBadges.map(([label, count]) => (
+                  <Chip
+                    key={label}
+                    size="small"
+                    variant="outlined"
+                    label={`${label} ×${count}`}
+                    sx={{
+                      height: 22,
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      bgcolor: 'background.paper',
+                      borderColor: 'divider',
+                      color: 'text.primary',
+                    }}
+                  />
+                ))}
+              </Stack>
             </Box>
 
             {/* Two-column structured digest: Highlights & Recommended Actions */}
@@ -837,7 +821,7 @@ export function ReportAiSummaryCard({
                                   px: 0.75,
                                   py: 0.1,
                                   borderRadius: '6px',
-                                  fontSize: '0.7rem',
+                                  fontSize: '0.75rem',
                                   fontWeight: 700,
                                   bgcolor: 'action.selected',
                                   color: 'text.primary',
@@ -855,7 +839,7 @@ export function ReportAiSummaryCard({
                                 px: 0.75,
                                 py: 0.1,
                                 borderRadius: '999px',
-                                fontSize: '0.675rem',
+                                fontSize: '0.75rem',
                                 fontWeight: 600,
                                 ...getSoftSeverityBadgeSx(f.severity),
                               }}

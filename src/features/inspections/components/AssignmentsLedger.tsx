@@ -289,7 +289,7 @@ export function AssignmentsLedger({
           <Button
             size="small"
             variant="outlined"
-            endIcon={<ArrowForwardRounded sx={{ fontSize: '15px !important' }} />}
+            endIcon={<ArrowForwardRounded sx={{ fontSize: '0.9375rem !important' }} />}
             onClick={() => onOpen(row.id)}
             sx={{ ...buttonSx, borderColor: 'divider', color: 'text.primary' }}
           >
@@ -458,7 +458,7 @@ export function AssignmentsLedger({
                           size="small"
                           label={meta.assetCode}
                           variant="outlined"
-                          sx={{ height: 20, fontSize: '0.7rem', fontFamily: 'monospace', fontWeight: 600 }}
+                          sx={{ height: 22, fontSize: '0.75rem', fontFamily: 'monospace', fontWeight: 600 }}
                         />
                       )}
                     </Stack>
@@ -518,7 +518,7 @@ export function AssignmentsLedger({
                               size="small"
                               label={meta.assetCode}
                               variant="outlined"
-                              sx={{ height: 18, borderRadius: '5px', fontSize: '0.7rem', fontFamily: 'monospace', fontWeight: 600 }}
+                              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace', fontWeight: 600 }}
                             />
                           )}
                         </Stack>

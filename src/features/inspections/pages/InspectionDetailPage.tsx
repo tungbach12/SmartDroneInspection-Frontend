@@ -701,13 +701,18 @@ export default function InspectionDetailPage() {
       return 'blocked';
     }
     if (isStepCompleted(step.value)) return 'complete';
-    if (step.value === 'pre-flight' && !hasPermitReady) return 'blocked';
+    if ((step.value === 'pre-flight' || step.value === 'field-session') && !hasPermitReady) {
+      return 'blocked';
+    }
     if (step.value === 'post-flight' && !hasSessionStarted) return 'blocked';
     if (step.value === 'evidence' && !isFieldWorkComplete) return 'blocked';
     if (step.value === 'findings' && !hasEvidence) return 'blocked';
     if (step.value === 'report' && !findingsComplete) return 'blocked';
     if (tabValue === step.value) return 'active';
-    if (step.value === 'permit' || step.value === 'field-session' || step.value === 'audit' || step.value === 'review' || step.value === 'settlement') return 'ready';
+    if (step.value === 'permit' || step.value === 'audit') return 'ready';
+    if (step.value === 'field-session') return hasPermitReady ? 'ready' : 'blocked';
+    if (step.value === 'review') return versions.data?.length ? 'ready' : 'blocked';
+    if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
@@ -729,7 +734,7 @@ export default function InspectionDetailPage() {
       }
       return null;
     }
-    if (step.value === 'pre-flight' && !hasPermitReady) {
+    if ((step.value === 'pre-flight' || step.value === 'field-session') && !hasPermitReady) {
       if (permitVerificationStatus === 'PENDING_REVIEW') {
         return t('Flight permit is pending Platform Manager verification before starting the pre-flight checklist.');
       }
@@ -745,6 +750,12 @@ export default function InspectionDetailPage() {
     }
     if (step.value === 'findings' && !isReinspection && !hasEvidence) return t('Upload evidence to review findings.');
     if (step.value === 'report' && !findingsComplete) return t('Confirm findings before compiling the report.');
+    if (step.value === 'review' && !versions.data?.length) {
+      return t('Awaiting Inspector report submission before manager review.');
+    }
+    if (step.value === 'settlement' && !hasPublishedVersion) {
+      return t('Publish the official inspection report before reviewing settlement.');
+    }
     return null;
   };
 
@@ -878,122 +889,148 @@ export default function InspectionDetailPage() {
           actions={workspaceActions}
         />
 
-        {inspection && (
-          <Paper
-            elevation={0}
-            className="inspection-trace-context"
-            sx={{
-              mt: 1,
-              px: { xs: 1.75, sm: 2.25 },
-              py: { xs: 1.25, sm: 1.5 },
-              borderRadius: '10px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              boxShadow: 'none',
-            }}
-          >
-            <Stack spacing={0}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                spacing={1.5}
-                sx={{
-                  alignItems: { md: 'center' },
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  rowGap: 0.75,
-                }}
-              >
+        {inspection && (() => {
+          const contextSummaryColumns: Array<{ label: string; value: string; tabular?: boolean }> = [];
+          if (!isCustomer && customerLabel) {
+            contextSummaryColumns.push({ label: t('Customer'), value: customerLabel });
+          }
+          if ((isReviewerAdmin || isCustomer) && inspectorLabel) {
+            contextSummaryColumns.push({ label: t('Inspector'), value: inspectorLabel });
+          }
+          if (!isReviewerAdmin && managerLabel) {
+            contextSummaryColumns.push({ label: t('Manager'), value: managerLabel });
+          }
+          if (!isCustomer) {
+            contextSummaryColumns.push({ label: t('Drone'), value: droneShortName });
+          }
+          if (!isReviewerAdmin && shortScheduleLabel) {
+            contextSummaryColumns.push({ label: t('Schedule'), value: shortScheduleLabel, tabular: true });
+          }
+          return (
+            <Paper
+              elevation={0}
+              className="inspection-trace-context"
+              sx={{
+                mt: 1,
+                px: { xs: 1.75, sm: 2.25 },
+                py: { xs: 1.25, sm: 1.5 },
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                boxShadow: 'none',
+              }}
+            >
+              <Stack spacing={1.25}>
                 <Stack
                   direction="row"
-                  spacing={2}
-                  onClick={() => setContextOverviewOpen((prev) => !prev)}
+                  spacing={1.5}
                   sx={{
                     alignItems: 'center',
-                    flexWrap: 'wrap',
-                    rowGap: 0.75,
-                    cursor: 'pointer',
-                    flex: 1,
+                    justifyContent: 'space-between',
+                    gap: 1.5,
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
-                  </Typography>
-
-                  {inspection.inspectionType === 'RE_INSPECTION' && (
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                      label={
-                        inspection.sourceInspectionId
-                          ? `${t('Re-inspection')} · #${inspection.sourceInspectionId.slice(0, 8)}`
-                          : t('Re-inspection')
-                      }
-                      sx={{
-                        height: 22,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                      }}
-                    />
-                  )}
-
-                  {!isCustomer && (
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {t('Drone')}:{' '}
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                        {droneShortName}
-                      </Box>
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    onClick={() => setContextOverviewOpen((prev) => !prev)}
+                    sx={{
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      rowGap: 0.5,
+                      cursor: 'pointer',
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
+                    >
+                      {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
                     </Typography>
-                  )}
 
-                  {!isCustomer && customerLabel && (
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {t('Customer')}:{' '}
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                        {customerLabel}
-                      </Box>
-                    </Typography>
-                  )}
+                    {inspection.inspectionType === 'RE_INSPECTION' && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        label={
+                          inspection.sourceInspectionId
+                            ? `${t('Re-inspection')} · #${inspection.sourceInspectionId.slice(0, 8)}`
+                            : t('Re-inspection')
+                        }
+                        sx={{
+                          height: 22,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                  </Stack>
 
-                  {!isReviewerAdmin && managerLabel && (
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {t('Manager')}:{' '}
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                        {managerLabel}
-                      </Box>
-                    </Typography>
-                  )}
-
-                  {(isReviewerAdmin || isCustomer) && inspectorLabel && (
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {t('Inspector')}:{' '}
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                        {inspectorLabel}
-                      </Box>
-                    </Typography>
-                  )}
-
-                  {!isReviewerAdmin && shortScheduleLabel && (
-                    <Typography variant="body2" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                      {t('Schedule')}:{' '}
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                        {shortScheduleLabel}
-                      </Box>
-                    </Typography>
-                  )}
+                  <Button
+                    size="small"
+                    variant="text"
+                    aria-expanded={contextOverviewOpen}
+                    endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                    onClick={() => setContextOverviewOpen((prev) => !prev)}
+                    sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
+                  >
+                    {t('Overview')}
+                  </Button>
                 </Stack>
 
-                <Button
-                  size="small"
-                  variant="text"
-                  aria-expanded={contextOverviewOpen}
-                  endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
-                  onClick={() => setContextOverviewOpen((prev) => !prev)}
-                  sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1 }}
-                >
-                  {t('Overview')}
-                </Button>
+                {contextSummaryColumns.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'repeat(2, minmax(0, 1fr))',
+                        sm: `repeat(${Math.min(2, contextSummaryColumns.length)}, minmax(0, 1fr))`,
+                        md: `repeat(${Math.min(4, contextSummaryColumns.length)}, minmax(0, 1fr))`,
+                      },
+                      gap: { xs: 1.25, md: 2 },
+                      pt: 1.15,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {contextSummaryColumns.map((col) => (
+                      <Box key={col.label} sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: 'block',
+                            color: 'text.secondary',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            lineHeight: 1.2,
+                            mb: 0.25,
+                          }}
+                        >
+                          {col.label}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          noWrap
+                          title={col.value}
+                          sx={{
+                            color: 'text.primary',
+                            fontWeight: 600,
+                            fontSize: '0.84rem',
+                            fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
+                          }}
+                        >
+                          {col.value}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
               </Stack>
 
               <Collapse in={contextOverviewOpen} unmountOnExit>
@@ -1007,15 +1044,7 @@ export default function InspectionDetailPage() {
                   }}
                 >
                   <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {t('Asset')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         {t('Location')}
                       </Typography>
@@ -1023,7 +1052,7 @@ export default function InspectionDetailPage() {
                         {formatLocation(inspection.locationText)}
                       </Typography>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         {t('Drone')}
                       </Typography>
@@ -1033,7 +1062,7 @@ export default function InspectionDetailPage() {
                           : [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') || t('Unassigned')}
                       </Typography>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         {t('Planned Start')}
                       </Typography>
@@ -1090,9 +1119,9 @@ export default function InspectionDetailPage() {
                   )}
                 </Stack>
               </Collapse>
-            </Stack>
-          </Paper>
-        )}
+            </Paper>
+          );
+        })()}
 
         {isPendingAcceptance && (
           <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>

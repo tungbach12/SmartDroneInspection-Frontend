@@ -180,14 +180,12 @@ function buildCases(): MutationCase[] {
             defectLabel: string;
             severity: string;
             technicalNotes: string;
-            recommendedAction: string;
           }) => Promise<unknown>
         )({
           evidenceId: 'evidence-1',
           defectLabel: 'Crack',
           severity: 'HIGH',
           technicalNotes: 'notes',
-          recommendedAction: 'repair',
         }),
       successMessage: 'Manual finding added.',
     },

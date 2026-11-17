@@ -6,6 +6,8 @@ colors:
   primary-dark: "#2237EE"
   primary-light: "#06B6D4"
   primary-soft: "#EFF3FF"
+  ledger-blue: "#2B84EB"
+  settlement-emerald: "#176B52"
   harbor: "#18181B"
   harbor-light: "#52525B"
   neutral-bg: "#F4F4F5"
@@ -44,11 +46,23 @@ typography:
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: "0em"
+  subtitle-dense:
+    fontFamily: 'Inter, "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    fontSize: "0.9375rem"
+    fontWeight: 600
+    lineHeight: 1.45
+    letterSpacing: "0em"
   body:
     fontFamily: 'Inter, "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.55
+    letterSpacing: "0em"
+  body-dense:
+    fontFamily: 'Inter, "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    fontSize: "0.8125rem"
+    fontWeight: 500
+    lineHeight: 1.45
     letterSpacing: "0em"
   label:
     fontFamily: 'Inter, "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -59,6 +73,7 @@ typography:
 rounded:
   sm: "6px"
   md: "8px"
+  panel: "10px"
   lg: "12px"
   xl: "16px"
   pill: "999px"

@@ -257,7 +257,7 @@ export default function InspectionsPage() {
                     '&:hover': { color: 'primary.main' },
                   }}
                 >
-                  {t('Operations')}
+                  {t('Dashboard')}
                 </Box>
                 <Box
                   component="svg"
@@ -294,7 +294,7 @@ export default function InspectionsPage() {
                 : t('Inspections')
           }
           breadcrumbs={[
-            { label: t('Operations'), to: getSectionPath(portal, 'dashboard') },
+            { label: t('Dashboard'), to: getSectionPath(portal, 'dashboard') },
             {
               label:
                 view === 'assignments'
@@ -328,7 +328,7 @@ export default function InspectionsPage() {
                 sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {pendingAssignmentItems.length} {t('pending assignments')}
+                  {pendingAssignmentItems.length} {t(pendingAssignmentItems.length === 1 ? 'pending assignment' : 'pending assignments')}
                 </Typography>
                 <Button
                   size="small"
@@ -350,7 +350,7 @@ export default function InspectionsPage() {
                 sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
               >
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {permitDueCount} {t('inspections have flight permits pending manager verification')}
+                  {permitDueCount} {t(permitDueCount === 1 ? 'inspection has a flight permit pending manager verification' : 'inspections have flight permits pending manager verification')}
                 </Typography>
                 <Button
                   size="small"

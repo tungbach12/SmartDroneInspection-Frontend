@@ -131,7 +131,6 @@ function pendingFinding() {
     defectLabel: 'Coating crack',
     severity: 'HIGH',
     technicalNotes: 'Coating crack',
-    recommendedAction: null,
     boundingBox: '',
     modelName: 'advisor',
     confidence: 0.82,
@@ -149,8 +148,7 @@ function undecidedFinding() {
     findingCode: 'F-0001',
     defectLabel: 'Coating blistering',
     severity: 'HIGH',
-    technicalNotes: 'Roughly 60mm across.',
-    recommendedAction: 'Repaint.',
+    technicalNotes: 'Roughly 60mm across. · Repaint.',
     boundingBox: null,
     modelName: null,
     confidence: null,
@@ -568,7 +566,7 @@ describe('InspectionFindingsPage', () => {
 
     const { rerender } = renderWithRouter(<InspectionFindingsPage />);
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
-    expect(screen.getByLabelText('Asset location description for this photo').hasAttribute('disabled')).toBe(false);
+    expect(screen.getByLabelText('Capture location / zone for this photo').hasAttribute('disabled')).toBe(false);
 
     mocks.reportVersionsQuery = {
       data: [reportVersion('SUBMITTED')],
@@ -578,7 +576,7 @@ describe('InspectionFindingsPage', () => {
     };
     rerender(<InspectionFindingsPage />);
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
-    expect(screen.getByLabelText('Asset location description for this photo').hasAttribute('disabled')).toBe(true);
+    expect(screen.getByLabelText('Capture location / zone for this photo').hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Withdraw the submission on the Report tab/i)).toBeTruthy();
 
     mocks.reportVersionsQuery = {
@@ -618,7 +616,7 @@ describe('InspectionFindingsPage', () => {
       refetch: vi.fn(),
     };
     renderWithRouter(<InspectionFindingsPage />);
-    const sharedLocation = screen.getByLabelText('Asset location description for this photo');
+    const sharedLocation = screen.getByLabelText('Capture location / zone for this photo');
     fireEvent.change(sharedLocation, { target: { value: 'Girder G4, east face' } });
     fireEvent.blur(sharedLocation);
     fireEvent.mouseDown(screen.getAllByLabelText('Severity')[0]!);
@@ -839,15 +837,14 @@ describe('InspectionFindingsPage', () => {
     };
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(screen.getByText(/Inspector confirmed/)).toBeTruthy();
+    expect(screen.getByText('Confirmed')).toBeTruthy();
     const editBtn = screen.getByRole('button', { name: 'Edit / Change defect' });
     fireEvent.click(editBtn);
 
     expect(screen.queryByText('Correct Inspector finding details:')).toBeNull();
     expect(screen.queryByLabelText('Evidence location')).toBeNull();
     fireEvent.change(screen.getByLabelText('Defect label'), { target: { value: 'Coating blistering' } });
-    fireEvent.change(screen.getByLabelText(/Technical notes/), { target: { value: 'Updated technical notes' } });
-    fireEvent.change(screen.getByLabelText(/Recommended action/), { target: { value: 'Apply protective epoxy coating' } });
+    fireEvent.change(screen.getByLabelText(/Note/), { target: { value: 'Updated technical notes' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save correction' }));
 
     expect(mocks.updateFinding.mutate).toHaveBeenCalledWith(
@@ -856,14 +853,13 @@ describe('InspectionFindingsPage', () => {
         input: expect.objectContaining({
           defectLabel: 'Coating blistering',
           technicalNotes: 'Updated technical notes',
-          recommendedAction: 'Apply protective epoxy coating',
         }),
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
-  it('renders Notes and Recommended action labels with None fallback when null or empty', () => {
+  it('renders Note label with None fallback when null or empty', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [
@@ -871,7 +867,6 @@ describe('InspectionFindingsPage', () => {
           ...undecidedFinding(),
           status: 'CONFIRMED',
           technicalNotes: null,
-          recommendedAction: null,
         },
       ],
       isLoading: false,
@@ -882,9 +877,8 @@ describe('InspectionFindingsPage', () => {
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    expect(screen.getByText('Notes:')).toBeTruthy();
-    expect(screen.getByText('Recommended action:')).toBeTruthy();
-    expect(screen.getAllByText('None').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Note:')).toBeTruthy();
+    expect(screen.getByText('None')).toBeTruthy();
   });
 
   it('allows adjusting boundingBox without altering AI confidence and supports manual box with no confidence', async () => {

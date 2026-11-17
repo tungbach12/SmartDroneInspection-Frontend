@@ -248,6 +248,7 @@ export default function InspectionReportPage() {
                   </Typography>
                   <Chip
                     size="small"
+                    variant={openVersion.status === 'PUBLISHED' ? 'outlined' : 'filled'}
                     label={openVersion.status}
                     color={
                       openVersion.status === 'PUBLISHED'
@@ -256,8 +257,22 @@ export default function InspectionReportPage() {
                           ? 'warning'
                           : 'primary'
                     }
-                    sx={{ fontWeight: 700 }}
+                    sx={
+                      openVersion.status === 'PUBLISHED'
+                        ? {
+                            fontWeight: 700,
+                            bgcolor: '#ECFDF5',
+                            borderColor: '#A7F3D0',
+                            color: '#047857',
+                          }
+                        : { fontWeight: 700 }
+                    }
                   />
+                  {openVersion.status === 'PUBLISHED' && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                      {t('The report has been published. This version is immutable.')}
+                    </Typography>
+                  )}
                   {versionList.length > 1 &&
                     versionList.map((version) => {
                       const isSelected = openVersion?.id === version.id;
@@ -309,11 +324,7 @@ export default function InspectionReportPage() {
               )}
             </Stack>
 
-            {openVersion.status === 'PUBLISHED' ? (
-              <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                {t('The report has been published. This version is immutable.')}
-              </Alert>
-            ) : !findingsConfirmed ? (
+            {openVersion.status === 'PUBLISHED' ? null : !findingsConfirmed ? (
               <Alert
                 severity="info"
                 sx={{ borderRadius: '10px' }}
@@ -397,13 +408,10 @@ export default function InspectionReportPage() {
 
       {!createDraft.isPending && versionList.length === 0 ? (
         <Stack spacing={2}>
-          <Alert severity="info" sx={{ borderRadius: '10px' }}>
-            {t('Report preview · not submitted')}
-          </Alert>
           <Paper
             variant="outlined"
             sx={{
-              p: { xs: 2.5, sm: 3 },
+              p: { xs: 2, sm: 2.5 },
               borderRadius: '10px',
               borderColor: 'divider',
               bgcolor: 'background.paper',
@@ -519,13 +527,14 @@ export default function InspectionReportPage() {
         </Stack>
       ) : (
         openVersion && (
-          <Stack spacing={2}>
+          <Box>
             <Paper
               variant="outlined"
               sx={{
                 px: 2,
                 pt: 1,
-                borderRadius: '10px',
+                borderRadius: '12px 12px 0 0',
+                borderBottom: 0,
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
               }}
@@ -551,32 +560,43 @@ export default function InspectionReportPage() {
               </Tabs>
             </Paper>
 
-            {activeDocTab === 'inspection' ? (
-              <ReportAuthoringPanel
-                key={openVersion.id}
-                version={openVersion}
-                findings={findings.data ?? []}
-                evidenceList={activeEvidenceList}
-                fieldSessions={fieldSessionsQuery?.data}
-                inspectionId={inspectionId}
-                reinspectionVerifications={reinspectionVerifications?.data}
-                canEdit={canEditOpenVersion}
-                onDirtyChange={onReportDirtyChange}
-              />
-            ) : (
-              <FlightOperationsReportView
-                inspectionId={inspectionId}
-                fieldSessionId={latestFieldSessionId}
-                version={openVersion}
-                evidenceList={activeEvidenceList}
-                assetName={openVersion.reportContext?.assetName ?? inspectionData?.assetName}
-                flightPermitFileName={
-                  openVersion.reportContext?.flightPermitFileName ??
-                  inspectionData?.flightPermitFileName
-                }
-              />
-            )}
-          </Stack>
+            <Box sx={{ '& > .MuiPaper-root': { borderTopLeftRadius: 0, borderTopRightRadius: 0 } }}>
+              {activeDocTab === 'inspection' ? (
+                <ReportAuthoringPanel
+                  key={openVersion.id}
+                  version={openVersion}
+                  findings={findings.data ?? []}
+                  evidenceList={activeEvidenceList}
+                  fieldSessions={fieldSessionsQuery?.data}
+                  inspectionId={inspectionId}
+                  reinspectionVerifications={reinspectionVerifications?.data}
+                  canEdit={canEditOpenVersion}
+                  onDirtyChange={onReportDirtyChange}
+                  droneSummary={
+                    [inspectionData?.droneModel, inspectionData?.droneSerialNumber]
+                      .filter(Boolean)
+                      .join(' · ') || null
+                  }
+                  flightPermitFileName={
+                    openVersion.reportContext?.flightPermitFileName ??
+                    inspectionData?.flightPermitFileName
+                  }
+                />
+              ) : (
+                <FlightOperationsReportView
+                  inspectionId={inspectionId}
+                  fieldSessionId={latestFieldSessionId}
+                  version={openVersion}
+                  evidenceList={activeEvidenceList}
+                  assetName={openVersion.reportContext?.assetName ?? inspectionData?.assetName}
+                  flightPermitFileName={
+                    openVersion.reportContext?.flightPermitFileName ??
+                    inspectionData?.flightPermitFileName
+                  }
+                />
+              )}
+            </Box>
+          </Box>
         )
       )}
 

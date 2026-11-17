@@ -212,6 +212,13 @@ export default function CustomerReportDeliverablePage({
                 onProceedToPayOS={() => payosLink.mutate()}
                 onProceedToVnPay={() => vnpayLink.mutate()}
                 onOpenDispute={() => setDisputeOpen(true)}
+                onViewReport={
+                  !showReportContent
+                    ? () => {
+                        void navigate('../report');
+                      }
+                    : undefined
+                }
               />
             )}
 
@@ -299,14 +306,14 @@ export default function CustomerReportDeliverablePage({
             {priorClarificationCount >= 2 ? (
               <Alert severity="error" sx={{ borderRadius: '8px' }}>
                 {t(
-                  'Báo cáo đã qua 02 lần yêu cầu làm rõ theo hạn mức hợp đồng. Quyền gửi yêu cầu trực tuyến đã tạm khóa để bảo vệ tiến độ. Vui lòng liên hệ trực tiếp Quản lý nền tảng để đối soát và hòa giải.',
+                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Platform Manager directly for reconciliation.',
                 )}
               </Alert>
             ) : (
               <>
                 <Typography variant="body2" color="text.secondary">
                   {t(
-                    'Vui lòng nêu rõ các điểm chưa chính xác hoặc câu hỏi kỹ thuật cần làm rõ. Quy định hợp đồng cho phép tối đa 02 lần yêu cầu làm rõ trước khi nghiệm thu (Hiện tại: lần {count}/2).',
+                    'Please specify the inaccurate findings or technical questions requiring clarification. Contract terms allow up to 02 clarification requests prior to acceptance (Current: request {count}/2).',
                   ).replace('{count}', String(priorClarificationCount + 1))}
                 </Typography>
                 <TextField

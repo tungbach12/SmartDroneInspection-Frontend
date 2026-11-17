@@ -267,7 +267,7 @@ export function CustomerInspectionsPage() {
     <Box className="workspace-page workspace-page--inspections">
       <PageHeader
         title={t('Inspections')}
-        breadcrumbs={[{ label: t('Operations'), to: '/client/dashboard' }, { label: t('Inspections') }]}
+        breadcrumbs={[{ label: t('Dashboard'), to: '/client/dashboard' }, { label: t('Inspections') }]}
       />
 
       <Stack spacing={2}>
@@ -559,13 +559,11 @@ export function CustomerInspectionsPage() {
                             >
                               <Typography
                                 variant="body2"
-                                noWrap
                                 title={row.resolvedAssetName}
                                 sx={{
                                   fontWeight: 650,
                                   color: 'text.primary',
                                   fontSize: '0.875rem',
-                                  maxWidth: { md: 210, lg: 260 },
                                 }}
                               >
                                 {row.resolvedAssetName}
@@ -589,15 +587,13 @@ export function CustomerInspectionsPage() {
 
                             <Typography
                               variant="caption"
-                              noWrap
                               title={locationLabel ?? row.resolvedObjective}
                               sx={{
                                 color: 'text.secondary',
                                 display: 'block',
-                                maxWidth: { md: 210, lg: 260 },
                               }}
                             >
-                              {locationLabel ?? row.resolvedObjective}
+                              {[locationLabel ?? row.resolvedObjective, row.inspectorName ? `${t('Inspector')}: ${row.inspectorName}` : null].filter(Boolean).join(' · ')}
                             </Typography>
                           </Stack>
                         </TableCell>
@@ -695,14 +691,13 @@ export function CustomerInspectionsPage() {
                           >
                             <Button
                               size="small"
-                              variant="outlined"
+                              variant="text"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setSelectedWorkDetailId(row.id);
                               }}
                               sx={{
                                 borderRadius: '8px',
-                                borderColor: 'divider',
                                 color: 'text.secondary',
                                 fontWeight: 600,
                                 fontSize: '0.75rem',
@@ -711,7 +706,6 @@ export function CustomerInspectionsPage() {
                                 py: 0.5,
                                 whiteSpace: 'nowrap',
                                 '&:hover': {
-                                  borderColor: 'text.primary',
                                   color: 'text.primary',
                                   bgcolor: 'action.hover',
                                 },
@@ -722,6 +716,7 @@ export function CustomerInspectionsPage() {
                             <Button
                               size="small"
                               variant="outlined"
+                              color="primary"
                               aria-label={isPublished ? t('View report') : t('Open')}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -730,20 +725,13 @@ export function CustomerInspectionsPage() {
                               endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
                               sx={{
                                 borderRadius: '8px',
-                                borderColor: 'divider',
-                                color: 'text.primary',
-                                fontWeight: 600,
+                                fontWeight: 650,
                                 fontSize: '0.75rem',
                                 textTransform: 'none',
-                                px: 1.25,
+                                px: 1.35,
                                 py: 0.5,
                                 boxShadow: 'none',
                                 whiteSpace: 'nowrap',
-                                '&:hover': {
-                                  borderColor: 'primary.main',
-                                  color: 'primary.main',
-                                  bgcolor: 'primary.light',
-                                },
                               }}
                             >
                               {isPublished ? t('View report') : t('Open')}
@@ -900,8 +888,8 @@ export function CustomerInspectionsPage() {
             >
               <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
                 {displayedItems.length === 0
-                  ? t('Showing 0 From 0')
-                  : `Showing ${Math.min((page - 1) * pageSize + 1, displayedItems.length)}–${Math.min(page * pageSize, displayedItems.length)} From ${displayedItems.length}`}
+                  ? t('Showing 0 of 0')
+                  : `Showing ${Math.min((page - 1) * pageSize + 1, displayedItems.length)}–${Math.min(page * pageSize, displayedItems.length)} of ${displayedItems.length}`}
               </Typography>
 
               <Pagination

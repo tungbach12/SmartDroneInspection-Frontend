@@ -138,7 +138,6 @@ export default function InspectionFindingsPage() {
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
   const [revisedDefectLabels, setRevisedDefectLabels] = useState<Record<string, string>>({});
   const [revisedTechnicalNotes, setRevisedTechnicalNotes] = useState<Record<string, string>>({});
-  const [revisedRecommendedActions, setRevisedRecommendedActions] = useState<Record<string, string>>({});
   const [revisedBoundingBoxes, setRevisedBoundingBoxes] = useState<Record<string, string | null>>({});
   const [manualBoundingBoxes, setManualBoundingBoxes] = useState<Record<string, string | null>>({});
   const [manualFindingEvidenceId, setManualFindingEvidenceId] = useState<string | null>(null);
@@ -247,7 +246,6 @@ export default function InspectionFindingsPage() {
           f.defectLabel.toLowerCase().includes(cleanDefect) ||
           f.findingCode.toLowerCase().includes(cleanDefect) ||
           (f.technicalNotes && f.technicalNotes.toLowerCase().includes(cleanDefect)) ||
-          (f.recommendedAction && f.recommendedAction.toLowerCase().includes(cleanDefect)) ||
           (f.modelName && f.modelName.toLowerCase().includes(cleanDefect));
         if (!match) continue;
       }
@@ -337,10 +335,6 @@ export default function InspectionFindingsPage() {
       ...prev,
       [finding.id]: finding.technicalNotes ?? '',
     }));
-    setRevisedRecommendedActions((prev) => ({
-      ...prev,
-      [finding.id]: finding.recommendedAction ?? '',
-    }));
     setRevisedBoundingBoxes((prev) => ({
       ...prev,
       [finding.id]: finding.boundingBox ?? null,
@@ -350,9 +344,6 @@ export default function InspectionFindingsPage() {
   const saveCandidateCorrection = (finding: Finding) => {
     const defectLabel = (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim();
     const technicalNotes = (revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '').trim();
-    const recommendedAction = (
-      revisedRecommendedActions[finding.id] ?? finding.recommendedAction ?? ''
-    ).trim();
     const hasEditedBox =
       finding.id in revisedBoundingBoxes &&
       revisedBoundingBoxes[finding.id] !== (finding.boundingBox ?? null);
@@ -368,7 +359,6 @@ export default function InspectionFindingsPage() {
           defectLabel,
           severity: severityFor(finding),
           technicalNotes: technicalNotes || 'Corrected by assigned Inspector',
-          recommendedAction: recommendedAction || undefined,
           ...boundingBoxPatch,
         },
       },
@@ -387,7 +377,6 @@ export default function InspectionFindingsPage() {
       defectLabel: String(formData.get('defectLabel') ?? '').trim(),
       severity: String(formData.get('severity') ?? 'MEDIUM') as FindingSeverity,
       technicalNotes: String(formData.get('technicalNotes') ?? '').trim(),
-      recommendedAction: String(formData.get('recommendedAction') ?? '').trim(),
       ...(rawBox ? { boundingBox: rawBox } : {}),
     });
     setManualBoundingBoxes((prev) => {
@@ -559,7 +548,7 @@ export default function InspectionFindingsPage() {
                   py: 0.875,
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
-                  '&:hover': { boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)' },
+                  '&:hover': { boxShadow: 'none' },
                 }}
               >
                 {isAnalysisPending
@@ -663,6 +652,90 @@ export default function InspectionFindingsPage() {
           />
         )}
       </Stack>
+
+      {/* Elevated Findings Confirmation Gate (above capture list so it is always visible without scrolling past all photos) */}
+      {isInspector && (
+        <Paper
+          variant="outlined"
+          className="trace-confirmation-gate"
+          sx={{
+            p: { xs: 2, sm: 2.25 },
+            borderRadius: '10px',
+            borderColor: pendingFindings > 0 ? 'warning.main' : 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+          >
+            <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700 }}>
+                  {t('Confirm findings set')}
+                </Typography>
+                {pendingFindings > 0 && (
+                  <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />
+                )}
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {pendingFindings > 0
+                  ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
+                  : confirmedFindingsCount > 0
+                    ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
+                    : t('No findings recorded. Confirm that you checked the captures within scope.')}
+              </Typography>
+              {noFindings && (
+                <FormControlLabel
+                  sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5, pt: 0.25 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={noFindingsAcknowledged}
+                      onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
+                      sx={{ pt: 0, pb: 0 }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      {t('I checked the captures within scope and confirmed no findings.')}
+                    </Typography>
+                  }
+                />
+              )}
+            </Stack>
+            <Button
+              variant="contained"
+              disabled={!canConfirm}
+              onClick={() =>
+                confirmFindings.mutate(noFindings, {
+                  onSuccess: () => navigate('../report'),
+                })
+              }
+              sx={{
+                alignSelf: { xs: 'flex-start', md: 'center' },
+                flexShrink: 0,
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 2.5,
+                boxShadow: 'none',
+              }}
+            >
+              {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
+            </Button>
+          </Stack>
+          {confirmFindings.isError && (
+            <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px' }}>
+              {getErrorMessage(
+                confirmFindings.error,
+                'Findings were not confirmed. Resolve any pending candidates and try again.',
+              )}
+            </Alert>
+          )}
+        </Paper>
+      )}
 
       {/* 4. Hierarchical Capture List */}
       {findings.isLoading ? (
@@ -770,10 +843,6 @@ export default function InspectionFindingsPage() {
                 onTechnicalNotesChange={(fid, val) =>
                   setRevisedTechnicalNotes((prev) => ({ ...prev, [fid]: val }))
                 }
-                revisedRecommendedActions={revisedRecommendedActions}
-                onRecommendedActionsChange={(fid, val) =>
-                  setRevisedRecommendedActions((prev) => ({ ...prev, [fid]: val }))
-                }
                 revisedBoundingBoxes={revisedBoundingBoxes}
                 onEditBoundingBox={(finding) => {
                   if (!finding.evidenceId) return;
@@ -871,66 +940,7 @@ export default function InspectionFindingsPage() {
         </Stack>
       )}
 
-      {/* 6. Findings Confirmation Gate */}
-      {isInspector && (
-        <Paper variant="outlined" className="trace-confirmation-gate" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '8px', borderColor: pendingFindings > 0 ? 'warning.main' : 'divider' }}>
-          <Stack spacing={1.5}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 0.5 }}>
-              <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700 }}>
-                {t('Confirm findings set')}
-              </Typography>
-              {pendingFindings > 0 && <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />}
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {pendingFindings > 0
-                ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
-                : confirmedFindingsCount > 0
-                  ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
-                  : t('No findings recorded. Confirm that you checked the captures within scope.')}
-            </Typography>
-            {noFindings && (
-              <FormControlLabel
-                sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5 }}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={noFindingsAcknowledged}
-                    onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
-                    sx={{ pt: 0, pb: 0 }}
-                  />
-                }
-                label={
-                  <Typography variant="body2">
-                    {t('I checked the captures within scope and confirmed no findings.')}
-                  </Typography>
-                }
-              />
-            )}
-            <Button
-              variant="contained"
-              disabled={!canConfirm}
-              onClick={() =>
-                confirmFindings.mutate(noFindings, {
-                  onSuccess: () => navigate('../report'),
-                })
-              }
-              sx={{ alignSelf: 'flex-start', borderRadius: '10px', textTransform: 'none', px: 2.5 }}
-            >
-              {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
-            </Button>
-            {confirmFindings.isError && (
-              <Alert severity="error" sx={{ borderRadius: '10px' }}>
-                {getErrorMessage(
-                  confirmFindings.error,
-                  'Findings were not confirmed. Resolve any pending candidates and try again.',
-                )}
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
-      )}
-
-      {/* 7. Manual Inspector Findings Register */}
+      {/* 6. Manual Inspector Findings Register */}
       <InspectorFindingRegister
         findings={(findings.data ?? []).filter((finding) => finding.modelName == null && !finding.isDeleted)}
         evidence={evidence.data ?? []}
@@ -1100,7 +1110,6 @@ function InspectorFindingRegister({
       defectLabel: String(data.get('defectLabel') ?? '').trim(),
       severity: String(data.get('severity') ?? finding.severity) as FindingSeverity,
       technicalNotes: String(data.get('technicalNotes') ?? '').trim(),
-      recommendedAction: String(data.get('recommendedAction') ?? '').trim() || undefined,
       ...(hasEditedBox ? { boundingBox: editedBoxes[finding.id] ?? '' } : {}),
     });
     setEditingId(null);
@@ -1124,8 +1133,7 @@ function InspectorFindingRegister({
                 <TextField select name="severity" label={t('Severity')} size="small" defaultValue={finding.severity}>
                   {SEVERITIES.map((level) => <MenuItem key={level} value={level}>{level}</MenuItem>)}
                 </TextField>
-                <TextField name="technicalNotes" label={t('Technical notes')} size="small" multiline minRows={2} defaultValue={finding.technicalNotes} required sx={{ gridColumn: '1 / -1' }} />
-                <TextField name="recommendedAction" label={t('Recommended action')} size="small" multiline minRows={2} defaultValue={finding.recommendedAction ?? ''} sx={{ gridColumn: '1 / -1' }} />
+                <TextField name="technicalNotes" label={t('Note')} size="small" multiline minRows={2} defaultValue={finding.technicalNotes} required sx={{ gridColumn: '1 / -1' }} />
                 {evidence.find((item) => item.id === finding.evidenceId)?.contentType.startsWith('image/') && (
                   <Stack
                     direction="row"
@@ -1312,8 +1320,11 @@ function OrganizationFindingsOverview({
                   <Typography variant="body2" color="text.secondary">
                     {linkedEvidence?.locationDescription ?? 'Location not recorded'}
                   </Typography>
-                  {finding.technicalNotes && <Typography variant="body2" color="text.secondary">{finding.technicalNotes}</Typography>}
-                  {finding.recommendedAction && <Typography variant="body2"><strong>{t('Recommended action:')}</strong> {finding.recommendedAction}</Typography>}
+                  {finding.technicalNotes?.trim() && (
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>{t('Note')}:</strong> {finding.technicalNotes.trim()}
+                    </Typography>
+                  )}
                   {finding.evidenceId && <Typography variant="caption" color="text.secondary">{t('Linked evidence ·')} {finding.evidenceId.slice(0, 8)}…</Typography>}
                 </Stack>
               </Box>

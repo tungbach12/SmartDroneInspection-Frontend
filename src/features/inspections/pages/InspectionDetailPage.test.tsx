@@ -244,11 +244,11 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage({ route: '/manager/inspections/inspection-1/audit' });
 
     expect(screen.getByText('DJI Matrice 350 RTK')).toBeTruthy();
-    expect(screen.getByText(/Customer:/i)).toBeTruthy();
+    expect(screen.getByText(/^Customer$/i)).toBeTruthy();
     expect(await screen.findByText('Saigon Bridge Corp')).toBeTruthy();
-    expect(screen.getByText(/Inspector:/i)).toBeTruthy();
+    expect(screen.getByText(/^Inspector$/i)).toBeTruthy();
     expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
-    expect(screen.queryByText(/Manager:/i)).toBeNull();
+    expect(screen.queryByText(/^Manager$/i)).toBeNull();
     expect(screen.queryByText(/ops@saigonbridge\.vn/)).toBeNull();
     expect(screen.queryByText(/inspector@smartdrone\.vn/)).toBeNull();
     expect(screen.queryByText(/Planned Start/i)).toBeNull();
@@ -291,7 +291,7 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByText('DJI Matrice 350 RTK')).toBeTruthy();
     expect(screen.getByText('Saigon Bridge Corp')).toBeTruthy();
     expect(screen.getByText('Platform Manager 2')).toBeTruthy();
-    expect(screen.getByText(/Schedule:/i)).toBeTruthy();
+    expect(screen.getByText(/^Schedule$/i)).toBeTruthy();
     expect(screen.queryByText('Tran Van Inspector')).toBeNull();
     expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
 
@@ -327,7 +327,7 @@ describe('InspectionDetailPage', () => {
 
     expect(screen.getByText('Platform Manager 2')).toBeTruthy();
     expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
-    expect(screen.getByText(/Schedule:/i)).toBeTruthy();
+    expect(screen.getByText(/^Schedule$/i)).toBeTruthy();
     expect(screen.queryByText('Saigon Bridge Corp')).toBeNull();
     expect(screen.queryByText(/DJI Matrice 350 RTK/)).toBeNull();
 

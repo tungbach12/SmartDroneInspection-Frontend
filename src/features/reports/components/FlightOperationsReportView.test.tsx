@@ -111,9 +111,8 @@ describe('FlightOperationsReportView', () => {
     expect(
       screen.queryByText('SRT records a video segment; it does not establish the full flight duration or milestones.'),
     ).toBeNull();
-    expect(screen.getByText('Duration unavailable in this source')).toBeTruthy();
-    expect(screen.getAllByText('Speed data not included in this log').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Battery data not included in this log').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Speed data not included in this log')).toBeTruthy();
+    expect(screen.getByText('Battery data not included in this log')).toBeTruthy();
     expect(screen.getByText('No permit document details available')).toBeTruthy();
     expect(screen.getByTestId('trajectory-map').getAttribute('data-dimension')).toBe('3d');
     expect(screen.queryByText(/Verified MAVLink|Verified on-site permit|0m 00s|100%|GUIDED|LANDED|Takeoff/i)).toBeNull();

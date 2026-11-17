@@ -242,7 +242,6 @@ export interface Finding {
   defectLabel: string;
   severity: FindingSeverity;
   technicalNotes: string;
-  recommendedAction: string | null;
   boundingBox: string | null;
   modelName: string | null;
   confidence: number | null;
@@ -269,7 +268,6 @@ export interface ReviewFindingInput {
   defectLabel?: string;
   severity?: FindingSeverity;
   technicalNotes?: string;
-  recommendedAction?: string;
   boundingBox?: string | null | undefined;
 }
 
@@ -278,7 +276,6 @@ export interface ManualFindingInput {
   defectLabel: string;
   severity: FindingSeverity;
   technicalNotes: string;
-  recommendedAction?: string | undefined;
   boundingBox?: string | null | undefined;
 }
 
@@ -436,6 +433,11 @@ export interface InspectionListItem {
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
   flightPermitVerificationStatus?: FlightPermitVerificationStatus | null;
+  ownerCustomerName?: string | null;
+  inspectorName?: string | null;
+  managerName?: string | null;
+  droneModel?: string | null;
+  droneSerialNumber?: string | null;
   /**
    * The one decision the organization manageristrator is being asked for on this row.
    *

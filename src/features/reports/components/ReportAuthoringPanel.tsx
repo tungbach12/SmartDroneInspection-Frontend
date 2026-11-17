@@ -154,9 +154,6 @@ export function ReportAuthoringPanel({
           <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
             {t('Report details')}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-            {t('Report generated automatically from confirmed findings, evidence, and flight records.')}
-          </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
           {canPreview && (

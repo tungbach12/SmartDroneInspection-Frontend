@@ -712,6 +712,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           size="small"
           aria-label={t('Start now')}
           data-testid={testId}
+          tabIndex={-1}
           disabled={!canStart || startSession.isPending}
           onClick={() => handleStartNow(mode)}
           sx={{
@@ -1369,6 +1370,27 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         }
                       >
                         {t('Record the mission flight document in Step 1 before starting the session.')}
+                      </Alert>
+                    )}
+
+                    {!isCompletedPreFlight && hasPermit && !isPermitApproved && (
+                      <Alert
+                        severity={permitVerificationStatus === 'REJECTED' ? 'error' : 'warning'}
+                        action={
+                          <Button
+                            component={RouterLink}
+                            to="../permit"
+                            color="inherit"
+                            size="small"
+                            sx={{ whiteSpace: 'nowrap' }}
+                          >
+                            {t('View permit')}
+                          </Button>
+                        }
+                      >
+                        {permitVerificationStatus === 'REJECTED'
+                          ? t('Flight permit was rejected by the Platform Manager. Upload a replacement permit in Step 1 before starting the session.')
+                          : t('Flight permit is pending Platform Manager verification. You can prepare the checklist below, and session start will unlock once the permit is approved.')}
                       </Alert>
                     )}
 
@@ -2111,6 +2133,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             size="small"
                             aria-label="Open 3D flight simulation demo"
                             data-testid="step3-hidden-3d-demo-trigger"
+                            tabIndex={-1}
                             onClick={() => setSimDemoOpen(true)}
                             sx={{
                               width: 22,
@@ -2390,7 +2413,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       telemetrySource={latestSession.telemetrySource}
                     />
                   )}
-                {!openSession && stage === 'flight' && assetInspectionItems.length > 0 && (
+                {!openSession && !canContinueToEvidence && stage === 'flight' && assetInspectionItems.length > 0 && (
                   <ChecklistNoteDisplay
                     title={t('Target Building Inspection Items')}
                     rawNote=""

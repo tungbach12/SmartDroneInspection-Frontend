@@ -126,7 +126,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     boundingBox: null,
     modelName: null,
     confidence: null,
-    recommendedAction: null,
     status: 'PENDING',
     isDeleted: false,
     ...overrides,
@@ -454,7 +453,7 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage('/manager/inspections/inspection-1/review');
 
     expect(
-      await screen.findByRole('tab', { name: /1\. Inspection Findings Report/i }),
+      await screen.findByRole('tab', { name: /Findings report/i }),
     ).toBeTruthy();
     expect(screen.queryByText(/Published version 1\. This version is immutable/i)).toBeNull();
     expect(screen.queryByText(/Send to Maintenance \(MF3-12\)/)).toBeNull();

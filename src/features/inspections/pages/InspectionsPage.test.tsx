@@ -589,7 +589,7 @@ describe('InspectionsPage', () => {
 
     renderPage('/manager/inspections');
 
-    expect(await screen.findByText(/1 inspections have flight permits pending manager verification/)).toBeTruthy();
+    expect(await screen.findByText(/1 inspection has a flight permit pending manager verification/)).toBeTruthy();
     expect(screen.getByText('Wind Turbine Other')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'View pending permits' }));
