@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Chip, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Chip, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import type {
@@ -83,60 +83,65 @@ export function ReportDeliverableTabs({
         </Paper>
       )}
 
-      <Paper
-        variant="outlined"
-        sx={{
-          px: 2,
-          pt: 1,
-          borderRadius: '12px',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-        }}
-      >
-        <Tabs
-          value={activeDocTab}
-          onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
+      <Box>
+        <Paper
+          variant="outlined"
+          sx={{
+            px: 2,
+            pt: 1,
+            borderRadius: '12px 12px 0 0',
+            borderBottom: 0,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
         >
-          <Tab
-            value="inspection"
-            icon={<PictureAsPdfRounded fontSize="small" />}
-            iconPosition="start"
-            label={t('1. Inspection Findings Report')}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          />
-          <Tab
-            value="flight"
-            icon={<FlightTakeoffRounded fontSize="small" />}
-            iconPosition="start"
-            label={t('2. Flight Operations Report (Auto-Generated)')}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          />
-        </Tabs>
-      </Paper>
+          <Tabs
+            value={activeDocTab}
+            onChange={(_, val: 'inspection' | 'flight') => setActiveDocTab(val)}
+          >
+            <Tab
+              value="inspection"
+              icon={<PictureAsPdfRounded fontSize="small" />}
+              iconPosition="start"
+              label={t('Findings report')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            />
+            <Tab
+              value="flight"
+              icon={<FlightTakeoffRounded fontSize="small" />}
+              iconPosition="start"
+              label={t('Flight operations')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            />
+          </Tabs>
+        </Paper>
 
-      {activeDocTab === 'inspection' ? (
-        <ReportAuthoringPanel
-          version={openVersion}
-          findings={findings}
-          evidenceList={evidenceList}
-          fieldSessions={fieldSessions}
-          reinspectionVerifications={reinspectionVerifications}
-          inspectionId={inspectionId}
-          canEdit={canEdit}
-          droneSummary={droneSummary}
-          flightPermitFileName={flightPermitFileName}
-        />
-      ) : (
-        <FlightOperationsReportView
-          inspectionId={inspectionId}
-          fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
-          version={openVersion}
-          evidenceList={evidenceList}
-          assetName={openVersion.reportContext?.assetName ?? assetName}
-          droneSummary={droneSummary}
-          flightPermitFileName={flightPermitFileName}
-        />
-      )}
+        <Box sx={{ '& > .MuiPaper-root': { borderTopLeftRadius: 0, borderTopRightRadius: 0 } }}>
+          {activeDocTab === 'inspection' ? (
+            <ReportAuthoringPanel
+              version={openVersion}
+              findings={findings}
+              evidenceList={evidenceList}
+              fieldSessions={fieldSessions}
+              reinspectionVerifications={reinspectionVerifications}
+              inspectionId={inspectionId}
+              canEdit={canEdit}
+              droneSummary={droneSummary}
+              flightPermitFileName={flightPermitFileName}
+            />
+          ) : (
+            <FlightOperationsReportView
+              inspectionId={inspectionId}
+              fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
+              version={openVersion}
+              evidenceList={evidenceList}
+              assetName={openVersion.reportContext?.assetName ?? assetName}
+              droneSummary={droneSummary}
+              flightPermitFileName={flightPermitFileName}
+            />
+          )}
+        </Box>
+      </Box>
     </Stack>
   );
 }

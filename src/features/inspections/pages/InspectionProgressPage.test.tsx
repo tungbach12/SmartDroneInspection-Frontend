@@ -53,19 +53,55 @@ describe('InspectionProgressPage', () => {
     mocks.versionsQuery.data = [];
   });
 
-  it('renders asset name and 5-stage lifecycle progress', () => {
+  it('renders compact mission summary without duplicating header asset/pilot/drone and shows 5-stage lifecycle progress', () => {
     render(
       <MemoryRouter>
         <InspectionProgressPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByText('Cau Nhat Tan').length).toBeGreaterThan(0);
+    expect(screen.getByText('Mission Stage')).toBeTruthy();
+    expect(screen.getByText('2 photos')).toBeTruthy();
+    expect(screen.queryByText('Assigned Pilot')).toBeNull();
+    expect(screen.queryByText('Drone Model')).toBeNull();
     expect(screen.getByText('Inspection Lifecycle Progress')).toBeTruthy();
     expect(screen.getByText('Aerial drone survey')).toBeTruthy();
     expect(screen.getByText('Evidence intake & AI defect analysis')).toBeTruthy();
     expect(screen.getByText('Technical report review')).toBeTruthy();
     expect(screen.getByText('Official report publication')).toBeTruthy();
+  });
+
+  it('distinguishes FIELD_COMPLETED from IN_PROGRESS in customer status banner', () => {
+    mocks.workflowQuery.data = { status: 'FIELD_COMPLETED' };
+    render(
+      <MemoryRouter>
+        <InspectionProgressPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Field Survey Completed — Preparing Report')).toBeTruthy();
+    expect(screen.queryByText('Field Survey in Progress')).toBeNull();
+  });
+
+  it('shows scheduled preparation copy rather than in-progress copy when inspection is SCHEDULED', () => {
+    mocks.workflowQuery.data = { status: 'SCHEDULED' };
+    render(
+      <MemoryRouter>
+        <InspectionProgressPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Inspection Scheduled')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'The inspection is scheduled. Flight permit verification and pre-flight preparation are underway before on-site capture begins.',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        'Field operations and data collection are in progress. Track mission progress below; you will be notified as soon as the final report is published.',
+      ),
+    ).toBeNull();
   });
 
   it('shows quality review notice when report is not yet published', () => {

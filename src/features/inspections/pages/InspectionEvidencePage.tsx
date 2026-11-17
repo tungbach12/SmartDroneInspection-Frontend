@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -15,6 +15,7 @@ import {
   TablePagination,
   Typography,
 } from '@mui/material';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CropRounded from '@mui/icons-material/CropRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
@@ -146,7 +147,7 @@ function hasValidGps(
 }
 
 export default function InspectionEvidencePage() {
-  const { t } = useLocale();
+  const { t, formatDateTime } = useLocale();
   const showToast = useToastStore((state) => state.showToast);
   const { inspectionId = '' } = useParams();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
@@ -875,7 +876,7 @@ export default function InspectionEvidencePage() {
                 )}
               </Button>
               <Button
-                variant="contained"
+                variant={queue.length > 0 ? 'contained' : 'outlined'}
                 size="small"
                 disabled={!canUploadEvidence || queue.length === 0 || uploading}
                 onClick={() => void uploadQueue()}
@@ -883,6 +884,18 @@ export default function InspectionEvidencePage() {
               >
                 {uploading ? t('Uploading files…') : t('Upload')}
               </Button>
+              {activeCount > 0 && !uploading && (
+                <Button
+                  component={RouterLink}
+                  to="../findings"
+                  variant={queue.length === 0 ? 'contained' : 'outlined'}
+                  size="small"
+                  endIcon={<ArrowForwardRounded fontSize="small" />}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('Continue to Defect Findings')}
+                </Button>
+              )}
             </Stack>
           </Stack>
 
@@ -1143,7 +1156,6 @@ export default function InspectionEvidencePage() {
                 {displayedEvidenceItems.map((item) => {
                   const isSelected = item.id === selectedEvidence?.id;
                   const isChecked = selectedBatchIds.includes(item.id);
-                  const itemHasGps = hasValidGps(item.latitude, item.longitude);
                   return (
                     <Paper
                       key={item.id}
@@ -1200,7 +1212,7 @@ export default function InspectionEvidencePage() {
                               {item.fileName}
                             </Typography>
                             {item.isDeleted && (
-                              <Chip size="small" color="error" variant="outlined" label={t('Deleted')} sx={{ height: 20, fontSize: '0.7rem' }} />
+                              <Chip size="small" color="error" variant="outlined" label={t('Deleted')} sx={{ height: 22, fontSize: '0.75rem' }} />
                             )}
                             {!item.isDeleted &&
                               (item.processingStatus === 'PENDING' ||
@@ -1210,7 +1222,7 @@ export default function InspectionEvidencePage() {
                                   color="info"
                                   variant="outlined"
                                   label={t('Processing')}
-                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                  sx={{ height: 22, fontSize: '0.75rem' }}
                                 />
                               )}
                             {!item.isDeleted && item.processingStatus === 'FAILED' && (
@@ -1219,7 +1231,7 @@ export default function InspectionEvidencePage() {
                                 color="error"
                                 variant="outlined"
                                 label={t('Failed')}
-                                sx={{ height: 20, fontSize: '0.7rem' }}
+                                sx={{ height: 22, fontSize: '0.75rem' }}
                               />
                             )}
                             {item.sourceVideoEvidenceId && (
@@ -1229,42 +1241,22 @@ export default function InspectionEvidencePage() {
                                 label={formatMmSs(item.sourceTimestampSeconds)}
                                 color="secondary"
                                 variant="outlined"
-                                sx={{ height: 20, fontSize: '0.7rem' }}
+                                sx={{ height: 22, fontSize: '0.75rem' }}
                               />
                             )}
                           </Stack>
-                          <Stack
-                            direction="row"
-                            spacing={0.75}
-                            sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mt: 0.25 }}
-                          >
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {item.contentType} · {formatBytes(item.sizeBytes)}
-                            </Typography>
-                            {itemHasGps && (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                                icon={<PlaceOutlined sx={{ fontSize: 13 }} />}
-                                label={t('View on map')}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setMapDialogEvidence(item);
-                                }}
-                                sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}
-                              />
-                            )}
-                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {item.contentType} · {formatBytes(item.sizeBytes)}
+                          </Typography>
                         </Box>
                       </Stack>
                     </Paper>
                   );
                 })}
 
-                {/* Select All Button relocated below the file list */}
+                {/* Select All & Co-located Batch Delete Bar */}
                 {canEditEvidence && currentEvidenceItems.length > 0 && (
-                  <Box sx={{ pt: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ pt: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                     <Button
                       size="small"
                       onClick={() => {
@@ -1281,11 +1273,26 @@ export default function InspectionEvidencePage() {
                         : `${t('Select all')} (${currentEvidenceItems.length})`}
                     </Button>
                     {hasBatchSelection && (
-                      <Chip
-                        size="small"
-                        label={`${selectedBatchIds.length} ${t('selected')}`}
-                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                      />
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                        <Chip
+                          size="small"
+                          label={`${selectedBatchIds.length} ${t('selected')}`}
+                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                        />
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          startIcon={<DeleteOutlineRounded fontSize="small" />}
+                          disabled={deletingLinkedFindings || retire.isPending || bulkRetire.isPending}
+                          onClick={handleOpenDeleteConfirm}
+                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {deletingLinkedFindings || retire.isPending || bulkRetire.isPending
+                            ? t('Deleting…')
+                            : deleteButtonLabel}
+                        </Button>
+                      </Stack>
                     )}
                   </Box>
                 )}
@@ -1625,7 +1632,7 @@ export default function InspectionEvidencePage() {
                         >
                           <Typography variant="caption" color="text.secondary">
                             {selectedEvidence.contentType} · {formatBytes(selectedEvidence.sizeBytes)}
-                            {selectedEvidence.captureTime ? ` · ${t('Captured')} ${selectedEvidence.captureTime}` : ''}
+                            {selectedEvidence.captureTime ? ` · ${t('Captured')} ${formatDateTime(new Date(selectedEvidence.captureTime))}` : ''}
                           </Typography>
                           {selectedHasGps && (
                             <Chip
@@ -1635,13 +1642,13 @@ export default function InspectionEvidencePage() {
                               icon={<PlaceOutlined sx={{ fontSize: 15 }} />}
                               label={t('View on map')}
                               onClick={() => setMapDialogEvidence(selectedEvidence)}
-                              sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                              sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                             />
                           )}
                         </Stack>
                       </Box>
 
-                      {canEditEvidence && (!selectedEvidence.isDeleted || hasBatchSelection) && (
+                      {canEditEvidence && !selectedEvidence.isDeleted && !hasBatchSelection && (
                         <Box sx={{ flexShrink: 0 }}>
                           <Button
                             size="small"

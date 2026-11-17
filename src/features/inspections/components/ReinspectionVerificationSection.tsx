@@ -474,7 +474,7 @@ function DefectVerificationCard({
                   label={t('Re-inspection')}
                   size="small"
                   variant="outlined"
-                  sx={{ height: 18, fontSize: '0.65rem' }}
+                  sx={{ height: 22, fontSize: '0.75rem' }}
                 />
               </Stack>
 

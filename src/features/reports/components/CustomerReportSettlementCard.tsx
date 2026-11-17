@@ -11,15 +11,22 @@ import {
 } from '@mui/material';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
+import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRounded';
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
-import type { Finding, ReportPaymentStatusDetails } from '@/features/inspections/api/inspectionApi';
+import {
+  inspectionApi,
+  type Finding,
+  type ReportPaymentStatusDetails,
+} from '@/features/inspections/api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
+import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -43,6 +50,7 @@ interface CustomerReportSettlementCardProps {
   onProceedToPayOS: () => void;
   onProceedToVnPay?: () => void;
   onOpenDispute: () => void;
+  onViewReport?: (() => void) | undefined;
 }
 
 /**
@@ -74,10 +82,51 @@ export function CustomerReportSettlementCard({
   onProceedToPayOS,
   onProceedToVnPay,
   onOpenDispute,
+  onViewReport,
 }: CustomerReportSettlementCardProps) {
   const { formatDateTime, formatNumber, t } = useLocale();
   const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
+  const [previewingPdf, setPreviewingPdf] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
+
+  const reportPdfFileName = `SDI-RPT-${versionId.slice(0, 8).toUpperCase()}-V${versionNo}.pdf`;
+
+  const handlePreviewPdf = async () => {
+    setPreviewingPdf(true);
+    setPdfError(null);
+    try {
+      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setPdfError(getErrorMessage(error, t('The report preview could not be produced.')));
+    } finally {
+      setPreviewingPdf(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    setPdfError(null);
+    try {
+      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = reportPdfFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setPdfError(getErrorMessage(error, t('The report document could not be downloaded.')));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;
   const amountVnd =
@@ -168,9 +217,47 @@ export function CustomerReportSettlementCard({
               />
             </Stack>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-              {t('Official report version')} v{versionNo} · {t('PDF available for export below')}
+              {t('Official report version')} v{versionNo} · {t('Official PDF ready for preview & download')}
               {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
             </Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
+              {onViewReport && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<DescriptionOutlined fontSize="small" />}
+                  onClick={onViewReport}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('View report')}
+                </Button>
+              )}
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<PictureAsPdfRounded fontSize="small" />}
+                onClick={() => void handlePreviewPdf()}
+                disabled={previewingPdf}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              >
+                {previewingPdf ? t('Rendering…') : t('Preview PDF')}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DownloadRounded fontSize="small" />}
+                onClick={() => void handleDownloadPdf()}
+                disabled={downloadingPdf}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              >
+                {downloadingPdf ? t('Downloading…') : t('Download report')}
+              </Button>
+            </Stack>
+            {pdfError && (
+              <Alert severity="error" sx={{ mt: 1, borderRadius: '8px' }} onClose={() => setPdfError(null)}>
+                {pdfError}
+              </Alert>
+            )}
           </Box>
 
           {amountVnd && (
@@ -361,8 +448,8 @@ export function CustomerReportSettlementCard({
                   )}
                 </Typography>
                 <Alert severity="info" sx={{ mt: 1, py: 0.25, px: 1.25, fontSize: '0.75rem', borderRadius: '6px' }}>
-                  <strong>{t('Thời hạn thanh toán Net 15:')}</strong>{' '}
-                  {t('Vui lòng thanh toán trong vòng 15 ngày. File PDF tải về trước khi thanh toán sẽ mang dấu mờ "Bản xem trước" và chưa có giá trị pháp lý chính thức.')}
+                  <strong>{t('Net 15 payment window:')}</strong>{' '}
+                  {t('Please complete payment within 15 days. PDF files downloaded before payment carry a "Preview" watermark and are not yet legally binding.')}
                 </Alert>
               </Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0 }}>
@@ -420,7 +507,7 @@ export function CustomerReportSettlementCard({
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                 {t(
-                  'Review the published report below (you can also preview or export the PDF at any time). Click "Accept Report" when satisfied to proceed to PayOS payment.',
+                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to PayOS payment.',
                 )}
               </Typography>
             </Box>

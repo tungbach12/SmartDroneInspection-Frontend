@@ -153,6 +153,9 @@ export function resolveRowStageSubtitle(
     if (row.pendingAction === 'PERMIT_REVIEW') {
       return 'Step 1/3 · Permit Review Due';
     }
+    if (row.status === 'FIELD_COMPLETED') {
+      return 'Step 2/3 · Awaiting report submission';
+    }
     return 'Step 1/3 · Field & Evidence Audit';
   }
 
@@ -160,6 +163,12 @@ export function resolveRowStageSubtitle(
     const total = 3;
     const isPublished = row.reportStatus === 'PUBLISHED';
     if (!isPublished) {
+      if (row.status === 'UNDER_REVIEW') {
+        return `Step 1/${total} · Report under review`;
+      }
+      if (row.status === 'FIELD_COMPLETED') {
+        return `Step 1/${total} · Preparing report`;
+      }
       return `Step 1/${total} · In progress`;
     }
     const accepted = options?.resolvedReportAccepted ?? Boolean(row.reportAccepted);

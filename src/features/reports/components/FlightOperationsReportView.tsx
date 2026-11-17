@@ -450,10 +450,10 @@ export function FlightOperationsReportView({
               >
                 <Chip
                   size="small"
-                  color={isLiveMavlink ? 'success' : isImportedSource ? 'info' : 'warning'}
+                  color="default"
                   variant="outlined"
                   label={`${t('Data source')}: ${acquisitionMethodLabel}`}
-                  sx={{ fontWeight: 650 }}
+                  sx={{ fontWeight: 600 }}
                 />
                 {reportedFinalState && (
                   <Chip
@@ -576,40 +576,32 @@ export function FlightOperationsReportView({
             }}
           >
             <StatTile
-              label={t('Recorded duration')}
+              label={t('Duration')}
               value={fmtDuration(report.durationSeconds)}
-              sub={
-                report.durationSeconds == null || report.durationSeconds <= 0
-                  ? t('Duration unavailable in this source')
-                  : report.telemetrySource === 'IMPORTED_LOG_SRT'
-                    ? t('Recorded video segment only; not the full flight')
-                    : t('Duration supplied by this source')
-              }
             />
             <StatTile
-              label={t('Recorded GPS distance')}
+              label={t('GPS distance')}
               value={report.distanceFlownMeters == null ? '—' : `${fmtNum(report.distanceFlownMeters, 1)} m`}
-              sub={t('Calculated from recorded GPS points')}
             />
             <StatTile
-              label={t('Maximum recorded altitude')}
+              label={t('Max altitude')}
               value={metrics.maxAlt == null ? '—' : `${fmtNum(metrics.maxAlt, 1)} m`}
-              sub={metrics.avgAlt == null ? t('Altitude data unavailable') : `${t('Average recorded')}: ${fmtNum(metrics.avgAlt, 1)} m`}
+              sub={metrics.avgAlt == null ? null : `${t('Avg')}: ${fmtNum(metrics.avgAlt, 1)} m`}
             />
             <StatTile
-              label={t('Peak ground speed')}
+              label={t('Peak speed')}
               value={trace.some((point) => point.groundSpeedMps != null) ? `${fmtNum(metrics.maxSpeed, 1)} m/s` : '—'}
-              sub={trace.some((point) => point.groundSpeedMps != null) ? `${t('Avg')}: ${fmtNum(metrics.avgSpeed, 1)} m/s` : t('Speed data not included in this log')}
+              sub={trace.some((point) => point.groundSpeedMps != null) ? `${t('Avg')}: ${fmtNum(metrics.avgSpeed, 1)} m/s` : null}
             />
             <StatTile
-              label={t('Battery consumption')}
+              label={t('Battery')}
               value={metrics.startBat == null || metrics.endBat == null ? '—' : `${metrics.startBat}% → ${metrics.endBat}%`}
-              sub={metrics.batUsed == null ? t('Battery data not included in this log') : `-${metrics.batUsed}% (${fmtNum(metrics.drainRatePerMin, 1)}%/min)`}
+              sub={metrics.batUsed == null ? null : `-${metrics.batUsed}%`}
             />
             <StatTile
-              label={t('Recorded samples')}
+              label={t('Samples')}
               value={`${enrichedSamples.length}`}
-              sub={`${evidenceList.length} ${t('geotagged captures')}`}
+              sub={evidenceList.length > 0 ? `${evidenceList.length} ${t('captures')}` : null}
             />
           </Box>
 
@@ -795,7 +787,7 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  sub: string;
+  sub?: string | null | undefined;
 }) {
   return (
     <Paper
@@ -828,12 +820,14 @@ function StatTile({
       >
         {value}
       </Typography>
-      <Typography
-        variant="caption"
-        sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
-      >
-        {sub}
-      </Typography>
+      {sub && (
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+        >
+          {sub}
+        </Typography>
+      )}
     </Paper>
   );
 }

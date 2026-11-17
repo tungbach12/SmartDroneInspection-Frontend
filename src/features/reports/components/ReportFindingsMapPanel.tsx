@@ -42,8 +42,8 @@ function getMarkerColor(linkedFindings: Finding[]): string {
 function getSoftSeverityChipSx(severity: Finding['severity']) {
   if (severity === 'CRITICAL' || severity === 'HIGH') {
     return (theme: { palette: { mode: string } }) => ({
-      height: 20,
-      fontSize: '0.7rem',
+      height: 22,
+      fontSize: '0.75rem',
       fontWeight: 600,
       bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.14)' : '#fef2f2',
       borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.35)' : '#fecaca',
@@ -52,8 +52,8 @@ function getSoftSeverityChipSx(severity: Finding['severity']) {
   }
   if (severity === 'MEDIUM') {
     return (theme: { palette: { mode: string } }) => ({
-      height: 20,
-      fontSize: '0.7rem',
+      height: 22,
+      fontSize: '0.75rem',
       fontWeight: 600,
       bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.14)' : '#fffbeb',
       borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.38)' : '#fde68a',
@@ -61,8 +61,8 @@ function getSoftSeverityChipSx(severity: Finding['severity']) {
     });
   }
   return {
-    height: 20,
-    fontSize: '0.7rem',
+    height: 22,
+    fontSize: '0.75rem',
     fontWeight: 600,
     bgcolor: 'action.hover',
     borderColor: 'divider',
@@ -170,35 +170,40 @@ export function ReportFindingsMapPanel({
         >
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <PlaceOutlined sx={{ fontSize: 20, color: 'primary.main' }} />
+              <PlaceOutlined sx={{ fontSize: 20, color: 'text.secondary' }} />
               <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {t('Findings location map')}
               </Typography>
-              <Chip
-                size="small"
-                color="primary"
-                variant="outlined"
-                label={`${totalGeotaggedFindings} ${t('Geotagged findings')}`}
-                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
-              />
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-              {t('Click a marker on the map to inspect the finding details recorded at that GPS position.')}
+              {`${totalGeotaggedFindings} ${t('Geotagged findings')} · ${t('Click a marker on the map to inspect the finding details recorded at that GPS position.')}`}
             </Typography>
           </Box>
 
           <ButtonGroup size="small" variant="outlined">
             <Button
-              variant={mapStyle === 'satellite' ? 'contained' : 'outlined'}
+              variant="outlined"
               onClick={() => setMapStyle('satellite')}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: mapStyle === 'satellite' ? 700 : 500,
+                bgcolor: mapStyle === 'satellite' ? 'action.selected' : 'transparent',
+                color: mapStyle === 'satellite' ? 'text.primary' : 'text.secondary',
+                borderColor: 'divider',
+              }}
             >
               {t('Satellite')}
             </Button>
             <Button
-              variant={mapStyle === 'street' ? 'contained' : 'outlined'}
+              variant="outlined"
               onClick={() => setMapStyle('street')}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: mapStyle === 'street' ? 700 : 500,
+                bgcolor: mapStyle === 'street' ? 'action.selected' : 'transparent',
+                color: mapStyle === 'street' ? 'text.primary' : 'text.secondary',
+                borderColor: 'divider',
+              }}
             >
               {t('Street map')}
             </Button>
@@ -303,42 +308,36 @@ export function ReportFindingsMapPanel({
                 </Box>
               )}
 
-              <Stack spacing={1}>
+              <Stack spacing={0.75}>
                 {activeFindings.map((finding) => (
-                  <Box
+                  <Stack
                     key={finding.id}
+                    direction="row"
+                    spacing={0.75}
                     sx={{
                       p: 1,
                       borderRadius: '8px',
                       border: '1px solid',
                       borderColor: 'divider',
                       bgcolor: 'background.paper',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
                     }}
                   >
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                      {finding.findingCode && (
-                        <Chip size="small" label={finding.findingCode} sx={{ height: 20, fontWeight: 700, fontSize: '0.72rem' }} />
-                      )}
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        {finding.defectLabel}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={finding.severity}
-                        sx={getSoftSeverityChipSx(finding.severity)}
-                      />
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      <b>{t('Technical notes')}:</b>{' '}
-                      {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
-                    </Typography>
-                    {finding.recommendedAction?.trim() && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                        <b>{t('Recommended action')}:</b> {finding.recommendedAction}
-                      </Typography>
+                    {finding.findingCode && (
+                      <Chip size="small" label={finding.findingCode} sx={{ height: 20, fontWeight: 700, fontSize: '0.72rem' }} />
                     )}
-                  </Box>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {finding.defectLabel}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={finding.severity}
+                      sx={getSoftSeverityChipSx(finding.severity)}
+                    />
+                  </Stack>
                 ))}
               </Stack>
 

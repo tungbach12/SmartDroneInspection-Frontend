@@ -24,7 +24,6 @@ import {
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import SearchIcon from '@mui/icons-material/Search';
-import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import { resolveRowStageSubtitle } from '../utils/workflowStepResolver';
@@ -192,6 +191,18 @@ export function InspectionListTable({
   const theme = useTheme();
   const isCompactViewport = useMediaQuery(theme.breakpoints.down('md'));
   const isInspector = roleView === 'inspector';
+  const isManager = roleView === 'manager';
+  const isCustomer = roleView === 'customer';
+  const counterpartHeaderLabel = isManager
+    ? t('Inspector & Drone')
+    : isCustomer
+      ? t('Assigned Partner')
+      : t('Customer & Drone');
+  const financeHeaderLabel = isManager
+    ? t('Platform Fee')
+    : isCustomer
+      ? t('Payment')
+      : t('Net Payout');
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuRow, setMenuRow] = useState<InspectionListItem | null>(null);
 
@@ -214,7 +225,7 @@ export function InspectionListTable({
         : row.reportStatus === 'RETURNED'
           ? 'Read returned report'
           : 'Open report'
-      : 'Open');
+      : 'Open workspace');
   const inspectionActionMenuId = (rowId: string) => `inspection-actions-${rowId}`;
 
   const renderActionMenu = (row: InspectionListItem) => (
@@ -250,7 +261,7 @@ export function InspectionListTable({
         slotProps={{ paper: { sx: { minWidth: 200, borderRadius: '12px' } } }}
       >
         <MenuItem onClick={() => { closeActionMenu(); onOpen(row.id); }}>
-          {t(reviewerMode ? actionLabelFor(row) : 'Open workspace')}
+          {t(actionLabelFor(row))}
         </MenuItem>
         {onOverview && (
           <MenuItem onClick={() => { closeActionMenu(); onOverview(row.id); }}>
@@ -464,9 +475,19 @@ export function InspectionListTable({
                             />
                           )}
                         </Stack>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                          {locationLabel ?? meta.objective ?? `${scheduleDate}${scheduleWindow ? ` · ${scheduleWindow}` : ''}`}
-                        </Typography>
+                        {isManager ? (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {[row.ownerCustomerName, row.inspectorName, [row.droneModel, row.droneSerialNumber].filter(Boolean).join(' · ')].filter(Boolean).join(' · ') || locationLabel || meta.objective}
+                          </Typography>
+                        ) : isCustomer ? (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {[row.inspectorName, locationLabel ?? meta.objective].filter(Boolean).join(' · ') || `${scheduleDate}${scheduleWindow ? ` · ${scheduleWindow}` : ''}`}
+                          </Typography>
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {[row.ownerCustomerName, [row.droneModel, row.droneSerialNumber].filter(Boolean).join(' · '), locationLabel ?? meta.objective].filter(Boolean).join(' · ') || `${scheduleDate}${scheduleWindow ? ` · ${scheduleWindow}` : ''}`}
+                          </Typography>
+                        )}
                       </Box>
                       <Stack spacing={0.35} sx={{ alignItems: 'flex-end' }}>
                         {row.reassignmentRequired ? (
@@ -505,20 +526,36 @@ export function InspectionListTable({
                         >
                           {scheduleDate}{scheduleWindow ? ` · ${scheduleWindow}` : ''} · {t(stageSubtitle)}
                         </Typography>
-                        {finance && (
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 700,
-                              color: '#176B52',
-                              fontSize: '0.875rem',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {roleView === 'manager'
-                              ? `+${formatNumber(finance.commissionAmount)} ₫`
-                              : `${formatNumber(finance.netPayoutAmount)} ₫`}
-                          </Typography>
+                        {isCustomer ? (
+                          row.paymentAmount != null && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 700,
+                                color: 'text.primary',
+                                fontSize: '0.875rem',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {formatNumber(row.paymentAmount)} ₫
+                            </Typography>
+                          )
+                        ) : (
+                          finance && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 700,
+                                color: '#176B52',
+                                fontSize: '0.875rem',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {isManager
+                                ? `+${formatNumber(finance.commissionAmount)} ₫`
+                                : `${formatNumber(finance.netPayoutAmount)} ₫`}
+                            </Typography>
+                          )
                         )}
                       </Stack>
 
@@ -545,16 +582,13 @@ export function InspectionListTable({
                   fontWeight: 600,
                   letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 2,
+                  px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 180,
+                  minWidth: 155,
                 }}
               >
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  {t('Asset')}
-                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                </Box>
+                {t('Asset')}
               </TableCell>
               <TableCell
                 sx={{
@@ -564,17 +598,14 @@ export function InspectionListTable({
                   fontWeight: 600,
                   letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 2,
+                  px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 140,
+                  minWidth: 140,
                   whiteSpace: 'nowrap',
                 }}
               >
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  {t('Schedule')}
-                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                </Box>
+                {counterpartHeaderLabel}
               </TableCell>
               <TableCell
                 sx={{
@@ -584,17 +615,14 @@ export function InspectionListTable({
                   fontWeight: 600,
                   letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 2,
+                  px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 140,
+                  width: 118,
                   whiteSpace: 'nowrap',
                 }}
               >
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  {t('Stage')}
-                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                </Box>
+                {t('Schedule')}
               </TableCell>
               <TableCell
                 sx={{
@@ -604,32 +632,46 @@ export function InspectionListTable({
                   fontWeight: 600,
                   letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 2,
+                  px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 130,
+                  width: 136,
                   whiteSpace: 'nowrap',
                 }}
               >
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  {roleView === 'manager' ? t('Platform Fee') : t('Net Payout')}
-                  <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                </Box>
+                {t('Stage')}
+              </TableCell>
+              <TableCell
+                sx={{
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
+                  py: 1.5,
+                  px: 1.25,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  width: 122,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {financeHeaderLabel}
               </TableCell>
               {(showReportColumn || reviewerMode) && (
                 <TableCell
                   sx={{
-                    bgcolor: 'background.default',
-                    color: 'text.secondary',
-                    fontSize: '0.75rem',
-                    fontWeight: 650,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
+                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                    color: '#71717A',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.01em',
                     py: 1.5,
-                    px: 1.5,
+                    px: 1.25,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
-                    width: 125,
+                    width: 96,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {t('Report')}
@@ -638,17 +680,16 @@ export function InspectionListTable({
               <TableCell
                 align="right"
                 sx={{
-                  bgcolor: 'background.default',
-                  color: 'text.secondary',
-                  fontSize: '0.75rem',
-                  fontWeight: 650,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: '#71717A',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.01em',
                   py: 1.5,
-                  px: 1.5,
+                  px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 135,
+                  width: 56,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -659,7 +700,7 @@ export function InspectionListTable({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showReportColumn || reviewerMode ? 6 : 5}>
+                <TableCell colSpan={showReportColumn || reviewerMode ? 7 : 6}>
                   <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
                     {t('No inspections match this view yet.')}
                   </Typography>
@@ -706,7 +747,7 @@ export function InspectionListTable({
                     <TableCell
                       sx={{
                         py: 1.75,
-                        px: 1.5,
+                        px: 1.25,
                         fontSize: '0.875rem',
                         fontWeight: 600,
                         color: 'text.primary',
@@ -715,16 +756,14 @@ export function InspectionListTable({
                       }}
                     >
                       <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75, minWidth: 0 }}>
                           <Typography
                             variant="body2"
-                            noWrap
                             title={meta.displayName}
                             sx={{
                               fontWeight: 650,
                               color: 'text.primary',
                               lineHeight: 1.35,
-                              maxWidth: { xs: 120, md: 135, lg: 155 },
                             }}
                           >
                             {meta.displayName}
@@ -758,24 +797,72 @@ export function InspectionListTable({
                         {(locationLabel || meta.objective) ? (
                           <Typography
                             variant="caption"
-                            noWrap
                             title={locationLabel ?? meta.objective ?? undefined}
                             sx={{
                               color: 'text.secondary',
                               display: 'block',
-                              maxWidth: { xs: 150, md: 180, lg: 215 },
                             }}
                           >
                             {locationLabel ?? meta.objective}
                           </Typography>
                         ) : null}
+                        {isManager && row.ownerCustomerName && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: 'text.secondary',
+                              display: 'block',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {t('Customer')}: {row.ownerCustomerName}
+                          </Typography>
+                        )}
+                      </Stack>
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        py: 1.75,
+                        px: 1.25,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            color: 'text.primary',
+                            fontSize: '0.875rem',
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {isManager || isCustomer
+                            ? (row.inspectorName || '—')
+                            : (row.ownerCustomerName || '—')}
+                        </Typography>
+                        {isCustomer ? (
+                          row.managerName && (
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {t('Manager')}: {row.managerName}
+                            </Typography>
+                          )
+                        ) : (
+                          (row.droneModel || row.droneSerialNumber) && (
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {[row.droneModel, row.droneSerialNumber].filter(Boolean).join(' · ')}
+                            </Typography>
+                          )
+                        )}
                       </Stack>
                     </TableCell>
 
                       <TableCell
                         sx={{
                           py: 1.75,
-                          px: 1.5,
+                          px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
                           whiteSpace: 'nowrap',
@@ -810,7 +897,7 @@ export function InspectionListTable({
                       <TableCell
                         sx={{
                           py: 1.75,
-                          px: 1.5,
+                          px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
                         }}
@@ -843,14 +930,54 @@ export function InspectionListTable({
                       <TableCell
                         sx={{
                           py: 1.75,
-                          px: 1.5,
+                          px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
-                          whiteSpace: 'nowrap',
                         }}
                       >
-                        {finance ? (
-                          roleView === 'manager' ? (
+                        {isCustomer ? (
+                          row.paymentAmount != null ? (
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 700,
+                                  color: 'text.primary',
+                                  fontSize: '0.875rem',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {formatNumber(row.paymentAmount)} ₫
+                              </Typography>
+                              {row.paymentStatus && row.paymentStatus !== 'NOT_APPLICABLE' && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    color:
+                                      row.paymentStatus === 'PAID'
+                                        ? '#176B52'
+                                        : row.paymentStatus === 'PAYMENT_DUE'
+                                          ? '#8C520B'
+                                          : 'text.secondary',
+                                  }}
+                                >
+                                  {row.paymentStatus === 'PAID'
+                                    ? t('Paid')
+                                    : row.paymentStatus === 'PAYMENT_DUE'
+                                      ? t('Payment due')
+                                      : t('Pending')}
+                                </Typography>
+                              )}
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {t('Pending')}
+                            </Typography>
+                          )
+                        ) : finance ? (
+                          isManager ? (
                             <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
                               <Typography
                                 variant="body2"
@@ -875,17 +1002,35 @@ export function InspectionListTable({
                               </Typography>
                             </Stack>
                           ) : (
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: 700,
-                                color: '#176B52',
-                                fontSize: '0.875rem',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            >
-                              {formatNumber(finance.netPayoutAmount)} ₫
-                            </Typography>
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 700,
+                                  color: '#176B52',
+                                  fontSize: '0.875rem',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {formatNumber(finance.netPayoutAmount)} ₫
+                              </Typography>
+                              {row.payoutStatus && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: row.payoutStatus === 'PAID' ? '#176B52' : 'text.secondary',
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                  }}
+                                >
+                                  {row.payoutStatus === 'PAID'
+                                    ? t('Paid')
+                                    : row.payoutStatus === 'ELIGIBLE'
+                                      ? t('Eligible')
+                                      : t('Pending')}
+                                </Typography>
+                              )}
+                            </Stack>
                           )
                         ) : (
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -898,9 +1043,9 @@ export function InspectionListTable({
                       <TableCell
                         sx={{
                           py: 2,
-                          px: 1.5,
+                          px: 1.25,
                           borderBottom: '1px solid',
-                        borderColor: 'divider',
+                          borderColor: 'divider',
                         }}
                       >
                         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
@@ -948,7 +1093,7 @@ export function InspectionListTable({
                       align="right"
                       sx={{
                         py: 1.75,
-                        px: 1.5,
+                        px: 1.25,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                       }}
@@ -979,8 +1124,8 @@ export function InspectionListTable({
       >
         <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
           {totalCount > 0
-            ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} From ${totalCount}`
-            : 'Showing 0 From 0'}
+            ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} of ${totalCount}`
+            : 'Showing 0 of 0'}
         </Typography>
 
         <Pagination

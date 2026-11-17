@@ -202,7 +202,11 @@ export default function ManagerReportReviewPage({
         empty={
           <EmptyState
             title={t('No report versions found')}
-            description={t('The assigned Inspector creates a report draft once field evidence is accepted.')}
+            description={
+              inspectionQuery.data?.inspectorName
+                ? `${t('Waiting for')} ${inspectionQuery.data.inspectorName} ${t('to finalize findings and submit the technical report.')}`
+                : t('The assigned Inspector creates a report draft once field evidence is accepted.')
+            }
           />
         }
       >

@@ -51,8 +51,6 @@ export interface EvidenceCaptureGroupProps {
   onDefectLabelChange: (findingId: string, val: string) => void;
   revisedTechnicalNotes: Record<string, string>;
   onTechnicalNotesChange: (findingId: string, val: string) => void;
-  revisedRecommendedActions: Record<string, string>;
-  onRecommendedActionsChange: (findingId: string, val: string) => void;
   revisedBoundingBoxes?: Record<string, string | null> | undefined;
   onEditBoundingBox?: ((finding: Finding) => void) | undefined;
   onClearBoundingBox?: ((findingId: string) => void) | undefined;
@@ -120,14 +118,13 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
           </Typography>
           <Chip
             size="small"
-            color={hasFindings ? 'primary' : 'default'}
-            variant={hasFindings ? 'filled' : 'outlined'}
+            variant="outlined"
             label={
               hasFindings
                 ? `${props.findings.length} ${props.findings.length === 1 ? 'finding' : 'findings'}`
                 : t('No findings')
             }
-            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+            sx={{ fontWeight: 600, fontSize: '0.75rem', bgcolor: 'background.paper', color: 'text.secondary' }}
           />
           {hasGps && (
             <Chip
@@ -193,7 +190,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               size="small"
               fullWidth
               disabled={props.isReportLocked}
-              label={t('Asset location description for this photo')}
+              label={t('Capture location / zone for this photo')}
               placeholder={t('e.g., Main span Pier T1, downstream face, 12m elevation')}
               value={props.locationDraft}
               onChange={(e) => props.onLocationChange(e.target.value)}
@@ -201,8 +198,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
               helperText={
                 props.isReportLocked
                   ? t('Location description is locked while the report is submitted or after publication.')
-                  : props.locationError ??
-                    t('Applies as the contextual inspection zone for all defects identified on this photo.')
+                  : props.locationError
               }
               error={Boolean(props.locationError)}
               slotProps={{
@@ -449,7 +445,7 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
 
                             <TextField
                               size="small"
-                              label={t('Technical notes')}
+                              label={t('Note')}
                               multiline
                               minRows={2}
                               value={
@@ -463,25 +459,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 input: { sx: { borderRadius: '8px', bgcolor: 'background.paper' } },
                               }}
                               required
-                            />
-
-                            <TextField
-                              size="small"
-                              label={t('Recommended action')}
-                              multiline
-                              minRows={2}
-                              value={
-                                props.revisedRecommendedActions[finding.id] ??
-                                finding.recommendedAction ??
-                                ''
-                              }
-                              onChange={(e) =>
-                                props.onRecommendedActionsChange(finding.id, e.target.value)
-                              }
-                              slotProps={{
-                                htmlInput: { maxLength: 4000 },
-                                input: { sx: { borderRadius: '8px', bgcolor: 'background.paper' } },
-                              }}
                             />
 
                             {isImage && props.onEditBoundingBox && (
@@ -595,34 +572,41 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                               )}
                               <Chip
                                 size="small"
-                                color={confirmed ? 'success' : 'warning'}
+                                variant="outlined"
                                 label={confirmed ? t('Confirmed') : t('Awaiting review')}
-                                sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                  ...(confirmed
+                                    ? {
+                                        bgcolor: '#f0fdf4',
+                                        color: '#166534',
+                                        borderColor: '#bbf7d0',
+                                      }
+                                    : {
+                                        bgcolor: '#fffbeb',
+                                        color: '#b45309',
+                                        borderColor: '#fde68a',
+                                      }),
+                                }}
                               />
                             </Stack>
 
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: finding.technicalNotes?.trim() ? 'text.primary' : 'text.secondary',
-                                fontStyle: finding.technicalNotes?.trim() ? 'normal' : 'italic',
-                                lineHeight: 1.5,
-                              }}
-                            >
-                              <strong>{t('Notes')}:</strong>{' '}
-                              {finding.technicalNotes?.trim() ? finding.technicalNotes : t('None')}
-                            </Typography>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: 'text.secondary',
-                                fontStyle: finding.recommendedAction?.trim() ? 'normal' : 'italic',
-                                fontSize: '0.875rem',
-                              }}
-                            >
-                              <strong>{t('Recommended action:')}</strong>{' '}
-                              {finding.recommendedAction?.trim() ? finding.recommendedAction : t('None')}
-                            </Typography>
+                            {(() => {
+                              const note = finding.technicalNotes?.trim();
+                              return (
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    color: note ? 'text.primary' : 'text.secondary',
+                                    fontStyle: note ? 'normal' : 'italic',
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  <strong>{t('Note')}:</strong> {note || t('None')}
+                                </Typography>
+                              );
+                            })()}
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (
@@ -747,12 +731,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                       }
                                       sx={{ fontWeight: 700 }}
                                     />
-                                    <Chip
-                                      size="small"
-                                      color="success"
-                                      label={t('Inspector confirmed')}
-                                      sx={{ fontWeight: 600 }}
-                                    />
                                   </Stack>
 
                                   {props.isInspector && !props.isReportLocked && (
@@ -837,17 +815,8 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
 
                 <TextField
                   name="technicalNotes"
-                  label={t('Technical notes')}
+                  label={t('Note')}
                   required
-                  multiline
-                  minRows={2}
-                  size="small"
-                  sx={{ gridColumn: '1 / -1' }}
-                  slotProps={{ htmlInput: { maxLength: 4000 } }}
-                />
-                <TextField
-                  name="recommendedAction"
-                  label={t('Recommended action')}
                   multiline
                   minRows={2}
                   size="small"

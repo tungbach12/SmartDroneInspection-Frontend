@@ -99,7 +99,6 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     boundingBox: null,
     modelName: null,
     confidence: null,
-    recommendedAction: null,
     status: 'PENDING',
     isDeleted: false,
     ...overrides,
@@ -116,8 +115,11 @@ function renderSections(item: EvidenceItem, findings: Finding[]) {
     />,
   );
   const labels = Array.from(container.querySelectorAll('p'));
-  const locationLabel = labels.find((label) => label.textContent === 'Asset location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
-  return locationLabel?.parentElement?.lastElementChild;
+  const locationLabel = labels.find((label) => label.textContent === 'Capture location' && label.closest('section')?.querySelector('h2')?.textContent === 'Evidence register');
+  return {
+    container,
+    locationElement: locationLabel?.parentElement?.lastElementChild,
+  };
 }
 function renderConfirmedFindings(findings: Finding[]) {
   const { container } = render(
@@ -140,7 +142,7 @@ afterEach(() => {
 });
 
 describe('ReportDerivedSections source context', () => {
-  it('shows source-backed organization, asset, drone and session details without legacy fields or raw UUIDs', () => {
+  it('shows source-backed asset, drone and session details without legacy Organization or raw UUIDs', () => {
     const { container } = render(
       <ReportDerivedSections
         version={version}
@@ -150,10 +152,10 @@ describe('ReportDerivedSections source context', () => {
       />,
     );
 
-    expect(container.textContent).toContain('Northwind Infrastructure');
+    expect(container.textContent).not.toContain('Northwind Infrastructure');
     expect(container.textContent).toContain('North span bridge');
     expect(container.textContent).toContain('BR-014');
-    expect(container.textContent).toContain('SurveyCo · S2 · DR-17');
+    expect(container.textContent).toContain('SurveyCo S2 · DR-17');
     expect(container.textContent).toContain('Drone identified; bridge accessible');
     expect(container.textContent).not.toContain('author-1');
     expect(container.textContent).not.toContain('title={t(');
@@ -196,7 +198,7 @@ describe('ReportDerivedSections source context', () => {
 
     const preBtn = screen.getByRole('button', { name: /Pre-flight safety checklist/i });
     const postBtn = screen.getByRole('button', {
-      name: /Post-flight outcome & completion checklist/i,
+      name: /Post-flight checklist/i,
     });
     expect(preBtn.getAttribute('aria-expanded')).toBe('false');
     expect(postBtn.getAttribute('aria-expanded')).toBe('false');
@@ -245,7 +247,7 @@ describe('ReportDerivedSections source context', () => {
     );
 
     const postBtn = screen.getByRole('button', {
-      name: /Post-flight outcome & completion checklist/i,
+      name: /Post-flight checklist/i,
     });
     const inspItemsBtn = screen.getByRole('button', { name: /Inspection items/i });
     expect(postBtn.getAttribute('aria-expanded')).toBe('false');
@@ -261,27 +263,28 @@ describe('ReportDerivedSections source context', () => {
 });
 
 describe('ReportDerivedSections evidence location', () => {
-  it('does not confuse GPS with the evidence asset location', () => {
+  it('omits empty capture location instead of falling back to Not supplied or GPS coordinates', () => {
     const item = { ...evidence, latitude: 48.123, longitude: -123.456 };
-    const location = renderSections(item, [finding()]);
+    const { container, locationElement } = renderSections(item, [finding()]);
 
-    expect(location?.textContent).toContain('Not supplied');
-    expect(location?.textContent).not.toContain('48.123, -123.456');
+    expect(locationElement).toBeUndefined();
+    expect(container.textContent).not.toContain('Not supplied');
+    expect(container.textContent).not.toContain('48.123, -123.456');
   });
 
   it('does not infer a shared evidence location from linked findings', () => {
-    const location = renderSections(evidence, [finding()]);
+    const { locationElement } = renderSections(evidence, [finding()]);
 
-    expect(location?.textContent).toContain('Not supplied');
+    expect(locationElement).toBeUndefined();
   });
 
-  it('shows the shared evidence location before reviewer decision', () => {
-    const location = renderSections(
+  it('shows the shared capture location before reviewer decision', () => {
+    const { locationElement } = renderSections(
       { ...evidence, locationDescription: 'Girder G4 east face' },
       [finding({ status: 'PENDING' })],
     );
 
-    expect(location?.textContent).toContain('Girder G4 east face');
+    expect(locationElement?.textContent).toContain('Girder G4 east face');
   });
 });
 
@@ -292,7 +295,8 @@ describe('ReportDerivedSections confirmed findings', () => {
     ]);
 
     expect(section?.textContent).toContain('GussetPlateSectionLoss');
-    expect(within(section!).getByText('GussetPlateSectionLoss · HIGH')).toBeTruthy();
+    expect(within(section!).getByText(/GussetPlateSectionLoss/)).toBeTruthy();
+    expect(within(section!).getByText('HIGH')).toBeTruthy();
   });
 
   it('excludes reviewer-rejected findings from the section', () => {
@@ -303,30 +307,28 @@ describe('ReportDerivedSections confirmed findings', () => {
     expect(section?.textContent).not.toContain('spurious-seam');
   });
 
-  it('always displays Technical notes and Recommended action even when empty or null', () => {
+  it('omits empty Note and duplicate defect-label notes', () => {
     const section = renderConfirmedFindings([
       finding({
-        defectLabel: 'Crack',
+        defectLabel: 'abscission',
         status: 'CONFIRMED',
-        technicalNotes: '',
-        recommendedAction: null,
+        technicalNotes: 'abscission',
       }),
     ]);
 
-    expect(within(section!).getByText(/Technical notes:/)).toBeTruthy();
-    expect(within(section!).getByText(/Recommended action:/)).toBeTruthy();
+    expect(within(section!).queryByText(/Note:/)).toBeNull();
   });
 
-  it('displays Technical notes and Recommended action content when provided', () => {
+  it('displays unified Note content when provided', () => {
     const section = renderConfirmedFindings([
       finding({
         defectLabel: 'Corrosion',
         status: 'CONFIRMED',
-        technicalNotes: 'Surface rust visible on bracket',
-        recommendedAction: 'Apply anti-corrosion primer',
+        technicalNotes: 'Surface rust visible on bracket · Apply anti-corrosion primer',
       }),
     ]);
 
+    expect(within(section!).getByText(/Note:/)).toBeTruthy();
     expect(within(section!).getByText(/Surface rust visible on bracket/)).toBeTruthy();
     expect(within(section!).getByText(/Apply anti-corrosion primer/)).toBeTruthy();
   });
@@ -340,8 +342,7 @@ describe('ReportDerivedSections confirmed findings', () => {
             defectLabel: 'Surface crack',
             severity: 'HIGH',
             status: 'CONFIRMED',
-            technicalNotes: 'Longitudinal crack near seam',
-            recommendedAction: 'Seal and monitor',
+            technicalNotes: 'Longitudinal crack near seam · Seal and monitor',
           }),
         ]}
         evidenceList={[evidence]}
@@ -349,8 +350,9 @@ describe('ReportDerivedSections confirmed findings', () => {
       />,
     );
 
-    expect(screen.getByText('Findings preview')).toBeTruthy();
-    expect(screen.getByText('Surface crack · HIGH')).toBeTruthy();
+    expect(screen.queryByText('Findings preview')).toBeNull();
+    expect(screen.getByText(/Surface crack/)).toBeTruthy();
+    expect(screen.getByText('HIGH')).toBeTruthy();
     expect(
       screen.getByTestId('authenticated-image').getAttribute('data-src'),
     ).toBe('/api/v1/inspections/inspection-1/evidence/evidence-1/content?variant=thumb');
@@ -512,8 +514,7 @@ describe('ReportDerivedSections confirmed findings', () => {
             defectLabel: 'crack',
             severity: 'HIGH',
             status: 'CONFIRMED',
-            technicalNotes: 'North parapet crack',
-            recommendedAction: 'Inject epoxy',
+            technicalNotes: 'North parapet crack · Inject epoxy',
           }),
           finding({
             id: 'f-east',
@@ -522,8 +523,7 @@ describe('ReportDerivedSections confirmed findings', () => {
             defectLabel: 'abscission',
             severity: 'MEDIUM',
             status: 'CONFIRMED',
-            technicalNotes: 'East facade coat delamination',
-            recommendedAction: 'Patch render',
+            technicalNotes: 'East facade coat delamination · Patch render',
           }),
         ]}
         evidenceList={[northPhoto, eastPhoto]}
@@ -536,23 +536,27 @@ describe('ReportDerivedSections confirmed findings', () => {
     expect(mapSection).toBeTruthy();
     expect(within(mapSection).getByText('Findings location map')).toBeTruthy();
 
-    // Clicking pin F-2 updates the map's right-hand findings inspector to ev-east
+    // Clicking pin F-2 updates the map's right-hand findings summary to ev-east
     fireEvent.click(within(mapSection).getByRole('button', { name: 'Finding pin photo-02-defect-east.jpg' }));
-    expect(within(mapSection).getByText('East facade coat delamination')).toBeTruthy();
-    expect(within(mapSection).getByText('Patch render')).toBeTruthy();
+    expect(within(mapSection).getAllByText('F-2').length).toBeGreaterThanOrEqual(2);
+    expect(within(mapSection).getByText('abscission')).toBeTruthy();
+    expect(within(mapSection).getByText('MEDIUM')).toBeTruthy();
+    expect(within(mapSection).queryByText(/East facade coat delamination/)).toBeNull();
 
     // Tier 1 renders 1 evidence row per capture with inline confirmed finding details & clickable View on map
     const northRow = container.querySelector('#report-evidence-ev-north') as HTMLElement;
     expect(northRow).toBeTruthy();
-    expect(within(northRow).getByText('North parapet crack')).toBeTruthy();
-    expect(within(northRow).getByText('Inject epoxy')).toBeTruthy();
+    expect(within(northRow).getByText(/North parapet crack/)).toBeTruthy();
+    expect(within(northRow).getByText(/Inject epoxy/)).toBeTruthy();
     expect(within(northRow).queryByText(/10\.875333/)).toBeNull();
 
     // Clicking the single "View on map" chip (next to filename, outside findings box) switches the map back to northPhoto
     const northMapButtons = within(northRow).getAllByRole('button', { name: /View on map/i });
     expect(northMapButtons).toHaveLength(1);
     fireEvent.click(northMapButtons[0]!);
-    expect(within(mapSection).getByText('North parapet crack')).toBeTruthy();
+    expect(within(mapSection).getAllByText('F-1').length).toBeGreaterThanOrEqual(2);
+    expect(within(mapSection).getByText('crack')).toBeTruthy();
+    expect(within(mapSection).getByText('HIGH')).toBeTruthy();
   });
 
   it('hides KPI bottom subtitle descriptions and renders AI Executive Summary collapsed by default until clicked', () => {
@@ -566,8 +570,7 @@ describe('ReportDerivedSections confirmed findings', () => {
             defectLabel: 'Spalling',
             severity: 'HIGH',
             status: 'CONFIRMED',
-            technicalNotes: 'Exposed rebar on north column',
-            recommendedAction: 'Patch spalled concrete',
+            technicalNotes: 'Exposed rebar on north column · Patch spalled concrete',
           }),
         ]}
         evidenceList={[evidence]}
@@ -602,7 +605,6 @@ describe('ReportDerivedSections confirmed findings', () => {
         status: 'CONFIRMED',
         confidence: 0.88,
         technicalNotes: 'leakage',
-        recommendedAction: null,
       }),
       finding({
         id: 'f-persist-2',
@@ -612,7 +614,6 @@ describe('ReportDerivedSections confirmed findings', () => {
         status: 'CONFIRMED',
         confidence: 0.86,
         technicalNotes: 'abscission',
-        recommendedAction: null,
       }),
     ];
 

@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   Paper,
   Stack,
   Step,
@@ -23,8 +22,6 @@ import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUnchecke
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
-import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
-import AirplanemodeActiveRounded from '@mui/icons-material/AirplanemodeActiveRounded';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import {
@@ -138,7 +135,7 @@ export default function InspectionProgressPage() {
 
   return (
     <Stack spacing={3}>
-      {/* Header Info Banner */}
+      {/* Compact Summary Strip (avoids repeating header asset / inspector / drone) */}
       <Paper
         variant="outlined"
         sx={{
@@ -148,72 +145,37 @@ export default function InspectionProgressPage() {
           borderColor: 'divider',
         }}
       >
-        <Stack spacing={2}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1 }}
+        <Stack
+          direction={{ xs: 'column', lg: 'row' }}
+          spacing={2}
+          sx={{ alignItems: { lg: 'center' }, justifyContent: 'space-between' }}
+        >
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr))' },
+              gap: 2,
+              flex: 1,
+            }}
           >
-            <Box>
-              <Typography variant="h6" component="h2" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {inspection?.assetName ?? t('Inspection Mission')}
+            <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+              <Typography variant="caption" color="text.secondary">
+                {t('Mission Stage')}
               </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                 <Chip
                   size="small"
-                  label={t('Standard Inspection')}
+                  label={
+                    inspection?.inspectionType === 'RE_INSPECTION'
+                      ? t('Re-inspection')
+                      : t('Standard Inspection')
+                  }
                   color="default"
                   variant="outlined"
                   sx={{ fontWeight: 600 }}
                 />
                 <StatusChip status={status} />
               </Stack>
-            </Box>
-
-            {hasPublishedVersion && (
-              <Button
-                variant="contained"
-                color="primary"
-                endIcon={<ArrowForwardRounded />}
-                onClick={() => navigate('../report')}
-                sx={{ borderRadius: '8px', px: 2.5, fontWeight: 700, textTransform: 'none' }}
-              >
-                {t('View official report')}
-              </Button>
-            )}
-          </Stack>
-
-          <Divider />
-
-          {/* Quick Info Grid */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(5, 1fr)' },
-              gap: 2,
-            }}
-          >
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <PersonOutlineRounded color="action" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Assigned Pilot')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.inspectorName ?? '-'}
-                </Typography>
-              </Box>
-            </Stack>
-
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <AirplanemodeActiveRounded color="action" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Drone Model')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {inspection?.droneModel ?? '-'}
-                </Typography>
-              </Box>
             </Stack>
 
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
@@ -275,6 +237,18 @@ export default function InspectionProgressPage() {
               </Box>
             </Stack>
           </Box>
+
+          {hasPublishedVersion && (
+            <Button
+              variant="contained"
+              color="primary"
+              endIcon={<ArrowForwardRounded />}
+              onClick={() => navigate('../report')}
+              sx={{ borderRadius: '8px', px: 2.5, fontWeight: 700, textTransform: 'none', flexShrink: 0 }}
+            >
+              {t('View official report')}
+            </Button>
+          )}
         </Stack>
       </Paper>
 
@@ -284,14 +258,20 @@ export default function InspectionProgressPage() {
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.25 }}>
             {status === 'UNDER_REVIEW'
               ? t('Quality Review in Progress')
-              : status === 'IN_PROGRESS' || status === 'FIELD_COMPLETED'
-                ? t('Field Survey in Progress')
-                : t('Inspection Scheduled')}
+              : status === 'FIELD_COMPLETED'
+                ? t('Field Survey Completed — Preparing Report')
+                : status === 'IN_PROGRESS'
+                  ? t('Field Survey in Progress')
+                  : t('Inspection Scheduled')}
           </Typography>
           <Typography variant="body2">
             {status === 'UNDER_REVIEW'
               ? t('The field flight and AI analysis are complete. The Platform Manager is currently conducting technical quality review. Once approved and published, the official report will become available here.')
-              : t('Field operations and data collection are in progress. Track mission progress below; you will be notified as soon as the final report is published.')}
+              : status === 'FIELD_COMPLETED'
+                ? t('Field operations and evidence collection are complete. Findings are being finalized and compiled into the technical report.')
+                : status === 'IN_PROGRESS'
+                  ? t('Field operations and data collection are in progress. Track mission progress below; you will be notified as soon as the final report is published.')
+                  : t('The inspection is scheduled. Flight permit verification and pre-flight preparation are underway before on-site capture begins.')}
           </Typography>
         </Alert>
       ) : (
