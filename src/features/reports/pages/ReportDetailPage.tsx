@@ -187,8 +187,11 @@ export default function ReportDetailPage() {
             items={[
               { label: t('Dashboard'), to: getSectionPath(portal, 'dashboard') },
               {
-                label: canReview && !canAuthor ? t('Review queue') : t('Reports'),
-                to: `${getSectionPath(portal, 'inspections')}?view=reports`,
+                label: canReview && !canAuthor ? t('Inspections') : t('Reports'),
+                to:
+                  canReview && !canAuthor
+                    ? getSectionPath(portal, 'inspections')
+                    : `${getSectionPath(portal, 'inspections')}?view=reports`,
               },
               { label: t('Inspection Report') },
             ]}

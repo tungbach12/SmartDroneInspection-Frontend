@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -22,6 +23,8 @@ import {
 import BatteryChargingFullRounded from '@mui/icons-material/BatteryChargingFullRounded';
 import CameraAltRounded from '@mui/icons-material/CameraAltRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
+import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import LayersRounded from '@mui/icons-material/LayersRounded';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
@@ -53,6 +56,8 @@ export interface FlightOperationsReportViewProps {
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
 }
 
 // Validated dataviz categorical & status palette (light & dark mode)
@@ -106,7 +111,6 @@ function fmtOffsetSec(sec: number | null | undefined): string {
 
 interface ParsedFlightNote {
   importedFileName: string | null;
-  proximityWarningKm: string | null;
   conciseNote: string | null;
 }
 
@@ -115,15 +119,13 @@ function parseFlightReportNote(
   t: (key: string) => string,
 ): ParsedFlightNote {
   if (!rawNote || !rawNote.trim()) {
-    return { importedFileName: null, proximityWarningKm: null, conciseNote: null };
+    return { importedFileName: null, conciseNote: null };
   }
   let text = rawNote.trim();
-  let proximityWarningKm: string | null = null;
   const warnMatch = text.match(
     /\[WARN:\s*First GPS point is\s+([\d.]+)\s*km\s+from registered asset coordinates\.\]/i,
   );
   if (warnMatch) {
-    proximityWarningKm = warnMatch[1] ?? null;
     text = text.replace(warnMatch[0], '').trim();
   }
 
@@ -133,7 +135,7 @@ function parseFlightReportNote(
   );
   if (importedMatch) {
     importedFileName = importedMatch[1]?.trim() ?? null;
-    return { importedFileName, proximityWarningKm, conciseNote: null };
+    return { importedFileName, conciseNote: null };
   }
 
   const manualMatch = text.match(/^Manual flight declaration \(no telemetry\)\.\s*(.+)$/i);
@@ -146,14 +148,12 @@ function parseFlightReportNote(
     const summaryParts = [reasonLabel, noteText].filter(Boolean);
     return {
       importedFileName: null,
-      proximityWarningKm,
       conciseNote: summaryParts.length > 0 ? summaryParts.join(' · ') : t(text),
     };
   }
 
   return {
     importedFileName: null,
-    proximityWarningKm,
     conciseNote: text ? t(text) : null,
   };
 }
@@ -166,6 +166,8 @@ export function FlightOperationsReportView({
   assetName,
   droneSummary,
   flightPermitFileName,
+  collapsible = false,
+  defaultExpanded = false,
 }: FlightOperationsReportViewProps) {
   const { t, formatDateTime } = useLocale();
   const theme = useTheme();
@@ -175,11 +177,12 @@ export function FlightOperationsReportView({
   // Synchronized crosshair index across telemetry timeline charts
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
+  const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
 
   const flightReportQuery = useQuery({
     queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId],
     queryFn: () => smartDroneHubApi.flightReport(inspectionId, fieldSessionId!),
-    enabled: Boolean(inspectionId && fieldSessionId),
+    enabled: Boolean(inspectionId && fieldSessionId) && expanded,
     retry: false,
   });
 
@@ -355,7 +358,7 @@ export function FlightOperationsReportView({
     );
   }
 
-  return (
+  const content = (
     <QueryState
       isLoading={flightReportQuery.isLoading}
       error={flightReportQuery.error}
@@ -555,19 +558,11 @@ export function FlightOperationsReportView({
             droneSummary={resolvedDrone !== '—' ? resolvedDrone : null}
           />
 
-          {parsedNote.proximityWarningKm && (
-            <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-              {`${t('First recorded GPS point is')} ${parsedNote.proximityWarningKm} km ${t('from the registered asset coordinates.')}`}
+          {isSimulationSource && (
+            <Alert severity="info" sx={{ borderRadius: '10px' }}>
+              {t('This view shows simulated telemetry from SmartDroneHub rather than aircraft hardware sensors.')}
             </Alert>
           )}
-
-          <Alert severity="info" sx={{ borderRadius: '10px' }}>
-            {report.telemetrySource === 'IMPORTED_LOG_SRT'
-              ? t('SRT records a video segment; it does not establish the full flight duration or milestones.')
-              : isSimulationSource
-                ? t('This view shows simulated telemetry from SmartDroneHub rather than aircraft hardware sensors.')
-                : t('This report summarizes the available recorded segment. Missing telemetry fields are shown as unavailable.')}
-          </Alert>
           {/* 2. Automated 6 KPI Stat Tiles */}
           <Box
             sx={{
@@ -716,6 +711,61 @@ export function FlightOperationsReportView({
         )
       }
     </QueryState>
+  );
+
+  if (!collapsible) {
+    return content;
+  }
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: '10px',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        component="button"
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        sx={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 2,
+          py: 1.5,
+          border: 0,
+          bgcolor: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left',
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <FlightTakeoffRounded color="primary" fontSize="small" />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {t('Flight report')}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'primary.main' }}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {expanded ? t('Hide flight report') : t('Show flight report')}
+          </Typography>
+          {expanded ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+        </Stack>
+      </Box>
+
+      <Collapse in={expanded} unmountOnExit>
+        <Box sx={{ p: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+          {content}
+        </Box>
+      </Collapse>
+    </Paper>
   );
 }
 

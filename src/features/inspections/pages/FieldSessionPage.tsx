@@ -877,7 +877,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   inspection={inspection}
                   canReview={isManagerOrAdmin}
                   onPreviewPermit={() => setPermitPreviewOpen(true)}
-                  compact={stage !== 'permit'}
+                  compact
+                  showAirspace={false}
                   hideHeader
                   hideEmptyNotice
                 />
@@ -2413,6 +2414,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           .join(' · ') || null
                       }
                       flightPermitFileName={inspection.flightPermitFileName}
+                      collapsible
                     />
                   )}
 

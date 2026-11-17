@@ -54,6 +54,31 @@ vi.mock('../hooks/useInspections', () => ({
   useReassignCandidates: () => ({ data: [], isLoading: false, isError: false, error: null }),
 }));
 
+vi.mock('@/features/admin/api/inspectorProfileApi', () => ({
+  inspectorProfileApi: {
+    get: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock('@/features/admin/api/platformUserApi', () => ({
+  platformUserApi: {
+    list: vi.fn().mockResolvedValue([
+      {
+        id: 'cust-12345678',
+        fullName: 'Saigon Bridge Corp',
+        email: 'ops@saigonbridge.vn',
+        roles: ['CUSTOMER'],
+      },
+      {
+        id: 'insp-12345678',
+        fullName: 'Tran Van Inspector',
+        email: 'inspector@smartdrone.vn',
+        roles: ['INSPECTOR'],
+      },
+    ]),
+  },
+}));
+
 const navigateMock = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -178,8 +203,137 @@ describe('InspectionDetailPage', () => {
     expect(managerNav.querySelector('a[aria-label*="Field & Evidence Audit"]')).toBeTruthy();
     expect(managerNav.querySelector('a[aria-label*="Report Decision"]')).toBeTruthy();
     expect(managerNav.querySelector('a[aria-label*="Commission & Settlement"]')).toBeTruthy();
-    const backToQueue = screen.getByRole('link', { name: 'Review queue' });
-    expect(backToQueue.getAttribute('href')).toBe('/manager/inspections?view=reports');
+    const backToQueue = screen.getByRole('link', { name: 'Inspections' });
+    expect(backToQueue.getAttribute('href')).toBe('/manager/inspections');
+  });
+
+  it('shows only asset, drone, customer, and inspector names in collapsed header and expands full overview on click', async () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetName: 'Cau Nhat Tan',
+        droneModel: 'DJI Matrice 350 RTK',
+        droneSerialNumber: '1581F4B0C2301009',
+        ownerCustomerId: 'cust-12345678',
+        inspectorId: 'insp-12345678',
+        inspectorName: 'Tran Van Inspector',
+        plannedStartAt: '2026-11-15T13:14:00Z',
+        status: 'FIELD_COMPLETED',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.versionsQuery = {
+      data: [
+        {
+          id: 'v-1',
+          status: 'SUBMITTED',
+          reportContext: { organizationName: 'Saigon Bridge Corp' },
+        } as any,
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('MANAGER');
+    renderInspectionPage({ route: '/manager/inspections/inspection-1/audit' });
+
+    expect(screen.getByText('DJI Matrice 350 RTK')).toBeTruthy();
+    expect(screen.getByText(/Customer:/i)).toBeTruthy();
+    expect(await screen.findByText('Saigon Bridge Corp')).toBeTruthy();
+    expect(screen.getByText(/Inspector:/i)).toBeTruthy();
+    expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
+    expect(screen.queryByText(/Manager:/i)).toBeNull();
+    expect(screen.queryByText(/ops@saigonbridge\.vn/)).toBeNull();
+    expect(screen.queryByText(/inspector@smartdrone\.vn/)).toBeNull();
+    expect(screen.queryByText(/Planned Start/i)).toBeNull();
+    expect(screen.queryByText('Field Completed')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+
+    expect(await screen.findByText(/ops@saigonbridge\.vn/)).toBeTruthy();
+    expect(screen.getByText(/inspector@smartdrone\.vn/)).toBeTruthy();
+    expect(screen.getByText(/Planned Start/i)).toBeTruthy();
+    expect(screen.getByText(/Confirmed findings/i)).toBeTruthy();
+    expect(screen.queryByText('Field Completed')).toBeNull();
+  });
+
+  it('shows Asset, Drone, Customer, Manager and Schedule cleanly for INSPECTOR and hides self Inspector name', () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetName: 'Cau Nhat Tan',
+        droneModel: 'DJI Matrice 350 RTK',
+        droneSerialNumber: '1581F4B0C2301009',
+        ownerCustomerId: 'cust-12345678',
+        ownerCustomerName: 'Saigon Bridge Corp',
+        inspectorId: 'insp-12345678',
+        inspectorName: 'Tran Van Inspector',
+        managerName: 'Platform Manager 2',
+        plannedStartAt: '2026-11-15T13:14:00Z',
+        status: 'IN_PROGRESS',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('INSPECTOR');
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
+
+    expect(screen.getByText('DJI Matrice 350 RTK')).toBeTruthy();
+    expect(screen.getByText('Saigon Bridge Corp')).toBeTruthy();
+    expect(screen.getByText('Platform Manager 2')).toBeTruthy();
+    expect(screen.getByText(/Schedule:/i)).toBeTruthy();
+    expect(screen.queryByText('Tran Van Inspector')).toBeNull();
+    expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(screen.getByText(/Confirmed findings/i)).toBeTruthy();
+    expect(screen.getByText(/1581F4B0C2301009/)).toBeTruthy();
+  });
+
+  it('shows Asset, Manager, Inspector and Schedule cleanly for CUSTOMER and hides technical Drone outside', () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetName: 'Cau Nhat Tan',
+        droneModel: 'DJI Matrice 350 RTK [MTOW: 9.2 kg]',
+        droneSerialNumber: '1581F4B0C2301009',
+        ownerCustomerId: 'cust-12345678',
+        ownerCustomerName: 'Saigon Bridge Corp',
+        inspectorId: 'insp-12345678',
+        inspectorName: 'Tran Van Inspector',
+        managerName: 'Platform Manager 2',
+        plannedStartAt: '2026-11-15T13:14:00Z',
+        status: 'COMPLETED',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('CUSTOMER');
+    renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
+
+    expect(screen.getByText('Platform Manager 2')).toBeTruthy();
+    expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
+    expect(screen.getByText(/Schedule:/i)).toBeTruthy();
+    expect(screen.queryByText('Saigon Bridge Corp')).toBeNull();
+    expect(screen.queryByText(/DJI Matrice 350 RTK/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(screen.getByText('DJI Matrice 350 RTK [MTOW: 9.2 kg]')).toBeTruthy();
+    expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
   });
 
   it('keeps workflow stages focused on inspection and reporting', () => {
