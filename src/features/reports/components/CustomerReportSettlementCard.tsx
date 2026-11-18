@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -89,6 +89,59 @@ export function CustomerReportSettlementCard({
   const [previewingPdf, setPreviewingPdf] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const prevAcceptedRef = useRef(isReportAccepted);
+  const prevPaidRef = useRef(isPaid);
+
+  const downloadPaymentDocument = useCallback(async (kind: 'notice' | 'receipt') => {
+    setDocumentBusy(true);
+    setDocumentError(null);
+    try {
+      const blob = await inspectionApi.downloadPaymentDocument(inspectionId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `SDI-payment-${kind}-${inspectionId.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDocumentError(getErrorMessage(error, 'Payment document could not be downloaded.'));
+    } finally {
+      setDocumentBusy(false);
+    }
+  }, [inspectionId]);
+
+  useEffect(() => {
+    const becameAccepted = !prevAcceptedRef.current && isReportAccepted;
+    prevAcceptedRef.current = isReportAccepted;
+    if (becameAccepted && !isPaid) {
+      void downloadPaymentDocument('notice');
+    }
+  }, [isReportAccepted, isPaid, downloadPaymentDocument]);
+
+  useEffect(() => {
+    const becamePaid = !prevPaidRef.current && isPaid;
+    prevPaidRef.current = isPaid;
+    let firstReceiptAfterCheckout = false;
+    if (isPaid && typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const key = `sdi_payment_receipt_downloaded_${inspectionId}`;
+        if (params.get('payment') === 'success' && !sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          firstReceiptAfterCheckout = true;
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+    if (becamePaid || firstReceiptAfterCheckout) {
+      void downloadPaymentDocument('receipt');
+    }
+  }, [isPaid, inspectionId, downloadPaymentDocument]);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
   const reportPdfFileName = `SDI-RPT-${versionId.slice(0, 8).toUpperCase()}-V${versionNo}.pdf`;
@@ -406,22 +459,49 @@ export function CustomerReportSettlementCard({
         <Divider />
 
         {/* Dynamic Action State */}
+        {documentError && (
+          <Alert severity="error" sx={{ borderRadius: '8px' }}>
+            {documentError}
+          </Alert>
+        )}
         {isPaid ? (
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <CheckCircleRounded sx={{ fontSize: 22, color: '#176B52', flexShrink: 0 }} />
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 650, color: '#176B52' }}>
-                {t('Payment successful! Inspection service is officially fulfilled and deliverables are verified.')}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
-              >
-                {paymentStatus?.orderCode
-                  ? `${paymentStatus.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
-                  : t('Official receipt verified')}
-              </Typography>
-            </Box>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <CheckCircleRounded sx={{ fontSize: 22, color: '#176B52', flexShrink: 0 }} />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 650, color: '#176B52' }}>
+                  {t('Payment successful! Inspection service is officially fulfilled and deliverables are verified.')}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {paymentStatus?.orderCode
+                    ? `${paymentStatus.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
+                    : t('Official receipt verified')}
+                </Typography>
+              </Box>
+            </Stack>
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={documentBusy}
+              startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
+              onClick={() => void downloadPaymentDocument('receipt')}
+              sx={{
+                fontWeight: 600,
+                borderRadius: '8px',
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              {documentBusy ? t('Generating PDF…') : t('Download payment receipt (PDF)')}
+            </Button>
           </Stack>
         ) : isReportAccepted ? (
           <Stack spacing={1.5}>
@@ -452,7 +532,24 @@ export function CustomerReportSettlementCard({
                   {t('Please complete payment within 15 days. PDF files downloaded before payment carry a "Preview" watermark and are not yet legally binding.')}
                 </Alert>
               </Box>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={documentBusy}
+                  startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
+                  onClick={() => void downloadPaymentDocument('notice')}
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    px: 2,
+                    py: 1,
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {documentBusy ? t('Generating PDF…') : t('Download payment notice (PDF)')}
+                </Button>
                 {onProceedToVnPay && (
                   <Button
                     variant="contained"

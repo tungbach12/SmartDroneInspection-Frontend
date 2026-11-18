@@ -49,6 +49,10 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
   const [refundAmount, setRefundAmount] = useState('');
   const [requestReference, setRequestReference] = useState('');
   const [reason, setReason] = useState('');
+  const [reasonCode, setReasonCode] = useState('');
+  const [serviceStage, setServiceStage] = useState('');
+  const [contractClauseReference, setContractClauseReference] = useState('');
+  const [evidenceReference, setEvidenceReference] = useState('');
   const [receivablePlan, setReceivablePlan] = useState('');
   const [absorbedPlan, setAbsorbedPlan] = useState('');
   const [completionAllocations, setCompletionAllocations] = useState<Record<string, Allocation>>({});
@@ -85,10 +89,35 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
       <Paper variant="outlined" sx={{ p: 1.5 }}>
         <Stack spacing={1}>
           <Typography variant="caption" sx={{ fontWeight: 700 }}>1. Initiate refund — creates the payout hold before transfer</Typography>
+          <Alert severity="info">The amount is entered from the signed service contract and supporting records. This screen does not calculate a statutory refund rate, tax adjustment, or legal entitlement.</Alert>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-            <TextField size="small" type="number" label="Refund amount" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
+            <TextField size="small" type="number" label="Refund amount (per contract)" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
             <TextField size="small" label="Request reference" value={requestReference} onChange={(e) => setRequestReference(e.target.value)} />
-            <TextField size="small" label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} sx={{ flex: 1 }} />
+            <TextField select size="small" label="Reason code" value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} slotProps={{ select: { native: true } }}>
+              <option value="" />
+              <option value="CUSTOMER_CANCELLATION">Customer cancellation</option>
+              <option value="PROVIDER_UNABLE_TO_PERFORM">Provider unable to perform</option>
+              <option value="WEATHER_OR_SAFETY">Weather or safety</option>
+              <option value="SERVICE_NOT_CONFORMING">Service not conforming</option>
+              <option value="CUSTOMER_DISPUTE">Customer dispute</option>
+              <option value="DUPLICATE_OR_OVERCHARGE">Duplicate or overcharge</option>
+              <option value="OTHER">Other</option>
+            </TextField>
+            <TextField select size="small" label="Service stage" value={serviceStage} onChange={(e) => setServiceStage(e.target.value)} slotProps={{ select: { native: true } }}>
+              <option value="" />
+              <option value="BEFORE_DISPATCH">Before dispatch</option>
+              <option value="AFTER_DISPATCH_BEFORE_FIELDWORK">Dispatched, before fieldwork</option>
+              <option value="FIELDWORK_IN_PROGRESS">Fieldwork in progress</option>
+              <option value="FIELDWORK_COMPLETED">Fieldwork completed</option>
+              <option value="REPORT_PUBLISHED">Report published</option>
+              <option value="AFTER_CUSTOMER_ACCEPTANCE">After customer acceptance</option>
+              <option value="OTHER">Other</option>
+            </TextField>
+          </Stack>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+            <TextField size="small" label="Contract clause/reference" value={contractClauseReference} onChange={(e) => setContractClauseReference(e.target.value)} />
+            <TextField size="small" label="Supporting evidence reference" value={evidenceReference} onChange={(e) => setEvidenceReference(e.target.value)} />
+            <TextField size="small" label="Case details / reason" value={reason} onChange={(e) => setReason(e.target.value)} sx={{ flex: 1 }} />
           </Stack>
           {occurrence.payout?.status === 'PAID' && (
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
@@ -96,7 +125,7 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
               <TextField size="small" type="number" label="Platform absorbed plan" value={absorbedPlan} onChange={(e) => setAbsorbedPlan(e.target.value)} />
             </Stack>
           )}
-          <LoadingButton size="small" variant="outlined" loading={initiate.isPending} disabled={!finance.data || !refundAmount || amount(refundAmount) <= 0 || !requestReference.trim() || !reason.trim() || (occurrence.payout?.status === 'PAID' && (!receivablePlan || !absorbedPlan || amount(receivablePlan) + amount(absorbedPlan) !== amount(refundAmount)))} onClick={() => mutate(() => initiate.mutateAsync({ amount: amount(refundAmount), requestReference: requestReference.trim(), reason: reason.trim(), inspectorReceivableAmount: occurrence.payout?.status === 'PAID' ? amount(receivablePlan) : 0, platformAbsorbedAmount: occurrence.payout?.status === 'PAID' ? amount(absorbedPlan) : 0 }))}>Initiate refund</LoadingButton>
+          <LoadingButton size="small" variant="outlined" loading={initiate.isPending} disabled={!finance.data || !refundAmount || amount(refundAmount) <= 0 || !requestReference.trim() || !reasonCode || !serviceStage || !contractClauseReference.trim() || !evidenceReference.trim() || !reason.trim() || (occurrence.payout?.status === 'PAID' && (!receivablePlan || !absorbedPlan || amount(receivablePlan) + amount(absorbedPlan) !== amount(refundAmount)))} onClick={() => mutate(() => initiate.mutateAsync({ amount: amount(refundAmount), requestReference: requestReference.trim(), reasonCode, serviceStage, reason: reason.trim(), contractClauseReference: contractClauseReference.trim(), evidenceReference: evidenceReference.trim(), inspectorReceivableAmount: occurrence.payout?.status === 'PAID' ? amount(receivablePlan) : 0, platformAbsorbedAmount: occurrence.payout?.status === 'PAID' ? amount(absorbedPlan) : 0 }))}>Initiate refund</LoadingButton>
         </Stack>
       </Paper>
 
@@ -104,7 +133,7 @@ export function RefundControls({ requestId, occurrence, enabled, onChanged, onEr
         <Paper key={refund.id} variant="outlined" sx={{ p: 1.5 }}>
           <Stack spacing={1}>
             <Typography variant="caption" sx={{ fontWeight: 700 }}>
-              Refund {refund.requestReference ?? refund.id} · {refund.status} · {formatNumber(refund.amount)} ₫
+              Refund {refund.requestReference ?? refund.id} · {refund.status} · {formatNumber(refund.amount)} ₫ · {refund.reasonCode ?? 'Legacy'} / {refund.serviceStage ?? '—'}
             </Typography>
             {refund.status === 'INITIATED' && (
               <>

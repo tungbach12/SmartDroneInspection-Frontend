@@ -144,7 +144,11 @@ describe('contractApi', () => {
     const input = {
       amount: 250,
       requestReference: 'REF-REQ-1',
+      reasonCode: 'CUSTOMER_CANCELLATION',
+      serviceStage: 'BEFORE_DISPATCH',
       reason: 'Service cancelled',
+      contractClauseReference: 'Clause 8.2',
+      evidenceReference: 'drive/refunds/REF-REQ-1/email.pdf',
       inspectorReceivableAmount: 0,
       platformAbsorbedAmount: 0,
     };
