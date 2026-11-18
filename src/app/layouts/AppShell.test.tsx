@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { logoutCurrentSession } from '@/features/auth/api/authApi';
@@ -21,6 +21,20 @@ vi.mock('@/features/notifications/api/notificationApi', () => ({
     markAsRead: vi.fn(),
   },
 }));
+
+vi.mock('@/features/contracts/hooks/useContracts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/contracts/hooks/useContracts')>();
+  return {
+    ...actual,
+    useUnreadChatSummary: () => ({
+      totalUnread: 0,
+      requestUnread: 0,
+      inspectionUnread: 0,
+      items: [],
+      isLoading: false,
+    }),
+  };
+});
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -97,8 +111,9 @@ describe('AppShell with NotificationBell integration', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('notification-bell-button')).toBeTruthy();
-      expect(screen.getByText('2')).toBeTruthy();
+      const bell = screen.getByTestId('notification-bell-button');
+      expect(bell).toBeTruthy();
+      expect(within(bell).getByText('2')).toBeTruthy();
     });
   });
 

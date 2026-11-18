@@ -104,6 +104,9 @@ const ContractInboxPage = lazy(
 const PlatformFinanceSettingsPage = lazy(
   () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
 );
+const PlatformOperationsSettingsPage = lazy(
+  () => import('@/features/admin/pages/PlatformOperationsSettingsPage'),
+);
 const PilotLicenseClassesPage = lazy(
   () => import('@/features/admin/pages/PilotLicenseClassesPage'),
 );
@@ -127,6 +130,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   reports: <ReportsPage />,
   'platform-users': <PlatformUsersPage />,
   'finance-settings': <PlatformFinanceSettingsPage />,
+  'operations-settings': <PlatformOperationsSettingsPage />,
   'pilot-license-classes': <PilotLicenseClassesPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
