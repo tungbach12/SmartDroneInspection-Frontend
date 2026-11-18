@@ -33,6 +33,7 @@ export const SECTION_IDS = [
   'onboarding-reviews',
   'inspector-drones',
   'notifications',
+  'finance-history',
   'settings',
 ] as const;
 
@@ -52,6 +53,7 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   'onboarding-reviews': 'Onboarding reviews',
   'inspector-drones': 'My drones',
   notifications: 'Notifications',
+  'finance-history': 'Payment history',
   settings: 'Settings',
 };
 
@@ -80,6 +82,7 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
   'inspector-drones': 'Drone của tôi',
   notifications: 'Thông báo',
+  'finance-history': 'Lịch sử thanh toán',
   settings: 'Cài đặt',
 };
 
@@ -94,6 +97,9 @@ export function getSectionLabel(
 ): string {
   if (portal === 'manager' && section === 'platform-users') {
     return locale === 'vi' ? 'Phi công đối tác' : 'Partner inspectors';
+  }
+  if (portal === 'manager' && section === 'finance-history') {
+    return locale === 'vi' ? 'Hoa hồng & Dòng tiền' : 'Platform revenue & commissions';
   }
   return locale === 'vi' ? SECTION_LABELS_VI[section] : SECTION_LABELS[section];
 }
@@ -137,6 +143,7 @@ const SECTION_ROLE_ACCESS = {
     'onboarding-reviews': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],
+    'finance-history': [],
     settings: ['ADMIN'],
   },
   manager: {
@@ -153,6 +160,7 @@ const SECTION_ROLE_ACCESS = {
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
     notifications: ['MANAGER'],
+    'finance-history': ['MANAGER'],
     settings: ['MANAGER'],
   },
   client: {
@@ -170,6 +178,7 @@ const SECTION_ROLE_ACCESS = {
     'onboarding-reviews': [],
     'inspector-drones': [],
     notifications: ['CUSTOMER'],
+    'finance-history': ['CUSTOMER'],
     settings: ['CUSTOMER'],
   },
   operations: {
@@ -186,6 +195,7 @@ const SECTION_ROLE_ACCESS = {
     'onboarding-reviews': [],
     'inspector-drones': ['INSPECTOR'],
     notifications: ['INSPECTOR'],
+    'finance-history': ['INSPECTOR'],
     settings: ['INSPECTOR'],
   },
 } as const satisfies Record<

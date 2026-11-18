@@ -24,7 +24,8 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { type CreateServiceRequestInput } from '../api/contractApi';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { type CreateServiceRequestInput, type ServiceRequest } from '../api/contractApi';
 import {
   addAnchoredMonths,
   addCalendarDays,
@@ -37,11 +38,27 @@ interface CreateRequestDialogProps {
   open: boolean;
   onClose: () => void;
   assets: { id: string; name: string; code: string; status?: string }[];
+  existingRequests?: ServiceRequest[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
   initialAssetId?: string | undefined;
   sourceInspectionId?: string | undefined;
   sourceInspectionLabel?: string | undefined;
+}
+
+function isActiveServiceRequest(request: ServiceRequest): boolean {
+  if (request.status === 'CANCELLED') {
+    return false;
+  }
+  if (request.status !== 'ASSIGNED') {
+    return true;
+  }
+  if (!request.occurrences || request.occurrences.length === 0) {
+    return true;
+  }
+  return request.occurrences.some(
+    (occ) => occ.status !== 'CANCELLED' && !occ.reportAcceptedAt,
+  );
 }
 
 const MINIMUM_LEAD_DAYS = MINIMUM_INSPECTION_LEAD_DAYS;
@@ -230,6 +247,7 @@ export function CreateRequestDialog({
   open,
   onClose,
   assets,
+  existingRequests = [],
   onCreated,
   onError,
   initialAssetId,
@@ -249,6 +267,26 @@ export function CreateRequestDialog({
   const [validationError, setValidationError] = useState('');
   const timezone = 'Asia/Ho_Chi_Minh';
   const minStartDate = addCalendarDays(dateInZone(timezone), MINIMUM_LEAD_DAYS);
+
+  const activeAssetIds = useMemo(() => {
+    const blocked = new Set<string>();
+    if (sourceInspectionId) return blocked;
+    for (const req of existingRequests) {
+      if (req.assetId && isActiveServiceRequest(req)) {
+        blocked.add(req.assetId);
+      }
+    }
+    return blocked;
+  }, [existingRequests, sourceInspectionId]);
+
+  const selectableAssets = useMemo(
+    () => assets.filter((asset) => asset.status !== 'RETIRED'),
+    [assets],
+  );
+  const allAssetsBusy =
+    !sourceInspectionId &&
+    selectableAssets.length > 0 &&
+    selectableAssets.every((asset) => activeAssetIds.has(asset.id));
   const effectiveInterval = intervalPreset === 'CUSTOM' ? customInterval : intervalPreset;
   const intervalMonths = Number(effectiveInterval);
   const isValidInterval =
@@ -267,8 +305,13 @@ export function CreateRequestDialog({
 
   const handleSubmit = async () => {
     setValidationError('');
-    if (!assetId) {
+    const chosenAssetId = assetId || initialAssetId || '';
+    if (!chosenAssetId) {
       setValidationError(t('Please select the asset to inspect.'));
+      return;
+    }
+    if (!sourceInspectionId && activeAssetIds.has(chosenAssetId)) {
+      setValidationError(t('This asset already has an active service request in progress.'));
       return;
     }
     if (!from || from < minStartDate) {
@@ -334,7 +377,7 @@ export function CreateRequestDialog({
       setRecurrenceLimit('COUNT');
       setRecurrenceEndDate('');
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('Unable to create service request.');
+      const message = getErrorMessage(error, t('Unable to create service request.'));
       setValidationError(message);
       onError(message);
     }
@@ -382,19 +425,27 @@ export function CreateRequestDialog({
             <Select
               labelId="dialog-asset-label"
               label={t('Asset / structure')}
-              value={assetId || initialAssetId || ''}
+              value={activeAssetIds.has(assetId || initialAssetId || '') ? '' : (assetId || initialAssetId || '')}
               disabled={Boolean(sourceInspectionId && initialAssetId)}
               onChange={(event) => setAssetId(event.target.value)}
             >
-              {assets
-                .filter((asset) => asset.status !== 'RETIRED')
-                .map((asset) => (
-                  <MenuItem key={asset.id} value={asset.id}>
+              {selectableAssets.map((asset) => {
+                const hasActiveRequest = activeAssetIds.has(asset.id);
+                return (
+                  <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
                     {asset.code} — {asset.name}
+                    {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
                   </MenuItem>
-                ))}
+                );
+              })}
             </Select>
           </FormControl>
+
+          {allAssetsBusy && (
+            <Alert severity="info">
+              {t('All available assets already have an active service request in progress.')}
+            </Alert>
+          )}
 
           <FormControl fullWidth size="small">
             <InputLabel id="dialog-type-label">{t('Inspection frequency')}</InputLabel>
@@ -545,7 +596,12 @@ export function CreateRequestDialog({
           variant="contained"
           loading={create.isPending}
           onClick={() => void handleSubmit()}
-          disabled={!(assetId || initialAssetId) || !from || from < minStartDate}
+          disabled={
+            !(assetId || initialAssetId) ||
+            (!sourceInspectionId && activeAssetIds.has(assetId || initialAssetId || '')) ||
+            !from ||
+            from < minStartDate
+          }
         >
           {t('Submit service request')}
         </LoadingButton>

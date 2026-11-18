@@ -78,6 +78,7 @@ export function CustomerContractsView({
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
         assets={assets.data?.items ?? []}
+        existingRequests={requests}
         onCreated={(id) => {
           setCreateDialogOpen(false);
           onSelectRequest(id);

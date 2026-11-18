@@ -48,6 +48,9 @@ const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalog
 const InspectorDroneRegistrationPage = lazy(
   () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
 );
+const FinanceHistoryPage = lazy(
+  () => import('@/features/contracts/pages/FinanceHistoryPage'),
+);
 const InspectorOnboardingPage = lazy(
   () => import('@/features/admin/pages/InspectorOnboardingPage'),
 );
@@ -128,6 +131,7 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   'onboarding-reviews': <Mf1ReviewPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   notifications: <NotificationsPage />,
+  'finance-history': <FinanceHistoryPage />,
   settings: <AccountSecurityPage />,
 };
 
