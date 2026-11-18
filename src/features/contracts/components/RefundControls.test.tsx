@@ -59,9 +59,12 @@ const fillRequiredInitiateFields = (amount = '2500000') => {
     target: { value: amount },
   });
   fireEvent.change(screen.getByLabelText('Request reference'), { target: { value: 'REF-001' } });
-  const selects = screen.getAllByRole('combobox');
-  fireEvent.change(selects[0], { target: { value: 'CUSTOMER_CANCELLATION' } });
-  fireEvent.change(selects[1], { target: { value: 'FIELDWORK_COMPLETED' } });
+  const [reasonSelect, stageSelect] = screen.getAllByRole('combobox');
+  if (!reasonSelect || !stageSelect) {
+    throw new Error('Expected reason and stage comboboxes');
+  }
+  fireEvent.change(reasonSelect, { target: { value: 'CUSTOMER_CANCELLATION' } });
+  fireEvent.change(stageSelect, { target: { value: 'FIELDWORK_COMPLETED' } });
   fireEvent.change(screen.getByLabelText('Contract clause/reference'), {
     target: { value: 'Clause 7.2' },
   });
