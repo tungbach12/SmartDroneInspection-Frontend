@@ -15,6 +15,20 @@ vi.mock('../api/notificationApi', () => ({
   },
 }));
 
+vi.mock('@/features/contracts/hooks/useContracts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/contracts/hooks/useContracts')>();
+  return {
+    ...actual,
+    useUnreadChatSummary: () => ({
+      totalUnread: 0,
+      requestUnread: 0,
+      inspectionUnread: 0,
+      items: [],
+      isLoading: false,
+    }),
+  };
+});
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');

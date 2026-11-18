@@ -130,4 +130,30 @@ describe('resolveSafeNotificationRoute', () => {
       ),
     ).toBeNull();
   });
+
+  it('keeps a validated requestId deep link for service-request notifications', () => {
+    expect(
+      resolveSafeNotificationRoute(
+        '/manager/contracts?requestId=189ba66d-3153-48f6-b1c2-105d345b44df',
+        'manager',
+        ['MANAGER'],
+      ),
+    ).toBe('/manager/contracts?requestId=189ba66d-3153-48f6-b1c2-105d345b44df');
+  });
+
+  it('drops unsafe or unrelated query params from contract notification targets', () => {
+    expect(
+      resolveSafeNotificationRoute('/manager/contracts?requestId=<script>', 'manager', ['MANAGER']),
+    ).toBe('/manager/contracts');
+    expect(
+      resolveSafeNotificationRoute('/manager/contracts?next=https://evil.test', 'manager', [
+        'MANAGER',
+      ]),
+    ).toBe('/manager/contracts');
+    expect(
+      resolveSafeNotificationRoute('/manager/contracts?requestId=req-1', 'operations', [
+        'INSPECTOR',
+      ]),
+    ).toBeNull();
+  });
 });

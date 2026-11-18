@@ -147,6 +147,15 @@ export function resolveSafeNotificationRoute(
     if (!canAccessSection(targetPortal, section, userRoles)) {
       return null;
     }
+    if (section === 'contracts') {
+      // Preserve only a validated service-request deep link; every other query param is dropped.
+      const requestId = new URLSearchParams(trimmed.split('#')[0]?.split('?')[1] ?? '').get(
+        'requestId',
+      );
+      if (requestId && /^[a-zA-Z0-9_-]+$/.test(requestId)) {
+        return `/${targetPortal}/contracts?requestId=${requestId}`;
+      }
+    }
     return `/${targetPortal}/${section}`;
   }
 
