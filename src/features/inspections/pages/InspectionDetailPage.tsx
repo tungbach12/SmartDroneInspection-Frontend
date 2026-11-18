@@ -1508,6 +1508,19 @@ export default function InspectionDetailPage() {
         )}
       </Box>
 
+      {inspection?.inspectionType === 'RE_INSPECTION' && !isCustomer && !isReviewerAdmin && (
+        <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
+          <Alert severity="info">
+            {t('This mission verifies the original repair outcome. Complete the normal permit, field session, evidence and report steps; a new permit is required for every re-inspection.')}
+            {inspection.sourceInspectionId && (
+              <>
+                {' '}
+                {t('Source inspection')}: {inspection.sourceInspectionId.slice(0, 8)}
+              </>
+            )}
+          </Alert>
+        </Box>
+      )}
       <Box ref={stageContentRef} className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
         {isExecutionLockedByAssignment ? (
           <Paper

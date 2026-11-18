@@ -201,13 +201,14 @@ describe('AssetsPage document streaming contract', () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
-    const uploadButton = screen.getByRole('button', { name: /^Upload$/ });
+    const uploadButton = screen.getByRole('button', { name: /Upload document/ });
     expect((uploadButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(uploadButton);
 
     await waitFor(() =>
       expect(upload).toHaveBeenCalledWith(
-        expect.objectContaining({ file, documentType: 'OTHER' }),
+        expect.objectContaining({ file, documentType: 'OWNERSHIP' }),
+        expect.anything(),
       ),
     );
   });
@@ -301,5 +302,49 @@ describe('AssetsPage document streaming contract', () => {
     } finally {
       URL.createObjectURL = originalCreate;
     }
+  });
+
+  it('displays photo count and thumbnail indicator on the external asset card when images are uploaded', async () => {
+    documents = [
+      {
+        id: 'img-1',
+        documentType: 'ASSET_PHOTO',
+        fileName: 'bridge-front.jpg',
+        contentType: 'image/jpeg',
+        sizeBytes: 4096,
+        checksumSha256: 'img1hash',
+        documentDate: null,
+        createdAt: '2026-09-25T00:00:00Z',
+      },
+      {
+        id: 'img-2',
+        documentType: 'ASSET_PHOTO',
+        fileName: 'bridge-side.png',
+        contentType: 'image/png',
+        sizeBytes: 4096,
+        checksumSha256: 'img2hash',
+        documentDate: null,
+        createdAt: '2026-09-25T00:00:00Z',
+      },
+    ];
+
+    render(<AssetsPage />);
+    expect(await screen.findByText('1/2')).toBeTruthy();
+    expect(screen.getByText('2 photos')).toBeTruthy();
+  });
+
+  it('shows specifications and media in view mode and isolates edit form when editing', async () => {
+    render(<AssetsPage />);
+    (await screen.findByText('North bridge')).click();
+
+    expect(await screen.findByText('Asset specifications')).toBeTruthy();
+    expect(screen.getByText('Photos & Media')).toBeTruthy();
+    expect(screen.getByText('Attached documents')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit asset/ }));
+
+    expect(await screen.findByText('Edit asset details')).toBeTruthy();
+    expect(screen.queryByText('Photos & Media')).toBeNull();
+    expect(screen.queryByText('Attached documents')).toBeNull();
   });
 });

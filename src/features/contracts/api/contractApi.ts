@@ -106,6 +106,11 @@ export interface ServiceRefundSummary {
   amount: number;
   status: 'INITIATED' | 'COMPLETED' | 'CANCELLED';
   requestReference: string | null;
+  reasonCode: string | null;
+  serviceStage: string | null;
+  contractClauseReference: string | null;
+  evidenceReference: string | null;
+  caseReason: string | null;
   inspectorReceivableAmount: number | null;
   platformAbsorbedPlanAmount: number | null;
   initiatedByUserId: string | null;
@@ -134,6 +139,115 @@ export interface OccurrenceFinanceDetails {
   refunds: ServiceRefundSummary[];
   inspectorReceivables: InspectorReceivableSummary[];
 }
+
+export interface OccurrenceFinanceHistoryItem {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  requestDescription: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  counterpartyId: string | null;
+  counterpartyName: string | null;
+  currency: string;
+  amount: number | null;
+  status: string;
+  paymentMethod: string | null;
+  reference: string | null;
+  confirmedAt: string | null;
+}
+
+export interface OccurrenceFinanceHistoryPage {
+  content: OccurrenceFinanceHistoryItem[];
+  totalElements: number;
+  page: number;
+  size: number;
+}
+
+export interface OccurrenceFinanceHistoryDetail {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  currency: string;
+  totalPrice: number | null;
+  serviceBaseAmount: number | null;
+  vatRate?: number | null;
+  vatAmount: number | null;
+  commissionRate?: number | null;
+  commissionAmount: number | null;
+  inspectorGrossPayout: number | null;
+  tncnRate?: number | null;
+  tncnAmount: number | null;
+  inspectorNetPayout: number | null;
+  paymentStatus: string;
+  paymentAmount: number | null;
+  refundedAmount: number | null;
+  refundStatus: string | null;
+  refunds: Array<{ id: string; amount: number; status: string; recordedAt: string }>;
+  paymentConfirmedAt: string | null;
+  payoutStatus: string | null;
+  payoutReference: string | null;
+  payoutRecordedAt: string | null;
+  accountingDisclaimer: string | null;
+  payment: ServicePaymentSummary;
+  payout: InspectorPayoutSummary | null;
+}
+
+export interface ManagerFinanceSummary {
+  currency: string;
+  transactionCount: number;
+  totalCustomerPaid: number;
+  totalRefunded: number;
+  netPlatformInflow: number;
+  totalCommissionEarned: number;
+  totalVatAmount: number;
+  totalTncnWithheld: number;
+  totalInspectorNetPayout: number;
+  paidInspectorPayout: number;
+  pendingInspectorPayout: number;
+}
+
+export interface ManagerFinanceHistoryItem {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  requestDescription: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  inspectorId: string | null;
+  inspectorName: string | null;
+  currency: string;
+  customerPaidAmount: number;
+  serviceBaseAmount: number | null;
+  vatRate: number | null;
+  vatAmount: number;
+  commissionRate: number | null;
+  commissionAmount: number;
+  netCommissionAmount: number;
+  tncnRate: number | null;
+  tncnAmount: number;
+  inspectorNetPayout: number;
+  refundedAmount: number;
+  netPlatformInflow: number;
+  paymentStatus: string;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  paymentConfirmedAt: string | null;
+  payoutStatus: string;
+  payoutReference: string | null;
+  payoutRecordedAt: string | null;
+}
+
+export interface ManagerFinanceHistoryPage {
+  summary: ManagerFinanceSummary;
+  content: ManagerFinanceHistoryItem[];
+  totalElements: number;
+  page: number;
+  size: number;
+}
+
 
 export interface ServiceRequestOccurrence {
   id: string;
@@ -451,6 +565,48 @@ export const contractApi = {
     return data;
   },
 
+  async listCustomerFinanceHistory(page = 0, size = 20): Promise<OccurrenceFinanceHistoryPage> {
+    const { data } = await api.get<OccurrenceFinanceHistoryPage>(
+      `/contracts/requests/finance-history/customer?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async listInspectorFinanceHistory(page = 0, size = 20): Promise<OccurrenceFinanceHistoryPage> {
+    const { data } = await api.get<OccurrenceFinanceHistoryPage>(
+      `/contracts/requests/finance-history/inspector?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async getCustomerFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/customer/${occurrenceId}`,
+    );
+    return data;
+  },
+
+  async getInspectorFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/inspector/${occurrenceId}`,
+    );
+    return data;
+  },
+
+  async listManagerFinanceHistory(page = 0, size = 20): Promise<ManagerFinanceHistoryPage> {
+    const { data } = await api.get<ManagerFinanceHistoryPage>(
+      `/contracts/requests/finance-history/manager?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async getManagerFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/manager/${occurrenceId}`,
+    );
+    return data;
+  },
+
   async getOccurrenceFinance(requestId: string, occurrenceId: string): Promise<OccurrenceFinanceDetails> {
     const { data } = await api.get<OccurrenceFinanceDetails>(
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/finance`,
@@ -471,7 +627,8 @@ export const contractApi = {
   },
 
   async initiateOccurrenceRefund(requestId: string, occurrenceId: string, input: {
-    amount: number; requestReference: string; reason: string;
+    amount: number; requestReference: string; reasonCode: string; serviceStage: string;
+    reason: string; contractClauseReference: string; evidenceReference: string;
     inspectorReceivableAmount: number; platformAbsorbedAmount: number;
   }): Promise<ServiceRequest> {
     const { data } = await api.post<ServiceRequest>(

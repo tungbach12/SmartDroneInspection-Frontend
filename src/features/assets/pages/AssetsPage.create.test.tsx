@@ -38,14 +38,11 @@ vi.mock('@/features/inspections/hooks/useInspections', () => ({
   }),
   useInspection: () => ({ data: null, isLoading: false, isError: false }),
   useCreateInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useFieldSessions: () => ({ data: [], isLoading: false, isError: false }),
   useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useCancelInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useForceAbortFieldSession: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useReassignInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
-  useReassignCandidates: () => ({ data: [], isLoading: false, isError: false, error: null }),
 }));
 vi.mock('../hooks/useDrones', () => ({
   useCreateDrone: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
@@ -61,16 +58,59 @@ vi.mock('../hooks/useDrones', () => ({
 
 import { AssetsPage } from './AssetsPage';
 
+function mockGeolocation(latitude = 10.8419, longitude = 106.8095) {
+  Object.defineProperty(globalThis.navigator, 'geolocation', {
+    configurable: true,
+    value: {
+      getCurrentPosition: (success: PositionCallback) => {
+        success({
+          coords: {
+            latitude,
+            longitude,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+            toJSON: () => ({}),
+          },
+          timestamp: Date.now(),
+          toJSON: () => ({}),
+        } as GeolocationPosition);
+      },
+    },
+  });
+}
+
 function fillRequiredFields() {
   fireEvent.change(screen.getByLabelText(/Asset name/), { target: { value: 'North Bridge' } });
   fireEvent.mouseDown(screen.getByLabelText(/Category/));
   fireEvent.click(screen.getByRole('option', { name: 'Bridge' }));
-  fireEvent.change(screen.getByLabelText(/^Location/), { target: { value: 'Km 12+300' } });
+  fireEvent.click(screen.getByRole('button', { name: /Use my GPS/i }));
 }
 
 describe('AssetsPage create dialog dimensions', () => {
-  beforeEach(() => createMutate.mockClear());
+  beforeEach(() => {
+    createMutate.mockClear();
+    mockGeolocation();
+  });
   afterEach(() => cleanup());
+
+  it('keeps Location read-only and requires GPS or Google Maps selection', () => {
+    render(<AssetsPage />);
+    fireEvent.click(screen.getByRole('button', { name: /new asset/i }));
+
+    const locationInput = screen.getByLabelText(/^Location/) as HTMLInputElement;
+    expect(locationInput.readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Create Asset' }).hasAttribute('disabled')).toBe(true);
+
+    fireEvent.change(locationInput, { target: { value: 'Manual edit attempt' } });
+    expect(locationInput.value).toBe('');
+
+    fillRequiredFields();
+    expect(locationInput.value).toBe('Current Location (10.8419, 106.8095)');
+    expect(screen.getByRole('button', { name: 'Create Asset' }).hasAttribute('disabled')).toBe(false);
+  });
 
   it('sends structure height and footprint area when entered', () => {
     render(<AssetsPage />);

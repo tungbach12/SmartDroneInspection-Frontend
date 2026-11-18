@@ -186,14 +186,50 @@ export function RequestQuotePanel({
     setPairConfirmed(false);
     onPairSelectionChange?.(false);
   };
+  const windowStartHm = (request.windowStart || '08:00').slice(0, 5);
+  const windowEndHm = (request.windowEnd || '17:00').slice(0, 5);
+  const minOccurrenceDateTime = `${request.requestedFrom}T${windowStartHm}`;
+  const maxOccurrenceDateTime = `${request.requestedUntil}T${windowEndHm}`;
+  const isOneDayRequest = request.requestedFrom === request.requestedUntil;
+
   const updateStart = (value: string) => {
     invalidatePairSelection();
     setStart(value);
+    // Keep end date synced on single-day requests when user adjusts start date/time
+    if (isOneDayRequest && value.length >= 10 && end.length >= 16) {
+      const endTime = end.slice(11, 16);
+      setEnd(`${request.requestedFrom}T${endTime}`);
+    }
   };
   const updateEnd = (value: string) => {
     invalidatePairSelection();
     setEnd(value);
   };
+
+  const occurrenceWindowError = (() => {
+    if (!start || !end) return '';
+    const startDate = start.slice(0, 10);
+    const endDate = end.slice(0, 10);
+    const startTime = start.slice(11, 16);
+    const endTime = end.slice(11, 16);
+    if (
+      startDate < request.requestedFrom ||
+      startDate > request.requestedUntil ||
+      endDate < request.requestedFrom ||
+      endDate > request.requestedUntil
+    ) {
+      return isOneDayRequest
+        ? `${t('Occurrence date must stay within')} ${request.requestedFrom}`
+        : `${t('Occurrence must fit the requested date range')} (${request.requestedFrom} – ${request.requestedUntil})`;
+    }
+    if (end <= start) {
+      return t('Occurrence end must be after start');
+    }
+    if (startTime < windowStartHm || endTime > windowEndHm) {
+      return `${t('Flight window')}: ${windowStartHm} – ${windowEndHm}`;
+    }
+    return '';
+  })();
   const toggleCapability = (code: string) => {
     invalidatePairSelection();
     setRequiredCapabilities((prev) =>
@@ -395,9 +431,38 @@ export function RequestQuotePanel({
                 {t('Review schedule and select partner')}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField fullWidth label={t('First occurrence start')} type="datetime-local" size="small" value={start} onChange={(event) => updateStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                <TextField fullWidth label={t('First occurrence end')} type="datetime-local" size="small" value={end} onChange={(event) => updateEnd(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                <TextField
+                  fullWidth
+                  label={t('First occurrence start')}
+                  type="datetime-local"
+                  size="small"
+                  value={start}
+                  onChange={(event) => updateStart(event.target.value)}
+                  error={Boolean(occurrenceWindowError)}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: { min: minOccurrenceDateTime, max: maxOccurrenceDateTime },
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label={t('First occurrence end')}
+                  type="datetime-local"
+                  size="small"
+                  value={end}
+                  onChange={(event) => updateEnd(event.target.value)}
+                  error={Boolean(occurrenceWindowError)}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: { min: start || minOccurrenceDateTime, max: maxOccurrenceDateTime },
+                  }}
+                />
               </Stack>
+              {occurrenceWindowError && (
+                <Alert severity="warning" sx={{ py: 0.25, fontSize: '0.8125rem' }}>
+                  {occurrenceWindowError}
+                </Alert>
+              )}
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                   {t('Required capabilities')}:
@@ -419,6 +484,7 @@ export function RequestQuotePanel({
               </Stack>
               <LoadingButton
                 loading={evaluate.isPending}
+                disabled={Boolean(occurrenceWindowError)}
                 variant="contained"
                 startIcon={<PersonSearchOutlinedIcon fontSize="small" />}
                 onClick={() => void runPartnerEvaluation()}
@@ -440,9 +506,38 @@ export function RequestQuotePanel({
                 
                 <TextField label={t('Quoted scope')} multiline minRows={2} size="small" value={scope} onChange={(event) => setScope(event.target.value)} />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <TextField fullWidth label={t('First occurrence start')} type="datetime-local" size="small" value={start} onChange={(event) => updateStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                  <TextField fullWidth label={t('First occurrence end')} type="datetime-local" size="small" value={end} onChange={(event) => updateEnd(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                  <TextField
+                    fullWidth
+                    label={t('First occurrence start')}
+                    type="datetime-local"
+                    size="small"
+                    value={start}
+                    onChange={(event) => updateStart(event.target.value)}
+                    error={Boolean(occurrenceWindowError)}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: { min: minOccurrenceDateTime, max: maxOccurrenceDateTime },
+                    }}
+                  />
+                  <TextField
+                    fullWidth
+                    label={t('First occurrence end')}
+                    type="datetime-local"
+                    size="small"
+                    value={end}
+                    onChange={(event) => updateEnd(event.target.value)}
+                    error={Boolean(occurrenceWindowError)}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: { min: start || minOccurrenceDateTime, max: maxOccurrenceDateTime },
+                    }}
+                  />
                 </Stack>
+                {occurrenceWindowError && (
+                  <Alert severity="warning" sx={{ py: 0.25, fontSize: '0.8125rem' }}>
+                    {occurrenceWindowError}
+                  </Alert>
+                )}
 
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}

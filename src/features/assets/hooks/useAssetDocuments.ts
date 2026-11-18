@@ -16,18 +16,28 @@ export function useUploadDocument(assetId: string) {
 
   return useMutation({
     mutationFn: ({
+      assetId: overrideAssetId,
       file,
       documentType,
       documentDate,
       primaryImage,
     }: {
+      assetId?: string;
       file: File;
       documentType: string;
       documentDate?: string;
       primaryImage?: boolean;
-    }) => documentApi.upload(assetId, file, documentType, documentDate, primaryImage),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: documentKeys.forAsset(assetId) });
+    }) =>
+      documentApi.upload(
+        overrideAssetId ?? assetId,
+        file,
+        documentType,
+        documentDate,
+        primaryImage,
+      ),
+    onSuccess: (_data, variables) => {
+      const targetId = variables.assetId ?? assetId;
+      void queryClient.invalidateQueries({ queryKey: documentKeys.forAsset(targetId) });
       showToast('Document uploaded');
     },
   });
