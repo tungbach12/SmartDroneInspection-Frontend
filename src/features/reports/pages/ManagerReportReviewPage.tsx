@@ -4,9 +4,7 @@ import {
   Alert,
   Box,
   Button,
-  Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
@@ -32,10 +30,8 @@ import { PlatformSettlementInvoiceCard } from '@/features/inspections/components
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
+import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
-import { getErrorMessage } from '@/shared/api/errorMessage';
-import { isConflict } from '@/shared/api/problem';
-import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -98,6 +94,23 @@ export default function ManagerReportReviewPage({
     openVersion?.reportContext?.flightPermitFileName ??
     inspectionQuery.data?.flightPermitFileName ??
     null;
+
+  const isPaid =
+    Boolean(paymentStatusQuery.data?.paid) ||
+    paymentStatusQuery.data?.paymentStatus === 'PAID';
+  const isAccepted = Boolean(paymentStatusQuery.data?.reportAccepted) || isPaid;
+
+  const customerStatusNotice = isPaid ? (
+    <Alert severity="success" sx={{ borderRadius: '10px', py: 0.75 }}>
+      {t('Paid & settled')}
+    </Alert>
+  ) : (
+    <Alert severity="info" sx={{ borderRadius: '10px', py: 0.75 }}>
+      {isAccepted
+        ? t('Customer accepted the report. Awaiting payment.')
+        : t('Report published. Awaiting customer acceptance.')}
+    </Alert>
+  );
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
@@ -188,6 +201,7 @@ export default function ManagerReportReviewPage({
         </Stack>
       ) : showSettlementStage && stage === 'settlement' ? (
         <Stack spacing={2.5}>
+          {customerStatusNotice}
           <PlatformSettlementInvoiceCard
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}
@@ -212,119 +226,15 @@ export default function ManagerReportReviewPage({
       >
         {openVersion && (
           <Stack spacing={3}>
-            {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2.5,
-                  borderRadius: '10px',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                }}
-              >
-                <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary', mb: 1.5 }}>
-                  {t('Actions for Version')} {openVersion.versionNo}
-                </Typography>
+            {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
 
-                <Stack spacing={2}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {t('Review the submitted report')}
-                  </Typography>
-                  <ReportAiSummaryCard
-                    inspectionId={inspectionId}
-                    versionId={openVersion.id}
-                    summary={openVersion.summary}
-                    findings={findings.data ?? []}
-                  />
-                  {reportReadLoading ? (
-                    <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
-                      {findings.error || evidence.error
-                        ? 'Could not load the report sources. Retry before approving or returning.'
-                        : 'Loading report sources…'}
-                    </Alert>
-                  ) : (
-                    <Alert severity="info">
-                      {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Manager does not separately accept each finding.')}
-                    </Alert>
-                  )}
-                  {showReturnBox ? (
-                    <Stack spacing={1.5}>
-                      <TextField
-                        label={t('Reason for return')}
-                        placeholder={t('Required when returning for author revisions')}
-                        multiline
-                        minRows={2}
-                        autoFocus
-                        value={reviewReason}
-                        onChange={(e) => setReviewReason(e.target.value)}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                      />
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          disabled={review.isPending || reportReadLoading || !reviewReason.trim()}
-                          onClick={() =>
-                            review.mutate({
-                              versionId: openVersion.id,
-                              reason: reviewReason.trim(),
-                            })
-                          }
-                          sx={{ borderRadius: '8px', px: 2.5 }}
-                        >
-                          {t('Return with reason')}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="inherit"
-                          disabled={review.isPending}
-                          onClick={() => {
-                            setShowReturnBox(false);
-                            setReviewReason('');
-                          }}
-                          sx={{ borderRadius: '8px', px: 2 }}
-                        >
-                          {t('Cancel')}
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  ) : (
-                    <Stack direction="row" spacing={1.5}>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        disabled={review.isPending || reportReadLoading}
-                        onClick={() => review.mutate({ versionId: openVersion.id })}
-                        sx={{ borderRadius: '8px', px: 2.5 }}
-                      >
-                        {review.isPending ? t('Publishing…') : t('Approve & publish')}
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        disabled={review.isPending || reportReadLoading}
-                        onClick={() => setShowReturnBox(true)}
-                        sx={{ borderRadius: '8px', px: 2.5 }}
-                      >
-                        {t('Return with reason')}
-                      </Button>
-                    </Stack>
-                  )}
-                  {review.isError && isConflict(review.error) ? (
-                    <RefusalNotice
-                      testId="report-review-refusal"
-                      reason={getErrorMessage(review.error, '')}
-                      fallbackMessage={t('The server refused this report review. Refresh the report before trying again.')}
-                    />
-                  ) : null}
-                  <MutationProblemAlert
-                    error={review.error}
-                    isError={review.isError && !isConflict(review.error)}
-                    fallbackMessage={t('Could not record this report review.')}
-                  />
-                </Stack>
-              </Paper>
+            {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
+              <ReportAiSummaryCard
+                inspectionId={inspectionId}
+                versionId={openVersion.id}
+                summary={openVersion.summary}
+                findings={findings.data ?? []}
+              />
             )}
 
             {showSettlementStage && (
@@ -348,6 +258,40 @@ export default function ManagerReportReviewPage({
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
               />
+            )}
+
+            {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
+              <ReportReviewDecisionBar
+                isPending={review.isPending}
+                reportReadLoading={reportReadLoading}
+                hasReadError={Boolean(findings.error || evidence.error)}
+                showReturnBox={showReturnBox}
+                reviewReason={reviewReason}
+                onReviewReasonChange={setReviewReason}
+                onShowReturnBox={setShowReturnBox}
+                onApprove={() => review.mutate({ versionId: openVersion.id })}
+                onReturn={() =>
+                  review.mutate({
+                    versionId: openVersion.id,
+                    reason: reviewReason.trim(),
+                  })
+                }
+                reviewError={review.error}
+                isReviewError={review.isError}
+              />
+            )}
+
+            {stage === 'review' && openVersion.status === 'PUBLISHED' && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  component={RouterLink}
+                  to="../settlement"
+                  variant="contained"
+                  sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, flexShrink: 0 }}
+                >
+                  {t('Continue to Commission & Settlement')}
+                </Button>
+              </Box>
             )}
           </Stack>
         )}

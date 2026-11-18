@@ -19,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
@@ -41,6 +42,7 @@ import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { SmartDroneHubTelemetryPanel } from '../components/SmartDroneHubTelemetryPanel';
 import { FlightPermitPreviewDialog } from '../components/FlightPermitPreviewDialog';
 import { FlightPermitVerificationPanel } from '../components/FlightPermitVerificationPanel';
+import { StepActionBar } from '../components/StepActionBar';
 import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
@@ -454,6 +456,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
     return [];
   });
   const [liveTelemetry, setLiveTelemetry] = useState<SmartDroneHubTelemetry | null>(null);
+  const [flightCompletedOnStep, setFlightCompletedOnStep] = useState(false);
   const [abortCategory, setAbortCategory] = useState<string | null>(null);
   const [outcomeReason, setOutcomeReason] = useState('');
   const [simDemoOpen, setSimDemoOpen] = useState(false);
@@ -635,13 +638,18 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
       // ignore
     }
   }
+  useEffect(() => {
+    if (liveHasFlown && openSession?.id) {
+      window.dispatchEvent(new Event('sdi-flight-session-updated'));
+    }
+  }, [liveHasFlown, openSession?.id]);
   const hasFlightReport = Boolean(openSession?.hasFlightReport);
   const hasFlown = liveHasFlown || Boolean(
     openSession?.id &&
       typeof sessionStorage !== 'undefined' &&
       sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
   );
-  const hasFlightRecord = hasFlown || hasFlightReport;
+  const hasFlightRecord = hasFlown || hasFlightReport || flightCompletedOnStep;
   const canProceedToPostFlight = hasFlightRecord;
 
   const allPreFlightChecked =
@@ -810,11 +818,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       </Typography>
                       <StatusChip status={permitVerificationStatus} />
                     </Stack>
-                    {!hasPermit && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {t('Upload the permit document and details for Platform Manager verification.')}
-                      </Typography>
-                    )}
                     {!stage && inspection.assetName && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                         {inspection.assetName}
@@ -853,24 +856,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           {replacePermitOpen ? t('Cancel replace') : t('Replace permit')}
                         </Button>
                       )}
-
-                    {isPermitApproved && stage === 'permit' && (
-                      <Button
-                        component={RouterLink}
-                        to="../pre-flight"
-                        variant="contained"
-                        size="medium"
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          borderRadius: '8px',
-                          px: 2.5,
-                          py: 1,
-                        }}
-                      >
-                        {t('Continue to Pre-flight Check')}
-                      </Button>
-                    )}
                   </Stack>
                 </Stack>
 
@@ -1190,6 +1175,30 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
               {t('No flight document is recorded. Contact the inspection manager before starting field work.')}
             </Alert>
           ) : null}
+          {inspection && stage === 'permit' && isPermitApproved && (
+            <Box sx={{ mt: 2 }}>
+              <StepActionBar
+                primaryAction={
+                  <Button
+                    component={RouterLink}
+                    to="../pre-flight"
+                    variant="contained"
+                    size="medium"
+                    endIcon={<ArrowForwardRounded fontSize="small" />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      px: 2.5,
+                      py: 1,
+                    }}
+                  >
+                    {t('Continue to Pre-flight Check')}
+                  </Button>
+                }
+              />
+            </Box>
+          )}
           {inspection && (hasPermit || permitFile) && (
             <FlightPermitPreviewDialog
               open={permitPreviewOpen}
@@ -1250,6 +1259,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 : preFlightSpecItems.filter((item) => preFlightChecked.includes(item.label)).length;
 
               return (
+                <>
                 <Paper
                   className="trace-stage-panel"
                   variant="outlined"
@@ -1308,24 +1318,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         </Box>
                       </Stack>
 
-                      {isCompletedPreFlight ? (
-                        <Button
-                          component={RouterLink}
-                          to="../field-session"
-                          variant="contained"
-                          size="medium"
-                          sx={{
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            borderRadius: '8px',
-                            px: 2.5,
-                            py: 1,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {t('Continue to Flight Operation')}
-                        </Button>
-                      ) : (
+                      {!isCompletedPreFlight && (
                         <Button
                           size="medium"
                           variant="outlined"
@@ -1552,6 +1545,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       )
                     ) : (
                       <form
+                        id="pre-flight-form"
                         onSubmit={(event) => {
                           event.preventDefault();
                           const payload = buildPreFlightPayload();
@@ -1586,27 +1580,68 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                             isError={startSession.isError}
                             fallbackMessage={t('Could not start the field session.')}
                           />
-
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            sx={{ alignItems: 'center', justifyContent: 'flex-end' }}
-                          >
-                            {renderHiddenStartNowTrigger('inline', 'preflight-hidden-start-now-trigger')}
-                            <LoadingButton
-                              type="submit"
-                              variant="contained"
-                              loading={startSession.isPending}
-                              disabled={!canStart || !canSubmitPreFlight}
-                            >
-                              {t('Start session & Continue to Flight')}
-                            </LoadingButton>
-                          </Stack>
                         </Stack>
                       </form>
                     )}
                   </Stack>
                 </Paper>
+                <Box sx={{ mt: 2 }}>
+                  <StepActionBar
+                    backTo="../permit"
+                    backLabel={t('Flight Permit')}
+                    secondaryActions={
+                      !isCompletedPreFlight
+                        ? renderHiddenStartNowTrigger(
+                            'inline',
+                            'preflight-hidden-start-now-trigger',
+                          )
+                        : undefined
+                    }
+                    primaryAction={
+                      isCompletedPreFlight ? (
+                        <Button
+                          component={RouterLink}
+                          to="../field-session"
+                          variant="contained"
+                          size="medium"
+                          endIcon={<ArrowForwardRounded fontSize="small" />}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderRadius: '8px',
+                            px: 2.5,
+                            py: 1,
+                          }}
+                        >
+                          {t('Continue to Flight Operation')}
+                        </Button>
+                      ) : (
+                        <LoadingButton
+                          type="button"
+                          variant="contained"
+                          loading={startSession.isPending}
+                          disabled={!canStart || !canSubmitPreFlight}
+                          onClick={() => {
+                            const payload = buildPreFlightPayload();
+                            if (!payload) return;
+                            startSession.mutate(payload, {
+                              onSuccess: () => {
+                                setPreFlightChecked([]);
+                                setPreFlightNote('');
+                                navigate('../field-session');
+                              },
+                            });
+                          }}
+                          endIcon={<ArrowForwardRounded fontSize="small" />}
+                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {t('Start session & Continue to Flight')}
+                        </LoadingButton>
+                      )
+                    }
+                  />
+                </Box>
+                </>
               );
             })()}
           </QueryState>
@@ -1623,6 +1658,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             loadingLabel={t('Loading post-flight & inspection items…')}
           >
             {inspection && (
+              <>
               <Paper
                 className="trace-stage-panel"
                 variant="outlined"
@@ -1916,22 +1952,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         isError={outcome.isError}
                         fallbackMessage={t('Could not record the session outcome.')}
                       />
-
-                      <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
-                        <LoadingButton
-                          type="submit"
-                          variant="contained"
-                          color="success"
-                          loading={outcome.isPending}
-                          disabled={
-                            hasIncompleteRequiredChecks && !outcomeReason.trim()
-                          }
-                        >
-                          {isReinspection
-                            ? t('Complete session & Continue to Defect Verification')
-                            : t('Complete session & Continue to Evidence')}
-                        </LoadingButton>
-                      </Stack>
                     </Stack>
                   </form>
                 ) : canContinueToEvidence ? (
@@ -1957,14 +1977,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           </Typography>
                         )}
                       </Box>
-                      <Button
-                        component={RouterLink}
-                        to={isReinspection ? '../findings' : '../evidence'}
-                        variant="contained"
-                        sx={{ textTransform: 'none', fontWeight: 650, flexShrink: 0 }}
-                      >
-                        {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
-                      </Button>
                     </Stack>
 
                     {assetInspectionItems.length > 0 && (
@@ -2055,6 +2067,56 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   </Stack>
                 )}
               </Paper>
+              <Box sx={{ mt: 2 }}>
+                <StepActionBar
+                  backTo="../field-session"
+                  backLabel={t('Flight Operation')}
+                  primaryAction={
+                    openSession && hasFlightRecord ? (
+                      <LoadingButton
+                        type="button"
+                        variant="contained"
+                        color="success"
+                        loading={outcome.isPending}
+                        disabled={hasIncompleteRequiredChecks && !outcomeReason.trim()}
+                        onClick={() => {
+                          const payload = buildCompleteOutcomePayload();
+                          if (!payload) return;
+                          outcome.mutate(
+                            {
+                              sessionId: openSession.id,
+                              outcome: 'complete',
+                              reason: payload,
+                            },
+                            {
+                              onSuccess: () => {
+                                navigate(isReinspection ? '../findings' : '../evidence');
+                              },
+                            },
+                          );
+                        }}
+                        endIcon={<ArrowForwardRounded fontSize="small" />}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                      >
+                        {isReinspection
+                          ? t('Complete session & Continue to Defect Verification')
+                          : t('Complete session & Continue to Evidence')}
+                      </LoadingButton>
+                    ) : canContinueToEvidence ? (
+                      <Button
+                        component={RouterLink}
+                        to={isReinspection ? '../findings' : '../evidence'}
+                        variant="contained"
+                        endIcon={<ArrowForwardRounded fontSize="small" />}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 650 }}
+                      >
+                        {isReinspection ? t('Continue to Defect Verification') : t('Continue to evidence')}
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              </Box>
+              </>
             )}
           </QueryState>
         )}
@@ -2067,6 +2129,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
           loadingLabel={t('Loading field sessions…')}
         >
           {inspection && (
+            <>
             <Paper
               className="trace-stage-panel"
               variant="outlined"
@@ -2173,107 +2236,23 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     </Box>
                   </Stack>
 
-                  {openSession ? (
-                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
-                      {stage === 'flight' ? (
-                        <Button
-                          variant="contained"
-                          size="medium"
-                          color="primary"
-                          disabled={!canProceedToPostFlight}
-                          onClick={() => navigate('../post-flight')}
-                          sx={{
-                            borderRadius: '8px',
-                            px: 2.5,
-                            py: 1,
-                            fontWeight: 600,
-                            textTransform: 'none',
-                          }}
-                        >
-                          {isReinspection
-                            ? t('Continue to Post-flight Check')
-                            : t('Continue to Post-flight & Items')}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="contained"
-                          size="medium"
-                          color="success"
-                          onClick={() => openOutcomeDialog(openSession, 'complete')}
-                          sx={{
-                            borderRadius: '8px',
-                            px: 2.5,
-                            py: 1,
-                            fontWeight: 600,
-                            textTransform: 'none',
-                          }}
-                        >
-                          {t('Complete session')}
-                        </Button>
-                      )}
-                      <Button
-                        variant="outlined"
-                        size="medium"
-                        color="error"
-                        onClick={() => openOutcomeDialog(openSession, 'abort')}
-                        sx={{
-                          borderRadius: '8px',
-                          px: 2,
-                          py: 1,
-                          fontWeight: 600,
-                          textTransform: 'none',
-                        }}
-                      >
-                        {t('Abort session')}
-                      </Button>
-                    </Stack>
-                  ) : canContinueToEvidence ? (
-                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
-                      {stage === 'flight' && (
-                        <Button
-                          component={RouterLink}
-                          to="../post-flight"
-                          variant="outlined"
-                          size="medium"
-                          sx={{ borderRadius: '8px', px: 2, py: 1, fontWeight: 600, textTransform: 'none' }}
-                        >
-                          {t('View Post-flight & Items')}
-                        </Button>
-                      )}
-                      <Button
-                        component={RouterLink}
-                        to='../evidence'
-                        variant="contained"
-                        size="medium"
-                        sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
-                      >
-                        {t('Continue to evidence')}
-                      </Button>
-                    </Stack>
-                  ) : (
-                    <Stack direction="row" spacing={1.25} sx={{ flexWrap: 'wrap' }}>
-                      {stage === 'flight' && (
-                        <Button
-                          component={RouterLink}
-                          to={hasPermit ? '../pre-flight' : '../permit'}
-                          variant="outlined"
-                          size="medium"
-                          sx={{ borderRadius: '8px', px: 2, py: 1, fontWeight: 600, textTransform: 'none' }}
-                        >
-                          {hasPermit ? t('Go to Pre-flight Check') : t('Upload Flight Permit')}
-                        </Button>
-                      )}
-                      <LoadingButton
-                        variant="contained"
-                        size="medium"
-                        loading={startSession.isPending}
-                        disabled={!canStart}
-                        onClick={handleOpenStart}
-                        sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
-                      >
-                        {t('Start session')}
-                      </LoadingButton>
-                    </Stack>
+                  {openSession && (
+                    <Button
+                      variant="outlined"
+                      size="medium"
+                      color="error"
+                      onClick={() => openOutcomeDialog(openSession, 'abort')}
+                      sx={{
+                        borderRadius: '8px',
+                        px: 2,
+                        py: 1,
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {t('Abort session')}
+                    </Button>
                   )}
                 </Stack>
 
@@ -2300,10 +2279,27 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       inspectionId={inspectionId}
                       fieldSessionId={openSession.id}
                       sessionActive
-                      hasFlightReport={hasFlightReport}
+                      hasFlightReport={hasFlightReport || flightCompletedOnStep}
                       telemetrySource={openSession.telemetrySource}
                       onTelemetryChange={setLiveTelemetry}
+                      onFlightCompleted={() => setFlightCompletedOnStep(true)}
                     />
+                    {(hasFlightReport || flightCompletedOnStep) && (
+                      <FlightOperationsReportView
+                        inspectionId={inspectionId}
+                        fieldSessionId={openSession.id}
+                        evidenceList={evidenceQuery?.data ?? []}
+                        assetName={inspection.assetName}
+                        droneSummary={
+                          [inspection.droneModel, inspection.droneSerialNumber]
+                            .filter(Boolean)
+                            .join(' · ') || null
+                        }
+                        flightPermitFileName={inspection.flightPermitFileName}
+                        collapsible
+                        defaultExpanded
+                      />
+                    )}
                     {assetInspectionItems.length > 0 && (
                       <Box
                         sx={{
@@ -2471,6 +2467,101 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 />
               </Stack>
             </Paper>
+            <Box sx={{ mt: 2 }}>
+              <StepActionBar
+                backTo={
+                  stage === 'flight'
+                    ? openSession || canContinueToEvidence || hasPermit
+                      ? '../pre-flight'
+                      : '../permit'
+                    : undefined
+                }
+                backLabel={
+                  stage === 'flight'
+                    ? openSession || canContinueToEvidence || hasPermit
+                      ? t('Pre-flight Check')
+                      : t('Upload Flight Permit')
+                    : undefined
+                }
+                secondaryActions={
+                  !openSession && canContinueToEvidence && stage === 'flight' ? (
+                    <Button
+                      component={RouterLink}
+                      to="../post-flight"
+                      variant="outlined"
+                      size="medium"
+                      sx={{ borderRadius: '8px', px: 2, py: 1, fontWeight: 600, textTransform: 'none' }}
+                    >
+                      {t('View Post-flight & Items')}
+                    </Button>
+                  ) : undefined
+                }
+                primaryAction={
+                  openSession ? (
+                    stage === 'flight' ? (
+                      <Button
+                        variant="contained"
+                        size="medium"
+                        color="primary"
+                        disabled={!canProceedToPostFlight}
+                        onClick={() => navigate('../post-flight')}
+                        endIcon={<ArrowForwardRounded fontSize="small" />}
+                        sx={{
+                          borderRadius: '8px',
+                          px: 2.5,
+                          py: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                        }}
+                      >
+                        {isReinspection
+                          ? t('Continue to Post-flight Check')
+                          : t('Continue to Post-flight & Items')}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        size="medium"
+                        color="success"
+                        onClick={() => openOutcomeDialog(openSession, 'complete')}
+                        sx={{
+                          borderRadius: '8px',
+                          px: 2.5,
+                          py: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                        }}
+                      >
+                        {t('Complete session')}
+                      </Button>
+                    )
+                  ) : canContinueToEvidence ? (
+                    <Button
+                      component={RouterLink}
+                      to="../evidence"
+                      variant="contained"
+                      size="medium"
+                      endIcon={<ArrowForwardRounded fontSize="small" />}
+                      sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
+                    >
+                      {t('Continue to evidence')}
+                    </Button>
+                  ) : (
+                    <LoadingButton
+                      variant="contained"
+                      size="medium"
+                      loading={startSession.isPending}
+                      disabled={!canStart}
+                      onClick={handleOpenStart}
+                      sx={{ borderRadius: '8px', px: 2.5, py: 1, fontWeight: 600, textTransform: 'none' }}
+                    >
+                      {t('Start session')}
+                    </LoadingButton>
+                  )
+                }
+              />
+            </Box>
+            </>
           )}
         </QueryState>
         )}

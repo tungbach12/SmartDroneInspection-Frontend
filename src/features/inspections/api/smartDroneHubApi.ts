@@ -80,6 +80,12 @@ export const smartDroneHubApi = {
         { params: { telemetrySource } },
       )
       .then((response) => response.data),
+  complete: (inspectionId: string, sessionId: string) =>
+    api
+      .post<SmartDroneHubFlightReport>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/complete`,
+      )
+      .then((response) => response.data),
   telemetry: (inspectionId: string, sessionId: string) =>
     api
       .get<SmartDroneHubTelemetry>(

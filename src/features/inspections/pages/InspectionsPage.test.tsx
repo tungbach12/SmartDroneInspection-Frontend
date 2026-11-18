@@ -454,8 +454,9 @@ describe('InspectionsPage', () => {
     expect(screen.getAllByText(/Report ready · v1/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/4,500,000 ₫/).length).toBeGreaterThan(0);
 
-    // Clicking "View report" must navigate to /report, never hijacked to /corrective
-    fireEvent.click(screen.getAllByRole('button', { name: /View report/i })[0]!);
+    // Open 3-dot action menu and click "View report" -> must navigate to /report, never hijacked to /corrective
+    fireEvent.click(screen.getAllByRole('button', { name: /Inspection actions/i })[0]!);
+    fireEvent.click(await screen.findByRole('menuitem', { name: /View report/i }));
     expect(screen.getByTestId('location')).toHaveProperty(
       'textContent',
       '/client/inspections/cust-pub-1/report',

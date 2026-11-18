@@ -36,6 +36,13 @@ const mocks = vi.hoisted(() => ({
   evidenceQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   findingsQuery: { data: [] as unknown[], isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   sessionsQuery: { data: [] as any[], isLoading: false, isError: false },
+  paymentStatusQuery: {
+    data: undefined as
+      | { reportAccepted?: boolean; paid?: boolean; paymentStatus?: string }
+      | undefined,
+    isLoading: false,
+    isError: false,
+  },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -45,6 +52,7 @@ vi.mock('../hooks/useInspections', () => ({
   useInspectionFindings: () => mocks.findingsQuery,
   useReportVersions: () => mocks.versionsQuery,
   useFieldSessions: () => mocks.sessionsQuery,
+  useReportPaymentStatus: () => mocks.paymentStatusQuery,
   useAcceptInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useDeclineInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useRescheduleInspection: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
@@ -165,6 +173,7 @@ beforeEach(() => {
   };
   mocks.evidenceQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
   mocks.findingsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
+  mocks.paymentStatusQuery = { data: undefined, isLoading: false, isError: false };
   mocks.sessionsQuery = { data: [], isLoading: false, isError: false };
 });
 
@@ -300,6 +309,58 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByText(/1581F4B0C2301009/)).toBeTruthy();
   });
 
+  it('shows map, coordinates, airspace, drone status, permit summary, and customer/manager contacts when Overview is expanded', () => {
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetName: 'Cau Ba Son',
+        locationText: 'District 1, HCMC',
+        assetLatitude: 10.7805,
+        assetLongitude: 106.7108,
+        droneModel: 'DJI Mavic 3 Enterprise',
+        droneSerialNumber: 'DJI-M3E-001',
+        droneServiceability: 'ACTIVE',
+        ownerCustomerId: 'cust-12345678',
+        ownerCustomerName: 'Saigon Infra Co',
+        ownerCustomerEmail: 'ops@saigoninfra.vn',
+        ownerCustomerPhone: '0901234567',
+        managerName: 'Tran Minh Quan Ly',
+        managerEmail: 'manager@smartdrone.vn',
+        managerPhone: '0907654321',
+        flightPermitNumber: '184/GP-TC',
+        flightPermitMaxAltitudeM: 120,
+        flightPermitVerificationStatus: 'APPROVED',
+        plannedStartAt: '2026-11-18T06:47:00Z',
+        status: 'SCHEDULED',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('INSPECTOR');
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
+
+    expect(screen.queryByTestId('overview-asset-map')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+
+    expect(screen.getByTestId('overview-asset-map')).toBeTruthy();
+    expect(screen.getByText('10.780500, 106.710800')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Open in Google Maps/i }).getAttribute('href')).toContain(
+      '10.7805,106.7108',
+    );
+    expect(screen.getByText('0901234567')).toBeTruthy();
+    expect(screen.getByText('ops@saigoninfra.vn')).toBeTruthy();
+    expect(screen.getByText('0907654321')).toBeTruthy();
+    expect(screen.getByText('manager@smartdrone.vn')).toBeTruthy();
+    expect(screen.queryByText('ACTIVE')).toBeNull();
+    expect(screen.getByText(/184\/GP-TC/)).toBeTruthy();
+    expect(screen.getByText(/120m/)).toBeTruthy();
+  });
+
   it('shows Asset, Manager, Inspector and Schedule cleanly for CUSTOMER and hides technical Drone outside', () => {
     mocks.inspectionQuery = {
       data: {
@@ -363,6 +424,11 @@ describe('InspectionDetailPage', () => {
       error: null,
       refetch: vi.fn(),
     };
+    mocks.paymentStatusQuery = {
+      data: { reportAccepted: true, paid: true, paymentStatus: 'PAID' },
+      isLoading: false,
+      isError: false,
+    };
 
     signInAs('MANAGER');
     const { unmount } = renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
@@ -382,6 +448,52 @@ describe('InspectionDetailPage', () => {
     unmountCustomer();
 
 
+  });
+
+  it('keeps manager Commission & Settlement incomplete and awaiting customer right after report publish until paid', () => {
+    mocks.inspectionQuery = {
+      data: { id: 'inspection-1', assetId: 'asset-1', status: 'COMPLETED' } as any,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: { status: 'COMPLETED', findingsConfirmedAt: '2026-10-01T08:00:00Z' },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.versionsQuery = {
+      data: [{ id: 'v-1', status: 'PUBLISHED' }],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.paymentStatusQuery = {
+      data: { reportAccepted: false, paid: false, paymentStatus: 'PENDING' },
+      isLoading: false,
+      isError: false,
+    };
+
+    signInAs('MANAGER');
+    const { unmount } = renderInspectionPage({ route: '/manager/inspections/inspection-1/settlement' });
+    const managerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(managerNav.querySelector('a[aria-label="Report Decision: Complete"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label="Commission & Settlement: Complete"]')).toBeNull();
+    expect(screen.getAllByText('Awaiting customer').length).toBeGreaterThan(0);
+    unmount();
+
+    mocks.paymentStatusQuery = {
+      data: { reportAccepted: true, paid: true, paymentStatus: 'PAID' },
+      isLoading: false,
+      isError: false,
+    };
+    renderInspectionPage({ route: '/manager/inspections/inspection-1/settlement' });
+    const settledNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(settledNav.querySelector('a[aria-label="Commission & Settlement: Complete"]')).toBeTruthy();
   });
 
   it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {
@@ -440,6 +552,42 @@ describe('InspectionDetailPage', () => {
       },
     ], { initialEntries: ['/operations/inspections/inspection-1/field-session'] })} />);
     expect(stageNav.querySelector('a[aria-label="Defect Findings: Complete"] svg')).not.toBeNull();
+  });
+
+  it('marks Flight Operation (Step 3) as Complete once flight record is present and user moves to Post-flight (Step 4)', () => {
+    mocks.sessionsQuery = {
+      data: [
+        {
+          id: 'session-1',
+          inspectionId: 'inspection-1',
+          status: 'IN_PROGRESS',
+          startedAt: '2026-11-18T07:00:00Z',
+          hasFlightReport: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        status: 'IN_PROGRESS',
+        flightPermitFileKey: 'permits/permit.pdf',
+        flightPermitVerificationStatus: 'APPROVED',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    signInAs('INSPECTOR');
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/post-flight' });
+
+    const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
+    expect(stageNav.querySelector('a[aria-label="Flight Operation: Complete"] svg')).not.toBeNull();
+    expect(stageNav.querySelector('a[aria-label="Post-flight & Items: In progress"]')).toBeTruthy();
   });
 
   it('renders each workspace stage as direct navigation with a readiness state', () => {

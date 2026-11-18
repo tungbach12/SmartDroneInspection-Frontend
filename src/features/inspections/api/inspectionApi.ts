@@ -499,7 +499,11 @@ export interface InspectionDetail {
   id: string;
   ownerCustomerId: string;
   ownerCustomerName?: string | null;
+  ownerCustomerEmail?: string | null;
+  ownerCustomerPhone?: string | null;
   managerName?: string | null;
+  managerEmail?: string | null;
+  managerPhone?: string | null;
   assetId: string;
   assetName: string | null;
   locationText?: string | null | undefined;

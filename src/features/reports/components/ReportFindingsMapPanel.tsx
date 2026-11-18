@@ -141,10 +141,6 @@ export function ReportFindingsMapPanel({
     };
   });
 
-  const totalGeotaggedFindings = geotaggedItems.reduce(
-    (sum, item) => sum + findings.filter((f) => f.evidenceId === item.id).length,
-    0,
-  );
   const googleMapsUrl = `https://www.google.com/maps?q=${activeLat},${activeLon}`;
 
   return (
@@ -175,9 +171,6 @@ export function ReportFindingsMapPanel({
                 {t('Findings location map')}
               </Typography>
             </Stack>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-              {`${totalGeotaggedFindings} ${t('Geotagged findings')} · ${t('Click a marker on the map to inspect the finding details recorded at that GPS position.')}`}
-            </Typography>
           </Box>
 
           <ButtonGroup size="small" variant="outlined">

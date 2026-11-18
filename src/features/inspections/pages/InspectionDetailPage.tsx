@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  Grid,
   IconButton,
   Menu,
   MenuItem,
@@ -34,7 +33,6 @@ import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOu
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
-import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -55,10 +53,12 @@ import {
   useInspectionEvidence,
   useInspectionFindings,
   useInspectionWorkflowState,
+  useReportPaymentStatus,
   useReportVersions,
   useRescheduleInspection,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
+import { InspectionOverviewDetails } from '../components/InspectionOverviewDetails';
 import { OverviewStakeholdersSection } from '../components/OverviewStakeholdersSection';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
 import { resolveInspectionMetadata } from '../utils/inspectorFinance';
@@ -380,6 +380,13 @@ export default function InspectionDetailPage() {
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
+  const paymentStatusQuery = useReportPaymentStatus?.(
+    hasPublishedVersion && (isReviewerAdmin || isCustomer) ? inspectionId : null,
+  );
+  const isCustomerAccepted = Boolean(paymentStatusQuery?.data?.reportAccepted);
+  const isPaymentSettled =
+    Boolean(paymentStatusQuery?.data?.paid) ||
+    paymentStatusQuery?.data?.paymentStatus === 'PAID';
 
   const sessionsQuery = useFieldSessions(inspectionId);
   const acceptMutation = useAcceptInspection(inspectionId);
@@ -535,12 +542,22 @@ export default function InspectionDetailPage() {
   const isExecutionLockedByAssignment =
     isInspectorRole && (isPendingAcceptance || isDeclinedAwaitingReassign);
 
+  const [flightStatusTick, setFlightStatusTick] = useState(0);
+  useEffect(() => {
+    const onFlightUpdated = () => setFlightStatusTick((n) => n + 1);
+    window.addEventListener('sdi-flight-session-updated', onFlightUpdated);
+    return () => window.removeEventListener('sdi-flight-session-updated', onFlightUpdated);
+  }, []);
+
+  void flightStatusTick;
   const hasLiveFlightInActiveSession = Boolean(
     openSession?.id &&
       typeof sessionStorage !== 'undefined' &&
       sessionStorage.getItem(`sdi_has_flown_${openSession.id}`) === 'true',
   );
-  const hasFlightRecordInActiveSession = Boolean(openSession?.hasFlightReport);
+  const hasFlightRecordInActiveSession = Boolean(
+    openSession?.hasFlightReport || openSession?.telemetrySource,
+  );
 
   const visibleSteps = isCustomer
     ? CUSTOMER_STEPS
@@ -600,7 +617,7 @@ export default function InspectionDetailPage() {
       if (stepValue === 'settlement') {
         return (
           hasPublishedVersion &&
-          (status === 'COMPLETED' || inspection?.status === 'COMPLETED')
+          isPaymentSettled
         );
       }
       return false;
@@ -613,7 +630,7 @@ export default function InspectionDetailPage() {
         return hasPublishedVersion;
       }
       if (stepValue === 'settlement') {
-        return hasPublishedVersion;
+        return hasPublishedVersion && isPaymentSettled;
       }
       return false;
     }
@@ -635,7 +652,11 @@ export default function InspectionDetailPage() {
           ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status)
         );
       case 'field-session':
-        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
+        return (
+          ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) ||
+          hasLiveFlightInActiveSession ||
+          hasFlightRecordInActiveSession
+        );
       case 'post-flight':
         return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
       case 'evidence':
@@ -1043,46 +1064,12 @@ export default function InspectionDetailPage() {
                     borderColor: 'divider',
                   }}
                 >
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {t('Location')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {formatLocation(inspection.locationText)}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {t('Drone')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {isCustomer
-                          ? droneShortName
-                          : [inspection.droneModel, inspection.droneSerialNumber].filter(Boolean).join(' · ') || t('Unassigned')}
-                      </Typography>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {t('Planned Start')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                        {inspection.plannedStartAt
-                          ? `${formatDateTime(new Date(inspection.plannedStartAt))}${inspection.plannedEndAt ? ` – ${formatDateTime(new Date(inspection.plannedEndAt))}` : ''}`
-                          : '—'}
-                      </Typography>
-                    </Grid>
-                    {inspection.inspectionItems?.length > 0 && (
-                      <Grid size={{ xs: 12 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {t('Inspection items')}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {inspection.inspectionItems.join(', ')}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
+                  <InspectionOverviewDetails
+                    inspection={inspection}
+                    isCustomer={isCustomer}
+                    isReviewerAdmin={isReviewerAdmin}
+                    droneShortName={droneShortName}
+                  />
 
                   {!isCustomer ? (
                     <Box
@@ -1424,6 +1411,25 @@ export default function InspectionDetailPage() {
                     >
                       {t(step.title)}
                     </Typography>
+                    {isReviewerAdmin &&
+                      step.value === 'settlement' &&
+                      hasPublishedVersion &&
+                      !isPaymentSettled && (
+                        <Typography
+                          component="span"
+                          sx={{
+                            display: 'block',
+                            mt: 0.25,
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: '#2B84EB',
+                            lineHeight: 1.2,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isCustomerAccepted ? t('Awaiting payment') : t('Awaiting customer')}
+                        </Typography>
+                      )}
                   </Box>
                 </ButtonBase>
               );

@@ -1,0 +1,139 @@
+import {
+  Alert,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+} from '@mui/material';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { isConflict } from '@/shared/api/problem';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
+
+export interface ReportReviewDecisionBarProps {
+  isPending: boolean;
+  reportReadLoading: boolean;
+  hasReadError: boolean;
+  showReturnBox: boolean;
+  reviewReason: string;
+  onReviewReasonChange: (value: string) => void;
+  onShowReturnBox: (show: boolean) => void;
+  onApprove: () => void;
+  onReturn: () => void;
+  reviewError: unknown;
+  isReviewError: boolean;
+}
+
+/**
+ * Bottom reviewer decision bar for approving/publishing or returning a submitted inspection report.
+ */
+export function ReportReviewDecisionBar({
+  isPending,
+  reportReadLoading,
+  hasReadError,
+  showReturnBox,
+  reviewReason,
+  onReviewReasonChange,
+  onShowReturnBox,
+  onApprove,
+  onReturn,
+  reviewError,
+  isReviewError,
+}: ReportReviewDecisionBarProps) {
+  const { t } = useLocale();
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: '10px',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Stack spacing={2}>
+        {reportReadLoading && (
+          <Alert severity={hasReadError ? 'error' : 'info'}>
+            {hasReadError
+              ? 'Could not load the report sources. Retry before approving or returning.'
+              : 'Loading report sources…'}
+          </Alert>
+        )}
+
+        {showReturnBox ? (
+          <Stack spacing={1.5}>
+            <TextField
+              label={t('Reason for return')}
+              placeholder={t('Required when returning for author revisions')}
+              multiline
+              minRows={2}
+              autoFocus
+              value={reviewReason}
+              onChange={(e) => onReviewReasonChange(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'flex-end' }}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                disabled={isPending}
+                onClick={() => {
+                  onShowReturnBox(false);
+                  onReviewReasonChange('');
+                }}
+                sx={{ borderRadius: '8px', px: 2, textTransform: 'none', fontWeight: 600 }}
+              >
+                {t('Cancel')}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                disabled={isPending || reportReadLoading || !reviewReason.trim()}
+                onClick={onReturn}
+                sx={{ borderRadius: '8px', px: 2.5, textTransform: 'none', fontWeight: 600 }}
+              >
+                {t('Return with reason')}
+              </Button>
+            </Stack>
+          </Stack>
+        ) : (
+          <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              color="error"
+              disabled={isPending || reportReadLoading}
+              onClick={() => onShowReturnBox(true)}
+              sx={{ borderRadius: '8px', px: 2.5, textTransform: 'none', fontWeight: 600 }}
+            >
+              {t('Return with reason')}
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={isPending || reportReadLoading}
+              onClick={onApprove}
+              sx={{ borderRadius: '8px', px: 2.5, textTransform: 'none', fontWeight: 600 }}
+            >
+              {isPending ? t('Publishing…') : t('Approve & publish')}
+            </Button>
+          </Stack>
+        )}
+
+        {isReviewError && isConflict(reviewError) ? (
+          <RefusalNotice
+            testId="report-review-refusal"
+            reason={getErrorMessage(reviewError, '')}
+            fallbackMessage={t('The server refused this report review. Refresh the report before trying again.')}
+          />
+        ) : null}
+        <MutationProblemAlert
+          error={reviewError}
+          isError={isReviewError && !isConflict(reviewError)}
+          fallbackMessage={t('Could not record this report review.')}
+        />
+      </Stack>
+    </Paper>
+  );
+}

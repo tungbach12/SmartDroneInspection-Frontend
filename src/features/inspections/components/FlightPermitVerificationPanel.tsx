@@ -283,7 +283,7 @@ export function FlightPermitVerificationPanel({
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {canReview
                 ? t('Submitted by the Inspector — review the document and approve or reject.')
-                : t('Awaiting Platform Manager verification. Pre-flight check stays locked until approved.')}
+                : t('Awaiting Manager verification. Pre-flight check stays locked until approved.')}
             </Typography>
           </Alert>
         )}
