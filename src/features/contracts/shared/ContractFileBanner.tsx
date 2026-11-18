@@ -53,7 +53,7 @@ export function ContractFileBanner({ request, onError }: ContractFileBannerProps
           sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
         >
           <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
-            {t('Paper contract evidence')}
+            {t('Paper contract')}
           </Typography>
           <Button
             size="small"
@@ -75,19 +75,29 @@ export function ContractFileBanner({ request, onError }: ContractFileBannerProps
         </Stack>
 
         <Alert severity="success" sx={{ borderRadius: '8px' }}>
-          {t('Signed scan recorded')}: {request.contractFileName} · {request.contractContentType} ·{' '}
-          {request.contractSizeBytes} bytes
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, flexShrink: 0 }}>
+              {t('Signed scan recorded')}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+            >
+              {request.contractFileName}
+            </Typography>
+          </Stack>
         </Alert>
 
         <Box>
           <LoadingButton
-            variant="contained"
-            color="success"
+            variant="outlined"
+            color="primary"
             size="small"
             startIcon={<FileDownloadOutlinedIcon />}
             loading={download.isPending}
             onClick={() => void downloadContract()}
-            sx={{ borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+            sx={{ borderRadius: '8px', fontWeight: 600, textTransform: 'none' }}
           >
             {t('Download signed contract')}
           </LoadingButton>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../../api/contractApi';
@@ -17,7 +17,7 @@ export function CustomerSignedContractStep({
   request,
   onError,
 }: CustomerSignedContractStepProps) {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const [legalOpen, setLegalOpen] = useState(false);
   const currentQuote = resolveCurrentQuote(request);
 
@@ -73,14 +73,8 @@ export function CustomerSignedContractStep({
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
-              {t('Paper contract evidence')}
+              {t('Paper contract')}
             </Typography>
-            <Chip
-              size="small"
-              color="success"
-              label={t('Accepted · locked')}
-              sx={{ borderRadius: '6px' }}
-            />
           </Stack>
           <Button
             size="small"
@@ -103,11 +97,11 @@ export function CustomerSignedContractStep({
 
         {currentQuote && <QuoteTermsSummary request={request} quote={currentQuote} />}
 
-        <Alert severity="info" sx={{ borderRadius: '8px' }}>
-          {locale === 'vi'
-            ? 'Điều khoản báo giá đã được khóa. Hai bên tiến hành ký hợp đồng bản giấy; Quản lý dịch vụ sẽ tải bản scan lên để kích hoạt lịch kiểm định.'
-            : 'Quotation terms are locked. Both parties sign the paper contract offline; the Platform Manager will upload the signed scan to unlock inspection scheduling.'}
-        </Alert>
+        <Typography variant="body2" color="text.secondary">
+          {t(
+            'Both parties sign the paper contract offline. The Manager uploads the signed scan to unlock scheduling.',
+          )}
+        </Typography>
       </Stack>
 
       <LegalBasisDialog open={legalOpen} onClose={() => setLegalOpen(false)} />

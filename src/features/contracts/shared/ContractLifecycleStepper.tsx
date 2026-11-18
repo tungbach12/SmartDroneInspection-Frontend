@@ -1,74 +1,120 @@
-import { Box, Step, StepButton, StepLabel, Stepper, Typography } from '@mui/material';
+import { Box, Chip, Stack, Step, StepButton, StepLabel, Stepper, Typography } from '@mui/material';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { type ContractRole, resolveActiveStepIndex } from './contractStage';
 
 interface ContractLifecycleStepperProps {
   status: string;
   role: ContractRole;
-  selectionOpen?: boolean;
-  hasSelectedPair?: boolean;
+  hasOccurrences?: boolean;
   selectedStep?: number;
   onSelectStep?: (stepIndex: number) => void;
 }
 
-const ROLE_STEPS = {
-  CUSTOMER: [
-    { key: 'OPEN', label: '1. Request submitted' },
-    { key: 'QUOTED', label: '2. Review manager quote' },
-    { key: 'CONTRACT_SIGNED', label: '3. Accept terms & sign contract' },
-    { key: 'ASSIGNED', label: '4. Inspection scheduled' },
-  ],
-  MANAGER: [
-    { key: 'OPEN', label: '1. Review customer request' },
-    { key: 'QUOTED', label: '2. Prepare' },
-    { key: 'CONTRACT_SIGNED', label: '3. Record signed contract' },
-    { key: 'ASSIGNED', label: '4. Assign inspection team' },
-  ],
-} as const;
+const getRoleSteps = (status: string, role: ContractRole) =>
+  role === 'CUSTOMER'
+    ? ([
+        { key: 'OPEN', label: 'Request submitted' },
+        { key: 'QUOTED', label: 'Review quote' },
+        { key: 'CONTRACT_SIGNED', label: 'Sign contract' },
+        {
+          key: 'ASSIGNED',
+          label: status === 'ASSIGNED' ? 'Scheduled' : 'Preparing schedule',
+        },
+      ] as const)
+    : ([
+        { key: 'OPEN', label: 'Review request' },
+        { key: 'QUOTED', label: 'Prepare quote' },
+        { key: 'CONTRACT_SIGNED', label: 'Record contract' },
+        { key: 'ASSIGNED', label: 'Assign team' },
+      ] as const);
 
 export function ContractLifecycleStepper({
   status,
   role,
-  selectionOpen = false,
-  hasSelectedPair = false,
+  hasOccurrences = false,
   selectedStep,
   onSelectStep,
 }: ContractLifecycleStepperProps) {
   const { t } = useLocale();
-  const steps = ROLE_STEPS[role];
-  const activeStep = resolveActiveStepIndex(status, role, selectionOpen, hasSelectedPair);
+  const steps = getRoleSteps(status, role);
+  const activeStep = resolveActiveStepIndex(status, hasOccurrences);
   const completedThrough = status === 'ASSIGNED' ? steps.length : activeStep;
   const maxAccessibleStep = status === 'ASSIGNED' ? steps.length - 1 : activeStep;
   const viewedStep =
     selectedStep !== undefined && selectedStep >= 0 && selectedStep <= maxAccessibleStep
       ? selectedStep
       : activeStep;
+  const viewedStepDef = steps[viewedStep] ?? steps[0];
 
   return (
     <Box
       sx={{
-        px: { xs: 1.5, sm: 2.5 },
-        py: { xs: 2, sm: 2.5 },
+        px: { xs: 1.75, sm: 2.5 },
+        py: { xs: 1.5, sm: 2.5 },
         bgcolor: 'background.paper',
-        borderRadius: '10px',
+        borderRadius: '8px',
         border: '1px solid',
         borderColor: 'divider',
-        overflowX: 'auto',
       }}
     >
+      {/* Compact step bar on phones so 4 labels never wrap mid-word */}
+      <Stack spacing={1.25} sx={{ display: { xs: 'flex', sm: 'none' } }}>
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: 'primary.main', fontVariantNumeric: 'tabular-nums' }}>
+            {t('Step')} {viewedStep + 1}/{steps.length} · {t(viewedStepDef.label)}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+            {Math.min(completedThrough, steps.length)}/{steps.length}
+          </Typography>
+        </Stack>
+        <Box sx={{ display: 'flex', gap: 0.75 }}>
+          {steps.map((step, idx) => {
+            const isCompleted = idx < completedThrough;
+            const isViewed = idx === viewedStep;
+            const isClickable = Boolean(onSelectStep) && idx <= maxAccessibleStep;
+            return (
+              <Chip
+                key={step.key}
+                size="small"
+                clickable={isClickable}
+                onClick={isClickable ? () => onSelectStep?.(idx) : undefined}
+                icon={isCompleted ? <CheckCircleRoundedIcon sx={{ fontSize: 14 }} /> : undefined}
+                label={`${idx + 1}`}
+                variant={isViewed ? 'filled' : 'outlined'}
+                color={isViewed || isCompleted ? 'primary' : 'default'}
+                aria-label={`${t('Step')} ${idx + 1}: ${t(step.label)}`}
+                aria-current={isViewed ? 'step' : undefined}
+                sx={{
+                  flex: 1,
+                  height: 28,
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Stack>
+
       <Stepper
         nonLinear={Boolean(onSelectStep)}
         activeStep={viewedStep}
         alternativeLabel
         sx={{
-          minWidth: 460,
-          '& .MuiStep-root': { px: { xs: 0.5, sm: 1 } },
+          display: { xs: 'none', sm: 'flex' },
+          minWidth: 0,
+          '& .MuiStep-root': { px: 1, flex: '1 1 0', minWidth: 0 },
           '& .MuiStepConnector-root': { top: 13 },
-          '& .MuiStepIcon-root': { fontSize: { xs: 24, sm: 26 } },
+          '& .MuiStepIcon-root': { fontSize: 26 },
+          '& .MuiStepLabel-root': { px: 0 },
           '& .MuiStepLabel-label': {
             fontWeight: 600,
-            fontSize: '0.8125rem',
+            fontSize: '0.875rem',
             mt: 0.75,
+            wordBreak: 'break-word',
           },
           '& .MuiStepLabel-label.Mui-active': {
             color: 'primary.main',
@@ -76,9 +122,6 @@ export function ContractLifecycleStepper({
           },
           '& .MuiStepLabel-label.Mui-completed': {
             color: 'text.primary',
-          },
-          '@media (max-width: 600px)': {
-            '& .MuiStepLabel-label': { fontSize: '0.6875rem', lineHeight: 1.25 },
           },
         }}
       >

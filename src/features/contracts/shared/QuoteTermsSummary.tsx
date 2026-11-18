@@ -34,10 +34,18 @@ export function QuoteTermsSummary({ request, quote, partnerSummary }: QuoteTerms
         overflow: 'hidden',
       }}
     >
-      <Table size="small">
+      <Table size="small" sx={{ tableLayout: { xs: 'fixed', sm: 'auto' } }}>
         <TableBody>
           <TableRow>
-            <TableCell sx={{ width: { xs: 140, sm: 200 }, fontWeight: 600, color: 'text.secondary' }}>
+            <TableCell
+              sx={{
+                width: { xs: '38%', sm: 200 },
+                fontWeight: 600,
+                color: 'text.secondary',
+                verticalAlign: 'top',
+                pr: 1,
+              }}
+            >
               {t('Price per occurrence (VND)')}
             </TableCell>
             <TableCell sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -52,13 +60,17 @@ export function QuoteTermsSummary({ request, quote, partnerSummary }: QuoteTerms
             </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ fontWeight: 600, color: 'text.secondary', verticalAlign: 'top' }}>
+            <TableCell
+              sx={{ fontWeight: 600, color: 'text.secondary', verticalAlign: 'top', pr: 1 }}
+            >
               {t('Quoted scope')}
             </TableCell>
-            <TableCell sx={{ whiteSpace: 'pre-wrap' }}>{quote.scopeSnapshot}</TableCell>
+            <TableCell sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {quote.scopeSnapshot}
+            </TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
+            <TableCell sx={{ fontWeight: 600, color: 'text.secondary', verticalAlign: 'top', pr: 1 }}>
               {t('First occurrence')}
             </TableCell>
             <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>

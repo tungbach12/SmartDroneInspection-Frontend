@@ -22,12 +22,11 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -61,6 +60,7 @@ interface ServiceRequestListViewProps {
   toolbarAction?: ReactNode;
   onSelectRequest: (requestId: string) => void;
   canOpenDetails?: boolean | ((request: ServiceRequest) => boolean);
+  canOpenSummary?: boolean | ((request: ServiceRequest) => boolean);
   onClaimRequest?: (requestId: string) => void;
   claimPending?: boolean;
 }
@@ -79,10 +79,13 @@ export function ServiceRequestListView({
   toolbarAction,
   onSelectRequest,
   canOpenDetails = true,
+  canOpenSummary,
   onClaimRequest,
   claimPending = false,
 }: ServiceRequestListViewProps) {
   const { locale, t } = useLocale();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [overviewRequest, setOverviewRequest] = useState<ServiceRequest | null>(null);
@@ -109,12 +112,19 @@ export function ServiceRequestListView({
   const closeActionMenu = () => setActionMenu(null);
   const requestCanOpenDetails = (request: ServiceRequest) =>
     typeof canOpenDetails === 'function' ? canOpenDetails(request) : canOpenDetails;
+  const requestCanOpenSummary = (request: ServiceRequest) =>
+    canOpenSummary === undefined
+      ? requestCanOpenDetails(request)
+      : typeof canOpenSummary === 'function'
+        ? canOpenSummary(request)
+        : canOpenSummary;
   const handleRequestRowClick = (event: MouseEvent<HTMLTableRowElement>, request: ServiceRequest) => {
     if ((event.target as HTMLElement).closest('button, a, input, [role="menuitem"]')) return;
     if (requestCanOpenDetails(request)) onSelectRequest(request.id);
+    else if (requestCanOpenSummary(request)) setOverviewRequest(request);
   };
   const openOverview = () => {
-    if (!actionMenu || !requestCanOpenDetails(actionMenu.request)) return;
+    if (!actionMenu || !requestCanOpenSummary(actionMenu.request)) return;
     setOverviewRequest(actionMenu.request);
     closeActionMenu();
   };
@@ -157,7 +167,7 @@ export function ServiceRequestListView({
       <PageHeader
         title={t('Inspection service requests')}
         breadcrumbs={[
-          { label: 'Home', to: homePath },
+          { label: t('Home'), to: homePath },
           { label: t('Service requests') },
         ]}
       />
@@ -179,8 +189,7 @@ export function ServiceRequestListView({
             sx={{
               p: 1.25,
               borderRadius: '8px',
-              bgcolor: (theme) =>
-                theme.palette.mode === 'dark' ? 'rgba(237, 108, 2, 0.15)' : '#fff8e1',
+              bgcolor: 'color-mix(in srgb, var(--mui-palette-warning-main) 12%, transparent)',
               color: 'warning.main',
               display: 'flex',
             }}
@@ -213,8 +222,7 @@ export function ServiceRequestListView({
             sx={{
               p: 1.25,
               borderRadius: '8px',
-              bgcolor: (theme) =>
-                theme.palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.15)' : '#e8f5e9',
+              bgcolor: 'color-mix(in srgb, var(--mui-palette-success-main) 12%, transparent)',
               color: 'success.main',
               display: 'flex',
             }}
@@ -257,14 +265,14 @@ export function ServiceRequestListView({
         >
           <TextField
             size="small"
-            placeholder={t('Search by id, name, or description…')}
+            placeholder={t('Search requests…')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             slotProps={{
               input: {
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchRoundedIcon fontSize="small" sx={{ color: '#71717A' }} />
+                    <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                   </InputAdornment>
                 ),
               },
@@ -290,7 +298,7 @@ export function ServiceRequestListView({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                      <FilterListRounded fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 },
@@ -328,137 +336,264 @@ export function ServiceRequestListView({
                 : emptyQueueMessage}
             </Typography>
           </Box>
-        ) : (
-          <TableContainer>
-            <Table sx={{ minWidth: 700 }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {t('Objective & Asset')}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {t('Service type')}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {t('Requested window')}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {t('Status')}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {t('Created date')}
-                  </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}
-                  >
-                    {t('Action')}
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredRequests.map((req) => {
-                  const effectiveStatus = getEffectiveRequestStatus(req);
-                  const stageSubtitle = getRequestStageSubtitle(effectiveStatus, role, t);
+        ) : isMobile ? (
+            <Box>
+              {filteredRequests.map((req, index) => {
+                const effectiveStatus = getEffectiveRequestStatus(req);
+                const stageSubtitle = getRequestStageSubtitle(
+                  effectiveStatus,
+                  role,
+                  t,
+                  req.occurrences.length > 0,
+                );
+                const canClaim = role === 'MANAGER' && Boolean(req.canClaim) && Boolean(onClaimRequest);
+                const canOpen = requestCanOpenDetails(req);
+                const canSummary = requestCanOpenSummary(req);
 
-                  return (
-                    <TableRow
-                      key={req.id}
-                      hover
-                      onClick={(event) => handleRequestRowClick(event, req)}
-                      sx={{ cursor: requestCanOpenDetails(req) ? 'pointer' : 'default' }}
-                    >
-                      <TableCell sx={{ py: 2 }}>
+                return (
+                  <Box
+                    key={req.id}
+                    onClick={() => {
+                      if (canOpen) onSelectRequest(req.id);
+                      else if (canSummary) setOverviewRequest(req);
+                    }}
+                    sx={{
+                      p: 2,
+                      borderTop: index > 0 ? '1px solid' : 'none',
+                      borderColor: 'divider',
+                      cursor: canOpen || canSummary ? 'pointer' : 'default',
+                      '&:hover': canOpen || canSummary ? { bgcolor: 'action.hover' } : undefined,
+                    }}
+                  >
+                    <Stack spacing={1}>
+                      <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                         <Typography
                           variant="body2"
-                          sx={{ fontWeight: 750, color: 'text.primary', lineHeight: 1.3 }}
+                          sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.35, minWidth: 0, flex: 1 }}
                         >
                           {req.description}
                         </Typography>
-                      </TableCell>
+                        <IconButton
+                          size="small"
+                          aria-label={t('Actions for service request')}
+                          aria-haspopup="menu"
+                          aria-expanded={actionMenu?.request.id === req.id ? 'true' : undefined}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setActionMenu({ element: event.currentTarget, request: req });
+                          }}
+                          sx={{ width: 32, height: 32, borderRadius: '8px', color: 'text.secondary', flexShrink: 0 }}
+                        >
+                          <MoreHorizRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
 
-                      <TableCell>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                        <StatusChip
+                          status={effectiveStatus}
+                          label={getStatusLabel(effectiveStatus, t)}
+                          tone={statusTone(effectiveStatus)}
+                        />
                         <Chip
                           label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
                           size="small"
                           variant="outlined"
                           sx={{ fontWeight: 600, fontSize: '0.75rem', borderRadius: '6px' }}
                         />
-                      </TableCell>
+                        {stageSubtitle && (
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                            {stageSubtitle}
+                          </Typography>
+                        )}
+                      </Stack>
 
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                           {req.requestType === 'ONE_TIME'
-                            ? req.requestedFrom
-                            : `${req.requestedFrom} – ${req.requestedUntil}`}
+                            ? requestDate(req.requestedFrom)
+                            : `${requestDate(req.requestedFrom)} – ${requestDate(req.requestedUntil)}`}{' '}
+                          · {formatFlightWindow(req.windowStart, req.windowEnd, t)}
                         </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block', mt: 0.25 }}
-                        >
-                          {formatFlightWindow(req.windowStart, req.windowEnd, t)}
-                        </Typography>
-                      </TableCell>
+                        {canClaim && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            disabled={claimPending}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onClaimRequest?.(req.id);
+                            }}
+                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                          >
+                            {t('Claim request')}
+                          </Button>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Box>
+        ) : (
+            <TableContainer>
+              <Table sx={{ minWidth: 700 }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
+                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {t('Request & Asset')}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {t('Service type')}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {t('Requested window')}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {t('Status')}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {t('Created date')}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}
+                    >
+                      {t('Action')}
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredRequests.map((req) => {
+                    const effectiveStatus = getEffectiveRequestStatus(req);
+                    const stageSubtitle = getRequestStageSubtitle(
+                      effectiveStatus,
+                      role,
+                      t,
+                      req.occurrences.length > 0,
+                    );
+                    const canClaim = role === 'MANAGER' && Boolean(req.canClaim) && Boolean(onClaimRequest);
 
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
-                          <StatusChip
-                            status={effectiveStatus}
-                            label={getStatusLabel(effectiveStatus, t)}
-                            tone={statusTone(effectiveStatus)}
+                    return (
+                      <TableRow
+                        key={req.id}
+                        hover
+                        onClick={(event) => handleRequestRowClick(event, req)}
+                        sx={{
+                          cursor:
+                            requestCanOpenDetails(req) || requestCanOpenSummary(req)
+                              ? 'pointer'
+                              : 'default',
+                        }}
+                      >
+                        <TableCell sx={{ py: 2 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 750, color: 'text.primary', lineHeight: 1.3 }}
+                          >
+                            {req.description}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Chip
+                            label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontWeight: 600, fontSize: '0.75rem', borderRadius: '6px' }}
                           />
-                          {stageSubtitle && (
-                            <Typography
-                              variant="caption"
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                            {req.requestType === 'ONE_TIME'
+                              ? requestDate(req.requestedFrom)
+                              : `${requestDate(req.requestedFrom)} – ${requestDate(req.requestedUntil)}`}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', mt: 0.25 }}
+                          >
+                            {formatFlightWindow(req.windowStart, req.windowEnd, t)}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
+                            <StatusChip
+                              status={effectiveStatus}
+                              label={getStatusLabel(effectiveStatus, t)}
+                              tone={statusTone(effectiveStatus)}
+                            />
+                            {stageSubtitle && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'text.secondary',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                  pl: 0.25,
+                                }}
+                              >
+                                {stageSubtitle}
+                              </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {new Date(req.createdAt).toLocaleDateString([], {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell align="right" onClick={(event) => event.stopPropagation()}>
+                          <Stack direction="row" spacing={0.75} sx={{ justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {canClaim && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={claimPending}
+                                onClick={() => onClaimRequest?.(req.id)}
+                                sx={{
+                                  borderRadius: '8px',
+                                  textTransform: 'none',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {t('Claim request')}
+                              </Button>
+                            )}
+                            <IconButton
+                              size="small"
+                              aria-label={t('Actions for service request')}
+                              aria-haspopup="menu"
+                              aria-expanded={actionMenu?.request.id === req.id ? 'true' : undefined}
+                              onClick={(event) =>
+                                setActionMenu({ element: event.currentTarget, request: req })
+                              }
                               sx={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '8px',
                                 color: 'text.secondary',
-                                fontSize: '0.75rem',
-                                fontWeight: 500,
-                                pl: 0.25,
                               }}
                             >
-                              {stageSubtitle}
-                            </Typography>
-                          )}
-                        </Stack>
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(req.createdAt).toLocaleDateString([], {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="right" onClick={(event) => event.stopPropagation()}>
-                        <IconButton
-                          size="small"
-                          aria-label={t('Actions for service request')}
-                          aria-haspopup="menu"
-                          aria-expanded={actionMenu?.request.id === req.id ? 'true' : undefined}
-                          onClick={(event) =>
-                            setActionMenu({ element: event.currentTarget, request: req })
-                          }
-                          sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '8px',
-                            color: 'text.secondary',
-                          }}
-                        >
-                          <MoreHorizRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                              <MoreHorizRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
         )}
       </Paper>
 
@@ -473,7 +608,7 @@ export function ServiceRequestListView({
           list: { 'aria-label': t('Service request actions') },
         }}
       >
-        {actionMenu && requestCanOpenDetails(actionMenu.request) && (
+        {actionMenu && requestCanOpenSummary(actionMenu.request) && (
           <MenuItem onClick={openOverview}>
             <DescriptionOutlinedIcon fontSize="small" sx={{ mr: 1.25, color: 'text.secondary' }} />
             {t('Overview')}
@@ -513,7 +648,7 @@ export function ServiceRequestListView({
             }}
           >
             <PersonOutlineRoundedIcon fontSize="small" sx={{ mr: 1.25, color: 'text.secondary' }} />
-            {t(actionMenu.request.assignedManagerId ? 'Open assigned request' : 'Claim request')}
+            {t('Claim request')}
           </MenuItem>
         )}
         {role === 'CUSTOMER' && actionMenu?.request.serviceManager && (
@@ -534,13 +669,12 @@ export function ServiceRequestListView({
         open={Boolean(overviewRequest)}
         onClose={() => setOverviewRequest(null)}
         fullWidth
-        maxWidth="md"
+        maxWidth="sm"
         aria-labelledby="service-request-overview-title"
         slotProps={{
           paper: {
             sx: {
-              borderRadius: '8px',
-              minHeight: { sm: 580 },
+              borderRadius: '10px',
               maxHeight: '90vh',
               display: 'flex',
               flexDirection: 'column',
@@ -554,32 +688,18 @@ export function ServiceRequestListView({
               id="service-request-overview-title"
               sx={{
                 px: { xs: 2, sm: 3 },
-                py: 1.5,
+                py: 1.75,
                 borderBottom: '1px solid',
                 borderColor: 'divider',
               }}
             >
-              <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    placeItems: 'center',
-                    width: 40,
-                    height: 40,
-                    borderRadius: '8px',
-                    bgcolor: 'action.hover',
-                    color: 'primary.main',
-                    flexShrink: 0,
-                  }}
-                >
-                  <CalendarMonthOutlinedIcon />
-                </Box>
+              <Stack direction="row" sx={{ alignItems: 'center', gap: 1.25 }}>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
                     {overviewRequest.description}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('Service request ID')}: {overviewRequest.id}
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                    #{overviewRequest.id.slice(0, 8)}
                   </Typography>
                 </Box>
                 <Chip
@@ -600,157 +720,99 @@ export function ServiceRequestListView({
                 </IconButton>
               </Stack>
             </DialogTitle>
-            <DialogContent
-              dividers
-              sx={{
-                px: { xs: 2, sm: 3 },
-                py: 2,
-                bgcolor: 'background.default',
-                overflowY: 'auto',
-              }}
-            >
+            <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'background.paper' }}>
               <Stack spacing={2}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', boxShadow: 'none' }}>
-                  <Stack
-                    direction={{ xs: 'column', md: 'row' }}
-                    sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between', gap: 2 }}
-                  >
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        color="primary.main"
-                        sx={{ fontWeight: 750, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                      >
-                        {t('Current service stage')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        {getRequestStageSubtitle(getEffectiveRequestStatus(overviewRequest), role, t)}
-                      </Typography>
-                    </Box>
-                    {role === 'MANAGER' && overviewRequest.canClaim && onClaimRequest && (
-                      <Button
-                        variant="outlined"
-                        disabled={claimPending}
-                        onClick={() => {
-                          const requestId = overviewRequest.id;
-                          setOverviewRequest(null);
-                          onClaimRequest(requestId);
-                        }}
-                        sx={{ borderRadius: '8px', textTransform: 'none', flexShrink: 0 }}
-                      >
-                        {t(overviewRequest.assignedManagerId ? 'Open assigned request' : 'Claim request')}
-                      </Button>
-                    )}
-                    {canOpenDetails && (
-                      <Button
-                        variant="contained"
-                        endIcon={<AssignmentOutlinedIcon />}
-                        onClick={() => {
-                          const requestId = overviewRequest.id;
-                          setOverviewRequest(null);
-                          onSelectRequest(requestId);
-                        }}
-                        sx={{ borderRadius: '8px', textTransform: 'none', boxShadow: 'none', flexShrink: 0 }}
-                      >
-                        {t('Track progress')}
-                      </Button>
-                    )}
-                  </Stack>
-                </Paper>
-
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', boxShadow: 'none' }}>
-                  <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 1.75 }}>
-                    <CalendarMonthOutlinedIcon fontSize="small" color="primary" />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {t('Planned work schedule')}
-                    </Typography>
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Planned start')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }}>
-                        {requestDate(overviewRequest.requestedFrom)} · {overviewRequest.windowStart}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Planned end')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }}>
-                        {requestDate(overviewRequest.requestedUntil)} · {overviewRequest.windowEnd}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    {overviewRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
-                    {overviewRequest.requestType === 'RECURRING'
-                      ? ` · ${overviewRequest.recurrenceInterval} ${t(overviewRequest.recurrenceUnit ?? 'month')} · ${overviewRequest.occurrenceCount ?? overviewRequest.occurrences.length} ${t('occurrences')}`
-                      : ''}
-                  </Typography>
-                </Paper>
-
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', boxShadow: 'none' }}>
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 1.5, mb: 1.5 }}
-                  >
-                    <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-                      <LocationOnOutlinedIcon fontSize="small" color="primary" />
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        {t('Infrastructure asset')}
-                      </Typography>
-                    </Stack>
-                    <Chip size="small" label={overviewRequest.assetId} variant="outlined" sx={{ borderRadius: '6px' }} />
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Asset ID')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }}>{overviewRequest.assetId}</Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Customer requested window')}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }}>
-                        {requestDate(overviewRequest.requestedFrom)}
-                        {overviewRequest.requestedFrom !== overviewRequest.requestedUntil
-                          ? ` – ${requestDate(overviewRequest.requestedUntil)}`
-                          : ''}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', boxShadow: 'none' }}>
-                  <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <FlightOutlinedIcon fontSize="small" color="primary" />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {t('Request details')}
-                    </Typography>
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">{t('Objective & Asset')}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.25 }}>{overviewRequest.description}</Typography>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1.5 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Service type')}</Typography>
-                      <Typography variant="body2" sx={{ mt: 0.25 }}>{overviewRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}</Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">{t('Daily inspection window')}</Typography>
-                      <Typography variant="body2" sx={{ mt: 0.25 }}>{formatFlightWindow(overviewRequest.windowStart, overviewRequest.windowEnd, t)}</Typography>
-                    </Box>
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
-                    {t('Created date')}: {new Date(overviewRequest.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                  </Typography>
-                </Paper>
+                <Box
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Table size="small" sx={{ tableLayout: { xs: 'fixed', sm: 'auto' } }}>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell sx={{ width: { xs: '42%', sm: 180 }, fontWeight: 600, color: 'text.secondary' }}>
+                          {t('Current service stage')}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          {getRequestStageSubtitle(
+                            getEffectiveRequestStatus(overviewRequest),
+                            role,
+                            t,
+                            overviewRequest.occurrences.length > 0,
+                          ) || requestStatus}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                          {t('Service type')}
+                        </TableCell>
+                        <TableCell>
+                          {overviewRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                          {overviewRequest.requestType === 'RECURRING'
+                            ? ` · ${overviewRequest.recurrenceInterval} ${t(overviewRequest.recurrenceUnit ?? 'month')} · ${overviewRequest.occurrenceCount ?? overviewRequest.occurrences.length} ${t('occurrences')}`
+                            : ''}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                          {t('Requested window')}
+                        </TableCell>
+                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {requestDate(overviewRequest.requestedFrom)}
+                          {overviewRequest.requestedFrom !== overviewRequest.requestedUntil
+                            ? ` – ${requestDate(overviewRequest.requestedUntil)}`
+                            : ''}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                          {t('Daily inspection window')}
+                        </TableCell>
+                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatFlightWindow(overviewRequest.windowStart, overviewRequest.windowEnd, t)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                          {t('Asset ID')}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+                          {overviewRequest.assetId}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: 0 }}>
+                          {t('Created date')}
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: 0 }}>
+                          {new Date(overviewRequest.createdAt).toLocaleDateString(
+                            locale === 'vi' ? 'vi-VN' : 'en-US',
+                            { year: 'numeric', month: 'short', day: 'numeric' },
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </Box>
 
                 {role === 'CUSTOMER' && managerContact && (
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', boxShadow: 'none' }}>
-                    <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 1.5 }}>
-                      <PersonOutlineRoundedIcon fontSize="small" color="primary" />
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        {t('Service manager profile')}
-                      </Typography>
-                    </Stack>
+                  <Box
+                    sx={{
+                      p: 1.75,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.default',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                      {t('Service manager profile')}
+                    </Typography>
                     <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.5 }}>
-                      <Avatar src={managerContact.avatarUrl ?? undefined} alt={managerContact.fullName ?? ''} sx={{ width: 48, height: 48 }}>
+                      <Avatar src={managerContact.avatarUrl ?? undefined} alt={managerContact.fullName ?? ''} sx={{ width: 42, height: 42 }}>
                         {(managerContact.fullName ?? 'M').slice(0, 1).toUpperCase()}
                       </Avatar>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -761,12 +823,8 @@ export function ServiceRequestListView({
                         {managerPhone && <Typography variant="body2" color="text.secondary">{managerPhone}</Typography>}
                         {!managerEmail && !managerPhone && <Typography variant="caption" color="text.secondary">{t('No contact details available')}</Typography>}
                       </Box>
-                      <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
-                        {managerEmail && <Button component="a" href={`mailto:${managerEmail}`} size="small" variant="outlined" sx={{ borderRadius: '8px', textTransform: 'none' }}>{t('Email')}</Button>}
-                        {managerPhone && <Button component="a" href={`tel:${managerPhone}`} size="small" variant="outlined" sx={{ borderRadius: '8px', textTransform: 'none' }}>{t('Call')}</Button>}
-                      </Stack>
                     </Stack>
-                  </Paper>
+                  </Box>
                 )}
               </Stack>
             </DialogContent>
@@ -774,18 +832,34 @@ export function ServiceRequestListView({
               <Button onClick={() => setOverviewRequest(null)} sx={{ textTransform: 'none' }}>
                 {t('Close')}
               </Button>
-              <Button
-                variant="outlined"
-                endIcon={<AssignmentOutlinedIcon />}
-                onClick={() => {
-                  const requestId = overviewRequest.id;
-                  setOverviewRequest(null);
-                  onSelectRequest(requestId);
-                }}
-                sx={{ borderRadius: '8px', textTransform: 'none' }}
-              >
-                {t('Open full request workspace')}
-              </Button>
+              {role === 'MANAGER' && overviewRequest.canClaim && onClaimRequest && (
+                <Button
+                  variant={requestCanOpenDetails(overviewRequest) ? 'outlined' : 'contained'}
+                  disabled={claimPending}
+                  onClick={() => {
+                    const requestId = overviewRequest.id;
+                    setOverviewRequest(null);
+                    onClaimRequest(requestId);
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', boxShadow: 'none' }}
+                >
+                  {t('Claim request')}
+                </Button>
+              )}
+              {requestCanOpenDetails(overviewRequest) && (
+                <Button
+                  variant="contained"
+                  endIcon={<AssignmentOutlinedIcon />}
+                  onClick={() => {
+                    const requestId = overviewRequest.id;
+                    setOverviewRequest(null);
+                    onSelectRequest(requestId);
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', boxShadow: 'none' }}
+                >
+                  {t('Track progress')}
+                </Button>
+              )}
             </DialogActions>
           </>
         )}
@@ -864,10 +938,6 @@ export function ServiceRequestListView({
             </DialogContent>
             <DialogActions sx={{ px: 3, py: 2 }}>
               <Button onClick={() => setManagerProfileRequest(null)} sx={{ textTransform: 'none' }}>{t('Close')}</Button>
-              <Stack direction="row" sx={{ gap: 1 }}>
-                {profileEmail && <Button component="a" href={`mailto:${profileEmail}`} size="small" variant="outlined" sx={{ borderRadius: '8px', textTransform: 'none' }}>{t('Email')}</Button>}
-                {profilePhone && <Button component="a" href={`tel:${profilePhone}`} size="small" variant="outlined" sx={{ borderRadius: '8px', textTransform: 'none' }}>{t('Call')}</Button>}
-              </Stack>
             </DialogActions>
           </>
         )}
