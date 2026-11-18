@@ -51,7 +51,7 @@ const expectedAccess: Record<
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
     notifications: ['MANAGER'],
-    'finance-history': [],
+    'finance-history': ['MANAGER'],
     settings: ['MANAGER'],
   },
   client: {

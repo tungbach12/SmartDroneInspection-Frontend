@@ -98,6 +98,9 @@ export function getSectionLabel(
   if (portal === 'manager' && section === 'platform-users') {
     return locale === 'vi' ? 'Phi công đối tác' : 'Partner inspectors';
   }
+  if (portal === 'manager' && section === 'finance-history') {
+    return locale === 'vi' ? 'Hoa hồng & Dòng tiền' : 'Platform revenue & commissions';
+  }
   return locale === 'vi' ? SECTION_LABELS_VI[section] : SECTION_LABELS[section];
 }
 
@@ -157,7 +160,7 @@ const SECTION_ROLE_ACCESS = {
     'onboarding-reviews': ['MANAGER'],
     'inspector-drones': [],
     notifications: ['MANAGER'],
-    'finance-history': [],
+    'finance-history': ['MANAGER'],
     settings: ['MANAGER'],
   },
   client: {

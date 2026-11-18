@@ -166,9 +166,12 @@ export interface OccurrenceFinanceHistoryDetail {
   currency: string;
   totalPrice: number | null;
   serviceBaseAmount: number | null;
+  vatRate?: number | null;
   vatAmount: number | null;
+  commissionRate?: number | null;
   commissionAmount: number | null;
   inspectorGrossPayout: number | null;
+  tncnRate?: number | null;
   tncnAmount: number | null;
   inspectorNetPayout: number | null;
   paymentStatus: string;
@@ -183,6 +186,61 @@ export interface OccurrenceFinanceHistoryDetail {
   accountingDisclaimer: string | null;
   payment: ServicePaymentSummary;
   payout: InspectorPayoutSummary | null;
+}
+
+export interface ManagerFinanceSummary {
+  currency: string;
+  transactionCount: number;
+  totalCustomerPaid: number;
+  totalRefunded: number;
+  netPlatformInflow: number;
+  totalCommissionEarned: number;
+  totalVatAmount: number;
+  totalTncnWithheld: number;
+  totalInspectorNetPayout: number;
+  paidInspectorPayout: number;
+  pendingInspectorPayout: number;
+}
+
+export interface ManagerFinanceHistoryItem {
+  occurrenceId: string;
+  requestId: string;
+  occurrenceIndex: number;
+  requestDescription: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  inspectorId: string | null;
+  inspectorName: string | null;
+  currency: string;
+  customerPaidAmount: number;
+  serviceBaseAmount: number | null;
+  vatRate: number | null;
+  vatAmount: number;
+  commissionRate: number | null;
+  commissionAmount: number;
+  netCommissionAmount: number;
+  tncnRate: number | null;
+  tncnAmount: number;
+  inspectorNetPayout: number;
+  refundedAmount: number;
+  netPlatformInflow: number;
+  paymentStatus: string;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  paymentConfirmedAt: string | null;
+  payoutStatus: string;
+  payoutReference: string | null;
+  payoutRecordedAt: string | null;
+}
+
+export interface ManagerFinanceHistoryPage {
+  summary: ManagerFinanceSummary;
+  content: ManagerFinanceHistoryItem[];
+  totalElements: number;
+  page: number;
+  size: number;
 }
 
 
@@ -526,6 +584,20 @@ export const contractApi = {
   async getInspectorFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
     const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
       `/contracts/requests/finance-history/inspector/${occurrenceId}`,
+    );
+    return data;
+  },
+
+  async listManagerFinanceHistory(page = 0, size = 20): Promise<ManagerFinanceHistoryPage> {
+    const { data } = await api.get<ManagerFinanceHistoryPage>(
+      `/contracts/requests/finance-history/manager?page=${page}&size=${size}`,
+    );
+    return data;
+  },
+
+  async getManagerFinanceHistoryDetail(occurrenceId: string): Promise<OccurrenceFinanceHistoryDetail> {
+    const { data } = await api.get<OccurrenceFinanceHistoryDetail>(
+      `/contracts/requests/finance-history/manager/${occurrenceId}`,
     );
     return data;
   },

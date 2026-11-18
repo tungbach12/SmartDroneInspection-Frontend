@@ -8,8 +8,10 @@ const mocks = vi.hoisted(() => ({
   roles: ['CUSTOMER'] as string[],
   listCustomer: vi.fn(),
   listInspector: vi.fn(),
+  listManager: vi.fn(),
   getCustomerDetail: vi.fn(),
   getInspectorDetail: vi.fn(),
+  getManagerDetail: vi.fn(),
 }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
@@ -28,8 +30,10 @@ vi.mock('../api/contractApi', () => ({
   contractApi: {
     listCustomerFinanceHistory: mocks.listCustomer,
     listInspectorFinanceHistory: mocks.listInspector,
+    listManagerFinanceHistory: mocks.listManager,
     getCustomerFinanceHistoryDetail: mocks.getCustomerDetail,
     getInspectorFinanceHistoryDetail: mocks.getInspectorDetail,
+    getManagerFinanceHistoryDetail: mocks.getManagerDetail,
   },
 }));
 
@@ -98,5 +102,52 @@ describe('finance history page', () => {
     expect(within(dialog).getByText(/1,900,000/)).toBeTruthy();
     expect(within(dialog).getByText('Gross payout')).toBeTruthy();
     expect(mocks.getInspectorDetail).toHaveBeenCalledWith('occ-2');
+  });
+
+  it('shows Manager platform inflow and commission history with detail breakdown', async () => {
+    mocks.roles = ['MANAGER'];
+    mocks.listManager.mockResolvedValue({
+      summary: {
+        currency: 'VND',
+        transactionCount: 1,
+        totalCustomerPaid: 15000000,
+        totalRefunded: 0,
+        netPlatformInflow: 15000000,
+        totalCommissionEarned: 2045455,
+        totalVatAmount: 1363636,
+        totalTncnWithheld: 1159091,
+        totalInspectorNetPayout: 10431818,
+        paidInspectorPayout: 10431818,
+        pendingInspectorPayout: 0,
+      },
+      content: [{
+        occurrenceId: 'occ-3', requestId: 'req-3', occurrenceIndex: 1,
+        requestDescription: 'VSIP II Roof', assetId: 'asset-3', assetName: 'Kho lanh VSIP II',
+        customerId: 'cust-1', customerName: 'Customer Demo', inspectorId: 'ins-1', inspectorName: 'Nguyen Minh Tuan',
+        currency: 'VND', customerPaidAmount: 15000000, serviceBaseAmount: 13636364,
+        vatRate: 10, vatAmount: 1363636, commissionRate: 15, commissionAmount: 2045455, netCommissionAmount: 2045455,
+        tncnRate: 10, tncnAmount: 1159091, inspectorNetPayout: 10431818, refundedAmount: 0, netPlatformInflow: 15000000,
+        paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VN-1', paymentConfirmedAt: '2026-11-10T10:00:00Z',
+        payoutStatus: 'PAID', payoutReference: 'PAYOUT-3', payoutRecordedAt: '2026-11-12T10:00:00Z',
+      }],
+      totalElements: 1, page: 0, size: 20,
+    });
+    mocks.getManagerDetail.mockResolvedValue({
+      occurrenceId: 'occ-3', requestId: 'req-3', occurrenceIndex: 1, currency: 'VND',
+      totalPrice: 15000000, paymentAmount: 15000000, paymentStatus: 'PAID', serviceBaseAmount: 13636364,
+      vatRate: 10, vatAmount: 1363636, commissionRate: 15, commissionAmount: 2045455,
+      inspectorGrossPayout: 11590909, tncnRate: 10, tncnAmount: 1159091, inspectorNetPayout: 10431818,
+      payoutStatus: 'PAID', payoutReference: 'PAYOUT-3', payoutRecordedAt: '2026-11-12T10:00:00Z',
+      paymentConfirmedAt: '2026-11-10T10:00:00Z', refunds: [],
+      payment: { status: 'PAID', method: 'VNPAY', reference: 'VN-1' },
+    });
+    renderPage();
+    expect(await screen.findByText('Kho lanh VSIP II')).toBeTruthy();
+    expect(screen.getByText('Commission earned')).toBeTruthy();
+    fireEvent.click(screen.getByText('Kho lanh VSIP II'));
+    expect(await screen.findByText('Platform finance details')).toBeTruthy();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getAllByText(/2,045,455/).length).toBeGreaterThan(0);
+    expect(mocks.getManagerDetail).toHaveBeenCalledWith('occ-3');
   });
 });
