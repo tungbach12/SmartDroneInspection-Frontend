@@ -168,9 +168,11 @@ export function PlatformSettlementInvoiceCard({
               label={
                 finance.isDisbursed
                   ? t('Paid & settled')
-                  : t('Auto-disburses on customer payment')
+                  : paymentDetails?.reportAccepted
+                    ? t('Awaiting payment')
+                    : t('Awaiting customer')
               }
-              color={finance.isDisbursed ? 'success' : 'default'}
+              color={finance.isDisbursed ? 'success' : 'primary'}
               variant={finance.isDisbursed ? 'filled' : 'outlined'}
               sx={{
                 height: 24,

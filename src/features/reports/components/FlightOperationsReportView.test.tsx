@@ -303,5 +303,62 @@ describe('FlightOperationsReportView', () => {
     ).toBeNull();
     expect(screen.queryByText(/\[WARN:/i)).toBeNull();
   });
+
+  it('filters uninitialized (0, 0) Null Island coordinates from trajectory map samples', async () => {
+    mocks.report.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      telemetrySource: 'MISSION_PLANNER_MAVLINK',
+      startedAt: '2026-11-18T07:11:30Z',
+      endedAt: '2026-11-18T07:48:48Z',
+      durationSeconds: 2238,
+      distanceFlownMeters: 313.8,
+      maxAltitudeMeters: 30,
+      startBatteryPercent: 100,
+      endBatteryPercent: 38,
+      finalState: 'IN_FLIGHT',
+      note: 'Telemetry is live MAVLink data.',
+      flightTrace: [
+        {
+          latitude: 0,
+          longitude: 0,
+          altitudeMeters: 23.35,
+          groundSpeedMps: 0,
+          headingDeg: 0,
+          batteryPercent: null,
+          flightMode: 'STABILIZE',
+          waypoint: 0,
+          recordedAt: '2026-11-18T07:11:30Z',
+        },
+        {
+          latitude: 10.8755588,
+          longitude: 106.8008852,
+          altitudeMeters: 15,
+          groundSpeedMps: 2,
+          headingDeg: 90,
+          batteryPercent: 90,
+          flightMode: 'AUTO',
+          waypoint: 1,
+          recordedAt: '2026-11-18T07:11:38Z',
+        },
+        {
+          latitude: 10.8756588,
+          longitude: 106.8009852,
+          altitudeMeters: 20,
+          groundSpeedMps: 3,
+          headingDeg: 95,
+          batteryPercent: 88,
+          flightMode: 'AUTO',
+          waypoint: 2,
+          recordedAt: '2026-11-18T07:11:45Z',
+        },
+      ],
+    });
+
+    renderReport();
+
+    const map = await screen.findByTestId('trajectory-map');
+    expect(map.getAttribute('data-count')).toBe('2');
+  });
 });
 

@@ -347,7 +347,6 @@ function SessionChecklistBlock({
         }}
       >
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
-          <CheckCircleRounded color="success" sx={{ fontSize: 16, flexShrink: 0 }} />
           <Typography
             variant="caption"
             title={label}

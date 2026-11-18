@@ -22,6 +22,7 @@ import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -39,6 +40,7 @@ import { BoundingBoxEditorDialog } from '../components/BoundingBoxEditorDialog';
 import { EvidenceCaptureGroup } from '../components/EvidenceCaptureGroup';
 import { EvidenceGpsMapDialog } from '../components/EvidenceGpsMapDialog';
 import { ReinspectionVerificationSection } from '../components/ReinspectionVerificationSection';
+import { StepActionBar } from '../components/StepActionBar';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { parseBoundingBox, type BoundingBoxCoords } from '../utils/boundingBox';
@@ -653,90 +655,6 @@ export default function InspectionFindingsPage() {
         )}
       </Stack>
 
-      {/* Elevated Findings Confirmation Gate (above capture list so it is always visible without scrolling past all photos) */}
-      {isInspector && (
-        <Paper
-          variant="outlined"
-          className="trace-confirmation-gate"
-          sx={{
-            p: { xs: 2, sm: 2.25 },
-            borderRadius: '10px',
-            borderColor: pendingFindings > 0 ? 'warning.main' : 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.5}
-            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography component="h2" sx={{ fontSize: '1rem', fontWeight: 700 }}>
-                  {t('Confirm findings set')}
-                </Typography>
-                {pendingFindings > 0 && (
-                  <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />
-                )}
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {pendingFindings > 0
-                  ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
-                  : confirmedFindingsCount > 0
-                    ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
-                    : t('No findings recorded. Confirm that you checked the captures within scope.')}
-              </Typography>
-              {noFindings && (
-                <FormControlLabel
-                  sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5, pt: 0.25 }}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={noFindingsAcknowledged}
-                      onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
-                      sx={{ pt: 0, pb: 0 }}
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">
-                      {t('I checked the captures within scope and confirmed no findings.')}
-                    </Typography>
-                  }
-                />
-              )}
-            </Stack>
-            <Button
-              variant="contained"
-              disabled={!canConfirm}
-              onClick={() =>
-                confirmFindings.mutate(noFindings, {
-                  onSuccess: () => navigate('../report'),
-                })
-              }
-              sx={{
-                alignSelf: { xs: 'flex-start', md: 'center' },
-                flexShrink: 0,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 2.5,
-                boxShadow: 'none',
-              }}
-            >
-              {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
-            </Button>
-          </Stack>
-          {confirmFindings.isError && (
-            <Alert severity="error" sx={{ mt: 1.5, borderRadius: '10px' }}>
-              {getErrorMessage(
-                confirmFindings.error,
-                'Findings were not confirmed. Resolve any pending candidates and try again.',
-              )}
-            </Alert>
-          )}
-        </Paper>
-      )}
-
       {/* 4. Hierarchical Capture List */}
       {findings.isLoading ? (
         <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: '10px' }}>
@@ -1020,6 +938,82 @@ export default function InspectionFindingsPage() {
         </Accordion>
       ) : (
         defectDiscoveryWorkspace
+      )}
+
+      {isInspector && (
+        <>
+          {confirmFindings.isError && (
+            <Alert severity="error" sx={{ borderRadius: '10px' }}>
+              {getErrorMessage(
+                confirmFindings.error,
+                'Findings were not confirmed. Resolve any pending candidates and try again.',
+              )}
+            </Alert>
+          )}
+          <StepActionBar
+            backTo={isReinspection ? '../post-flight' : '../evidence'}
+            backLabel={isReinspection ? t('Post-flight & Items') : t('Field Evidence')}
+            borderColor={pendingFindings > 0 ? 'warning.main' : 'divider'}
+            leftSlot={
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {t('Confirm findings set')}
+                  </Typography>
+                  {pendingFindings > 0 && (
+                    <Chip size="small" color="warning" label={`${pendingFindings} ${t('awaiting review')}`} />
+                  )}
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {pendingFindings > 0
+                    ? `${pendingFindings} finding${pendingFindings === 1 ? '' : 's'} still need a decision before the report can be compiled.`
+                    : confirmedFindingsCount > 0
+                      ? `${confirmedFindingsCount} confirmed finding${confirmedFindingsCount === 1 ? '' : 's'} will be included in the report.`
+                      : t('No findings recorded. Confirm that you checked the captures within scope.')}
+                </Typography>
+                {noFindings && (
+                  <FormControlLabel
+                    sx={{ alignItems: 'flex-start', mx: 0, gap: 0.5, pt: 0.25 }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={noFindingsAcknowledged}
+                        onChange={(event) => setNoFindingsAcknowledged(event.target.checked)}
+                        sx={{ pt: 0, pb: 0 }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        {t('I checked the captures within scope and confirmed no findings.')}
+                      </Typography>
+                    }
+                  />
+                )}
+              </Stack>
+            }
+            primaryAction={
+              <Button
+                variant="contained"
+                disabled={!canConfirm}
+                onClick={() =>
+                  confirmFindings.mutate(noFindings, {
+                    onSuccess: () => navigate('../report'),
+                  })
+                }
+                endIcon={<ArrowForwardRounded fontSize="small" />}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 2.5,
+                  boxShadow: 'none',
+                }}
+              >
+                {confirmFindings.isPending ? 'Confirming findings…' : 'Confirm findings and continue'}
+              </Button>
+            }
+          />
+        </>
       )}
 
       {boxEditorState && (

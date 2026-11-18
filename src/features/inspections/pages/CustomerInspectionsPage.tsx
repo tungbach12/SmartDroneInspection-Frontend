@@ -5,7 +5,9 @@ import {
   Button,
   Chip,
   Divider,
+  IconButton,
   InputAdornment,
+  Menu,
   MenuItem,
   Pagination,
   Paper,
@@ -20,9 +22,11 @@ import {
   Typography,
 } from '@mui/material';
 import Add from '@mui/icons-material/Add';
-import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import FilterListRounded from '@mui/icons-material/FilterListRounded';
+import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAssets } from '@/features/assets/hooks/useAssets';
@@ -94,6 +98,10 @@ export function CustomerInspectionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
+  const [actionMenu, setActionMenu] = useState<{
+    element: HTMLElement;
+    row: EnrichedCustomerInspection;
+  } | null>(null);
 
   const listFilters = useMemo(() => ({ page: 1, pageSize: 100 }), []);
   const inspections = useInspections(listFilters, true);
@@ -262,6 +270,31 @@ export function CustomerInspectionsPage() {
     if (amount == null || amount <= 0) return null;
     return `${formatNumber(amount)} ₫`;
   };
+
+  const renderActionMenuButton = (row: EnrichedCustomerInspection) => (
+    <IconButton
+      size="small"
+      aria-label={t('Inspection actions')}
+      aria-haspopup="menu"
+      aria-expanded={actionMenu?.row.id === row.id ? 'true' : undefined}
+      onClick={(event) => {
+        event.stopPropagation();
+        setActionMenu({ element: event.currentTarget, row });
+      }}
+      sx={{
+        width: { xs: 36, sm: 34 },
+        height: { xs: 36, sm: 34 },
+        borderRadius: '8px',
+        border: '1px solid',
+        borderColor: 'divider',
+        color: 'text.secondary',
+        bgcolor: 'background.paper',
+        '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+      }}
+    >
+      <MoreVertRounded fontSize="small" />
+    </IconButton>
+  );
 
   return (
     <Box className="workspace-page workspace-page--inspections">
@@ -494,7 +527,7 @@ export function CustomerInspectionsPage() {
                         textTransform: 'uppercase',
                         py: 1.5,
                         px: 1.5,
-                        width: 140,
+                        width: 80,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -682,61 +715,9 @@ export function CustomerInspectionsPage() {
                           </Stack>
                         </TableCell>
 
-                        {/* Col 5: Actions (Clean 2 buttons: Overview + Open) */}
+                        {/* Col 5: Actions (3-dot dropdown menu) */}
                         <TableCell align="right" sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
-                          <Stack
-                            direction="row"
-                            spacing={0.75}
-                            sx={{ justifyContent: 'flex-end', alignItems: 'center' }}
-                          >
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedWorkDetailId(row.id);
-                              }}
-                              sx={{
-                                borderRadius: '8px',
-                                color: 'text.secondary',
-                                fontWeight: 600,
-                                fontSize: '0.75rem',
-                                textTransform: 'none',
-                                px: 1.25,
-                                py: 0.5,
-                                whiteSpace: 'nowrap',
-                                '&:hover': {
-                                  color: 'text.primary',
-                                  bgcolor: 'action.hover',
-                                },
-                              }}
-                            >
-                              {t('Overview')}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                              aria-label={isPublished ? t('View report') : t('Open')}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openPrimaryDestination(row);
-                              }}
-                              endIcon={<ArrowForwardRounded sx={{ fontSize: '14px !important' }} />}
-                              sx={{
-                                borderRadius: '8px',
-                                fontWeight: 650,
-                                fontSize: '0.75rem',
-                                textTransform: 'none',
-                                px: 1.35,
-                                py: 0.5,
-                                boxShadow: 'none',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {isPublished ? t('View report') : t('Open')}
-                            </Button>
-                          </Stack>
+                          {renderActionMenuButton(row)}
                         </TableCell>
                       </TableRow>
                     );
@@ -825,46 +806,7 @@ export function CustomerInspectionsPage() {
                           </Typography>
                         </Stack>
 
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedWorkDetailId(row.id);
-                            }}
-                            sx={{
-                              borderRadius: '8px',
-                              borderColor: 'divider',
-                              color: 'text.secondary',
-                              fontWeight: 600,
-                              fontSize: '0.75rem',
-                              textTransform: 'none',
-                              px: 1.25,
-                            }}
-                          >
-                            {t('Overview')}
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            aria-label={isPublished ? t('View report') : t('Open')}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openPrimaryDestination(row);
-                            }}
-                            endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
-                            sx={{
-                              borderRadius: '8px',
-                              fontWeight: 600,
-                              fontSize: '0.75rem',
-                              textTransform: 'none',
-                              px: 1.5,
-                            }}
-                          >
-                            {isPublished ? t('View report') : t('Open')}
-                          </Button>
-                        </Stack>
+                        {renderActionMenuButton(row)}
                       </Stack>
                     </Stack>
                   </Box>
@@ -905,6 +847,52 @@ export function CustomerInspectionsPage() {
           </Paper>
         </QueryState>
       </Stack>
+
+      <Menu
+        anchorEl={actionMenu?.element ?? null}
+        open={Boolean(actionMenu)}
+        onClose={() => setActionMenu(null)}
+        onClick={(event) => event.stopPropagation()}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 180,
+              borderRadius: '10px',
+              boxShadow: 'none',
+              border: '1px solid',
+              borderColor: 'divider',
+            },
+          },
+          list: { 'aria-label': t('Inspection actions') },
+        }}
+      >
+        {actionMenu && (
+          <MenuItem
+            onClick={() => {
+              const target = actionMenu.row;
+              setActionMenu(null);
+              openPrimaryDestination(target);
+            }}
+          >
+            <ArrowForwardRounded fontSize="small" sx={{ mr: 1.25, color: 'text.secondary' }} />
+            {actionMenu.row.reportStatus === 'PUBLISHED' ? t('View report') : t('Open')}
+          </MenuItem>
+        )}
+        {actionMenu && (
+          <MenuItem
+            onClick={() => {
+              const inspectionId = actionMenu.row.id;
+              setActionMenu(null);
+              setSelectedWorkDetailId(inspectionId);
+            }}
+          >
+            <DescriptionOutlined fontSize="small" sx={{ mr: 1.25, color: 'text.secondary' }} />
+            {t('Overview')}
+          </MenuItem>
+        )}
+      </Menu>
 
       <InspectionWorkDetailDialog
         open={Boolean(selectedWorkDetailId)}

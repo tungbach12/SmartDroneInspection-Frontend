@@ -33,6 +33,7 @@ import {
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
+import { StepActionBar } from '../components/StepActionBar';
 import { getOrGeneratePersistedAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthoringPanel';
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
@@ -290,38 +291,6 @@ export default function InspectionReportPage() {
                     })}
                 </Stack>
               </Box>
-
-              {isInspector && (
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {openVersion && isAuthor && canEditReturnedText && (
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      disabled={isSubmitting}
-                      onClick={() => setConfirmSubmitOpen(true)}
-                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                      {isSubmitting
-                        ? t('Submitting…')
-                        : sourcesChangedAfterVersion
-                          ? t('Compile & submit new version')
-                          : t('Submit for review')}
-                    </Button>
-                  )}
-
-                  {canWithdrawSubmission && openVersion && (
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      disabled={withdraw.isPending}
-                      onClick={() => withdraw.mutate({ versionId: openVersion.id })}
-                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                    >
-                      {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
-                    </Button>
-                  )}
-                </Stack>
-              )}
             </Stack>
 
             {openVersion.status === 'PUBLISHED' ? null : !findingsConfirmed ? (
@@ -432,27 +401,6 @@ export default function InspectionReportPage() {
                     : t('Confirm findings before compiling the reports.')}
                 </Typography>
               </Box>
-
-              {isInspector && findingsConfirmed && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  disabled={isSubmitting}
-                  onClick={() => setConfirmSubmitOpen(true)}
-                  sx={{
-                    borderRadius: '10px',
-                    px: 3,
-                    py: 1.25,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                >
-                  {isSubmitting ? t('Submitting…') : t('Submit for review')}
-                </Button>
-              )}
 
               {!findingsConfirmed && (
                 <Button
@@ -598,6 +546,69 @@ export default function InspectionReportPage() {
             </Box>
           </Box>
         )
+      )}
+
+      {isInspector && (
+        <StepActionBar
+          backTo="../findings"
+          backLabel={t('Defect Findings')}
+          secondaryActions={
+            openVersion && canWithdrawSubmission ? (
+              <Button
+                variant="outlined"
+                color="warning"
+                disabled={withdraw.isPending}
+                onClick={() => withdraw.mutate({ versionId: openVersion.id })}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              >
+                {withdraw.isPending ? t('Withdrawing…') : t('Withdraw submission and revise')}
+              </Button>
+            ) : undefined
+          }
+          primaryAction={
+            !createDraft.isPending && versionList.length === 0 && findingsConfirmed ? (
+              <Button
+                variant="contained"
+                color="primary"
+                size="medium"
+                disabled={isSubmitting}
+                onClick={() => setConfirmSubmitOpen(true)}
+                sx={{
+                  borderRadius: '8px',
+                  px: 2.5,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 650,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isSubmitting ? t('Submitting…') : t('Submit for review')}
+              </Button>
+            ) : openVersion && isAuthor && canEditReturnedText ? (
+              <Button
+                variant="contained"
+                color="primary"
+                size="medium"
+                disabled={isSubmitting}
+                onClick={() => setConfirmSubmitOpen(true)}
+                sx={{
+                  borderRadius: '8px',
+                  px: 2.5,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 650,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isSubmitting
+                  ? t('Submitting…')
+                  : sourcesChangedAfterVersion
+                    ? t('Compile & submit new version')
+                    : t('Submit for review')}
+              </Button>
+            ) : undefined
+          }
+        />
       )}
 
       <ConfirmDialog

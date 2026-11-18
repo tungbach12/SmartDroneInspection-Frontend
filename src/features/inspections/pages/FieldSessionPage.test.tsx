@@ -168,8 +168,8 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByText('Flight permit')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(
-      screen.getByText(/Upload the permit document and details for Platform Manager verification/i),
-    ).toBeTruthy();
+      screen.queryByText(/Upload the permit document and details for Platform Manager verification/i),
+    ).toBeNull();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -186,7 +186,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/Awaiting Platform Manager verification/i),
+      await screen.findByText(/Awaiting Manager verification/i),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Submit flight permit for verification' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Replace permit' }));

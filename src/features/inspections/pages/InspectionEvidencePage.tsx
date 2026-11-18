@@ -50,6 +50,7 @@ import {
 import { EvidenceGpsMapDialog } from '../components/EvidenceGpsMapDialog';
 import { TargetFlightShotList } from '../components/TargetFlightShotList';
 import { VideoFrameCropDialog } from '../components/VideoFrameCropDialog';
+import { StepActionBar } from '../components/StepActionBar';
 import { AuthenticatedMedia, type MediaSeekRequest } from '@/shared/ui/AuthenticatedMedia';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -884,18 +885,6 @@ export default function InspectionEvidencePage() {
               >
                 {uploading ? t('Uploading files…') : t('Upload')}
               </Button>
-              {activeCount > 0 && !uploading && (
-                <Button
-                  component={RouterLink}
-                  to="../findings"
-                  variant={queue.length === 0 ? 'contained' : 'outlined'}
-                  size="small"
-                  endIcon={<ArrowForwardRounded fontSize="small" />}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                >
-                  {t('Continue to Defect Findings')}
-                </Button>
-              )}
             </Stack>
           </Stack>
 
@@ -1706,6 +1695,27 @@ export default function InspectionEvidencePage() {
           />
         </QueryState>
       </Paper>
+
+      {isInspector && (
+        <StepActionBar
+          backTo="../post-flight"
+          backLabel={t('Post-flight & Items')}
+          primaryAction={
+            activeCount > 0 && !uploading ? (
+              <Button
+                component={RouterLink}
+                to="../findings"
+                variant="contained"
+                size="medium"
+                endIcon={<ArrowForwardRounded fontSize="small" />}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+              >
+                {t('Continue to Defect Findings')}
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
 
       <ConfirmDialog
         open={showDeleteConfirm}

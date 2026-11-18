@@ -41,6 +41,7 @@ import ManagerReportReviewPage from './ManagerReportReviewPage';
 import CustomerReportDeliverablePage from './CustomerReportDeliverablePage';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
+import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -285,8 +286,12 @@ export default function ReportDetailPage() {
                   : (NEXT_STEP[openVersion.status] ?? openVersion.status)}
               </Alert>
 
-              {/* Reviewer / Author Action controls */}
-              {openVersion.status !== 'PUBLISHED' && (
+              {/* Author Action controls */}
+              {openVersion.status !== 'PUBLISHED' &&
+                (sourcesNeedFreshDraft ||
+                  (canAuthor && isAuthor && !sourcesNeedFreshDraft && canEditReturnedText) ||
+                  submit.isError ||
+                  canWithdrawSubmission) && (
                 <Paper
                   variant="outlined"
                   sx={{
@@ -364,111 +369,17 @@ export default function ReportDetailPage() {
                         {withdraw.isError && <MutationProblemAlert error={withdraw.error} isError fallbackMessage={t('Could not withdraw this submission.')} />}
                       </Stack>
                     )}
-
-                    {/* Reviewer approval or return step */}
-                    {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
-                      <Stack spacing={2}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          {t('Review the submitted report')}
-                        </Typography>
-                        <ReportAiSummaryCard
-                          inspectionId={inspectionId}
-                          versionId={openVersion.id}
-                          summary={openVersion.summary}
-                          findings={findings.data ?? []}
-                        />
-                        {reportReadLoading ? (
-                          <Alert severity={findings.error || evidence.error ? 'error' : 'info'}>
-                            {findings.error || evidence.error
-                              ? 'Could not load the report sources. Retry before approving or returning.'
-                              : 'Loading report sources…'}
-                          </Alert>
-                        ) : (
-                          <Alert severity="info">
-                            {t('Review the report, Inspector-confirmed findings, evidence, and limitations together. This is a report-level decision; the Organization Manager does not separately accept each finding.')}
-                          </Alert>
-                        )}
-                        {showReturnBox ? (
-                          <Stack spacing={1.5}>
-                            <TextField
-                              label={t('Reason for return')}
-                              placeholder={t('Required when returning for author revisions')}
-                              multiline
-                              minRows={2}
-                              autoFocus
-                              value={reviewReason}
-                              onChange={(e) => setReviewReason(e.target.value)}
-                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                            />
-                            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                              <Button
-                                variant="contained"
-                                color="error"
-                                disabled={review.isPending || reportReadLoading || !reviewReason.trim()}
-                                onClick={() =>
-                                  review.mutate({
-                                    versionId: openVersion.id,
-                                    reason: reviewReason.trim(),
-                                  })
-                                }
-                                sx={{ borderRadius: '8px', px: 2.5 }}
-                              >
-                                {t('Return with reason')}
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                color="inherit"
-                                disabled={review.isPending}
-                                onClick={() => {
-                                  setShowReturnBox(false);
-                                  setReviewReason('');
-                                }}
-                                sx={{ borderRadius: '8px', px: 2 }}
-                              >
-                                {t('Cancel')}
-                              </Button>
-                            </Stack>
-                          </Stack>
-                        ) : (
-                          <Stack direction="row" spacing={1.5}>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              disabled={review.isPending || reportReadLoading}
-                              onClick={() => review.mutate({ versionId: openVersion.id })}
-                              sx={{ borderRadius: '8px', px: 2.5 }}
-                            >
-                              {review.isPending
-                                ? t('Publishing…')
-                                : t('Approve & publish')}
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              disabled={review.isPending || reportReadLoading}
-                              onClick={() => setShowReturnBox(true)}
-                              sx={{ borderRadius: '8px', px: 2.5 }}
-                            >
-                              {t('Return with reason')}
-                            </Button>
-                          </Stack>
-                        )}
-                        {review.isError && isConflict(review.error) ? (
-                          <RefusalNotice
-                            testId="report-review-refusal"
-                            reason={getErrorMessage(review.error, '')}
-                            fallbackMessage={t('The server refused this report review. Refresh the report before trying again.')}
-                          />
-                        ) : null}
-                        <MutationProblemAlert
-                          error={review.error}
-                          isError={review.isError && !isConflict(review.error)}
-                          fallbackMessage={t('Could not record this report review.')}
-                        />
-                      </Stack>
-                    )}
                   </Stack>
                 </Paper>
+              )}
+
+              {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
+                <ReportAiSummaryCard
+                  inspectionId={inspectionId}
+                  versionId={openVersion.id}
+                  summary={openVersion.summary}
+                  findings={findings.data ?? []}
+                />
               )}
 
               {/* Customer Report Acceptance & Payment Gate (Customer view only) */}
@@ -521,6 +432,26 @@ export default function ReportDetailPage() {
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
               />
+              {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
+                <ReportReviewDecisionBar
+                  isPending={review.isPending}
+                  reportReadLoading={reportReadLoading}
+                  hasReadError={Boolean(findings.error || evidence.error)}
+                  showReturnBox={showReturnBox}
+                  reviewReason={reviewReason}
+                  onReviewReasonChange={setReviewReason}
+                  onShowReturnBox={setShowReturnBox}
+                  onApprove={() => review.mutate({ versionId: openVersion.id })}
+                  onReturn={() =>
+                    review.mutate({
+                      versionId: openVersion.id,
+                      reason: reviewReason.trim(),
+                    })
+                  }
+                  reviewError={review.error}
+                  isReviewError={review.isError}
+                />
+              )}
             </>
           )}
         </Stack>

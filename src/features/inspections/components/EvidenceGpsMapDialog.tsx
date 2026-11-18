@@ -29,6 +29,7 @@ export interface CleanMapMarker {
   label: string;
   ariaLabel: string;
   color: string;
+  variant?: 'pill' | 'pin' | undefined;
   selected?: boolean | undefined;
   onClick?: (() => void) | undefined;
 }
@@ -269,6 +270,44 @@ export function CleanTileMapView({
         const leftPct = (px / width) * 100;
         const topPct = (py / height) * 100;
         const isSelected = Boolean(marker.selected);
+
+        if (marker.variant === 'pin') {
+          return (
+            <Box
+              key={marker.id}
+              component="button"
+              type="button"
+              title={marker.label}
+              aria-label={marker.ariaLabel}
+              onMouseDown={(e: MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+              onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                e.stopPropagation();
+                marker.onClick?.();
+              }}
+              sx={{
+                position: 'absolute',
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
+                transform: 'translate(-50%, -100%)',
+                zIndex: isSelected ? 5 : 3,
+                p: 0,
+                border: 'none',
+                bgcolor: 'transparent',
+                cursor: marker.onClick ? 'pointer' : 'default',
+                lineHeight: 0,
+                filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45))',
+              }}
+            >
+              <svg width="28" height="38" viewBox="0 0 28 38" fill="none" aria-hidden="true">
+                <path
+                  d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 24 14 24s14-13.5 14-24C28 6.268 21.732 0 14 0z"
+                  fill={marker.color || '#EA4335'}
+                />
+                <circle cx="14" cy="14" r="5.5" fill="#B31412" />
+              </svg>
+            </Box>
+          );
+        }
 
         return (
           <Box

@@ -1,5 +1,20 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { Alert, Box, Button, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControlLabel,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -20,6 +35,7 @@ interface Props {
   hasFlightReport?: boolean | undefined;
   telemetrySource?: string | null | undefined;
   onTelemetryChange?: ((telemetry: SmartDroneHubTelemetry | null) => void) | undefined;
+  onFlightCompleted?: ((report: SmartDroneHubFlightReport) => void) | undefined;
 }
 
 function format(value: number | null, digits = 1): string {
@@ -122,11 +138,15 @@ export function SmartDroneHubTelemetryPanel({
   hasFlightReport = false,
   telemetrySource,
   onTelemetryChange,
+  onFlightCompleted,
 }: Props) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const [started, setStarted] = useState(false);
+  const [flightCompleted, setFlightCompleted] = useState(false);
+  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
+  const [confirmRestartOpen, setConfirmRestartOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [reasonCode, setReasonCode] = useState('NO_MAVLINK_SUPPORT');
   const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState('');
@@ -153,12 +173,26 @@ export function SmartDroneHubTelemetryPanel({
     mutationFn: (source: 'AUTO' | 'MAVLINK' | 'SIMULATION' = 'AUTO') =>
       smartDroneHubApi.start(inspectionId, fieldSessionId, source),
     onSuccess: (res) => {
+      setFlightCompleted(false);
       setStarted(true);
       queryClient.setQueryData(
         ['smartdronehub', 'telemetry', inspectionId, fieldSessionId],
         res,
       );
     },
+    onSettled: () => setConfirmRestartOpen(false),
+  });
+
+  const completeFlight = useMutation({
+    mutationFn: () => smartDroneHubApi.complete(inspectionId, fieldSessionId),
+    onSuccess: (report) => {
+      saveReport(report);
+      setStarted(false);
+      setFlightCompleted(true);
+      onFlightCompleted?.(report);
+      window.dispatchEvent(new Event('sdi-flight-session-updated'));
+    },
+    onSettled: () => setConfirmCompleteOpen(false),
   });
 
   const importFlightLog = useMutation({
@@ -183,16 +217,6 @@ export function SmartDroneHubTelemetryPanel({
     },
   });
 
-  const telemetry = useQuery({
-    queryKey: ['smartdronehub', 'telemetry', inspectionId, fieldSessionId],
-    queryFn: () => smartDroneHubApi.telemetry(inspectionId, fieldSessionId),
-    enabled: sessionActive && isInspector,
-    refetchInterval: (query) =>
-      (started || Boolean(query.state.data)) && sessionActive ? 1500 : false,
-    refetchIntervalInBackground: false,
-    retry: false,
-  });
-
   const canImportFallbackLog = (sessionActive || allowFlightLogImport) && isInspector;
   const persistedReport = useQuery({
     queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId],
@@ -205,13 +229,26 @@ export function SmartDroneHubTelemetryPanel({
     retry: false,
   });
 
-  const data: SmartDroneHubTelemetry | undefined = telemetry.data ?? startMission.data;
   const effectiveReport = savedReport ?? persistedReport.data ?? null;
-  const isMissionStarted = started || Boolean(data);
-  const isConnected = Boolean(data?.connected);
   const reportSource = effectiveReport?.telemetrySource ?? (hasFlightReport ? telemetrySource : null);
   const hasFallbackReport = isFallbackSource(reportSource);
   const isManualReport = reportSource === 'MANUAL_DECLARATION';
+  const isLiveTelemetryCompleted =
+    (flightCompleted || (Boolean(hasFlightReport) && !hasFallbackReport)) && !started;
+
+  const telemetry = useQuery({
+    queryKey: ['smartdronehub', 'telemetry', inspectionId, fieldSessionId],
+    queryFn: () => smartDroneHubApi.telemetry(inspectionId, fieldSessionId),
+    enabled: sessionActive && isInspector && !isLiveTelemetryCompleted,
+    refetchInterval: (query) =>
+      !isLiveTelemetryCompleted && (started || Boolean(query.state.data)) && sessionActive ? 1500 : false,
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+
+  const data: SmartDroneHubTelemetry | undefined = telemetry.data ?? startMission.data;
+  const isMissionStarted = !isLiveTelemetryCompleted && (started || Boolean(data));
+  const isConnected = Boolean(data?.connected);
   const sourceLabel = flightLogSourceLabel(reportSource, t);
   const isSaving = importFlightLog.isPending || declareManualFlight.isPending;
 
@@ -265,17 +302,22 @@ export function SmartDroneHubTelemetryPanel({
               </Typography>
             </Box>
           </Stack>
-          {data && (
-            <Chip
+          {sessionActive && isInspector && isMissionStarted && (
+            <Button
+              variant="contained"
+              color="primary"
               size="small"
-              color={isConnected ? 'success' : 'warning'}
-              variant={isConnected ? 'filled' : 'outlined'}
-              label={
-                isConnected
-                  ? t('Flight telemetry online (MAVLink live)')
-                  : t('Not connected · Mission Planner offline')
-              }
-            />
+              onClick={() => setConfirmCompleteOpen(true)}
+              disabled={completeFlight.isPending}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 1.75,
+              }}
+            >
+              {completeFlight.isPending ? t('Completing flight…') : t('Complete flight')}
+            </Button>
           )}
         </Stack>
 
@@ -305,13 +347,19 @@ export function SmartDroneHubTelemetryPanel({
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              {t('Connect a live telemetry source to record the session in real time.')}
+              {isLiveTelemetryCompleted
+                ? t('Flight telemetry completed. If Post-flight is not finished yet, you can reconnect to restart live telemetry or upload a flight log below.')
+                : t('Connect a live telemetry source to record the session in real time.')}
             </Typography>
             <Button
-              variant="contained"
+              variant={isLiveTelemetryCompleted ? 'outlined' : 'contained'}
               size="medium"
               startIcon={<FlightTakeoffRounded />}
-              onClick={() => startMission.mutate('AUTO')}
+              onClick={() =>
+                isLiveTelemetryCompleted
+                  ? setConfirmRestartOpen(true)
+                  : startMission.mutate('AUTO')
+              }
               disabled={startMission.isPending}
               sx={{
                 borderRadius: '8px',
@@ -322,7 +370,11 @@ export function SmartDroneHubTelemetryPanel({
                 flexShrink: 0,
               }}
             >
-              {startMission.isPending ? t('Connecting…') : t('Connect Flight Operations')}
+              {startMission.isPending
+                ? t('Connecting…')
+                : isLiveTelemetryCompleted
+                  ? t('Reconnect flight telemetry')
+                  : t('Connect Flight Operations')}
             </Button>
           </Box>
         ) : isMissionStarted && sessionActive ? (
@@ -440,7 +492,52 @@ export function SmartDroneHubTelemetryPanel({
         )}
 
         <MutationProblemAlert error={startMission.error} isError={startMission.isError} fallbackMessage={t('Could not connect to SmartDroneHub.')} />
+        <MutationProblemAlert error={completeFlight.error} isError={completeFlight.isError} fallbackMessage={t('Could not complete flight telemetry.')} />
       </Stack>
+
+      <Dialog open={confirmCompleteOpen} onClose={() => !completeFlight.isPending && setConfirmCompleteOpen(false)}>
+        <DialogTitle>{t('Complete flight telemetry?')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('This saves the current flight report for this session. If Post-flight is not completed yet, you can still reconnect telemetry or upload a flight log later.')}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmCompleteOpen(false)} disabled={completeFlight.isPending} sx={{ textTransform: 'none' }}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => completeFlight.mutate()}
+            disabled={completeFlight.isPending}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {completeFlight.isPending ? t('Completing flight…') : t('Confirm complete flight')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmRestartOpen} onClose={() => !startMission.isPending && setConfirmRestartOpen(false)}>
+        <DialogTitle>{t('Reconnect flight telemetry?')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('Starting a new live telemetry stream will replace the saved flight report once you complete the flight again. Alternatively, upload a flight log below.')}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmRestartOpen(false)} disabled={startMission.isPending} sx={{ textTransform: 'none' }}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => startMission.mutate('AUTO')}
+            disabled={startMission.isPending}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {startMission.isPending ? t('Connecting…') : t('Start telemetry again')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

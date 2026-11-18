@@ -221,7 +221,10 @@ export function FlightOperationsReportView({
   const gpsSamples = useMemo(
     () =>
       enrichedSamples.filter(
-        (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+        (point) =>
+          Number.isFinite(point.latitude) &&
+          Number.isFinite(point.longitude) &&
+          !(Math.abs(point.latitude) < 1e-6 && Math.abs(point.longitude) < 1e-6),
       ),
     [enrichedSamples],
   );

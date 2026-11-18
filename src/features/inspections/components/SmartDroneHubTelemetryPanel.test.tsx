@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   telemetry: vi.fn(),
   flightReport: vi.fn(),
   start: vi.fn(),
+  complete: vi.fn(),
 }));
 
 vi.mock('../api/smartDroneHubApi', async (importOriginal) => {
@@ -25,6 +26,7 @@ vi.mock('../api/smartDroneHubApi', async (importOriginal) => {
       telemetry: mocks.telemetry,
       flightReport: mocks.flightReport,
       start: mocks.start,
+      complete: mocks.complete,
     },
   };
 });
@@ -79,6 +81,7 @@ function renderPanel({
   allowFlightLogImport = false,
   hasFlightReport = false,
   telemetrySource = null,
+  onFlightCompleted,
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
@@ -87,6 +90,7 @@ function renderPanel({
   allowFlightLogImport?: boolean;
   hasFlightReport?: boolean;
   telemetrySource?: string | null;
+  onFlightCompleted?: (report: SmartDroneHubFlightReport) => void;
   queryClient?: QueryClient;
 } = {}) {
   const result = render(
@@ -98,6 +102,7 @@ function renderPanel({
         allowFlightLogImport={allowFlightLogImport}
         hasFlightReport={hasFlightReport}
         telemetrySource={telemetrySource}
+        onFlightCompleted={onFlightCompleted}
       />
     </QueryClientProvider>,
   );
@@ -288,5 +293,69 @@ describe('SmartDroneHubTelemetryPanel fallback records', () => {
 
     expect(await screen.findByText('Source: Imported log · CSV')).toBeTruthy();
     expect(screen.getByText('Duration: 3:00')).toBeTruthy();
+  });
+
+  it('allows starting telemetry and completing flight to persist report and trigger onFlightCompleted', async () => {
+    mocks.start.mockResolvedValue({
+      inspectionId: 'inspection-1',
+      fieldSessionId: 'session-1',
+      missionState: 'IN_FLIGHT',
+      telemetrySource: 'MISSION_PLANNER_MAVLINK',
+      connected: true,
+      lastUpdateAt: '2026-11-18T08:00:00Z',
+      latitude: 10.875558,
+      longitude: 106.800885,
+      altitudeMeters: 25,
+      groundSpeedMps: 4.5,
+      headingDeg: 90,
+      batteryPercent: 88,
+      flightMode: 'AUTO',
+      armed: true,
+      currentWaypoint: 3,
+      distanceFlownMeters: 150,
+    });
+    const completedReport: SmartDroneHubFlightReport = {
+      ...importedReport,
+      telemetrySource: 'MISSION_PLANNER_MAVLINK',
+      durationSeconds: 120,
+      distanceFlownMeters: 320,
+      maxAltitudeMeters: 30,
+      startBatteryPercent: 95,
+      endBatteryPercent: 85,
+      finalState: 'LANDED',
+      note: 'MAVLink flight complete.',
+    };
+    mocks.complete.mockResolvedValue(completedReport);
+    const onFlightCompleted = vi.fn();
+
+    renderPanel({ onFlightCompleted });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Connect Flight Operations' }));
+    const completeBtn = await screen.findByRole('button', { name: 'Complete flight' });
+    fireEvent.click(completeBtn);
+    const confirmCompleteBtn = await screen.findByRole('button', { name: 'Confirm complete flight' });
+    fireEvent.click(confirmCompleteBtn);
+
+    await waitFor(() => expect(mocks.complete).toHaveBeenCalledWith('inspection-1', 'session-1'));
+    expect(onFlightCompleted).toHaveBeenCalledWith(completedReport);
+    expect(await screen.findByRole('button', { name: 'Reconnect flight telemetry' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect flight telemetry' }));
+    const restartConfirmBtn = await screen.findByRole('button', { name: 'Start telemetry again' });
+    fireEvent.click(restartConfirmBtn);
+
+    await waitFor(() => expect(mocks.start).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('button', { name: 'Complete flight' })).toBeTruthy();
+  });
+
+  it('does not auto-poll live telemetry after refresh when MAVLink report is already completed, until inspector reconnects', () => {
+    renderPanel({
+      sessionActive: true,
+      hasFlightReport: true,
+      telemetrySource: 'MISSION_PLANNER_MAVLINK',
+    });
+
+    expect(mocks.telemetry).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Reconnect flight telemetry' })).toBeTruthy();
   });
 });
