@@ -287,6 +287,14 @@ export interface ServiceRequestOccurrence {
   payoutStatus?: string | null;
   payoutReference?: string | null;
   reportAcceptedAt?: string | null;
+  /** The assigned Inspector's answer to the dispatch: PENDING_ACCEPTANCE, ACCEPTED, or DECLINED. */
+  assignmentStatus?: 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'DECLINED' | string | null;
+  reassignmentRequired?: boolean | null;
+  declineReason?: string | null;
+  acceptanceDeadlineAt?: string | null;
+  lastTimeoutCancelledAt?: string | null;
+  lastTimeoutInspectorId?: string | null;
+  lastTimeoutInspectorName?: string | null;
   invoice?: ServiceInvoiceSummary | null;
   payment?: ServicePaymentSummary | null;
   payout?: InspectorPayoutSummary | null;
@@ -392,8 +400,6 @@ export interface IssueServiceQuoteInput {
   scopeSnapshot: string;
   firstOccurrenceStartAt: string;
   firstOccurrenceEndAt: string;
-  inspectorId: string;
-  droneId: string;
   pricePerOccurrenceVnd: number;
   requiredDroneFeatureCodes: string[];
 }
@@ -707,6 +713,70 @@ export const contractApi = {
 
   async registerPartnerDrone(droneId: string): Promise<PartnerDrone> {
     const { data } = await api.post<PartnerDrone>('/contracts/partners/drones', { droneId });
+    return data;
+  },
+};
+
+export interface InspectionChatMessage {
+  id: string;
+  inspectionId: string;
+  authorUserId: string;
+  authorName?: string | null;
+  authorRole?: string | null;
+  body: string;
+  readAt?: string | null;
+  createdAt: string;
+  attachments?: ServiceRequestMessageAttachment[];
+}
+
+export interface InspectionChatThread {
+  inspectionId: string;
+  assetId: string;
+  assetName: string;
+  status: string;
+  assignmentStatus: string;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
+  counterpartUserId: string | null;
+  counterpartName: string;
+  counterpartRole: string;
+  counterpartAvatarUrl: string | null;
+  messages: InspectionChatMessage[];
+}
+
+export const inspectionChatApi = {
+  async listThreads(): Promise<InspectionChatThread[]> {
+    const { data } = await api.get<InspectionChatThread[]>('/inspections/messages/threads');
+    return data;
+  },
+
+  async getThread(inspectionId: string): Promise<InspectionChatThread> {
+    const { data } = await api.get<InspectionChatThread>(`/inspections/${inspectionId}/messages`);
+    return data;
+  },
+
+  async postMessage(
+    inspectionId: string,
+    input: { body: string; files?: File[] },
+  ): Promise<InspectionChatThread> {
+    const formData = new FormData();
+    if (input.body.trim()) {
+      formData.append('body', input.body.trim());
+    }
+    for (const file of input.files ?? []) {
+      formData.append('files', file);
+    }
+    const { data } = await api.post<InspectionChatThread>(
+      `/inspections/${inspectionId}/messages`,
+      formData,
+    );
+    return data;
+  },
+
+  async markMessagesRead(inspectionId: string): Promise<InspectionChatThread> {
+    const { data } = await api.post<InspectionChatThread>(
+      `/inspections/${inspectionId}/messages/read`,
+    );
     return data;
   },
 };

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -32,6 +32,7 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
+import ChatOutlined from '@mui/icons-material/ChatOutlined';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -481,55 +482,79 @@ export default function InspectionDetailPage() {
       </Stack>
     ) : null;
   const showDispatchMenu = Boolean(hasScheduledDispatchActions || hasForceAbortAction);
-  const workspaceActions = showDispatchMenu ? (
-    <>
-      <IconButton
-        aria-label={t('Inspection actions')}
-        aria-haspopup="menu"
-        aria-expanded={Boolean(actionsAnchor)}
-        onClick={(event: MouseEvent<HTMLElement>) => setActionsAnchor(event.currentTarget)}
-        sx={{
-          width: { xs: 44, sm: 36 },
-          height: { xs: 44, sm: 36 },
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: '8px',
-        }}
-      >
-        <MoreVertRounded />
-      </IconButton>
-      <Menu
-        anchorEl={actionsAnchor}
-        open={Boolean(actionsAnchor)}
-        onClose={() => setActionsAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { minWidth: 200, borderRadius: '12px' } } }}
-      >
-        {hasScheduledDispatchActions && (
-          <MenuItem onClick={() => openDispatchAction('reschedule')}>
-            {t('Reschedule')}
-          </MenuItem>
+  const canOpenInspectionChat = Boolean(
+    (isCustomer || (!isReviewerAdmin && roles.includes('INSPECTOR'))) &&
+      inspection?.inspectorId &&
+      inspection.status !== 'CANCELLED' &&
+      inspection.assignmentStatus !== 'DECLINED',
+  );
+  const chatInboxPath = `/${isCustomer ? 'client' : 'operations'}/messages?inspectionId=${inspection?.id ?? ''}`;
+  const workspaceActions =
+    showDispatchMenu || canOpenInspectionChat ? (
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        {canOpenInspectionChat && (
+          <Button
+            component={RouterLink}
+            to={chatInboxPath}
+            size="small"
+            variant="outlined"
+            startIcon={<ChatOutlined fontSize="small" />}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+          >
+            {t('Messages')}
+          </Button>
         )}
-        {hasScheduledDispatchActions && (
-          <MenuItem onClick={() => openDispatchAction('reassign')}>
-            {t('Reassign Inspector & Drone')}
-          </MenuItem>
+        {showDispatchMenu && (
+          <>
+            <IconButton
+              aria-label={t('Inspection actions')}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(actionsAnchor)}
+              onClick={(event: MouseEvent<HTMLElement>) => setActionsAnchor(event.currentTarget)}
+              sx={{
+                width: { xs: 44, sm: 36 },
+                height: { xs: 44, sm: 36 },
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+              }}
+            >
+              <MoreVertRounded />
+            </IconButton>
+            <Menu
+              anchorEl={actionsAnchor}
+              open={Boolean(actionsAnchor)}
+              onClose={() => setActionsAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { minWidth: 200, borderRadius: '12px' } } }}
+            >
+              {hasScheduledDispatchActions && (
+                <MenuItem onClick={() => openDispatchAction('reschedule')}>
+                  {t('Reschedule')}
+                </MenuItem>
+              )}
+              {hasScheduledDispatchActions && (
+                <MenuItem onClick={() => openDispatchAction('reassign')}>
+                  {t('Reassign Inspector & Drone')}
+                </MenuItem>
+              )}
+              {hasScheduledDispatchActions && <Divider />}
+              {hasScheduledDispatchActions && (
+                <MenuItem onClick={() => openDispatchAction('cancel')} sx={{ color: 'error.main' }}>
+                  {t('Cancel inspection')}
+                </MenuItem>
+              )}
+              {hasForceAbortAction && (
+                <MenuItem onClick={() => openDispatchAction('forceAbort')} sx={{ color: 'error.main' }}>
+                  {t('Force-abort session')}
+                </MenuItem>
+              )}
+            </Menu>
+          </>
         )}
-        {hasScheduledDispatchActions && <Divider />}
-        {hasScheduledDispatchActions && (
-          <MenuItem onClick={() => openDispatchAction('cancel')} sx={{ color: 'error.main' }}>
-            {t('Cancel inspection')}
-          </MenuItem>
-        )}
-        {hasForceAbortAction && (
-          <MenuItem onClick={() => openDispatchAction('forceAbort')} sx={{ color: 'error.main' }}>
-            {t('Force-abort session')}
-          </MenuItem>
-        )}
-      </Menu>
-    </>
-  ) : null;
+      </Stack>
+    ) : null;
   const isInspectorRole = !isCustomer && !isReviewerAdmin && roles.includes('INSPECTOR');
   const isPendingAcceptance =
     isInspectorRole &&
