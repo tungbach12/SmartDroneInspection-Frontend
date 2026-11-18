@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import { useSearchParams } from 'react-router-dom';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../api/contractApi';
-import { usePartnerDrones, usePartnerInspectors } from '../hooks/useContracts';
 import { ContractLifecycleStepper } from '../shared/ContractLifecycleStepper';
 import { RequestHeaderBar } from '../shared/RequestHeaderBar';
 import { QuoteTermsSummary } from '../shared/QuoteTermsSummary';
@@ -39,24 +37,14 @@ export function ManagerRequestDetail({
   onOpenInbox,
 }: ManagerRequestDetailProps) {
   const { locale, t } = useLocale();
-  const [searchParams] = useSearchParams();
-  const [pairSelectionRequestId, setPairSelectionRequestId] = useState('');
 
   const effectiveStatus = getEffectiveRequestStatus(request);
   const accepted = isQuoteAccepted(request);
   const currentQuote = resolveCurrentQuote(request);
-  const inspectors = usePartnerInspectors(accepted);
-  const drones = usePartnerDrones(accepted);
-  const quotePairSelectionOpen = searchParams.get('step') === 'quote-pair';
-  const hasConfirmedQuotePair = pairSelectionRequestId === request.id;
+  const hasOccurrences = request.occurrences.length > 0;
 
-  const activeStep = resolveActiveStepIndex(
-    effectiveStatus,
-    'MANAGER',
-    quotePairSelectionOpen,
-    hasConfirmedQuotePair,
-  );
-  const stageKey = `${request.id}:${effectiveStatus}`;
+  const activeStep = resolveActiveStepIndex(effectiveStatus, hasOccurrences);
+  const stageKey = `${request.id}:${effectiveStatus}:${hasOccurrences}`;
   const [viewedState, setViewedState] = useState<{ key: string; step: number } | null>(null);
   const viewedStep = viewedState?.key === stageKey ? viewedState.step : activeStep;
   const isViewingPastStep = viewedStep < activeStep && effectiveStatus !== 'OPEN';
@@ -95,9 +83,6 @@ export function ManagerRequestDetail({
           onChanged={onChanged}
           onError={onError}
           onOpenInbox={onOpenInbox}
-          onPairSelectionChange={(confirmed) =>
-            setPairSelectionRequestId(confirmed ? request.id : '')
-          }
         />
       );
     }
@@ -119,10 +104,7 @@ export function ManagerRequestDetail({
             sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
           >
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                {t('1. Review customer request')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {request.requestType === 'ONE_TIME'
                   ? request.requestedFrom
                   : `${request.requestedFrom} – ${request.requestedUntil}`}{' '}
@@ -136,7 +118,7 @@ export function ManagerRequestDetail({
               onClick={() => onOpenInbox(request.id)}
               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
             >
-              Messages
+              {t('Messages')}
             </Button>
           </Stack>
         </Box>
@@ -144,18 +126,6 @@ export function ManagerRequestDetail({
     }
 
     if (viewedStep === 1) {
-      const currentInspector = (inspectors.data ?? []).find(
-        (item) => item.id === currentQuote?.inspectorId,
-      );
-      const currentDrone = (drones.data ?? []).find((item) => item.id === currentQuote?.droneId);
-      const partnerLabel = currentQuote
-        ? `${currentInspector?.fullName ?? t('Assigned partner pilot')} · ${
-            currentDrone
-              ? `${currentDrone.model} (${currentDrone.serialNumber})`
-              : t('Assigned inspection drone')
-          }`
-        : null;
-
       return (
         <Box
           sx={{
@@ -179,11 +149,7 @@ export function ManagerRequestDetail({
               />
             </Stack>
             {currentQuote ? (
-              <QuoteTermsSummary
-                request={request}
-                quote={currentQuote}
-                partnerSummary={partnerLabel}
-              />
+              <QuoteTermsSummary request={request} quote={currentQuote} />
             ) : (
               <Typography variant="body2" color="text.secondary">
                 {t('Commercial terms settled under active dispatch schedule.')}
@@ -243,8 +209,7 @@ export function ManagerRequestDetail({
       <ContractLifecycleStepper
         status={effectiveStatus}
         role="MANAGER"
-        selectionOpen={quotePairSelectionOpen}
-        hasSelectedPair={hasConfirmedQuotePair}
+        hasOccurrences={hasOccurrences}
         selectedStep={viewedStep}
         onSelectStep={(stepIndex) =>
           setViewedState(stepIndex === activeStep ? null : { key: stageKey, step: stepIndex })

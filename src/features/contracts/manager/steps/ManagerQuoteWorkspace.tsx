@@ -1,43 +1,15 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
-import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
-import { useSearchParams } from 'react-router-dom';
-import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import {
-  type IssueServiceQuoteInput,
-  type PartnerCandidate,
-  type ServiceRequest,
-} from '../../api/contractApi';
+import type { IssueServiceQuoteInput, ServiceRequest } from '../../api/contractApi';
 import { enumerateMonthlySchedule } from '../../api/recurrenceSchedule';
 import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/scheduleTime';
-import {
-  useEvaluatePartnerCandidates,
-  useIssueServiceQuote,
-  usePartnerDrones,
-  usePartnerInspectors,
-} from '../../hooks/useContracts';
-import {
-  getInspectorInitials,
-  isSelectablePartnerCandidate,
-  PartnerCandidateResults,
-} from '../../components/PartnerCandidateResults';
-import {
-  extractContractErrorText,
-  resolveCurrentQuote,
-} from '../../shared/contractStage';
+import { useIssueServiceQuote, usePartnerCapabilities } from '../../hooks/useContracts';
+import { extractContractErrorText, resolveCurrentQuote } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
 
 interface ManagerQuoteWorkspaceProps {
@@ -45,34 +17,45 @@ interface ManagerQuoteWorkspaceProps {
   onChanged: () => void;
   onError: (message: string) => void;
   onOpenInbox: (requestId: string) => void;
-  onPairSelectionChange: (confirmed: boolean) => void;
 }
 
+/**
+ * Accepts "11000000", "11,000,000" and the Vietnamese "11.000.000" grouping so a Manager typing
+ * the local convention is not rejected. Returns null when the value is not a usable amount.
+ */
+function parsePriceInput(raw: string): number | null {
+  const trimmed = raw.trim().replace(/\s/g, '');
+  if (!trimmed) return null;
+  const dotGroups = /^\d{1,3}(\.\d{3})+$/.test(trimmed);
+  const commaGroups = /^\d{1,3}(,\d{3})+$/.test(trimmed);
+  const normalized = dotGroups
+    ? trimmed.replaceAll('.', '')
+    : commaGroups
+      ? trimmed.replaceAll(',', '')
+      : trimmed.replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+/**
+ * Step 2 of the Manager flow: prepare the commercial quote (scope, schedule, price).
+ *
+ * The Inspector and drone are deliberately not selected here. Dispatch assigns the partner pair in
+ * step 4, and the Inspector confirms the schedule before the flight is locked in.
+ */
 export function ManagerQuoteWorkspace({
   request,
   onChanged,
   onError,
   onOpenInbox,
-  onPairSelectionChange,
 }: ManagerQuoteWorkspaceProps) {
   const { locale, t } = useLocale();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const stepOpen = searchParams.get('step') === 'quote-pair';
-  const setStepOpen = (open: boolean) => {
-    const next = new URLSearchParams(searchParams);
-    if (open) {
-      next.set('step', 'quote-pair');
-    } else {
-      next.delete('step');
-    }
-    setSearchParams(next, { replace: false });
-  };
 
   const currentQuote = resolveCurrentQuote(request);
   const save = useIssueServiceQuote(request.id);
-  const evaluate = useEvaluatePartnerCandidates(request.id);
-  const inspectors = usePartnerInspectors(true);
-  const drones = usePartnerDrones(true);
+  const capabilitiesQuery = usePartnerCapabilities();
+  const activeCapabilities = (capabilitiesQuery.data ?? []).filter((cap) => cap.isActive);
 
   const [scope, setScope] = useState(currentQuote?.scopeSnapshot ?? request.description);
   const [start, setStart] = useState(() =>
@@ -85,10 +68,23 @@ export function ManagerQuoteWorkspace({
       ? instantToDateTimeInput(currentQuote.firstOccurrenceEndAt, request.timezone)
       : `${request.requestedFrom}T10:00`,
   );
-  const requiredCapabilities = currentQuote?.requiredDroneFeatureCodes ?? [];
-  const [candidates, setCandidates] = useState<PartnerCandidate[] | null>(null);
-  const [evaluatedCriteriaKey, setEvaluatedCriteriaKey] = useState<string | null>(null);
-  const [pairConfirmed, setPairConfirmed] = useState(false);
+  const [requiredCapabilities, setRequiredCapabilities] = useState<string[]>(
+    currentQuote?.requiredDroneFeatureCodes ?? [],
+  );
+  // A saved quote waits for the customer. The editable form only opens when the Manager
+  // explicitly starts a revision, so the default view answers "what happens next?".
+  const [quoteEditing, setQuoteEditing] = useState(false);
+  const [price, setPrice] = useState(() =>
+    currentQuote
+      ? String(currentQuote.pricePerOccurrenceVnd ?? currentQuote.pricePerOccurrenceUsd ?? '')
+      : '',
+  );
+
+  const toggleCapability = (code: string) => {
+    setRequiredCapabilities((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code],
+    );
+  };
 
   const recurringDates =
     request.requestType === 'RECURRING'
@@ -101,124 +97,21 @@ export function ManagerQuoteWorkspace({
       : [];
   const scheduleEndDate = recurringDates.at(-1) ?? request.requestedUntil;
 
-  const [inspectorId, setInspectorId] = useState(currentQuote?.inspectorId ?? '');
-  const [droneId, setDroneId] = useState(currentQuote?.droneId ?? '');
-  const [price, setPrice] = useState(
-    String(currentQuote?.pricePerOccurrenceVnd ?? currentQuote?.pricePerOccurrenceUsd ?? 11000000),
-  );
-
-  const currentCriteriaKey = `${request.id}|${start}|${end}|${[...requiredCapabilities].sort().join(',')}`;
-  const isEvaluationStale =
-    evaluatedCriteriaKey !== null && evaluatedCriteriaKey !== currentCriteriaKey;
-
-  const availableDrones = (drones.data ?? []).filter((drone) => drone.inspectorOwnerId === inspectorId);
-  const selectedDroneId = availableDrones.some((drone) => drone.id === droneId)
-    ? droneId
-    : candidates?.some((item) => item.inspectorId === inspectorId && item.droneId === droneId)
-      ? droneId
-      : '';
-  const selectedCandidate =
-    candidates?.find(
-      (item) => item.inspectorId === inspectorId && item.droneId === selectedDroneId,
-    ) ?? null;
-  const pairConfirmedAndCurrent =
-    pairConfirmed &&
-    candidates !== null &&
-    !isEvaluationStale &&
-    selectedCandidate !== null &&
-    isSelectablePartnerCandidate(selectedCandidate);
-  const isSelectedPairBlockedByEvaluation = currentQuote
-    ? candidates !== null && !pairConfirmedAndCurrent
-    : !pairConfirmedAndCurrent;
-
-  const invalidatePairSelection = () => {
-    setPairConfirmed(false);
-    onPairSelectionChange(false);
-  };
-  const updateStart = (value: string) => {
-    invalidatePairSelection();
-    setStart(value);
-  };
-  const updateEnd = (value: string) => {
-    invalidatePairSelection();
-    setEnd(value);
-  };
-
-  const inspectorLicenseExpiresAt = inspectors.data?.find(
-    (candidate) => candidate.id === inspectorId,
-  )?.licenseExpiresAt;
-  const lastPlannedDate = recurringDates.at(-1);
-  const lastPlannedStartAt = (() => {
-    if (!lastPlannedDate) return null;
-    try {
-      return dateTimeInputToInstant(`${lastPlannedDate}T${start.slice(11, 16)}`, request.timezone);
-    } catch {
-      return null;
-    }
-  })();
-  const inspectorLicenseCoversSchedule =
-    !inspectorLicenseExpiresAt ||
-    !lastPlannedStartAt ||
-    Date.parse(inspectorLicenseExpiresAt) > Date.parse(lastPlannedStartAt);
-
-  const runPartnerEvaluation = async () => {
-    try {
-      const plannedStartAt = dateTimeInputToInstant(start, request.timezone);
-      const plannedEndAt = dateTimeInputToInstant(end, request.timezone);
-      if (Date.parse(plannedEndAt) <= Date.parse(plannedStartAt)) {
-        onError('The proposed occurrence end must be after its start.');
-        return;
-      }
-      setPairConfirmed(false);
-      onPairSelectionChange(false);
-      const result = await evaluate.mutateAsync({
-        plannedStartAt,
-        plannedEndAt,
-        requiredDroneFeatureCodes: requiredCapabilities,
-      });
-      setCandidates(result);
-      setEvaluatedCriteriaKey(currentCriteriaKey);
-      setStepOpen(true);
-    } catch (error) {
-      onError(extractContractErrorText(error, 'Unable to evaluate partner candidates.'));
-    }
-  };
-
   const saveQuote = async () => {
     if (!scope.trim()) {
-      onError('Enter the quoted inspection scope.');
+      onError(t('Enter the quoted inspection scope.'));
       return;
     }
-    if (!inspectorId || !selectedDroneId) {
-      onError('Select a registered partner Inspector and one of their drones.');
-      return;
-    }
-    if (isSelectedPairBlockedByEvaluation) {
-      onError(
-        candidates === null && !currentQuote
-          ? 'Find eligible partners and select a pair before saving the quote.'
-          : isEvaluationStale
-            ? 'Schedule or capability criteria changed. Re-run partner evaluation before saving the quote.'
-            : 'Only an eligible partner pair with matching capabilities can be quoted.',
-      );
-      return;
-    }
-    if (request.requestType === 'RECURRING' && !inspectorLicenseCoversSchedule) {
-      onError(
-        'The selected Inspector pilot license expires before the last planned occurrence. Choose another Inspector or adjust the schedule.',
-      );
-      return;
-    }
-    const amount = Number(price);
-    if (!Number.isFinite(amount) || amount <= 0 || !/^\d+(\.\d{1,2})?$/.test(price.trim())) {
-      onError('Enter a positive price with no more than two decimal places.');
+    const amount = parsePriceInput(price);
+    if (amount === null || amount <= 0) {
+      onError(t('Enter a positive price with no more than two decimal places.'));
       return;
     }
     try {
       const startAt = dateTimeInputToInstant(start, request.timezone);
       const endAt = dateTimeInputToInstant(end, request.timezone);
       if (Date.parse(endAt) <= Date.parse(startAt)) {
-        onError('The proposed occurrence end must be after its start.');
+        onError(t('The proposed occurrence end must be after its start.'));
         return;
       }
       const firstDate = start.slice(0, 10);
@@ -233,8 +126,10 @@ export function ManagerQuoteWorkspace({
       ) {
         onError(
           request.requestType === 'ONE_TIME'
-            ? 'One-time service must remain on the customer-selected date.'
-            : 'The first occurrence must match the customer-requested date, and the quote must remain inside the requested schedule.',
+            ? t('One-time service must remain on the customer-selected date.')
+            : t(
+                'The first occurrence must match the customer-requested date, and the quote must remain inside the requested schedule.',
+              ),
         );
         return;
       }
@@ -242,54 +137,18 @@ export function ManagerQuoteWorkspace({
         scopeSnapshot: scope.trim(),
         firstOccurrenceStartAt: startAt,
         firstOccurrenceEndAt: endAt,
-        inspectorId,
-        droneId: selectedDroneId,
         pricePerOccurrenceVnd: amount,
         requiredDroneFeatureCodes: [...requiredCapabilities],
       } satisfies IssueServiceQuoteInput);
+      setQuoteEditing(false);
       onChanged();
     } catch (error) {
       onError(extractContractErrorText(error, 'Unable to save quote.'));
     }
   };
 
-  if (stepOpen && candidates !== null) {
-    return (
-      <PartnerCandidateResults
-        variant="step"
-        candidates={candidates}
-        loading={evaluate.isPending}
-        stale={isEvaluationStale}
-        windowSummary={`${start.replace('T', ' ')} → ${end.replace('T', ' ')}`}
-        requiredCapabilities={requiredCapabilities}
-        selectedInspectorId={inspectorId}
-        selectedDroneId={selectedDroneId}
-        title={t('Select partner Inspector and drone')}
-        subtitle={t('Select the qualified partner pair that will be included in the quotation.')}
-        backLabel={t('Back to request review')}
-        onBackToForm={() => setStepOpen(false)}
-        onSelectPair={(candidate) => {
-          setInspectorId(candidate.inspectorId);
-          setDroneId(candidate.droneId);
-          setPairConfirmed(true);
-          onPairSelectionChange(true);
-          setStepOpen(false);
-        }}
-      />
-    );
-  }
-
-  const currentInspector = (inspectors.data ?? []).find(
-    (item) => item.id === currentQuote?.inspectorId,
-  );
-  const currentDrone = (drones.data ?? []).find((item) => item.id === currentQuote?.droneId);
-  const partnerLabel = currentQuote
-    ? `${currentInspector?.fullName ?? t('Assigned partner pilot')} · ${
-        currentDrone
-          ? `${currentDrone.model} (${currentDrone.serialNumber})`
-          : t('Assigned inspection drone')
-      }`
-    : null;
+  // A saved quote is locked: the Manager must click "Edit quote" to unlock the form again.
+  const showQuoteForm = currentQuote === null || quoteEditing;
 
   return (
     <Box
@@ -302,46 +161,47 @@ export function ManagerQuoteWorkspace({
       }}
     >
       <Stack
-        direction="row"
+        direction={{ xs: 'column', sm: 'row' }}
         sx={{
-          alignItems: 'center',
+          alignItems: { sm: 'center' },
           justifyContent: 'space-between',
-          gap: 1,
+          gap: { xs: 1, sm: 1.5 },
           p: 2,
           borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
-        <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
-          {currentQuote ? t('Current quote') : t('Request review')}
-        </Typography>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+          <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
+            {currentQuote ? t('Current quote') : t('Request review')}
+          </Typography>
           {currentQuote && (
             <Chip size="small" label={t('Current terms')} sx={{ borderRadius: '6px' }} />
           )}
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<ChatOutlinedIcon fontSize="small" />}
-            onClick={() => onOpenInbox(request.id)}
-            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-          >
-            Messages
-          </Button>
         </Stack>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<ChatOutlinedIcon fontSize="small" />}
+          onClick={() => onOpenInbox(request.id)}
+          sx={{
+            borderRadius: '8px',
+            textTransform: 'none',
+            fontWeight: 600,
+            alignSelf: { xs: 'flex-start', sm: 'center' },
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {t('Messages')}
+        </Button>
       </Stack>
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
-          {currentQuote && (
-            <QuoteTermsSummary
-              request={request}
-              quote={currentQuote}
-              partnerSummary={partnerLabel}
-            />
-          )}
+          {currentQuote && !quoteEditing && <QuoteTermsSummary request={request} quote={currentQuote} />}
 
-          {!currentQuote && !pairConfirmedAndCurrent ? (
+          {currentQuote && !quoteEditing && (
             <Box
               sx={{
                 p: 2,
@@ -351,57 +211,39 @@ export function ManagerQuoteWorkspace({
                 bgcolor: 'background.default',
               }}
             >
-              <Stack spacing={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  {t(
-                    'Review the requested scope and schedule, then select an eligible Inspector and drone before preparing the quotation.',
-                  )}
-                </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  {t('Review schedule and select partner')}
-                </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <TextField
-                    fullWidth
-                    label={t('First occurrence start')}
-                    type="datetime-local"
-                    size="small"
-                    value={start}
-                    onChange={(event) => updateStart(event.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
-                  <TextField
-                    fullWidth
-                    label={t('First occurrence end')}
-                    type="datetime-local"
-                    size="small"
-                    value={end}
-                    onChange={(event) => updateEnd(event.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+              >
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  <TaskAltOutlinedIcon fontSize="small" sx={{ color: 'success.main' }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {t('Quote saved · waiting for customer review')}
+                  </Typography>
                 </Stack>
-                <LoadingButton
-                  loading={evaluate.isPending}
-                  variant="contained"
-                  startIcon={<PersonSearchOutlinedIcon fontSize="small" />}
-                  onClick={() => void runPartnerEvaluation()}
-                  sx={{
-                    alignSelf: 'flex-start',
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    boxShadow: 'none',
-                  }}
-                >
-                  {t('Select Inspector and drone')}
-                </LoadingButton>
+                <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<EditOutlinedIcon fontSize="small" />}
+                    onClick={() => setQuoteEditing(true)}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+                  >
+                    {t('Edit quote')}
+                  </Button>
+                </Stack>
               </Stack>
             </Box>
-          ) : (
+          )}
+
+          {showQuoteForm && (
             <Stack spacing={1.5}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                {currentQuote ? t('Edit current quote') : t('Create quote')}
-              </Typography>
+              {currentQuote && (
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  {t('Edit current quote')}
+                </Typography>
+              )}
 
               <TextField
                 label={t('Quoted scope')}
@@ -419,7 +261,7 @@ export function ManagerQuoteWorkspace({
                   type="datetime-local"
                   size="small"
                   value={start}
-                  onChange={(event) => updateStart(event.target.value)}
+                  onChange={(event) => setStart(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <TextField
@@ -428,145 +270,58 @@ export function ManagerQuoteWorkspace({
                   type="datetime-local"
                   size="small"
                   value={end}
-                  onChange={(event) => updateEnd(event.target.value)}
+                  onChange={(event) => setEnd(event.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
               </Stack>
 
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-                {currentQuote && (
-                  <LoadingButton
-                    size="small"
-                    variant="outlined"
-                    loading={evaluate.isPending}
-                    onClick={() => void runPartnerEvaluation()}
-                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                  >
-                    {t('Recheck partner pair')}
-                  </LoadingButton>
-                )}
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setStepOpen(true)}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                >
-                  {t('Change selected pair')}
-                </Button>
-              </Stack>
-
-              {pairConfirmedAndCurrent && selectedCandidate && (
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setStepOpen(true)}
-                  aria-label={t('View selected Inspector and drone details')}
-                  sx={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.25,
-                    p: 1.25,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: '8px',
-                    bgcolor: 'background.default',
-                    color: 'text.primary',
-                    '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-                    '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' },
-                  }}
-                >
-                  <Avatar
-                    src={selectedCandidate.inspectorAvatarUrl ?? undefined}
-                    alt={selectedCandidate.inspectorName}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      flexShrink: 0,
-                      bgcolor: '#EEF2FF',
-                      color: '#3758F9',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {getInspectorInitials(selectedCandidate.inspectorName)}
-                  </Avatar>
-                  {selectedCandidate.droneHasImage !== false ? (
-                    <AuthenticatedImage
-                      src={`/drone-registration-applications/drones/${selectedCandidate.droneId}/image?index=0`}
-                      alt={`${selectedCandidate.droneModel ?? t('Partner drone')} (${selectedCandidate.droneSerialNumber})`}
-                      maxHeight={44}
-                      sx={{
-                        width: 60,
-                        height: 44,
-                        objectFit: 'cover',
-                        borderRadius: '6px',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        flexShrink: 0,
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 44,
-                        borderRadius: '6px',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: 'text.secondary',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <FlightOutlinedIcon fontSize="small" />
-                    </Box>
-                  )}
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                        {selectedCandidate.inspectorName}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={t('Eligible match')}
-                        color="success"
-                        variant="outlined"
-                        sx={{
-                          height: 20,
-                          borderRadius: '6px',
-                          fontWeight: 600,
-                          fontSize: '0.6875rem',
-                        }}
-                      />
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {selectedCandidate.droneModel ?? t('Partner drone')} ·{' '}
-                      {selectedCandidate.droneSerialNumber}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600 }}>
-                    {t('Details')}
-                  </Typography>
-                </Box>
-              )}
-
               <TextField
                 label={locale === 'vi' ? 'Đơn giá mỗi đợt bay (VND)' : 'Price per occurrence (VND)'}
-                type="number"
+                placeholder={locale === 'vi' ? 'Ví dụ: 11000000' : 'e.g. 11000000'}
                 size="small"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
                 helperText={
                   request.requestType === 'ONE_TIME'
                     ? t('The customer-selected date cannot be changed for a one-time request.')
-                    : t('The first scheduled occurrence is used as the anchor for the recurring schedule.')
+                    : t(
+                        'The first scheduled occurrence is used as the anchor for the recurring schedule.',
+                      )
                 }
-                slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
+                slotProps={{
+                  htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
+                }}
               />
+
+              {activeCapabilities.length > 0 && (
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', fontWeight: 700, mb: 0.75 }}
+                  >
+                    {t('Required drone capabilities (optional)')}
+                  </Typography>
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+                    {activeCapabilities.map((cap) => {
+                      const selected = requiredCapabilities.includes(cap.code);
+                      return (
+                        <Chip
+                          key={cap.code}
+                          size="small"
+                          clickable
+                          onClick={() => toggleCapability(cap.code)}
+                          label={locale === 'vi' ? cap.nameVi : cap.nameEn}
+                          color={selected ? 'primary' : 'default'}
+                          variant={selected ? 'filled' : 'outlined'}
+                          aria-pressed={selected}
+                          sx={{ borderRadius: '6px', fontWeight: 600, fontSize: '0.75rem' }}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              )}
 
               {request.requestType === 'RECURRING' && recurringDates.length > 0 && (
                 <Box
@@ -593,7 +348,7 @@ export function ManagerQuoteWorkspace({
                       .join(' · ')}
                     {recurringDates.length > 4 ? ' … ' : ''}
                     {recurringDates.length > 4 &&
-                      new Date(`${recurringDates[recurringDates.length - 1]}T12:00:00`).toLocaleDateString(
+                      new Date(`${recurringDates.at(-1)}T12:00:00`).toLocaleDateString(
                         locale === 'vi' ? 'vi-VN' : 'en-US',
                         { timeZone: 'UTC' },
                       )}
@@ -603,9 +358,9 @@ export function ManagerQuoteWorkspace({
                     color="text.secondary"
                     sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}
                   >
-                    {Number(price || 0).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} VND ×{' '}
-                    {recurringDates.length} ={' '}
-                    {(Number(price || 0) * recurringDates.length).toLocaleString(
+                    {(parsePriceInput(price) ?? 0).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')}{' '}
+                    VND × {recurringDates.length} ={' '}
+                    {((parsePriceInput(price) ?? 0) * recurringDates.length).toLocaleString(
                       locale === 'vi' ? 'vi-VN' : 'en-US',
                     )}{' '}
                     VND
@@ -613,36 +368,38 @@ export function ManagerQuoteWorkspace({
                 </Box>
               )}
 
-              {request.requestType === 'RECURRING' &&
-                inspectorId &&
-                !inspectors.isPending &&
-                !inspectorLicenseCoversSchedule && (
-                  <Alert severity="error" sx={{ py: 0, borderRadius: '8px' }}>
-                    {t(
-                      'Pilot license expires before the last planned inspection. Select another Inspector or change the schedule.',
-                    )}
-                  </Alert>
-                )}
+              <Alert severity="info" sx={{ py: 0.5, borderRadius: '8px' }} icon={false}>
+                <Typography variant="body2" color="text.secondary">
+                  {t('Assign the Inspector and drone in step 4.')}
+                </Typography>
+              </Alert>
 
-              {isEvaluationStale && (
-                <Alert severity="warning" sx={{ py: 0, borderRadius: '8px' }}>
-                  {t(
-                    'Schedule or capability criteria changed. Re-run partner evaluation before confirming.',
-                  )}
-                </Alert>
-              )}
-
-              <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                 <LoadingButton
                   loading={save.isPending}
-                  disabled={isSelectedPairBlockedByEvaluation}
                   variant="contained"
                   onClick={() => void saveQuote()}
-                  sx={{ borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                  sx={{
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                  }}
                 >
                   {currentQuote ? t('Save quote changes') : t('Save quote')}
                 </LoadingButton>
-              </Box>
+                {currentQuote && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    disabled={save.isPending}
+                    onClick={() => setQuoteEditing(false)}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                  >
+                    {t('Cancel editing')}
+                  </Button>
+                )}
+              </Stack>
             </Stack>
           )}
         </Stack>

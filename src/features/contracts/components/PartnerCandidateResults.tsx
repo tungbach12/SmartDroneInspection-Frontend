@@ -346,14 +346,13 @@ export function PartnerCandidateResults({
       ? {
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: '16px',
+          borderRadius: '10px',
           bgcolor: 'background.paper',
-          boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
         }
       : {
           border: '1px solid',
           borderColor: 'divider',
-          borderRadius: '12px',
+          borderRadius: '10px',
           bgcolor: 'background.paper',
           overflow: 'hidden',
         };
@@ -450,8 +449,8 @@ export function PartnerCandidateResults({
                 sx={{
                   width: 56,
                   height: 56,
-                  bgcolor: '#EEF2FF',
-                  color: '#2B84EB',
+                  bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+                  color: 'primary.main',
                   fontWeight: 700,
                   fontSize: '1rem',
                   border: '1px solid',
@@ -477,7 +476,7 @@ export function PartnerCandidateResults({
                         color="warning"
                         variant="outlined"
                         label={`${t('Declines')}: ${activeDetailCandidate.declineCount}`}
-                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     )}
                     {(activeDetailCandidate.noShowCount ?? 0) > 0 && (
@@ -486,7 +485,7 @@ export function PartnerCandidateResults({
                         color="error"
                         variant="outlined"
                         label={`${t('No-shows')}: ${activeDetailCandidate.noShowCount}`}
-                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     )}
                     {(activeDetailCandidate.abortCount ?? 0) > 0 && (
@@ -495,7 +494,7 @@ export function PartnerCandidateResults({
                         color="warning"
                         variant="outlined"
                         label={`${t('Aborts')}: ${activeDetailCandidate.abortCount}`}
-                        sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     )}
                   </Stack>
@@ -1001,14 +1000,14 @@ export function PartnerCandidateResults({
             sx={{
               border: '1px solid',
               borderColor: 'divider',
-              borderRadius: '12px',
+              borderRadius: '10px',
               bgcolor: 'background.paper',
               overflow: 'hidden',
               '& table': { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
               '& th': {
                 px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider',
                 bgcolor: 'background.default', color: 'text.secondary', textAlign: 'left',
-                fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
+                fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
               },
               '& .group-row td': { px: 1.5, py: 0.75, borderTop: '1px solid', borderColor: 'divider' },
               '& .group-row:first-child td': { borderTop: 0 },
@@ -1037,7 +1036,6 @@ export function PartnerCandidateResults({
                 '& .pair-row .unavailable-pair ~ td': { display: 'none' },
                 '& .pair-row .mobile-status': { display: 'inline-flex' },
                 '& .pair-row td:last-child': { flex: '0 0 auto' },
-                '& .pair-row .mobile-details': { display: 'none' },
               },
             }}
           >
@@ -1053,7 +1051,15 @@ export function PartnerCandidateResults({
                   <tr className="group-row"><td colSpan={4}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
                       <Avatar src={group.inspectorAvatarUrl ?? undefined} alt={group.inspectorName}
-                        sx={{ width: 30, height: 30, bgcolor: '#EEF2FF', color: '#2B84EB', fontWeight: 700, fontSize: '0.6875rem', flexShrink: 0 }}>
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+                          color: 'primary.main',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          flexShrink: 0,
+                        }}>
                         {getInspectorInitials(group.inspectorName)}
                       </Avatar>
                       <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700 }} noWrap>{group.inspectorName}</Typography>
@@ -1063,7 +1069,7 @@ export function PartnerCandidateResults({
                           color="warning"
                           variant="outlined"
                           label={`${t('Declines')}: ${group.declineCount}`}
-                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                         />
                       )}
                       {group.noShowCount > 0 && (
@@ -1072,7 +1078,7 @@ export function PartnerCandidateResults({
                           color="error"
                           variant="outlined"
                           label={`${t('No-shows')}: ${group.noShowCount}`}
-                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                         />
                       )}
                       {group.abortCount > 0 && (
@@ -1081,7 +1087,7 @@ export function PartnerCandidateResults({
                           color="warning"
                           variant="outlined"
                           label={`${t('Aborts')}: ${group.abortCount}`}
-                          sx={{ height: 20, fontSize: '0.6875rem', fontWeight: 600 }}
+                          sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                         />
                       )}
                       <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', whiteSpace: 'nowrap' }}>
@@ -1128,7 +1134,7 @@ export function PartnerCandidateResults({
                                 height: 22,
                                 borderRadius: '6px',
                                 fontWeight: 600,
-                                fontSize: '0.6875rem',
+                                fontSize: '0.75rem',
                               }}
                             />
                           ) : (
@@ -1167,8 +1173,9 @@ export function PartnerCandidateResults({
                               startIcon={<VisibilityOutlinedIcon fontSize="small" />}
                               onClick={() => setDetailKey(pairKey(candidate))}
                               sx={{
-                                minWidth: { xs: 34, sm: 0 },
-                                px: { xs: 0.5, sm: 0.75 },
+                                minWidth: { xs: 40, sm: 0 },
+                                minHeight: { xs: 40, sm: 'auto' },
+                                px: { xs: 0.75, sm: 0.75 },
                                 color: 'text.secondary',
                                 textTransform: 'none',
                                 fontWeight: 600,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -34,15 +34,15 @@ export function ManagerContractUploadStep({
 
   const submit = async () => {
     if (!file) {
-      onError('Choose the signed contract scan (PDF, JPEG, or PNG).');
+      onError(t('Choose the signed contract scan (PDF, JPEG, or PNG).'));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      onError('The signed contract scan must be 10 MB or smaller.');
+      onError(t('The signed contract scan must be 10 MB or smaller.'));
       return;
     }
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
-      onError('Choose a PDF, JPEG, or PNG signed contract scan.');
+      onError(t('Choose a PDF, JPEG, or PNG signed contract scan.'));
       return;
     }
     try {
@@ -71,14 +71,8 @@ export function ManagerContractUploadStep({
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
-              {t('Paper contract evidence')}
+              {t('Paper contract')}
             </Typography>
-            <Chip
-              size="small"
-              color="success"
-              label={t('Accepted · locked')}
-              sx={{ borderRadius: '6px' }}
-            />
           </Stack>
           <Button
             size="small"
@@ -111,11 +105,9 @@ export function ManagerContractUploadStep({
           }}
         >
           <Stack spacing={1.5}>
-            <Alert severity="info" sx={{ borderRadius: '8px' }}>
-              {t(
-                'Upload the scan after both parties sign the paper contract offline. No online signature or payment is collected here.',
-              )}
-            </Alert>
+            <Typography variant="body2" color="text.secondary">
+              {t('Upload the scan after both parties sign offline.')} ({t('PDF, JPEG, or PNG · max 10 MB')})
+            </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
               <Button
                 component="label"
