@@ -2597,6 +2597,8 @@
   "Awaiting drone re-inspection photo": "Chờ gán ảnh bay kiểm tra lại từ Drone",
   "Verification resolution": "Kết quả đối soát",
   "RESOLVED": "Đã khắc phục",
+  "This RESOLVED verdict stays valid until {date}.": "Kết luận Đã khắc phục còn hiệu lực đến {date}.",
+  "This RESOLVED verdict expired on {date}. Re-verify the defect with fresh evidence before authoring or publishing the report.": "Kết luận Đã khắc phục đã hết hiệu lực từ {date}. Cần đối soát lại khuyết tật bằng bằng chứng mới trước khi lập hoặc công bố báo cáo.",
   "UNRESOLVED": "Chưa khắc phục",
   "INCONCLUSIVE": "Chưa đủ kết luận",
   "Resolved": "Đã khắc phục",

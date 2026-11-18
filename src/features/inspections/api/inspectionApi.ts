@@ -572,6 +572,8 @@ export interface ReinspectionVerificationItem {
   newEvidenceFileKey?: string | null;
   resolutionStatus: 'RESOLVED' | 'UNRESOLVED' | 'INCONCLUSIVE';
   inspectorNotes?: string | null;
+  verifiedAt?: string | null;
+  validUntil?: string | null;
   createdAt: string;
   updatedAt: string;
 }

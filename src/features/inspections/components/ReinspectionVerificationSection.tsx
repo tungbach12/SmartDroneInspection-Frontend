@@ -222,6 +222,35 @@ export function ReinspectionVerificationSection({
   );
 }
 
+/**
+ * A RESOLVED verdict is only authoritative for its validity window. Show when it expires so the
+ * Inspector re-verifies before the report can be authored or published.
+ */
+function ValidityNotice({ item }: { item: ReinspectionVerificationItem }) {
+  const { t, formatDateTime } = useLocale();
+  if (item.resolutionStatus !== 'RESOLVED' || !item.validUntil) {
+    return null;
+  }
+  const expiresAt = new Date(item.validUntil).getTime();
+  if (Number.isNaN(expiresAt)) {
+    return null;
+  }
+  const expired = expiresAt <= Date.now();
+  const expiresOn = formatDateTime(item.validUntil);
+  return (
+    <Alert
+      severity={expired ? 'error' : 'info'}
+      sx={{ mt: 1.5, mb: 0.5, borderRadius: '10px' }}
+    >
+      {expired
+        ? t(
+            'This RESOLVED verdict expired on {date}. Re-verify the defect with fresh evidence before authoring or publishing the report.',
+          ).replace('{date}', expiresOn)
+        : t('This RESOLVED verdict stays valid until {date}.').replace('{date}', expiresOn)}
+    </Alert>
+  );
+}
+
 function DefectVerificationCard({
   item,
   inspectionId,
@@ -363,6 +392,8 @@ function DefectVerificationCard({
             sx={{ fontWeight: 650, height: 24, fontSize: '0.75rem' }}
           />
         </Stack>
+
+        <ValidityNotice item={item} />
 
         <Box
           sx={{
