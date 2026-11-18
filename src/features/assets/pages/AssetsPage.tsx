@@ -89,6 +89,58 @@ function formatLocation(text: string | null): string {
   return text;
 }
 
+function formatGpsLocationText(locale: string, lat: number, lon: number): string {
+  return locale === 'vi'
+    ? `Vị trí hiện tại (${lat.toFixed(4)}, ${lon.toFixed(4)})`
+    : `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+}
+
+function formatPinnedLocationText(
+  locale: string,
+  lat: number,
+  lon: number,
+  placeName?: string,
+): string {
+  const trimmed = placeName?.trim();
+  if (trimmed) return trimmed;
+  return locale === 'vi'
+    ? `Vị trí đã ghim (${lat.toFixed(4)}, ${lon.toFixed(4)})`
+    : `Pinned Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+}
+
+function ReadOnlyLocationField({ value }: { value: string }) {
+  const { locale, t } = useLocale();
+  return (
+    <TextField
+      label={t('Location')}
+      required
+      fullWidth
+      value={value}
+      placeholder={
+        locale === 'vi'
+          ? 'Chọn vị trí bằng GPS hoặc Google Maps bên dưới'
+          : 'Select a location via GPS or Google Maps below'
+      }
+      helperText={
+        locale === 'vi'
+          ? 'Chỉ đọc — dùng "Lấy GPS của tôi" hoặc "Chọn trên Google Maps" bên dưới để cập nhật vị trí.'
+          : 'Read-only — use "Use my GPS" or "Pick on Google Maps" below to set the location.'
+      }
+      slotProps={{
+        input: { readOnly: true },
+        htmlInput: { readOnly: true },
+      }}
+      sx={{
+        '& .MuiInputBase-root': { bgcolor: 'action.hover' },
+        '& .MuiInputBase-input': {
+          cursor: 'default',
+          caretColor: 'transparent',
+        },
+      }}
+    />
+  );
+}
+
 function AssetCard({
   asset,
   categoryName,
@@ -715,13 +767,7 @@ function CreateAssetDialogForm({
             ? '✓ Đã cập nhật vị trí GPS hiện tại lên Google Maps.'
             : '✓ Updated Google Maps pin to your current GPS location.',
         );
-        if (!locationText || locationText === 'Chưa cập nhật địa chỉ' || locationText === 'Công trình mới') {
-          setLocationText(
-            locale === 'vi'
-              ? `Vị trí hiện tại (${lat.toFixed(4)}, ${lon.toFixed(4)})`
-              : `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
-          );
-        }
+        setLocationText(formatGpsLocationText(locale, lat, lon));
       },
       () => {
         setGpsLoading(false);
@@ -740,6 +786,7 @@ function CreateAssetDialogForm({
   const heightValue = parseDimension(heightText);
   const areaValue = parseDimension(areaText);
   const dimensionsInvalid = heightValue === undefined || areaValue === undefined;
+  const locationMissing = !locationText.trim();
   const isNoFlyZone =
     latitude != null &&
     longitude != null &&
@@ -747,7 +794,7 @@ function CreateAssetDialogForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (dimensionsInvalid || isNoFlyZone) return;
+    if (dimensionsInvalid || isNoFlyZone || locationMissing) return;
     onSubmit(
       {
         code,
@@ -841,14 +888,7 @@ function CreateAssetDialogForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <TextField
-            label={t('Location')}
-            required
-            value={locationText}
-            onChange={(e) => setLocationText(e.target.value)}
-            placeholder={t('e.g. Km 12+300, Highway 1A')}
-            helperText={t('Street address or structure location description')}
-          />
+          <ReadOnlyLocationField value={locationText} />
           <GoogleMapsLocationCard
             latitude={latitude}
             longitude={longitude}
@@ -862,6 +902,7 @@ function CreateAssetDialogForm({
               setLongitude(null);
               setMapPlaceLabel(null);
               setGpsFeedback(null);
+              setLocationText('');
             }}
           />
 
@@ -1060,7 +1101,7 @@ function CreateAssetDialogForm({
         <Button
           type="submit"
           variant="contained"
-          disabled={pending || dimensionsInvalid || isNoFlyZone}
+          disabled={pending || dimensionsInvalid || isNoFlyZone || locationMissing}
         >
           {pending ? 'Creating…' : 'Create Asset'}
         </Button>
@@ -1076,9 +1117,7 @@ function CreateAssetDialogForm({
           setLatitude(lat);
           setLongitude(lon);
           setMapPlaceLabel(placeName ?? null);
-          if (placeName && (!locationText || locationText === 'Công trình mới')) {
-            setLocationText(placeName);
-          }
+          setLocationText(formatPinnedLocationText(locale, lat, lon, placeName));
           setGpsFeedback(
             locale === 'vi'
               ? `✓ Đã ghim vị trí trên Google Maps${placeName ? `: ${placeName}` : ''}.`
@@ -1454,6 +1493,7 @@ function AssetDetailDrawer({
             ? '✓ Đã cập nhật vị trí GPS hiện tại lên Google Maps.'
             : '✓ Updated Google Maps pin to your current GPS location.',
         );
+        setEditLocation(formatGpsLocationText(locale, lat, lon));
       },
       () => {
         setEditGpsLoading(false);
@@ -1754,13 +1794,7 @@ function AssetDetailDrawer({
                 rows={3}
                 fullWidth
               />
-              <TextField
-                label={t('Location')}
-                value={editLocation}
-                onChange={(e) => setEditLocation(e.target.value)}
-                required
-                fullWidth
-              />
+              <ReadOnlyLocationField value={editLocation} />
               <GoogleMapsLocationCard
                 latitude={editLatitude}
                 longitude={editLongitude}
@@ -1774,6 +1808,7 @@ function AssetDetailDrawer({
                   setEditLongitude(null);
                   setEditPlaceLabel(null);
                   setEditGpsFeedback(null);
+                  setEditLocation('');
                 }}
               />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -2472,9 +2507,7 @@ function AssetDetailDrawer({
           setEditLatitude(lat);
           setEditLongitude(lon);
           setEditPlaceLabel(placeName ?? null);
-          if (placeName && !editLocation.trim()) {
-            setEditLocation(placeName);
-          }
+          setEditLocation(formatPinnedLocationText(locale, lat, lon, placeName));
           setEditGpsFeedback(
             locale === 'vi'
               ? `✓ Đã ghim vị trí trên Google Maps${placeName ? `: ${placeName}` : ''}.`
