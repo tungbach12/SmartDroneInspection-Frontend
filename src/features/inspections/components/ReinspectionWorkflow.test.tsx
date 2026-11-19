@@ -139,4 +139,52 @@ describe('Standalone Re-inspection components', () => {
       });
     });
   });
+
+  it('shows when a RESOLVED verdict expires and flags an expired one', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const validItem: ReinspectionVerificationItem = {
+      ...baseVerification,
+      newEvidenceId: 'ev-after-1',
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const { rerender } = renderWithRouter(
+      <QueryClientProvider client={queryClient}>
+        <ReinspectionVerificationSection
+          inspectionId="reinsp-1"
+          sourceInspectionId="orig-1"
+          items={[validItem]}
+          evidenceList={freshEvidence}
+          onUpdate={vi.fn()}
+          readOnly
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/stays valid until/i)).toBeTruthy();
+
+    const expiredItem: ReinspectionVerificationItem = {
+      ...baseVerification,
+      newEvidenceId: 'ev-after-1',
+      validUntil: new Date(Date.now() - 60 * 1000).toISOString(),
+    };
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ReinspectionVerificationSection
+          inspectionId="reinsp-1"
+          sourceInspectionId="orig-1"
+          items={[expiredItem]}
+          evidenceList={freshEvidence}
+          onUpdate={vi.fn()}
+          readOnly
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/expired and must be re-verified|expired on/i)).toBeTruthy();
+  });
 });

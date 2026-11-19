@@ -39,6 +39,8 @@ import { ReportAuthoringPanel } from '@/features/reports/components/ReportAuthor
 import { ReportDerivedSections } from '@/features/reports/components/ReportDerivedSections';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import type { InspectionReport } from '../api/inspectionApi';
+import { summarizeVerdictExpiry } from '../lib/verdictExpiry';
+import type { ReinspectionVerificationItem } from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
@@ -219,6 +221,7 @@ export default function InspectionReportPage() {
 
   return (
     <Stack className="trace-ledger-workspace" spacing={2}>
+      {openVersion && <VerdictExpiryBanner verifications={reinspectionVerifications?.data} />}
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
           {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
@@ -661,4 +664,57 @@ export default function InspectionReportPage() {
       </ConfirmDialog>
     </Stack>
   );
+}
+
+/**
+ * Warns before the report stage fails. The backend blocks authoring, submission and publication
+ * with `RESOLUTION_EXPIRED` once a RESOLVED re-inspection verdict lapses, so surface it here
+ * instead of letting the Inspector discover it at the review gate.
+ */
+function VerdictExpiryBanner({
+  verifications,
+}: {
+  verifications: ReinspectionVerificationItem[] | null | undefined;
+}) {
+  const { t, formatDateTime } = useLocale();
+  const { expired, expiringSoon } = summarizeVerdictExpiry(verifications);
+
+  if (expired.length > 0) {
+    const earliest = expired
+      .map((item) => item.validUntil)
+      .filter((value): value is string => Boolean(value))
+      .sort()[0];
+    return (
+      <Alert severity="error" sx={{ borderRadius: '8px' }}>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {t(
+            '{count} RESOLVED re-inspection verdict(s) have expired. Re-verify those defects with fresh evidence before authoring, submitting or publishing this report.',
+          ).replace('{count}', String(expired.length))}
+        </Typography>
+        {earliest && (
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
+            {t('Earliest expiry').concat(`: ${formatDateTime(earliest)}`)}
+          </Typography>
+        )}
+      </Alert>
+    );
+  }
+
+  if (expiringSoon.length > 0) {
+    const next = expiringSoon
+      .map((item) => item.validUntil)
+      .filter((value): value is string => Boolean(value))
+      .sort()[0];
+    return (
+      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+        {t(
+          '{count} RESOLVED re-inspection verdict(s) expire within 14 days. Complete and publish this report before then, or re-verify the defects.',
+        )
+          .replace('{count}', String(expiringSoon.length))
+          .concat(next ? ` ${t('Next expiry').concat(`: ${formatDateTime(next)}`)}` : '')}
+      </Alert>
+    );
+  }
+
+  return null;
 }
