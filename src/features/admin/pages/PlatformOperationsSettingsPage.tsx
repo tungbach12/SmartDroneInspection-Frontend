@@ -17,7 +17,14 @@ import { operationsSettingsApi } from '../api/operationsSettingsApi';
 const MIN_TIMEOUT_HOURS = 1;
 const MAX_TIMEOUT_HOURS = 720;
 
-export default function PlatformOperationsSettingsPage() {
+interface PlatformOperationsSettingsPageProps {
+  /** Rendered inside the Platform settings hub, which owns the page header. */
+  embedded?: boolean;
+}
+
+export default function PlatformOperationsSettingsPage({
+  embedded = false,
+}: PlatformOperationsSettingsPageProps) {
   const { locale, t } = useLocale();
   const queryClient = useQueryClient();
 
@@ -76,14 +83,16 @@ export default function PlatformOperationsSettingsPage() {
   };
 
   return (
-    <Box className="workspace-page" sx={{ width: '100%', maxWidth: 960, mx: 'auto' }}>
-      <PageHeader
-        title={t('Operations settings')}
-        breadcrumbs={[
-          { label: t('Governance'), to: '/admin/dashboard' },
-          { label: t('Operations settings') },
-        ]}
-      />
+    <Box sx={embedded ? undefined : { width: '100%', maxWidth: 960, mx: 'auto' }}>
+      {!embedded && (
+        <PageHeader
+          title={t('Operations settings')}
+          breadcrumbs={[
+            { label: t('Governance'), to: '/admin/dashboard' },
+            { label: t('Operations settings') },
+          ]}
+        />
+      )}
 
       <QueryState
         isLoading={settingsQuery.isLoading}

@@ -91,7 +91,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '12px',
+        borderRadius: '10px',
         p: '20px',
         boxShadow: 'none',
         display: 'flex',
@@ -126,7 +126,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   width: 8,
                   height: 8,
                   borderRadius: '2px',
-                  bgcolor: '#2B84EB',
+                  bgcolor: '#3758F9',
                   flexShrink: 0,
                 }}
               />
@@ -157,22 +157,13 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                 sx={{
                   fontSize: '0.875rem',
                   fontWeight: 500,
-                  color: '#16A34A',
+                  color: '#15803D',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.5,
                 }}
               >
                 <span>{t(trendBadge)}</span>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
               </Box>
               <Typography
                 component="span"
@@ -220,28 +211,6 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
               >
                 {secondaryHeadline}
               </Typography>
-              <Box
-                component="span"
-                sx={{
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#16A34A',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                }}
-              >
-                <span>+8.2%</span>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </Box>
             </Box>
           </Box>
         </Box>
@@ -288,8 +257,8 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
         >
           <defs>
             <linearGradient id="nextadminAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2B84EB" stopOpacity="0.2" />
-              <stop offset="95%" stopColor="#2B84EB" stopOpacity="0" />
+              <stop offset="5%" stopColor="#3758F9" stopOpacity="0.18" />
+              <stop offset="95%" stopColor="#3758F9" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -311,7 +280,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
                   x={paddingLeft - 10}
                   y={y + 4}
                   textAnchor="end"
-                  fill="#71717A"
+                  fill="#52525B"
                   fontSize="12"
                   fontFamily="Inter, sans-serif"
                   fontWeight="400"
@@ -329,7 +298,7 @@ export const LyticPerformanceChart: React.FC<LyticPerformanceChartProps> = ({
           <path
             d={series1Path}
             fill="none"
-            stroke="#2B84EB"
+            stroke="#3758F9"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"

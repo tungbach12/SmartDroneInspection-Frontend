@@ -379,7 +379,6 @@ export interface PlatformAiAnalytics {
 export interface UpdatePlatformAiSettingsInput {
   autoConfirmEnabled: boolean;
   autoConfirmThreshold: number;
-  applyToPending?: boolean;
 }
 
 export type InspectionStatus =

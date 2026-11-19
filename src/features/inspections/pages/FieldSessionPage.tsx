@@ -839,6 +839,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                     )}
 
                     {inspection.status === 'SCHEDULED' &&
+                      !isManagerOrAdmin &&
                       hasPermit &&
                       permitVerificationStatus !== 'REJECTED' && (
                         <Button
@@ -876,6 +877,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                 )}
 
                 {inspection.status === 'SCHEDULED' &&
+                  !isManagerOrAdmin &&
                   (!hasPermit || permitVerificationStatus === 'REJECTED' || replacePermitOpen) && (
                   <Stack spacing={2}>
                     {replacePermitOpen && isPermitApproved && (

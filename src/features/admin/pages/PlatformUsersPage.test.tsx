@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -34,6 +34,13 @@ const PLATFORM_ADMIN = {
   roles: ['ADMIN'],
 };
 
+const PLATFORM_MANAGER = {
+  id: 'manager-1',
+  email: 'platform.manager@example.test',
+  fullName: 'Platform Manager',
+  roles: ['MANAGER'],
+};
+
 const CUSTOMER = {
   id: 'org-manager-1',
   email: 'org.manager@example.test',
@@ -55,7 +62,7 @@ function renderWithClient() {
 describe('PlatformUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.list.mockResolvedValue([PLATFORM_ADMIN, CUSTOMER]);
+    mocks.list.mockResolvedValue([PLATFORM_ADMIN, PLATFORM_MANAGER, CUSTOMER]);
     mocks.create.mockResolvedValue({
       user: { ...PLATFORM_ADMIN, id: 'new-1', email: 'new.admin@example.test' },
       temporaryPassword: 'Temp-Password-123',
@@ -71,14 +78,58 @@ describe('PlatformUsersPage', () => {
     cleanup();
   });
 
-  it('lists the administrator-managed accounts with their roles', async () => {
+  it('lists the administrator-managed accounts with their roles in a clean table', async () => {
     renderWithClient();
 
     expect(await screen.findByText('platform.admin@example.test')).toBeTruthy();
     expect(screen.getByText('org.manager@example.test')).toBeTruthy();
-    expect(screen.getAllByText('Customer').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ADMIN').length).toBeGreaterThan(0);
     expect(screen.getAllByText('CUSTOMER').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('filters accounts by role and search query', async () => {
+    renderWithClient();
+    await screen.findByText('platform.admin@example.test');
+
+    fireEvent.change(screen.getByLabelText('Search accounts'), {
+      target: { value: 'org.manager' },
+    });
+    expect(screen.getByText('org.manager@example.test')).toBeTruthy();
+    expect(screen.queryByText('platform.admin@example.test')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Role' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Admin' }));
+    expect(screen.getByText('platform.admin@example.test')).toBeTruthy();
+    expect(screen.queryByText('org.manager@example.test')).toBeNull();
+  });
+
+  it('opens a centered account dialog with the account and security tab', async () => {
+    renderWithClient();
+
+    fireEvent.click(await screen.findByText('Platform Admin'));
+
+    expect(await screen.findByRole('tab', { name: 'Account & Security' })).toBeTruthy();
+    expect(screen.getByText('Platform admin')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reset password' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Suspend' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+  });
+
+  it('protects the last active administrator from suspension', async () => {
+    renderWithClient();
+
+    fireEvent.click(await screen.findByText('Platform Admin'));
+    await screen.findByRole('tab', { name: 'Account & Security' });
+
+    expect(
+      screen.getByText(
+        /last active platform administrator/i,
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Suspend' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('shows the one-time temporary password after creating an account', async () => {
@@ -101,13 +152,14 @@ describe('PlatformUsersPage', () => {
     renderWithClient();
 
     fireEvent.click(await screen.findByRole('button', { name: 'New account' }));
-    fireEvent.change(await screen.findByLabelText(/Email address/), {
+    const createDialog = await screen.findByRole('dialog');
+    fireEvent.change(within(createDialog).getByLabelText(/Email address/), {
       target: { value: 'pm@example.test' },
     });
-    fireEvent.change(screen.getByLabelText(/Full name/), {
+    fireEvent.change(within(createDialog).getByLabelText(/Full name/), {
       target: { value: 'Platform Manager User' },
     });
-    fireEvent.mouseDown(screen.getByLabelText(/Role/));
+    fireEvent.mouseDown(within(createDialog).getByLabelText(/^Role$/));
     fireEvent.click(await screen.findByRole('option', { name: 'Platform manager' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
@@ -120,34 +172,35 @@ describe('PlatformUsersPage', () => {
     );
   });
 
-  it('resets the password of another account', async () => {
+  it('resets the password of another account from the account dialog', async () => {
     renderWithClient();
 
-    const resetButtons = await screen.findAllByRole('button', { name: 'Reset password' });
-    const first = resetButtons[0];
-    if (!first) throw new Error('expected a reset button');
-    fireEvent.click(first);
+    fireEvent.click(await screen.findByText('Organization Manager'));
+    await screen.findByRole('tab', { name: 'Account & Security' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
 
-    const dialog = await screen.findByRole('dialog');
-    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
+    const dialogs = await screen.findAllByRole('dialog');
+    const confirmDialog = dialogs.at(-1);
+    const confirmBtn = Array.from(confirmDialog?.querySelectorAll('button') ?? []).find((b) =>
       b.textContent?.includes('Reset password'),
     );
     if (!confirmBtn) throw new Error('expected confirm reset button');
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(mocks.resetPassword).toHaveBeenCalled());
+    expect(await screen.findByText('Reset-Password-456')).toBeTruthy();
   });
 
   it('suspends an account through the named status change', async () => {
     renderWithClient();
 
-    const suspendButtons = await screen.findAllByRole('button', { name: 'Suspend' });
-    const first = suspendButtons[0];
-    if (!first) throw new Error('expected a suspend button');
-    fireEvent.click(first);
+    fireEvent.click(await screen.findByText('Organization Manager'));
+    await screen.findByRole('tab', { name: 'Account & Security' });
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
-    const dialog = await screen.findByRole('dialog');
-    const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
+    const dialogs = await screen.findAllByRole('dialog');
+    const confirmDialog = dialogs.at(-1);
+    const confirmBtn = Array.from(confirmDialog?.querySelectorAll('button') ?? []).find((b) =>
       b.textContent?.includes('Suspend'),
     );
     if (!confirmBtn) throw new Error('expected confirm suspend button');
@@ -158,7 +211,5 @@ describe('PlatformUsersPage', () => {
         status: 'SUSPENDED',
       }),
     );
-    const [calledUserId] = mocks.updateStatus.mock.calls[0] as [string];
-    expect([PLATFORM_ADMIN.id, CUSTOMER.id]).toContain(calledUserId);
   });
 });

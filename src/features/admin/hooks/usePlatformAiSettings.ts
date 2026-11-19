@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
   inspectionApi,
   type PlatformAiAnalytics,
@@ -36,6 +37,7 @@ export function usePlatformAiAnalytics(enabled = true) {
 }
 
 export function useUpdatePlatformAiSettings() {
+  const { t } = useLocale();
   const contextClient = useContext(QueryClientContext);
   const client = contextClient ?? fallbackClient;
   const showToast = useToastStore((state) => state.showToast);
@@ -46,14 +48,12 @@ export function useUpdatePlatformAiSettings() {
         client.setQueryData(platformAiSettingsKey, data);
         client.invalidateQueries({ queryKey: ['inspections'] });
         showToast(
-          data.newlyAutoConfirmedCount > 0
-            ? `Đã lưu ngưỡng AI (${data.autoConfirmThreshold}%) và tự động xác nhận ${data.newlyAutoConfirmedCount} finding đang chờ.`
-            : `Đã cập nhật ngưỡng tự động xác nhận AI (${data.autoConfirmThreshold}%).`,
+          `${t('Updated AI auto-confirm threshold')} (${data.autoConfirmThreshold}%).`,
           'success',
         );
       },
       onError: (error) =>
-        showToast(getErrorMessage(error, 'Không thể cập nhật cấu hình ngưỡng AI.'), 'error'),
+        showToast(getErrorMessage(error, t('Could not update AI threshold configuration.')), 'error'),
     },
     client,
   );

@@ -45,11 +45,12 @@ const inspectorAreas: FocusArea[] = [
 ];
 
 const adminAreas: FocusArea[] = [
-  { label: 'Platform accounts', description: 'Accounts and roles', icon: ManageAccountsOutlined, path: '/admin/platform-users' },
-  { label: 'Finance settings', description: 'Commission & tax rates', icon: TuneRounded, path: '/admin/finance-settings' },
-  { label: 'AI configuration', description: 'Auto-confirm & model stats', icon: AutoAwesomeOutlined, path: '/admin/ai-settings' },
   { label: 'Asset catalog', description: 'Inspection classifications', icon: CategoryOutlined, path: '/admin/asset-catalog' },
+  { label: 'Drone & Flight config', description: 'Checklists, documents & safety', icon: TuneRounded, path: '/admin/flight-config' },
   { label: 'Onboarding reviews', description: 'Airspace & drone reviews', icon: FactCheckOutlined, path: '/admin/onboarding-reviews' },
+  { label: 'Platform accounts', description: 'Accounts and roles', icon: ManageAccountsOutlined, path: '/admin/platform-users' },
+  { label: 'Platform settings', description: 'Finance, operations & AI', icon: AutoAwesomeOutlined, path: '/admin/platform-settings' },
+  { label: 'Activity log', description: 'Privileged action audit', icon: FactCheckOutlined, path: '/admin/audit-logs' },
   { label: 'Assets', description: 'Asset records', icon: ApartmentOutlined, path: '/admin/assets' },
   { label: 'Inspections', description: 'Inspection records', icon: FlightTakeoffRounded, path: '/admin/inspections' },
 ];
@@ -432,10 +433,10 @@ function OperationsAndPlatformDashboard() {
             component="h1"
             sx={{
               color: 'text.primary',
-              fontSize: '1.5rem',
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              lineHeight: '2rem',
+              fontSize: '1.625rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
             }}
           >
             {t('Overview')}
@@ -443,7 +444,7 @@ function OperationsAndPlatformDashboard() {
           <Typography
             variant="body2"
             sx={{
-              color: '#71717A',
+              color: 'text.secondary',
               fontSize: '0.875rem',
               fontWeight: 400,
               lineHeight: '1.25rem',
@@ -475,8 +476,8 @@ function OperationsAndPlatformDashboard() {
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            lg: 'repeat(4, 1fr)',
+            sm: `repeat(${Math.min(2, Math.max(1, liveMetrics.length))}, 1fr)`,
+            lg: `repeat(${Math.min(4, Math.max(1, liveMetrics.length))}, minmax(0, 1fr))`,
           },
           gap: 2.5,
           mb: 3,
@@ -489,6 +490,7 @@ function OperationsAndPlatformDashboard() {
             value={st.value}
             change={st.change}
             positive={st.positive}
+            showTrend={st.value !== '0' && st.value !== '—' && !isAdmin}
             subtext={st.subtext}
             iconType={st.iconType as any}
           />
@@ -560,7 +562,7 @@ function OperationsAndPlatformDashboard() {
                 bgcolor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 p: '20px',
                 boxShadow: 'none',
               }}
@@ -601,7 +603,7 @@ function OperationsAndPlatformDashboard() {
                       textTransform: 'none',
                       '&:hover': {
                         bgcolor: 'action.hover',
-                        borderColor: '#2B84EB',
+                        borderColor: 'primary.main',
                       },
                     }}
                     startIcon={
@@ -610,8 +612,8 @@ function OperationsAndPlatformDashboard() {
                           width: 32,
                           height: 32,
                           borderRadius: '8px',
-                          bgcolor: 'rgba(43, 132, 235, 0.10)',
-                          color: '#2B84EB',
+                          bgcolor: 'rgba(55, 88, 249, 0.10)',
+                          color: 'primary.main',
                           display: 'grid',
                           placeItems: 'center',
                         }}
@@ -621,7 +623,7 @@ function OperationsAndPlatformDashboard() {
                     }
                     endIcon={
                       <ArrowForwardRounded
-                        sx={{ color: '#71717A', fontSize: 16, ml: 'auto' }}
+                        sx={{ color: 'text.secondary', fontSize: 16, ml: 'auto' }}
                       />
                     }
                   >
@@ -639,7 +641,7 @@ function OperationsAndPlatformDashboard() {
                       <Typography
                         sx={{
                           fontSize: '0.75rem',
-                          color: '#71717A',
+                          color: 'text.secondary',
                           lineHeight: 1.2,
                           mt: 0.25,
                         }}

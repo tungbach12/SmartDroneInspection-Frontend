@@ -3,8 +3,11 @@ import type { Role } from '@/features/auth/store/authStore';
 import {
   canAccessSection,
   getAvailablePortals,
+  getLegacyAdminRedirectPath,
   getLegacySectionRedirectPath,
   getPortalEntryPath,
+  getSectionPath,
+  LEGACY_ADMIN_REDIRECTS,
   type PortalId,
   type SectionId,
 } from './accessPolicy';
@@ -26,13 +29,13 @@ const expectedAccess: Record<
     messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
+    'flight-drone-config': ['ADMIN'],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
     'platform-users': ['ADMIN'],
-    'finance-settings': ['ADMIN'],
-    'operations-settings': ['ADMIN'],
-    'pilot-license-classes': ['ADMIN'],
+    'platform-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
+    'audit-logs': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],
     'finance-history': [],
@@ -44,13 +47,13 @@ const expectedAccess: Record<
     messages: ['MANAGER'],
     assets: ['MANAGER'],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['MANAGER'],
     reports: ['MANAGER'],
     'platform-users': ['MANAGER'],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': ['MANAGER'],
+    'audit-logs': [],
     'inspector-drones': [],
     notifications: ['MANAGER'],
     'finance-history': ['MANAGER'],
@@ -62,13 +65,13 @@ const expectedAccess: Record<
     messages: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['CUSTOMER'],
     reports: ['CUSTOMER'],
     'platform-users': [],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': [],
+    'audit-logs': [],
     'inspector-drones': [],
     notifications: ['CUSTOMER'],
     'finance-history': ['CUSTOMER'],
@@ -80,13 +83,13 @@ const expectedAccess: Record<
     messages: ['INSPECTOR'],
     assets: [],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['INSPECTOR'],
     reports: ['INSPECTOR'],
     'platform-users': [],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': [],
+    'audit-logs': [],
     'inspector-drones': ['INSPECTOR'],
     notifications: ['INSPECTOR'],
     'finance-history': ['INSPECTOR'],
@@ -137,6 +140,48 @@ describe('role-aware portal access policy', () => {
     expect(
       getLegacySectionRedirectPath(['CUSTOMER', 'INSPECTOR'], 'inspections'),
     ).toBe('/portals?section=inspections');
+  });
+
+  it('keeps the drone and flight config workspace on the admin flight-config URL', () => {
+    expect(getSectionPath('admin', 'flight-drone-config')).toBe(
+      '/admin/flight-config',
+    );
+    expect(getLegacySectionRedirectPath(['ADMIN'], 'flight-drone-config')).toBe(
+      '/admin/flight-config',
+    );
+  });
+
+  it('consolidates governance settings under platform-settings and keeps legacy targets', () => {
+    expect(getSectionPath('admin', 'platform-settings')).toBe(
+      '/admin/platform-settings',
+    );
+    expect(getLegacySectionRedirectPath(['ADMIN'], 'platform-settings')).toBe(
+      '/admin/platform-settings',
+    );
+    expect(LEGACY_ADMIN_REDIRECTS).toEqual({
+      'pilot-license-classes': '/admin/flight-config?tab=license-classes',
+      'finance-settings': '/admin/platform-settings?tab=finance',
+      'operations-settings': '/admin/platform-settings?tab=operations',
+      'ai-settings': '/admin/platform-settings?tab=ai',
+    });
+    expect(getLegacyAdminRedirectPath('ai-settings')).toBe(
+      '/admin/platform-settings?tab=ai',
+    );
+    expect(getLegacyAdminRedirectPath('platform-users')).toBeUndefined();
+  });
+
+  it('exposes only six governance sections on the admin portal', () => {
+    const governanceSections: SectionId[] = [
+      'asset-catalog',
+      'flight-drone-config',
+      'onboarding-reviews',
+      'platform-users',
+      'platform-settings',
+      'audit-logs',
+    ];
+    expect(governanceSections.every((section) => canAccessSection('admin', section, ['ADMIN']))).toBe(
+      true,
+    );
   });
 
 

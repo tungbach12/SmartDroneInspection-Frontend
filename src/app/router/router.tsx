@@ -12,7 +12,9 @@ import {
   getPortalEntryPath,
   getPortalRoles,
   getSectionPath,
+  getSectionPathSegment,
   getSectionRoles,
+  LEGACY_ADMIN_REDIRECTS,
   PORTAL_IDS,
   SECTION_IDS,
   type PortalId,
@@ -45,6 +47,9 @@ const DashboardPage = lazy(
 );
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'));
 const AssetCatalogPage = lazy(() => import('@/features/assets/pages/AssetCatalogPage'));
+const FlightDroneConfigPage = lazy(
+  () => import('@/features/assets/pages/FlightDroneConfigPage'),
+);
 const InspectorDroneRegistrationPage = lazy(
   () => import('@/features/assets/pages/InspectorDroneRegistrationPage'),
 );
@@ -101,20 +106,14 @@ const ContractsPage = lazy(
 const ContractInboxPage = lazy(
   () => import('@/features/contracts/pages/ContractInboxPage'),
 );
-const PlatformFinanceSettingsPage = lazy(
-  () => import('@/features/admin/pages/PlatformFinanceSettingsPage'),
-);
-const PlatformOperationsSettingsPage = lazy(
-  () => import('@/features/admin/pages/PlatformOperationsSettingsPage'),
-);
-const PilotLicenseClassesPage = lazy(
-  () => import('@/features/admin/pages/PilotLicenseClassesPage'),
-);
-const PlatformAiSettingsPage = lazy(
-  () => import('@/features/admin/pages/PlatformAiSettingsPage'),
+const PlatformSettingsHubPage = lazy(
+  () => import('@/features/admin/pages/PlatformSettingsHubPage'),
 );
 const Mf1ReviewPage = lazy(
   () => import('@/features/admin/pages/Mf1ReviewPage'),
+);
+const AdminAuditLogPage = lazy(
+  () => import('@/features/admin/pages/AdminAuditLogPage'),
 );
 const NotificationsPage = lazy(
   () => import('@/features/notifications/pages/NotificationsPage'),
@@ -126,13 +125,13 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   messages: <ContractInboxPage />,
   assets: <AssetsPage />,
   'asset-catalog': <AssetCatalogPage />,
+  'flight-drone-config': <FlightDroneConfigPage />,
   inspections: <InspectionsPage />,
   reports: <ReportsPage />,
   'platform-users': <PlatformUsersPage />,
-  'finance-settings': <PlatformFinanceSettingsPage />,
-  'operations-settings': <PlatformOperationsSettingsPage />,
-  'pilot-license-classes': <PilotLicenseClassesPage />,
+  'platform-settings': <PlatformSettingsHubPage />,
   'onboarding-reviews': <Mf1ReviewPage />,
+  'audit-logs': <AdminAuditLogPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   notifications: <NotificationsPage />,
   'finance-history': <FinanceHistoryPage />,
@@ -212,7 +211,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
       ...SECTION_IDS.filter(
         (section) => getSectionRoles(portal, section).length > 0,
       ).map((section) => ({
-        path: section,
+        path: getSectionPathSegment(section),
         element: (
           <RequireAuth roles={getSectionRoles(portal, section)}>
             {resolvePortalSectionElement(portal, section)}
@@ -229,7 +228,7 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
         children: [
           { index: true, element: <InspectionWorkspaceIndexRedirect /> },
           { path: 'tracking', element: <InspectionProgressPage /> },
-          ...(portal === 'client' || portal === 'admin' || portal === 'manager'
+          ...(portal === 'admin' || portal === 'manager'
             ? [
                 {
                   path: 'audit',
@@ -239,6 +238,10 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                     </RequireAuth>
                   ),
                 },
+              ]
+            : []),
+          ...(portal === 'client' || portal === 'admin' || portal === 'manager'
+            ? [
                 {
                   path: 'review',
                   element: (
@@ -251,11 +254,15 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                     </RequireAuth>
                   ),
                 },
+              ]
+            : []),
+          ...(portal === 'client' || portal === 'manager'
+            ? [
                 {
                   path: 'settlement',
                   element: (
-                    <RequireAuth roles={['CUSTOMER', 'ADMIN', 'MANAGER']}>
-                      {portal === 'manager' || portal === 'admin' ? (
+                    <RequireAuth roles={['CUSTOMER', 'MANAGER']}>
+                      {portal === 'manager' ? (
                         <ManagerReportReviewPage stage="settlement" />
                       ) : (
                         <CustomerReportDeliverablePage stage="settlement" />
@@ -268,38 +275,46 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
           { path: 'evidence', element: <InspectionEvidencePage /> },
           { path: 'findings', element: <InspectionFindingsPage /> },
           { path: 'report', element: <InspectionReportStage /> },
-          {
-            path: 'permit',
-            element: (
-              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
-                <FieldSessionPage stage="permit" />
-              </RequireAuth>
-            ),
-          },
-          {
-            path: 'pre-flight',
-            element: (
-              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
-                <FieldSessionPage stage="pre-flight" />
-              </RequireAuth>
-            ),
-          },
-          {
-            path: 'field-session',
-            element: (
-              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
-                <FieldSessionPage stage="flight" />
-              </RequireAuth>
-            ),
-          },
-          {
-            path: 'post-flight',
-            element: (
-              <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
-                <FieldSessionPage stage="post-flight" />
-              </RequireAuth>
-            ),
-          },
+          ...(portal === 'admin' || portal === 'manager' || portal === 'operations'
+            ? [
+                {
+                  path: 'permit',
+                  element: (
+                    <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                      <FieldSessionPage stage="permit" />
+                    </RequireAuth>
+                  ),
+                },
+              ]
+            : []),
+          ...(portal === 'manager' || portal === 'operations'
+            ? [
+                {
+                  path: 'pre-flight',
+                  element: (
+                    <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                      <FieldSessionPage stage="pre-flight" />
+                    </RequireAuth>
+                  ),
+                },
+                {
+                  path: 'field-session',
+                  element: (
+                    <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                      <FieldSessionPage stage="flight" />
+                    </RequireAuth>
+                  ),
+                },
+                {
+                  path: 'post-flight',
+                  element: (
+                    <RequireAuth roles={['INSPECTOR', 'ADMIN', 'MANAGER']}>
+                      <FieldSessionPage stage="post-flight" />
+                    </RequireAuth>
+                  ),
+                },
+              ]
+            : []),
         ],
       },
       {
@@ -332,14 +347,10 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
       },
       ...(portal === 'admin'
         ? [
-            {
-              path: 'ai-settings',
-              element: (
-                <RequireAuth roles={['ADMIN']}>
-                  <PlatformAiSettingsPage />
-                </RequireAuth>
-              ),
-            },
+            ...Object.entries(LEGACY_ADMIN_REDIRECTS).map(([path, target]) => ({
+              path,
+              element: <Navigate to={target} replace />,
+            })),
           ]
         : []),
     ],
@@ -410,7 +421,7 @@ export const router = createBrowserRouter([
           { path: 'dashboard', element: <PortalEntryRedirect /> },
           ...SECTION_IDS.filter((section) => section !== 'dashboard').map(
             (section) => ({
-              path: section,
+              path: getSectionPathSegment(section),
               element: <LegacySectionRedirect section={section} />,
             }),
           ),

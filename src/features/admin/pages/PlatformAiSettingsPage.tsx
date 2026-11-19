@@ -5,16 +5,18 @@ import { AdminAiModelAnalyticsPanel } from '../components/AdminAiModelAnalyticsP
 import { usePlatformAiAnalytics } from '../hooks/usePlatformAiSettings';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-export default function PlatformAiSettingsPage() {
+export default function PlatformAiSettingsPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLocale();
   const analyticsQuery = usePlatformAiAnalytics(true);
 
   return (
-    <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
-      <PageHeader
-        title={t('AI Configuration & Model Performance')}
-        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('AI settings') }]}
-      />
+    <Box sx={embedded ? undefined : { width: '100%', maxWidth: 1200, mx: 'auto' }}>
+      {!embedded && (
+        <PageHeader
+          title={t('AI Configuration & Model Performance')}
+          breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('AI settings') }]}
+        />
+      )}
 
       <QueryState
         isLoading={analyticsQuery.isLoading}

@@ -56,6 +56,7 @@ describe('PlatformFinanceSettingsPage', () => {
 
     fireEvent.change(commInput, { target: { value: '20' } });
     fireEvent.click(screen.getByRole('button', { name: /Save Rates/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Confirm save/i }));
 
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenCalledWith({

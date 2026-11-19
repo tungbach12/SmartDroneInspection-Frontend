@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Box,
   InputAdornment,
@@ -10,16 +10,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import UnfoldMoreRounded from '@mui/icons-material/UnfoldMoreRounded';
 
 export interface DataTableColumn<T> {
   id: string;
   label: string;
   render: (row: T) => ReactNode;
+  sortValue?: (row: T) => string | number | null | undefined;
   width?: string | number;
   align?: 'left' | 'right' | 'center';
   noWrap?: boolean;
@@ -59,13 +60,41 @@ export function DataTable<T>({
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const normalizedQuery = query.trim().toLowerCase();
 
   const filtered = searchable && normalizedQuery && searchPredicate
     ? rows.filter((row) => searchPredicate(row, normalizedQuery))
     : rows;
 
-  const paged = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const sorted = useMemo(() => {
+    if (!sortBy) return filtered;
+    const col = columns.find((c) => c.id === sortBy);
+    if (!col?.sortValue) return filtered;
+    const extract = col.sortValue;
+    return [...filtered].sort((a, b) => {
+      const av = extract(a) ?? '';
+      const bv = extract(b) ?? '';
+      const cmp =
+        typeof av === 'number' && typeof bv === 'number'
+          ? av - bv
+          : String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [columns, filtered, sortBy, sortDir]);
+
+  const paged = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const toggleSort = (columnId: string) => {
+    if (sortBy === columnId) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(columnId);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
 
   return (
     <Paper
@@ -75,7 +104,7 @@ export function DataTable<T>({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '12px',
+        borderRadius: '10px',
         boxShadow: 'none',
       }}
     >
@@ -153,25 +182,31 @@ export function DataTable<T>({
                   key={column.id}
                   width={column.width}
                   align={column.align}
+                  sortDirection={sortBy === column.id ? sortDir : false}
                   sx={{
                     bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                    color: '#71717A',
-                    fontSize: '0.8125rem',
+                    color: 'text.secondary',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
-                    letterSpacing: '0.01em',
-                    py: dense ? 1.25 : 1.5,
-                    px: dense ? 1.5 : 2.5,
+                    letterSpacing: '0.02em',
+                    py: dense ? 1 : 1.25,
+                    px: dense ? 1.5 : 2,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                     whiteSpace: column.noWrap ? 'nowrap' : 'normal',
                   }}
                 >
-                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                    {column.label}
-                    {column.id !== 'actions' && column.id !== 'action' && column.label !== '' && (
-                      <UnfoldMoreRounded sx={{ fontSize: 16, color: '#A1A1AA' }} />
-                    )}
-                  </Box>
+                  {column.sortValue ? (
+                    <TableSortLabel
+                      active={sortBy === column.id}
+                      direction={sortBy === column.id ? sortDir : 'asc'}
+                      onClick={() => toggleSort(column.id)}
+                    >
+                      {column.label}
+                    </TableSortLabel>
+                  ) : (
+                    column.label
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -218,8 +253,8 @@ export function DataTable<T>({
                       key={column.id}
                       align={column.align}
                       sx={{
-                        py: dense ? 1.25 : 1.75,
-                        px: dense ? 1.5 : 2.5,
+                        py: dense ? 1 : 1.25,
+                        px: dense ? 1.5 : 2,
                         fontSize: '0.875rem',
                         color: 'text.primary',
                         borderBottom: '1px solid',

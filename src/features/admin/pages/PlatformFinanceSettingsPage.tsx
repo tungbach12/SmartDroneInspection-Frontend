@@ -1,28 +1,64 @@
-import { useState } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Divider,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import PaidOutlined from '@mui/icons-material/PaidOutlined';
-import PercentRounded from '@mui/icons-material/PercentRounded';
-import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import {
   useInspectionFinanceSettings,
   useUpdateInspectionFinanceSettings,
 } from '../hooks/useInspectionFinance';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
-export default function PlatformFinanceSettingsPage() {
+interface PlatformFinanceSettingsPageProps {
+  /** Rendered inside the Platform settings hub, which owns the page header. */
+  embedded?: boolean;
+}
+
+function SettingsRow({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(280px, 380px)' },
+        gap: { xs: 1.5, md: 4 },
+        alignItems: { xs: 'stretch', md: 'start' },
+        px: { xs: 2, sm: 3 },
+        py: { xs: 2, sm: 2.5 },
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'text.primary' }}>
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 520 }}>
+          {description}
+        </Typography>
+      </Box>
+      <Box sx={{ minWidth: 0 }}>{children}</Box>
+    </Box>
+  );
+}
+
+export default function PlatformFinanceSettingsPage({
+  embedded = false,
+}: PlatformFinanceSettingsPageProps) {
   const { formatNumber, t } = useLocale();
   const settingsQuery = useInspectionFinanceSettings();
   const updateSettings = useUpdateInspectionFinanceSettings();
@@ -35,27 +71,24 @@ export default function PlatformFinanceSettingsPage() {
 
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<{
+    commissionRate: number;
+    vatRate: number;
+    tncnRate: number;
+  } | null>(null);
 
-  const commissionRate =
-    formValues !== null
-      ? formValues.commissionRate
-      : settingsQuery.data?.commissionRate != null
-        ? String(settingsQuery.data.commissionRate)
-        : '';
+  const savedCommission = settingsQuery.data?.commissionRate != null ? String(settingsQuery.data.commissionRate) : '';
+  const savedVat = settingsQuery.data?.vatRate != null ? String(settingsQuery.data.vatRate) : '';
+  const savedTncn = settingsQuery.data?.tncnRate != null ? String(settingsQuery.data.tncnRate) : '';
 
-  const vatRate =
-    formValues !== null
-      ? formValues.vatRate
-      : settingsQuery.data?.vatRate != null
-        ? String(settingsQuery.data.vatRate)
-        : '';
+  const commissionRate = formValues !== null ? formValues.commissionRate : savedCommission;
+  const vatRate = formValues !== null ? formValues.vatRate : savedVat;
+  const tncnRate = formValues !== null ? formValues.tncnRate : savedTncn;
 
-  const tncnRate =
-    formValues !== null
-      ? formValues.tncnRate
-      : settingsQuery.data?.tncnRate != null
-        ? String(settingsQuery.data.tncnRate)
-        : '';
+  const isDirty = Boolean(
+    formValues !== null &&
+      (commissionRate !== savedCommission || vatRate !== savedVat || tncnRate !== savedTncn),
+  );
 
   const isRateOutOfRange = (value: string) => {
     if (value.trim() === '') return false;
@@ -79,8 +112,14 @@ export default function PlatformFinanceSettingsPage() {
   const sampleTncn = Math.round((sampleInspectorGross * tncnNum) / 100);
   const sampleInspectorNet = Math.max(0, sampleInspectorGross - sampleTncn);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const updateField = (field: keyof NonNullable<typeof formValues>, value: string) => {
+    setValidationError(null);
+    setSaveSuccess(false);
+    setFormValues({ commissionRate, vatRate, tncnRate, [field]: value });
+  };
+
+  const handleSaveRequest = (event: FormEvent) => {
+    event.preventDefault();
     setSaveSuccess(false);
     setValidationError(null);
     const comm = Number(commissionRate);
@@ -90,13 +129,13 @@ export default function PlatformFinanceSettingsPage() {
       commissionRate.trim() === '' ||
       vatRate.trim() === '' ||
       tncnRate.trim() === '' ||
-      isNaN(comm) ||
+      Number.isNaN(comm) ||
       comm < 0 ||
       comm > 100 ||
-      isNaN(vat) ||
+      Number.isNaN(vat) ||
       vat < 0 ||
       vat > 100 ||
-      isNaN(tncn) ||
+      Number.isNaN(tncn) ||
       tncn < 0 ||
       tncn > 100
     ) {
@@ -104,32 +143,41 @@ export default function PlatformFinanceSettingsPage() {
       return;
     }
 
-    await updateSettings.mutateAsync({
-      commissionRate: comm,
-      vatRate: vat,
-      tncnRate: tncn,
-    });
+    setPendingSubmit({ commissionRate: comm, vatRate: vat, tncnRate: tncn });
+  };
+
+  const handleConfirmSave = async () => {
+    if (!pendingSubmit) return;
+    await updateSettings.mutateAsync(pendingSubmit);
     setFormValues({
-      commissionRate: String(comm),
-      vatRate: String(vat),
-      tncnRate: String(tncn),
+      commissionRate: String(pendingSubmit.commissionRate),
+      vatRate: String(pendingSubmit.vatRate),
+      tncnRate: String(pendingSubmit.tncnRate),
     });
+    setPendingSubmit(null);
     setSaveSuccess(true);
   };
 
   return (
-    <Box className="workspace-page" sx={{ width: '100%', maxWidth: 1200, mx: 'auto' }}>
-      <PageHeader
-        title={t('Inspection Finance Settings')}
-        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Finance settings') }]}
-      />
+    <Box sx={embedded ? undefined : { width: '100%', maxWidth: 1200, mx: 'auto' }}>
+      {!embedded && (
+        <PageHeader
+          title={t('Inspection Finance Settings')}
+          subtitle={t('Configure platform commission, VAT, and partner PIT withholding rates.')}
+          breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Finance settings') }]}
+        />
+      )}
 
       <QueryState
         isLoading={settingsQuery.isLoading}
         error={settingsQuery.error}
         onRetry={() => void settingsQuery.refetch()}
       >
-        <Stack spacing={3}>
+        <Stack spacing={2}>
+          <Alert severity="info">
+            {t('Updated rates apply prospectively to newly issued quotations and settlements. Previously accepted contracts keep their locked terms.')}
+          </Alert>
+
           {saveSuccess && (
             <Alert severity="success" onClose={() => setSaveSuccess(false)}>
               {t('Finance settings updated successfully.')}
@@ -150,161 +198,116 @@ export default function PlatformFinanceSettingsPage() {
             </Alert>
           )}
 
-          {/* Top 3 Real Rate Summary Cards */}
           <Box
+            component="form"
+            noValidate
+            onSubmit={handleSaveRequest}
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-              gap: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: '10px',
+              bgcolor: 'background.paper',
+              overflow: 'hidden',
             }}
           >
-            <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '10px', borderColor: 'divider' }}>
-              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1 }}>
-                <PercentRounded color="primary" fontSize="small" />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
-                  {t('Platform Commission')}
-                </Typography>
-              </Stack>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {commNum}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t('Applied on pre-VAT service base')}
-              </Typography>
-            </Paper>
-
-            <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '10px', borderColor: 'divider' }}>
-              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1 }}>
-                <AccountBalanceOutlined color="info" fontSize="small" />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
-                  {t('VAT Rate')}
-                </Typography>
-              </Stack>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {vatNum}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t('Added to customer invoice total')}
-              </Typography>
-            </Paper>
-
-            <Paper variant="outlined" sx={{ p: 2.25, borderRadius: '10px', borderColor: 'divider' }}>
-              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1 }}>
-                <PaidOutlined color="success" fontSize="small" />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
-                  {t('PIT Withholding (TNCN)')}
-                </Typography>
-              </Stack>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {tncnNum}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t('Withheld from partner inspector payout')}
-              </Typography>
-            </Paper>
-          </Box>
-
-          {/* 2-Column Split: Rate Configuration Form + Live Settlement Breakdown */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1.15fr 1fr' },
-              gap: 2.5,
-              alignItems: 'stretch',
-            }}
-          >
-            <Card variant="outlined" sx={{ borderRadius: '10px' }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', mb: 2 }}>
+            <Box
+              sx={{
+                px: { xs: 2, sm: 3 },
+                py: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.default',
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem' }}>
                   {t('Settlement Rate Configuration')}
                 </Typography>
-                <form noValidate onSubmit={handleSave}>
-                  <Stack spacing={2.25}>
-                    <TextField
-                      label={t('Commission Rate (%)')}
-                      value={commissionRate}
-                      error={commInvalid}
-                      helperText={commInvalid ? t('Must be between 0% and 100%.') : undefined}
-                      onChange={(e) => {
-                        setValidationError(null);
-                        setFormValues({
-                          commissionRate: e.target.value,
-                          vatRate,
-                          tncnRate,
-                        });
-                      }}
-                      fullWidth
-                      required
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
-                    />
-
-                    <TextField
-                      label={t('VAT Rate (%)')}
-                      value={vatRate}
-                      error={vatInvalid}
-                      helperText={vatInvalid ? t('Must be between 0% and 100%.') : undefined}
-                      onChange={(e) => {
-                        setValidationError(null);
-                        setFormValues({
-                          commissionRate,
-                          vatRate: e.target.value,
-                          tncnRate,
-                        });
-                      }}
-                      fullWidth
-                      required
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
-                    />
-
-                    <TextField
-                      label={t('TNCN Rate (%)')}
-                      value={tncnRate}
-                      error={tncnInvalid}
-                      helperText={tncnInvalid ? t('Must be between 0% and 100%.') : undefined}
-                      onChange={(e) => {
-                        setValidationError(null);
-                        setFormValues({
-                          commissionRate,
-                          vatRate,
-                          tncnRate: e.target.value,
-                        });
-                      }}
-                      fullWidth
-                      required
-                      size="small"
-                      type="number"
-                      slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
-                    />
-
-                    <Box sx={{ pt: 0.5, display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={updateSettings.isPending}
-                        sx={{ textTransform: 'none', fontWeight: 650, px: 3, borderRadius: '8px' }}
-                      >
-                        {updateSettings.isPending ? t('Saving…') : t('Save Rates')}
-                      </Button>
-                    </Box>
-                  </Stack>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card variant="outlined" sx={{ borderRadius: '10px', bgcolor: 'background.paper' }}>
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', mb: 0.5 }}>
-                  {t('Sample Settlement Breakdown (10,000,000 ₫ Base)')}
+                <Typography variant="caption" color="text.secondary">
+                  {t('Rates apply to newly issued quotations.')}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                  {t('Live settlement simulation using configured rates')}
-                </Typography>
+              </Box>
+              {isDirty && <StatusChip status="pending" label={t('Unsaved changes')} />}
+            </Box>
 
-                <Stack spacing={1.25}>
+            <SettingsRow
+              title={t('Platform commission')}
+              description={t('Deducted from the pre-VAT service base before the partner inspector payout.')}
+            >
+              <TextField
+                label={t('Commission Rate (%)')}
+                value={commissionRate}
+                error={commInvalid}
+                helperText={commInvalid ? t('Must be between 0% and 100%.') : t('Applied on pre-VAT service base')}
+                onChange={(event) => updateField('commissionRate', event.target.value)}
+                fullWidth
+                required
+                size="small"
+                type="number"
+                slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
+              />
+            </SettingsRow>
+
+            <Divider />
+
+            <SettingsRow
+              title={t('Value added tax (VAT)')}
+              description={t('Added to the customer invoice total on top of the service base.')}
+            >
+              <TextField
+                label={t('VAT Rate (%)')}
+                value={vatRate}
+                error={vatInvalid}
+                helperText={vatInvalid ? t('Must be between 0% and 100%.') : t('Added to customer invoice total')}
+                onChange={(event) => updateField('vatRate', event.target.value)}
+                fullWidth
+                required
+                size="small"
+                type="number"
+                slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
+              />
+            </SettingsRow>
+
+            <Divider />
+
+            <SettingsRow
+              title={t('Partner PIT withholding (TNCN)')}
+              description={t('Withheld from the partner inspector gross payout before settlement.')}
+            >
+              <TextField
+                label={t('TNCN Rate (%)')}
+                value={tncnRate}
+                error={tncnInvalid}
+                helperText={tncnInvalid ? t('Must be between 0% and 100%.') : t('Withheld from partner inspector payout')}
+                onChange={(event) => updateField('tncnRate', event.target.value)}
+                fullWidth
+                required
+                size="small"
+                type="number"
+                slotProps={{ htmlInput: { min: 0, max: 100, step: '0.01' } }}
+              />
+            </SettingsRow>
+
+            <Divider />
+
+            <SettingsRow
+              title={t('Sample Settlement Breakdown (10,000,000 ₫ Base)')}
+              description={t('Live settlement simulation using configured rates')}
+            >
+              <Box
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: '8px',
+                  bgcolor: 'background.default',
+                  p: 1.75,
+                }}
+              >
+                <Stack spacing={1}>
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">
                       {t('Pre-tax service base')}
@@ -357,11 +360,62 @@ export default function PlatformFinanceSettingsPage() {
                     </Typography>
                   </Stack>
                 </Stack>
-              </CardContent>
-            </Card>
+              </Box>
+            </SettingsRow>
+
+            <Divider />
+
+            <Stack
+              direction="row"
+              spacing={1.25}
+              sx={{
+                px: { xs: 2, sm: 3 },
+                py: 2,
+                justifyContent: 'flex-end',
+                bgcolor: 'background.default',
+              }}
+            >
+              {isDirty && (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="inherit"
+                  disabled={updateSettings.isPending}
+                  onClick={() => {
+                    setFormValues(null);
+                    setValidationError(null);
+                  }}
+                >
+                  {t('Reset')}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={updateSettings.isPending}
+                sx={{ px: 3 }}
+              >
+                {updateSettings.isPending ? t('Saving…') : t('Save Rates')}
+              </Button>
+            </Stack>
           </Box>
         </Stack>
       </QueryState>
+
+      <ConfirmDialog
+        open={Boolean(pendingSubmit)}
+        title={t('Update platform finance rates?')}
+        message={
+          pendingSubmit
+            ? `${t('New rates')}: ${t('Commission')} ${pendingSubmit.commissionRate}%, ${t('VAT')} ${pendingSubmit.vatRate}%, ${t('TNCN')} ${pendingSubmit.tncnRate}%. ${t('These rates apply to newly issued quotations.')}`
+            : ''
+        }
+        confirmLabel={t('Confirm save')}
+        cancelLabel={t('Cancel')}
+        loading={updateSettings.isPending}
+        onCancel={() => setPendingSubmit(null)}
+        onConfirm={() => void handleConfirmSave()}
+      />
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -8,6 +8,7 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -43,6 +44,7 @@ import {
 } from '../api/droneFeatureConfigApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 
 interface FormState {
   code: string;
@@ -76,6 +78,9 @@ export function DroneFeatureConfigTab() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | DroneFeatureCategory>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   const configsQuery = useQuery({
     queryKey: ['drone-feature-configs-admin'],
@@ -183,14 +188,30 @@ export function DroneFeatureConfigTab() {
     }
   };
 
-  const configs = configsQuery.data ?? [];
+  const configs = useMemo(() => configsQuery.data ?? [], [configsQuery.data]);
+  const filteredConfigs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return configs.filter((config) => {
+      if (query) {
+        const matches =
+          config.code.toLowerCase().includes(query) ||
+          config.nameEn.toLowerCase().includes(query) ||
+          config.nameVi.toLowerCase().includes(query);
+        if (!matches) return false;
+      }
+      if (categoryFilter !== 'ALL' && config.category !== categoryFilter) return false;
+      if (statusFilter === 'ACTIVE' && !config.isActive) return false;
+      if (statusFilter === 'INACTIVE' && config.isActive) return false;
+      return true;
+    });
+  }, [categoryFilter, configs, search, statusFilter]);
 
   return (
     <Card variant="outlined" sx={{ borderRadius: '12px' }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
           <Box>
-            <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
               {tr('Cấu hình Tính năng & An toàn Drone', 'Drone Features & Safety Checklist')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -211,10 +232,61 @@ export function DroneFeatureConfigTab() {
           </Button>
         </Box>
 
+        <AdminTableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={tr('Tìm theo mã hoặc tên tính năng', 'Search code or feature name')}
+          visibleCount={filteredConfigs.length}
+          totalCount={configs.length}
+          filters={[
+            {
+              key: 'category',
+              label: tr('Nhóm', 'Category'),
+              value: categoryFilter,
+              options: [
+                { value: 'ALL', label: tr('Tất cả', 'All categories') },
+                { value: 'SAFETY', label: tr('An toàn', 'Safety') },
+                { value: 'CAPABILITY', label: tr('Năng lực', 'Capability') },
+              ],
+              onChange: (value) => setCategoryFilter(value as 'ALL' | DroneFeatureCategory),
+            },
+            {
+              key: 'status',
+              label: tr('Trạng thái', 'Status'),
+              value: statusFilter,
+              options: [
+                { value: 'ALL', label: tr('Tất cả', 'All statuses') },
+                { value: 'ACTIVE', label: tr('Đang áp dụng', 'Active') },
+                { value: 'INACTIVE', label: tr('Tạm ẩn', 'Inactive') },
+              ],
+              onChange: (value) =>
+                setStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE'),
+            },
+          ]}
+        />
+
         {configsQuery.isLoading ? (
-          <Typography color="text.secondary">{tr('Đang tải cấu hình…', 'Loading configurations…')}</Typography>
-        ) : configs.length === 0 ? (
-          <Alert severity="info">{tr('Chưa có tính năng nào. Nhấn Thêm để tạo mới.', 'No features configured yet. Click Add to create.')}</Alert>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={22} />
+            <Typography color="text.secondary">{tr('Đang tải cấu hình…', 'Loading configurations…')}</Typography>
+          </Stack>
+        ) : configsQuery.isError ? (
+          <Alert
+            severity="error"
+            action={
+              <Button size="small" color="inherit" onClick={() => void configsQuery.refetch()}>
+                {tr('Thử lại', 'Try again')}
+              </Button>
+            }
+          >
+            {tr('Không thể tải cấu hình tính năng Drone.', 'Could not load the drone feature configurations.')}
+          </Alert>
+        ) : filteredConfigs.length === 0 ? (
+          <Alert severity="info">
+            {configs.length === 0
+              ? tr('Chưa có tính năng nào. Nhấn Thêm để tạo mới.', 'No features configured yet. Click Add to create.')
+              : tr('Không có tính năng nào khớp bộ lọc.', 'No features match the current filters.')}
+          </Alert>
         ) : (
           <TableContainer>
             <Table size="small">
@@ -229,7 +301,7 @@ export function DroneFeatureConfigTab() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {configs.map((cfg) => (
+                {filteredConfigs.map((cfg) => (
                   <TableRow key={cfg.id} hover>
                     <TableCell sx={{ fontWeight: 600 }}>{cfg.displayOrder}</TableCell>
                     <TableCell>

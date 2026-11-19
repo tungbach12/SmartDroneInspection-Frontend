@@ -987,20 +987,21 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                           sx={{
                             p: 1.5,
                             mb: 2,
-                            bgcolor: '#ffffff',
+                            bgcolor: 'background.paper',
                             borderRadius: '8px',
-                            border: '1px solid #bbf7d0',
+                            border: '1px solid',
+                            borderColor: 'success.main',
                           }}
                         >
-                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#166534', display: 'block' }}>
-                            🔒 Mã băm toàn vẹn chống sửa đổi (SHA-256 Checksum trên MinIO):
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main', display: 'block' }}>
+                            Mã băm toàn vẹn chống sửa đổi (SHA-256 Checksum trên MinIO):
                           </Typography>
                           <Typography
                             sx={{
                               fontFamily: 'monospace',
                               fontSize: '0.8rem',
                               fontWeight: 700,
-                              color: '#0f172a',
+                              color: 'text.primary',
                               wordBreak: 'break-all',
                               mt: 0.25,
                             }}
@@ -1025,17 +1026,18 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       ) : contractBlobUrl ? (
                         <Box sx={{ textAlign: 'center' }}>
                           {contractContentType.includes('pdf') ? (
-                            <iframe
+                            <Box
+                              component="iframe"
                               src={contractBlobUrl}
                               title="Signed Partner Contract PDF"
-                              style={{ width: '100%', height: '320px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#fff' }}
+                              sx={{ width: '100%', height: 320, border: '1px solid', borderColor: 'divider', borderRadius: '8px', bgcolor: 'background.paper' }}
                             />
                           ) : (
                             <Box
                               component="img"
                               src={contractBlobUrl}
                               alt="Bản scan hợp đồng đã ký"
-                              sx={{ maxHeight: 280, maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid #cbd5e1', bgcolor: '#fff' }}
+                              sx={{ maxHeight: 280, maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
                             />
                           )}
                           <Box sx={{ mt: 1 }}>
@@ -1046,7 +1048,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                               href={contractBlobUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              sx={{ textTransform: 'none', bgcolor: '#ffffff' }}
+                              sx={{ textTransform: 'none', bgcolor: 'background.paper' }}
                             >
                               Mở xem toàn màn hình / Tải về
                             </Button>
@@ -1064,13 +1066,13 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       variant="outlined"
                       sx={{
                         p: 2.5,
-                        borderRadius: '12px',
-                        borderColor: '#e2e8f0',
-                        bgcolor: '#f8fafc',
+                        borderRadius: '10px',
+                        borderColor: 'divider',
+                        bgcolor: 'background.default',
                       }}
                     >
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           Bước 3 — Cổng Phê duyệt Kích hoạt Đối tác (Onboarding Gate)
                         </Typography>
                         <Chip
@@ -1098,9 +1100,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <Box
                           sx={{
                             p: 1.5,
-                            bgcolor: '#ffffff',
+                            bgcolor: 'background.paper',
                             borderRadius: '8px',
-                            border: profile.hasLicenseScan ? '1px solid #86efac' : '1px solid #fecaca',
+                            border: '1px solid',
+                            borderColor: profile.hasLicenseScan ? 'success.main' : 'error.main',
                             display: 'flex',
                             alignItems: 'center',
                             gap: 1,
@@ -1119,9 +1122,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         <Box
                           sx={{
                             p: 1.5,
-                            bgcolor: '#ffffff',
+                            bgcolor: 'background.paper',
                             borderRadius: '8px',
-                            border: profile.hasPartnerContract ? '1px solid #86efac' : '1px solid #fecaca',
+                            border: '1px solid',
+                            borderColor: profile.hasPartnerContract ? 'success.main' : 'error.main',
                             display: 'flex',
                             alignItems: 'center',
                             gap: 1,

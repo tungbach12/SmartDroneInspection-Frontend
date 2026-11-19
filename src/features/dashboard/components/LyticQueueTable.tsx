@@ -50,7 +50,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
       case 'warning':
         return {
           bg: '#FFFBEB',
-          text: '#B45309',
+          text: '#92400E',
         };
       case 'negative':
         return {
@@ -72,7 +72,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '12px',
+        borderRadius: '10px',
         p: '20px',
         overflow: 'hidden',
         boxShadow: 'none',
@@ -104,7 +104,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
           </Typography>
           <Typography
             sx={{
-              color: '#71717A',
+              color: 'text.secondary',
               fontSize: '0.875rem',
             }}
           >
@@ -142,8 +142,8 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                     px: 2.5,
                     py: 1.5,
                     fontSize: '0.75rem',
-                    fontWeight: 500,
-                    color: '#71717A',
+                    fontWeight: 600,
+                    color: 'text.secondary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.02em',
                     borderBottom: 1,
@@ -171,19 +171,19 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                     '&:hover': { bgcolor: 'action.hover' },
                   }}
                 >
-                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.25, fontSize: '0.875rem', fontWeight: 500, color: 'text.primary', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col1)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.25, fontSize: '0.875rem', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col2)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.25, fontSize: '0.875rem', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col3)}
                   </TableCell>
-                  <TableCell sx={{ px: 2.5, py: 1.5, fontSize: '0.875rem', color: '#71717A', borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell sx={{ px: 2.5, py: 1.25, fontSize: '0.875rem', color: 'text.secondary', borderBottom: 1, borderColor: 'divider' }}>
                     {t(row.col4)}
                   </TableCell>
-                  <TableCell align="right" sx={{ px: 2.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                  <TableCell align="right" sx={{ px: 2.5, py: 1.25, borderBottom: 1, borderColor: 'divider' }}>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
                       <Box
                         component="span"
@@ -209,7 +209,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
                           size="small"
                           aria-label={`Open ${row.col1}`}
                           sx={{
-                            color: '#71717A',
+                            color: 'text.secondary',
                             p: 0.5,
                             '&:hover': { color: 'primary.main' },
                           }}
@@ -235,7 +235,7 @@ export const LyticQueueTable: React.FC<LyticQueueTableProps> = ({
             size="small"
             endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
             sx={{
-              color: '#2B84EB',
+              color: 'primary.main',
               textTransform: 'none',
               fontWeight: 600,
               fontSize: '0.875rem',
