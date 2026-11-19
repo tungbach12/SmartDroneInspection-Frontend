@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useToastStore } from '@/shared/ui/Toast';
@@ -10,6 +10,8 @@ import {
   useConfirmFindings,
   useCreateManualFinding,
   useDeleteFinding,
+  useFindingRecommendations,
+  useInspectionKnowledgeRecommendations,
   useUploadFlightPermit,
   useRetireEvidence,
   useConfirmFinding,
@@ -36,6 +38,8 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       reviewFlightPermit: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
+      getFindingRecommendations: vi.fn(),
+      getInspectionKnowledgeRecommendations: vi.fn(),
     },
   };
 });
@@ -272,5 +276,51 @@ describe('inspection mutation outcome toasts', () => {
       message: 'Server rejected the change',
       severity: 'error',
     });
+  });
+});
+
+describe('knowledge recommendation queries', () => {
+  const response = {
+    retrievalMode: 'HYBRID_MATCH',
+    cases: [],
+    guidelines: [],
+  };
+
+  it('fetches finding recommendations only when enabled and returns the response', async () => {
+    const client = createClient();
+    vi.mocked(inspectionApi.getFindingRecommendations).mockResolvedValue(response);
+
+    const disabled = renderHook(
+      () => useFindingRecommendations('inspection-1', 'finding-1', false),
+      { wrapper: wrapper(client) },
+    );
+    expect(disabled.result.current.data).toBeUndefined();
+    expect(inspectionApi.getFindingRecommendations).not.toHaveBeenCalled();
+
+    const enabled = renderHook(
+      () => useFindingRecommendations('inspection-1', 'finding-1', true),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() => expect(enabled.result.current.data).toEqual(response));
+    expect(inspectionApi.getFindingRecommendations).toHaveBeenCalledWith(
+      'inspection-1',
+      'finding-1',
+      3,
+    );
+  });
+
+  it('fetches inspection recommendations with the report-level limit', async () => {
+    const client = createClient();
+    vi.mocked(inspectionApi.getInspectionKnowledgeRecommendations).mockResolvedValue(response);
+
+    const { result } = renderHook(
+      () => useInspectionKnowledgeRecommendations('inspection-1', true),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() => expect(result.current.data).toEqual(response));
+    expect(inspectionApi.getInspectionKnowledgeRecommendations).toHaveBeenCalledWith(
+      'inspection-1',
+      4,
+    );
   });
 });
