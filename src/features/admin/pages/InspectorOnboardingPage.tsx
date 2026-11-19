@@ -180,7 +180,7 @@ export default function InspectorOnboardingPage({ embedded = false }: { embedded
         sx={{
           mt: embedded ? 0 : 2.5,
           p: { xs: 2.5, sm: 3.5 },
-          borderRadius: '14px',
+          borderRadius: '10px',
           borderColor: 'divider',
         }}
       >

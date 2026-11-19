@@ -3,6 +3,7 @@ import {
   canAccessSection,
   getLegacySectionRedirectPath,
   getPortalEntryPath,
+  getSectionIdFromPathSegment,
   PORTAL_IDS,
   SECTION_IDS,
   type PortalId,
@@ -67,7 +68,11 @@ export function getAuthRedirectTarget(
       return `${path}${destination.search}${destination.hash}`;
     }
 
-    if (!secondSegment) {
+    if (secondSegment) {
+      const section = getSectionIdFromPathSegment(secondSegment);
+      if (!section || !canAccessSection(portal, section, roles)) {
+        return defaultPath;
+      }
       return `${path}${destination.search}${destination.hash}`;
     }
 
@@ -78,7 +83,11 @@ export function getAuthRedirectTarget(
     return defaultPath;
   }
 
-  const legacySection = SECTION_IDS.find((id) => `/${id}` === path);
+  const legacySegments = path.split('/').filter(Boolean);
+  const legacySection =
+    legacySegments.length === 1
+      ? getSectionIdFromPathSegment(legacySegments[0] ?? '')
+      : undefined;
   if (legacySection) {
     return getLegacySectionRedirectPath([...roles], legacySection);
   }

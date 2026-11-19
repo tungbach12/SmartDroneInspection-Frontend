@@ -157,7 +157,7 @@ describe('MF1 review queues', () => {
     ]);
     renderPage();
     fireEvent.click(
-      await screen.findByRole('tab', { name: /Inspector Applications|Đơn đăng ký Inspector/i }),
+      await screen.findByRole('tab', { name: /Inspector Apps|Inspector Applications|Đơn Inspector|Đơn đăng ký Inspector/i }),
     );
     expect(await screen.findByText('Nguyen Van Sang')).toBeTruthy();
     expect(screen.getByText(/079200012345/)).toBeTruthy();

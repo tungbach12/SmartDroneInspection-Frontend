@@ -1,41 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
-  Avatar,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
+  Divider,
+  Link,
+  Paper,
   Stack,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import HighlightOffRounded from '@mui/icons-material/HighlightOffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
-import ZoomInRounded from '@mui/icons-material/ZoomInRounded';
-import CloseRounded from '@mui/icons-material/CloseRounded';
-import FlightRounded from '@mui/icons-material/FlightRounded';
-import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
-import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
-import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
-import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
-import HistoryRounded from '@mui/icons-material/HistoryRounded';
-import PersonAddAlt from '@mui/icons-material/PersonAddAlt';
-import RefreshRounded from '@mui/icons-material/RefreshRounded';
-import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
+import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
+import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
+import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   mf1ReviewApi,
@@ -43,18 +41,26 @@ import {
   type ProspectiveCustomerReview,
 } from '../api/mf1ReviewApi';
 import {
-  inspectorProfileApi,
-  type InspectorProfile,
-} from '../api/inspectorProfileApi';
-import {
   inspectorApplicationApi,
   type InspectorApplication,
 } from '@/features/auth/api/inspectorApplicationApi';
-import { useCreatePlatformUser } from '../hooks/usePlatformUsers';
-import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { StatusChip } from '@/shared/ui/StatusChip';
+import { QueryState } from '@/shared/ui/QueryState';
+import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+type QueueId = 'inspectors' | 'drones' | 'customers';
+type SortOption = 'NEWEST' | 'OLDEST';
+
+interface EvidenceDoc {
+  label: string;
+  type: string;
+  url: string;
+  isPdf: boolean;
+  failed?: boolean;
+}
 
 function classifyDroneLegalTier(rawText?: string | null): {
   categoryLabel: string;
@@ -113,24 +119,6 @@ function classifyDroneLegalTier(rawText?: string | null): {
   };
 }
 
-const ALL_PANELS = [
-  'Inspector applications',
-  'Drone registrations',
-  'Drone history',
-  'Inspector partners',
-  'Customer airspace',
-] as const;
-type Panel = (typeof ALL_PANELS)[number];
-type ReviewItem = ProspectiveCustomerReview | DroneRegistrationApplication;
-
-interface EvidenceDoc {
-  label: string;
-  type: string;
-  url: string;
-  isPdf: boolean;
-  failed?: boolean;
-}
-
 export default function Mf1ReviewPage() {
   const { locale } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
@@ -138,50 +126,41 @@ export default function Mf1ReviewPage() {
 
   const roles = useAuthStore((state) => state.roles);
   const isAdmin = roles.includes('ADMIN');
+  const queryClient = useQueryClient();
 
-  const availablePanels: Panel[] = isAdmin
-    ? [
-        'Inspector applications',
-        'Drone registrations',
-        'Drone history',
-        'Inspector partners',
-        'Customer airspace',
-      ]
-    : ['Inspector applications', 'Drone registrations', 'Drone history', 'Inspector partners'];
+  const queues = [
+    { id: 'inspectors' as const, label: tr('Đơn Inspector', 'Inspector Applications'), icon: <AssignmentIndOutlined fontSize="small" /> },
+    { id: 'drones' as const, label: tr('Duyệt Drone', 'Drone Registrations'), icon: <FlightTakeoffRounded fontSize="small" /> },
+    ...(isAdmin
+      ? [{ id: 'customers' as const, label: tr('Vùng bay khách hàng', 'Customer Airspace'), icon: <ApartmentOutlined fontSize="small" /> }]
+      : []),
+  ];
 
-  const [panel, setPanel] = useState<Panel>('Drone registrations');
+  const [queue, setQueue] = useState<QueueId>('drones');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sort, setSort] = useState<SortOption>('NEWEST');
+
+  // Review dialog state for drone registrations and customer airspace
   const [selected, setSelected] = useState<ReviewItem | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<'drones' | 'customers'>('drones');
   const [action, setAction] = useState<'approve' | 'reject'>('approve');
   const [reviewNote, setReviewNote] = useState('');
   const [evidenceDocs, setEvidenceDocs] = useState<EvidenceDoc[]>([]);
-  const [activeDocIndex, setActiveDocIndex] = useState(0);
-  const [evidenceLoading, setEvidenceLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [telemetryLoading, setTelemetryLoading] = useState(false);
   const [pending, setPending] = useState(false);
-  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // State for Inspector Profile management
-  const [selectedInspectorId, setSelectedInspectorId] = useState<string | null>(null);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-
-  // State for adding new Inspector
-  const [createInspectorOpen, setCreateInspectorOpen] = useState(false);
-  const [createEmail, setCreateEmail] = useState('');
-  const [createFullName, setCreateFullName] = useState('');
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [issuedPassword, setIssuedPassword] = useState<{
-    email: string;
-    temporaryPassword: string;
-  } | null>(null);
-
-  const queryClient = useQueryClient();
-  const createPlatformUser = useCreatePlatformUser();
-
-  useEffect(() => {
-    if (!availablePanels.includes(panel) && availablePanels.length > 0) {
-      setPanel(availablePanels[0]!);
-    }
-  }, [availablePanels, panel]);
+  // Inspector application review dialog state
+  const [selectedApplication, setSelectedApplication] = useState<InspectorApplication | null>(null);
+  const [appAction, setAppAction] = useState<'approve' | 'reject'>('approve');
+  const [appRejectReason, setAppRejectReason] = useState('');
+  const [appScanUrl, setAppScanUrl] = useState<string | null>(null);
+  const [appScanIsPdf, setAppScanIsPdf] = useState(false);
+  const [appScanLoading, setAppScanLoading] = useState(false);
+  const [appPending, setAppPending] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
+  const [uploadingContractId, setUploadingContractId] = useState<string | null>(null);
 
   const customers = useQuery({
     queryKey: ['mf1-reviews', 'customers'],
@@ -204,13 +183,6 @@ export default function Mf1ReviewPage() {
     refetchInterval: 8000,
   });
 
-  const inspectorProfiles = useQuery({
-    queryKey: ['mf1-inspectors-list'],
-    queryFn: inspectorProfileApi.list,
-    retry: false,
-    refetchInterval: 8000,
-  });
-
   const pendingInspectorApps = useQuery({
     queryKey: ['mf1-reviews', 'inspector-applications', 'pending'],
     queryFn: inspectorApplicationApi.listPending,
@@ -225,215 +197,212 @@ export default function Mf1ReviewPage() {
     refetchInterval: 8000,
   });
 
-  const [selectedApplication, setSelectedApplication] = useState<InspectorApplication | null>(null);
-  const [appAction, setAppAction] = useState<'approve' | 'reject'>('approve');
-  const [appRejectReason, setAppRejectReason] = useState('');
-  const [appScanUrl, setAppScanUrl] = useState<string | null>(null);
-  const [appScanIsPdf, setAppScanIsPdf] = useState(false);
-  const [appScanLoading, setAppScanLoading] = useState(false);
-  const [appScanFailed, setAppScanFailed] = useState(false);
-  const [appPending, setAppPending] = useState(false);
-  const [appError, setAppError] = useState<string | null>(null);
-  const [uploadingContractId, setUploadingContractId] = useState<string | null>(null);
-  const [contractFeedback, setContractFeedback] = useState<{
-    severity: 'success' | 'error';
-    message: string;
-  } | null>(null);
+  const changeQueue = (next: QueueId) => {
+    setQueue(next);
+    setSearch('');
+    setStatusFilter('ALL');
+    setSort('NEWEST');
+  };
 
-  const closeDialog = () => {
-    if (pending) return;
+  const inspectorRows = useMemo(() => {
+    const pending = (pendingInspectorApps.data ?? []).map((application) => ({
+      kind: 'PENDING' as const,
+      application,
+    }));
+    const awaiting = (awaitingContractApps.data ?? []).map((application) => ({
+      kind: 'AWAITING_CONTRACT' as const,
+      application,
+    }));
+    const query = search.trim().toLowerCase();
+    const rows = [...pending, ...awaiting].filter(({ kind, application }) => {
+      if (statusFilter === 'PENDING' && kind !== 'PENDING') return false;
+      if (statusFilter === 'APPROVED' && kind !== 'AWAITING_CONTRACT') return false;
+      if (!query) return true;
+      return (
+        application.fullName.toLowerCase().includes(query) ||
+        application.email.toLowerCase().includes(query) ||
+        application.pilotLicenseNumber.toLowerCase().includes(query) ||
+        application.citizenId.toLowerCase().includes(query)
+      );
+    });
+    return rows.sort((left, right) => {
+      const leftDate = new Date(left.application.createdAt).getTime();
+      const rightDate = new Date(right.application.createdAt).getTime();
+      return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
+    });
+  }, [awaitingContractApps.data, pendingInspectorApps.data, search, sort, statusFilter]);
+
+  const droneRows = useMemo(() => {
+    const pending = (drones.data ?? []).map((application) => ({
+      status: 'PENDING' as const,
+      application,
+    }));
+    const history = (droneHistory.data ?? []).map((application) => ({
+      status: application.status === 'APPROVED' ? ('APPROVED' as const) : ('REJECTED' as const),
+      application,
+    }));
+    const query = search.trim().toLowerCase();
+    return [...pending, ...history]
+      .filter(({ status, application }) => {
+        if (statusFilter !== 'ALL' && status !== statusFilter) return false;
+        if (!query) return true;
+        return (
+          (application.model ?? '').toLowerCase().includes(query) ||
+          (application.manufacturer ?? '').toLowerCase().includes(query) ||
+          application.serialNumber.toLowerCase().includes(query) ||
+          application.registrationNumber.toLowerCase().includes(query) ||
+          (application.inspectorFullName ?? '').toLowerCase().includes(query) ||
+          (application.inspectorEmail ?? '').toLowerCase().includes(query)
+        );
+      })
+      .sort((left, right) => {
+        const leftDate = new Date(left.application.createdAt).getTime();
+        const rightDate = new Date(right.application.createdAt).getTime();
+        return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
+      });
+  }, [droneHistory.data, drones.data, search, sort, statusFilter]);
+
+  const customerRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...(customers.data ?? [])]
+      .filter((review) => {
+        if (statusFilter !== 'ALL' && review.status !== statusFilter) return false;
+        if (!query) return true;
+        return (
+          review.organizationName.toLowerCase().includes(query) ||
+          review.organizationCode.toLowerCase().includes(query) ||
+          review.assetName.toLowerCase().includes(query) ||
+          review.assetCode.toLowerCase().includes(query) ||
+          (review.airspaceClassification ?? '').toLowerCase().includes(query)
+        );
+      })
+      .sort((left, right) => {
+        const leftDate = new Date(left.createdAt).getTime();
+        const rightDate = new Date(right.createdAt).getTime();
+        return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
+      });
+  }, [customers.data, search, sort, statusFilter]);
+
+  const statusOptions =
+    queue === 'inspectors'
+      ? [
+          { value: 'ALL', label: tr('Tất cả', 'All') },
+          { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
+          { value: 'APPROVED', label: tr('Đã duyệt', 'Approved') },
+        ]
+      : queue === 'drones'
+        ? [
+            { value: 'ALL', label: tr('Tất cả', 'All') },
+            { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
+            { value: 'APPROVED', label: tr('Đã duyệt', 'Approved') },
+            { value: 'REJECTED', label: tr('Từ chối', 'Rejected') },
+          ]
+        : [
+            { value: 'ALL', label: tr('Tất cả', 'All') },
+            { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
+          ];
+
+  const clearReview = () => {
     setSelected(null);
     setReviewNote('');
-    evidenceDocs.forEach((d) => {
-      if (d.url) URL.revokeObjectURL(d.url);
+    evidenceDocs.forEach((doc) => {
+      if (doc.url) URL.revokeObjectURL(doc.url);
     });
     setEvidenceDocs([]);
-    setActiveDocIndex(0);
-    setEvidenceLoading(false);
+    setTelemetryLoading(false);
     setError(null);
   };
 
-  const openReview = async (item: ReviewItem) => {
-    evidenceDocs.forEach((d) => {
-      if (d.url) URL.revokeObjectURL(d.url);
-    });
-    setEvidenceDocs([]);
-    setActiveDocIndex(0);
-    setSelected(item);
+  const openDroneReview = async (application: DroneRegistrationApplication) => {
+    clearReview();
+    setReviewQueue('drones');
+    setSelected(application);
     setAction('approve');
-    setError(null);
-    setEvidenceLoading(true);
-
+    setTelemetryLoading(true);
     try {
-      const isDroneApp = panel === 'Drone registrations' || panel === 'Drone history';
-      const droneApplication = isDroneApp ? (item as DroneRegistrationApplication) : null;
-      let documentsToFetch: Array<{ label: string; type: string; load: () => Promise<Blob> }> = [];
-
-      if (droneApplication) {
-        if (droneApplication.documentFiles && Object.keys(droneApplication.documentFiles).length > 0) {
-          documentsToFetch = Object.entries(droneApplication.documentFiles).map(([code]) => ({
+      const documents = Object.keys(application.documentFiles ?? {}).length
+        ? Object.keys(application.documentFiles ?? {}).map((code) => ({
             label: code,
             type: code,
-            load: () => mf1ReviewApi.droneEvidence(item.id, code),
-          }));
-        } else {
-          documentsToFetch = [
+            load: () => mf1ReviewApi.droneEvidence(application.id, code),
+          }))
+        : [
             {
               label: tr('Đăng ký drone', 'Drone registration'),
               type: 'REGISTRATION',
-              load: () => mf1ReviewApi.droneEvidence(item.id, 'REGISTRATION'),
+              load: () => mf1ReviewApi.droneEvidence(application.id, 'REGISTRATION'),
             },
             {
               label: tr('Chứng từ sở hữu', 'Proof of ownership'),
               type: 'OWNERSHIP',
-              load: () => mf1ReviewApi.droneEvidence(item.id, 'OWNERSHIP'),
+              load: () => mf1ReviewApi.droneEvidence(application.id, 'OWNERSHIP'),
             },
           ];
-          if (droneApplication.inspectionFileKey) {
-            documentsToFetch.push({
-              label: tr('Kiểm định an toàn', 'Safety inspection'),
-              type: 'INSPECTION',
-              load: () => mf1ReviewApi.droneEvidence(item.id, 'INSPECTION'),
-            });
-          }
-        }
-        if (droneApplication.imageFileKeys && droneApplication.imageFileKeys.length > 0) {
-          droneApplication.imageFileKeys.forEach((_, idx) => {
-            documentsToFetch.push({
-              label: tr(`Ảnh drone #${idx + 1}`, `Drone Photo #${idx + 1}`),
-              type: `DRONE_IMAGE_${idx}`,
-              load: () => mf1ReviewApi.droneEvidence(item.id, `DRONE_IMAGE_${idx}`),
-            });
-          });
-        }
-      }
-
-      if (documentsToFetch.length === 0) {
-        setEvidenceLoading(false);
-        return;
-      }
-
       const results = await Promise.allSettled(
-        documentsToFetch.map(async (doc) => {
+        documents.map(async (doc) => {
           const blob = await doc.load();
-          const isPdf = blob.type === 'application/pdf' || blob.type.endsWith('/pdf');
-          const url = URL.createObjectURL(blob);
           return {
             label: doc.label,
             type: doc.type,
-            url,
-            isPdf,
+            url: URL.createObjectURL(blob),
+            isPdf: blob.type === 'application/pdf' || blob.type.endsWith('/pdf'),
           };
         }),
       );
-
-      const docs: EvidenceDoc[] = results.map((res, index) => {
-        if (res.status === 'fulfilled') {
-          return res.value;
-        }
-        return {
-          label: documentsToFetch[index]?.label ?? tr('Tài liệu', 'Document'),
-          type: documentsToFetch[index]?.type ?? 'UNKNOWN',
-          url: '',
-          isPdf: false,
-          failed: true,
-        };
-      });
-
-      setEvidenceDocs(docs);
-    } catch {
-      setError(
-        tr(
-          'Không thể tải tài liệu hình ảnh. Vui lòng thử lại sau.',
-          'Could not load document evidence. Please try again later.',
+      setEvidenceDocs(
+        results.map((result, index) =>
+          result.status === 'fulfilled'
+            ? result.value
+            : {
+                label: documents[index]?.label ?? tr('Tài liệu', 'Document'),
+                type: documents[index]?.type ?? 'UNKNOWN',
+                url: '',
+                isPdf: false,
+                failed: true,
+              },
         ),
       );
+    } catch {
+      setError(tr('Không thể tải tài liệu hình ảnh. Vui lòng thử lại sau.', 'Could not load document evidence. Please try again later.'));
     } finally {
-      setEvidenceLoading(false);
+      setTelemetryLoading(false);
     }
   };
 
-  const review = async () => {
+  const openCustomerReview = (review: ProspectiveCustomerReview) => {
+    clearReview();
+    setReviewQueue('customers');
+    setSelected(review);
+    setAction('approve');
+  };
+
+  const submitReview = async () => {
     if (!selected) return;
     if (action === 'reject' && !reviewNote.trim()) {
-      setError(
-        tr(
-          'Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.',
-          'Please provide a clear rejection reason so the applicant can resubmit.',
-        ),
-      );
+      setError(tr('Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.', 'Please provide a clear rejection reason so the applicant can resubmit.'));
       return;
     }
-    if (panel === 'Customer airspace' && action === 'approve' && !reviewNote.trim()) {
-      setError(
-        tr(
-          'Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.',
-          'A review note is required when approving customer airspace.',
-        ),
-      );
+    if (reviewQueue === 'customers' && action === 'approve' && !reviewNote.trim()) {
+      setError(tr('Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.', 'A review note is required when approving customer airspace.'));
       return;
     }
-
     setPending(true);
     setError(null);
     try {
-      if (panel === 'Customer airspace') {
+      if (reviewQueue === 'customers') {
         if (action === 'approve') await mf1ReviewApi.approveCustomer(selected.id, reviewNote.trim());
         else await mf1ReviewApi.rejectCustomer(selected.id, reviewNote.trim());
+      } else if (action === 'approve') {
+        await mf1ReviewApi.approveDrone(selected.id);
       } else {
-        if (action === 'approve') await mf1ReviewApi.approveDrone(selected.id);
-        else await mf1ReviewApi.rejectDrone(selected.id, reviewNote.trim());
+        await mf1ReviewApi.rejectDrone(selected.id, reviewNote.trim());
       }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mf1-reviews'] }),
-        queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] }),
-      ]);
-      closeDialog();
+      await queryClient.invalidateQueries({ queryKey: ['mf1-reviews'] });
+      clearReview();
     } catch {
-      setError(
-        tr(
-          'Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.',
-          'Could not save review decision. Please reload and try again.',
-        ),
-      );
+      setError(tr('Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.', 'Could not save review decision. Please reload and try again.'));
     } finally {
       setPending(false);
-    }
-  };
-
-  const handleCreateInspector = async () => {
-    if (!createEmail.trim() || !createFullName.trim()) {
-      setCreateError(
-        tr(
-          'Vui lòng nhập đầy đủ họ tên và email đối tác.',
-          'Please enter both the partner inspector full name and email.',
-        ),
-      );
-      return;
-    }
-    setCreateError(null);
-    try {
-      const res = await createPlatformUser.mutateAsync({
-        email: createEmail.trim(),
-        fullName: createFullName.trim(),
-        roles: ['INSPECTOR'],
-      });
-      setCreateInspectorOpen(false);
-      setCreateEmail('');
-      setCreateFullName('');
-      if (res?.temporaryPassword) {
-        setIssuedPassword({ email: res.user.email, temporaryPassword: res.temporaryPassword });
-      }
-      await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : tr(
-              'Không thể tạo đối tác Inspector. Vui lòng thử lại.',
-              'Could not create partner inspector account. Please try again.',
-            );
-      setCreateError(message);
     }
   };
 
@@ -446,7 +415,6 @@ export default function Mf1ReviewPage() {
     setAppScanUrl(null);
     setAppScanIsPdf(false);
     setAppScanLoading(false);
-    setAppScanFailed(false);
     setAppError(null);
   };
 
@@ -454,24 +422,18 @@ export default function Mf1ReviewPage() {
     if (appScanUrl) URL.revokeObjectURL(appScanUrl);
     setAppScanUrl(null);
     setAppScanIsPdf(false);
-    setAppScanFailed(false);
     setSelectedApplication(application);
     setAppAction('approve');
     setAppRejectReason('');
     setAppError(null);
-
-    if (!application.hasLicenseScan) {
-      return;
-    }
-
+    if (!application.hasLicenseScan) return;
     setAppScanLoading(true);
     try {
       const blob = await inspectorApplicationApi.getLicenseScanBlob(application.id);
-      const url = URL.createObjectURL(blob);
-      setAppScanUrl(url);
+      setAppScanUrl(URL.createObjectURL(blob));
       setAppScanIsPdf(blob.type.toLowerCase().includes('pdf'));
     } catch {
-      setAppScanFailed(true);
+      setAppError(tr('Không thể tải bản scan bằng lái.', 'Could not load the license scan.'));
     } finally {
       setAppScanLoading(false);
     }
@@ -480,1832 +442,822 @@ export default function Mf1ReviewPage() {
   const submitInspectorAppReview = async () => {
     if (!selectedApplication) return;
     setAppError(null);
-
     if (appAction === 'reject' && appRejectReason.trim().length === 0) {
-      setAppError(
-        tr(
-          'Vui lòng nhập lý do từ chối để hệ thống gửi email thông báo cho ứng viên.',
-          'Please enter a rejection reason to notify the applicant by email.',
-        ),
-      );
+      setAppError(tr('Vui lòng nhập lý do từ chối để hệ thống gửi email thông báo cho ứng viên.', 'Please enter a rejection reason to notify the applicant by email.'));
       return;
     }
-
     setAppPending(true);
     try {
-      if (appAction === 'approve') {
-        await inspectorApplicationApi.approve(selectedApplication.id);
-      } else {
-        await inspectorApplicationApi.reject(selectedApplication.id, appRejectReason.trim());
-      }
+      if (appAction === 'approve') await inspectorApplicationApi.approve(selectedApplication.id);
+      else await inspectorApplicationApi.reject(selectedApplication.id, appRejectReason.trim());
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
-      await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
       await queryClient.invalidateQueries({ queryKey: ['platform-users'] });
       closeInspectorAppDialog();
     } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : tr(
-              'Không thể xử lý đơn đăng ký Inspector. Vui lòng thử lại.',
-              'Could not process this inspector application. Please try again.',
-            );
-      setAppError(message);
+      setAppError(err instanceof Error ? err.message : tr('Không thể xử lý đơn đăng ký Inspector. Vui lòng thử lại.', 'Could not process this inspector application. Please try again.'));
     } finally {
       setAppPending(false);
     }
   };
 
-  const handleUploadSignedContract = async (application: InspectorApplication, file: File) => {
-    setContractFeedback(null);
-    setAppError(null);
+  const uploadSignedContract = async (application: InspectorApplication, file: File) => {
     setUploadingContractId(application.id);
+    setAppError(null);
     try {
-      const updated = await inspectorApplicationApi.uploadSignedContract(application.id, file);
-      if (selectedApplication?.id === application.id) {
-        setSelectedApplication(updated);
-      }
+      await inspectorApplicationApi.uploadSignedContract(application.id, file);
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
-      await queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
-      setContractFeedback({
-        severity: 'success',
-        message: tr(
-          `Đã tải lên bản scan hợp đồng cho ${application.fullName}. Bạn có thể bấm Duyệt để kích hoạt tài khoản.`,
-          `Uploaded signed contract for ${application.fullName}. You can now approve the account.`,
-        ),
-      });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : tr(
-              'Không thể tải lên bản scan hợp đồng. Vui lòng thử lại.',
-              'Could not upload signed contract scan. Please try again.',
-            );
-      setContractFeedback({ severity: 'error', message });
-      if (selectedApplication?.id === application.id) {
-        setAppError(message);
-      }
+      setAppError(err instanceof Error ? err.message : tr('Không thể tải lên bản scan hợp đồng. Vui lòng thử lại.', 'Could not upload signed contract scan. Please try again.'));
     } finally {
       setUploadingContractId(null);
     }
   };
 
-  const handleOpenSignedContractPreview = async (applicationId: string) => {
-    try {
-      const blob = await inspectorApplicationApi.getSignedContractBlob(applicationId);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch {
-      setAppError(
-        tr('Không thể mở bản scan hợp đồng từ MinIO.', 'Could not open signed contract from MinIO.'),
-      );
-    }
+  const queueCounts = {
+    inspectors: (pendingInspectorApps.data?.length ?? 0) + (awaitingContractApps.data?.length ?? 0),
+    drones: (drones.data?.length ?? 0) + (droneHistory.data?.length ?? 0),
+    customers: customers.data?.length ?? 0,
   };
 
-  const getTabLabel = (name: Panel) => {
-    if (name === 'Inspector applications') {
-      const pendingCount = pendingInspectorApps.data?.length ?? 0;
-      return tr(`Đơn đăng ký Inspector (${pendingCount})`, `Inspector Applications (${pendingCount})`);
-    }
-    if (name === 'Drone registrations') {
-      const count = drones.data?.length ?? 0;
-      return tr(`Đăng ký Drone chờ duyệt (${count})`, `Partner Drone Registrations (${count})`);
-    }
-    if (name === 'Drone history') {
-      const count = droneHistory.data?.length ?? 0;
-      return tr(`Lịch sử thẩm định Drone (${count})`, `Drone Review History (${count})`);
-    }
-    if (name === 'Inspector partners') {
-      const count = inspectorProfiles.data?.length ?? 0;
-      return tr(`Hồ sơ đối tác Inspector (${count})`, `Partner Inspector Profiles (${count})`);
-    }
-    const count = customers.data?.length ?? 0;
-    return tr(`Vùng bay khách hàng (${count})`, `Customer Airspace & Assets (${count})`);
-  };
-
-  const getTabIcon = (name: Panel) => {
-    if (name === 'Inspector applications') return <AssignmentIndOutlined fontSize="small" />;
-    if (name === 'Drone registrations') return <FlightRounded fontSize="small" />;
-    if (name === 'Drone history') return <HistoryRounded fontSize="small" />;
-    if (name === 'Inspector partners') return <BadgeOutlined fontSize="small" />;
-    return <ApartmentOutlined fontSize="small" />;
-  };
-
-  const activeDoc = evidenceDocs[activeDocIndex];
+  const visibleCount =
+    queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneRows.length : customerRows.length;
+  const totalCount = queueCounts[queue];
 
   return (
     <Box className="workspace-page" sx={{ maxWidth: 1200, mx: 'auto', pb: 6 }}>
       <PageHeader
         title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
+        subtitle={tr(
+          'Xác minh hồ sơ Inspector, đăng ký Drone và vùng bay khách hàng trước khi cấp phép hoạt động.',
+          'Verify inspector applications, drone registrations, and customer airspace before operations begin.',
+        )}
         breadcrumbs={[
           { label: tr('Quản trị', 'Governance'), to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
           { label: tr('Duyệt onboarding', 'Onboarding reviews') },
         ]}
       />
 
-      <Box sx={{ mt: 2.5 }}>
-        <Tabs
-          value={panel}
-          onChange={(_, value: Panel) => setPanel(value)}
-          aria-label="MF1 review queues"
-          variant="scrollable"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            mb: 2.5,
-            '& .MuiTab-root': {
-              minHeight: 48,
-              fontWeight: 650,
-              textTransform: 'none',
-              fontSize: '0.875rem',
-              gap: 1,
-            },
+      <Tabs
+        value={queue}
+        onChange={(_, value: QueueId) => changeQueue(value)}
+        aria-label="MF1 review queues"
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          mb: 2.5,
+          '& .MuiTab-root': {
+            minHeight: 44,
+            fontWeight: 600,
+            textTransform: 'none',
+            fontSize: '0.875rem',
+            px: 1.75,
+            gap: 0.75,
+          },
+        }}
+      >
+        {queues.map((entry) => (
+          <Tab
+            key={entry.id}
+            value={entry.id}
+            icon={entry.icon}
+            iconPosition="start"
+            label={`${entry.label} (${queueCounts[entry.id]})`}
+          />
+        ))}
+      </Tabs>
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1.5 }}
+      >
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={statusFilter}
+          onChange={(_, value: string | null) => {
+            if (value) setStatusFilter(value);
           }}
+          aria-label={tr('Trạng thái duyệt', 'Review status')}
         >
-          {availablePanels.map((name) => (
-            <Tab
-              key={name}
-              value={name}
-              icon={getTabIcon(name)}
-              iconPosition="start"
-              label={getTabLabel(name)}
-            />
+          {statusOptions.map((option) => (
+            <ToggleButton key={option.value} value={option.value} sx={{ px: 1.75, fontWeight: 600 }}>
+              {option.label}
+            </ToggleButton>
           ))}
-        </Tabs>
+        </ToggleButtonGroup>
+      </Stack>
 
-        {/* ===================== TAB 0: INSPECTOR APPLICATIONS ===================== */}
-        {panel === 'Inspector applications' && (
-          <Stack spacing={4}>
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Box>
-                  <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
-                    {tr('1. Đơn đăng ký Inspector chờ duyệt', '1. Pending Inspector Applications')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {tr(
-                      'Kiểm tra toàn bộ thông tin khai báo và tài liệu bằng lái phi công trước khi phê duyệt tạo tài khoản.',
-                      'Inspect declared details and pilot license documents before approving account creation.',
-                    )}
-                  </Typography>
-                </Box>
-                <Button
-                  size="small"
-                  startIcon={<RefreshRounded />}
-                  onClick={() => {
-                    void pendingInspectorApps.refetch();
-                    void awaitingContractApps.refetch();
-                  }}
-                  disabled={pendingInspectorApps.isFetching || awaitingContractApps.isFetching}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {tr('Làm mới', 'Refresh')}
-                </Button>
-              </Box>
+      <AdminTableToolbar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={
+          queue === 'inspectors'
+            ? tr('Tìm theo tên, email, CCCD hoặc bằng lái', 'Search name, email, citizen ID, or license')
+            : queue === 'drones'
+              ? tr('Tìm theo drone, serial hoặc người gửi', 'Search drone, serial, or applicant')
+              : tr('Tìm theo tổ chức, tài sản hoặc vùng bay', 'Search organization, asset, or airspace')
+        }
+        visibleCount={visibleCount}
+        totalCount={totalCount}
+        onClearAll={() => setStatusFilter('ALL')}
+        filters={[
+          {
+            key: 'sort',
+            label: tr('Sắp xếp', 'Sort'),
+            value: sort,
+            options: [
+              { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
+              { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
+            ],
+            onChange: (value) => setSort(value as SortOption),
+          },
+        ]}
+      />
 
-              {pendingInspectorApps.isLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5, gap: 2 }}>
-                  <CircularProgress size={26} />
-                  <Typography color="text.secondary">
-                    {tr('Đang tải danh sách đơn đăng ký…', 'Loading inspector applications…')}
-                  </Typography>
-                </Box>
-              ) : (pendingInspectorApps.data ?? []).length === 0 ? (
-                <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 6, px: 2 }}>
-                  <AssignmentIndOutlined sx={{ fontSize: 44, color: 'text.secondary', mb: 1 }} />
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                    {tr('Không có đơn đăng ký Inspector nào đang chờ duyệt', 'No inspector applications pending review')}
-                  </Typography>
-                </Card>
-              ) : (
-                <Stack spacing={2}>
-                  {(pendingInspectorApps.data ?? []).map((app) => (
-                    <Card
-                      key={app.id}
-                      variant="outlined"
-                      sx={{
-                        borderRadius: '10px',
-                        borderColor: 'divider',
-                        '&:hover': { borderColor: 'primary.main' },
-                      }}
-                    >
-                      <CardContent sx={{ p: 2.5 }}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            justifyContent: 'space-between',
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            gap: 2,
-                          }}
-                        >
-                          <Box sx={{ flex: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-                              <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
-                                {app.fullName}
-                              </Typography>
-                              <Chip label={app.status} size="small" color="warning" sx={{ fontWeight: 700 }} />
-                              <Chip
-                                label={
-                                  app.hasLicenseScan
-                                    ? tr('Có tài liệu bằng lái', 'License scan attached')
-                                    : tr('Thiếu tài liệu bằng lái', 'Missing license scan')
-                                }
-                                size="small"
-                                variant="outlined"
-                                color={app.hasLicenseScan ? 'success' : 'error'}
-                              />
-                              <Chip
-                                label={
-                                  app.hasSignedContract
-                                    ? tr('Đã scan hợp đồng', 'Signed contract uploaded')
-                                    : tr('Chờ ký & scan hợp đồng', 'Awaiting signed contract')
-                                }
-                                size="small"
-                                variant="outlined"
-                                color={app.hasSignedContract ? 'success' : 'info'}
-                              />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                              {app.email}
-                              {app.phoneNumber ? ` · ${app.phoneNumber}` : ''}
-                              {' · '}
-                              {tr('Ngày nộp:', 'Submitted:')} {new Date(app.createdAt).toLocaleString(dateLocale)}
-                            </Typography>
-                            <Box
-                              sx={{
-                                display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                                gap: 1.5,
-                                p: 1.5,
-                                bgcolor: 'background.default',
-                                borderRadius: '8px',
-                              }}
-                            >
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('CCCD/CMND:', 'Citizen ID:')}
-                                </Box>{' '}
-                                <strong>{app.citizenId}</strong>
-                              </Typography>
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('Số & Hạng bằng:', 'License:')}
-                                </Box>{' '}
-                                <strong>
-                                  {app.pilotLicenseNumber} ({app.pilotLicenseClass})
-                                </strong>
-                              </Typography>
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('Hết hạn bằng:', 'Expires:')}
-                                </Box>{' '}
-                                <strong>
-                                  {app.pilotLicenseExpiresAt
-                                    ? new Date(app.pilotLicenseExpiresAt).toLocaleDateString(dateLocale)
-                                    : tr('Không thời hạn', 'No expiry')}
-                                </strong>
-                              </Typography>
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                              {tr('Địa chỉ:', 'Address:')} {app.address}
-                            </Typography>
-                          </Box>
-
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<FactCheckOutlined />}
-                            onClick={() => void openInspectorAppReview(app)}
-                            sx={{ px: 2.5, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap' }}
-                          >
-                            {tr('Xem hồ sơ & Duyệt', 'Review application')}
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-
-            {(awaitingContractApps.data ?? []).length > 0 && (
-            <Box>
-              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', mb: 0.5 }}>
-                {tr(
-                  '2. Hồ sơ cũ đã duyệt — Chờ tải lên hợp đồng đã ký',
-                  '2. Legacy Approved — Awaiting Signed Contract Upload',
-                )}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {tr(
-                  'Sau khi gặp mặt và ký hợp đồng offline với Inspector, Manager tải bản scan hợp đồng đã ký lên đây để kích hoạt hồ sơ đối tác.',
-                  'After offline signing with the Inspector, upload the scanned signed contract here to activate partner onboarding.',
-                )}
-              </Typography>
-
-              {contractFeedback && (
-                <Alert
-                  severity={contractFeedback.severity}
-                  onClose={() => setContractFeedback(null)}
-                  sx={{ mb: 2 }}
-                >
-                  {contractFeedback.message}
-                </Alert>
-              )}
-
-              {awaitingContractApps.isLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4, gap: 2 }}>
-                  <CircularProgress size={22} />
-                  <Typography color="text.secondary">
-                    {tr('Đang tải danh sách chờ hợp đồng…', 'Loading approved applications awaiting contract…')}
-                  </Typography>
-                </Box>
-              ) : (awaitingContractApps.data ?? []).length === 0 ? (
-                <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 5, px: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {tr(
-                      'Không có hồ sơ nào đang chờ tải lên hợp đồng đã ký.',
-                      'No approved applications are awaiting a signed contract upload.',
-                    )}
-                  </Typography>
-                </Card>
-              ) : (
-                <Stack spacing={2}>
-                  {(awaitingContractApps.data ?? []).map((app) => (
-                    <Card key={app.id} variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider' }}>
-                      <CardContent sx={{ p: 2.5 }}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            justifyContent: 'space-between',
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            gap: 2,
-                          }}
-                        >
-                          <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
-                              <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '1rem' }}>
-                                {app.fullName}
-                              </Typography>
-                              <Chip label={tr('Chờ scan hợp đồng', 'Awaiting contract')} size="small" color="info" />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {app.email}
-                              {app.phoneNumber ? ` · ${app.phoneNumber}` : ''}
-                              {' · '}
-                              {tr('Bằng:', 'License:')} {app.pilotLicenseNumber} ({app.pilotLicenseClass})
-                            </Typography>
-                          </Box>
-
-                          <Button
-                            component="label"
-                            variant="contained"
-                            color="success"
-                            startIcon={<UploadFileRounded />}
-                            disabled={uploadingContractId === app.id}
-                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', whiteSpace: 'nowrap' }}
-                          >
-                            {uploadingContractId === app.id
-                              ? tr('Đang tải lên…', 'Uploading…')
-                              : tr('Scan / Tải lên hợp đồng đã ký', 'Upload signed contract')}
-                            <input
-                              type="file"
-                              hidden
-                              accept="application/pdf,image/png,image/jpeg,image/webp"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                e.target.value = '';
-                                if (file) {
-                                  void handleUploadSignedContract(app, file);
-                                }
-                              }}
-                            />
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-            )}
-          </Stack>
-        )}
-
-        {/* ===================== TAB 1: PARTNER DRONE REGISTRATIONS ===================== */}
-        {panel === 'Drone registrations' && (
-          <Box>
-            {drones.isLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
-                <CircularProgress size={26} />
-                <Typography color="text.secondary">
-                  {tr('Đang tải danh sách chờ thẩm định…', 'Loading pending drone registrations…')}
-                </Typography>
-              </Box>
-            ) : (drones.data ?? []).length === 0 ? (
-              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
-                <VerifiedUserOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
-                  {tr(
-                    'Không có hồ sơ đăng ký drone nào đang chờ duyệt',
-                    'No drone registration records pending review',
-                  )}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {tr(
-                    'Tất cả các hồ sơ đăng ký đã được thẩm định xong. Xem lại các drone đã duyệt tại tab ',
-                    'All submitted drone registration records have been reviewed. View past decisions in ',
-                  )}
-                  <strong>{tr('Lịch sử thẩm định Drone', 'Drone Review History')}</strong>.
-                </Typography>
-              </Card>
-            ) : (
-              <Stack spacing={2}>
-                {(drones.data ?? []).map((droneApp) => (
-                  <Card
-                    key={droneApp.id}
-                    variant="outlined"
-                    sx={{
-                      borderRadius: '10px',
-                      borderColor: 'divider',
-                      transition: 'border-color 0.2s ease',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                      },
-                    }}
-                  >
-                    <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', md: 'row' },
-                          justifyContent: 'space-between',
-                          alignItems: { xs: 'flex-start', md: 'center' },
-                          gap: 2,
-                        }}
-                      >
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.75 }}>
-                            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                              {droneApp.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
-                            </Typography>
-                            {droneApp.manufacturer && (
-                              <Chip
-                                label={`${tr('Hãng', 'Make')}: ${droneApp.manufacturer}`}
-                                size="small"
-                                variant="outlined"
-                                sx={{ fontWeight: 600 }}
-                              />
-                            )}
-                            <Chip
-                              label={tr('Chờ duyệt giấy tờ', 'Pending document review')}
-                              size="small"
-                              color="warning"
-                              variant="outlined"
-                              sx={{ fontWeight: 600 }}
-                            />
-                          </Box>
-
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-                            <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.875rem' }}>
-                              <strong>{tr('Người gửi đơn:', 'Applicant:')}</strong>{' '}
-                              {droneApp.inspectorFullName || 'Inspector'} ({droneApp.inspectorEmail || '—'})
-                            </Typography>
-                            {droneApp.inspectorPilotLicenseNumber && (
-                              <Chip
-                                label={`${tr('Bằng lái', 'License')}: ${droneApp.inspectorPilotLicenseNumber}${droneApp.inspectorPilotLicenseClass ? ` (${droneApp.inspectorPilotLicenseClass === 'CLASS_A' ? 'Hạng A < 2 kg' : 'Hạng B ≥ 2 kg'})` : ''}`}
-                                size="small"
-                                color="info"
-                                variant="outlined"
-                                sx={{ height: 22, fontSize: '0.75rem' }}
-                              />
-                            )}
-                            {(() => {
-                              const tier = classifyDroneLegalTier(droneApp.model);
-                              return (
-                                <Chip
-                                  label={`${tier.categoryLabel} · Yêu cầu ${tier.requiredPilotLicenseLabel}`}
-                                  size="small"
-                                  color={tier.requiresClassB ? 'warning' : 'success'}
-                                  variant="outlined"
-                                  sx={{ height: 20, fontSize: '11px', fontWeight: 600 }}
-                                />
-                              );
-                            })()}
-                          </Box>
-
-                          {(() => {
-                            const tier = classifyDroneLegalTier(droneApp.model);
-                            if (tier.requiresClassB && droneApp.inspectorPilotLicenseClass === 'CLASS_A') {
-                              return (
-                                <Alert severity="warning" sx={{ mb: 1.5, py: 0.5 }}>
-                                  <strong>Lưu ý pháp lý (Điều 27 NĐ 288/2025/NĐ-CP):</strong> Thiết bị thuộc {tier.categoryLabel} (MTOW ≥ 2 kg, bắt buộc <strong>Bằng lái Hạng B</strong>), nhưng hồ sơ của Inspector hiện đang khai báo <strong>Bằng Hạng A (&lt; 2 kg)</strong>. Cần cập nhật Bằng Hạng B trước khi điều phối bay ở WF-02.
-                                </Alert>
-                              );
-                            }
-                            return null;
-                          })()}
-
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                              gap: 1.5,
-                              mt: 1.5,
-                              p: 1.5,
-                              bgcolor: 'background.default',
-                              borderRadius: '8px',
-                            }}
-                          >
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Số Serial:', 'Serial Number:')}
-                              </Box>{' '}
-                              <Box component="strong" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
-                                {droneApp.serialNumber}
-                              </Box>
-                            </Typography>
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Số đăng ký:', 'Registration No.:')}
-                              </Box>{' '}
-                              <Box component="strong" sx={{ color: 'text.primary' }}>
-                                {droneApp.registrationNumber}
-                              </Box>
-                            </Typography>
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Hạn đăng ký:', 'Expires:')}
-                              </Box>{' '}
-                              <Box component="strong" sx={{ color: 'text.primary' }}>
-                                {droneApp.registrationExpiresAt
-                                  ? new Date(droneApp.registrationExpiresAt).toLocaleDateString(dateLocale)
-                                  : '—'}
-                              </Box>
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          startIcon={<FactCheckOutlined />}
-                          onClick={() => void openReview(droneApp)}
-                          sx={{
-                            px: 3,
-                            py: 1,
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 650,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {tr('Thẩm định hồ sơ', 'Review application')}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        )}
-
-        {/* ===================== TAB 2: DRONE REVIEW HISTORY ===================== */}
-        {panel === 'Drone history' && (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                {tr(
-                  'Lịch sử các phương tiện Drone đã qua thẩm định',
-                  'Reviewed Drone Registration History',
-                )}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<RefreshRounded />}
-                onClick={() => void droneHistory.refetch()}
-                disabled={droneHistory.isFetching}
-                sx={{ textTransform: 'none' }}
-              >
-                {tr('Làm mới', 'Refresh')}
-              </Button>
-            </Box>
-
-            {droneHistory.isLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
-                <CircularProgress size={26} />
-                <Typography color="text.secondary">
-                  {tr('Đang tải lịch sử thẩm định drone…', 'Loading drone review history…')}
-                </Typography>
-              </Box>
-            ) : (droneHistory.data ?? []).length === 0 ? (
-              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
-                <HistoryRounded sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
-                  {tr('Chưa có lịch sử thẩm định drone nào', 'No drone review history yet')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {tr(
-                    'Các hồ sơ sau khi được phê duyệt hoặc từ chối sẽ được lưu trữ đầy đủ tại đây.',
-                    'Approved and rejected drone registration applications will be archived here.',
-                  )}
-                </Typography>
-              </Card>
-            ) : (
-              <Stack spacing={2}>
-                {(droneHistory.data ?? []).map((app) => (
-                  <Card
-                    key={app.id}
-                    variant="outlined"
-                    sx={{
-                      borderRadius: '10px',
-                      borderColor: app.status === 'APPROVED' ? 'success.main' : 'error.main',
-                      bgcolor: 'background.paper',
-                    }}
-                  >
-                    <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', md: 'row' },
-                          justifyContent: 'space-between',
-                          alignItems: { xs: 'flex-start', md: 'center' },
-                          gap: 2,
-                        }}
-                      >
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.75 }}>
-                            <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                              {app.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
-                            </Typography>
-                            {app.manufacturer && (
-                              <Chip
-                                label={`${tr('Hãng', 'Make')}: ${app.manufacturer}`}
-                                size="small"
-                                variant="outlined"
-                                sx={{ fontWeight: 600 }}
-                              />
-                            )}
-                            <Chip
-                              icon={app.status === 'APPROVED' ? <CheckCircleRounded /> : <HighlightOffRounded />}
-                              label={
-                                app.status === 'APPROVED'
-                                  ? tr('ĐÃ PHÊ DUYỆT', 'APPROVED')
-                                  : tr('ĐÃ TỪ CHỐI', 'REJECTED')
-                              }
-                              color={app.status === 'APPROVED' ? 'success' : 'error'}
-                              size="small"
-                              sx={{ fontWeight: 700 }}
-                            />
-                          </Box>
-
-                          <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.875rem', mb: 1 }}>
-                            <strong>{tr('Người nộp đơn:', 'Applicant:')}</strong>{' '}
-                            {app.inspectorFullName || 'Inspector'} ({app.inspectorEmail || '—'})
-                          </Typography>
-
-                          <Box
-                            sx={{
-                              display: 'grid',
-                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                              gap: 1.5,
-                              p: 1.5,
-                              bgcolor: 'background.default',
-                              borderRadius: '8px',
-                              border: 1,
-                              borderColor: 'divider',
-                            }}
-                          >
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Số Serial:', 'Serial Number:')}
-                              </Box>{' '}
-                              <Box component="strong" sx={{ fontFamily: 'monospace' }}>
-                                {app.serialNumber}
-                              </Box>
-                            </Typography>
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Số đăng ký:', 'Registration No.:')}
-                              </Box>{' '}
-                              <strong>{app.registrationNumber}</strong>
-                            </Typography>
-                            <Typography variant="body2">
-                              <Box component="span" sx={{ color: 'text.secondary' }}>
-                                {tr('Hạn kiểm định:', 'Inspection Expiry:')}
-                              </Box>{' '}
-                              <strong>
-                                {app.registrationExpiresAt
-                                  ? new Date(app.registrationExpiresAt).toLocaleDateString(dateLocale)
-                                  : '—'}
-                              </strong>
-                            </Typography>
-                          </Box>
-
-                          <Box sx={{ mt: 1.5, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              <strong>{tr('Thẩm định bởi:', 'Reviewed by:')}</strong>{' '}
-                              {app.reviewerFullName || 'Platform Manager'}
-                            </Typography>
-                            {app.reviewedAt && (
-                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                <strong>{tr('Thời gian duyệt:', 'Reviewed at:')}</strong>{' '}
-                                {new Date(app.reviewedAt).toLocaleString(dateLocale)}
-                              </Typography>
-                            )}
-                            {app.reviewNote && (
-                              <Typography variant="caption" sx={{ color: 'error.main' }}>
-                                <strong>{tr('Ghi chú:', 'Note:')}</strong> {app.reviewNote}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<OpenInNewRounded />}
-                          onClick={() => void openReview(app)}
-                          sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px' }}
-                        >
-                          {tr('Xem lại hồ sơ scan', 'View scanned documents')}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        )}
-
-        {/* ===================== TAB 3: PARTNER INSPECTOR APPLICATIONS ===================== */}
-        {panel === 'Inspector partners' && (
-          <Box>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                justifyContent: 'space-between',
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                gap: 1.5,
-                mb: 2.5,
-                p: 2,
-                bgcolor: 'background.default',
-                borderRadius: '10px',
-                border: 1,
-                borderColor: 'divider',
-              }}
-            >
-              <Box>
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                  {tr('Danh sách đối tác Inspector', 'Partner Inspector Roster')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {tr(
-                    'Quản lý thông tin bằng lái, giờ bay tích lũy và dòng thiết bị drone được chứng nhận.',
-                    'Manage pilot licenses, accumulated flight hours, and certified drone models.',
-                  )}
-                </Typography>
-              </Box>
-
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<PersonAddAlt />}
-                onClick={() => setCreateInspectorOpen(true)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 650,
-                  borderRadius: '8px',
-                  px: 2.5,
-                  py: 1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {tr('+ Thêm mới đối tác Inspector', '+ Add Partner Inspector')}
-              </Button>
-            </Box>
-
-            {inspectorProfiles.isLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
-                <CircularProgress size={26} />
-                <Typography color="text.secondary">
-                  {tr('Đang tải danh sách phi công đối tác…', 'Loading partner inspectors…')}
-                </Typography>
-              </Box>
-            ) : (inspectorProfiles.data ?? []).length === 0 ? (
-              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
-                <BadgeOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
-                  {tr('Chưa có đối tác Inspector nào', 'No partner inspector profiles yet')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-                  {tr(
-                    'Bấm nút bên trên để tạo tài khoản và hồ sơ đối tác Inspector đầu tiên.',
-                    'Use the button above to provision the first partner inspector account and profile.',
-                  )}
-                </Typography>
-              </Card>
-            ) : (
-              <Stack spacing={2}>
-                {(inspectorProfiles.data ?? []).map((insp: InspectorProfile) => (
-                  <Card
-                    key={insp.id}
-                    variant="outlined"
-                    sx={{
-                      borderRadius: '10px',
-                      borderColor: 'divider',
-                      transition: 'border-color 0.2s ease',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                      },
-                    }}
-                  >
-                    <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', md: 'row' },
-                          justifyContent: 'space-between',
-                          alignItems: { xs: 'flex-start', md: 'center' },
-                          gap: 2,
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
-                          <Avatar
-                            src={insp.avatarUrl ?? undefined}
-                            alt={insp.fullName}
-                            sx={{ width: 48, height: 48, bgcolor: 'primary.main', fontWeight: 700 }}
-                          >
-                            {insp.fullName.slice(0, 1) || 'I'}
-                          </Avatar>
-
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 0.5 }}>
-                              <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                                {insp.fullName}
-                              </Typography>
-                              <Chip
-                                label={
-                                  insp.onboardingStatus === 'APPROVED'
-                                    ? tr('Onboarding: Đã phê duyệt', 'Onboarding: Approved')
-                                    : insp.onboardingStatus === 'REJECTED'
-                                      ? tr('Onboarding: Yêu cầu bổ sung', 'Onboarding: Revision required')
-                                      : tr('Onboarding: Chờ Manager duyệt', 'Onboarding: Pending review')
-                                }
-                                size="small"
-                                color={
-                                  insp.onboardingStatus === 'APPROVED'
-                                    ? 'success'
-                                    : insp.onboardingStatus === 'REJECTED'
-                                      ? 'error'
-                                      : 'warning'
-                                }
-                                sx={{ fontWeight: 700 }}
-                              />
-                              <Chip
-                                label={
-                                  insp.licenseExpirationStatus === 'VALID'
-                                    ? tr(
-                                        `Bằng lái: Còn hạn ${insp.licenseRemainingDays ?? 0} ngày`,
-                                        `License: Valid (${insp.licenseRemainingDays ?? 0}d left)`,
-                                      )
-                                    : insp.licenseExpirationStatus === 'EXPIRING_SOON'
-                                      ? tr(
-                                          `Bằng lái: Sắp hết hạn (${insp.licenseRemainingDays ?? 0} ngày)`,
-                                          `License: Expiring soon (${insp.licenseRemainingDays ?? 0}d)`,
-                                        )
-                                      : insp.licenseExpirationStatus === 'EXPIRED'
-                                        ? tr('Bằng lái: ĐÃ HẾT HẠN', 'License: EXPIRED')
-                                        : tr('Bằng lái: Chưa cập nhật hạn', 'License: Expiry not set')
-                                }
-                                size="small"
-                                color={
-                                  insp.licenseExpirationStatus === 'VALID'
-                                    ? 'info'
-                                    : insp.licenseExpirationStatus === 'EXPIRING_SOON'
-                                      ? 'warning'
-                                      : insp.licenseExpirationStatus === 'EXPIRED'
-                                        ? 'error'
-                                        : 'default'
-                                }
-                                sx={{ fontWeight: 600 }}
-                              />
-                              <Chip
-                                label={
-                                  insp.hasLicenseScan
-                                    ? tr('Bản scan GPLX: Đã lưu', 'License scan: Uploaded')
-                                    : tr('Bản scan GPLX: Chưa tải', 'License scan: Missing')
-                                }
-                                size="small"
-                                variant="outlined"
-                                color={insp.hasLicenseScan ? 'success' : 'default'}
-                                sx={{ fontWeight: 600 }}
-                              />
-                              <Chip
-                                label={
-                                  insp.hasPartnerContract
-                                    ? tr(
-                                        `Hợp đồng SHA-256: ${insp.partnerContractSha256?.slice(0, 8) ?? 'Đã lưu'}…`,
-                                        `Contract SHA-256: ${insp.partnerContractSha256?.slice(0, 8) ?? 'Saved'}…`,
-                                      )
-                                    : tr('Hợp đồng: Chưa tải', 'Contract: Missing')
-                                }
-                                size="small"
-                                variant="outlined"
-                                color={insp.hasPartnerContract ? 'success' : 'warning'}
-                                sx={{ fontWeight: 600 }}
-                              />
-                            </Box>
-
-                            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                              {insp.email} {insp.phoneNumber && `· ${insp.phoneNumber}`}
-                            </Typography>
-
-                            <Box
-                              sx={{
-                                display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                                gap: 1.5,
-                                p: 1.5,
-                                bgcolor: 'background.default',
-                                borderRadius: '8px',
-                              }}
-                            >
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('Số GPLX:', 'License No.:')}
-                                </Box>{' '}
-                                <strong>{insp.pilotLicenseNumber || tr('Chưa cập nhật', 'Not set')}</strong>
-                              </Typography>
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('Tổng giờ bay:', 'Total flight hours:')}
-                                </Box>{' '}
-                                <Box component="strong" sx={{ color: 'info.main' }}>
-                                  {insp.totalFlightHours} {tr('giờ', 'hrs')}
-                                </Box>{' '}
-                                <Box component="span" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                                  ({insp.priorFlightHours}h {tr('trước', 'prior')} + {insp.companyFlightHours}h{' '}
-                                  {tr('cty', 'platform')})
-                                </Box>
-                              </Typography>
-                              <Typography variant="body2">
-                                <Box component="span" sx={{ color: 'text.secondary' }}>
-                                  {tr('Chứng chỉ Drone:', 'Certified models:')}
-                                </Box>{' '}
-                                <strong>{insp.certifiedDroneModels || tr('Chưa cập nhật', 'Not set')}</strong>
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-
-                        <Button
-                          variant="outlined"
-                          color="primary"
-                          startIcon={<FlightTakeoffRounded />}
-                          onClick={() => {
-                            setSelectedInspectorId(insp.id);
-                            setProfileDialogOpen(true);
-                          }}
-                          sx={{
-                            px: 2.5,
-                            py: 1,
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 650,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {tr('Hồ sơ phi công', 'Pilot profile')}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        )}
-
-        {/* ===================== TAB 4: CUSTOMER AIRSPACE & ASSETS (ADMIN ONLY) ===================== */}
-        {panel === 'Customer airspace' && isAdmin && (
-          <Box>
-            {customers.isLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6, gap: 2 }}>
-                <CircularProgress size={26} />
-                <Typography color="text.secondary">
-                  {tr('Đang tải danh sách vùng bay…', 'Loading customer airspace reviews…')}
-                </Typography>
-              </Box>
-            ) : (customers.data ?? []).length === 0 ? (
-              <Card variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider', textAlign: 'center', py: 8, px: 2 }}>
-                <ApartmentOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
-                <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
-                  {tr(
-                    'Không có vùng bay khách hàng nào chờ duyệt',
-                    'No customer airspace records pending review',
-                  )}
-                </Typography>
-              </Card>
-            ) : (
-              <Stack spacing={2}>
-                {(customers.data ?? []).map((customerApp) => (
-                  <Card key={customerApp.id} variant="outlined" sx={{ borderRadius: '10px', borderColor: 'divider' }}>
-                    <CardContent sx={{ p: 2.5 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box>
-                          <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
-                            {customerApp.organizationName}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {tr('Tài sản:', 'Asset:')} {customerApp.assetName} · {tr('Vùng bay:', 'Airspace:')}{' '}
-                            {customerApp.airspaceClassification}
-                          </Typography>
-                        </Box>
-                        <Button
-                          variant="outlined"
-                          onClick={() => void openReview(customerApp)}
-                          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                        >
-                          {tr('Thẩm định', 'Review')}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        )}
-      </Box>
-
-      {/* ===================== DIALOG: CREATE PARTNER INSPECTOR ===================== */}
-      <Dialog
-        open={createInspectorOpen}
-        onClose={() => setCreateInspectorOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '10px', p: 1 } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {tr('Thêm mới Đối tác Inspector', 'Add Partner Inspector')}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {tr(
-              'Nhập thông tin phi công đối tác sau khi ký hợp đồng offline. Hệ thống sẽ tạo tài khoản, kích hoạt và gửi mật khẩu tạm qua email cho đối tác.',
-              'Enter partner pilot details after offline contract signing. The platform will create the account and issue a one-time password.',
-            )}
-          </Typography>
-
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              required
-              fullWidth
-              label={tr('Họ và tên Inspector', 'Inspector full name')}
-              placeholder={tr('VD: Nguyễn Văn Bay', 'e.g. Nguyen Van Bay')}
-              value={createFullName}
-              onChange={(e) => setCreateFullName(e.target.value)}
-            />
-            <TextField
-              required
-              fullWidth
-              type="email"
-              label={tr('Email liên hệ (Nhận mật khẩu tạm)', 'Contact email (Receives temporary password)')}
-              placeholder="bay.pilot@example.com"
-              value={createEmail}
-              onChange={(e) => setCreateEmail(e.target.value)}
-            />
-
-            {createError && <Alert severity="error">{createError}</Alert>}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setCreateInspectorOpen(false)} disabled={createPlatformUser.isPending}>
-            {tr('Hủy', 'Cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            disabled={createPlatformUser.isPending || !createEmail.trim() || !createFullName.trim()}
-            onClick={() => void handleCreateInspector()}
-          >
-            {createPlatformUser.isPending
-              ? tr('Đang tạo…', 'Creating…')
-              : tr('Tạo đối tác & Gửi email', 'Create partner & send email')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ===================== DIALOG: TEMPORARY PASSWORD ===================== */}
-      <Dialog
-        open={Boolean(issuedPassword)}
-        onClose={() => setIssuedPassword(null)}
-        fullWidth
-        maxWidth="xs"
-        slotProps={{ paper: { sx: { borderRadius: '10px', p: 1 } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {tr('Tài khoản Inspector đã tạo', 'Partner Inspector Account Created')}
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {tr(
-              'Tài khoản Inspector đã được kích hoạt. Thông tin đăng nhập đã được gửi tới email đối tác.',
-              'Partner inspector account is active. Sign-in credentials have been issued.',
-            )}
-          </Alert>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>Email:</strong> {issuedPassword?.email}
-          </Typography>
-          <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: '8px', border: 1, borderColor: 'divider' }}>
-            <Typography variant="caption" color="text.secondary">
-              {tr('Mật khẩu tạm thời:', 'Temporary password:')}
-            </Typography>
-            <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem', color: 'text.primary' }}>
-              {issuedPassword?.temporaryPassword}
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button variant="contained" color="primary" onClick={() => setIssuedPassword(null)}>
-            {tr('Đã hiểu', 'Done')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ===================== DIALOG: INSPECTOR PROFILE ===================== */}
-      {selectedInspectorId && (
-        <InspectorProfileDialog
-          inspectorId={selectedInspectorId}
-          open={profileDialogOpen}
-          onClose={() => {
-            setProfileDialogOpen(false);
-            setSelectedInspectorId(null);
-            void queryClient.invalidateQueries({ queryKey: ['mf1-inspectors-list'] });
+      {queue === 'inspectors' && (
+        <QueryState
+          isLoading={pendingInspectorApps.isLoading || awaitingContractApps.isLoading}
+          error={pendingInspectorApps.error ?? awaitingContractApps.error}
+          onRetry={() => {
+            void pendingInspectorApps.refetch();
+            void awaitingContractApps.refetch();
           }}
-        />
+          isEmpty={inspectorRows.length === 0}
+          empty={<Alert severity="info">{tr('Không có hồ sơ Inspector nào khớp bộ lọc.', 'No inspector applications match the filters.')}</Alert>}
+        >
+          <QueueTable
+            headers={[
+              tr('Ứng viên', 'Applicant'),
+              tr('Bằng lái', 'License'),
+              tr('Tài liệu', 'Documents'),
+              tr('Ngày nộp', 'Submitted'),
+              '',
+            ]}
+            ariaLabel={tr('Đơn đăng ký Inspector', 'Inspector applications')}
+          >
+            {inspectorRows.map(({ kind, application }) => (
+              <TableRow
+                key={application.id}
+                hover
+                tabIndex={0}
+                onClick={() => void openInspectorAppReview(application)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void openInspectorAppReview(application);
+                  }
+                }}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell>
+                  <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
+                    {application.fullName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {application.email} · {tr('CCCD', 'Citizen ID')}: {application.citizenId}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">{application.pilotLicenseNumber}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {application.pilotLicenseClass}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                    <Chip
+                      size="small"
+                      label={application.hasLicenseScan ? tr('Bằng lái', 'License scan') : tr('Thiếu bằng lái', 'Missing license')}
+                      color={application.hasLicenseScan ? 'success' : 'error'}
+                      variant="outlined"
+                      sx={{ fontWeight: 600 }}
+                    />
+                    <Chip
+                      size="small"
+                      label={kind === 'AWAITING_CONTRACT' ? tr('Chờ hợp đồng', 'Awaiting contract') : tr('Chờ duyệt', 'Pending')}
+                      color={kind === 'AWAITING_CONTRACT' ? 'info' : 'warning'}
+                      variant="outlined"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Stack>
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {new Date(application.createdAt).toLocaleDateString(dateLocale)}
+                </TableCell>
+                <TableCell align="right">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<FactCheckOutlined />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void openInspectorAppReview(application);
+                    }}
+                  >
+                    {tr('Xem hồ sơ & Duyệt', 'Review application')}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </QueueTable>
+        </QueryState>
       )}
 
-      {/* ===================== DIALOG: APPLICATION & EVIDENCE REVIEW ===================== */}
-      <Dialog
-        open={Boolean(selected)}
-        onClose={closeDialog}
-        maxWidth="md"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '10px', overflow: 'hidden' } } }}
-      >
-        <DialogTitle
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            bgcolor: 'background.default',
-            borderBottom: 1,
-            borderColor: 'divider',
-            py: 2,
+      {queue === 'drones' && (
+        <QueryState
+          isLoading={drones.isLoading || droneHistory.isLoading}
+          error={drones.error ?? droneHistory.error}
+          onRetry={() => {
+            void drones.refetch();
+            void droneHistory.refetch();
           }}
+          isEmpty={droneRows.length === 0}
+          empty={<Alert severity="info">{tr('Không có hồ sơ drone nào khớp bộ lọc.', 'No drone registrations match the filters.')}</Alert>}
         >
-          <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
-            {panel === 'Drone history'
-              ? tr(
-                  'Chi tiết Hồ sơ Phương tiện Drone (Đã thẩm định)',
-                  'Drone Registration Record Details (Reviewed)',
-                )
-              : tr('Thẩm định hồ sơ Phương tiện Drone', 'Review Compliance Application')}
-          </Typography>
-          <IconButton size="small" onClick={closeDialog} disabled={pending}>
-            <CloseRounded />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent sx={{ p: 3 }}>
-          {selected && (
-            <Stack spacing={2.5}>
-              {'organizationName' in selected ? (
-                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px' }}>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
-                    {tr(
-                      'Thông tin Tổ chức & Tài sản đăng ký',
-                      'Organization & Registered Asset Information',
+          <QueueTable
+            headers={[
+              tr('Drone', 'Drone'),
+              tr('Người gửi', 'Applicant'),
+              tr('Serial / Đăng ký', 'Serial / Registration'),
+              tr('Trạng thái', 'Status'),
+              '',
+            ]}
+            ariaLabel={tr('Đăng ký Drone', 'Drone registrations')}
+          >
+            {droneRows.map(({ status, application }) => {
+              const tier = classifyDroneLegalTier(application.model);
+              const licenseWarning =
+                tier.requiresClassB && application.inspectorPilotLicenseClass === 'CLASS_A';
+              return (
+                <TableRow
+                  key={application.id}
+                  hover
+                  tabIndex={0}
+                  onClick={() => {
+                    if (status === 'PENDING') void openDroneReview(application);
+                  }}
+                  onKeyDown={(event) => {
+                    if ((event.key === 'Enter' || event.key === ' ') && status === 'PENDING') {
+                      event.preventDefault();
+                      void openDroneReview(application);
+                    }
+                  }}
+                  sx={{ cursor: status === 'PENDING' ? 'pointer' : 'default' }}
+                >
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
+                      {application.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {application.manufacturer || '—'} · {tier.categoryLabel}
+                    </Typography>
+                    {licenseWarning && (
+                      <Typography variant="caption" sx={{ display: 'block', color: 'warning.main' }}>
+                        {tr('Cần Bằng Hạng B', 'Class B license required')}
+                      </Typography>
                     )}
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                  </TableCell>
+                  <TableCell>
                     <Typography variant="body2">
-                      {tr('Tổ chức:', 'Organization:')}{' '}
-                      <strong>
-                        {selected.organizationName} ({selected.organizationCode})
-                      </strong>
+                      {application.inspectorFullName || 'Inspector'}
                     </Typography>
-                    <Typography variant="body2">
-                      {tr('Tài sản:', 'Asset:')}{' '}
-                      <strong>
-                        {selected.assetName} ({selected.assetCode})
-                      </strong>
+                    <Typography variant="caption" color="text.secondary">
+                      {application.inspectorEmail || '—'}
                     </Typography>
-                    <Typography variant="body2">
-                      {tr('Phân loại vùng bay:', 'Airspace classification:')}{' '}
-                      <strong>{selected.airspaceClassification}</strong>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {application.serialNumber}
                     </Typography>
-                  </Box>
-                </Box>
-              ) : (
-                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px' }}>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
-                    {tr(
-                      'Thông tin Người nộp đơn (Inspector đối tác)',
-                      'Applicant Information (Partner Inspector)',
-                    )}
-                  </Typography>
-                  {'inspectorFullName' in selected && (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
-                      <Typography variant="body2">
-                        {tr('Họ và tên:', 'Full name:')}{' '}
-                        <strong>{selected.inspectorFullName || 'Inspector'}</strong>
-                      </Typography>
-                      <Typography variant="body2">
-                        {tr('Email liên hệ:', 'Contact email:')}{' '}
-                        <strong>{selected.inspectorEmail || '—'}</strong>
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              )}
-
-              {'model' in selected && (
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 0.5 }}>
-                    {tr('Thông tin kỹ thuật & Khai báo pháp lý', 'Technical Specifications & Legal Declaration')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-                    {selected.model}
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                      gap: 1.5,
-                      p: 1.5,
-                      bgcolor: 'background.default',
-                      borderRadius: '8px',
-                      border: 1,
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {tr('Hãng sản xuất:', 'Manufacturer:')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {selected.manufacturer || '—'}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {tr('Số Serial thân máy:', 'Airframe serial number:')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                        {selected.serialNumber}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {tr('Số đăng ký cơ quan cấp:', 'Official registration number:')}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {selected.registrationNumber}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {('maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null) ||
-                  ('maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null) ||
-                  ('hasThermalCamera' in selected && selected.hasThermalCamera) ||
-                  ('hasRtk' in selected && selected.hasRtk) ? (
-                    <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
-                      {'maxWindResistanceMps' in selected && selected.maxWindResistanceMps != null && (
-                        <Chip size="small" variant="outlined" label={tr(`Kháng gió: ${selected.maxWindResistanceMps} m/s`, `Wind resistance: ${selected.maxWindResistanceMps} m/s`)} />
-                      )}
-                      {'maxAltitudeMeters' in selected && selected.maxAltitudeMeters != null && (
-                        <Chip size="small" variant="outlined" label={tr(`Trần bay tối đa: ${selected.maxAltitudeMeters} m`, `Declared maximum altitude: ${selected.maxAltitudeMeters} m`)} />
-                      )}
-                      {'opticalZoomLevel' in selected && selected.opticalZoomLevel && (
-                        <Chip size="small" variant="outlined" label={`Zoom: ${selected.opticalZoomLevel}`} />
-                      )}
-                      {'hasThermalCamera' in selected && selected.hasThermalCamera && (
-                        <Chip size="small" color="secondary" label={tr('Camera nhiệt', 'Thermal Camera')} />
-                      )}
-                      {'hasRtk' in selected && selected.hasRtk && (
-                        <Chip size="small" color="primary" label="RTK GNSS" />
-                      )}
-                    </Box>
-                  ) : null}
-                </Box>
-              )}
-
-              {'model' in selected && (
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
-                    {tr('Tài liệu hình ảnh giấy tờ đính kèm', 'Attached Supporting Documents')}
-                  </Typography>
-
-                  {evidenceLoading ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6, gap: 1.5 }}>
-                      <CircularProgress size={24} />
-                      <Typography variant="body2" color="text.secondary">
-                        {tr('Đang tải bản scan tài liệu từ MinIO…', 'Loading scanned documents from storage…')}
-                      </Typography>
-                    </Box>
-                  ) : evidenceDocs.length === 0 ? (
-                    <Alert severity="warning">
-                      {tr(
-                        'Không tìm thấy tài liệu đính kèm cho đơn đăng ký này.',
-                        'No supporting documents found for this registration application.',
-                      )}
-                    </Alert>
-                  ) : (
-                    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: '10px', overflow: 'hidden' }}>
-                      <Tabs
-                        value={activeDocIndex}
-                        onChange={(_, i: number) => setActiveDocIndex(i)}
-                        variant="scrollable"
-                        sx={{ bgcolor: 'background.default', borderBottom: 1, borderColor: 'divider' }}
-                      >
-                        {evidenceDocs.map((doc) => (
-                          <Tab
-                            key={doc.type}
-                            label={doc.label}
-                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem' }}
-                          />
-                        ))}
-                      </Tabs>
-
-                      <Box
-                        sx={{
-                          p: 2,
-                          bgcolor: 'background.paper',
-                          textAlign: 'center',
-                          minHeight: 300,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {activeDoc && (
-                          <Box sx={{ width: '100%' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                {activeDoc.label}
-                              </Typography>
-                              {activeDoc.url && (
-                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                  {!activeDoc.isPdf && (
-                                    <Button
-                                      size="small"
-                                      startIcon={<ZoomInRounded />}
-                                      onClick={() => setZoomUrl(activeDoc.url)}
-                                      sx={{ textTransform: 'none' }}
-                                    >
-                                      {tr('Phóng to', 'Zoom in')}
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="small"
-                                    startIcon={<OpenInNewRounded />}
-                                    component="a"
-                                    href={activeDoc.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    sx={{ textTransform: 'none' }}
-                                  >
-                                    {tr('Mở tab mới', 'Open in new tab')}
-                                  </Button>
-                                </Box>
-                              )}
-                            </Box>
-
-                            {activeDoc.failed ? (
-                              <Alert severity="error">
-                                {tr(
-                                  'Không thể hiển thị tài liệu này từ máy chủ lưu trữ MinIO.',
-                                  'Could not display this document from storage.',
-                                )}
-                              </Alert>
-                            ) : activeDoc.isPdf ? (
-                              <iframe
-                                src={activeDoc.url}
-                                title={activeDoc.label}
-                                style={{ width: '100%', height: '400px', border: 'none', borderRadius: '8px' }}
-                              />
-                            ) : (
-                              <Box
-                                component="img"
-                                src={activeDoc.url}
-                                alt={activeDoc.label}
-                                sx={{
-                                  maxHeight: 380,
-                                  maxWidth: '100%',
-                                  objectFit: 'contain',
-                                  borderRadius: '8px',
-                                  border: 1,
-                                  borderColor: 'divider',
-                                  cursor: 'zoom-in',
-                                }}
-                                onClick={() => setZoomUrl(activeDoc.url)}
-                              />
-                            )}
-                          </Box>
-                        )}
-                      </Box>
-                    </Box>
-                  )}
-                </Box>
-              )}
-
-              {panel !== 'Drone history' && (
-                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
-                  <Typography variant="h6" component="h3" sx={{ fontWeight: 700, fontSize: '0.875rem', color: 'text.primary', mb: 1 }}>
-                    {isAdmin
-                      ? tr('Quyết định của Platform Admin', 'Platform Admin Decision')
-                      : tr('Quyết định của Platform Manager', 'Platform Manager Decision')}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
-                    <Button
-                      variant={action === 'approve' ? 'contained' : 'outlined'}
-                      color="success"
-                      startIcon={<CheckCircleOutlineRounded />}
-                      onClick={() => setAction('approve')}
-                      sx={{ textTransform: 'none', fontWeight: 650 }}
-                    >
-                      {tr('Phê duyệt đạt chuẩn', 'Approve application')}
-                    </Button>
-                    <Button
-                      variant={action === 'reject' ? 'contained' : 'outlined'}
-                      color="error"
-                      startIcon={<HighlightOffRounded />}
-                      onClick={() => setAction('reject')}
-                      sx={{ textTransform: 'none', fontWeight: 600 }}
-                    >
-                      {tr('Từ chối / Yêu cầu bổ sung', 'Reject / Request changes')}
-                    </Button>
-                  </Box>
-
-                  {action === 'approve' && panel !== 'Customer airspace' ? (
-                    <Alert severity="success">
-                      <strong>{tr('Xác nhận phê duyệt:', 'Approval confirmation:')}</strong>{' '}
-                      {tr(
-                        'Thông số kỹ thuật trùng khớp với hồ sơ đăng ký, sở hữu và kiểm định an toàn hợp lệ.',
-                        'Technical specifications match valid registration, ownership, and safety inspection records.',
-                      )}
-                    </Alert>
-                  ) : (
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={2}
+                    <Typography variant="caption" color="text.secondary">
+                      {application.registrationNumber}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <StatusChip
+                      status={
+                        status === 'APPROVED' ? 'approved' : status === 'REJECTED' ? 'rejected' : 'pending'
+                      }
                       label={
-                        action === 'approve'
-                          ? tr('Ghi chú phê duyệt vùng bay', 'Airspace approval note')
-                          : tr('Lý do từ chối / Hướng dẫn bổ sung hồ sơ', 'Rejection reason / Resubmission instructions')
+                        status === 'APPROVED'
+                          ? tr('Đã duyệt', 'Approved')
+                          : status === 'REJECTED'
+                            ? tr('Từ chối', 'Rejected')
+                            : tr('Chờ duyệt', 'Pending')
                       }
-                      placeholder={
-                        action === 'approve'
-                          ? tr('Nhập ghi chú xác nhận an toàn vùng bay...', 'Enter airspace compliance verification note...')
-                          : tr('Nhập lý do từ chối hoặc yêu cầu bổ sung...', 'Enter rejection reason or required corrections...')
-                      }
-                      value={reviewNote}
-                      onChange={(e) => setReviewNote(e.target.value)}
                     />
-                  )}
-                </Box>
-              )}
-
-              {error && <Alert severity="error">{error}</Alert>}
-            </Stack>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={closeDialog} disabled={pending}>
-            {tr('Đóng', 'Close')}
-          </Button>
-          {panel !== 'Drone history' && (
-            <Button
-              variant="contained"
-              color={action === 'approve' ? 'success' : 'error'}
-              onClick={() => void review()}
-              disabled={pending}
-              sx={{ px: 3, fontWeight: 650 }}
-            >
-              {pending
-                ? tr('Đang lưu…', 'Saving…')
-                : action === 'approve'
-                  ? tr('Xác nhận phê duyệt', 'Confirm approval')
-                  : tr('Xác nhận từ chối', 'Confirm rejection')}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-
-      {/* DIALOG: REVIEW INSPECTOR APPLICATION */}
-      <Dialog
-        open={Boolean(selectedApplication)}
-        onClose={closeInspectorAppDialog}
-        fullWidth
-        maxWidth="md"
-        slotProps={{ paper: { sx: { borderRadius: '10px' } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {tr('Thẩm định Đơn đăng ký Inspector', 'Review Inspector Application')}
-        </DialogTitle>
-        <DialogContent dividers>
-          {selectedApplication && (
-            <Stack spacing={2.5}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                  gap: 1.5,
-                  p: 2,
-                  bgcolor: 'background.default',
-                  borderRadius: '10px',
-                  border: 1,
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2">
-                  <strong>{tr('Họ và tên:', 'Full name:')}</strong> {selectedApplication.fullName}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Email:</strong> {selectedApplication.email}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('Số điện thoại:', 'Phone:')}</strong>{' '}
-                  {selectedApplication.phoneNumber || tr('Chưa cung cấp', 'Not provided')}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('CCCD/CMND:', 'Citizen ID:')}</strong> {selectedApplication.citizenId}
-                </Typography>
-                <Typography variant="body2" sx={{ gridColumn: { sm: '1 / -1' } }}>
-                  <strong>{tr('Địa chỉ:', 'Address:')}</strong> {selectedApplication.address}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('Số bằng lái:', 'License no.:')}</strong> {selectedApplication.pilotLicenseNumber}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('Hạng bằng:', 'License class:')}</strong> {selectedApplication.pilotLicenseClass}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('Ngày hết hạn:', 'Expires at:')}</strong>{' '}
-                  {selectedApplication.pilotLicenseExpiresAt
-                    ? new Date(selectedApplication.pilotLicenseExpiresAt).toLocaleDateString(dateLocale)
-                    : tr('Không thời hạn', 'No expiry')}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>{tr('Ngày nộp hồ sơ:', 'Submitted at:')}</strong>{' '}
-                  {new Date(selectedApplication.createdAt).toLocaleString(dateLocale)}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {tr('Tài liệu bằng lái phi công (MinIO)', 'Pilot License Document (MinIO)')}
-                  </Typography>
-                  {appScanUrl && (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {!appScanIsPdf && (
-                        <Button
-                          size="small"
-                          startIcon={<ZoomInRounded />}
-                          onClick={() => setZoomUrl(appScanUrl)}
-                          sx={{ textTransform: 'none' }}
-                        >
-                          {tr('Phóng to', 'Zoom in')}
-                        </Button>
-                      )}
+                  </TableCell>
+                  <TableCell align="right">
+                    {status === 'PENDING' && (
                       <Button
                         size="small"
-                        startIcon={<OpenInNewRounded />}
-                        component="a"
-                        href={appScanUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ textTransform: 'none' }}
+                        variant="contained"
+                        startIcon={<FactCheckOutlined />}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openDroneReview(application);
+                        }}
                       >
-                        {tr('Mở tab mới', 'Open in new tab')}
+                        {tr('Thẩm định hồ sơ', 'Review application')}
                       </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </QueueTable>
+        </QueryState>
+      )}
+
+      {queue === 'customers' && (
+        <QueryState
+          isLoading={customers.isLoading}
+          error={customers.error}
+          onRetry={() => void customers.refetch()}
+          isEmpty={customerRows.length === 0}
+          empty={<Alert severity="info">{tr('Không có vùng bay khách hàng nào khớp bộ lọc.', 'No customer airspace reviews match the filters.')}</Alert>}
+        >
+          <QueueTable
+            headers={[
+              tr('Tổ chức', 'Organization'),
+              tr('Tài sản', 'Asset'),
+              tr('Phân loại vùng bay', 'Airspace'),
+              tr('Ngày nộp', 'Submitted'),
+              '',
+            ]}
+            ariaLabel={tr('Vùng bay khách hàng', 'Customer airspace')}
+          >
+            {customerRows.map((review) => (
+              <TableRow
+                key={review.id}
+                hover
+                tabIndex={0}
+                onClick={() => openCustomerReview(review)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCustomerReview(review);
+                  }
+                }}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell>
+                  <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
+                    {review.organizationName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {review.organizationCode}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2">{review.assetName}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {review.assetCode}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={review.airspaceClassification || 'UNKNOWN'}
+                    sx={{ fontWeight: 600 }}
+                  />
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  {new Date(review.createdAt).toLocaleDateString(dateLocale)}
+                </TableCell>
+                <TableCell align="right">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<FactCheckOutlined />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openCustomerReview(review);
+                    }}
+                  >
+                    {tr('Thẩm định', 'Review')}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </QueueTable>
+        </QueryState>
+      )}
+
+      {/* Drone / customer review dialog */}
+      <Dialog open={Boolean(selected)} onClose={() => (pending ? undefined : clearReview())} fullWidth maxWidth="md">
+        {selected && (
+          <>
+            <DialogTitle sx={{ fontWeight: 700 }}>
+              {tr('Thẩm định hồ sơ Phương tiện Drone', 'Review Compliance Application')}
+            </DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                {error && <Alert severity="error">{error}</Alert>}
+
+                {reviewQueue === 'drones' ? (
+                  <>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                        gap: 1.5,
+                      }}
+                    >
+                      <DetailField label={tr('Drone', 'Drone')} value={(selected as DroneRegistrationApplication).model} />
+                      <DetailField label={tr('Serial', 'Serial')} value={(selected as DroneRegistrationApplication).serialNumber} />
+                      <DetailField
+                        label={tr('Số đăng ký', 'Registration')}
+                        value={(selected as DroneRegistrationApplication).registrationNumber}
+                      />
+                      <DetailField
+                        label={tr('Người gửi', 'Applicant')}
+                        value={(selected as DroneRegistrationApplication).inspectorFullName}
+                      />
+                      <DetailField
+                        label={tr('Email', 'Email')}
+                        value={(selected as DroneRegistrationApplication).inspectorEmail}
+                      />
+                      <DetailField
+                        label={tr('Bằng lái', 'Pilot license')}
+                        value={(selected as DroneRegistrationApplication).inspectorPilotLicenseNumber}
+                      />
                     </Box>
+                    <Divider />
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', mb: 1 }}>
+                        {tr('Tài liệu đính kèm', 'Evidence documents')}
+                      </Typography>
+                      {telemetryLoading ? (
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 2 }}>
+                          <CircularProgress size={22} />
+                          <Typography color="text.secondary">
+                            {tr('Đang tải tài liệu…', 'Loading documents…')}
+                          </Typography>
+                        </Stack>
+                      ) : evidenceDocs.length === 0 ? (
+                        <Alert severity="info">{tr('Không có tài liệu đính kèm.', 'No evidence documents attached.')}</Alert>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                            gap: 1.5,
+                          }}
+                        >
+                          {evidenceDocs.map((doc) => (
+                            <Box
+                              key={`${doc.type}-${doc.label}`}
+                              sx={{
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: '8px',
+                                p: 1.25,
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.75 }}>
+                                {doc.label}
+                              </Typography>
+                              {doc.failed || !doc.url ? (
+                                <Typography variant="caption" color="error.main">
+                                  {tr('Không tải được tài liệu', 'Document unavailable')}
+                                </Typography>
+                              ) : doc.isPdf ? (
+                                <Box
+                                  component="iframe"
+                                  src={doc.url}
+                                  title={doc.label}
+                                  sx={{ width: '100%', height: 220, border: 0, borderRadius: '6px' }}
+                                />
+                              ) : (
+                                <Box
+                                  component="img"
+                                  src={doc.url}
+                                  alt={doc.label}
+                                  sx={{
+                                    width: '100%',
+                                    height: 180,
+                                    objectFit: 'contain',
+                                    borderRadius: '6px',
+                                    bgcolor: 'background.default',
+                                  }}
+                                />
+                              )}
+                              {doc.url && (
+                                <Link
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  underline="hover"
+                                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, fontSize: '0.75rem' }}
+                                >
+                                  <OpenInNewRounded sx={{ fontSize: 14 }} />
+                                  {tr('Mở toàn màn hình', 'Open full size')}
+                                </Link>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  </>
+                ) : (
+                  <Box
+                    sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
+                  >
+                    <DetailField label={tr('Tổ chức', 'Organization')} value={(selected as ProspectiveCustomerReview).organizationName} />
+                    <DetailField label={tr('Mã tổ chức', 'Organization code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
+                    <DetailField label={tr('Tài sản', 'Asset')} value={(selected as ProspectiveCustomerReview).assetName} />
+                    <DetailField label={tr('Mã tài sản', 'Asset code')} value={(selected as ProspectiveCustomerReview).assetCode} />
+                    <DetailField
+                      label={tr('Phân loại vùng bay', 'Airspace classification')}
+                      value={(selected as ProspectiveCustomerReview).airspaceClassification}
+                    />
+                    <DetailField
+                      label={tr('Ngày nộp', 'Submitted')}
+                      value={new Date((selected as ProspectiveCustomerReview).createdAt).toLocaleString(dateLocale)}
+                    />
+                  </Box>
+                )}
+
+                <Divider />
+
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant={action === 'approve' ? 'contained' : 'outlined'}
+                    color="success"
+                    startIcon={<CheckCircleOutlineRounded />}
+                    onClick={() => setAction('approve')}
+                  >
+                    {tr('Duyệt', 'Approve')}
+                  </Button>
+                  <Button
+                    variant={action === 'reject' ? 'contained' : 'outlined'}
+                    color="error"
+                    startIcon={<HighlightOffRounded />}
+                    onClick={() => setAction('reject')}
+                  >
+                    {tr('Từ chối', 'Reject')}
+                  </Button>
+                </Stack>
+
+                <TextField
+                  multiline
+                  minRows={3}
+                  label={
+                    action === 'reject'
+                      ? tr('Lý do từ chối (bắt buộc)', 'Rejection reason (required)')
+                      : tr('Ghi chú duyệt', 'Review note')
+                  }
+                  value={reviewNote}
+                  onChange={(event) => setReviewNote(event.target.value)}
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+              <Button onClick={clearReview} disabled={pending} color="inherit">
+                {tr('Hủy', 'Cancel')}
+              </Button>
+              <Button
+                variant="contained"
+                color={action === 'reject' ? 'error' : 'primary'}
+                onClick={() => void submitReview()}
+                disabled={pending}
+              >
+                {pending
+                  ? tr('Đang lưu…', 'Saving…')
+                  : action === 'reject'
+                    ? tr('Xác nhận từ chối', 'Confirm rejection')
+                    : tr('Xác nhận duyệt', 'Confirm approval')}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      {/* Inspector application review dialog */}
+      <Dialog open={Boolean(selectedApplication)} onClose={closeInspectorAppDialog} fullWidth maxWidth="md">
+        {selectedApplication && (
+          <>
+            <DialogTitle sx={{ fontWeight: 700 }}>
+              {tr('Thẩm định Đơn đăng ký Inspector', 'Review Inspector Application')}
+            </DialogTitle>
+            <DialogContent dividers>
+              <Stack spacing={2}>
+                {appError && <Alert severity="error">{appError}</Alert>}
+                <Box
+                  sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
+                >
+                  <DetailField label={tr('Họ tên', 'Full name')} value={selectedApplication.fullName} />
+                  <DetailField label={tr('Email', 'Email')} value={selectedApplication.email} />
+                  <DetailField label={tr('Điện thoại', 'Phone')} value={selectedApplication.phoneNumber} />
+                  <DetailField label={tr('CCCD', 'Citizen ID')} value={selectedApplication.citizenId} />
+                  <DetailField
+                    label={tr('Số bằng lái', 'License number')}
+                    value={selectedApplication.pilotLicenseNumber}
+                  />
+                  <DetailField
+                    label={tr('Hạng bằng', 'License class')}
+                    value={selectedApplication.pilotLicenseClass}
+                  />
+                  <DetailField
+                    label={tr('Hết hạn bằng', 'License expiry')}
+                    value={selectedApplication.pilotLicenseExpiresAt}
+                  />
+                  <DetailField label={tr('Địa chỉ', 'Address')} value={selectedApplication.address} />
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', mb: 1 }}>
+                    {tr('Bản scan bằng lái', 'License scan')}
+                  </Typography>
+                  {appScanLoading ? (
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 2 }}>
+                      <CircularProgress size={22} />
+                      <Typography color="text.secondary">{tr('Đang tải bản scan…', 'Loading scan…')}</Typography>
+                    </Stack>
+                  ) : appScanUrl ? (
+                    appScanIsPdf ? (
+                      <Box
+                        component="iframe"
+                        src={appScanUrl}
+                        title={tr('Bản scan bằng lái', 'License scan')}
+                        sx={{ width: '100%', height: 320, border: 0, borderRadius: '8px' }}
+                      />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={appScanUrl}
+                        alt={tr('Bản scan bằng lái', 'License scan')}
+                        sx={{
+                          maxWidth: '100%',
+                          maxHeight: 320,
+                          objectFit: 'contain',
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      />
+                    )
+                  ) : (
+                    <Alert severity="warning">
+                      {tr('Chưa có bản scan bằng lái.', 'No license scan attached.')}
+                    </Alert>
                   )}
                 </Box>
 
-                {appScanLoading ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 3 }}>
-                    <CircularProgress size={22} />
-                    <Typography variant="body2" color="text.secondary">
-                      {tr('Đang tải tài liệu bằng lái…', 'Loading license scan…')}
-                    </Typography>
-                  </Box>
-                ) : appScanFailed ? (
-                  <Alert severity="error">
-                    {tr('Không thể tải tài liệu bằng lái từ MinIO.', 'Could not load license document from MinIO.')}
-                  </Alert>
-                ) : !appScanUrl ? (
-                  <Alert severity="warning">
-                    {tr('Ứng viên chưa đính kèm tài liệu bằng lái.', 'No license scan attached.')}
-                  </Alert>
-                ) : appScanIsPdf ? (
-                  <iframe
-                    src={appScanUrl}
-                    title="Pilot license document"
-                    style={{ width: '100%', height: '380px', border: 'none', borderRadius: '8px' }}
-                  />
-                ) : (
-                  <Box
-                    component="img"
-                    src={appScanUrl}
-                    alt="Pilot license scan"
-                    onClick={() => setZoomUrl(appScanUrl)}
-                    sx={{
-                      maxHeight: 360,
-                      maxWidth: '100%',
-                      objectFit: 'contain',
-                      borderRadius: '8px',
-                      border: 1,
-                      borderColor: 'divider',
-                      cursor: 'zoom-in',
-                    }}
-                  />
-                )}
-              </Box>
+                <Divider />
 
-              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  {tr('Hợp đồng hợp tác ký offline (Bắt buộc trước khi duyệt)', 'Offline Signed Contract (Required before approval)')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  {tr(
-                    'Sau khi ký hợp đồng trực tiếp với ứng viên, Manager scan và tải lên bản hợp đồng đã ký rồi mới duyệt tạo tài khoản.',
-                    'After offline signing with the applicant, upload the scanned signed contract before approving account creation.',
-                  )}
-                </Typography>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                   <Button
-                    component="label"
                     variant="outlined"
-                    color={selectedApplication.hasSignedContract ? 'success' : 'primary'}
+                    component="label"
                     startIcon={<UploadFileRounded />}
                     disabled={uploadingContractId === selectedApplication.id}
-                    sx={{ textTransform: 'none', fontWeight: 650 }}
                   >
                     {uploadingContractId === selectedApplication.id
                       ? tr('Đang tải lên…', 'Uploading…')
-                      : selectedApplication.hasSignedContract
-                        ? tr('Tải lại bản scan hợp đồng', 'Replace signed contract scan')
-                        : tr('Scan / Tải lên hợp đồng đã ký', 'Upload signed contract scan')}
+                      : tr('Tải lên hợp đồng đã ký', 'Upload signed contract')}
                     <input
                       type="file"
                       hidden
                       accept="application/pdf,image/png,image/jpeg,image/webp"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (file) {
-                          void handleUploadSignedContract(selectedApplication, file);
-                        }
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = '';
+                        if (file) void uploadSignedContract(selectedApplication, file);
                       }}
                     />
                   </Button>
-
                   {selectedApplication.hasSignedContract && (
-                    <Button
+                    <Chip
                       size="small"
-                      startIcon={<OpenInNewRounded />}
-                      onClick={() => void handleOpenSignedContractPreview(selectedApplication.id)}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      {tr('Xem hợp đồng đã tải', 'View uploaded contract')}
-                    </Button>
+                      color="success"
+                      variant="outlined"
+                      label={tr('Đã có hợp đồng đã ký', 'Signed contract uploaded')}
+                      sx={{ alignSelf: 'center', fontWeight: 600 }}
+                    />
                   )}
+                </Stack>
 
-                  <Chip
-                    label={
-                      selectedApplication.hasSignedContract
-                        ? tr('Đã tải lên bản scan hợp đồng', 'Signed contract uploaded')
-                        : tr('Chưa có bản scan hợp đồng', 'No signed contract yet')
-                    }
-                    size="small"
-                    color={selectedApplication.hasSignedContract ? 'success' : 'warning'}
-                    variant="outlined"
-                  />
-                </Box>
-              </Box>
+                <Divider />
 
-              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: '10px', border: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  {tr('Quyết định duyệt hồ sơ', 'Application Review Decision')}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+                <Stack direction="row" spacing={1}>
                   <Button
                     variant={appAction === 'approve' ? 'contained' : 'outlined'}
                     color="success"
                     startIcon={<CheckCircleOutlineRounded />}
                     onClick={() => setAppAction('approve')}
-                    sx={{ textTransform: 'none', fontWeight: 650 }}
                   >
-                    {tr('Duyệt & Tạo tài khoản', 'Approve & Create account')}
+                    {tr('Duyệt', 'Approve')}
                   </Button>
                   <Button
                     variant={appAction === 'reject' ? 'contained' : 'outlined'}
                     color="error"
                     startIcon={<HighlightOffRounded />}
                     onClick={() => setAppAction('reject')}
-                    sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
-                    {tr('Từ chối hồ sơ', 'Reject application')}
+                    {tr('Từ chối', 'Reject')}
                   </Button>
-                </Box>
+                </Stack>
 
-                {appAction === 'approve' ? (
-                  selectedApplication.hasSignedContract ? (
-                    <Alert severity="success">
-                      {tr(
-                        'Đã có bản scan hợp đồng. Bấm Xác nhận duyệt để tạo tài khoản Inspector và kích hoạt đối tác ngay.',
-                        'Signed contract uploaded. Confirm approval to create and activate the Inspector account.',
-                      )}
-                    </Alert>
-                  ) : (
-                    <Alert severity="warning">
-                      {tr(
-                        'Chưa thể duyệt: vui lòng ký hợp đồng offline với ứng viên và tải lên bản scan hợp đồng ở mục trên trước.',
-                        'Cannot approve yet: please sign the contract offline and upload the scanned contract above first.',
-                      )}
-                    </Alert>
-                  )
-                ) : (
+                {appAction === 'reject' && (
                   <TextField
-                    fullWidth
                     multiline
-                    rows={2}
-                    label={tr('Lý do từ chối (gửi qua email cho ứng viên)', 'Rejection reason (emailed to applicant)')}
-                    placeholder={tr('VD: Ảnh bằng lái bị mờ, vui lòng chụp rõ nét và đăng ký lại...', 'e.g. License image is blurry...')}
+                    minRows={3}
+                    required
+                    label={tr('Lý do từ chối', 'Rejection reason')}
                     value={appRejectReason}
-                    onChange={(e) => setAppRejectReason(e.target.value)}
+                    onChange={(event) => setAppRejectReason(event.target.value)}
                   />
                 )}
-              </Box>
-
-              {appError && <Alert severity="error">{appError}</Alert>}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={closeInspectorAppDialog} disabled={appPending}>
-            {tr('Đóng', 'Close')}
-          </Button>
-          <Button
-            variant="contained"
-            color={appAction === 'approve' ? 'success' : 'error'}
-            onClick={() => void submitInspectorAppReview()}
-            disabled={appPending || (appAction === 'approve' && !selectedApplication?.hasSignedContract)}
-            sx={{ px: 3, fontWeight: 650 }}
-          >
-            {appPending
-              ? tr('Đang xử lý…', 'Processing…')
-              : appAction === 'approve'
-                ? tr('Xác nhận duyệt', 'Confirm approval')
-                : tr('Xác nhận từ chối', 'Confirm rejection')}
-          </Button>
-        </DialogActions>
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+              <Button onClick={closeInspectorAppDialog} disabled={appPending} color="inherit">
+                {tr('Hủy', 'Cancel')}
+              </Button>
+              <Button
+                variant="contained"
+                color={appAction === 'reject' ? 'error' : 'primary'}
+                onClick={() => void submitInspectorAppReview()}
+                disabled={appPending}
+              >
+                {appPending
+                  ? tr('Đang lưu…', 'Saving…')
+                  : appAction === 'reject'
+                    ? tr('Xác nhận từ chối', 'Confirm rejection')
+                    : tr('Xác nhận duyệt', 'Confirm approval')}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
+    </Box>
+  );
+}
 
-      {/* DIALOG: ZOOM SCAN */}
-      <Dialog open={Boolean(zoomUrl)} onClose={() => setZoomUrl(null)} maxWidth="lg">
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
-          <IconButton size="small" onClick={() => setZoomUrl(null)}>
-            <CloseRounded />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 2, textAlign: 'center' }}>
-          {zoomUrl && (
-            <Box
-              component="img"
-              src={zoomUrl}
-              alt="Zoom scan"
-              sx={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+type ReviewItem = ProspectiveCustomerReview | DroneRegistrationApplication;
+
+function QueueTable({
+  headers,
+  ariaLabel,
+  children,
+}: {
+  headers: string[];
+  ariaLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <Paper variant="outlined" sx={{ borderRadius: '10px', overflow: 'hidden', borderColor: 'divider' }}>
+      <TableContainer>
+        <Table aria-label={ariaLabel}>
+          <TableHead>
+            <TableRow>
+              {headers.map((header, index) => (
+                <TableCell
+                  key={header || `actions-${index}`}
+                  align={index === headers.length - 1 ? 'right' : 'left'}
+                  sx={{
+                    bgcolor: (muiTheme) =>
+                      muiTheme.palette.mode === 'dark'
+                        ? 'rgba(255, 255, 255, 0.03)'
+                        : '#F9FAFB',
+                    color: 'text.secondary',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    py: 1.25,
+                    px: 2,
+                  }}
+                >
+                  {header}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>{children}</TableBody>
+        </Table>
+      </TableContainer>
+    </Paper>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value?: string | null | undefined }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" color={value ? 'text.primary' : 'text.secondary'} sx={{ overflowWrap: 'anywhere' }}>
+        {value || '—'}
+      </Typography>
     </Box>
   );
 }

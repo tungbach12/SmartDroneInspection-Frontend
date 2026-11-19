@@ -93,16 +93,15 @@ const NAV_ITEMS = [
   { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
   { section: 'assets', icon: <NextAdminTablesIcon /> },
   { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
+  { section: 'flight-drone-config', icon: <NextAdminTaskIcon /> },
   { section: 'inspections', icon: <NextAdminTaskIcon /> },
   { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
   { section: 'finance-history', icon: <NextAdminInvoiceIcon /> },
   { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
   { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
+  { section: 'audit-logs', icon: <NextAdminSearchIcon /> },
   { section: 'platform-users', icon: <NextAdminProfileIcon /> },
-  { section: 'finance-settings', icon: <NextAdminInvoiceIcon /> },
-  { section: 'operations-settings', icon: <NextAdminTaskIcon /> },
-  { section: 'pilot-license-classes', icon: <NextAdminFormsIcon />, path: '/admin/pilot-license-classes' },
-  { section: 'ai-settings', icon: <NextAdminChartsIcon />, path: '/admin/ai-settings' },
+  { section: 'platform-settings', icon: <NextAdminTaskIcon /> },
   { section: 'notifications', icon: <NextAdminBellIcon /> },
   { section: 'settings', icon: <NextAdminProfileIcon /> },
 ] as const;
@@ -130,13 +129,12 @@ const NAV_GROUPS: ReadonlyArray<{
     labelEn: 'GOVERNANCE',
     labelVi: 'QUẢN TRỊ',
     sections: [
+      'asset-catalog',
+      'flight-drone-config',
       'onboarding-reviews',
       'platform-users',
-      'asset-catalog',
-      'pilot-license-classes',
-      'finance-settings',
-      'operations-settings',
-      'ai-settings',
+      'platform-settings',
+      'audit-logs',
     ],
   },
   {
@@ -249,9 +247,6 @@ export function AppShell({ portal }: AppShellProps) {
     if (section === 'partner-onboarding') {
       return false;
     }
-    if (section === 'ai-settings') {
-      return portal === 'admin' && roles.includes('ADMIN');
-    }
     return canAccessSection(portal, section, roles);
   }).map((item) => {
     const { section, icon } = item;
@@ -262,17 +257,13 @@ export function AppShell({ portal }: AppShellProps) {
           ? '/operations/inspections?view=calendar'
           : section === 'partner-onboarding'
             ? '/operations/partner-onboarding'
-            : section === 'ai-settings'
-              ? '/admin/ai-settings'
-              : section === 'pilot-license-classes'
-                ? '/admin/pilot-license-classes'
-                : getSectionPath(
-                    portal,
-                    section as Exclude<
-                      typeof section,
-                      'assignments' | 'schedule' | 'partner-onboarding' | 'ai-settings' | 'pilot-license-classes'
-                    >,
-                  );
+            : getSectionPath(
+                portal,
+                section as Exclude<
+                  typeof section,
+                  'assignments' | 'schedule' | 'partner-onboarding'
+                >,
+              );
     const label =
       section === 'assignments'
         ? t('Assignments')
@@ -282,15 +273,7 @@ export function AppShell({ portal }: AppShellProps) {
             ? locale === 'vi'
               ? 'Hồ sơ & Hợp đồng'
               : 'Pilot Profile & Contract'
-            : section === 'ai-settings'
-              ? locale === 'vi'
-                ? 'Cấu hình AI'
-                : 'AI configuration'
-              : section === 'pilot-license-classes'
-                ? locale === 'vi'
-                  ? 'Hạng bằng lái UAV'
-                  : 'UAV license classes'
-                : getSectionLabel(section, locale, portal);
+            : getSectionLabel(section, locale, portal);
     return {
       section,
       icon,
@@ -406,11 +389,11 @@ export function AppShell({ portal }: AppShellProps) {
             <Typography
               component="span"
               sx={{
-                fontSize: '0.6875rem',
+                fontSize: '0.75rem',
                 fontWeight: 600,
-                letterSpacing: '0.14em',
+                letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                color: '#2B84EB',
+                color: 'primary.main',
                 lineHeight: 1.2,
                 mt: 0.25,
                 whiteSpace: 'nowrap',
@@ -457,9 +440,9 @@ export function AppShell({ portal }: AppShellProps) {
                 <Typography
                   component="div"
                   sx={{
-                    fontSize: '0.7rem',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
-                    color: '#71717A',
+                    color: 'text.secondary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     px: 1.5,
@@ -560,7 +543,7 @@ export function AppShell({ portal }: AppShellProps) {
                               borderRadius: '10px',
                               bgcolor: 'warning.main',
                               color: 'warning.contrastText',
-                              fontSize: '0.7rem',
+                              fontSize: '0.75rem',
                               fontWeight: 700,
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -582,7 +565,7 @@ export function AppShell({ portal }: AppShellProps) {
                               borderRadius: '10px',
                               bgcolor: 'primary.main',
                               color: 'primary.contrastText',
-                              fontSize: '0.7rem',
+                              fontSize: '0.75rem',
                               fontWeight: 700,
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -611,7 +594,15 @@ export function AppShell({ portal }: AppShellProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        height: '100dvh',
+        minHeight: 0,
+        overflow: 'hidden',
+        bgcolor: 'background.default',
+      }}
+    >
       <Drawer
         variant={!hasMatchMedia || isDesktop ? 'persistent' : 'temporary'}
         open={!hasMatchMedia || isDesktop ? navVisible : mobileOpen}
@@ -624,7 +615,7 @@ export function AppShell({ portal }: AppShellProps) {
           zIndex: (tTheme) => (isDesktop ? undefined : tTheme.zIndex.drawer + 2),
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
-            height: '100vh',
+            height: '100dvh',
             boxSizing: 'border-box',
             bgcolor: 'background.default',
             borderRight: 'none',
@@ -641,7 +632,7 @@ export function AppShell({ portal }: AppShellProps) {
         sx={{
           flex: 1,
           minWidth: 0,
-          height: '100vh',
+          height: '100dvh',
           overflow: 'hidden',
           p: { xs: 0, lg: '16px 16px 16px 0' },
         }}
@@ -649,6 +640,7 @@ export function AppShell({ portal }: AppShellProps) {
         <Box
           sx={{
             height: '100%',
+            minHeight: 0,
             borderRadius: { xs: 0, lg: '16px' },
             border: {
               xs: 'none',
@@ -665,11 +657,13 @@ export function AppShell({ portal }: AppShellProps) {
           }}
         >
           <AppBar
-            position="sticky"
+            position="static"
             color="inherit"
             sx={{
               height: 72,
+              minHeight: 0,
               flexShrink: 0,
+              zIndex: (tTheme) => tTheme.zIndex.appBar,
               bgcolor: isDark ? '#111827' : '#FFFFFF',
               borderBottom: isDark ? '1px solid #27272A' : '1px solid #E8E8E8',
               boxShadow: 'none',
@@ -891,6 +885,8 @@ export function AppShell({ portal }: AppShellProps) {
               minHeight: 0,
               minWidth: 0,
               overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              scrollPaddingTop: { xs: 2, md: 3.5 },
               px: layoutTokens.pageGutter,
               py: { xs: 2.5, md: 3.5 },
             }}
@@ -1172,7 +1168,7 @@ export function AppShell({ portal }: AppShellProps) {
                 sx={{
                   width: 22,
                   height: 22,
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   border: '1px solid',
                   borderColor: 'divider',
                   bgcolor: 'background.paper',
@@ -1189,7 +1185,7 @@ export function AppShell({ portal }: AppShellProps) {
                 sx={{
                   width: 22,
                   height: 22,
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   border: '1px solid',
                   borderColor: 'divider',
                   bgcolor: 'background.paper',
@@ -1201,7 +1197,7 @@ export function AppShell({ portal }: AppShellProps) {
               >
                 ↓
               </Box>
-              <Typography component="span" sx={{ fontSize: '0.8125rem', color: '#71717A', ml: 0.5 }}>
+              <Typography component="span" sx={{ fontSize: '0.8125rem', color: 'text.secondary', ml: 0.5 }}>
                 {t('Navigate')}
               </Typography>
             </Box>
@@ -1212,7 +1208,7 @@ export function AppShell({ portal }: AppShellProps) {
                 sx={{
                   width: 22,
                   height: 22,
-                  borderRadius: '5px',
+                  borderRadius: '6px',
                   border: '1px solid',
                   borderColor: 'divider',
                   bgcolor: 'background.paper',
@@ -1224,7 +1220,7 @@ export function AppShell({ portal }: AppShellProps) {
               >
                 ↵
               </Box>
-              <Typography component="span" sx={{ fontSize: '0.8125rem', color: '#71717A', ml: 0.5 }}>
+              <Typography component="span" sx={{ fontSize: '0.8125rem', color: 'text.secondary', ml: 0.5 }}>
                 {t('Select')}
               </Typography>
             </Box>
@@ -1248,7 +1244,7 @@ export function AppShell({ portal }: AppShellProps) {
             <Box
               component="span"
               sx={{
-                borderRadius: '5px',
+                borderRadius: '6px',
                 border: '1px solid',
                 borderColor: 'divider',
                 bgcolor: 'background.paper',

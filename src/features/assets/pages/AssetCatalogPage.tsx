@@ -1,333 +1,57 @@
-import { useState, type FormEvent } from 'react';
-import {
-  Add,
-  CheckRounded,
-  CloseRounded,
-  DeleteOutlineRounded,
-  EditOutlined,
-  FlightLandRounded,
-  FlightTakeoffRounded,
-  PlaylistAddCheckRounded,
-} from '@mui/icons-material';
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { Add, EditOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
-  IconButton,
   Paper,
   Stack,
-  Tab,
-  Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { getErrorMessage } from '@/shared/api/errorMessage';
-import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
-import TuneRounded from '@mui/icons-material/TuneRounded';
-import { DroneDocumentConfigTab } from '../components/DroneDocumentConfigTab';
-import { DroneFeatureConfigTab } from '../components/DroneFeatureConfigTab';
-import type { ChecklistTemplate, ChecklistTemplateType } from '../api/catalogApi';
+import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
+import { ChecklistTemplateCrudList } from '../components/ChecklistTemplateCrudList';
 import {
   useCategories,
   useChecklistTemplates,
   useCreateCategory,
-  useCreateChecklistTemplate,
-  useDeleteChecklistTemplate,
   useUpdateCategory,
-  useUpdateChecklistTemplate,
 } from '../hooks/useCatalog';
+import type { Category } from '../api/catalogApi';
 
-interface ChecklistManagerSectionProps {
-  title: string;
-  subtitle: string;
-  templateType: ChecklistTemplateType;
-  categoryId?: string | null;
-  placeholder: string;
-}
-
-function ChecklistTemplateCrudList({
-  title,
-  subtitle,
-  templateType,
-  categoryId = null,
-  placeholder,
-}: ChecklistManagerSectionProps) {
-  const { t } = useLocale();
-  const templatesQuery = useChecklistTemplates(
-    { type: templateType, categoryId },
-    templateType !== 'CATEGORY_INSPECTION_ITEM' || Boolean(categoryId),
-  );
-  const createTemplate = useCreateChecklistTemplate();
-  const updateTemplate = useUpdateChecklistTemplate();
-  const deleteTemplate = useDeleteChecklistTemplate();
-
-  const showRequiredToggle = templateType !== 'CATEGORY_INSPECTION_ITEM';
-  const [newLabel, setNewLabel] = useState('');
-  const [newRequired, setNewRequired] = useState(templateType !== 'POST_FLIGHT');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingLabel, setEditingLabel] = useState('');
-  const [deletingItem, setDeletingItem] = useState<ChecklistTemplate | null>(null);
-
-  const items = templatesQuery.data ?? [];
-
-  const handleCreate = (e: FormEvent) => {
-    e.preventDefault();
-    const trimmed = newLabel.trim();
-    if (!trimmed) return;
-    createTemplate.mutate(
-      {
-        templateType,
-        categoryId: templateType === 'CATEGORY_INSPECTION_ITEM' ? categoryId : null,
-        label: trimmed,
-        sortOrder: items.length + 1,
-        ...(showRequiredToggle ? { required: newRequired } : {}),
-      },
-      {
-        onSuccess: () => setNewLabel(''),
-      },
-    );
-  };
-
-  const toggleRequired = (item: ChecklistTemplate) => {
-    updateTemplate.mutate({
-      id: item.id,
-      input: {
-        label: item.label,
-        sortOrder: item.sortOrder,
-        active: item.active,
-        required: !item.required,
-      },
-    });
-  };
-
-  const startEdit = (item: ChecklistTemplate) => {
-    setEditingId(item.id);
-    setEditingLabel(item.label);
-  };
-
-  const saveEdit = (item: ChecklistTemplate) => {
-    const trimmed = editingLabel.trim();
-    if (!trimmed) return;
-    updateTemplate.mutate(
-      {
-        id: item.id,
-        input: {
-          label: trimmed,
-          sortOrder: item.sortOrder,
-          active: item.active,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditingId(null);
-          setEditingLabel('');
-        },
-      },
-    );
-  };
-
-  return (
-    <Box>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
-        <Chip size="small" color="primary" variant="outlined" label={`${items.length} items`} />
-      </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-        {subtitle}
-      </Typography>
-
-      <QueryState
-        isLoading={templatesQuery.isLoading}
-        error={templatesQuery.error}
-        onRetry={() => void templatesQuery.refetch()}
-        isEmpty={false}
-      >
-        <Stack spacing={1} sx={{ mb: 2 }}>
-          {items.length === 0 ? (
-            <Alert severity="info" sx={{ py: 0.5 }}>
-              {t('No checklist items defined yet. Add the first item below.')}
-            </Alert>
-          ) : (
-            items.map((item, idx) => {
-              const isEditing = editingId === item.id;
-              return (
-                <Paper
-                  key={item.id}
-                  variant="outlined"
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 1.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 1,
-                  }}
-                >
-                  {isEditing ? (
-                    <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
-                      <TextField
-                        size="small"
-                        fullWidth
-                        value={editingLabel}
-                        onChange={(e) => setEditingLabel(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            saveEdit(item);
-                          } else if (e.key === 'Escape') {
-                            setEditingId(null);
-                          }
-                        }}
-                      />
-                      <Tooltip title={t('Save')}>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => saveEdit(item)}
-                          disabled={updateTemplate.isPending || !editingLabel.trim()}
-                          aria-label="Save item"
-                        >
-                          <CheckRounded fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={t('Cancel')}>
-                        <IconButton
-                          size="small"
-                          onClick={() => setEditingId(null)}
-                          aria-label="Cancel edit"
-                        >
-                          <CloseRounded fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  ) : (
-                    <>
-                      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>
-                        <Box component="span" sx={{ color: 'text.secondary', mr: 1, fontFamily: 'monospace' }}>
-                          {idx + 1}.
-                        </Box>
-                        {item.label}
-                      </Typography>
-                      <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
-                        {showRequiredToggle && (
-                          <Tooltip title={t('Click to toggle Required / Optional')}>
-                            <Chip
-                              size="small"
-                              label={item.required ? t('Required') : t('Optional')}
-                              color={item.required ? 'primary' : 'default'}
-                              variant={item.required ? 'filled' : 'outlined'}
-                              onClick={() => toggleRequired(item)}
-                              disabled={updateTemplate.isPending}
-                              sx={{ cursor: 'pointer', fontWeight: 600 }}
-                            />
-                          </Tooltip>
-                        )}
-                        <Tooltip title={t('Edit item')}>
-                          <IconButton
-                            size="small"
-                            onClick={() => startEdit(item)}
-                            aria-label={`Edit ${item.label}`}
-                          >
-                            <EditOutlined fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={t('Delete item')}>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setDeletingItem(item)}
-                            disabled={deleteTemplate.isPending}
-                            aria-label={`Delete ${item.label}`}
-                          >
-                            <DeleteOutlineRounded fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </>
-                  )}
-                </Paper>
-              );
-            })
-          )}
-        </Stack>
-      </QueryState>
-
-      <Box component="form" onSubmit={handleCreate}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-          <TextField
-            size="small"
-            fullWidth
-            placeholder={placeholder}
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-          />
-          {showRequiredToggle && (
-            <Button
-              type="button"
-              size="small"
-              variant={newRequired ? 'contained' : 'outlined'}
-              color={newRequired ? 'primary' : 'inherit'}
-              onClick={() => setNewRequired((prev) => !prev)}
-              sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 600, minWidth: 92 }}
-            >
-              {newRequired ? t('Required') : t('Optional')}
-            </Button>
-          )}
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={<Add />}
-            disabled={createTemplate.isPending || !newLabel.trim()}
-            sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 600 }}
-          >
-            {t('Add item')}
-          </Button>
-        </Stack>
-      </Box>
-
-      <ConfirmDialog
-        open={Boolean(deletingItem)}
-        title={t('Delete checklist item')}
-        message={
-          deletingItem
-            ? `${t('Are you sure you want to delete')} "${deletingItem.label}"?`
-            : ''
-        }
-        confirmLabel={t('Delete')}
-        cancelLabel={t('Cancel')}
-        severity="danger"
-        loading={deleteTemplate.isPending}
-        onCancel={() => setDeletingItem(null)}
-        onConfirm={() => {
-          if (!deletingItem) return;
-          deleteTemplate.mutate(deletingItem.id, {
-            onSuccess: () => setDeletingItem(null),
-          });
-        }}
-      />
-    </Box>
-  );
-}
+type CheckpointFilter = 'ALL' | 'HAS_ITEMS' | 'EMPTY';
+type SortOption = 'NAME_ASC' | 'MOST_ITEMS' | 'CODE_ASC';
 
 export default function AssetCatalogPage() {
   const { t } = useLocale();
-  const categories = useCategories();
+  const categoriesQuery = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
-  const [activeTab, setActiveTab] = useState<'categories' | 'flight-checklists' | 'drone-documents' | 'drone-features'>('categories');
-  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  // One request powers the per-category checkpoint counts in the table.
+  const checklistQuery = useChecklistTemplates({ type: 'CATEGORY_INSPECTION_ITEM' }, true);
+
+  const [search, setSearch] = useState('');
+  const [checkpointFilter, setCheckpointFilter] = useState<CheckpointFilter>('ALL');
+  const [sort, setSort] = useState<SortOption>('NAME_ASC');
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // New category form
   const [code, setCode] = useState('');
@@ -335,35 +59,77 @@ export default function AssetCatalogPage() {
   const [description, setDescription] = useState('');
 
   // Edit category form
-  const [editName, setEditName] = useState<string | null>(null);
-  const [editDescription, setEditDescription] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
-  const defaultCategory =
-    categories.data?.find((c) => !c.code.includes('TEST')) ?? categories.data?.[0];
-  const activeCategoryId = selectedCategoryId || defaultCategory?.id || '';
-  const selectedCategory = categories.data?.find((c) => c.id === activeCategoryId);
-  const resolvedEditName = editName ?? selectedCategory?.name ?? '';
-  const resolvedEditDescription = editDescription ?? selectedCategory?.description ?? '';
+  const categoryList = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
 
-  const handleSelectCategory = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
-    const cat = categories.data?.find((c) => c.id === categoryId);
-    if (cat) {
-      setEditName(cat.name);
-      setEditDescription(cat.description || '');
-    }
+  const checkpointCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    (checklistQuery.data ?? []).forEach((item) => {
+      if (!item.categoryId) return;
+      counts.set(item.categoryId, (counts.get(item.categoryId) ?? 0) + 1);
+    });
+    return counts;
+  }, [checklistQuery.data]);
+
+  const rows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const withCounts = categoryList.map((category) => ({
+      category,
+      count: checkpointCounts.get(category.id) ?? 0,
+    }));
+
+    const filtered = withCounts.filter(({ category, count }) => {
+      if (query) {
+        const matches =
+          category.name.toLowerCase().includes(query) ||
+          category.code.toLowerCase().includes(query) ||
+          (category.description ?? '').toLowerCase().includes(query);
+        if (!matches) return false;
+      }
+      if (checkpointFilter === 'HAS_ITEMS') return count > 0;
+      if (checkpointFilter === 'EMPTY') return count === 0;
+      return true;
+    });
+
+    return [...filtered].sort((left, right) => {
+      if (sort === 'MOST_ITEMS') {
+        return right.count - left.count || left.category.name.localeCompare(right.category.name);
+      }
+      if (sort === 'CODE_ASC') {
+        return left.category.code.localeCompare(right.category.code);
+      }
+      return left.category.name.localeCompare(right.category.name);
+    });
+  }, [categoryList, checkpointCounts, checkpointFilter, search, sort]);
+
+  const selectedCategory = categoryList.find((category) => category.id === selectedCategoryId) ?? null;
+
+  const openCategory = (category: Category) => {
+    setSelectedCategoryId(category.id);
+    setEditing(false);
+    setEditName(category.name);
+    setEditDescription(category.description ?? '');
+    updateCategory.reset();
+  };
+
+  const closeCategory = () => {
+    setSelectedCategoryId(null);
+    setEditing(false);
   };
 
   const submitCategory = (event: FormEvent) => {
     event.preventDefault();
     createCategory.mutate(
-      { code, name, description: description || null },
+      { code: code.trim(), name: name.trim(), description: description.trim() || null },
       {
         onSuccess: (category) => {
           setCode('');
           setName('');
           setDescription('');
-          handleSelectCategory(category.id);
+          setCreateDialogOpen(false);
+          openCategory(category);
         },
       },
     );
@@ -372,259 +138,446 @@ export default function AssetCatalogPage() {
   const submitEditCategory = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedCategory) return;
-    updateCategory.mutate({
-      id: selectedCategory.id,
-      input: {
-        code: selectedCategory.code,
-        name: resolvedEditName,
-        description: resolvedEditDescription || null,
+    updateCategory.mutate(
+      {
+        id: selectedCategory.id,
+        input: {
+          code: selectedCategory.code,
+          name: editName.trim(),
+          description: editDescription.trim() || null,
+        },
       },
-    });
+      {
+        onSuccess: (category) => {
+          setEditName(category.name);
+          setEditDescription(category.description ?? '');
+          setEditing(false);
+        },
+      },
+    );
+  };
+
+  const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, category: Category) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openCategory(category);
+    }
   };
 
   return (
     <Box className="workspace-page workspace-page--catalog">
       <PageHeader
-        title={t('Asset catalog & Flight checklists')}
-        breadcrumbs={[{ label: t('Governance'), to: '/admin/dashboard' }, { label: t('Asset catalog') }]}
+        title={t('Asset catalog')}
+        subtitle={t(
+          'Manage asset categories and the standard inspection checkpoints inspectors apply to each asset type.',
+        )}
+        breadcrumbs={[
+          { label: t('Governance'), to: '/admin/dashboard' },
+          { label: t('Asset catalog') },
+        ]}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              createCategory.reset();
+              setCreateDialogOpen(true);
+            }}
+          >
+            {t('New category')}
+          </Button>
+        }
       />
 
-      <Tabs
-        value={activeTab}
-        onChange={(_, val) => setActiveTab(val)}
-        sx={{ mb: 2.5, borderBottom: 1, borderColor: 'divider' }}
+      <AdminTableToolbar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t('Search name, code, or description')}
+        searchLabel={t('Search categories')}
+        visibleCount={rows.length}
+        totalCount={categoryList.length}
+        filters={[
+          {
+            key: 'checkpoints',
+            label: t('Checkpoints'),
+            value: checkpointFilter,
+            options: [
+              { value: 'ALL', label: t('All checkpoints') },
+              { value: 'HAS_ITEMS', label: t('Has items') },
+              { value: 'EMPTY', label: t('Empty') },
+            ],
+            onChange: (value) => setCheckpointFilter(value as CheckpointFilter),
+          },
+          {
+            key: 'sort',
+            label: t('Sort'),
+            value: sort,
+            options: [
+              { value: 'NAME_ASC', label: t('Name A–Z') },
+              { value: 'MOST_ITEMS', label: t('Most items') },
+              { value: 'CODE_ASC', label: t('Code A–Z') },
+            ],
+            onChange: (value) => setSort(value as SortOption),
+          },
+        ]}
+      />
+
+      <QueryState
+        isLoading={categoriesQuery.isLoading}
+        error={categoriesQuery.error}
+        onRetry={() => void categoriesQuery.refetch()}
+        isEmpty={categoryList.length === 0}
+        empty={
+          <Alert severity="info">
+            {t('No categories yet. Use "New category" to create the first one.')}
+          </Alert>
+        }
       >
-        <Tab
-          value="categories"
-          icon={<PlaylistAddCheckRounded fontSize="small" />}
-          iconPosition="start"
-          label={t('Building Categories & Inspection Items')}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        />
-        <Tab
-          value="flight-checklists"
-          icon={<FlightTakeoffRounded fontSize="small" />}
-          iconPosition="start"
-          label={t('Pre-flight & Post-flight Checklists')}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        />
-        <Tab
-          value="drone-documents"
-          icon={<DescriptionOutlined fontSize="small" />}
-          iconPosition="start"
-          label={t('Drone Document Requirements')}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        />
-        <Tab
-          value="drone-features"
-          icon={<TuneRounded fontSize="small" />}
-          iconPosition="start"
-          label={t('Drone Features & Safety')}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        />
-      </Tabs>
-
-      {activeTab === 'categories' && (
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
-          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
-            <CardContent>
-              <Typography variant="h6" component="h2" gutterBottom>
-                {t('Categories')}
-              </Typography>
-              <QueryState
-                isLoading={categories.isLoading}
-                error={categories.error}
-                onRetry={() => void categories.refetch()}
-                isEmpty={Boolean(categories.data && categories.data.length === 0)}
-                empty={<Alert severity="info">{t('No categories yet. Create the first one below.')}</Alert>}
-              >
-                <Stack spacing={1}>
-                  {categories.data?.map((category) => {
-                    const isSelected = category.id === activeCategoryId;
-                    return (
-                      <Button
-                        key={category.id}
-                        variant={isSelected ? 'contained' : 'outlined'}
-                        color="primary"
-                        onClick={() => handleSelectCategory(category.id)}
-                        sx={{
-                          justifyContent: 'space-between',
-                          textAlign: 'left',
-                          color: isSelected ? '#FFFFFF' : 'text.primary',
-                          bgcolor: isSelected ? 'primary.main' : 'transparent',
-                          '&:hover': {
-                            bgcolor: isSelected ? 'primary.dark' : 'action.hover',
-                          },
-                        }}
-                      >
-                        <span>{category.name}</span>
-                        <Chip
-                          size="small"
-                          label={category.code}
+        <Paper
+          variant="outlined"
+          sx={{ borderRadius: '10px', overflow: 'hidden', borderColor: 'divider' }}
+        >
+          <TableContainer>
+            <Table aria-label={t('Asset catalog')}>
+              <TableHead>
+                <TableRow>
+                  {[t('Category'), t('Code'), t('Checkpoints'), ''].map((label, index) => (
+                    <TableCell
+                      key={label || 'manage'}
+                      align={index === 3 ? 'right' : 'left'}
+                      sx={{
+                        width: index === 1 ? 220 : index === 2 ? 150 : index === 3 ? 130 : undefined,
+                        bgcolor: (muiTheme) =>
+                          muiTheme.palette.mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.03)'
+                            : '#F9FAFB',
+                        color: 'text.secondary',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
+                        py: 1.25,
+                        px: 2,
+                      }}
+                    >
+                      {label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4}>
+                      <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
+                        {t('No categories match the current filters.')}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map(({ category, count }) => (
+                    <TableRow
+                      key={category.id}
+                      hover
+                      tabIndex={0}
+                      onClick={() => openCategory(category)}
+                      onKeyDown={(event) => handleRowKeyDown(event, category)}
+                      sx={{
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: 'action.hover' },
+                        '&:focus-visible': {
+                          outline: '2px solid',
+                          outlineColor: 'primary.main',
+                          outlineOffset: -2,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ py: 1.5, px: 2 }}>
+                        <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
+                          {category.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
                           sx={{
-                            ml: 1,
-                            fontWeight: 700,
-                            color: isSelected ? '#FFFFFF' : 'text.primary',
-                            bgcolor: isSelected ? 'rgba(0,0,0,0.22)' : 'action.selected',
+                            display: 'block',
+                            mt: 0.25,
+                            maxWidth: 560,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
                           }}
-                        />
-                      </Button>
-                    );
-                  })}
-                </Stack>
-              </QueryState>
+                        >
+                          {category.description || t('No description yet.')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, px: 2 }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            px: 0.75,
+                            py: 0.125,
+                            borderRadius: '6px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'background.default',
+                            fontFamily: 'monospace',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'text.primary',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {category.code}
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, px: 2 }}>
+                        <Typography variant="body2" color={count > 0 ? 'text.primary' : 'text.secondary'}>
+                          {count} {t('items')}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right" sx={{ py: 1.5, px: 2 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<EditOutlined sx={{ fontSize: 16 }} />}
+                          aria-label={`${t('Manage')} ${category.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openCategory(category);
+                          }}
+                          sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}
+                        >
+                          {t('Manage')}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      </QueryState>
 
-              <Box component="form" onSubmit={submitCategory} sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('New category')}
-                </Typography>
-                <Stack spacing={2}>
-                  {createCategory.isError && (
-                    <Alert severity="error">
-                      {getErrorMessage(createCategory.error, 'Could not save the category.')}
-                    </Alert>
-                  )}
-                  <TextField
-                    required
-                    size="small"
-                    label={t('Code')}
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
-                  />
-                  <TextField
-                    required
-                    size="small"
-                    label={t('Name')}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                  <TextField
-                    size="small"
-                    label={t('Description')}
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                  />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    startIcon={<Add />}
-                    disabled={createCategory.isPending}
+      <Dialog open={Boolean(selectedCategory)} onClose={closeCategory} fullWidth maxWidth="md">
+        {selectedCategory && (
+          <>
+            <DialogTitle sx={{ fontWeight: 700, pr: 6 }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography component="span" sx={{ fontWeight: 700, fontSize: '1.0625rem' }}>
+                    {t('Category profile')}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {t('Category identity used across inspections and reports.')}
+                  </Typography>
+                </Box>
+                <Box
+                  component="span"
+                  sx={{
+                    alignSelf: { xs: 'flex-start', sm: 'center' },
+                    px: 1,
+                    py: 0.375,
+                    borderRadius: '6px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.default',
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'text.primary',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {selectedCategory.code}
+                </Box>
+              </Stack>
+            </DialogTitle>
+            <Divider />
+            <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack spacing={2.5}>
+                {updateCategory.isError && (
+                  <Alert severity="error">
+                    {getErrorMessage(
+                      updateCategory.error,
+                      t('Could not update the category.'),
+                    )}
+                  </Alert>
+                )}
+                {updateCategory.isSuccess && !editing && (
+                  <Alert severity="success">{t('Category updated successfully.')}</Alert>
+                )}
+
+                <Box>
+                  <Stack
+                    direction="row"
+                    sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}
                   >
-                    {t('Save category')}
-                  </Button>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card variant="outlined" sx={{ flex: 1.3, width: '100%', borderRadius: '10px' }}>
-            <CardContent>
-              <Typography variant="h6" component="h2" gutterBottom>
-                {t('Category details')}
-              </Typography>
-              {!selectedCategory ? (
-                <Alert severity="info">{t('Select a category to view or edit details and its standard inspection items.')}</Alert>
-              ) : (
-                <Stack spacing={3}>
-                  <Box component="form" onSubmit={submitEditCategory} sx={{ mt: 1 }}>
-                    <Stack spacing={2}>
-                      {updateCategory.isError && (
-                        <Alert severity="error">
-                          {getErrorMessage(updateCategory.error, 'Could not update the category.')}
-                        </Alert>
-                      )}
-                      {updateCategory.isSuccess && (
-                        <Alert severity="success">{t('Category updated successfully.')}</Alert>
-                      )}
-                      <TextField
-                        disabled
-                        size="small"
-                        label={t('Category Code')}
-                        value={selectedCategory.code}
-                      />
-                      <TextField
-                        required
-                        size="small"
-                        label={t('Name')}
-                        value={resolvedEditName}
-                        onChange={(event) => setEditName(event.target.value)}
-                      />
-                      <TextField
-                        size="small"
-                        multiline
-                        rows={2}
-                        label={t('Description')}
-                        value={resolvedEditDescription}
-                        onChange={(event) => setEditDescription(event.target.value)}
-                      />
+                    <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
+                      {t('Category details')}
+                    </Typography>
+                    {!editing && (
                       <Button
-                        type="submit"
-                        variant="contained"
-                        startIcon={<EditOutlined />}
-                        disabled={updateCategory.isPending}
-                        sx={{ alignSelf: 'flex-start' }}
+                        size="small"
+                        variant="outlined"
+                        startIcon={<EditOutlined sx={{ fontSize: 16 }} />}
+                        onClick={() => setEditing(true)}
+                        sx={{ borderColor: 'divider' }}
                       >
-                        {updateCategory.isPending ? t('Saving…') : t('Update category')}
+                        {t('Edit details')}
                       </Button>
+                    )}
+                  </Stack>
+
+                  {editing ? (
+                    <Box component="form" onSubmit={submitEditCategory}>
+                      <Stack spacing={2}>
+                        <TextField
+                          required
+                          autoFocus
+                          size="small"
+                          label={t('Name')}
+                          value={editName}
+                          onChange={(event) => setEditName(event.target.value)}
+                        />
+                        <TextField
+                          size="small"
+                          fullWidth
+                          multiline
+                          minRows={3}
+                          label={t('Description')}
+                          value={editDescription}
+                          onChange={(event) => setEditDescription(event.target.value)}
+                        />
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                          <Button
+                            type="button"
+                            size="small"
+                            color="inherit"
+                            onClick={() => {
+                              setEditing(false);
+                              setEditName(selectedCategory.name);
+                              setEditDescription(selectedCategory.description ?? '');
+                            }}
+                          >
+                            {t('Cancel')}
+                          </Button>
+                          <Button
+                            type="submit"
+                            size="small"
+                            variant="contained"
+                            disabled={
+                              updateCategory.isPending ||
+                              !editName.trim() ||
+                              (editName.trim() === selectedCategory.name &&
+                                editDescription.trim() === (selectedCategory.description ?? '').trim())
+                            }
+                          >
+                            {updateCategory.isPending ? t('Saving…') : t('Save changes')}
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Stack spacing={1.25}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          {t('Name')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {selectedCategory.name}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          {t('Description')}
+                        </Typography>
+                        <Typography variant="body2" color={selectedCategory.description ? 'text.primary' : 'text.secondary'}>
+                          {selectedCategory.description || t('No description yet.')}
+                        </Typography>
+                      </Box>
                     </Stack>
-                  </Box>
+                  )}
+                </Box>
 
-                  <Divider />
+                <Divider />
 
-                  <ChecklistTemplateCrudList
-                    title={t('Standard Inspection Items')}
-                    subtitle={t('Default checkpoints for this category.')}
-                    templateType="CATEGORY_INSPECTION_ITEM"
-                    categoryId={selectedCategory.id}
-                    placeholder={t('Add standard inspection checkpoint...')}
-                  />
-                </Stack>
+                <ChecklistTemplateCrudList
+                  title={t('Standard Inspection Items')}
+                  subtitle={t('Default checkpoints for this category.')}
+                  templateType="CATEGORY_INSPECTION_ITEM"
+                  categoryId={selectedCategory.id}
+                  placeholder={t('Add standard inspection checkpoint...')}
+                  collapsibleAdd
+                  addButtonLabel={t('+ Add checkpoint')}
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={closeCategory}>{t('Close')}</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <form onSubmit={submitCategory}>
+          <DialogTitle>{t('New category')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              {createCategory.isError && (
+                <Alert severity="error">
+                  {getErrorMessage(createCategory.error, t('Could not save the category.'))}
+                </Alert>
               )}
-            </CardContent>
-          </Card>
-        </Stack>
-      )}
-
-      {activeTab === 'flight-checklists' && (
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ alignItems: 'flex-start' }}>
-          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
-            <CardContent>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                <FlightTakeoffRounded color="primary" fontSize="small" />
-                <Typography variant="h6" component="h2">{t('Pre-flight Safety Checklist')}</Typography>
-              </Stack>
-              <ChecklistTemplateCrudList
-                title={t('Pre-flight Check Items')}
-                subtitle={t(
-                  'General pre-flight checks shown to Inspectors before takeoff. Toggle Required vs Optional per item.',
-                )}
-                templateType="PRE_FLIGHT"
-                placeholder={t('Add pre-flight safety check item...')}
+              <TextField
+                required
+                autoFocus
+                size="small"
+                label={t('Code')}
+                placeholder="HIGH_RISE_OFFICE"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
               />
-            </CardContent>
-          </Card>
-
-          <Card variant="outlined" sx={{ flex: 1, width: '100%', borderRadius: '10px' }}>
-            <CardContent>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                <FlightLandRounded color="success" fontSize="small" />
-                <Typography variant="h6" component="h2">{t('Post-flight Completion Checklist')}</Typography>
-              </Stack>
-              <ChecklistTemplateCrudList
-                title={t('Post-flight Verification Checks')}
-                subtitle={t(
-                  'General post-flight advisory checks shown after landing. Defaults to Optional.',
-                )}
-                templateType="POST_FLIGHT"
-                placeholder={t('Add post-flight completion check item...')}
+              <TextField
+                required
+                size="small"
+                label={t('Name')}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
               />
-            </CardContent>
-          </Card>
-        </Stack>
-      )}
-
-      {activeTab === 'drone-documents' && <DroneDocumentConfigTab />}
-      {activeTab === 'drone-features' && <DroneFeatureConfigTab />}
+              <TextField
+                size="small"
+                multiline
+                minRows={2}
+                label={t('Description')}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateDialogOpen(false)}>{t('Cancel')}</Button>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<Add />}
+              disabled={createCategory.isPending || !code.trim() || !name.trim()}
+            >
+              {createCategory.isPending ? t('Saving…') : t('Save category')}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

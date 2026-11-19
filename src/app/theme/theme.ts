@@ -119,13 +119,19 @@ export const theme = createTheme({
       defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
-          minHeight: 40,
+          minHeight: 38,
           borderRadius: 8,
+          whiteSpace: 'nowrap',
           transition: 'background-color 140ms ease, border-color 140ms ease, color 140ms ease',
           '&:focus-visible': {
             outline: '3px solid color-mix(in srgb, var(--mui-palette-primary-main) 38%, transparent)',
             outlineOffset: 2,
           },
+        },
+        sizeSmall: {
+          minHeight: 34,
+          padding: '5px 12px',
+          fontSize: '0.8125rem',
         },
         contained: { boxShadow: 'none' },
         outlined: {
@@ -153,7 +159,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          borderRadius: 12,
+          borderRadius: 10,
           borderColor: 'var(--mui-palette-divider)',
         },
       },
@@ -269,9 +275,9 @@ export const theme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 16,
+          borderRadius: 10,
           border: '1px solid var(--mui-palette-divider)',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.10)',
           backgroundImage: 'none',
         },
       },
@@ -296,9 +302,9 @@ export const theme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          borderRadius: 12,
+          borderRadius: 8,
           border: '1px solid var(--mui-palette-divider)',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 6px 16px -4px rgba(0, 0, 0, 0.08)',
           backgroundImage: 'none',
           padding: '4px',
         },

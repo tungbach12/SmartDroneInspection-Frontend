@@ -7,6 +7,7 @@ export interface MetricCardProps {
   value: string;
   change?: string | undefined;
   positive?: boolean;
+  showTrend?: boolean;
   subtext?: string;
   iconType?: string;
 }
@@ -16,6 +17,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   value,
   change,
   positive = true,
+  showTrend = true,
   subtext,
   iconType,
 }) => {
@@ -24,12 +26,52 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   const getNextAdminIconConfig = () => {
     switch (iconType) {
       case 'building':
+        return {
+          bgcolor: 'rgba(55, 88, 249, 0.10)',
+          color: '#3758F9',
+          svg: (
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M3 15.75V3.75C3 2.92157 3.67157 2.25 4.5 2.25H10.5C11.3284 2.25 12 2.92157 12 3.75V15.75M12 7.5H13.5C14.3284 7.5 15 8.17157 15 9V15.75M1.875 15.75H16.125"
+                stroke="currentColor"
+                strokeWidth="1.35"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 5.625H9M6 8.625H9M6 11.625H9"
+                stroke="currentColor"
+                strokeWidth="1.35"
+                strokeLinecap="round"
+              />
+            </svg>
+          ),
+        };
       case 'plane':
-      case 'eye':
       case 'flight':
         return {
-          bgcolor: 'rgba(59, 130, 246, 0.10)',
-          color: '#3B82F6',
+          bgcolor: 'rgba(3, 105, 161, 0.10)',
+          color: '#0369A1',
+          svg: (
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="4.5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.25" />
+              <circle cx="13.5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.25" />
+              <circle cx="4.5" cy="13.5" r="2" stroke="currentColor" strokeWidth="1.25" />
+              <circle cx="13.5" cy="13.5" r="2" stroke="currentColor" strokeWidth="1.25" />
+              <path
+                d="M6 6L12 12M12 6L6 12"
+                stroke="currentColor"
+                strokeWidth="1.35"
+                strokeLinecap="round"
+              />
+              <rect x="7.25" y="7.25" width="3.5" height="3.5" rx="0.75" fill="currentColor" />
+            </svg>
+          ),
+        };
+      case 'eye':
+        return {
+          bgcolor: 'rgba(55, 88, 249, 0.10)',
+          color: '#3758F9',
           svg: (
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -166,7 +208,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         bgcolor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        borderRadius: '12px',
+        borderRadius: '10px',
         p: '20px',
         display: 'flex',
         flexDirection: 'column',
@@ -251,7 +293,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               fontSize: '0.75rem',
               lineHeight: '1rem',
               fontWeight: 600,
-              color: positive ? '#16A34A' : '#DC2626',
+              color: showTrend
+                ? (positive ? '#15803D' : '#DC2626')
+                : 'text.secondary',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
@@ -259,7 +303,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             }}
           >
             <span>{t(change)}</span>
-            {positive ? (
+            {showTrend && (positive ? (
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8 13.3332L8 2.6665M4 6.6665L8 2.6665L12 6.6665"
@@ -279,7 +323,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                   strokeLinejoin="round"
                 />
               </svg>
-            )}
+            ))}
           </Box>
         ) : subtext ? (
           <Typography

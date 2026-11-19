@@ -25,13 +25,13 @@ export const SECTION_IDS = [
   'messages',
   'assets',
   'asset-catalog',
+  'flight-drone-config',
   'inspections',
   'reports',
   'platform-users',
-  'finance-settings',
-  'operations-settings',
-  'pilot-license-classes',
+  'platform-settings',
   'onboarding-reviews',
+  'audit-logs',
   'inspector-drones',
   'notifications',
   'finance-history',
@@ -46,13 +46,13 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   messages: 'Messages',
   assets: 'Assets',
   'asset-catalog': 'Asset catalog',
+  'flight-drone-config': 'Drone & Flight config',
   inspections: 'Inspections',
   reports: 'Reports',
   'platform-users': 'Platform accounts',
-  'finance-settings': 'Finance settings',
-  'operations-settings': 'Operations settings',
-  'pilot-license-classes': 'UAV license classes',
+  'platform-settings': 'Platform settings',
   'onboarding-reviews': 'Onboarding reviews',
+  'audit-logs': 'Activity log',
   'inspector-drones': 'My drones',
   notifications: 'Notifications',
   'finance-history': 'Payment history',
@@ -76,13 +76,13 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   messages: 'Tin nhắn',
   assets: 'Tài sản',
   'asset-catalog': 'Danh mục tài sản',
+  'flight-drone-config': 'Cấu hình Drone & Bay',
   inspections: 'Đợt kiểm tra',
   reports: 'Báo cáo',
   'platform-users': 'Tài khoản nền tảng',
-  'finance-settings': 'Cấu hình tài chính',
-  'operations-settings': 'Cấu hình điều phối',
-  'pilot-license-classes': 'Hạng bằng lái UAV',
+  'platform-settings': 'Cấu hình nền tảng',
   'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
+  'audit-logs': 'Nhật ký hoạt động',
   'inspector-drones': 'Drone của tôi',
   notifications: 'Thông báo',
   'finance-history': 'Lịch sử thanh toán',
@@ -91,6 +91,24 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
 
 export function getPortalLabel(portal: PortalId, locale: Locale): string {
   return locale === 'vi' ? PORTAL_LABELS_VI[portal] : PORTAL_CONFIG[portal].label;
+}
+
+/**
+ * Most section IDs are the same as their URL segment. A section can override its
+ * segment when the route name should stay shorter than the internal identifier.
+ */
+const SECTION_PATH_SEGMENTS: Partial<Record<SectionId, string>> = {
+  'flight-drone-config': 'flight-config',
+};
+
+export function getSectionPathSegment(section: SectionId): string {
+  return SECTION_PATH_SEGMENTS[section] ?? section;
+}
+
+export function getSectionIdFromPathSegment(segment: string): SectionId | undefined {
+  return SECTION_IDS.find(
+    (section) => getSectionPathSegment(section) === segment,
+  );
 }
 
 export function getSectionLabel(
@@ -115,17 +133,15 @@ export function getPageLabel(pathname: string, portal: PortalId, locale: Locale)
   if (segments.includes('reports') && segments.length > 2) {
     return locale === 'vi' ? 'Chi tiết báo cáo' : 'Report detail';
   }
-  const section = segments.at(-1);
-  if (section === 'security') {
+  const pathSegment = segments.at(-1);
+  if (pathSegment === 'security') {
     return locale === 'vi' ? 'Cài đặt' : 'Settings';
   }
-  if (section === 'ai-settings') {
-    return locale === 'vi' ? 'Cấu hình AI' : 'AI configuration';
-  }
-  if (section && section in SECTION_LABELS) {
+  const section = pathSegment ? getSectionIdFromPathSegment(pathSegment) : undefined;
+  if (section) {
     return section === 'dashboard'
       ? (locale === 'vi' ? 'Tổng quan' : 'Overview')
-      : getSectionLabel(section as SectionId, locale, portal);
+      : getSectionLabel(section, locale, portal);
   }
   return getPortalLabel(portal, locale);
 }
@@ -137,14 +153,14 @@ const SECTION_ROLE_ACCESS = {
     messages: [],
     assets: ['ADMIN'],
     'asset-catalog': ['ADMIN'],
+    'flight-drone-config': ['ADMIN'],
     inspections: ['ADMIN'],
     reports: ['ADMIN'],
     // Platform administration of the administrator-managed accounts (FE-01).
     'platform-users': ['ADMIN'],
-    'finance-settings': ['ADMIN'],
-    'operations-settings': ['ADMIN'],
-    'pilot-license-classes': ['ADMIN'],
+    'platform-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
+    'audit-logs': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],
     'finance-history': [],
@@ -156,13 +172,13 @@ const SECTION_ROLE_ACCESS = {
     messages: ['MANAGER'],
     assets: ['MANAGER'],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['MANAGER'],
     reports: ['MANAGER'],
     'platform-users': ['MANAGER'],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': ['MANAGER'],
+    'audit-logs': [],
     'inspector-drones': [],
     notifications: ['MANAGER'],
     'finance-history': ['MANAGER'],
@@ -174,14 +190,14 @@ const SECTION_ROLE_ACCESS = {
     messages: ['CUSTOMER'],
     assets: ['CUSTOMER'],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['CUSTOMER'],
     reports: ['CUSTOMER'],
     // The platform's own account administration is not a customer-organization function.
     'platform-users': [],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': [],
+    'audit-logs': [],
     'inspector-drones': [],
     notifications: ['CUSTOMER'],
     'finance-history': ['CUSTOMER'],
@@ -193,13 +209,13 @@ const SECTION_ROLE_ACCESS = {
     messages: ['INSPECTOR'],
     assets: [],
     'asset-catalog': [],
+    'flight-drone-config': [],
     inspections: ['INSPECTOR'],
     reports: ['INSPECTOR'],
     'platform-users': [],
-    'finance-settings': [],
-    'operations-settings': [],
-    'pilot-license-classes': [],
+    'platform-settings': [],
     'onboarding-reviews': [],
+    'audit-logs': [],
     'inspector-drones': ['INSPECTOR'],
     notifications: ['INSPECTOR'],
     'finance-history': ['INSPECTOR'],
@@ -253,7 +269,7 @@ export function getSectionPath(
   portal: PortalId,
   section: SectionId,
 ): string {
-  return `${PORTAL_CONFIG[portal].path}/${section}`;
+  return `${PORTAL_CONFIG[portal].path}/${getSectionPathSegment(section)}`;
 }
 
 export function getPortalEntryPath(userRoles: readonly Role[]): string {
@@ -269,6 +285,21 @@ export function getPortalEntryPath(userRoles: readonly Role[]): string {
 
   const portal = availablePortals[0];
   return portal ? getSectionPath(portal, 'dashboard') : '/forbidden';
+}
+
+/**
+ * Governance screens absorbed into consolidated workspaces keep their old URLs working so
+ * existing bookmarks and shared links do not break.
+ */
+export const LEGACY_ADMIN_REDIRECTS: Readonly<Record<string, string>> = {
+  'pilot-license-classes': '/admin/flight-config?tab=license-classes',
+  'finance-settings': '/admin/platform-settings?tab=finance',
+  'operations-settings': '/admin/platform-settings?tab=operations',
+  'ai-settings': '/admin/platform-settings?tab=ai',
+};
+
+export function getLegacyAdminRedirectPath(pathSegment: string): string | undefined {
+  return LEGACY_ADMIN_REDIRECTS[pathSegment];
 }
 
 export function getLegacySectionRedirectPath(

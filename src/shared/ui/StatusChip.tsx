@@ -27,8 +27,8 @@ const THEMES: Record<StatusVariant, ThemeInfo> = {
   warning: {
     variant: 'warning',
     bg: '#FFFBEB',
-    text: '#B45309',
-    dot: '#F59E0B',
+    text: '#92400E',
+    dot: '#D97706',
     darkBg: 'rgba(245, 158, 11, 0.16)',
     darkText: '#FCD34D',
     darkDot: '#FBBF24',
@@ -45,8 +45,8 @@ const THEMES: Record<StatusVariant, ThemeInfo> = {
   info: {
     variant: 'info',
     bg: '#EFF3FF',
-    text: '#2B84EB',
-    dot: '#2B84EB',
+    text: '#1D4ED8',
+    dot: '#3758F9',
     darkBg: 'rgba(59, 130, 246, 0.16)',
     darkText: '#93C5FD',
     darkDot: '#60A5FA',

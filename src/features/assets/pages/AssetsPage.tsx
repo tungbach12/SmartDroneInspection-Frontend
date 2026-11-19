@@ -1435,8 +1435,7 @@ function AssetDetailDrawer({
   const { locale, t } = useLocale();
   const roles = useAuthStore((state) => state.roles);
   const isClient = roles.includes('CUSTOMER');
-  const canEditInspectionItems =
-    roles.includes('MANAGER') || roles.includes('ADMIN');
+  const canEditInspectionItems = isClient;
   const updateMutation = useUpdateAsset();
   const retireMutation = useRetireAsset();
   const [confirmRetireOpen, setConfirmRetireOpen] = useState(false);

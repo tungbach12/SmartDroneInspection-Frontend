@@ -9,10 +9,10 @@ export const paletteTokens = {
   paper: '#F4F4F5',
   insetSurface: '#FCFCFD',
   white: '#FFFFFF',
-  teal: '#2B84EB',
-  tealDark: '#1F71D4',
-  tealLight: '#38BDF8',
-  tealSoft: '#EFF6FF',
+  teal: '#3758F9',
+  tealDark: '#2237EE',
+  tealLight: '#06B6D4',
+  tealSoft: '#EFF3FF',
   textSecondary: '#52525B',
   textTertiary: '#71717A',
   amber: '#CA8A04',
@@ -37,8 +37,8 @@ export const layoutTokens = {
 } as const;
 
 export const statusTokens = {
-  success: { light: '#16A34A', dark: '#22C55E' },
-  warning: { light: '#CA8A04', dark: '#EAB308' },
+  success: { light: '#15803D', dark: '#22C55E' },
+  warning: { light: '#A16207', dark: '#EAB308' },
   error: { light: '#DC2626', dark: '#EF4444' },
-  info: { light: '#0284C7', dark: '#38BDF8' },
+  info: { light: '#0369A1', dark: '#38BDF8' },
 } as const;
