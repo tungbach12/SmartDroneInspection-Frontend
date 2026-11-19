@@ -147,6 +147,14 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
     setAnchorEl(null);
   };
 
+  const openPicker = (target: HTMLElement) => {
+    const current = value ? new Date(`${value}T12:00:00`) : new Date(`${minDate}T12:00:00`);
+    setVisibleYear(current.getFullYear());
+    setVisibleMonth(current.getMonth());
+    setBlockedMessage('');
+    setAnchorEl(target);
+  };
+
   return (
     <>
       <TextField
@@ -155,19 +163,19 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
         label={label}
         value={value ? formatDate(value, locale) : ''}
         helperText={`${t('Select a date at least 20 days from today. Earliest date')}: ${formatDate(minDate, locale)}`}
-        onClick={(event) => {
-          const current = value ? new Date(`${value}T12:00:00`) : new Date(`${minDate}T12:00:00`);
-          setVisibleYear(current.getFullYear());
-          setVisibleMonth(current.getMonth());
-          setBlockedMessage('');
-          setAnchorEl(event.currentTarget);
+        onClick={(event) => openPicker(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openPicker(event.currentTarget);
+          }
         }}
         slotProps={{
           input: {
             readOnly: true,
             endAdornment: <CalendarMonthRoundedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />,
           },
-          htmlInput: { 'aria-label': label, readOnly: true },
+          htmlInput: { 'aria-label': label, readOnly: true, role: 'button', 'aria-haspopup': 'dialog' },
         }}
       />
       <Popover
@@ -218,7 +226,7 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
                   height: 34,
                   p: 0,
                   borderRadius: '6px',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.875rem',
                   color: beforeMinimum ? 'text.disabled' : selected ? 'primary.contrastText' : 'text.primary',
                   opacity: beforeMinimum ? 0.4 : 1,
                   bgcolor: selected ? 'primary.main' : 'transparent',
@@ -249,7 +257,7 @@ export function CreateRequestDialog({
   assets,
   existingRequests = [],
   onCreated,
-  onError,
+  onError: _onError,
   initialAssetId,
   sourceInspectionId,
   sourceInspectionLabel,
@@ -379,7 +387,6 @@ export function CreateRequestDialog({
     } catch (error) {
       const message = getErrorMessage(error, t('Unable to create service request.'));
       setValidationError(message);
-      onError(message);
     }
   };
 
@@ -420,26 +427,32 @@ export function CreateRequestDialog({
             </Alert>
           )}
 
-          <FormControl fullWidth size="small" required>
-            <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
-            <Select
-              labelId="dialog-asset-label"
-              label={t('Asset / structure')}
-              value={activeAssetIds.has(assetId || initialAssetId || '') ? '' : (assetId || initialAssetId || '')}
-              disabled={Boolean(sourceInspectionId && initialAssetId)}
-              onChange={(event) => setAssetId(event.target.value)}
-            >
-              {selectableAssets.map((asset) => {
-                const hasActiveRequest = activeAssetIds.has(asset.id);
-                return (
-                  <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
-                    {asset.code} — {asset.name}
-                    {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
+          {selectableAssets.length === 0 ? (
+            <Alert severity="info" sx={{ borderRadius: '8px' }}>
+              {t('No active assets found. Register an asset before submitting a service request.')}
+            </Alert>
+          ) : (
+            <FormControl fullWidth size="small" required>
+              <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
+              <Select
+                labelId="dialog-asset-label"
+                label={t('Asset / structure')}
+                value={activeAssetIds.has(assetId || initialAssetId || '') ? '' : (assetId || initialAssetId || '')}
+                disabled={Boolean(sourceInspectionId && initialAssetId)}
+                onChange={(event) => setAssetId(event.target.value)}
+              >
+                {selectableAssets.map((asset) => {
+                  const hasActiveRequest = activeAssetIds.has(asset.id);
+                  return (
+                    <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
+                      {asset.code} — {asset.name}
+                      {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+          )}
 
           {allAssetsBusy && (
             <Alert severity="info">
@@ -532,7 +545,7 @@ export function CreateRequestDialog({
                       }
                     }}
                   >
-                    <MenuItem value="COUNT">{t('After a number of inspections')}</MenuItem>
+                    <MenuItem value="COUNT">{t('Fixed count')}</MenuItem>
                     <MenuItem value="END_DATE">{t('On an end date')}</MenuItem>
                   </Select>
                 </FormControl>
@@ -575,7 +588,7 @@ export function CreateRequestDialog({
                     </Stack>
                   </Box>
                 ) : requestType === 'RECURRING' && recurrenceLimit === 'END_DATE' && from && recurrenceEndDate ? (
-                  <Alert severity="warning" sx={{ py: 0, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
+                  <Alert severity="warning" sx={{ py: 0, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
                     {t('The selected date range must contain at least two inspection dates.')}
                   </Alert>
                 ) : null}

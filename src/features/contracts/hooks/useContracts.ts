@@ -9,9 +9,11 @@ import { useToastStore } from '@/shared/ui/Toast';
 import {
   contractApi,
   contractQueryKeys,
+  inspectionChatApi,
   type AssignOccurrenceInput,
   type CreateServiceRequestInput,
   type EvaluatePartnerCandidatesInput,
+  type InspectionChatThread,
   type IssueServiceQuoteInput,
   type PartnerCandidate,
   type PartnerCapabilityOption,
@@ -182,6 +184,43 @@ export function useAssignServiceOccurrence(requestId: string, occurrenceId: stri
   );
 }
 
+/**
+ * Reuses one already-confirmed Inspector/drone pair for the remaining unassigned occurrences.
+ * Sequential on purpose: each occurrence is a separate dispatch with its own schedule-conflict
+ * check, so failures must be reported per occurrence instead of being rolled back silently.
+ */
+export function useAssignRemainingOccurrences(requestId: string) {
+  return useContractMutation<
+    {
+      occurrences: Array<{ id: string; plannedStartAt: string; plannedEndAt: string }>;
+      inspectorId: string;
+      droneId: string;
+    },
+    { assigned: number; failed: number }
+  >(
+    async ({ occurrences, inspectorId, droneId }) => {
+      let assigned = 0;
+      let failed = 0;
+      for (const occurrence of occurrences) {
+        try {
+          await contractApi.assignOccurrence(requestId, occurrence.id, {
+            plannedStartAt: occurrence.plannedStartAt,
+            plannedEndAt: occurrence.plannedEndAt,
+            inspectorId,
+            droneId,
+          });
+          assigned += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      return { assigned, failed };
+    },
+    undefined,
+    requestId,
+  );
+}
+
 export function useOccurrenceFinance(requestId: string, occurrenceId: string, enabled = true) {
   return useQuery({
     queryKey: [...contractQueryKeys.request(requestId), 'occurrences', occurrenceId, 'finance'],
@@ -293,6 +332,51 @@ export interface UnreadChatNotification {
   latestMessageTime: string;
 }
 
+export const inspectionChatQueryKeys = {
+  threads: ['inspections', 'messages', 'threads'] as const,
+  thread: (inspectionId: string) => ['inspections', 'messages', 'thread', inspectionId] as const,
+};
+
+export function useInspectionChatThreads(enabled = true, realtime = true) {
+  return useQuery({
+    queryKey: inspectionChatQueryKeys.threads,
+    queryFn: inspectionChatApi.listThreads,
+    enabled,
+    refetchInterval: realtime ? 3000 : false,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function usePostInspectionMessage(inspectionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { body: string; files?: File[] }) =>
+      inspectionChatApi.postMessage(inspectionId, input),
+    onSuccess: async (updatedThread: InspectionChatThread) => {
+      queryClient.setQueryData(inspectionChatQueryKeys.thread(inspectionId), updatedThread);
+      await queryClient.invalidateQueries({ queryKey: inspectionChatQueryKeys.threads });
+    },
+  });
+}
+
+export function useMarkInspectionMessagesRead(inspectionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetId?: string) =>
+      inspectionChatApi.markMessagesRead(targetId ?? inspectionId),
+    onSuccess: (updatedThread: InspectionChatThread) => {
+      queryClient.setQueryData(inspectionChatQueryKeys.thread(updatedThread.inspectionId), updatedThread);
+      queryClient.setQueryData<InspectionChatThread[]>(
+        inspectionChatQueryKeys.threads,
+        (prev) =>
+          prev?.map((item) =>
+            item.inspectionId === updatedThread.inspectionId ? updatedThread : item,
+          ) ?? prev,
+      );
+    },
+  });
+}
+
 export function useUnreadChatSummary() {
   const currentUser = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
@@ -300,7 +384,13 @@ export function useUnreadChatSummary() {
   const isAuth = status === 'authenticated' && Boolean(currentUser);
   const canAccessContracts =
     isAuth && (roles.includes('CUSTOMER') || roles.includes('MANAGER'));
+  const canAccessInspectionChat =
+    isAuth && (roles.includes('CUSTOMER') || roles.includes('INSPECTOR'));
   const { data: requests = [] } = useServiceRequests(canAccessContracts, canAccessContracts);
+  const { data: inspectionThreads = [] } = useInspectionChatThreads(
+    canAccessInspectionChat,
+    canAccessInspectionChat,
+  );
 
   return useMemo(() => {
     if (!isAuth || !currentUser) {
@@ -333,9 +423,32 @@ export function useUnreadChatSummary() {
         }
       });
 
+      inspectionThreads.forEach((thread) => {
+        const incomingMessages = (thread.messages || []).filter(
+          (m) => m.authorUserId !== currentUser.id,
+        );
+        if (incomingMessages.length === 0) return;
+
+        const unreadIncoming = incomingMessages.filter((m) => !m.readAt);
+        const unreadForThis = unreadIncoming.length;
+
+        if (unreadForThis > 0) {
+          totalUnread += unreadForThis;
+          const latestIncoming = incomingMessages[incomingMessages.length - 1];
+          items.push({
+            requestId: thread.inspectionId,
+            requestDescription: thread.assetName || 'Inspection',
+            unreadCount: unreadForThis,
+            latestMessageBody: latestIncoming?.body || '',
+            latestMessageAuthor: latestIncoming?.authorName || thread.counterpartName || 'Partner',
+            latestMessageTime: latestIncoming?.createdAt || '',
+          });
+        }
+      });
+
       return { totalUnread, items };
     } catch {
       return { totalUnread: 0, items: [] as UnreadChatNotification[] };
     }
-  }, [requests, currentUser, isAuth]);
+  }, [requests, inspectionThreads, currentUser, isAuth]);
 }

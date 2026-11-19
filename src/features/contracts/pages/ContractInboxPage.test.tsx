@@ -130,6 +130,21 @@ describe('ContractInboxPage', () => {
       mutate: markReadMutate,
       isPending: false,
     } as any);
+    vi.spyOn(contractsHook, 'useInspectionChatThreads').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostInspectionMessage').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkInspectionMessagesRead').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
 
     renderInbox();
 

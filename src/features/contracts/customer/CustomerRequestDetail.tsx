@@ -39,8 +39,9 @@ export function CustomerRequestDetail({
   const { locale, t } = useLocale();
   const effectiveStatus = getEffectiveRequestStatus(request);
   const currentQuote = resolveCurrentQuote(request);
-  const activeStep = resolveActiveStepIndex(effectiveStatus, 'CUSTOMER');
-  const stageKey = `${request.id}:${effectiveStatus}`;
+  const hasOccurrences = request.occurrences.length > 0;
+  const activeStep = resolveActiveStepIndex(effectiveStatus, hasOccurrences);
+  const stageKey = `${request.id}:${effectiveStatus}:${hasOccurrences}`;
   const [viewedState, setViewedState] = useState<{ key: string; step: number } | null>(null);
   const viewedStep = viewedState?.key === stageKey ? viewedState.step : activeStep;
   const isViewingPastStep = viewedStep < activeStep;
@@ -88,10 +89,7 @@ export function CustomerRequestDetail({
             sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
           >
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                {t('1. Request submitted')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {request.requestType === 'ONE_TIME'
                   ? request.requestedFrom
                   : `${request.requestedFrom} – ${request.requestedUntil}`}{' '}
@@ -108,7 +106,7 @@ export function CustomerRequestDetail({
               onClick={() => onOpenInbox(request.id)}
               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
             >
-              Messages
+              {t('Messages')}
             </Button>
           </Stack>
         </Box>
@@ -197,6 +195,7 @@ export function CustomerRequestDetail({
       <ContractLifecycleStepper
         status={effectiveStatus}
         role="CUSTOMER"
+        hasOccurrences={hasOccurrences}
         selectedStep={viewedStep}
         onSelectStep={(stepIndex) =>
           setViewedState(stepIndex === activeStep ? null : { key: stageKey, step: stepIndex })

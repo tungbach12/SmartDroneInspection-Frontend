@@ -1,17 +1,20 @@
 import { useCallback, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { CustomerContractsView } from '../customer/CustomerContractsView';
 import { useServiceRequest, useServiceRequests } from '../hooks/useContracts';
 import { ManagerContractsView } from '../manager/ManagerContractsView';
 import { extractContractErrorText } from '../shared/contractStage';
 
 export default function ContractsPage() {
+  const { t } = useLocale();
+  const { pathname } = useLocation();
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
-  const isAdmin = roles.includes('ADMIN');
+  const isAdmin = roles.includes('ADMIN') || pathname.startsWith('/admin');
 
   const requests = useServiceRequests();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,7 +52,9 @@ export default function ContractsPage() {
   if (!isCustomer && !isManager && !isAdmin) {
     return (
       <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
-        <Alert severity="error">MF2 is available to Customer and Platform Manager accounts.</Alert>
+        <Alert severity="error">
+          {t('Service requests are available to Customer and Platform Manager accounts.')}
+        </Alert>
       </Box>
     );
   }

@@ -12,7 +12,7 @@ export function CustomerWaitingQuoteStep({
   request,
   onOpenInbox,
 }: CustomerWaitingQuoteStepProps) {
-  const { locale, t } = useLocale();
+  const { locale } = useLocale();
 
   return (
     <Box
@@ -29,14 +29,11 @@ export function CustomerWaitingQuoteStep({
         spacing={1.5}
         sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
       >
-        <Box>
-          <Typography variant="subtitle2" component="h2" sx={{ fontWeight: 700 }}>
-            {t('1. Request submitted')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" color="text.secondary">
             {locale === 'vi'
               ? 'Đang chờ Quản lý kiểm tra lịch và gửi báo giá.'
-              : 'Awaiting Manager schedule review and quotation.'}
+              : 'Awaiting the Manager to review the schedule and send a quote.'}
           </Typography>
         </Box>
         <Button

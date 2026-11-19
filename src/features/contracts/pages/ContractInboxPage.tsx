@@ -17,11 +17,18 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { type ServiceRequest } from '../api/contractApi';
-import { useServiceRequests, useMarkMessagesRead } from '../hooks/useContracts';
-import { RequestChatPanel } from '../components/RequestChatPanel';
+import { type InspectionChatThread, type ServiceRequest } from '../api/contractApi';
+import {
+  useInspectionChatThreads,
+  useMarkInspectionMessagesRead,
+  useMarkMessagesRead,
+  useServiceRequests,
+} from '../hooks/useContracts';
+import { InspectionChatPanel, RequestChatPanel } from '../components/RequestChatPanel';
+import { getEffectiveRequestStatus, getStatusLabel } from '../shared/contractStage';
 
 type InboxFilter = 'ALL' | 'UNREAD';
+type InboxChannel = 'requests' | 'inspections';
 
 function formatShortTime(isoDate: string): string {
   const date = new Date(isoDate);
@@ -38,18 +45,21 @@ function formatShortTime(isoDate: string): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function getConversationInitials(request: ServiceRequest, currentUserId?: string): string {
-  const partnerMsg = [...(request.messages || [])]
-    .reverse()
-    .find((m) => m.authorUserId !== currentUserId && m.authorName);
-  const source = partnerMsg?.authorName || request.description;
+function getInitialsFromText(source: string, fallback = 'SR'): string {
   const parts = source.trim().split(/\s+/).filter(Boolean);
   const firstWord = parts[0];
   const secondWord = parts[1];
   if (firstWord && secondWord) {
     return `${firstWord.charAt(0)}${secondWord.charAt(0)}`.toUpperCase();
   }
-  return (source.trim().slice(0, 2) || 'SR').toUpperCase();
+  return (source.trim().slice(0, 2) || fallback).toUpperCase();
+}
+
+function getConversationInitials(request: ServiceRequest, currentUserId?: string): string {
+  const partnerMsg = [...(request.messages || [])]
+    .reverse()
+    .find((m) => m.authorUserId !== currentUserId && m.authorName);
+  return getInitialsFromText(partnerMsg?.authorName || request.description, 'SR');
 }
 
 export default function ContractInboxPage() {
@@ -58,64 +68,143 @@ export default function ContractInboxPage() {
   const roles = useAuthStore((state) => state.roles);
   const isCustomer = roles.includes('CUSTOMER');
   const isManager = roles.includes('MANAGER');
-  const requests = useServiceRequests();
+  const isInspector = roles.includes('INSPECTOR');
+
+  const canUseRequests = isCustomer || isManager;
+  const canUseInspections = isCustomer || isInspector;
+
+  const requests = useServiceRequests(canUseRequests, canUseRequests);
+  const inspectionThreads = useInspectionChatThreads(canUseInspections, canUseInspections);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedParam = searchParams.get('requestId') ?? '';
+  const inspectionParam = searchParams.get('inspectionId') ?? '';
 
+  const [channelOverride, setChannelOverride] = useState<InboxChannel | null>(() =>
+    isInspector && !isCustomer ? 'inspections' : inspectionParam ? 'inspections' : null,
+  );
   const [selectedId, setSelectedId] = useState<string>('');
+  const [mobileShowChat, setMobileShowChat] = useState<boolean>(() =>
+    Boolean(requestedParam || inspectionParam),
+  );
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<InboxFilter>('ALL');
   const [error, setError] = useState('');
 
-  const list = useMemo(() => requests.data ?? [], [requests.data]);
+  const activeChannel: InboxChannel =
+    !canUseRequests && canUseInspections
+      ? 'inspections'
+      : channelOverride ?? (inspectionParam && canUseInspections ? 'inspections' : 'requests');
 
-  const activeId =
-    (selectedId && list.some((item) => item.id === selectedId) ? selectedId : null) ??
-    (requestedParam && list.some((item) => item.id === requestedParam) ? requestedParam : null) ??
-    (list[0]?.id ?? '');
+  const requestList = useMemo<ServiceRequest[]>(() => requests?.data ?? [], [requests?.data]);
+  const threadList = useMemo<InspectionChatThread[]>(
+    () => inspectionThreads?.data ?? [],
+    [inspectionThreads?.data],
+  );
 
-  const markRead = useMarkMessagesRead(activeId);
+  const activeRequestId =
+    (selectedId && requestList.some((item) => item.id === selectedId) ? selectedId : null) ??
+    (requestedParam && requestList.some((item) => item.id === requestedParam)
+      ? requestedParam
+      : null) ??
+    (requestList[0]?.id ?? '');
 
-  const filteredList = useMemo(() => {
+  const activeInspectionId =
+    (selectedId && threadList.some((item) => item.inspectionId === selectedId)
+      ? selectedId
+      : null) ??
+    (inspectionParam && threadList.some((item) => item.inspectionId === inspectionParam)
+      ? inspectionParam
+      : null) ??
+    (threadList[0]?.inspectionId ?? '');
+
+  const markRead = useMarkMessagesRead(activeRequestId);
+  const markInspectionRead = useMarkInspectionMessagesRead(activeInspectionId);
+
+  const countUnread = (messages: { authorUserId: string; readAt?: string | null }[]) =>
+    messages.filter((m) => m.authorUserId !== currentUser?.id && !m.readAt).length;
+
+  const requestUnreadThreads = useMemo(
+    () => requestList.filter((item) => countUnread(item.messages || []) > 0).length,
+    [requestList, currentUser?.id],
+  );
+
+  const inspectionUnreadThreads = useMemo(
+    () => threadList.filter((item) => countUnread(item.messages || []) > 0).length,
+    [threadList, currentUser?.id],
+  );
+
+  const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return list.filter((item) => {
-      const unreadCount = (item.messages || []).filter(
-        (m) => m.authorUserId !== currentUser?.id && !m.readAt,
-      ).length;
-      if (filter === 'UNREAD' && unreadCount === 0) return false;
+    return requestList.filter((item) => {
+      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
       if (!query) return true;
       const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
       return (
         item.description.toLowerCase().includes(query) ||
         latestBody.toLowerCase().includes(query) ||
-        item.status.toLowerCase().includes(query)
+        item.status.toLowerCase().includes(query) ||
+        item.requestedFrom.includes(query) ||
+        item.id.toLowerCase().includes(query)
       );
     });
-  }, [list, search, filter, currentUser?.id]);
+  }, [requestList, search, filter, currentUser?.id]);
 
-  const totalUnreadThreads = useMemo(
-    () =>
-      list.filter((item) =>
-        (item.messages || []).some((m) => m.authorUserId !== currentUser?.id && !m.readAt),
-      ).length,
-    [list, currentUser?.id],
-  );
+  const filteredThreads = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return threadList.filter((item) => {
+      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
+      if (!query) return true;
+      const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
+      return (
+        item.assetName.toLowerCase().includes(query) ||
+        item.counterpartName.toLowerCase().includes(query) ||
+        latestBody.toLowerCase().includes(query) ||
+        item.status.toLowerCase().includes(query) ||
+        item.inspectionId.toLowerCase().includes(query)
+      );
+    });
+  }, [threadList, search, filter, currentUser?.id]);
 
-  const handleSelectConversation = (id: string) => {
+  const activeItemsCount =
+    activeChannel === 'requests' ? requestList.length : threadList.length;
+  const activeUnreadThreads =
+    activeChannel === 'requests' ? requestUnreadThreads : inspectionUnreadThreads;
+
+  const handleSelectRequest = (id: string) => {
     setSelectedId(id);
+    setMobileShowChat(true);
     setSearchParams({ requestId: id });
-    markRead.mutate(id);
+    markRead?.mutate(id);
   };
 
-  if (!isCustomer && !isManager) {
+  const handleSelectInspection = (id: string) => {
+    setSelectedId(id);
+    setMobileShowChat(true);
+    setSearchParams({ inspectionId: id });
+    markInspectionRead?.mutate(id);
+  };
+
+  const handleSwitchChannel = (next: InboxChannel) => {
+    setChannelOverride(next);
+    setSelectedId('');
+    setMobileShowChat(false);
+    setSearchParams({});
+  };
+
+  if (!isCustomer && !isManager && !isInspector) {
     return (
       <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
-        <Alert severity="error">Messages inbox is available to Customer and Platform Manager accounts.</Alert>
+        <Alert severity="error">
+          {t('Messages inbox is available to Customer, Platform Manager, and Inspector accounts.')}
+        </Alert>
       </Box>
     );
   }
 
-  if (requests.isPending) {
+  const isLoading =
+    activeChannel === 'requests' ? requests?.isPending : inspectionThreads?.isPending;
+
+  if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
         <CircularProgress aria-label="Loading messages" />
@@ -123,16 +212,28 @@ export default function ContractInboxPage() {
     );
   }
 
-  const selectedRequest = list.find((item) => item.id === activeId);
+  const selectedRequest =
+    activeChannel === 'requests'
+      ? requestList.find((item) => item.id === activeRequestId)
+      : undefined;
+  const selectedInspectionThread =
+    activeChannel === 'inspections'
+      ? threadList.find((item) => item.inspectionId === activeInspectionId)
+      : undefined;
+
+  const hasSelection = Boolean(selectedRequest || selectedInspectionThread);
+  const totalAvailableAnyChannel = requestList.length + threadList.length;
+  const dashboardPath = isCustomer
+    ? '/client/dashboard'
+    : isInspector
+      ? '/operations/dashboard'
+      : '/manager/dashboard';
 
   return (
-    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3.5 } }}>
+    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <PageHeader
         title={t('Messages')}
-        breadcrumbs={[
-          { label: t('Operations'), to: isCustomer ? '/client/dashboard' : '/manager/dashboard' },
-          { label: t('Messages') },
-        ]}
+        breadcrumbs={[{ label: t('Operations'), to: dashboardPath }, { label: t('Messages') }]}
       />
 
       {error && (
@@ -141,12 +242,18 @@ export default function ContractInboxPage() {
         </Alert>
       )}
 
-      {list.length === 0 ? (
+      {totalAvailableAnyChannel === 0 ? (
         <Paper
           variant="outlined"
           sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider', boxShadow: 'none' }}
         >
-          <Typography color="text.secondary">{t('No service requests available for messaging.')}</Typography>
+          <Typography color="text.secondary">
+            {isInspector
+              ? locale === 'vi'
+                ? 'Chưa có đợt kiểm tra nào được phân công để nhắn tin với khách hàng.'
+                : 'No assigned inspections are available for messaging yet.'
+              : t('No service requests available for messaging.')}
+          </Typography>
         </Paper>
       ) : (
         <Box
@@ -158,25 +265,26 @@ export default function ContractInboxPage() {
             borderRadius: '10px',
             bgcolor: 'background.paper',
             overflow: 'hidden',
-            minHeight: { md: 640 },
-            height: { md: 'calc(100vh - 210px)' },
+            height: { xs: 'calc(100dvh - 180px)', md: 'calc(100dvh - 190px)' },
+            minHeight: { xs: 460, md: 500 },
           }}
         >
-          {/* Left Conversations Sidebar (NextAdmin style) */}
+          {/* Left Conversations Sidebar */}
           <Box
             sx={{
               width: { xs: '100%', md: 340 },
               flexShrink: 0,
+              minHeight: 0,
+              flex: { xs: 1, md: 'none' },
               borderRight: { md: '1px solid' },
-              borderBottom: { xs: '1px solid', md: 'none' },
               borderColor: 'divider',
-              display: 'flex',
+              display: { xs: mobileShowChat && hasSelection ? 'none' : 'flex', md: 'flex' },
               flexDirection: 'column',
               bgcolor: 'background.paper',
             }}
           >
             <Box sx={{ p: 2, pb: 1.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.75 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                   {t('Messages')}
                 </Typography>
@@ -192,9 +300,62 @@ export default function ContractInboxPage() {
                     lineHeight: 1.4,
                   }}
                 >
-                  {list.length}
+                  {activeItemsCount}
                 </Box>
               </Stack>
+
+              {canUseRequests && canUseInspections && (
+                <Stack direction="row" spacing={0.75} sx={{ mb: 1.5 }}>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => handleSwitchChannel('requests')}
+                    sx={{
+                      flex: 1,
+                      px: 1.25,
+                      py: 0.7,
+                      border: '1px solid',
+                      borderColor: activeChannel === 'requests' ? 'primary.main' : 'divider',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.8125rem',
+                      fontWeight: activeChannel === 'requests' ? 700 : 600,
+                      bgcolor:
+                        activeChannel === 'requests'
+                          ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                          : 'transparent',
+                      color: activeChannel === 'requests' ? 'primary.main' : 'text.secondary',
+                    }}
+                  >
+                    {locale === 'vi' ? 'Quản lý dịch vụ' : 'Manager'}
+                    {requestUnreadThreads > 0 ? ` (${requestUnreadThreads})` : ''}
+                  </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => handleSwitchChannel('inspections')}
+                    sx={{
+                      flex: 1,
+                      px: 1.25,
+                      py: 0.7,
+                      border: '1px solid',
+                      borderColor: activeChannel === 'inspections' ? 'primary.main' : 'divider',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.8125rem',
+                      fontWeight: activeChannel === 'inspections' ? 700 : 600,
+                      bgcolor:
+                        activeChannel === 'inspections'
+                          ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                          : 'transparent',
+                      color: activeChannel === 'inspections' ? 'primary.main' : 'text.secondary',
+                    }}
+                  >
+                    {locale === 'vi' ? 'Phi công UAV' : 'Inspector'}
+                    {inspectionUnreadThreads > 0 ? ` (${inspectionUnreadThreads})` : ''}
+                  </Box>
+                </Stack>
+              )}
 
               <TextField
                 fullWidth
@@ -233,7 +394,7 @@ export default function ContractInboxPage() {
                     border: 0,
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '0.8125rem',
+                    fontSize: '0.875rem',
                     fontWeight: filter === 'ALL' ? 700 : 500,
                     bgcolor: filter === 'ALL' ? 'action.selected' : 'transparent',
                     color: filter === 'ALL' ? 'text.primary' : 'text.secondary',
@@ -252,7 +413,7 @@ export default function ContractInboxPage() {
                     border: 0,
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '0.8125rem',
+                    fontSize: '0.875rem',
                     fontWeight: filter === 'UNREAD' ? 700 : 500,
                     bgcolor: filter === 'UNREAD' ? 'action.selected' : 'transparent',
                     color: filter === 'UNREAD' ? 'text.primary' : 'text.secondary',
@@ -260,33 +421,143 @@ export default function ContractInboxPage() {
                   }}
                 >
                   {locale === 'vi' ? 'Chưa đọc' : 'Unread'}
-                  {totalUnreadThreads > 0 ? ` (${totalUnreadThreads})` : ''}
+                  {activeUnreadThreads > 0 ? ` (${activeUnreadThreads})` : ''}
                 </Box>
               </Stack>
             </Box>
 
-            <List disablePadding sx={{ flex: 1, overflowY: 'auto', px: 1, pb: 1, maxHeight: { xs: 320, md: 'none' } }}>
-              {filteredList.length === 0 ? (
+            <List disablePadding sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 1, pb: 1 }}>
+              {activeChannel === 'requests' ? (
+                filteredRequests.length === 0 ? (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('No records found')}
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredRequests.map((item) => {
+                    const isSelected = item.id === activeRequestId;
+                    const latestMessage = item.messages[item.messages.length - 1];
+                    const unreadCount = countUnread(item.messages || []);
+                    const latestTime = formatShortTime(latestMessage?.createdAt ?? item.createdAt);
+                    const statusLabel = getStatusLabel(getEffectiveRequestStatus(item), t);
+
+                    return (
+                      <ListItemButton
+                        key={item.id}
+                        selected={isSelected}
+                        onClick={() => handleSelectRequest(item.id)}
+                        sx={{
+                          borderRadius: '8px',
+                          mb: 0.5,
+                          py: 1.25,
+                          px: 1.25,
+                          gap: 1.5,
+                          alignItems: 'center',
+                          bgcolor: isSelected ? 'action.selected' : 'transparent',
+                          '&.Mui-selected': {
+                            bgcolor: 'action.selected',
+                            '&:hover': { bgcolor: 'action.selected' },
+                          },
+                          '&:hover': {
+                            bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                          },
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+                            color: 'primary.main',
+                          }}
+                        >
+                          {getConversationInitials(item, currentUser?.id)}
+                        </Avatar>
+
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: isSelected || unreadCount > 0 ? 700 : 600,
+                                color: 'text.primary',
+                              }}
+                              noWrap
+                            >
+                              {item.description}
+                            </Typography>
+                            {latestTime && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ flexShrink: 0, fontSize: '0.75rem' }}
+                              >
+                                · {latestTime}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                            noWrap
+                          >
+                            {statusLabel} · {item.requestedFrom} · #{item.id.slice(0, 8)}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              mt: 0.15,
+                              fontWeight: unreadCount > 0 ? 600 : 400,
+                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                            }}
+                            noWrap
+                          >
+                            {latestMessage ? latestMessage.body : t('No messages yet')}
+                          </Typography>
+                        </Box>
+
+                        {unreadCount > 0 && (
+                          <Box
+                            aria-label={`${unreadCount} unread`}
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
+                      </ListItemButton>
+                    );
+                  })
+                )
+              ) : filteredThreads.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('No records found')}
                   </Typography>
                 </Box>
               ) : (
-                filteredList.map((item) => {
-                  const isSelected = item.id === activeId;
-                  const latestMessage = item.messages[item.messages.length - 1];
-                  const unreadCount = (item.messages || []).filter(
-                    (m) => m.authorUserId !== currentUser?.id && !m.readAt,
-                  ).length;
-                  const latestTime = formatShortTime(latestMessage?.createdAt ?? item.createdAt);
-                  const isActiveLifecycle = ['OPEN', 'QUOTED', 'ACCEPTED'].includes(item.status);
+                filteredThreads.map((thread) => {
+                  const isSelected = thread.inspectionId === activeInspectionId;
+                  const latestMessage = thread.messages[thread.messages.length - 1];
+                  const unreadCount = countUnread(thread.messages || []);
+                  const latestTime = formatShortTime(
+                    latestMessage?.createdAt ?? thread.plannedStartAt ?? '',
+                  );
 
                   return (
                     <ListItemButton
-                      key={item.id}
+                      key={thread.inspectionId}
                       selected={isSelected}
-                      onClick={() => handleSelectConversation(item.id)}
+                      onClick={() => handleSelectInspection(thread.inspectionId)}
                       sx={{
                         borderRadius: '8px',
                         mb: 0.5,
@@ -304,35 +575,19 @@ export default function ContractInboxPage() {
                         },
                       }}
                     >
-                      <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            fontSize: '0.8125rem',
-                            fontWeight: 700,
-                            bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
-                            color: 'primary.main',
-                          }}
-                        >
-                          {getConversationInitials(item, currentUser?.id)}
-                        </Avatar>
-                        {isActiveLifecycle && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              right: 0,
-                              bottom: 0,
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              bgcolor: '#16A34A',
-                              border: '2px solid',
-                              borderColor: 'background.paper',
-                            }}
-                          />
-                        )}
-                      </Box>
+                      <Avatar
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+                          color: 'primary.main',
+                        }}
+                      >
+                        {getInitialsFromText(thread.counterpartName || thread.assetName, 'IN')}
+                      </Avatar>
 
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
@@ -344,7 +599,7 @@ export default function ContractInboxPage() {
                             }}
                             noWrap
                           >
-                            {item.description}
+                            {thread.counterpartName}
                           </Typography>
                           {latestTime && (
                             <Typography
@@ -358,9 +613,17 @@ export default function ContractInboxPage() {
                         </Stack>
                         <Typography
                           variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                          noWrap
+                        >
+                          {thread.assetName} · {t(thread.status)} · #{thread.inspectionId.slice(0, 8)}
+                        </Typography>
+                        <Typography
+                          variant="caption"
                           sx={{
                             display: 'block',
-                            mt: 0.25,
+                            mt: 0.15,
                             fontWeight: unreadCount > 0 ? 600 : 400,
                             color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
                           }}
@@ -390,12 +653,28 @@ export default function ContractInboxPage() {
           </Box>
 
           {/* Right Conversation Thread */}
-          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 0,
+              display: { xs: mobileShowChat && hasSelection ? 'flex' : 'none', md: 'flex' },
+              flexDirection: 'column',
+            }}
+          >
             {selectedRequest ? (
               <RequestChatPanel
                 request={selectedRequest}
                 onChanged={() => void requests.refetch()}
                 onError={setError}
+                onBack={() => setMobileShowChat(false)}
+              />
+            ) : selectedInspectionThread ? (
+              <InspectionChatPanel
+                thread={selectedInspectionThread}
+                onChanged={() => void inspectionThreads.refetch()}
+                onError={setError}
+                onBack={() => setMobileShowChat(false)}
               />
             ) : (
               <Box
@@ -409,7 +688,9 @@ export default function ContractInboxPage() {
                 }}
               >
                 <Typography variant="body2">
-                  {locale === 'vi' ? 'Chọn một cuộc hội thoại để xem tin nhắn.' : 'Select a conversation to view messages.'}
+                  {locale === 'vi'
+                    ? 'Chọn một cuộc hội thoại để xem tin nhắn.'
+                    : 'Select a conversation to view messages.'}
                 </Typography>
               </Box>
             )}

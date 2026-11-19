@@ -63,35 +63,19 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
         </Stack>
 
         {request.requestType === 'RECURRING' && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              bgcolor: 'background.default',
-              border: '1px solid',
-              borderColor: 'divider',
-              px: 1.5,
-              py: 1,
-              borderRadius: '8px',
-            }}
-          >
+          <Typography variant="body2" color="text.secondary">
             {locale === 'vi' ? (
               <>
                 Chu kỳ: mỗi {request.recurrenceInterval}{' '}
                 {formatRecurrenceUnit(request.recurrenceUnit, locale)}
                 {request.occurrenceCount ? ` · ${request.occurrenceCount} đợt bay` : ''}
-                {request.recurrenceEndDate ? ` · đến hết ngày ${request.recurrenceEndDate}` : ''}
-                {' · Giá báo là đơn giá cho từng đợt bay'}
+                {request.recurrenceEndDate ? ` · đến hết ${request.recurrenceEndDate}` : ''}
               </>
             ) : (
               <>
-                Recurrence: every {request.recurrenceInterval}{' '}
-                {request.recurrenceUnit?.toLowerCase()}
-                {request.occurrenceCount
-                  ? ` · ${request.occurrenceCount} flight occurrence(s)`
-                  : ''}
+                Every {request.recurrenceInterval} {request.recurrenceUnit?.toLowerCase()}
+                {request.occurrenceCount ? ` · ${request.occurrenceCount} flights` : ''}
                 {request.recurrenceEndDate ? ` · until ${request.recurrenceEndDate}` : ''}
-                {' · Quoted price is per occurrence'}
               </>
             )}
           </Typography>

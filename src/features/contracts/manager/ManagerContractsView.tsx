@@ -85,7 +85,7 @@ export function ManagerContractsView({
     <ServiceRequestListView
       requests={requests}
       role="MANAGER"
-      homePath="/manager/dashboard"
+      homePath={isAdmin ? '/admin/dashboard' : '/manager/dashboard'}
       emptyQueueMessage={t('No customer service requests are waiting in the queue.')}
       onSelectRequest={onSelectRequest}
       onClaimRequest={claim}
@@ -96,6 +96,7 @@ export function ManagerContractsView({
       onAdminReassign={assign}
       onAdminUnassign={unassign}
       canOpenDetails={(request) => !isAdmin && Boolean(request.assignedManagerId)}
+      canOpenSummary={() => !isAdmin}
       adminAssignmentPending={reassignRequest.isPending || unassignRequest.isPending}
     />
   );

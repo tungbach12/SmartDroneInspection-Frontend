@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../../api/contractApi';
+import { enumerateMonthlySchedule } from '../../api/recurrenceSchedule';
 import { useAcceptServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, formatVndPerOccurrence } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
@@ -27,6 +28,26 @@ export function CustomerReviewQuoteStep({
   const { locale, t } = useLocale();
   const accept = useAcceptServiceQuote(request.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const unitPrice = Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd ?? 0);
+  const recurringDates =
+    request.requestType === 'RECURRING'
+      ? enumerateMonthlySchedule(request.requestedFrom, request.recurrenceInterval ?? 1, {
+          ...(request.occurrenceCount != null
+            ? { count: request.occurrenceCount }
+            : { endDate: request.recurrenceEndDate ?? request.requestedUntil }),
+          maxOccurrences: 100,
+        })
+      : [];
+  const occurrenceTotal = request.requestType === 'RECURRING' ? recurringDates.length : 1;
+  const totalContractVnd = unitPrice * occurrenceTotal;
+  const formattedTotal = totalContractVnd.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US');
+  const priceSummaryText =
+    occurrenceTotal > 1
+      ? `${formatVndPerOccurrence(unitPrice, locale)} · ${occurrenceTotal} ${
+          locale === 'vi' ? 'đợt' : 'occurrences'
+        } = ${formattedTotal} VND`
+      : formatVndPerOccurrence(unitPrice, locale);
 
   const acceptCurrent = async () => {
     try {
@@ -85,7 +106,7 @@ export function CustomerReviewQuoteStep({
               onClick={() => onOpenInbox(request.id)}
               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
             >
-              {t('Request a price review in Messages')}
+              {t('Messages')}
             </Button>
           </Stack>
         </Stack>
@@ -96,8 +117,8 @@ export function CustomerReviewQuoteStep({
         title={t('Confirm Quote Acceptance')}
         message={
           locale === 'vi'
-            ? `Bạn xác nhận chấp nhận báo giá hiện tại (${formatVndPerOccurrence(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd, locale)})? Sau khi chấp nhận, điều khoản sẽ bị khóa. Nếu cần yêu cầu xem xét lại giá, hãy nhắn Quản lý trước khi chấp nhận. Tiếp theo hai bên ký hợp đồng giấy.`
-            : `Accept the current quote (${formatVndPerOccurrence(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd, locale)})? Terms will lock after acceptance. If you need a price review, message the Manager before accepting. Next, both parties sign the paper contract.`
+            ? `Bạn xác nhận chấp nhận báo giá hiện tại (${priceSummaryText})? Sau khi chấp nhận, điều khoản sẽ bị khóa. Nếu cần yêu cầu xem xét lại giá, hãy nhắn Quản lý trước khi chấp nhận. Tiếp theo hai bên ký hợp đồng giấy.`
+            : `Accept the current quote (${priceSummaryText})? Terms will lock after acceptance. If you need a price review, message the Manager before accepting. Next, both parties sign the paper contract.`
         }
         confirmLabel={t('Accept quote')}
         loading={accept.isPending}

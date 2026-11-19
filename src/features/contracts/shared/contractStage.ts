@@ -73,6 +73,7 @@ export function getRequestStageSubtitle(
   status: ServiceRequest['status'],
   role: ContractRole,
   t: (key: string) => string,
+  hasOccurrences = false,
 ): string {
   switch (status) {
     case 'OPEN':
@@ -82,7 +83,9 @@ export function getRequestStageSubtitle(
     case 'ACCEPTED':
       return `${t('Step')} 3/4 · ${t('Acceptance recorded')}`;
     case 'CONTRACT_SIGNED':
-      return `${t('Step')} 3/4 · ${t('Signed contract')}`;
+      return hasOccurrences
+        ? `${t('Step')} 4/4 · ${t(role === 'MANAGER' ? 'Assign team' : 'Preparing schedule')}`
+        : `${t('Step')} 3/4 · ${t('Signed contract')}`;
     case 'ASSIGNED':
       return `${t('Step')} 4/4 · ${t('Scheduled')}`;
     case 'CANCELLED':
@@ -147,15 +150,7 @@ export function isQuoteAccepted(request: ServiceRequest): boolean {
   );
 }
 
-export function resolveActiveStepIndex(
-  status: string,
-  role: ContractRole,
-  selectionOpen = false,
-  hasSelectedPair = false,
-): number {
-  if (status === 'OPEN' && role === 'MANAGER' && (selectionOpen || hasSelectedPair)) {
-    return 1;
-  }
+export function resolveActiveStepIndex(status: string, hasOccurrences = false): number {
   switch (status) {
     case 'OPEN':
       return 0;
@@ -164,6 +159,7 @@ export function resolveActiveStepIndex(
     case 'ACCEPTED':
       return 2;
     case 'CONTRACT_SIGNED':
+      return hasOccurrences ? 3 : 2;
     case 'ASSIGNED':
       return 3;
     default:

@@ -101,6 +101,10 @@ describe('ContractsPage', () => {
       mutateAsync: vi.fn(),
       isPending: false,
     } as any);
+    vi.spyOn(contractsHook, 'useAssignRemainingOccurrences').mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any);
     vi.spyOn(contractsHook, 'useEvaluatePartnerCandidates').mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue([]),
       isPending: false,
@@ -114,6 +118,10 @@ describe('ContractsPage', () => {
       isPending: false,
     } as any);
     vi.spyOn(contractsHook, 'usePartnerDrones').mockReturnValue({
+      data: [],
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerCapabilities').mockReturnValue({
       data: [],
       isPending: false,
     } as any);
@@ -311,7 +319,8 @@ describe('ContractsPage', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Manager profile' }));
     expect(screen.getByRole('dialog', { name: 'Service manager profile' })).toBeTruthy();
     expect(screen.getByText('assigned.manager@example.test')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Call' }).getAttribute('href')).toBe('tel:+84 901 234 567');
+    expect(screen.queryByRole('link', { name: 'Call' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Email' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     useAuthStore.setState({
@@ -397,7 +406,7 @@ describe('ContractsPage', () => {
 
     renderPage();
     fireEvent.click(screen.getByText('Admin assignment bridge'));
-    expect(screen.queryByText('1. Review customer request')).toBeNull();
+    expect(screen.queryByText('Review request')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Assign manager' }));
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Service manager' }));
@@ -460,11 +469,12 @@ describe('ContractsPage', () => {
 
     renderPage();
     openTrackProgress();
-    expect(screen.getByText(/Signed scan recorded: signed-contract.pdf/)).toBeTruthy();
+    expect(screen.getByText('Signed scan recorded')).toBeTruthy();
+    expect(screen.getByText('signed-contract.pdf')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download signed contract' })).toBeTruthy();
   });
 
-  it('allows manager to issue a quote and view partner resources', async () => {
+  it('lets a manager prepare a quote without choosing an Inspector or drone', async () => {
     useAuthStore.setState({
       status: 'authenticated',
       roles: ['MANAGER'],
@@ -472,6 +482,7 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
     });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-1', status: 'QUOTED' });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
         {
@@ -514,38 +525,38 @@ describe('ContractsPage', () => {
       data: undefined,
       isFetching: false,
     } as any);
-    vi.spyOn(contractsHook, 'usePartnerInspectors').mockReturnValue({
-      data: [{ id: 'p-insp-1', fullName: 'Partner Alice', partnerOrganizationId: 'partner-org', licenseExpiresAt: null }],
-    } as any);
-    vi.spyOn(contractsHook, 'usePartnerDrones').mockReturnValue({
-      data: [
-        { id: 'p-drone-1', inspectorOwnerId: 'p-insp-1', serialNumber: 'DRONE-001', model: 'M300' },
-        { id: 'p-drone-2', inspectorOwnerId: 'p-insp-2', serialNumber: 'DRONE-002', model: 'M30T' },
-      ],
-      isPending: false,
-    } as any);
     vi.spyOn(contractsHook, 'useIssueServiceQuote').mockReturnValue({
-      mutateAsync: vi.fn(),
+      mutateAsync,
       isPending: false,
     } as any);
-    vi.spyOn(contractsHook, 'usePartnerCapabilities').mockReturnValue({ data: [], isPending: false } as any);
 
     renderPage();
     openTrackProgress();
-    expect(screen.getByText('1. Review customer request')).toBeTruthy();
-    expect(screen.getByText('2. Prepare')).toBeTruthy();
+    expect(screen.getByText('Review request')).toBeTruthy();
+    expect(screen.getByText('Prepare quote')).toBeTruthy();
     expect(screen.queryByText('Customer creates inspection request')).toBeNull();
     expect(screen.getByText('Request review')).toBeTruthy();
+    // The commercial terms form is available immediately; dispatch owns the partner pair.
+    expect(screen.getByLabelText('Quoted scope')).toBeTruthy();
     expect(screen.queryByLabelText('Partner Inspector')).toBeNull();
     expect(screen.queryByLabelText('Partner drone')).toBeNull();
-    expect(screen.queryByLabelText('Quoted scope')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Select Inspector and drone' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select Inspector and drone' }));
-    expect(await screen.findByText('Select partner Inspector and drone')).toBeTruthy();
-    expect(screen.getByText('No partner pairs registered.')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Price per occurrence (VND)'), {
+      target: { value: '11000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save quote' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      scopeSnapshot: 'Crack check',
+      firstOccurrenceStartAt: '2026-11-01T01:00:00.000Z',
+      firstOccurrenceEndAt: '2026-11-01T03:00:00.000Z',
+      pricePerOccurrenceVnd: 11000000,
+      requiredDroneFeatureCodes: [],
+    });
   });
 
-  it('warns and blocks a recurring quote when the license expires before the final occurrence start', async () => {
+  it('saves a recurring quote without checking any Inspector license', async () => {
     useAuthStore.setState({
       status: 'authenticated',
       roles: ['MANAGER'],
@@ -553,7 +564,7 @@ describe('ContractsPage', () => {
       userName: 'Platform Manager',
       email: 'manager@test.local',
     });
-    const mutateAsync = vi.fn();
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-recurring-expiry', status: 'QUOTED' });
     vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
       data: [
         {
@@ -596,6 +607,10 @@ describe('ContractsPage', () => {
       data: undefined,
       isFetching: false,
     } as any);
+    vi.spyOn(contractsHook, 'useIssueServiceQuote').mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as any);
     vi.spyOn(contractsHook, 'usePartnerInspectors').mockReturnValue({
       data: [{
         id: 'p-insp-1',
@@ -605,32 +620,26 @@ describe('ContractsPage', () => {
       }],
       isPending: false,
     } as any);
-    vi.spyOn(contractsHook, 'usePartnerDrones').mockReturnValue({
-      data: [
-        { id: 'p-drone-1', inspectorOwnerId: 'p-insp-1', serialNumber: 'DRONE-001', model: 'M300' },
-      ],
-      isPending: false,
-    } as any);
-    vi.spyOn(contractsHook, 'useIssueServiceQuote').mockReturnValue({
-      mutateAsync,
-      isPending: false,
-    } as any);
-    vi.spyOn(contractsHook, 'useEvaluatePartnerCandidates').mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue([makeEligibleCandidate()]),
-      isPending: false,
-    } as any);
 
     renderPage();
     openTrackProgress();
-    fireEvent.click(screen.getByRole('button', { name: 'Select Inspector and drone' }));
-    expect(await screen.findByText('Select partner Inspector and drone')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
 
-    expect(screen.getAllByRole('alert').some((alert) =>
-      alert.textContent?.includes('Pilot license expires before the last planned inspection.'),
-    )).toBe(true);
+    // A short-lived pilot license no longer blocks quote preparation: the assigned Inspector's
+    // suitability for every occurrence is enforced when dispatch assigns the pair.
+    expect(
+      screen.queryByText('Pilot license expires before the last planned inspection.'),
+    ).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Price per occurrence (VND)'), {
+      target: { value: '11000000' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Save quote' }));
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopeSnapshot: 'Recurring bridge survey',
+        pricePerOccurrenceVnd: 11000000,
+      }),
+    );
   });
 
   it('blocks users without customer, manager, or admin role', () => {
@@ -642,7 +651,9 @@ describe('ContractsPage', () => {
       email: 'inspector@test.local',
     });
     renderPage();
-    expect(screen.getByText(/MF2 is available to Customer and Platform Manager accounts\./)).toBeTruthy();
+    expect(
+      screen.getByText(/Service requests are available to Customer and Platform Manager accounts\./),
+    ).toBeTruthy();
   });
 
   it('allows customer to accept the current quote when status is QUOTED', () => {
@@ -709,10 +720,10 @@ describe('ContractsPage', () => {
 
     renderPage();
     openTrackProgress();
-    expect(screen.getByText('1. Request submitted')).toBeTruthy();
-    expect(screen.getByText('2. Review manager quote')).toBeTruthy();
-    expect(screen.getByText('3. Accept terms & sign contract')).toBeTruthy();
-    expect(screen.getByText('4. Inspection scheduled')).toBeTruthy();
+    expect(screen.getByText('Request submitted')).toBeTruthy();
+    expect(screen.getByText('Review quote')).toBeTruthy();
+    expect(screen.getByText('Sign contract')).toBeTruthy();
+    expect(screen.getByText('Preparing schedule')).toBeTruthy();
     expect(screen.queryByText('Customer creates inspection request')).toBeNull();
     expect(screen.getByText('Current quote')).toBeTruthy();
     expect(screen.getByText('Revised scope')).toBeTruthy();
@@ -844,123 +855,6 @@ describe('ContractsPage', () => {
       inspectorId: 'p-insp-1',
       droneId: 'p-drone-1',
     });
-  });
-
-  it('opens the dedicated partner candidate selection step and preserves quote draft state on return', async () => {
-    useAuthStore.setState({
-      status: 'authenticated',
-      roles: ['MANAGER'],
-      userId: 'manager-1',
-      userName: 'Platform Manager',
-      email: 'manager@test.local',
-    });
-    const evaluateMutate = vi.fn().mockResolvedValue([
-      {
-        inspectorId: 'p-insp-1',
-        droneId: 'p-drone-1',
-        inspectorName: 'Partner Alice',
-        inspectorAvatarUrl: 'https://cdn.example.test/avatars/alice.png',
-        droneSerialNumber: 'DRONE-001',
-        droneModel: 'Matrice 350 RTK',
-        droneHasImage: false,
-        droneFeatureCodes: ['THERMAL_CAMERA'],
-        eligibility: 'PASS',
-        capabilityFit: 'MATCH',
-        hardGates: [
-          { code: 'INSPECTOR_ACTIVE_PARTNER', status: 'PASS', explanation: 'Active partner.' },
-        ],
-        capabilityChecks: [
-          { code: 'THERMAL_CAMERA', status: 'MATCH', explanation: 'Drone registration declares this capability.' },
-        ],
-        disclaimer: 'Evaluation is advisory. It does not confirm a flight permit or clearance.',
-      },
-      {
-        inspectorId: 'p-insp-2',
-        droneId: 'p-drone-2',
-        inspectorName: 'Blocked Bob',
-        inspectorAvatarUrl: null,
-        droneSerialNumber: 'DRONE-002',
-        droneModel: 'Mavic 3T',
-        droneHasImage: false,
-        droneFeatureCodes: [],
-        eligibility: 'FAIL',
-        capabilityFit: 'MISMATCH',
-        hardGates: [
-          { code: 'PILOT_LICENSE_VALID', status: 'FAIL', explanation: 'License expires before planned start.' },
-        ],
-        capabilityChecks: [
-          { code: 'THERMAL_CAMERA', status: 'MISMATCH', explanation: 'Drone registration does not declare this capability.' },
-        ],
-        disclaimer: 'Evaluation is advisory. It does not confirm a flight permit or clearance.',
-      },
-    ]);
-    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
-      data: [
-        {
-          id: 'req-1',
-          ownerCustomerId: 'org-1',
-          assetId: 'asset-1',
-          description: 'Crack check',
-          requestedFrom: '2026-11-01',
-          requestedUntil: '2026-11-10',
-          timezone: 'Asia/Ho_Chi_Minh',
-          windowStart: '08:00',
-          windowEnd: '17:00',
-          requestType: 'ONE_TIME',
-          recurrenceUnit: null,
-          recurrenceInterval: null,
-          occurrenceCount: null,
-          recurrenceEndDate: null,
-          status: 'OPEN',
-          acceptedQuoteId: null,
-          acceptedAt: null,
-          acceptedByUserId: null,
-          acceptedTermsSnapshot: null,
-          contractFileName: null,
-          contractContentType: null,
-          contractSizeBytes: null,
-          contractUploadedAt: null,
-          createdAt: '2026-10-29T00:00:00Z',
-          currentQuote: null,
-          assignedManagerId: 'manager-1',
-          occurrences: [],
-          messages: [],
-        },
-      ],
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    } as any);
-    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({
-      data: undefined,
-      isFetching: false,
-    } as any);
-    vi.spyOn(contractsHook, 'useEvaluatePartnerCandidates').mockReturnValue({
-      mutateAsync: evaluateMutate,
-      isPending: false,
-    } as any);
-    vi.spyOn(contractsHook, 'useCreateServiceRequest').mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-new' }),
-      isPending: false,
-    } as any);
-
-    renderPage();
-    openTrackProgress();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Select Inspector and drone' }));
-
-    expect(await screen.findByText('Select partner Inspector and drone')).toBeTruthy();
-    expect(screen.getByText('Partner Alice')).toBeTruthy();
-    expect(screen.queryByText(/Blocked Bob/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Show 1 other pairs' })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
-
-    expect((screen.getByLabelText('Quoted scope') as HTMLInputElement).value).toBe(
-      'Crack check',
-    );
-    expect(screen.getByText('Eligible match')).toBeTruthy();
   });
 
   it('restores the selection step from the URL and returns to the form via browser back', async () => {
