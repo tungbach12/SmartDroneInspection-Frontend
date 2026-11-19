@@ -165,3 +165,32 @@ describe('inspectionApi.generateDraft', () => {
     );
   });
 });
+
+describe('inspectionApi knowledge recommendations', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reads finding-scoped recommendations from the exact backend endpoint', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue({
+      data: { retrievalMode: 'HYBRID_MATCH', cases: [], guidelines: [] },
+    } as never);
+
+    const result = await inspectionApi.getFindingRecommendations('i1', 'f1', 5);
+
+    expect(get).toHaveBeenCalledWith('/inspections/i1/findings/f1/recommendations', {
+      params: { limit: 5 },
+    });
+    expect(result.retrievalMode).toBe('HYBRID_MATCH');
+  });
+
+  it('reads inspection-level recommendations with the default limit of 4', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue({
+      data: { retrievalMode: 'PGVECTOR_RAG', cases: [], guidelines: [] },
+    } as never);
+
+    await inspectionApi.getInspectionKnowledgeRecommendations('i1');
+
+    expect(get).toHaveBeenCalledWith('/inspections/i1/knowledge-recommendations', {
+      params: { limit: 4 },
+    });
+  });
+});

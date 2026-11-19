@@ -20,6 +20,8 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { EvidenceGpsMapDialog } from './EvidenceGpsMapDialog';
+import { KnowledgeRecommendationPanel } from './KnowledgeRecommendationPanel';
+import { useFindingRecommendations } from '../hooks/useInspections';
 import { inspectionApi } from '../api/inspectionApi';
 import type { EvidenceItem, Finding, FindingSeverity } from '../api/inspectionApi';
 import { parseBoundingBox } from '../utils/boundingBox';
@@ -760,6 +762,17 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                           </Stack>
                         )}
                       </Box>
+                      <FindingKnowledgeStrip
+                        inspectionId={props.inspectionId}
+                        finding={finding}
+                        canApply={
+                          props.isInspector && !props.isReportLocked && !finding.isDeleted
+                        }
+                        onApply={(note) => {
+                          props.onStartEdit(finding);
+                          props.onTechnicalNotesChange(finding.id, note);
+                        }}
+                      />
                     </Box>
                   </Box>
                 );
@@ -925,5 +938,49 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
         />
       )}
     </Paper>
+  );
+}
+
+/** One-click lazy knowledge lookup inside a finding card, shared by viewing and editing states. */
+function FindingKnowledgeStrip({
+  inspectionId,
+  finding,
+  canApply,
+  onApply,
+}: {
+  inspectionId: string;
+  finding: Finding;
+  canApply: boolean;
+  onApply: (note: string) => void;
+}) {
+  const { t } = useLocale();
+  const [open, setOpen] = useState(false);
+  const query = useFindingRecommendations(inspectionId, finding.id, open);
+
+  return (
+    <Box sx={{ mt: 0.75, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+      <Chip
+        size="small"
+        variant="outlined"
+        icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
+        label={t('Similar Cases & Guide')}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        sx={{
+          height: 22,
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          '& .MuiChip-label': { px: 0.75 },
+        }}
+      />
+      {open && (
+        <KnowledgeRecommendationPanel
+          data={query.data}
+          isLoading={query.isLoading}
+          onApplyNote={canApply ? onApply : undefined}
+        />
+      )}
+    </Box>
   );
 }

@@ -48,7 +48,57 @@ export const inspectionKeys = {
     [...inspectionKeys.all, inspectionId, 'report-version', versionId] as const,
   reinspectionVerifications: (inspectionId: string) =>
     [...inspectionKeys.all, inspectionId, 'reinspection-verifications'] as const,
+  findingRecommendations: (inspectionId: string, findingId: string, limit: number) =>
+    [...inspectionKeys.all, inspectionId, 'finding-recommendations', findingId, limit] as const,
+  knowledgeRecommendations: (inspectionId: string, limit: number) =>
+    [...inspectionKeys.all, inspectionId, 'knowledge-recommendations', limit] as const,
 };
+
+const FINDING_RECOMMENDATION_LIMIT = 3;
+const INSPECTION_RECOMMENDATION_LIMIT = 4;
+
+/** Historical cases / guidelines for a single finding. Fetched only when the strip is opened. */
+export function useFindingRecommendations(
+  inspectionId: string | null | undefined,
+  findingId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: inspectionKeys.findingRecommendations(
+      inspectionId ?? '',
+      findingId,
+      FINDING_RECOMMENDATION_LIMIT,
+    ),
+    queryFn: () =>
+      inspectionApi.getFindingRecommendations(
+        inspectionId!,
+        findingId,
+        FINDING_RECOMMENDATION_LIMIT,
+      ),
+    enabled: enabled && Boolean(inspectionId && findingId),
+    staleTime: 60_000,
+  });
+}
+
+/** Report-level historical cases / guidelines for the AI summary footer. */
+export function useInspectionKnowledgeRecommendations(
+  inspectionId: string | null | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: inspectionKeys.knowledgeRecommendations(
+      inspectionId ?? '',
+      INSPECTION_RECOMMENDATION_LIMIT,
+    ),
+    queryFn: () =>
+      inspectionApi.getInspectionKnowledgeRecommendations(
+        inspectionId!,
+        INSPECTION_RECOMMENDATION_LIMIT,
+      ),
+    enabled: enabled && Boolean(inspectionId),
+    staleTime: 60_000,
+  });
+}
 
 export function useInspections(filters: InspectionListFilters, enabled = true) {
   return useQuery({

@@ -23,6 +23,8 @@ import {
   type Finding,
   type ReportAiSummary,
 } from '@/features/inspections/api/inspectionApi';
+import { KnowledgeRecommendationPanel } from '@/features/inspections/components/KnowledgeRecommendationPanel';
+import { useInspectionKnowledgeRecommendations } from '@/features/inspections/hooks/useInspections';
 import { useLocale, type Locale } from '@/shared/i18n/LocaleProvider';
 
 export interface ReportAiSummaryCardProps {
@@ -524,6 +526,12 @@ function getSoftSeverityBadgeSx(severity: string) {
   };
 }
 
+/** Mounted only on user expand, so a missing QueryClient in incidental tests is never touched. */
+function MatchedKnowledgeBody({ inspectionId }: { inspectionId: string }) {
+  const query = useInspectionKnowledgeRecommendations(inspectionId, true);
+  return <KnowledgeRecommendationPanel data={query.data} isLoading={query.isLoading} />;
+}
+
 export function ReportAiSummaryCard({
   inspectionId,
   versionId,
@@ -536,6 +544,7 @@ export function ReportAiSummaryCard({
 }: ReportAiSummaryCardProps) {
   const { t, locale } = useLocale();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [remoteState, setRemoteState] = useState<{
     targetKey: string;
     data: ReportAiSummary | null;
@@ -543,6 +552,10 @@ export function ReportAiSummaryCard({
 
   const hasPersistedSummary = Boolean(persistedSummary && persistedSummary.trim().length > 0);
   const isPreviewVersion = !versionId || versionId.startsWith('preview-');
+  const canQueryKnowledge =
+    Boolean(inspectionId) &&
+    !isPreviewVersion &&
+    typeof inspectionApi?.getInspectionKnowledgeRecommendations === 'function';
 
   const localResult = useMemo(
     () =>
@@ -593,6 +606,7 @@ export function ReportAiSummaryCard({
     shouldFetchRemote && remoteState?.targetKey === remoteTargetKey ? remoteState.data : null;
 
   const aiSummary: ReportAiSummary = remoteSummary ?? localResult.summaryData;
+  const knowledgeRefs = aiSummary.knowledgeReferences ?? [];
 
   const confirmedFindings = useMemo(
     () => findings.filter((f) => f.status === 'CONFIRMED' && !f.isDeleted),
@@ -931,6 +945,63 @@ export function ReportAiSummaryCard({
                 </Box>
               )}
             </Box>
+
+            {canQueryKnowledge && (
+              <Box sx={{ pt: 0.75, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Box
+                  data-testid="matched-knowledge-bar"
+                  onClick={() => setKnowledgeOpen((value) => !value)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                >
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                    <AutoAwesomeRounded sx={{ fontSize: 16, color: 'primary.main' }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.7rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {t('Matched Cases & Standards')}
+                    </Typography>
+                    {knowledgeRefs.slice(0, 4).map((ref, index) => (
+                      <Chip
+                        key={`${ref.codeOrLabel}-${index}`}
+                        size="small"
+                        variant="outlined"
+                        label={ref.codeOrLabel}
+                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, '& .MuiChip-label': { px: 0.75 } }}
+                      />
+                    ))}
+                    {knowledgeRefs.length > 0 && (
+                      <Chip
+                        size="small"
+                        label={`${knowledgeRefs.length} ${knowledgeRefs.length === 1 ? t('similar case') : t('similar cases')}`}
+                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
+                      />
+                    )}
+                  </Stack>
+                  {knowledgeOpen ? (
+                    <ExpandLessRounded sx={{ fontSize: 18, color: 'text.secondary' }} />
+                  ) : (
+                    <ExpandMoreRounded sx={{ fontSize: 18, color: 'text.secondary' }} />
+                  )}
+                </Box>
+                <Collapse in={knowledgeOpen} unmountOnExit>
+                  <MatchedKnowledgeBody inspectionId={inspectionId} />
+                </Collapse>
+              </Box>
+            )}
           </Stack>
         </Collapse>
       </CardContent>

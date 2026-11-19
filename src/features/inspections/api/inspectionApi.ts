@@ -323,6 +323,45 @@ export interface ReportAiSummary {
   keyHighlights: string[];
   recommendedActions: string;
   overallRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  /** Optional source-backed references attached to the AI summary when retrieval is available. */
+  knowledgeReferences?: Array<{
+    kind: string;
+    codeOrLabel: string;
+    summary: string;
+    similarity?: number | null;
+  }>;
+}
+
+/** A historical inspection finding surfaced by the knowledge advisor (pgvector / hybrid match). */
+export interface HistoricalCaseMatch {
+  id: string;
+  defectLabel: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
+  assetCategory: string;
+  assetLabel: string;
+  sameAsset: boolean;
+  sameOrganization: boolean;
+  similarity: number;
+  technicalNotes: string;
+  outcome: string;
+  publishedAt: string | null;
+}
+
+/** An engineering guideline / standard matched to the same query. */
+export interface GuidelineMatch {
+  id: string;
+  standardCode: string;
+  title: string;
+  severity: string;
+  similarity: number;
+  guidance: string;
+  referenceUrl?: string | null;
+}
+
+export interface KnowledgeRecommendationResponse {
+  retrievalMode: 'PGVECTOR_RAG' | 'HYBRID_MATCH' | string;
+  cases: HistoricalCaseMatch[];
+  guidelines: GuidelineMatch[];
 }
 
 export interface PlatformAiModelStat {
@@ -1075,6 +1114,24 @@ export const inspectionApi = {
     api
       .get<ReportAiSummary>(
         `/inspections/${inspectionId}/report/versions/${versionId}/ai-summary`,
+      )
+      .then((response) => response.data),
+
+  /** Historical cases and guidelines matched to one finding (DroneKnowledgeAI). */
+  getFindingRecommendations: (inspectionId: string, findingId: string, limit = 3) =>
+    api
+      .get<KnowledgeRecommendationResponse>(
+        `/inspections/${inspectionId}/findings/${findingId}/recommendations`,
+        { params: { limit } },
+      )
+      .then((response) => response.data),
+
+  /** Historical cases and guidelines matched to the whole inspection report. */
+  getInspectionKnowledgeRecommendations: (inspectionId: string, limit = 4) =>
+    api
+      .get<KnowledgeRecommendationResponse>(
+        `/inspections/${inspectionId}/knowledge-recommendations`,
+        { params: { limit } },
       )
       .then((response) => response.data),
 

@@ -58,6 +58,10 @@ const mocks = vi.hoisted(() => ({
   manual: { mutate: vi.fn(), isPending: false, isError: false, error: null as Error | null },
   updateFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
   deleteFinding: { mutate: vi.fn(), isPending: false, error: null as Error | null },
+  findingRecommendationsQuery: {
+    data: { retrievalMode: 'HYBRID_MATCH', cases: [], guidelines: [] } as never,
+    isLoading: false,
+  },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -78,6 +82,7 @@ vi.mock('../hooks/useInspections', () => ({
   useInspection: () => ({ data: {} }),
   useReinspectionVerifications: () => ({ data: [], isLoading: false, error: null }),
   useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+  useFindingRecommendations: () => mocks.findingRecommendationsQuery,
 }));
 
 vi.mock('@/shared/api/client', async (importOriginal) => {
@@ -194,6 +199,10 @@ describe('InspectionFindingsPage', () => {
     mocks.analyze.analyzeMany.mockReset();
     mocks.confirm.mutate.mockReset();
     mocks.reopen.mutate.mockReset();
+    mocks.findingRecommendationsQuery = {
+      data: { retrievalMode: 'HYBRID_MATCH', cases: [], guidelines: [] } as never,
+      isLoading: false,
+    };
     Object.values(mocks).forEach((value) => {
       if ('mutate' in value && typeof value.mutate === 'function') value.mutate.mockReset();
     });
@@ -938,6 +947,55 @@ describe('InspectionFindingsPage', () => {
         }),
       }),
       expect.anything(),
+    );
+  });
+
+  it('lazily reveals similar cases in a finding card and applies the note into edit mode', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [undecidedFinding()],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.findingRecommendationsQuery = {
+      data: {
+        retrievalMode: 'HYBRID_MATCH',
+        cases: [
+          {
+            id: 'case-1',
+            defectLabel: 'Deck spall',
+            severity: 'HIGH',
+            assetCategory: 'BRIDGE',
+            assetLabel: 'North span',
+            sameAsset: true,
+            sameOrganization: false,
+            similarity: 0.9,
+            technicalNotes: 'Applied historical repair note',
+            outcome: 'RESOLVED',
+            publishedAt: '2026-01-02T00:00:00Z',
+          },
+        ],
+        guidelines: [],
+      } as never,
+      isLoading: false,
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    // The lookup is lazy: nothing is revealed until the compact chip is clicked.
+    expect(screen.queryByTestId('knowledge-recommendation-panel')).toBeNull();
+    fireEvent.click(screen.getByText('Similar Cases & Guide'));
+    expect(screen.getByTestId('knowledge-recommendation-panel')).toBeTruthy();
+    expect(screen.getByText('Deck spall')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    // Applying switches the finding into edit mode with the historical note pre-filled.
+    expect(screen.getByRole('button', { name: 'Save correction' })).toBeTruthy();
+    expect((screen.getByLabelText(/Note/) as HTMLTextAreaElement).value).toBe(
+      'Applied historical repair note',
     );
   });
 });
