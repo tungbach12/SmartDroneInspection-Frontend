@@ -3,8 +3,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import type { ServiceRequest } from '../api/contractApi';
 import {
-  formatFlightWindow,
-  formatRecurrenceUnit,
+  formatFlightTimeRange,
   getStatusLabel,
   statusTone,
 } from './contractStage';
@@ -16,6 +15,16 @@ interface RequestHeaderBarProps {
 
 export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarProps) {
   const { locale, t } = useLocale();
+  const scheduledCount =
+    request.requestType === 'RECURRING'
+      ? request.occurrenceCount ?? request.occurrences.length
+      : 0;
+  const requestDate = (date: string) =>
+    new Date(`${date}T00:00:00`).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
 
   return (
     <Box
@@ -37,14 +46,16 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
             <Typography variant="h5" sx={{ fontWeight: 750, color: 'text.primary' }}>
               {request.description}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {t('Requested window')}:{' '}
-              <strong>
-                {request.requestType === 'ONE_TIME'
-                  ? request.requestedFrom
-                  : `${request.requestedFrom} – ${request.requestedUntil}`}
-              </strong>{' '}
-              · {formatFlightWindow(request.windowStart, request.windowEnd, t)} · {request.timezone}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 0.5, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {request.requestType === 'ONE_TIME'
+                ? requestDate(request.requestedFrom)
+                : `${requestDate(request.requestedFrom)} – ${requestDate(request.requestedUntil)}`}
+              {' · '}
+              {formatFlightTimeRange(request.windowStart, request.windowEnd)}
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
@@ -59,27 +70,16 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
               variant="outlined"
               sx={{ fontWeight: 600, borderRadius: '6px' }}
             />
+            {scheduledCount > 0 && (
+              <Chip
+                size="small"
+                label={`${scheduledCount} ${t('occurrences')}`}
+                variant="outlined"
+                sx={{ fontWeight: 600, borderRadius: '6px' }}
+              />
+            )}
           </Stack>
         </Stack>
-
-        {request.requestType === 'RECURRING' && (
-          <Typography variant="body2" color="text.secondary">
-            {locale === 'vi' ? (
-              <>
-                Chu kỳ: mỗi {request.recurrenceInterval}{' '}
-                {formatRecurrenceUnit(request.recurrenceUnit, locale)}
-                {request.occurrenceCount ? ` · ${request.occurrenceCount} đợt bay` : ''}
-                {request.recurrenceEndDate ? ` · đến hết ${request.recurrenceEndDate}` : ''}
-              </>
-            ) : (
-              <>
-                Every {request.recurrenceInterval} {request.recurrenceUnit?.toLowerCase()}
-                {request.occurrenceCount ? ` · ${request.occurrenceCount} flights` : ''}
-                {request.recurrenceEndDate ? ` · until ${request.recurrenceEndDate}` : ''}
-              </>
-            )}
-          </Typography>
-        )}
       </Stack>
     </Box>
   );

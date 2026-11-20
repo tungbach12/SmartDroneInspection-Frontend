@@ -111,6 +111,16 @@ export function formatFlightWindow(
   return `${prefix}: ${s} – ${e}`;
 }
 
+/** Compact time range for dense cards and tables that already have a Schedule label. */
+export function formatFlightTimeRange(
+  start?: string | null,
+  end?: string | null,
+): string {
+  const s = formatFlightTime(start) || '08:00';
+  const e = formatFlightTime(end) || '17:00';
+  return `${s} – ${e}`;
+}
+
 export function formatRecurrenceUnit(
   unit: string | null | undefined,
   locale: string,

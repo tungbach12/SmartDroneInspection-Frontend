@@ -39,7 +39,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../api/contractApi';
 import {
   type ContractRole,
-  formatFlightWindow,
+  formatFlightTimeRange,
   getEffectiveRequestStatus,
   getRequestStageSubtitle,
   getStatusLabel,
@@ -412,7 +412,7 @@ export function ServiceRequestListView({
                           {req.requestType === 'ONE_TIME'
                             ? requestDate(req.requestedFrom)
                             : `${requestDate(req.requestedFrom)} – ${requestDate(req.requestedUntil)}`}{' '}
-                          · {formatFlightWindow(req.windowStart, req.windowEnd, t)}
+                          · {formatFlightTimeRange(req.windowStart, req.windowEnd)}
                         </Typography>
                         {canClaim && (
                           <Button
@@ -443,16 +443,10 @@ export function ServiceRequestListView({
                       {t('Request & Asset')}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      {t('Service type')}
+                      {t('Schedule')}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      {t('Requested window')}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      {t('Status')}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 750, fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      {t('Created date')}
+                      {t('Stage')}
                     </TableCell>
                     <TableCell
                       align="right"
@@ -485,26 +479,26 @@ export function ServiceRequestListView({
                               : 'default',
                         }}
                       >
-                        <TableCell sx={{ py: 2 }}>
+                        <TableCell sx={{ py: 1.5 }}>
                           <Typography
                             variant="body2"
                             sx={{ fontWeight: 750, color: 'text.primary', lineHeight: 1.3 }}
                           >
                             {req.description}
                           </Typography>
-                        </TableCell>
-
-                        <TableCell>
                           <Chip
                             label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
                             size="small"
                             variant="outlined"
-                            sx={{ fontWeight: 600, fontSize: '0.75rem', borderRadius: '6px' }}
+                            sx={{ mt: 0.75, fontWeight: 600, fontSize: '0.72rem', borderRadius: '6px' }}
                           />
                         </TableCell>
 
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+                          >
                             {req.requestType === 'ONE_TIME'
                               ? requestDate(req.requestedFrom)
                               : `${requestDate(req.requestedFrom)} – ${requestDate(req.requestedUntil)}`}
@@ -514,7 +508,7 @@ export function ServiceRequestListView({
                             color="text.secondary"
                             sx={{ display: 'block', mt: 0.25 }}
                           >
-                            {formatFlightWindow(req.windowStart, req.windowEnd, t)}
+                            {formatFlightTimeRange(req.windowStart, req.windowEnd)}
                           </Typography>
                         </TableCell>
 
@@ -539,16 +533,6 @@ export function ServiceRequestListView({
                               </Typography>
                             )}
                           </Stack>
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {new Date(req.createdAt).toLocaleDateString([], {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </Typography>
                         </TableCell>
 
                         <TableCell align="right" onClick={(event) => event.stopPropagation()}>
@@ -711,6 +695,14 @@ export function ServiceRequestListView({
                   variant="outlined"
                   sx={{ borderRadius: '6px', flexShrink: 0 }}
                 />
+                <Chip
+                  size="small"
+                  label={
+                    overviewRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')
+                  }
+                  variant="outlined"
+                  sx={{ borderRadius: '6px', fontWeight: 600, flexShrink: 0 }}
+                />
                 <IconButton
                   aria-label={t('Close')}
                   onClick={() => setOverviewRequest(null)}
@@ -746,51 +738,18 @@ export function ServiceRequestListView({
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                          {t('Service type')}
+                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: 0 }}>
+                          {t('Schedule')}
                         </TableCell>
-                        <TableCell>
-                          {overviewRequest.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
-                          {overviewRequest.requestType === 'RECURRING'
-                            ? ` · ${overviewRequest.recurrenceInterval} ${t(overviewRequest.recurrenceUnit ?? 'month')} · ${overviewRequest.occurrenceCount ?? overviewRequest.occurrences.length} ${t('occurrences')}`
-                            : ''}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                          {t('Requested window')}
-                        </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums', borderBottom: 0 }}>
                           {requestDate(overviewRequest.requestedFrom)}
                           {overviewRequest.requestedFrom !== overviewRequest.requestedUntil
                             ? ` – ${requestDate(overviewRequest.requestedUntil)}`
                             : ''}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                          {t('Daily inspection window')}
-                        </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {formatFlightWindow(overviewRequest.windowStart, overviewRequest.windowEnd, t)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                          {t('Asset ID')}
-                        </TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
-                          {overviewRequest.assetId}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: 0 }}>
-                          {t('Created date')}
-                        </TableCell>
-                        <TableCell sx={{ borderBottom: 0 }}>
-                          {new Date(overviewRequest.createdAt).toLocaleDateString(
-                            locale === 'vi' ? 'vi-VN' : 'en-US',
-                            { year: 'numeric', month: 'short', day: 'numeric' },
+                          {' · '}
+                          {formatFlightTimeRange(
+                            overviewRequest.windowStart,
+                            overviewRequest.windowEnd,
                           )}
                         </TableCell>
                       </TableRow>
