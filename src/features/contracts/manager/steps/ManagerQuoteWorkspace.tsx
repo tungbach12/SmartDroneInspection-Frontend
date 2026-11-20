@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
@@ -8,7 +8,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { IssueServiceQuoteInput, ServiceRequest } from '../../api/contractApi';
 import { enumerateMonthlySchedule } from '../../api/recurrenceSchedule';
 import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/scheduleTime';
-import { useIssueServiceQuote, usePartnerCapabilities } from '../../hooks/useContracts';
+import { useIssueServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, resolveCurrentQuote } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
 
@@ -54,8 +54,6 @@ export function ManagerQuoteWorkspace({
 
   const currentQuote = resolveCurrentQuote(request);
   const save = useIssueServiceQuote(request.id);
-  const capabilitiesQuery = usePartnerCapabilities();
-  const activeCapabilities = (capabilitiesQuery.data ?? []).filter((cap) => cap.isActive);
 
   const [scope, setScope] = useState(currentQuote?.scopeSnapshot ?? request.description);
   const [start, setStart] = useState(() =>
@@ -68,23 +66,14 @@ export function ManagerQuoteWorkspace({
       ? instantToDateTimeInput(currentQuote.firstOccurrenceEndAt, request.timezone)
       : `${request.requestedFrom}T10:00`,
   );
-  const [requiredCapabilities, setRequiredCapabilities] = useState<string[]>(
-    currentQuote?.requiredDroneFeatureCodes ?? [],
-  );
-  // A saved quote waits for the customer. The editable form only opens when the Manager
-  // explicitly starts a revision, so the default view answers "what happens next?".
-  const [quoteEditing, setQuoteEditing] = useState(false);
   const [price, setPrice] = useState(() =>
     currentQuote
       ? String(currentQuote.pricePerOccurrenceVnd ?? currentQuote.pricePerOccurrenceUsd ?? '')
       : '',
   );
-
-  const toggleCapability = (code: string) => {
-    setRequiredCapabilities((prev) =>
-      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code],
-    );
-  };
+  // A saved quote waits for the customer. The editable form only opens when the Manager
+  // explicitly starts a revision, so the default view answers "what happens next?".
+  const [quoteEditing, setQuoteEditing] = useState(false);
 
   const recurringDates =
     request.requestType === 'RECURRING'
@@ -138,7 +127,7 @@ export function ManagerQuoteWorkspace({
         firstOccurrenceStartAt: startAt,
         firstOccurrenceEndAt: endAt,
         pricePerOccurrenceVnd: amount,
-        requiredDroneFeatureCodes: [...requiredCapabilities],
+        requiredDroneFeatureCodes: [],
       } satisfies IssueServiceQuoteInput);
       setQuoteEditing(false);
       onChanged();
@@ -293,36 +282,6 @@ export function ManagerQuoteWorkspace({
                 }}
               />
 
-              {activeCapabilities.length > 0 && (
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', fontWeight: 700, mb: 0.75 }}
-                  >
-                    {t('Required drone capabilities (optional)')}
-                  </Typography>
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                    {activeCapabilities.map((cap) => {
-                      const selected = requiredCapabilities.includes(cap.code);
-                      return (
-                        <Chip
-                          key={cap.code}
-                          size="small"
-                          clickable
-                          onClick={() => toggleCapability(cap.code)}
-                          label={locale === 'vi' ? cap.nameVi : cap.nameEn}
-                          color={selected ? 'primary' : 'default'}
-                          variant={selected ? 'filled' : 'outlined'}
-                          aria-pressed={selected}
-                          sx={{ borderRadius: '6px', fontWeight: 600, fontSize: '0.75rem' }}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Box>
-              )}
-
               {request.requestType === 'RECURRING' && recurringDates.length > 0 && (
                 <Box
                   sx={{
@@ -367,12 +326,6 @@ export function ManagerQuoteWorkspace({
                   </Typography>
                 </Box>
               )}
-
-              <Alert severity="info" sx={{ py: 0.5, borderRadius: '8px' }} icon={false}>
-                <Typography variant="body2" color="text.secondary">
-                  {t('Assign the Inspector and drone in step 4.')}
-                </Typography>
-              </Alert>
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                 <LoadingButton
