@@ -1041,10 +1041,10 @@ export function PartnerCandidateResults({
           >
             <table aria-label={t('Eligible partner pairs')}>
               <thead><tr>
-                <th style={{ width: '58%' }}>{t('Inspector and drone')}</th>
-                <th style={{ width: '18%' }}>{t('Eligibility')}</th>
-                <th style={{ width: '10%' }}>{t('Drone tier')}</th>
-                <th style={{ width: '14%', textAlign: 'right' }}>{t('Actions')}</th>
+                <th style={{ width: '52%' }}>{t('Inspector and drone')}</th>
+                <th style={{ width: '16%' }}>{t('Eligibility')}</th>
+                <th style={{ width: '13%' }}>{t('Drone tier')}</th>
+                <th style={{ width: '19%', textAlign: 'right' }}>{t('Actions')}</th>
               </tr></thead>
               {candidateGroups.map((group) => (
                 <tbody key={group.inspectorId}>
@@ -1161,8 +1161,8 @@ export function PartnerCandidateResults({
                         <td>
                           <Stack
                             direction="row"
-                            spacing={0.5}
-                            sx={{ alignItems: 'center', justifyContent: 'flex-end' }}
+                            spacing={0.75}
+                            sx={{ alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'nowrap' }}
                           >
                             <Button
                               className="mobile-details"
@@ -1173,17 +1173,17 @@ export function PartnerCandidateResults({
                               startIcon={<VisibilityOutlinedIcon fontSize="small" />}
                               onClick={() => setDetailKey(pairKey(candidate))}
                               sx={{
-                                minWidth: { xs: 40, sm: 0 },
-                                minHeight: { xs: 40, sm: 'auto' },
-                                px: { xs: 0.75, sm: 0.75 },
+                                minWidth: 32,
+                                minHeight: { xs: 40, sm: 32 },
+                                px: 0.75,
                                 color: 'text.secondary',
                                 textTransform: 'none',
                                 fontWeight: 600,
                                 borderRadius: '8px',
-                                '& .MuiButton-startIcon': { mr: { xs: 0, sm: 0.5 } },
+                                '& .MuiButton-startIcon': { mr: 0 },
                               }}
                             >
-                              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                              <Box component="span" sx={{ display: 'none' }}>
                                 {t('Details')}
                               </Box>
                             </Button>
@@ -1199,6 +1199,7 @@ export function PartnerCandidateResults({
                                 textTransform: 'none',
                                 fontWeight: 600,
                                 borderRadius: '8px',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {isSelected ? t('Selected') : t('Select')}
