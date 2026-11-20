@@ -49,6 +49,13 @@ const data: KnowledgeRecommendationResponse = {
 afterEach(() => cleanup());
 
 describe('KnowledgeRecommendationPanel', () => {
+  it('renders no decorative sparkle icon alongside the compact knowledge rows', () => {
+    const { container } = render(<KnowledgeRecommendationPanel data={data} />);
+    const sparkle = ['Auto', 'Awesome'].join('');
+    expect(screen.getByTestId('knowledge-recommendation-panel')).toBeTruthy();
+    expect(container.querySelector(`[data-testid*="${sparkle}"]`)).toBeNull();
+  });
+
   it('renders compact case and guideline rows with crisp chips only', () => {
     render(<KnowledgeRecommendationPanel data={data} />);
 

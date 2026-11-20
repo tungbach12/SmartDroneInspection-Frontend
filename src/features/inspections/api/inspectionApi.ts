@@ -364,6 +364,15 @@ export interface KnowledgeRecommendationResponse {
   guidelines: GuidelineMatch[];
 }
 
+/** The AI-written technical note for one finding, with the compact sources it drew on. */
+export interface DraftFindingNoteResult {
+  note: string;
+  mode: 'AI_VISION_RAG' | 'DETERMINISTIC_RAG' | string;
+  retrievalMode: 'PGVECTOR_RAG' | 'HYBRID_MATCH' | string;
+  citedCases: HistoricalCaseMatch[];
+  citedGuidelines: GuidelineMatch[];
+}
+
 export interface PlatformAiModelStat {
   modelName: string;
   totalDetections: number;
@@ -1123,6 +1132,22 @@ export const inspectionApi = {
       .get<KnowledgeRecommendationResponse>(
         `/inspections/${inspectionId}/findings/${findingId}/recommendations`,
         { params: { limit } },
+      )
+      .then((response) => response.data),
+
+  /**
+   * Asks the Backend AI to inspect one finding's photo plus DroneKnowledgeAI cases/standards and
+   * write a technical note. The caller fills the Inspector's Note edit box with `note`.
+   */
+  draftFindingNote: (
+    inspectionId: string,
+    findingId: string,
+    payload?: { locale?: string; existingNote?: string },
+  ) =>
+    api
+      .post<DraftFindingNoteResult>(
+        `/inspections/${inspectionId}/findings/${findingId}/draft-note`,
+        payload ?? {},
       )
       .then((response) => response.data),
 

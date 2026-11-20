@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import NorthEastIcon from '@mui/icons-material/NorthEast';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import DocumentScannerOutlined from '@mui/icons-material/DocumentScannerOutlined';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import LanguageRounded from '@mui/icons-material/LanguageRounded';
@@ -22,7 +22,7 @@ const services = [
     title: 'Find damage early with AI',
     description:
       'Detect cracks, concrete leaks, and rust early before small defects turn into expensive structural failures.',
-    Icon: AutoAwesomeIcon,
+    Icon: DocumentScannerOutlined,
   },
   {
     number: '03',

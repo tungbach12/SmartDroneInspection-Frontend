@@ -15,6 +15,8 @@ import {
   useUploadFlightPermit,
   useRetireEvidence,
   useConfirmFinding,
+  useDraftAllFindingNotes,
+  useDraftFindingNote,
   useSubmitReportVersion,
   useUpdateEvidenceLocation,
   useUpdateFinding,
@@ -40,6 +42,7 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       submitVersion: vi.fn(),
       getFindingRecommendations: vi.fn(),
       getInspectionKnowledgeRecommendations: vi.fn(),
+      draftFindingNote: vi.fn(),
     },
   };
 });
@@ -322,5 +325,90 @@ describe('knowledge recommendation queries', () => {
       'inspection-1',
       4,
     );
+  });
+});
+
+describe('useDraftFindingNote', () => {
+  it('sends the finding id, locale and existing note to the scoped backend endpoint', async () => {
+    const client = createClient();
+    const drafted = {
+      note: 'AI-written note',
+      mode: 'AI_VISION_RAG',
+      retrievalMode: 'PGVECTOR_RAG',
+      citedCases: [],
+      citedGuidelines: [],
+    };
+    vi.mocked(inspectionApi.draftFindingNote).mockResolvedValue(drafted);
+
+    const mutation = renderMutation(client, () => useDraftFindingNote('inspection-1'));
+    const result = await mutation.mutateAsync({
+      findingId: 'finding-1',
+      locale: 'vi',
+      existingNote: 'Old note',
+    } as never);
+
+    expect(result).toEqual(drafted);
+    expect(inspectionApi.draftFindingNote).toHaveBeenCalledWith('inspection-1', 'finding-1', {
+      locale: 'vi',
+      existingNote: 'Old note',
+    });
+  });
+});
+
+describe('useDraftAllFindingNotes', () => {
+  it('drafts and persists notes for every target finding and updates the findings cache', async () => {
+    const client = createClient();
+    const finding = {
+      id: 'finding-1',
+      inspectionId: 'inspection-1',
+      evidenceId: 'evidence-1',
+      status: 'PENDING' as const,
+      findingCode: 'F-0001',
+      defectLabel: 'Coating blistering',
+      severity: 'HIGH' as const,
+      technicalNotes: 'Old note',
+      boundingBox: null,
+      modelName: 'yolo11s',
+      confidence: 0.85,
+      isDeleted: false,
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    client.setQueryData(['inspections', 'inspection-1', 'findings'], [finding]);
+    const drafted = {
+      note: 'AI-synthesized batch note.',
+      mode: 'AI_VISION_RAG',
+      retrievalMode: 'PGVECTOR_RAG',
+      citedCases: [],
+      citedGuidelines: [],
+    };
+    const updated = { ...finding, technicalNotes: 'AI-synthesized batch note.' };
+    vi.mocked(inspectionApi.draftFindingNote).mockResolvedValue(drafted);
+    vi.mocked(inspectionApi.updateFinding).mockResolvedValue(updated);
+
+    const { result } = renderHook(() => useDraftAllFindingNotes('inspection-1'), {
+      wrapper: wrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.draftMany([{ finding, existingNote: 'Old note' }], { locale: 'en' });
+    });
+
+    expect(inspectionApi.draftFindingNote).toHaveBeenCalledWith('inspection-1', 'finding-1', {
+      locale: 'en',
+      existingNote: 'Old note',
+    });
+    expect(inspectionApi.updateFinding).toHaveBeenCalledWith('inspection-1', 'finding-1', {
+      evidenceId: 'evidence-1',
+      defectLabel: 'Coating blistering',
+      severity: 'HIGH',
+      technicalNotes: 'AI-synthesized batch note.',
+    });
+    expect(result.current.draftedNotes['finding-1']).toEqual(drafted);
+    expect(client.getQueryData(['inspections', 'inspection-1', 'findings'])).toEqual([updated]);
+    expect(useToastStore.getState()).toMatchObject({
+      open: true,
+      message: 'Drafted notes for 1 finding(s).',
+      severity: 'success',
+    });
   });
 });

@@ -166,6 +166,49 @@ describe('inspectionApi.generateDraft', () => {
   });
 });
 
+describe('inspectionApi draft finding note', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('posts one finding to the AI draft-note endpoint and returns the drafted note', async () => {
+    const result = {
+      note: 'Repair the spall with non-shrink mortar after cleaning the rebar.',
+      mode: 'AI_VISION_RAG',
+      retrievalMode: 'PGVECTOR_RAG',
+      citedCases: [],
+      citedGuidelines: [],
+    };
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: result } as never);
+
+    const actual = await inspectionApi.draftFindingNote('i1', 'f1', {
+      locale: 'vi',
+      existingNote: 'Old note',
+    });
+
+    expect(post).toHaveBeenCalledWith('/inspections/i1/findings/f1/draft-note', {
+      locale: 'vi',
+      existingNote: 'Old note',
+    });
+    expect(actual).toEqual(result);
+    expect(actual.note).toBe('Repair the spall with non-shrink mortar after cleaning the rebar.');
+  });
+
+  it('sends an empty payload when the caller has no locale or existing note', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({
+      data: {
+        note: 'Drafted',
+        mode: 'DETERMINISTIC_RAG',
+        retrievalMode: 'HYBRID_MATCH',
+        citedCases: [],
+        citedGuidelines: [],
+      },
+    } as never);
+
+    await inspectionApi.draftFindingNote('i1', 'f1');
+
+    expect(post).toHaveBeenCalledWith('/inspections/i1/findings/f1/draft-note', {});
+  });
+});
+
 describe('inspectionApi knowledge recommendations', () => {
   afterEach(() => vi.restoreAllMocks());
 

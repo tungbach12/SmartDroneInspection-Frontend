@@ -10,7 +10,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded';
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
@@ -696,7 +695,6 @@ export function ReportAiSummaryCard({
           }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-            <AutoAwesomeRounded sx={{ color: 'primary.main', fontSize: 19 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {t('AI Executive Summary')}
             </Typography>
@@ -961,7 +959,6 @@ export function ReportAiSummaryCard({
                   }}
                 >
                   <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                    <AutoAwesomeRounded sx={{ fontSize: 16, color: 'primary.main' }} />
                     <Typography
                       variant="caption"
                       sx={{

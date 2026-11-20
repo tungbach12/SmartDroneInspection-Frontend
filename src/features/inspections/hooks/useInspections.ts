@@ -9,7 +9,9 @@ import {
 import { cacheUploadedFlightPermit } from '../components/FlightPermitPreviewDialog';
 import {
   inspectionApi,
+  type DraftFindingNoteResult,
   type Finding,
+  type FindingSeverity,
   type CreateInspectionInput,
   type FlightPermitVerificationStatus,
   type InspectionListFilters,
@@ -78,6 +80,135 @@ export function useFindingRecommendations(
     enabled: enabled && Boolean(inspectionId && findingId),
     staleTime: 60_000,
   });
+}
+
+/**
+ * Asks the Backend AI to write one finding's technical note. The caller owns filling the Inspector's
+ * Note edit box and keeping the tiny citations summary, so no queries are invalidated here.
+ */
+export function useDraftFindingNote(inspectionId: string) {
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({
+      findingId,
+      locale,
+      existingNote,
+    }: {
+      findingId: string;
+      locale?: string;
+      existingNote?: string;
+    }) =>
+      inspectionApi.draftFindingNote(inspectionId, findingId, {
+        ...(locale ? { locale } : {}),
+        ...(existingNote !== undefined ? { existingNote } : {}),
+      }),
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not draft the note with AI.'), 'error'),
+  });
+}
+
+export interface DraftFindingNoteBatchTarget {
+  finding: Finding;
+  defectLabel?: string;
+  severity?: FindingSeverity;
+  existingNote?: string;
+}
+
+/**
+ * Batch sibling of {@link useDraftFindingNote} triggered next to "Analyze all images":
+ * drafts notes for all active findings with bounded concurrency, persists each generated note onto
+ * the finding record, and updates the findings cache so the user can review & confirm right away.
+ */
+export function useDraftAllFindingNotes(inspectionId: string | null) {
+  const client = useQueryClient();
+  const [draftingIds, setDraftingIds] = useState<string[]>([]);
+  const [draftedNotes, setDraftedNotes] = useState<Record<string, DraftFindingNoteResult>>({});
+  const [error, setError] = useState<unknown>(null);
+
+  const draftMany = useCallback(
+    async (targets: DraftFindingNoteBatchTarget[], options?: { locale?: string }) => {
+      if (!inspectionId || targets.length === 0) {
+        return {
+          draftedNotes: {} as Record<string, DraftFindingNoteResult>,
+          updatedCount: 0,
+          failedCount: 0,
+        };
+      }
+      setError(null);
+      const showToast = useToastStore.getState().showToast;
+      const nextResults: Record<string, DraftFindingNoteResult> = {};
+      const failures: unknown[] = [];
+      let updatedCount = 0;
+
+      const targetIds = targets.map((item) => item.finding.id);
+      setDraftingIds((current) => [
+        ...current,
+        ...targetIds.filter((id) => !current.includes(id)),
+      ]);
+
+      const queue = [...targets];
+      const workerCount = Math.min(3, queue.length);
+      await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+          while (queue.length > 0) {
+            const next = queue.shift();
+            if (!next) return;
+            const { finding } = next;
+            try {
+              const drafted = await inspectionApi.draftFindingNote(inspectionId, finding.id, {
+                ...(options?.locale ? { locale: options.locale } : {}),
+                existingNote: next.existingNote ?? finding.technicalNotes ?? '',
+              });
+              const updated = await inspectionApi.updateFinding(inspectionId, finding.id, {
+                evidenceId: finding.evidenceId ?? '',
+                defectLabel: next.defectLabel ?? finding.defectLabel,
+                severity: next.severity ?? finding.severity,
+                technicalNotes: drafted.note,
+              });
+              nextResults[finding.id] = drafted;
+              updatedCount += 1;
+              setDraftedNotes((current) => ({ ...current, [finding.id]: drafted }));
+              client.setQueryData<Finding[]>(inspectionKeys.findings(inspectionId), (existing) =>
+                (existing ?? []).map((item) => (item.id === finding.id ? updated : item)),
+              );
+            } catch (failure) {
+              failures.push(failure);
+              setError(failure);
+            } finally {
+              setDraftingIds((current) => current.filter((id) => id !== finding.id));
+            }
+          }
+        }),
+      );
+
+      if (failures.length > 0 && updatedCount === 0) {
+        showToast(getErrorMessage(failures[0], 'Could not draft notes with AI.'), 'error');
+      } else if (failures.length > 0) {
+        showToast(
+          `Drafted notes for ${updatedCount} finding(s); ${failures.length} failed.`,
+          'info',
+        );
+      } else if (updatedCount > 0) {
+        showToast(`Drafted notes for ${updatedCount} finding(s).`, 'success');
+      }
+
+      void client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+      void client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+      void client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+
+      return { draftedNotes: nextResults, updatedCount, failedCount: failures.length };
+    },
+    [client, inspectionId],
+  );
+
+  return {
+    draftMany,
+    draftingIds,
+    draftedNotes,
+    isPending: draftingIds.length > 0,
+    error,
+    isError: error !== null,
+  };
 }
 
 /** Report-level historical cases / guidelines for the AI summary footer. */

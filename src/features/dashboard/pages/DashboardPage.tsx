@@ -7,7 +7,6 @@ import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined';
 import TuneRounded from '@mui/icons-material/TuneRounded';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useAssets } from '@/features/assets/hooks/useAssets';
@@ -49,7 +48,7 @@ const adminAreas: FocusArea[] = [
   { label: 'Drone & Flight config', description: 'Checklists, documents & safety', icon: TuneRounded, path: '/admin/flight-config' },
   { label: 'Onboarding reviews', description: 'Airspace & drone reviews', icon: FactCheckOutlined, path: '/admin/onboarding-reviews' },
   { label: 'Platform accounts', description: 'Accounts and roles', icon: ManageAccountsOutlined, path: '/admin/platform-users' },
-  { label: 'Platform settings', description: 'Finance, operations & AI', icon: AutoAwesomeOutlined, path: '/admin/platform-settings' },
+  { label: 'Platform settings', description: 'Finance, operations & AI', icon: TuneRounded, path: '/admin/platform-settings' },
   { label: 'Activity log', description: 'Privileged action audit', icon: FactCheckOutlined, path: '/admin/audit-logs' },
   { label: 'Assets', description: 'Asset records', icon: ApartmentOutlined, path: '/admin/assets' },
   { label: 'Inspections', description: 'Inspection records', icon: FlightTakeoffRounded, path: '/admin/inspections' },

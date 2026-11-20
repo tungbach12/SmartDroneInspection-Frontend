@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 import { Box, Tab, Tabs } from '@mui/material';
+import AnalyticsOutlined from '@mui/icons-material/AnalyticsOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import TuneRounded from '@mui/icons-material/TuneRounded';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import PlatformFinanceSettingsPage from './PlatformFinanceSettingsPage';
@@ -12,7 +12,7 @@ import PlatformAiSettingsPage from './PlatformAiSettingsPage';
 const SETTINGS_TABS = [
   { value: 'finance', label: 'Finance & Tax', icon: <ReceiptLongOutlined fontSize="small" /> },
   { value: 'operations', label: 'Operations & Dispatch', icon: <TuneRounded fontSize="small" /> },
-  { value: 'ai', label: 'AI & Model Performance', icon: <AutoAwesomeOutlined fontSize="small" /> },
+  { value: 'ai', label: 'AI & Model Performance', icon: <AnalyticsOutlined fontSize="small" /> },
 ] as const;
 
 export type PlatformSettingsTab = (typeof SETTINGS_TABS)[number]['value'];
