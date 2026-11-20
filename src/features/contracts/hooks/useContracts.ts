@@ -63,10 +63,22 @@ function useContractMutation<TInput, TOutput = ServiceRequest>(
 }
 
 export function useClaimServiceRequest() {
-  return useContractMutation<string>(
-    (requestId) => contractApi.claimRequest(requestId),
-    'Service request assigned to you.',
-  );
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (requestId: string) => contractApi.claimRequest(requestId),
+    onSuccess: async (updatedRequest) => {
+      queryClient.setQueryData(contractQueryKeys.request(updatedRequest.id), updatedRequest);
+      queryClient.setQueryData<ServiceRequest[]>(contractQueryKeys.requests(), (old) => {
+        if (!old) return old;
+        return old.map((request) =>
+          request.id === updatedRequest.id ? updatedRequest : request,
+        );
+      });
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
+      showToast('Service request assigned to you.', 'success');
+    },
+  });
 }
 
 export function useAdminReassignServiceRequest() {

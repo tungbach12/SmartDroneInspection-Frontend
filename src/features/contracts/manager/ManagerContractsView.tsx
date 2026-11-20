@@ -61,7 +61,8 @@ export function ManagerContractsView({
 
   const claim = async (requestId: string) => {
     try {
-      await claimRequest.mutateAsync(requestId);
+      const claimed = await claimRequest.mutateAsync(requestId);
+      onSelectRequest(claimed.id);
       onRefresh();
     } catch (error) {
       showToast(extractContractErrorText(error), 'error');
