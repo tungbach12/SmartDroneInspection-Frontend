@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   FormControlLabel,
   MenuItem,
   Paper,
@@ -12,7 +13,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -20,10 +20,13 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { AuthenticatedMedia } from '@/shared/ui/AuthenticatedMedia';
 import { AiMotionFigure } from '../components/AiMotionFigure';
 import { EvidenceGpsMapDialog } from './EvidenceGpsMapDialog';
-import { KnowledgeRecommendationPanel } from './KnowledgeRecommendationPanel';
-import { useFindingRecommendations } from '../hooks/useInspections';
 import { inspectionApi } from '../api/inspectionApi';
-import type { EvidenceItem, Finding, FindingSeverity } from '../api/inspectionApi';
+import type {
+  DraftFindingNoteResult,
+  EvidenceItem,
+  Finding,
+  FindingSeverity,
+} from '../api/inspectionApi';
 import { parseBoundingBox } from '../utils/boundingBox';
 
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -58,6 +61,11 @@ export interface EvidenceCaptureGroupProps {
   onClearBoundingBox?: ((findingId: string) => void) | undefined;
   onConfirmFinding: (finding: Finding) => void;
   onDeleteFinding: (findingId: string) => void;
+  /** One crisp AI-draft action replaces the old expandable cases/standards strip. */
+  draftingNoteId?: string | null | undefined;
+  draftingNoteIds?: ReadonlySet<string> | undefined;
+  draftedNotes?: Record<string, DraftFindingNoteResult> | undefined;
+  onDraftNote?: ((finding: Finding) => void) | undefined;
   onRestoreFinding?: (findingId: string) => void;
   isRestorePending?: boolean;
   isConfirmPending: boolean;
@@ -162,7 +170,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
             <Button
               size="small"
               variant="outlined"
-              startIcon={props.isAnalysing ? undefined : <AutoAwesomeOutlined sx={{ fontSize: 16 }} />}
               disabled={props.isAnalysing}
               onClick={() => props.onAnalyze(props.evidenceId, props.isAnalysed)}
               sx={{
@@ -463,6 +470,19 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                               required
                             />
 
+                            <DraftNoteAction
+                              finding={finding}
+                              canDraft={
+                                props.isInspector && !props.isReportLocked && !finding.isDeleted
+                              }
+                              isDrafting={
+                                Boolean(props.draftingNoteIds?.has(finding.id)) ||
+                                props.draftingNoteId === finding.id
+                              }
+                              result={props.draftedNotes?.[finding.id]}
+                              onDraft={props.onDraftNote}
+                            />
+
                             {isImage && props.onEditBoundingBox && (
                               <Stack
                                 direction="row"
@@ -595,7 +615,9 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                             </Stack>
 
                             {(() => {
-                              const note = finding.technicalNotes?.trim();
+                              const note = (
+                                props.revisedTechnicalNotes[finding.id] ?? finding.technicalNotes
+                              )?.trim();
                               return (
                                 <Typography
                                   variant="body2"
@@ -609,6 +631,19 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                                 </Typography>
                               );
                             })()}
+
+                            <DraftNoteAction
+                              finding={finding}
+                              canDraft={
+                                props.isInspector && !props.isReportLocked && !finding.isDeleted
+                              }
+                              isDrafting={
+                                Boolean(props.draftingNoteIds?.has(finding.id)) ||
+                                props.draftingNoteId === finding.id
+                              }
+                              result={props.draftedNotes?.[finding.id]}
+                              onDraft={props.onDraftNote}
+                            />
 
                             {/* Card Footer Actions */}
                             {finding.isDeleted ? (
@@ -762,17 +797,6 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
                           </Stack>
                         )}
                       </Box>
-                      <FindingKnowledgeStrip
-                        inspectionId={props.inspectionId}
-                        finding={finding}
-                        canApply={
-                          props.isInspector && !props.isReportLocked && !finding.isDeleted
-                        }
-                        onApply={(note) => {
-                          props.onStartEdit(finding);
-                          props.onTechnicalNotesChange(finding.id, note);
-                        }}
-                      />
                     </Box>
                   </Box>
                 );
@@ -941,45 +965,108 @@ export function EvidenceCaptureGroup(props: EvidenceCaptureGroupProps) {
   );
 }
 
-/** One-click lazy knowledge lookup inside a finding card, shared by viewing and editing states. */
-function FindingKnowledgeStrip({
-  inspectionId,
+/**
+ * The only knowledge affordance left on a finding card: one small outlined button that asks the
+ * Backend AI to write the note. Citations stay collapsed behind a muted toggle and render as single
+ * compact chips, never as the old multi-paragraph cases/standards panel.
+ */
+function DraftNoteAction({
   finding,
-  canApply,
-  onApply,
+  canDraft,
+  isDrafting,
+  result,
+  onDraft,
 }: {
-  inspectionId: string;
   finding: Finding;
-  canApply: boolean;
-  onApply: (note: string) => void;
+  canDraft: boolean;
+  isDrafting: boolean;
+  result: DraftFindingNoteResult | undefined;
+  onDraft: ((finding: Finding) => void) | undefined;
 }) {
   const { t } = useLocale();
-  const [open, setOpen] = useState(false);
-  const query = useFindingRecommendations(inspectionId, finding.id, open);
+  const [referencesOpen, setReferencesOpen] = useState(false);
+  const citationCount =
+    (result?.citedCases?.length ?? 0) + (result?.citedGuidelines?.length ?? 0);
+
+  if (!canDraft && citationCount === 0) return null;
 
   return (
-    <Box sx={{ mt: 0.75, pt: 0.5, borderTop: '1px dashed', borderColor: 'divider' }}>
-      <Chip
-        size="small"
-        variant="outlined"
-        icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
-        label={t('Similar Cases & Guide')}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        sx={{
-          height: 22,
-          fontSize: '0.7rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          '& .MuiChip-label': { px: 0.75 },
-        }}
-      />
-      {open && (
-        <KnowledgeRecommendationPanel
-          data={query.data}
-          isLoading={query.isLoading}
-          onApplyNote={canApply ? onApply : undefined}
-        />
+    <Box sx={{ mt: 0.5 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+        {canDraft && onDraft && (
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={isDrafting}
+            onClick={() => onDraft(finding)}
+            sx={{
+              minHeight: 28,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+            }}
+          >
+            {isDrafting ? (
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                <CircularProgress size={14} />
+                <span>{t('Drafting note…')}</span>
+              </Stack>
+            ) : (
+              t('Draft note with AI')
+            )}
+          </Button>
+        )}
+        {citationCount > 0 && (
+          <Button
+            size="small"
+            variant="text"
+            aria-expanded={referencesOpen}
+            onClick={() => setReferencesOpen((value) => !value)}
+            sx={{
+              minHeight: 28,
+              textTransform: 'none',
+              fontSize: '0.75rem',
+              color: 'text.secondary',
+            }}
+          >
+            {t('References')} ({citationCount})
+          </Button>
+        )}
+      </Stack>
+      {citationCount > 0 && referencesOpen && (
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{ mt: 0.5, alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}
+        >
+          {result?.citedCases?.map((item) => (
+            <Chip
+              key={`case-${item.id}`}
+              size="small"
+              variant="outlined"
+              label={`${item.defectLabel} · ${Math.round(item.similarity * 100)}% match`}
+              sx={{
+                height: 22,
+                fontSize: '0.7rem',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          ))}
+          {result?.citedGuidelines?.map((item) => (
+            <Chip
+              key={`guideline-${item.id}`}
+              size="small"
+              variant="outlined"
+              label={`${item.standardCode} · ${Math.round(item.similarity * 100)}% match`}
+              sx={{
+                height: 22,
+                fontSize: '0.7rem',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          ))}
+        </Stack>
       )}
     </Box>
   );

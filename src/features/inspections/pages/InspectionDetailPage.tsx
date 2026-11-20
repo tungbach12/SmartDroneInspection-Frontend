@@ -28,7 +28,6 @@ import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import PlaylistAddCheckRounded from '@mui/icons-material/PlaylistAddCheckRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
@@ -141,7 +140,7 @@ const INSPECTOR_STEPS: readonly WorkflowStep[] = [
     title: 'Defect Findings',
     sublabel: 'AI Detection & Review',
     to: 'findings',
-    icon: AutoAwesomeOutlined,
+    icon: FactCheckOutlined,
   },
   {
     step: 7,
@@ -198,7 +197,7 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
     title: 'Defect Verification',
     sublabel: 'Before ↔ After',
     to: 'findings',
-    icon: AutoAwesomeOutlined,
+    icon: FactCheckOutlined,
   },
   {
     step: 6,

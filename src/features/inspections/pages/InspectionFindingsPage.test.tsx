@@ -62,6 +62,15 @@ const mocks = vi.hoisted(() => ({
     data: { retrievalMode: 'HYBRID_MATCH', cases: [], guidelines: [] } as never,
     isLoading: false,
   },
+  draftNote: { mutate: vi.fn(), isPending: false },
+  draftAllNotes: {
+    draftMany: vi.fn(),
+    draftingIds: [] as string[],
+    draftedNotes: {},
+    isPending: false,
+    error: null as Error | null,
+    isError: false,
+  },
 }));
 
 vi.mock('../hooks/useInspections', () => ({
@@ -83,6 +92,8 @@ vi.mock('../hooks/useInspections', () => ({
   useReinspectionVerifications: () => ({ data: [], isLoading: false, error: null }),
   useUpdateReinspectionVerification: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
   useFindingRecommendations: () => mocks.findingRecommendationsQuery,
+  useDraftFindingNote: () => mocks.draftNote,
+  useDraftAllFindingNotes: () => mocks.draftAllNotes,
 }));
 
 vi.mock('@/shared/api/client', async (importOriginal) => {
@@ -199,6 +210,10 @@ describe('InspectionFindingsPage', () => {
     mocks.analyze.analyzeMany.mockReset();
     mocks.confirm.mutate.mockReset();
     mocks.reopen.mutate.mockReset();
+    mocks.draftAllNotes.isPending = false;
+    mocks.draftAllNotes.draftingIds = [];
+    mocks.draftAllNotes.draftedNotes = {};
+    mocks.draftAllNotes.draftMany.mockReset();
     mocks.findingRecommendationsQuery = {
       data: { retrievalMode: 'HYBRID_MATCH', cases: [], guidelines: [] } as never,
       isLoading: false,
@@ -950,7 +965,7 @@ describe('InspectionFindingsPage', () => {
     );
   });
 
-  it('lazily reveals similar cases in a finding card and applies the note into edit mode', () => {
+  it('drafts a finding note with AI straight into the Note edit box, without the old clutter', () => {
     mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
     mocks.findingsQuery = {
       data: [undecidedFinding()],
@@ -959,43 +974,216 @@ describe('InspectionFindingsPage', () => {
       error: null,
       refetch: vi.fn(),
     };
-    mocks.findingRecommendationsQuery = {
-      data: {
-        retrievalMode: 'HYBRID_MATCH',
-        cases: [
-          {
-            id: 'case-1',
-            defectLabel: 'Deck spall',
-            severity: 'HIGH',
-            assetCategory: 'BRIDGE',
-            assetLabel: 'North span',
-            sameAsset: true,
-            sameOrganization: false,
-            similarity: 0.9,
-            technicalNotes: 'Applied historical repair note',
-            outcome: 'RESOLVED',
-            publishedAt: '2026-01-02T00:00:00Z',
-          },
-        ],
-        guidelines: [],
-      } as never,
+    mocks.draftNote.mutate.mockImplementation(
+      (
+        _variables: unknown,
+        options?: { onSuccess?: (result: unknown) => void; onSettled?: () => void },
+      ) => {
+        options?.onSuccess?.({
+          note: 'AI drafted repair note',
+          mode: 'AI_VISION_RAG',
+          retrievalMode: 'PGVECTOR_RAG',
+          citedCases: [
+            {
+              id: 'case-1',
+              defectLabel: 'Deck spall',
+              severity: 'HIGH',
+              assetCategory: 'BRIDGE',
+              assetLabel: 'North span',
+              sameAsset: true,
+              sameOrganization: false,
+              similarity: 0.29,
+              technicalNotes: 'Patched with structural mortar.',
+              outcome: 'RESOLVED',
+              publishedAt: '2026-01-02T00:00:00Z',
+            },
+          ],
+          citedGuidelines: [
+            {
+              id: 'guide-1',
+              standardCode: 'TCVN 9343:2012',
+              title: 'Repair of concrete defects',
+              severity: 'HIGH',
+              similarity: 0.29,
+              guidance: 'Remove unsound concrete before restoring cover.',
+            },
+          ],
+        });
+        options?.onSettled?.();
+      },
+    );
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    // One crisp outlined button replaces the old expandable cases/standards strip.
+    const draftButton = screen.getByRole('button', { name: 'Draft note with AI' });
+    expect(screen.queryByText('Similar Cases & Guide')).toBeNull();
+    expect(screen.queryByTestId('knowledge-recommendation-panel')).toBeNull();
+    const sparkle = ['Auto', 'Awesome'].join('');
+    expect(screen.queryByTestId(`${sparkle}OutlinedIcon`)).toBeNull();
+
+    fireEvent.click(draftButton);
+
+    expect(mocks.draftNote.mutate).toHaveBeenCalledWith(
+      {
+        findingId: 'finding-1',
+        locale: 'en',
+        existingNote: 'Roughly 60mm across. · Repaint.',
+      },
+      expect.anything(),
+    );
+
+    // The drafted note lands in edit mode with no extra click.
+    expect(screen.getByRole('button', { name: 'Save correction' })).toBeTruthy();
+    expect((screen.getByLabelText(/^Note/) as HTMLTextAreaElement).value).toBe(
+      'AI drafted repair note',
+    );
+
+    // Citations stay collapsed until the muted toggle is opened, then render one-line chips only.
+    expect(screen.queryByText(/TCVN 9343:2012/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'References (2)' }));
+    expect(screen.getByText('TCVN 9343:2012 · 29% match')).toBeTruthy();
+    expect(screen.getByText('Deck spall · 29% match')).toBeTruthy();
+    expect(screen.queryByTestId('knowledge-recommendation-panel')).toBeNull();
+  });
+
+  it('places Draft all notes right next to Analyze all images and updates cards in place', async () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [undecidedFinding(), pendingFinding()],
       isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.draftAllNotes.draftMany.mockResolvedValue({
+      draftedNotes: {
+        'finding-1': {
+          note: 'Batch drafted blister note.',
+          mode: 'AI_VISION_RAG',
+          retrievalMode: 'PGVECTOR_RAG',
+          citedCases: [],
+          citedGuidelines: [
+            {
+              id: 'guide-1',
+              standardCode: 'ISO 12944-5',
+              title: 'Protective coating assessment',
+              severity: 'HIGH',
+              similarity: 0.35,
+              guidance: 'Assess blistering extent before recoating.',
+            },
+          ],
+        },
+        'finding-detected-1': {
+          note: 'Batch drafted crack note.',
+          mode: 'AI_VISION_RAG',
+          retrievalMode: 'PGVECTOR_RAG',
+          citedCases: [],
+          citedGuidelines: [],
+        },
+      },
+      updatedCount: 2,
+      failedCount: 0,
+    });
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    const draftAllBtn = screen.getByRole('button', { name: 'Draft all notes (2)' });
+    const analyzeAllBtn = screen.getByRole('button', { name: 'Analyze all images (1)' });
+    expect(draftAllBtn.parentElement).toBe(analyzeAllBtn.parentElement);
+
+    fireEvent.click(draftAllBtn);
+
+    await waitFor(() =>
+      expect(mocks.draftAllNotes.draftMany).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            finding: expect.objectContaining({ id: 'finding-1' }),
+            existingNote: 'Roughly 60mm across. · Repaint.',
+          }),
+          expect.objectContaining({
+            finding: expect.objectContaining({ id: 'finding-detected-1' }),
+            existingNote: 'Coating crack',
+          }),
+        ],
+        { locale: 'en' },
+      ),
+    );
+
+    expect(await screen.findByText(/Batch drafted blister note\./)).toBeTruthy();
+    expect(screen.getByText(/Batch drafted crack note\./)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'References (1)' })).toBeTruthy();
+  });
+
+  it('filters captures by Unconfirmed and Confirmed findings cleanly via status chips and hides empty captures', () => {
+    mocks.evidenceQuery = {
+      data: [
+        imageEvidence(),
+        {
+          id: 'evidence-2',
+          fileName: 'confirmed-span.png',
+          contentType: 'image/png',
+          sizeBytes: 8,
+          isDeleted: false,
+          locationDescription: null,
+          deduplicated: false,
+        },
+        {
+          id: 'evidence-3',
+          fileName: 'clean-span.png',
+          contentType: 'image/png',
+          sizeBytes: 8,
+          isDeleted: false,
+          locationDescription: null,
+          deduplicated: false,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.findingsQuery = {
+      data: [
+        {
+          ...pendingFinding(),
+          id: 'finding-pending-1',
+          defectLabel: 'Pending crack',
+        },
+        {
+          ...pendingFinding(),
+          id: 'finding-confirmed-1',
+          evidenceId: 'evidence-2',
+          status: 'CONFIRMED',
+          findingCode: 'F-0003',
+          defectLabel: 'Confirmed spall',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
     };
 
     renderWithRouter(<InspectionFindingsPage />);
 
-    // The lookup is lazy: nothing is revealed until the compact chip is clicked.
-    expect(screen.queryByTestId('knowledge-recommendation-panel')).toBeNull();
-    fireEvent.click(screen.getByText('Similar Cases & Guide'));
-    expect(screen.getByTestId('knowledge-recommendation-panel')).toBeTruthy();
-    expect(screen.getByText('Deck spall')).toBeTruthy();
+    // Quick status chips show counts directly without opening More filters.
+    const unconfirmedChip = screen.getByRole('button', { name: 'Unconfirmed (1)' });
+    const confirmedChip = screen.getByRole('button', { name: 'Confirmed (1)' });
+    const allActiveChip = screen.getByRole('button', { name: 'All active (2)' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(unconfirmedChip);
+    expect(screen.getByText('Pending crack')).toBeTruthy();
+    expect(screen.queryByText('Confirmed spall')).toBeNull();
+    expect(screen.queryByText('clean-span.png')).toBeNull();
 
-    // Applying switches the finding into edit mode with the historical note pre-filled.
-    expect(screen.getByRole('button', { name: 'Save correction' })).toBeTruthy();
-    expect((screen.getByLabelText(/Note/) as HTMLTextAreaElement).value).toBe(
-      'Applied historical repair note',
-    );
+    fireEvent.click(confirmedChip);
+    expect(screen.getByText('Confirmed spall')).toBeTruthy();
+    expect(screen.queryByText('Pending crack')).toBeNull();
+    expect(screen.queryByText('span.png')).toBeNull();
+
+    fireEvent.click(allActiveChip);
+    expect(screen.getByText('Pending crack')).toBeTruthy();
+    expect(screen.getByText('Confirmed spall')).toBeTruthy();
+    expect(screen.getByText('clean-span.png')).toBeTruthy();
   });
 });

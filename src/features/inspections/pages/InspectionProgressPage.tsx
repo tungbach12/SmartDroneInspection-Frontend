@@ -22,7 +22,7 @@ import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUnchecke
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import AssignmentTurnedInOutlined from '@mui/icons-material/AssignmentTurnedInOutlined';
 import {
   inspectionApi,
@@ -115,7 +115,7 @@ export default function InspectionProgressPage() {
       complete: isStage3Complete,
       active: currentStageIndex === 2,
       description: t('Field images uploaded, validated, and processed through AI vision detection models.'),
-      icon: AutoAwesomeOutlined,
+      icon: FactCheckOutlined,
     },
     {
       title: t('Technical report review'),
@@ -179,7 +179,7 @@ export default function InspectionProgressPage() {
             </Stack>
 
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <AutoAwesomeOutlined color="action" />
+              <FactCheckOutlined color="action" />
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   {t('Collected Imagery')}

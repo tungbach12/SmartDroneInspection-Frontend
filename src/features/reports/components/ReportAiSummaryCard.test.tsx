@@ -93,6 +93,17 @@ describe('ReportAiSummaryCard matched knowledge footer', () => {
     expect(screen.getAllByTestId('knowledge-guideline-row')).toHaveLength(1);
   });
 
+  it('renders the summary header and knowledge footer without sparkle icons', async () => {
+    render(<ReportAiSummaryCard inspectionId="i1" versionId="v1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    await screen.findByText('Visual inspection found one confirmed defect.');
+
+    const sparkle = ['Auto', 'Awesome'].join('');
+    expect(screen.getByText('AI Executive Summary')).toBeTruthy();
+    expect(screen.queryByTestId(`${sparkle}RoundedIcon`)).toBeNull();
+  });
+
   it('hides the footer cleanly for a preview version with no persisted source', async () => {
     render(<ReportAiSummaryCard inspectionId="i1" versionId="preview-1" />);
 

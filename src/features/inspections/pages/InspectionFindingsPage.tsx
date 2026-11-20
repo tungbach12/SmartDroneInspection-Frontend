@@ -8,6 +8,7 @@ import {
   Button,
   Chip,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   InputAdornment,
   MenuItem,
@@ -17,9 +18,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CropFreeRounded from '@mui/icons-material/CropFreeRounded';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
@@ -30,6 +31,7 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import {
   inspectionApi,
+  type DraftFindingNoteResult,
   type EvidenceItem,
   type Finding,
   type FindingSeverity,
@@ -47,6 +49,8 @@ import { parseBoundingBox, type BoundingBoxCoords } from '../utils/boundingBox';
 import {
   useAnalyzeEvidence,
   useCreateManualFinding,
+  useDraftAllFindingNotes,
+  useDraftFindingNote,
   useUpdateFinding,
   useDeleteFinding,
   useConfirmFindings,
@@ -66,7 +70,7 @@ import {
 const SEVERITIES: FindingSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 export default function InspectionFindingsPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { inspectionId = '' } = useParams();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
@@ -102,6 +106,8 @@ export default function InspectionFindingsPage() {
   const confirmFindings = useConfirmFindings(inspectionId);
   const reportVersions = useReportVersions(inspectionId);
   const updateEvidenceLocation = useUpdateEvidenceLocation(inspectionId);
+  const draftFindingNote = useDraftFindingNote(inspectionId);
+  const batchDraftNotes = useDraftAllFindingNotes?.(inspectionId);
   const reportVersionsList = reportVersions.data ?? [];
   const latestReportVersion = reportVersionsList[0] ?? null;
 
@@ -155,6 +161,15 @@ export default function InspectionFindingsPage() {
   } | null>(null);
   const [findingToDeleteId, setFindingToDeleteId] = useState<string | null>(null);
   const [noFindingsAcknowledged, setNoFindingsAcknowledged] = useState(false);
+  const [draftingNoteId, setDraftingNoteId] = useState<string | null>(null);
+  const [noteDraftResults, setNoteDraftResults] = useState<Record<string, DraftFindingNoteResult>>({});
+  const draftingNoteIds = useMemo(() => {
+    const ids = new Set(batchDraftNotes?.draftingIds ?? []);
+    if (draftingNoteId) ids.add(draftingNoteId);
+    return ids;
+  }, [batchDraftNotes?.draftingIds, draftingNoteId]);
+  const isBatchDrafting = Boolean(batchDraftNotes?.isPending);
+  const isAnyDrafting = draftingNoteIds.size > 0;
 
   // Combine active findings + soft-deleted findings when filter warrants it
   const allFindingsRaw = useMemo(() => {
@@ -272,7 +287,16 @@ export default function InspectionFindingsPage() {
 
       // If user typed defect query or filtered strictly for defects, only show captures containing matching defects
       if (cleanDefect && groupFindings.length === 0) continue;
-      if (statusFilter === 'REMOVED' && groupFindings.length === 0) continue;
+      if (
+        (statusFilter === 'PENDING' ||
+          statusFilter === 'CONFIRMED' ||
+          statusFilter === 'REMOVED' ||
+          severityFilter !== 'ALL' ||
+          sourceFilter !== 'ALL') &&
+        groupFindings.length === 0
+      ) {
+        continue;
+      }
       if (onlyWithDefects && groupFindings.length === 0) continue;
 
       result.push({
@@ -343,6 +367,86 @@ export default function InspectionFindingsPage() {
     }));
   };
 
+  /**
+   * One-click AI drafting: Backend AI writes the note from the finding's photo + knowledge base,
+   * and the result lands straight into the Note edit box with the finding switched into edit mode.
+   */
+  const draftNote = (finding: Finding) => {
+    if (!isInspector || isFindingsLocked || finding.isDeleted || isAnyDrafting) return;
+    setDraftingNoteId(finding.id);
+    draftFindingNote.mutate(
+      {
+        findingId: finding.id,
+        locale,
+        existingNote: revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '',
+      },
+      {
+        onSuccess: (result) => {
+          // Enter edit mode first (it seeds the drafts from the finding), then let the AI note win.
+          startEditingCandidate(finding);
+          setRevisedTechnicalNotes((prev) => ({ ...prev, [finding.id]: result.note }));
+          setNoteDraftResults((prev) => ({ ...prev, [finding.id]: result }));
+        },
+        onSettled: () => setDraftingNoteId(null),
+      },
+    );
+  };
+
+  /**
+   * Batch AI drafting triggered next to "Analyze all images": generates notes for all active
+   * findings, saves each one onto its finding record, and surfaces the citations on every card.
+   */
+  const draftAllNotes = async () => {
+    if (
+      !isInspector ||
+      isFindingsLocked ||
+      isAnyDrafting ||
+      activeFindings.length === 0 ||
+      !batchDraftNotes
+    ) {
+      return;
+    }
+    const outcome = await batchDraftNotes.draftMany(
+      activeFindings.map((finding) => ({
+        finding,
+        defectLabel: revisedDefectLabels[finding.id] ?? finding.defectLabel,
+        severity: severityFor(finding),
+        existingNote: revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '',
+      })),
+      { locale },
+    );
+    if (outcome?.draftedNotes) {
+      setNoteDraftResults((prev) => ({ ...prev, ...outcome.draftedNotes }));
+      setRevisedTechnicalNotes((prev) => {
+        const next = { ...prev };
+        for (const [id, result] of Object.entries(outcome.draftedNotes)) {
+          next[id] = result.note;
+        }
+        return next;
+      });
+    }
+  };
+
+  const cancelCandidateEdit = (findingId?: string | null) => {
+    setEditingCandidateId(null);
+    if (!findingId) return;
+    setRevisedTechnicalNotes((prev) => {
+      const next = { ...prev };
+      delete next[findingId];
+      return next;
+    });
+    setRevisedDefectLabels((prev) => {
+      const next = { ...prev };
+      delete next[findingId];
+      return next;
+    });
+    setRevisedBoundingBoxes((prev) => {
+      const next = { ...prev };
+      delete next[findingId];
+      return next;
+    });
+  };
+
   const saveCandidateCorrection = (finding: Finding) => {
     const defectLabel = (revisedDefectLabels[finding.id] ?? finding.defectLabel).trim();
     const technicalNotes = (revisedTechnicalNotes[finding.id] ?? finding.technicalNotes ?? '').trim();
@@ -364,7 +468,7 @@ export default function InspectionFindingsPage() {
           ...boundingBoxPatch,
         },
       },
-      { onSuccess: () => setEditingCandidateId(null) },
+      { onSuccess: () => cancelCandidateEdit(finding.id) },
     );
   };
 
@@ -513,7 +617,47 @@ export default function InspectionFindingsPage() {
             spacing={1}
             sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
           >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}
+            >
+              <Chip
+                clickable
+                size="small"
+                color={statusFilter === 'ACTIVE' ? 'primary' : 'default'}
+                variant={statusFilter === 'ACTIVE' ? 'filled' : 'outlined'}
+                label={`${t('All active')} (${activeFindings.length})`}
+                onClick={() => {
+                  setStatusFilter('ACTIVE');
+                  setPage(0);
+                }}
+                sx={{ fontWeight: 600 }}
+              />
+              <Chip
+                clickable
+                size="small"
+                color={statusFilter === 'PENDING' ? 'warning' : 'default'}
+                variant={statusFilter === 'PENDING' ? 'filled' : 'outlined'}
+                label={`${t('Unconfirmed')} (${pendingFindings})`}
+                onClick={() => {
+                  setStatusFilter('PENDING');
+                  setPage(0);
+                }}
+                sx={{ fontWeight: 600 }}
+              />
+              <Chip
+                clickable
+                size="small"
+                color={statusFilter === 'CONFIRMED' ? 'success' : 'default'}
+                variant={statusFilter === 'CONFIRMED' ? 'filled' : 'outlined'}
+                label={`${t('Confirmed')} (${confirmedFindingsCount})`}
+                onClick={() => {
+                  setStatusFilter('CONFIRMED');
+                  setPage(0);
+                }}
+                sx={{ fontWeight: 600 }}
+              />
               <Button
                 size="small"
                 variant="outlined"
@@ -536,27 +680,54 @@ export default function InspectionFindingsPage() {
               )}
             </Stack>
             {isInspector && analysisUnlocked && (
-              <Button
-                variant="contained"
-                startIcon={isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : <AutoAwesomeOutlined />}
-                disabled={isAnalysisPending || analysableImageIds.length === 0}
-                onClick={() => void analyzeMany(analysableImageIds)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: '10px',
-                  boxShadow: 'none',
-                  px: 2.25,
-                  py: 0.875,
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  '&:hover': { boxShadow: 'none' },
-                }}
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
               >
-                {isAnalysisPending
-                  ? t('Analyzing…')
-                  : `${t('Analyze all images')} (${analysableImageIds.length})`}
-              </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={isBatchDrafting ? <CircularProgress size={16} /> : undefined}
+                  disabled={isAnalysisPending || isAnyDrafting || activeFindings.length === 0}
+                  onClick={() => void draftAllNotes()}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '10px',
+                    px: 2,
+                    py: 0.875,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                >
+                  {isBatchDrafting
+                    ? t('Drafting notes…')
+                    : `${t('Draft all notes')} (${activeFindings.length})`}
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={
+                    isAnalysisPending ? <AiMotionFigure name="advisoryLens" size={18} /> : undefined
+                  }
+                  disabled={isAnalysisPending || isAnyDrafting || analysableImageIds.length === 0}
+                  onClick={() => void analyzeMany(analysableImageIds)}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '10px',
+                    boxShadow: 'none',
+                    px: 2.25,
+                    py: 0.875,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    '&:hover': { boxShadow: 'none' },
+                  }}
+                >
+                  {isAnalysisPending
+                    ? t('Analyzing…')
+                    : `${t('Analyze all images')} (${analysableImageIds.length})`}
+                </Button>
+              </Stack>
             )}
           </Stack>
           {filtersOpen && (
@@ -582,9 +753,9 @@ export default function InspectionFindingsPage() {
                   setPage(0);
                 }}
               >
-                <MenuItem value="ACTIVE">{t('Active only (default)')}</MenuItem>
-                <MenuItem value="PENDING">{t('Awaiting review')}</MenuItem>
-                <MenuItem value="CONFIRMED">{t('Confirmed only')}</MenuItem>
+                <MenuItem value="ACTIVE">{`${t('Active only (default)')} (${activeFindings.length})`}</MenuItem>
+                <MenuItem value="PENDING">{`${t('Unconfirmed')} (${pendingFindings})`}</MenuItem>
+                <MenuItem value="CONFIRMED">{`${t('Confirmed only')} (${confirmedFindingsCount})`}</MenuItem>
                 <MenuItem value="REMOVED">{t('Removed')}</MenuItem>
                 <MenuItem value="ALL">{t('All findings')}</MenuItem>
               </TextField>
@@ -751,8 +922,12 @@ export default function InspectionFindingsPage() {
                 }
                 editingCandidateId={editingCandidateId}
                 onStartEdit={startEditingCandidate}
-                onCancelEdit={() => setEditingCandidateId(null)}
+                onCancelEdit={() => cancelCandidateEdit(editingCandidateId)}
                 onSaveCorrection={saveCandidateCorrection}
+                draftingNoteId={draftingNoteId}
+                draftingNoteIds={draftingNoteIds}
+                draftedNotes={noteDraftResults}
+                onDraftNote={draftNote}
                 revisedDefectLabels={revisedDefectLabels}
                 onDefectLabelChange={(fid, val) =>
                   setRevisedDefectLabels((prev) => ({ ...prev, [fid]: val }))
@@ -784,7 +959,10 @@ export default function InspectionFindingsPage() {
                     findingId: finding.id,
                     input: {
                       severity: severityFor(finding),
-                      technicalNotes: finding.technicalNotes ?? 'Confirmed by assigned Inspector',
+                      technicalNotes:
+                        revisedTechnicalNotes[finding.id] ??
+                        finding.technicalNotes ??
+                        'Confirmed by assigned Inspector',
                     },
                   })
                 }
@@ -921,7 +1099,7 @@ export default function InspectionFindingsPage() {
         >
           <AccordionSummary expandIcon={<ExpandMore />}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <AutoAwesomeOutlined color="action" />
+              <FactCheckOutlined color="action" />
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 750 }}>
                   {t('Additional New Defect Scanning (Optional)')}

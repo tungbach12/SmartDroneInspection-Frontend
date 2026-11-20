@@ -20,7 +20,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import AnalyticsOutlined from '@mui/icons-material/AnalyticsOutlined';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import CancelOutlined from '@mui/icons-material/CancelOutlined';
 import TuneRounded from '@mui/icons-material/TuneRounded';
@@ -45,7 +45,7 @@ export function AdminAiThresholdConfigCard({
   const [overrideThreshold, setOverrideThreshold] = useState<number | null>(null);
 
   const savedEnabled = data.autoConfirmEnabled ?? true;
-  const savedThreshold = Number(data.autoConfirmThreshold ?? 85);
+  const savedThreshold = Number(data.autoConfirmThreshold ?? 70);
   const enabled = overrideEnabled ?? savedEnabled;
   const threshold = overrideThreshold ?? savedThreshold;
   const isDirty = enabled !== savedEnabled || threshold !== savedThreshold;
@@ -267,7 +267,7 @@ export function AdminAiTelemetrySummary({
                 flexShrink: 0,
               }}
             >
-              <AutoAwesomeOutlined fontSize="small" />
+              <AnalyticsOutlined fontSize="small" />
             </Box>
             <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: '1rem' }}>
               {t('AI Model Performance & Confidence')}
