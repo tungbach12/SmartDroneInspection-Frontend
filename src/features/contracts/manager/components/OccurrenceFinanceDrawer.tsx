@@ -110,7 +110,7 @@ export function OccurrenceFinanceDrawer({
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {t('Service payment')}: {payment?.status ?? occurrence.paymentStatus ?? 'PENDING'}
               {payment?.method ? ` · ${payment.method}` : ''}
-              {payment?.payosOrderCode ? ` · #${payment.payosOrderCode}` : ''}
+              {payment?.gatewayOrderCode ? ` · #${payment.gatewayOrderCode}` : ''}
             </Typography>
             {totalPrice != null && totalPrice > 0 && (
               <Stack spacing={0.35}>

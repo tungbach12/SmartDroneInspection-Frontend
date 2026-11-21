@@ -68,8 +68,8 @@ export function useRecordOccurrencePayout(requestId: string, occurrenceId: strin
   });
 }
 
-export function useCreatePayOSPaymentLink(requestId: string, occurrenceId: string) {
+export function useCreateSepayPaymentLink(requestId: string, occurrenceId: string) {
   return useMutation({
-    mutationFn: () => financeApi.createPayOSPaymentLink(requestId, occurrenceId),
+    mutationFn: () => financeApi.createSepayPaymentLink(requestId, occurrenceId),
   });
 }

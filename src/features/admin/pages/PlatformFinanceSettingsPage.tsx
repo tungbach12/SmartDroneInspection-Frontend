@@ -327,7 +327,7 @@ export default function PlatformFinanceSettingsPage({
                   <Divider />
                   <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {t('Customer total (PayOS)')}
+                      {t('Customer total (Sepay)')}
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main', fontVariantNumeric: 'tabular-nums' }}>
                       {formatNumber(sampleCustomerTotal)} ₫

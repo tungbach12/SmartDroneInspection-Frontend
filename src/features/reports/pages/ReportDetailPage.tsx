@@ -24,7 +24,7 @@ import {
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   useAcceptReportVersion,
-  useCreateInspectionPayOSLink,
+  useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
   useReviewReportVersion,
   useSubmitReportVersion,
@@ -43,6 +43,7 @@ import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliv
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -74,6 +75,7 @@ export default function ReportDetailPage() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
+  const [sepayQrOpen, setSepayQrOpen] = useState(false);
 
   useEffect(() => {
     if (!inspectionId || typeof localStorage === 'undefined') return;
@@ -113,7 +115,7 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
-  const payosLink = useCreateInspectionPayOSLink(inspectionId);
+  const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
   const paymentStatus = paymentStatusQuery.data;
@@ -395,7 +397,7 @@ export default function ReportDetailPage() {
                   isPaymentCancelled={isPaymentCancelled}
                   paymentStatus={paymentStatus}
                   acceptPending={acceptReport.isPending}
-                  payosPending={payosLink.isPending}
+                  sepayPending={sepayLink.isPending}
                   vnpayPending={vnpayLink.isPending}
                   disputeSubmitted={disputeSubmitted}
                   disputeReason={disputeReason.trim() || null}
@@ -407,11 +409,26 @@ export default function ReportDetailPage() {
                       },
                     })
                   }
-                  onProceedToPayOS={() => payosLink.mutate()}
+                  onProceedToSepay={() => {
+                    setSepayQrOpen(false);
+                    sepayLink.mutate(undefined, {
+                      onSuccess: () => setSepayQrOpen(true),
+                    });
+                  }}
                   onProceedToVnPay={() => vnpayLink.mutate()}
                   onOpenDispute={() => setDisputeOpen(true)}
                 />
               )}
+
+              <SepayQrDialog
+                details={sepayQrOpen ? sepayLink.data : undefined}
+                amountVnd={
+                  paymentStatus?.amount
+                    ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND`
+                    : undefined
+                }
+                onClose={() => setSepayQrOpen(false)}
+              />
 
               {/* Platform Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
               {!isClientPortal && (

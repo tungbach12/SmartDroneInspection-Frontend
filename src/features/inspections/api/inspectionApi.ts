@@ -279,7 +279,7 @@ export interface ManualFindingInput {
   boundingBox?: string | null | undefined;
 }
 
-export interface PayOSCheckoutDetails {
+export interface SepayCheckoutDetails {
   orderCode: number;
   amount: number;
   paymentLinkId: string;
@@ -1182,11 +1182,11 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
-  /** Generates a PayOS VietQR online payment link for an accepted inspection. */
-  createPayOSPaymentLink: (inspectionId: string) =>
+  /** Generates a Sepay VietQR online payment link for an accepted inspection. */
+  createSepayPaymentLink: (inspectionId: string) =>
     api
-      .post<PayOSCheckoutDetails>(
-        `/inspections/${inspectionId}/payos/create-payment-link`,
+      .post<SepayCheckoutDetails>(
+        `/inspections/${inspectionId}/sepay/create-payment-link`,
       )
       .then((response) => response.data),
 

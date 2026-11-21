@@ -41,25 +41,25 @@ interface CustomerReportSettlementCardProps {
   isPaymentCancelled?: boolean;
   paymentStatus?: ReportPaymentStatusDetails | undefined;
   acceptPending: boolean;
-  payosPending: boolean;
+  sepayPending: boolean;
   vnpayPending?: boolean;
   disputeSubmitted: boolean;
   disputeReason?: string | null;
   disputeSubmittedAt?: string | null;
   onAcceptReport: () => void;
-  onProceedToPayOS: () => void;
+  onProceedToSepay: () => void;
   onProceedToVnPay?: () => void;
   onOpenDispute: () => void;
   onViewReport?: (() => void) | undefined;
 }
 
 /**
- * Customer Report Acceptance & PayOS / VNPay Commercial Settlement Panel.
+ * Customer Report Acceptance & Sepay / VNPay Commercial Settlement Panel.
  *
  * The published report and its PDF export are always readable by the Customer once published.
  * Commercial flow from Customer's perspective:
  * 1. Review & Accept Official Report
- * 2. Settle Service Fee via VNPay or PayOS (VietQR)
+ * 2. Settle Service Fee via VNPay or Sepay (VietQR)
  * 3. Inspection Service Fulfilled & Deliverables Verified
  */
 export function CustomerReportSettlementCard({
@@ -73,13 +73,13 @@ export function CustomerReportSettlementCard({
   isPaymentCancelled = false,
   paymentStatus,
   acceptPending,
-  payosPending,
+  sepayPending,
   vnpayPending = false,
   disputeSubmitted,
   disputeReason,
   disputeSubmittedAt,
   onAcceptReport,
-  onProceedToPayOS,
+  onProceedToSepay,
   onProceedToVnPay,
   onOpenDispute,
   onViewReport,
@@ -202,10 +202,10 @@ export function CustomerReportSettlementCard({
     {
       title: t('2. Service Fee Payment'),
       subtitle: isPaid
-        ? t('Paid via PayOS')
+        ? t('Paid via Sepay')
         : amountVnd
           ? `${t('Due')}: ${amountVnd}`
-          : t('PayOS VietQR payment'),
+          : t('Sepay VietQR payment'),
       done: isPaid,
       active: isReportAccepted && !isPaid,
       icon: PaidOutlined,
@@ -271,7 +271,7 @@ export function CustomerReportSettlementCard({
             </Stack>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
               {t('Official report version')} v{versionNo} · {t('Official PDF ready for preview & download')}
-              {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
+              {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
             </Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
               {onViewReport && (
@@ -481,7 +481,7 @@ export function CustomerReportSettlementCard({
                   sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
                 >
                   {paymentStatus?.orderCode
-                    ? `${paymentStatus.paymentMethod ?? 'PayOS'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
+                    ? `${paymentStatus.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
                     : t('Official receipt verified')}
                 </Typography>
               </Box>
@@ -524,7 +524,7 @@ export function CustomerReportSettlementCard({
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                   {t(
-                    'Please complete the online service payment via VNPay or PayOS (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
+                    'Please complete the online service payment via VNPay or Sepay (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
                   )}
                 </Typography>
                 <Alert severity="info" sx={{ mt: 1, py: 0.25, px: 1.25, fontSize: '0.75rem', borderRadius: '6px' }}>
@@ -553,7 +553,7 @@ export function CustomerReportSettlementCard({
                 {onProceedToVnPay && (
                   <Button
                     variant="contained"
-                    disabled={vnpayPending || payosPending}
+                    disabled={vnpayPending || sepayPending}
                     endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
                     onClick={onProceedToVnPay}
                     sx={{
@@ -575,9 +575,9 @@ export function CustomerReportSettlementCard({
                 <Button
                   variant={onProceedToVnPay ? 'outlined' : 'contained'}
                   color="primary"
-                  disabled={payosPending || vnpayPending}
+                  disabled={sepayPending || vnpayPending}
                   endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
-                  onClick={onProceedToPayOS}
+                  onClick={onProceedToSepay}
                   sx={{
                     fontWeight: 650,
                     borderRadius: '8px',
@@ -587,11 +587,11 @@ export function CustomerReportSettlementCard({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {payosPending
-                    ? t('Connecting to PayOS gateway…')
+                  {sepayPending
+                    ? t('Connecting to Sepay gateway…')
                     : amountVnd
-                      ? `${t('Pay')} ${amountVnd} ${t('via PayOS')}`
-                      : t('Proceed to VietQR payment via PayOS ↗')}
+                      ? `${t('Pay')} ${amountVnd} ${t('via Sepay')}`
+                      : t('Proceed to VietQR payment via Sepay ↗')}
                 </Button>
               </Stack>
             </Stack>
@@ -604,7 +604,7 @@ export function CustomerReportSettlementCard({
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                 {t(
-                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to PayOS payment.',
+                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to Sepay payment.',
                 )}
               </Typography>
             </Box>

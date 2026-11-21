@@ -26,7 +26,7 @@ export interface ServiceInvoiceSummary {
 
 export interface ServicePaymentSummary {
   status: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | null;
-  payosOrderCode: number | null;
+  gatewayOrderCode: number | null;
   method: string | null;
   reference: string | null;
   confirmedAt: string | null;
@@ -56,7 +56,7 @@ export interface OccurrenceFinanceProjection {
   payoutStatus: 'PENDING' | 'ELIGIBLE' | 'PAID' | null;
   paymentMethod?: string | null;
   paymentReference?: string | null;
-  payosOrderCode?: number | null;
+  gatewayOrderCode?: number | null;
   payoutReference?: string | null;
   invoice?: ServiceInvoiceSummary | null;
   payment?: ServicePaymentSummary | null;
@@ -75,7 +75,7 @@ export interface RecordOccurrencePayoutPayload {
   note?: string;
 }
 
-export interface PayOSPaymentLinkResponse {
+export interface SepayPaymentLinkResponse {
   orderCode: number;
   amount: number;
   description: string;
@@ -126,10 +126,10 @@ export const financeApi = {
       )
       .then((res) => res.data),
 
-  createPayOSPaymentLink: (requestId: string, occurrenceId: string) =>
+  createSepayPaymentLink: (requestId: string, occurrenceId: string) =>
     api
-      .post<PayOSPaymentLinkResponse>(
-        `/contracts/requests/${requestId}/occurrences/${occurrenceId}/payos/create-payment-link`,
+      .post<SepayPaymentLinkResponse>(
+        `/contracts/requests/${requestId}/occurrences/${occurrenceId}/sepay/create-payment-link`,
       )
       .then((res) => res.data),
 };

@@ -936,7 +936,7 @@ export function useAcceptReportVersion(inspectionId: string | null) {
     mutationFn: (versionId: string) =>
       inspectionApi.acceptReport(inspectionId!, versionId),
     onSuccess: () => {
-      showToast('Report accepted. Payment is now due via PayOS VietQR or corporate bank transfer.');
+      showToast('Report accepted. Payment is now due via Sepay VietQR or corporate bank transfer.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
@@ -946,17 +946,19 @@ export function useAcceptReportVersion(inspectionId: string | null) {
   });
 }
 
-export function useCreateInspectionPayOSLink(inspectionId: string | null) {
+export function useCreateInspectionSepayLink(inspectionId: string | null) {
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
-    mutationFn: () => inspectionApi.createPayOSPaymentLink(inspectionId!),
+    mutationFn: () => inspectionApi.createSepayPaymentLink(inspectionId!),
+    // Sepay has no hosted checkout page: it returns a VietQR image URL that must be shown in-app,
+    // so the caller renders a QR dialog instead of navigating away.
     onSuccess: (data) => {
-      if (data?.checkoutUrl) {
-        window.location.assign(data.checkoutUrl);
+      if (!data?.checkoutUrl) {
+        showToast('The VietQR code could not be generated.', 'error');
       }
     },
     onError: (error) =>
-      showToast(getErrorMessage(error, 'Could not create PayOS payment link.'), 'error'),
+      showToast(getErrorMessage(error, 'Could not create Sepay payment link.'), 'error'),
   });
 }
 
