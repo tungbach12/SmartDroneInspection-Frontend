@@ -23,6 +23,24 @@ export function QuoteTermsSummary({ request, quote, partnerSummary }: QuoteTerms
         })
       : [];
   const occurrenceTotal = request.requestType === 'RECURRING' ? recurringDates.length : 1;
+  const dateFormatter = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    timeZone: request.timezone,
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  const timeFormatter = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    timeZone: request.timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const firstStart = new Date(quote.firstOccurrenceStartAt);
+  const firstEnd = new Date(quote.firstOccurrenceEndAt);
+  const sameDay = dateFormatter.format(firstStart) === dateFormatter.format(firstEnd);
+  const firstOccurrenceLabel = sameDay
+    ? `${dateFormatter.format(firstStart)} · ${timeFormatter.format(firstStart)} – ${timeFormatter.format(firstEnd)}`
+    : `${dateFormatter.format(firstStart)} ${timeFormatter.format(firstStart)} – ${dateFormatter.format(firstEnd)} ${timeFormatter.format(firstEnd)}`;
 
   return (
     <Box
@@ -74,16 +92,7 @@ export function QuoteTermsSummary({ request, quote, partnerSummary }: QuoteTerms
               {t('First occurrence')}
             </TableCell>
             <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
-              {new Date(quote.firstOccurrenceStartAt).toLocaleString(
-                locale === 'vi' ? 'vi-VN' : 'en-US',
-                { timeZone: request.timezone },
-              )}{' '}
-              –{' '}
-              {new Date(quote.firstOccurrenceEndAt).toLocaleString(
-                locale === 'vi' ? 'vi-VN' : 'en-US',
-                { timeZone: request.timezone },
-              )}{' '}
-              ({request.timezone})
+              {firstOccurrenceLabel}
             </TableCell>
           </TableRow>
           {partnerSummary && (

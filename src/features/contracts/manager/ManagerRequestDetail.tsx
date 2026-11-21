@@ -9,7 +9,7 @@ import { ContractLifecycleStepper } from '../shared/ContractLifecycleStepper';
 import { RequestHeaderBar } from '../shared/RequestHeaderBar';
 import { QuoteTermsSummary } from '../shared/QuoteTermsSummary';
 import {
-  formatFlightWindow,
+  formatFlightTimeRange,
   getEffectiveRequestStatus,
   isQuoteAccepted,
   resolveActiveStepIndex,
@@ -104,11 +104,11 @@ export function ManagerRequestDetail({
             sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
           >
             <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                 {request.requestType === 'ONE_TIME'
                   ? request.requestedFrom
                   : `${request.requestedFrom} – ${request.requestedUntil}`}{' '}
-                · {formatFlightWindow(request.windowStart, request.windowEnd, t)} · {request.timezone}
+                · {formatFlightTimeRange(request.windowStart, request.windowEnd)}
               </Typography>
             </Box>
             <Button

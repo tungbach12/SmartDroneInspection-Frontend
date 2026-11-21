@@ -9,7 +9,7 @@ import { ContractLifecycleStepper } from '../shared/ContractLifecycleStepper';
 import { RequestHeaderBar } from '../shared/RequestHeaderBar';
 import { QuoteTermsSummary } from '../shared/QuoteTermsSummary';
 import {
-  formatFlightWindow,
+  formatFlightTimeRange,
   getEffectiveRequestStatus,
   resolveActiveStepIndex,
   resolveCurrentQuote,
@@ -89,14 +89,20 @@ export function CustomerRequestDetail({
             sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
           >
             <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                 {request.requestType === 'ONE_TIME'
-                  ? request.requestedFrom
-                  : `${request.requestedFrom} – ${request.requestedUntil}`}{' '}
-                · {formatFlightWindow(request.windowStart, request.windowEnd, t)} ·{' '}
-                {new Date(request.createdAt).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US', {
-                  timeZone: request.timezone,
-                })}
+                  ? new Date(`${request.requestedFrom}T00:00:00`).toLocaleDateString(
+                      locale === 'vi' ? 'vi-VN' : 'en-US',
+                      { year: 'numeric', month: 'short', day: 'numeric' },
+                    )
+                  : `${new Date(`${request.requestedFrom}T00:00:00`).toLocaleDateString(
+                      locale === 'vi' ? 'vi-VN' : 'en-US',
+                      { year: 'numeric', month: 'short', day: 'numeric' },
+                    )} – ${new Date(`${request.requestedUntil}T00:00:00`).toLocaleDateString(
+                      locale === 'vi' ? 'vi-VN' : 'en-US',
+                      { year: 'numeric', month: 'short', day: 'numeric' },
+                    )}`}{' '}
+                · {formatFlightTimeRange(request.windowStart, request.windowEnd)}
               </Typography>
             </Box>
             <Button

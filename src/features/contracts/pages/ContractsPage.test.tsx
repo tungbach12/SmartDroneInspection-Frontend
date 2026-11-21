@@ -364,13 +364,36 @@ describe('ContractsPage', () => {
       }],
       isPending: false, isError: false, error: null, refetch: vi.fn(),
     } as any);
-    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockImplementation((requestId?: string) => ({
+      data:
+        requestId === 'req-claim'
+          ? {
+              id: 'req-claim', ownerCustomerId: 'org-1', assetId: 'asset-1',
+              description: 'Claimable bridge inspection', requestedFrom: '2026-12-10',
+              requestedUntil: '2026-12-10', timezone: 'Asia/Ho_Chi_Minh',
+              windowStart: '08:00', windowEnd: '17:00', requestType: 'ONE_TIME',
+              recurrenceUnit: null, recurrenceInterval: null, occurrenceCount: null,
+              recurrenceEndDate: null, status: 'OPEN', acceptedQuoteId: null,
+              acceptedAt: null, acceptedByUserId: null, acceptedTermsSnapshot: null,
+              contractFileName: null, contractContentType: null, contractSizeBytes: null,
+              contractUploadedAt: null, createdAt: '2026-11-14T00:00:00Z',
+              currentQuote: null, assignedManagerId: 'manager-1', canClaim: false,
+              serviceManager: null, occurrences: [], messages: [],
+            }
+          : undefined,
+      isFetching: false,
+    }) as any);
 
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Claim request' }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith('req-claim'));
+    await waitFor(() =>
+      expect(
+        screen.getByText('The customer-selected date cannot be changed for a one-time request.'),
+      ).toBeTruthy(),
+    );
   });
 
   it('lets ADMIN assign a manager without opening Manager request details', async () => {
