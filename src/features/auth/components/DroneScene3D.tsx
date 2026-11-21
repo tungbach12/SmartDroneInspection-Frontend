@@ -128,7 +128,7 @@ export function DroneScene3D({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(renderer.domElement);
 
     // Modern Deep-Blue Sky & Smooth Horizon Fog
@@ -497,11 +497,12 @@ export function DroneScene3D({
     resizeObserver.observe(container);
 
     let frameId = 0;
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
 
     const animate = () => {
       frameId = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
+      timer.update();
+      const t = timer.getElapsed();
 
       rotors.forEach((rotor, idx) => {
         rotor.rotation.y += idx % 2 === 0 ? 0.65 : -0.65;
@@ -569,6 +570,7 @@ export function DroneScene3D({
 
     return () => {
       cancelAnimationFrame(frameId);
+      timer.disconnect();
       container.removeEventListener('pointermove', handlePointerMove);
       resizeObserver.disconnect();
       glassTex.dispose();

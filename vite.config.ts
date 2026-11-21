@@ -1,9 +1,25 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
+  resolve: {
+    tsconfigPaths: true,
+    dedupe: ['react', 'react-dom', 'react-router-dom', '@emotion/react', '@emotion/styled'],
+  },
+  optimizeDeps: {
+    entries: ['index.html', 'src/**/*.{ts,tsx}', '!src/**/*.test.{ts,tsx}', '!src/test/**'],
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react/jsx-dev-runtime',
+      'react-router-dom',
+      'zustand',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
+  },
   server: {
     port: 3000,
     fs: {
