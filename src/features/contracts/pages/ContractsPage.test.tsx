@@ -816,7 +816,7 @@ describe('ContractsPage', () => {
               },
               payment: {
                 status: 'PENDING',
-                payosOrderCode: null,
+                gatewayOrderCode: null,
                 method: null,
                 reference: null,
                 confirmedAt: null,

@@ -268,7 +268,7 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     value: 'settlement',
     label: 'Settlement',
     title: 'Acceptance & Payment',
-    sublabel: 'Accept & PayOS',
+    sublabel: 'Accept & Sepay',
     to: 'settlement',
     icon: FactCheckOutlined,
   },

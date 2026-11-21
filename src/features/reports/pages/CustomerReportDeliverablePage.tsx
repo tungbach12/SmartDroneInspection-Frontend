@@ -19,7 +19,7 @@ import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
   useCreateDirectReinspection,
-  useCreateInspectionPayOSLink,
+  useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
   useInspection,
   useInspectionEvidence,
@@ -32,6 +32,7 @@ import {
 import { CreateRequestDialog } from '@/features/contracts/components/CreateRequestDialog';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
+import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -42,7 +43,7 @@ export interface CustomerReportDeliverablePageProps {
 
 /**
  * Dedicated Customer Official Report & Deliverable Settlement Page (/client/inspections/:id/report | /settlement).
- * Handles Customer report acceptance and service invoice payment (PayOS / VNPay).
+ * Handles Customer report acceptance and service invoice payment (Sepay / VNPay).
  */
 export default function CustomerReportDeliverablePage({
   stage,
@@ -98,10 +99,11 @@ export default function CustomerReportDeliverablePage({
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
   const createDirectReinspection = useCreateDirectReinspection(inspectionId);
-  const payosLink = useCreateInspectionPayOSLink(inspectionId);
+  const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
   const paymentStatus = paymentStatusQuery.data;
+  const [sepayQrOpen, setSepayQrOpen] = useState(false);
 
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -197,7 +199,7 @@ export default function CustomerReportDeliverablePage({
                 isPaymentCancelled={isPaymentCancelled}
                 paymentStatus={paymentStatus}
                 acceptPending={acceptReport.isPending}
-                payosPending={payosLink.isPending}
+                sepayPending={sepayLink.isPending}
                 vnpayPending={vnpayLink.isPending}
                 disputeSubmitted={disputeSubmitted}
                 disputeReason={disputeReason.trim() || null}
@@ -209,7 +211,12 @@ export default function CustomerReportDeliverablePage({
                     },
                   })
                 }
-                onProceedToPayOS={() => payosLink.mutate()}
+                onProceedToSepay={() => {
+                  setSepayQrOpen(false);
+                  sepayLink.mutate(undefined, {
+                    onSuccess: () => setSepayQrOpen(true),
+                  });
+                }}
                 onProceedToVnPay={() => vnpayLink.mutate()}
                 onOpenDispute={() => setDisputeOpen(true)}
                 onViewReport={
@@ -221,6 +228,12 @@ export default function CustomerReportDeliverablePage({
                 }
               />
             )}
+
+            <SepayQrDialog
+              details={sepayQrOpen ? sepayLink.data : undefined}
+              amountVnd={paymentStatus?.amount ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND` : undefined}
+              onClose={() => setSepayQrOpen(false)}
+            />
 
             {showSettlementContent &&
               openVersion.status === 'PUBLISHED' &&

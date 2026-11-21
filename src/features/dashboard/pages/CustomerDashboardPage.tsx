@@ -237,7 +237,7 @@ export function CustomerDashboardPage() {
               mt: '4px',
             }}
           >
-            {t('Monitor registered assets, published inspection reports, and PayOS fee settlements.')}
+            {t('Monitor registered assets, published inspection reports, and Sepay fee settlements.')}
           </Typography>
         </Box>
 

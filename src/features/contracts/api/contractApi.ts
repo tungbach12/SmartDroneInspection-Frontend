@@ -66,7 +66,7 @@ export interface ServiceInvoiceSummary {
 
 export interface ServicePaymentSummary {
   status: 'PENDING' | 'PAYMENT_DUE' | 'PAID' | null;
-  payosOrderCode: number | null;
+  gatewayOrderCode: number | null;
   method: string | null;
   reference: string | null;
   confirmedAt: string | null;
@@ -283,7 +283,7 @@ export interface ServiceRequestOccurrence {
   inspectorReceivables?: InspectorReceivableSummary[];
   paymentMethod?: string | null;
   paymentReference?: string | null;
-  payosOrderCode?: number | null;
+  gatewayOrderCode?: number | null;
   payoutStatus?: string | null;
   payoutReference?: string | null;
   reportAcceptedAt?: string | null;
