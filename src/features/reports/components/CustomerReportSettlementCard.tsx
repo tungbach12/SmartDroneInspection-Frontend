@@ -15,6 +15,7 @@ import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
+import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded';
 import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRounded';
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
@@ -569,14 +570,14 @@ export function CustomerReportSettlementCard({
                   >
                     {vnpayPending
                       ? t('Connecting to VNPay gateway…')
-                      : t('Proceed to VNPay payment ↗')}
+                      : t('Pay with VNPay')}
                   </Button>
                 )}
                 <Button
                   variant={onProceedToVnPay ? 'outlined' : 'contained'}
                   color="primary"
                   disabled={sepayPending || vnpayPending}
-                  endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
+                  startIcon={<QrCode2Rounded sx={{ fontSize: 18 }} />}
                   onClick={onProceedToSepay}
                   sx={{
                     fontWeight: 650,
@@ -589,9 +590,7 @@ export function CustomerReportSettlementCard({
                 >
                   {sepayPending
                     ? t('Connecting to Sepay gateway…')
-                    : amountVnd
-                      ? `${t('Pay')} ${amountVnd} ${t('via Sepay')}`
-                      : t('Proceed to VietQR payment via Sepay ↗')}
+                    : t('Pay with VietQR (Sepay)')}
                 </Button>
               </Stack>
             </Stack>
@@ -604,7 +603,7 @@ export function CustomerReportSettlementCard({
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                 {t(
-                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to Sepay payment.',
+                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to online payment (VNPay or Sepay VietQR).',
                 )}
               </Typography>
             </Box>

@@ -168,11 +168,13 @@ export function PlatformSettlementInvoiceCard({
               label={
                 finance.isDisbursed
                   ? t('Paid & settled')
-                  : paymentDetails?.reportAccepted
-                    ? t('Awaiting payment')
-                    : t('Awaiting customer')
+                  : finance.isPaid
+                    ? t('Customer paid · payout pending')
+                    : paymentDetails?.reportAccepted
+                      ? t('Awaiting payment')
+                      : t('Awaiting customer')
               }
-              color={finance.isDisbursed ? 'success' : 'primary'}
+              color={finance.isDisbursed ? 'success' : finance.isPaid ? 'warning' : 'primary'}
               variant={finance.isDisbursed ? 'filled' : 'outlined'}
               sx={{
                 height: 24,
@@ -218,18 +220,19 @@ export function PlatformSettlementInvoiceCard({
             />
             <Divider sx={{ my: 0.75 }} />
             <StatementLine
-              label={`${t('After commission')} (${100 - finance.commissionRate}% × ${formatNumber(finance.serviceBaseAmount)} ₫)`}
-              amount={`${formatNumber(finance.afterCommissionAmount)} ₫`}
-              tone="muted"
-            />
-            <StatementLine
               label={`${t('TNCN tax')} (${finance.tncnRate}%)`}
               amount={`−${formatNumber(finance.tncnAmount)} ₫`}
               tone="deduct"
             />
             <StatementLine
               label={t('Inspector net payout')}
-              sublabel={t('Transferred directly when customer pays')}
+              sublabel={
+                finance.isDisbursed
+                  ? t('Payout recorded')
+                  : finance.isPaid
+                    ? t('Eligible for manager payout')
+                    : t('Payable after customer payment')
+              }
               amount={`${formatNumber(finance.netPayoutAmount)} ₫`}
               tone="success"
             />

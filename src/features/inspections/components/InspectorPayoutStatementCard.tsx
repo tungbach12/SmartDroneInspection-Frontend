@@ -149,7 +149,7 @@ export function InspectorPayoutStatementCard({
             </Typography>
 
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-              {t('After 15% platform fee & 10% TNCN tax')}
+              {`${t('Platform commission')} ${finance.commissionRate}% · ${t('TNCN tax')} ${finance.tncnRate}%`}
             </Typography>
           </Box>
 
@@ -165,10 +165,12 @@ export function InspectorPayoutStatementCard({
               }
               label={
                 finance.isDisbursed
-                  ? t('✓ Transferred directly to inspector account')
-                  : t('Transferred directly when customer pays')
+                  ? t('Paid to inspector account')
+                  : finance.isPaid
+                    ? t('Eligible for payout · awaiting transfer')
+                    : t('Pending customer payment')
               }
-              color={finance.isDisbursed ? 'success' : 'default'}
+              color={finance.isDisbursed ? 'success' : finance.isPaid ? 'primary' : 'default'}
               variant={finance.isDisbursed ? 'filled' : 'outlined'}
               sx={{
                 height: 24,
@@ -199,7 +201,6 @@ export function InspectorPayoutStatementCard({
           <Stack spacing={0}>
             <StatementLine
               label={t('Pre-VAT base')}
-              sublabel={`${t('Order total (incl. VAT)')}: ${formatNumber(finance.totalPrice)} ₫`}
               amount={`${formatNumber(finance.serviceBaseAmount)} ₫`}
             />
             <StatementLine

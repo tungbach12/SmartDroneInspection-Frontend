@@ -976,11 +976,15 @@ export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
   });
 }
 
-export function useReportPaymentStatus(inspectionId: string | null) {
+export function useReportPaymentStatus(
+  inspectionId: string | null,
+  options?: { pollIntervalMs?: number | false },
+) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],
     queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
     enabled: Boolean(inspectionId),
+    refetchInterval: options?.pollIntervalMs ?? false,
   });
 }
 

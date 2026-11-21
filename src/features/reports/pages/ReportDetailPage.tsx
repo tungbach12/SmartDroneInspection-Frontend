@@ -117,7 +117,9 @@ export default function ReportDetailPage() {
   const acceptReport = useAcceptReportVersion(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
-  const paymentStatusQuery = useReportPaymentStatus(inspectionId);
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
+    pollIntervalMs: sepayQrOpen ? 3000 : false,
+  });
   const paymentStatus = paymentStatusQuery.data;
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -129,6 +131,12 @@ export default function ReportDetailPage() {
   const isReportAccepted = Boolean(
     paymentStatus?.reportAccepted || acceptReport.isSuccess,
   );
+
+  useEffect(() => {
+    if (sepayQrOpen && isPaid) {
+      setSepayQrOpen(false);
+    }
+  }, [sepayQrOpen, isPaid]);
 
   const canAuthor = canPerform('inspections.authorReport', user);
   const canReview = canPerform('reports.review', user);
@@ -427,6 +435,8 @@ export default function ReportDetailPage() {
                     ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND`
                     : undefined
                 }
+                checking={paymentStatusQuery.isFetching}
+                onCheckNow={() => void paymentStatusQuery.refetch()}
                 onClose={() => setSepayQrOpen(false)}
               />
 
