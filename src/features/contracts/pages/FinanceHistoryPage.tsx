@@ -295,7 +295,7 @@ export default function FinanceHistoryPage() {
                 <TableHead><TableRow>
                   <TableCell>{t('Date')}</TableCell>
                   <TableCell>{t('Inspection')}</TableCell>
-                  <TableCell>{inspector ? t('Customer') : t('Inspector')}</TableCell>
+                  {inspector && <TableCell>{t('Customer')}</TableCell>}
                   <TableCell align="right">{amountLabel}</TableCell>
                   <TableCell>{t('Method')}</TableCell>
                   <TableCell>{t('Status')}</TableCell>
@@ -308,7 +308,7 @@ export default function FinanceHistoryPage() {
                       <Typography sx={{ fontWeight: 600 }}>{item.assetName ?? t('Asset')}</Typography>
                       <Typography variant="caption" color="text.secondary">{item.requestDescription ?? `${t('Occurrence')} #${item.occurrenceIndex}`}</Typography>
                     </TableCell>
-                    <TableCell>{item.counterpartyName ?? '—'}</TableCell>
+                    {inspector && <TableCell>{item.counterpartyName ?? '—'}</TableCell>}
                     <TableCell align="right" sx={{ fontWeight: 700 }}>{money(item.amount, locale, item.currency)}</TableCell>
                     <TableCell>{item.paymentMethod ?? '—'}</TableCell>
                     <TableCell><Chip size="small" color="success" label={t(item.status)} /></TableCell>
@@ -386,23 +386,43 @@ export default function FinanceHistoryPage() {
               <Detail label={t('Payout status')} value={detail.payoutStatus} />
               <Detail label={t('Payout reference')} value={detail.payoutReference} />
               <Detail label={t('Payout recorded')} value={formatTime(detail.payoutRecordedAt)} />
-              <Detail label={t('Refund status')} value={detail.refundStatus} />
-              <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              {(detail.refundStatus && detail.refundStatus !== 'NONE' || (detail.refundedAmount ?? 0) > 0) && <>
+                <Detail label={t('Refund status')} value={detail.refundStatus} />
+                <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              </>}
             </>}
             {inspector && <>
+              {detail.serviceBaseAmount != null && (
+                <Detail label={t('Service base')} value={money(detail.serviceBaseAmount, locale, detail.currency)} />
+              )}
+              {detail.commissionAmount != null && (
+                <Detail
+                  label={detail.commissionRate != null ? `${t('Platform commission')} (${detail.commissionRate}%)` : t('Platform commission')}
+                  value={money(detail.commissionAmount, locale, detail.currency)}
+                />
+              )}
               <Detail label={t('Gross payout')} value={money(detail.inspectorGrossPayout, locale, detail.currency)} />
-              <Detail label={t('Tax withheld')} value={money(detail.tncnAmount, locale, detail.currency)} />
+              <Detail
+                label={detail.tncnRate != null ? `${t('Tax withheld')} (${detail.tncnRate}%)` : t('Tax withheld')}
+                value={money(detail.tncnAmount, locale, detail.currency)}
+              />
               <Detail label={t('Payout reference')} value={detail.payoutReference} />
               <Detail label={t('Payout recorded')} value={formatTime(detail.payoutRecordedAt)} />
-              <Detail label={t('Refund status')} value={detail.refundStatus} />
-              <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              {(detail.refundStatus && detail.refundStatus !== 'NONE' || (detail.refundedAmount ?? 0) > 0) && <>
+                <Detail label={t('Refund status')} value={detail.refundStatus} />
+                <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              </>}
             </>}
             {!inspector && !manager && <>
               <Detail label={t('Service base')} value={money(detail.serviceBaseAmount, locale, detail.currency)} />
-              <Detail label={t('VAT')} value={money(detail.vatAmount, locale, detail.currency)} />
-              <Detail label={t('Payment reference')} value={detail.payment?.reference} />
-              <Detail label={t('Refund status')} value={detail.refundStatus} />
-              <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              <Detail
+                label={detail.vatRate != null ? `${t('VAT')} (${detail.vatRate}%)` : t('VAT')}
+                value={money(detail.vatAmount, locale, detail.currency)}
+              />
+              {(detail.refundStatus && detail.refundStatus !== 'NONE' || (detail.refundedAmount ?? 0) > 0) && <>
+                <Detail label={t('Refund status')} value={detail.refundStatus} />
+                <Detail label={t('Refunded amount')} value={money(detail.refundedAmount, locale, detail.currency)} />
+              </>}
             </>}
             <Detail label={t('Occurrence')} value={`#${detail.occurrenceIndex}`} />
           </Stack>}

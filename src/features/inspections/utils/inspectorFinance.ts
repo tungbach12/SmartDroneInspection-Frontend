@@ -156,9 +156,9 @@ export function resolveInspectorFinanceBreakdown(
   const payoutStatus = (
     paymentDetails?.payoutStatus ??
     listRow?.payoutStatus ??
-    (isPaid ? 'PAID' : 'PENDING')
+    (isPaid ? 'ELIGIBLE' : 'PENDING')
   ).toUpperCase();
-  const isDisbursed = isPaid || payoutStatus === 'PAID';
+  const isDisbursed = payoutStatus === 'PAID' || payoutStatus === 'SETTLED';
 
   return {
     totalPrice,

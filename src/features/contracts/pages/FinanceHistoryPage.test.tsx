@@ -77,14 +77,16 @@ describe('finance history page', () => {
     });
   });
 
-  it('shows customer payment history and opens payment detail', async () => {
+  it('shows customer payment history without inspector column or internal fields', async () => {
     renderPage();
     expect(await screen.findByText('North Bridge')).toBeTruthy();
-    expect(screen.getByText('Inspector One')).toBeTruthy();
+    expect(screen.queryByText('Inspector One')).toBeNull();
     fireEvent.click(screen.getByText('North Bridge'));
     expect(await screen.findByText('Payment details')).toBeTruthy();
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/2,500,000/)).toBeTruthy();
+    expect(within(dialog).queryByText('Payment reference')).toBeNull();
+    expect(within(dialog).queryByText('Refund status')).toBeNull();
     expect(mocks.getCustomerDetail).toHaveBeenCalledWith('occ-1');
   });
 

@@ -114,18 +114,45 @@ export function OccurrenceFinanceDrawer({
             </Typography>
             {totalPrice != null && totalPrice > 0 && (
               <Stack spacing={0.35}>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t('Platform fee (15%)')}:{' '}
-                  <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-                    {formatNumber(Math.round(totalPrice * 0.15))} ₫
-                  </Box>
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  {t('Inspector net payout (85%)')}:{' '}
-                  <Box component="strong" sx={{ color: 'info.main', whiteSpace: 'nowrap' }}>
-                    {formatNumber(totalPrice - Math.round(totalPrice * 0.15))} ₫
-                  </Box>
-                </Typography>
+                {occurrence.serviceBaseAmount != null && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('Pre-VAT base')}:{' '}
+                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
+                      {formatNumber(occurrence.serviceBaseAmount)} ₫
+                    </Box>
+                    {occurrence.vatAmount != null ? ` · VAT ${formatNumber(occurrence.vatAmount)} ₫` : ''}
+                  </Typography>
+                )}
+                {occurrence.commissionAmount != null && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {occurrence.commissionRate != null
+                      ? `${t('Platform commission')} (${occurrence.commissionRate}%)`
+                      : t('Platform commission')}
+                    :{' '}
+                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
+                      {formatNumber(occurrence.commissionAmount)} ₫
+                    </Box>
+                  </Typography>
+                )}
+                {occurrence.tncnAmount != null && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {occurrence.tncnRate != null
+                      ? `${t('TNCN tax')} (${occurrence.tncnRate}%)`
+                      : t('TNCN tax')}
+                    :{' '}
+                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
+                      −{formatNumber(occurrence.tncnAmount)} ₫
+                    </Box>
+                  </Typography>
+                )}
+                {occurrence.inspectorNetPayout != null && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('Inspector net payout')}:{' '}
+                    <Box component="strong" sx={{ color: 'info.main', whiteSpace: 'nowrap' }}>
+                      {formatNumber(occurrence.inspectorNetPayout)} ₫
+                    </Box>
+                  </Typography>
+                )}
               </Stack>
             )}
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>

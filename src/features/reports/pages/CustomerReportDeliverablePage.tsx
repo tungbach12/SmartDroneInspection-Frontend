@@ -101,9 +101,11 @@ export default function CustomerReportDeliverablePage({
   const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
-  const paymentStatusQuery = useReportPaymentStatus(inspectionId);
-  const paymentStatus = paymentStatusQuery.data;
   const [sepayQrOpen, setSepayQrOpen] = useState(false);
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
+    pollIntervalMs: sepayQrOpen ? 3000 : false,
+  });
+  const paymentStatus = paymentStatusQuery.data;
 
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
@@ -115,6 +117,12 @@ export default function CustomerReportDeliverablePage({
   const isReportAccepted = Boolean(
     paymentStatus?.reportAccepted || acceptReport.isSuccess,
   );
+
+  useEffect(() => {
+    if (sepayQrOpen && isPaid) {
+      setSepayQrOpen(false);
+    }
+  }, [sepayQrOpen, isPaid]);
 
   const openVersion =
     versions.data?.find((version) => version.id === openVersionId) ??
@@ -232,6 +240,8 @@ export default function CustomerReportDeliverablePage({
             <SepayQrDialog
               details={sepayQrOpen ? sepayLink.data : undefined}
               amountVnd={paymentStatus?.amount ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND` : undefined}
+              checking={paymentStatusQuery.isFetching}
+              onCheckNow={() => void paymentStatusQuery.refetch()}
               onClose={() => setSepayQrOpen(false)}
             />
 
