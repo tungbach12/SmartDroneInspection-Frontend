@@ -157,10 +157,7 @@ function FlightChecklistsTab() {
   const [category, setCategory] = useState('AIRFRAME_POWER');
   const [label, setLabel] = useState('');
   const [labelVi, setLabelVi] = useState('');
-  const [details, setDetails] = useState('');
-  const [detailsVi, setDetailsVi] = useState('');
   const [referenceThreshold, setReferenceThreshold] = useState('');
-  const [safetyCritical, setSafetyCritical] = useState(true);
   const [required, setRequired] = useState(kind === 'PRE_FLIGHT');
   const [deleting, setDeleting] = useState<ChecklistTemplate | null>(null);
 
@@ -194,7 +191,6 @@ function FlightChecklistsTab() {
         query &&
         !item.label.toLowerCase().includes(query) &&
         !(item.labelVi ?? '').toLowerCase().includes(query) &&
-        !(item.details ?? '').toLowerCase().includes(query) &&
         !(item.referenceThreshold ?? '').toLowerCase().includes(query)
       ) {
         return false;
@@ -212,10 +208,7 @@ function FlightChecklistsTab() {
     setCategory(kind === 'PRE_FLIGHT' ? 'AIRFRAME_POWER' : 'POST_FLIGHT_HARDWARE');
     setLabel('');
     setLabelVi('');
-    setDetails('');
-    setDetailsVi('');
     setReferenceThreshold('');
-    setSafetyCritical(kind === 'PRE_FLIGHT');
     setRequired(kind === 'PRE_FLIGHT');
     setDialogOpen(true);
   };
@@ -229,10 +222,7 @@ function FlightChecklistsTab() {
     );
     setLabel(item.label);
     setLabelVi(item.labelVi ?? '');
-    setDetails(item.details ?? '');
-    setDetailsVi(item.detailsVi ?? '');
     setReferenceThreshold(item.referenceThreshold ?? '');
-    setSafetyCritical(Boolean(item.safetyCritical));
     setRequired(item.required);
     setDialogOpen(true);
   };
@@ -249,10 +239,10 @@ function FlightChecklistsTab() {
             category,
             label: trimmed,
             labelVi: labelVi.trim() || null,
-            details: details.trim() || null,
-            detailsVi: detailsVi.trim() || null,
+            details: null,
+            detailsVi: null,
             referenceThreshold: referenceThreshold.trim() || null,
-            safetyCritical,
+            safetyCritical: editing.safetyCritical ?? required,
             sortOrder: editing.sortOrder,
             active: editing.active,
             required,
@@ -270,10 +260,10 @@ function FlightChecklistsTab() {
         category,
         label: trimmed,
         labelVi: labelVi.trim() || null,
-        details: details.trim() || null,
-        detailsVi: detailsVi.trim() || null,
+        details: null,
+        detailsVi: null,
         referenceThreshold: referenceThreshold.trim() || null,
-        safetyCritical,
+        safetyCritical: required,
         sortOrder: nextSortOrder,
         required,
       },
@@ -525,51 +515,22 @@ function FlightChecklistsTab() {
               />
               <TextField
                 size="small"
-                multiline
-                minRows={2}
-                label={tr('Hướng dẫn & tiêu chí đạt (EN)', 'Detailed verification criteria (EN)')}
-                value={details}
-                onChange={(event) => setDetails(event.target.value)}
-              />
-              <TextField
-                size="small"
-                multiline
-                minRows={2}
-                label={tr('Hướng dẫn & tiêu chí đạt (VI)', 'Detailed verification criteria (VI)')}
-                value={detailsVi}
-                onChange={(event) => setDetailsVi(event.target.value)}
-              />
-              <TextField
-                size="small"
-                label={tr('Ngưỡng an toàn tham chiếu', 'Reference safety threshold')}
-                placeholder="Wind <= 10 m/s · >= 12 Sats"
+                label={tr('Ngưỡng tham chiếu (tùy chọn)', 'Reference note (optional)')}
+                placeholder={tr('Bỏ trống nếu phụ thuộc từng dòng drone', 'Leave blank if drone-specific')}
                 value={referenceThreshold}
                 onChange={(event) => setReferenceThreshold(event.target.value)}
               />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label={t('Policy')}
-                  value={required ? 'REQUIRED' : 'OPTIONAL'}
-                  onChange={(event) => setRequired(event.target.value === 'REQUIRED')}
-                >
-                  <MenuItem value="REQUIRED">{t('Required')}</MenuItem>
-                  <MenuItem value="OPTIONAL">{t('Optional')}</MenuItem>
-                </TextField>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label={tr('Mức độ an toàn', 'Safety criticality')}
-                  value={safetyCritical ? 'CRITICAL' : 'STANDARD'}
-                  onChange={(event) => setSafetyCritical(event.target.value === 'CRITICAL')}
-                >
-                  <MenuItem value="CRITICAL">{tr('Trọng yếu an toàn', 'Safety-critical')}</MenuItem>
-                  <MenuItem value="STANDARD">{tr('Tiêu chuẩn', 'Standard')}</MenuItem>
-                </TextField>
-              </Stack>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={t('Policy')}
+                value={required ? 'REQUIRED' : 'OPTIONAL'}
+                onChange={(event) => setRequired(event.target.value === 'REQUIRED')}
+              >
+                <MenuItem value="REQUIRED">{t('Required')}</MenuItem>
+                <MenuItem value="OPTIONAL">{t('Optional')}</MenuItem>
+              </TextField>
             </Stack>
           </DialogContent>
           <DialogActions>

@@ -503,11 +503,11 @@ describe('FieldSessionPage', () => {
 
     // Tick the 6 required items (leave PF-07..PF-08 optional unchecked)
     fireEvent.click(screen.getByText('Airframe, propellers & gimbal mounting lock verified'));
-    fireEvent.click(screen.getByText('Flight & controller batteries healthy & balanced'));
-    fireEvent.click(screen.getByText('Surface wind, gusts & visibility within UAV operating envelope'));
-    fireEvent.click(screen.getByText('Takeoff/landing pad & safety perimeter secured'));
+    fireEvent.click(screen.getByText('Flight & controller batteries healthy, balanced & sufficient for mission'));
+    fireEvent.click(screen.getByText('Surface wind, gusts & visibility within assigned drone operating limits'));
+    fireEvent.click(screen.getByText('Takeoff/landing pad & safety perimeter clear of obstacles and bystanders'));
     fireEvent.click(screen.getByText('Flight permit ceiling & surrounding obstacle/EMF clearance checked'));
-    fireEvent.click(screen.getByText('GNSS lock, compass/IMU status & RTH failsafe configured'));
+    fireEvent.click(screen.getByText('GNSS lock, compass/IMU status & RTH failsafe set above obstacles'));
 
     expect(submitButton.disabled).toBe(false);
 

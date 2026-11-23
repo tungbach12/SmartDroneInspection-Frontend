@@ -85,72 +85,72 @@ interface ChecklistSpecItem {
 const PRE_FLIGHT_CHECKLIST_ITEMS: readonly {
   category: string;
   label: string;
-  details: string;
-  referenceThreshold: string;
+  details: string | null;
+  referenceThreshold: string | null;
   safetyCritical: boolean;
   required: boolean;
 }[] = [
   {
     category: 'AIRFRAME_POWER',
     label: 'Airframe, propellers & gimbal mounting lock verified',
-    details: 'Check frame arms, twist-lock blades without chips, gimbal dampers, and SD latch.',
-    referenceThreshold: 'Zero cracks / play',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'AIRFRAME_POWER',
-    label: 'Flight & controller batteries healthy & balanced',
-    details: 'Verify aircraft battery SOC, cell balance, zero swelling, and RC controller charge.',
-    referenceThreshold: 'SOC >= 80% · Δ <= 0.1V',
+    label: 'Flight & controller batteries healthy, balanced & sufficient for mission',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'WEATHER_AIRSPACE',
-    label: 'Surface wind, gusts & visibility within UAV operating envelope',
-    details: 'Check wind speed/gusts, dry weather without fog/rain, and Kp index.',
-    referenceThreshold: 'Wind <= 10 m/s · Vis >= 3 km',
+    label: 'Surface wind, gusts & visibility within assigned drone operating limits',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'SITE_EMERGENCY',
-    label: 'Takeoff/landing pad & safety perimeter secured',
-    details: 'Keep landing pad FOD-free, place perimeter cones, and keep bystanders clear.',
-    referenceThreshold: 'Radius >= 15 m clear',
+    label: 'Takeoff/landing pad & safety perimeter clear of obstacles and bystanders',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'WEATHER_AIRSPACE',
     label: 'Flight permit ceiling & surrounding obstacle/EMF clearance checked',
-    details: 'Verify permitted ceiling/boundary and spot cranes, power lines, or RF towers.',
-    referenceThreshold: 'Within permit ceiling',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'NAVIGATION_FAILSAFE',
-    label: 'GNSS lock, compass/IMU status & RTH failsafe configured',
-    details: 'Confirm strong satellite lock, healthy compass/IMU, and RTH height above tallest obstacle.',
-    referenceThreshold: '>= 12 Sats · RTH +15 m',
+    label: 'GNSS lock, compass/IMU status & RTH failsafe set above obstacles',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'PAYLOAD_COMMS',
-    label: 'Payload optics clean, storage free & C2 telemetry link verified',
-    details: 'Clean camera/thermal lenses, verify storage capacity, and test 3 m hover control.',
-    referenceThreshold: 'Storage >= 16 GB · 3m hover OK',
+    label: 'Payload optics clean, storage sufficient & C2 telemetry link verified',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: false,
     required: false,
   },
   {
     category: 'SITE_EMERGENCY',
-    label: 'Emergency landing zone & fire/first-aid kit ready',
-    details: 'Identify backup downwind landing pad; verify LiPo fire bag and first-aid kit on site.',
-    referenceThreshold: 'Backup LZ + LiPo bag ready',
+    label: 'Backup emergency landing zone & fire/first-aid kit ready on site',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: false,
     required: false,
   },
@@ -159,40 +159,40 @@ const PRE_FLIGHT_CHECKLIST_ITEMS: readonly {
 const POST_FLIGHT_CHECKLIST_ITEMS: readonly {
   category: string;
   label: string;
-  details: string;
-  referenceThreshold: string;
+  details: string | null;
+  referenceThreshold: string | null;
   safetyCritical: boolean;
   required: boolean;
 }[] = [
   {
     category: 'POST_FLIGHT_HARDWARE',
     label: 'Aircraft landed cleanly & propulsion/power completely disarmed',
-    details: 'Confirm rotors fully stopped before approach; power off aircraft before controller.',
-    referenceThreshold: 'Disarmed · Zero strike marks',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'POST_FLIGHT_HARDWARE',
     label: 'Motors, ESCs & batteries checked for abnormal heat or swelling',
-    details: 'Inspect motor bells and battery packs for overheating/swelling; cool before storage.',
-    referenceThreshold: 'Temp < 60°C · No swelling',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
     label: 'All sortie photos, videos & flight logs verified & backed up',
-    details: 'Verify asset media clarity and readable SRT/CSV/MAVLink logs before leaving site.',
-    referenceThreshold: 'Media + logs verified',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: true,
     required: true,
   },
   {
     category: 'POST_FLIGHT_MEDIA',
     label: 'Safety cones removed, equipment packed & site restored',
-    details: 'Recover cones, pad, tools, and confirm zero debris left on customer premises.',
-    referenceThreshold: 'Site cleared',
+    details: null,
+    referenceThreshold: null,
     safetyCritical: false,
     required: false,
   },
