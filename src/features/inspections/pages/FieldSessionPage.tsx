@@ -1712,7 +1712,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               >
                                 <CircleSign state={checked ? 'checked' : 'unchecked'} />
                                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 0.35, flexWrap: 'wrap', rowGap: 0.25 }}>
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.25 }}>
                                     <Typography
                                       variant="caption"
                                       sx={{
@@ -1724,21 +1724,16 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                       {spec.code}
                                     </Typography>
                                     {spec.referenceThreshold && (
-                                      <Chip
-                                        size="small"
-                                        variant="outlined"
-                                        label={spec.referenceThreshold}
-                                        sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
-                                      />
-                                    )}
-                                    {spec.safetyCritical && (
-                                      <Chip
-                                        size="small"
-                                        color="warning"
-                                        variant="outlined"
-                                        label={tr('Trọng yếu', 'Critical')}
-                                        sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
-                                      />
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          color: 'text.secondary',
+                                        }}
+                                      >
+                                        · {spec.referenceThreshold}
+                                      </Typography>
                                     )}
                                     {!spec.required && (
                                       <Typography
@@ -1759,15 +1754,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   >
                                     {t(spec.label)}
                                   </Typography>
-                                  {spec.details && (
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                      sx={{ display: 'block', mt: 0.35, lineHeight: 1.35 }}
-                                    >
-                                      {spec.details}
-                                    </Typography>
-                                  )}
                                 </Box>
                               </Box>
                             );
@@ -1870,15 +1856,21 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                           );
                         }}
                       >
-                        <Stack spacing={1.75}>
-                          <Paper
-                            variant="outlined"
-                            sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'background.default' }}
-                          >
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1 }}>
-                              {tr('Thông số an toàn tại hiện trường (tùy chọn)', 'On-site safety readings (optional)')}
+                        <Stack spacing={1.5}>
+                          <TextField
+                            label={t('Pre-flight note')}
+                            size="small"
+                            multiline
+                            minRows={2}
+                            value={preFlightNote}
+                            onChange={(event) => setPreFlightNote(event.target.value)}
+                          />
+
+                          <Box component="details" sx={{ '& > summary': { cursor: 'pointer', color: 'text.secondary' } }}>
+                            <Typography component="summary" variant="caption" sx={{ fontWeight: 600 }}>
+                              {tr('Ngày bay & thông số hiện trường (tùy chọn)', 'Flight date & site readings (optional)')}
                             </Typography>
-                            <Grid container spacing={1.25}>
+                            <Grid container spacing={1.25} sx={{ pt: 1.25 }}>
                               <Grid size={{ xs: 6, sm: 4, md: 2 }}>
                                 <TextField
                                   type="date"
@@ -1945,16 +1937,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                 />
                               </Grid>
                             </Grid>
-                          </Paper>
-
-                          <TextField
-                            label={t('Pre-flight note')}
-                            size="small"
-                            multiline
-                            minRows={2}
-                            value={preFlightNote}
-                            onChange={(event) => setPreFlightNote(event.target.value)}
-                          />
+                          </Box>
 
                           {!openSession && inspection.status === 'SCHEDULED' && isWindowExpired && (
                             <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -2320,7 +2303,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                               >
                                 <CircleSign state={checked ? 'checked' : 'unchecked'} />
                                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 0.25, flexWrap: 'wrap' }}>
+                                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.25 }}>
                                     <Typography
                                       variant="caption"
                                       sx={{
@@ -2332,12 +2315,16 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                       {spec.code}
                                     </Typography>
                                     {spec.referenceThreshold && (
-                                      <Chip
-                                        size="small"
-                                        variant="outlined"
-                                        label={spec.referenceThreshold}
-                                        sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }}
-                                      />
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          color: 'text.secondary',
+                                        }}
+                                      >
+                                        · {spec.referenceThreshold}
+                                      </Typography>
                                     )}
                                     {!spec.required && (
                                       <Typography
@@ -2358,11 +2345,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                                   >
                                     {t(spec.label)}
                                   </Typography>
-                                  {spec.details && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, lineHeight: 1.35 }}>
-                                      {spec.details}
-                                    </Typography>
-                                  )}
                                 </Box>
                               </Box>
                             );

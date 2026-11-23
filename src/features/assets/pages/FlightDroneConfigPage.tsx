@@ -437,25 +437,10 @@ function FlightChecklistsTab() {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ py: 1.25 }}>
-                        <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                        <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
                           {locale === 'vi' && item.labelVi ? item.labelVi : item.label}
+                          {item.referenceThreshold ? ` · ${item.referenceThreshold}` : ''}
                         </Typography>
-                        {(locale === 'vi' ? item.detailsVi || item.details : item.details) && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                            {locale === 'vi' ? item.detailsVi || item.details : item.details}
-                          </Typography>
-                        )}
-                        <Stack direction="row" spacing={0.75} sx={{ mt: 0.5, flexWrap: 'wrap', rowGap: 0.5 }}>
-                          {item.category && (
-                            <Chip size="small" variant="outlined" label={item.category} sx={{ height: 20, fontSize: '0.6875rem' }} />
-                          )}
-                          {item.referenceThreshold && (
-                            <Chip size="small" color="info" variant="outlined" label={item.referenceThreshold} sx={{ height: 20, fontSize: '0.6875rem' }} />
-                          )}
-                          {item.safetyCritical && (
-                            <Chip size="small" color="warning" variant="outlined" label={tr('Trọng yếu an toàn', 'Safety-critical')} sx={{ height: 20, fontSize: '0.6875rem' }} />
-                          )}
-                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Chip
