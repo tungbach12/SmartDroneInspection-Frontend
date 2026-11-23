@@ -1284,6 +1284,7 @@ function InspectionItemsSection({
 }) {
   const { t } = useLocale();
   const [editing, setEditing] = useState(false);
+  const editable = canEdit && asset.status !== 'RETIRED' && !asset.checkpointsLocked;
 
   useEffect(() => {
     setEditing(false);
@@ -1306,7 +1307,7 @@ function InspectionItemsSection({
         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
           {t('Inspection Checkpoints')}
         </Typography>
-        {canEdit && !editing && (
+        {editable && !editing && (
           <Button
             size="small"
             variant="text"
@@ -1317,6 +1318,11 @@ function InspectionItemsSection({
           </Button>
         )}
       </Stack>
+      {canEdit && asset.checkpointsLocked && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          {t('Checkpoints are locked after the first inspection.')}
+        </Typography>
+      )}
 
       {!editing ? (
         items.length > 0 ? (
@@ -2393,7 +2399,7 @@ function AssetDetailDrawer({
                 )}
               </Paper>
 
-              {asset && !isClient && (
+              {asset && (
                 <InspectionItemsSection
                   asset={asset}
                   canEdit={canEditInspectionItems && asset.status !== 'RETIRED'}
