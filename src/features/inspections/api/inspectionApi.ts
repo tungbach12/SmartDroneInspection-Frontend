@@ -1201,6 +1201,12 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Clears a resolvable unpaid gateway order on the accepted inspection so another method can be used. */
+  cancelUnpaidPaymentOrder: (inspectionId: string) =>
+    api
+      .post<void>(`/inspections/${inspectionId}/report/cancel-unpaid-order`)
+      .then((response) => response.data),
+
   /** Customer or Manager creates a quick RE_INSPECTION directly from a completed inspection. */
   createDirectReinspection: (
     inspectionId: string,

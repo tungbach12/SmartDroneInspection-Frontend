@@ -18,6 +18,7 @@ import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
+  useCancelUnpaidInspectionPaymentOrder,
   useCreateDirectReinspection,
   useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
@@ -101,19 +102,20 @@ export default function CustomerReportDeliverablePage({
   const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
+  const cancelUnpaidOrder = useCancelUnpaidInspectionPaymentOrder(inspectionId);
   const [sepayQrOpen, setSepayQrOpen] = useState(false);
+  const searchParams = new URLSearchParams(location.search);
+  const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
+  const returnedPaymentSuccess = searchParams.get('payment') === 'success';
   const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
     pollIntervalMs: sepayQrOpen ? 3000 : false,
   });
   const paymentStatus = paymentStatusQuery.data;
 
-  const searchParams = new URLSearchParams(location.search);
-  const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
   const isPaid = Boolean(
-    paymentStatus?.paid ||
-      paymentStatus?.paymentStatus === 'PAID' ||
-      searchParams.get('payment') === 'success',
+    paymentStatus?.paid || paymentStatus?.paymentStatus === 'PAID',
   );
+  const isPaymentConfirming = returnedPaymentSuccess && !isPaid;
   const isReportAccepted = Boolean(
     paymentStatus?.reportAccepted || acceptReport.isSuccess,
   );
@@ -205,10 +207,12 @@ export default function CustomerReportDeliverablePage({
                 isPaid={isPaid}
                 isReportAccepted={isReportAccepted}
                 isPaymentCancelled={isPaymentCancelled}
+                isPaymentConfirming={isPaymentConfirming}
                 paymentStatus={paymentStatus}
                 acceptPending={acceptReport.isPending}
                 sepayPending={sepayLink.isPending}
                 vnpayPending={vnpayLink.isPending}
+                cancelOrderPending={cancelUnpaidOrder.isPending}
                 disputeSubmitted={disputeSubmitted}
                 disputeReason={disputeReason.trim() || null}
                 disputeSubmittedAt={disputeSubmittedAt}
@@ -226,6 +230,7 @@ export default function CustomerReportDeliverablePage({
                   });
                 }}
                 onProceedToVnPay={() => vnpayLink.mutate()}
+                onCancelUnpaidOrder={() => cancelUnpaidOrder.mutate()}
                 onOpenDispute={() => setDisputeOpen(true)}
                 onViewReport={
                   !showReportContent
