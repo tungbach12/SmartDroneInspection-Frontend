@@ -3010,7 +3010,6 @@
   "Account number": "Số tài khoản",
   "Account holder": "Chủ tài khoản",
   "Transfer content": "Nội dung chuyển khoản",
-  "Copied": "Đã sao chép",
   "Copy": "Sao chép",
   "QR image unavailable. Use the bank details below to transfer manually.": "Không tải được ảnh QR. Vui lòng chuyển khoản thủ công theo thông tin bên dưới.",
   "Check payment status": "Kiểm tra thanh toán ngay",

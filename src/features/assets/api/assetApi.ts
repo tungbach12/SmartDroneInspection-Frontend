@@ -14,6 +14,8 @@ export interface Asset {
   inspectionItems: string[];
   structureHeightMeters: number | null;
   footprintAreaSquareMeters: number | null;
+  /** True once an inspection exists; checkpoint edits are rejected and the list is read-only. */
+  checkpointsLocked: boolean;
 }
 
 export interface AssetListFilters {
