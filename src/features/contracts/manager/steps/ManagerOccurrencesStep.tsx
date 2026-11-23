@@ -473,7 +473,7 @@ function ManagerOccurrenceRow({
                 {occurrence.inspectionId && (
                   <Button
                     component={Link}
-                    to={`/manager/inspections/${occurrence.inspectionId}/review`}
+                    to={`/manager/inspections/${occurrence.inspectionId}/audit`}
                     size="small"
                     variant="outlined"
                     endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
