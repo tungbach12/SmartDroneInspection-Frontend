@@ -19,6 +19,17 @@ export interface InspectorRatingItem {
   editable: boolean;
 }
 
+export interface RatingCriterionDefinition {
+  code: string;
+  raterRole: 'CUSTOMER' | 'MANAGER';
+  labelEn: string;
+  labelVi: string;
+  descriptionEn?: string | null;
+  descriptionVi?: string | null;
+  displayOrder: number;
+  active: boolean;
+}
+
 export interface InspectorRatingSummary {
   inspectorId: string;
   averageRating: number | null;
@@ -30,6 +41,7 @@ export interface InspectorRatingSummary {
   starDistribution: Record<string, number>;
   customerCriteriaAverages: Record<string, number>;
   managerCriteriaAverages: Record<string, number>;
+  criteriaDefinitions?: RatingCriterionDefinition[];
 }
 
 export interface InspectionRatingBundle {
@@ -41,6 +53,7 @@ export interface InspectionRatingBundle {
   ineligibleReason: string | null;
   actorRole: 'CUSTOMER' | 'MANAGER' | 'ADMIN' | 'INSPECTOR';
   expectedCriteriaKeys: string[];
+  expectedCriteria?: RatingCriterionDefinition[];
   editableUntil: string | null;
   myRating: InspectorRatingItem | null;
   customerRating: InspectorRatingItem | null;

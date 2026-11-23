@@ -23,8 +23,16 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { useInspectionRating, useUpsertInspectionRating } from '../hooks/useInspectorRatings';
-import type { InspectorRatingItem, InspectorRatingProfile } from '../api/ratingApi';
+import {
+  useInspectionRating,
+  useRatingCriteriaCatalog,
+  useUpsertInspectionRating,
+} from '../hooks/useInspectorRatings';
+import type {
+  InspectorRatingItem,
+  InspectorRatingProfile,
+  RatingCriterionDefinition,
+} from '../api/ratingApi';
 import { InspectorRatingSummaryBadge } from './InspectorRatingSummaryBadge';
 
 const CRITERIA_LABELS: Record<string, string> = {
@@ -35,6 +43,22 @@ const CRITERIA_LABELS: Record<string, string> = {
   technicalAccuracy: 'Technical accuracy',
   timeliness: 'Timeliness',
 };
+
+function resolveCriterionLabel(
+  code: string,
+  definitions: readonly RatingCriterionDefinition[] | undefined,
+  locale: string,
+  t: (k: string) => string,
+  role?: 'CUSTOMER' | 'MANAGER',
+): string {
+  const match = definitions?.find(
+    (def) => def.code === code && (!role || def.raterRole === role),
+  ) ?? definitions?.find((def) => def.code === code);
+  if (match) {
+    return locale === 'vi' ? match.labelVi : match.labelEn;
+  }
+  return t(CRITERIA_LABELS[code] ?? code);
+}
 
 function getRemainingEditLabel(editableUntil: string | null, t: (k: string) => string): string | null {
   if (!editableUntil) return null;
@@ -58,6 +82,7 @@ export interface InspectorRatingDialogProps {
   inspectorName?: string | null;
   actorRole: 'CUSTOMER' | 'MANAGER';
   expectedCriteriaKeys: string[];
+  expectedCriteria?: RatingCriterionDefinition[];
   existingRating?: InspectorRatingItem | null;
 }
 
@@ -68,16 +93,19 @@ export function InspectorRatingDialog({
   inspectorName,
   actorRole,
   expectedCriteriaKeys,
+  expectedCriteria,
   existingRating,
 }: InspectorRatingDialogProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const upsert = useUpsertInspectionRating(inspectionId);
   const criteriaKeys =
-    expectedCriteriaKeys.length > 0
-      ? expectedCriteriaKeys
-      : actorRole === 'MANAGER'
-        ? ['sopAndSafety', 'technicalAccuracy', 'timeliness']
-        : ['evidenceQuality', 'communication', 'professionalism'];
+    expectedCriteria && expectedCriteria.length > 0
+      ? expectedCriteria.map((c) => c.code)
+      : expectedCriteriaKeys.length > 0
+        ? expectedCriteriaKeys
+        : actorRole === 'MANAGER'
+          ? ['sopAndSafety', 'technicalAccuracy', 'timeliness']
+          : ['evidenceQuality', 'communication', 'professionalism'];
 
   const [overallScore, setOverallScore] = useState<number>(
     existingRating?.overallScore ?? 5,
@@ -141,23 +169,38 @@ export function InspectorRatingDialog({
             <Divider />
 
             <Stack spacing={1.25}>
-              {criteriaKeys.map((key) => (
-                <Stack key={key} direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t(CRITERIA_LABELS[key] ?? key)}
-                  </Typography>
-                  <Rating
-                    name={`criterion-${key}`}
-                    size="small"
-                    value={criterionScores[key] ?? 5}
-                    onChange={(_, val) => {
-                      if (val && val >= 1) {
-                        setCriterionScores((prev) => ({ ...prev, [key]: val }));
-                      }
-                    }}
-                  />
-                </Stack>
-              ))}
+              {criteriaKeys.map((key) => {
+                const def = expectedCriteria?.find((c) => c.code === key);
+                const hint = def
+                  ? locale === 'vi'
+                    ? def.descriptionVi
+                    : def.descriptionEn
+                  : null;
+                return (
+                  <Stack key={key} direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {resolveCriterionLabel(key, expectedCriteria, locale, t, actorRole)}
+                      </Typography>
+                      {hint && (
+                        <Typography variant="caption" color="text.disabled" sx={{ display: 'block', lineHeight: 1.25 }}>
+                          {hint}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Rating
+                      name={`criterion-${key}`}
+                      size="small"
+                      value={criterionScores[key] ?? 5}
+                      onChange={(_, val) => {
+                        if (val && val >= 1) {
+                          setCriterionScores((prev) => ({ ...prev, [key]: val }));
+                        }
+                      }}
+                    />
+                  </Stack>
+                );
+              })}
             </Stack>
 
             <TextField
@@ -305,6 +348,7 @@ export function InspectorRatingPromptCard({ inspectionId }: InspectorRatingPromp
           inspectorName={bundle.inspectorName}
           actorRole={writableRole}
           expectedCriteriaKeys={bundle.expectedCriteriaKeys}
+          {...(bundle.expectedCriteria ? { expectedCriteria: bundle.expectedCriteria } : {})}
           existingRating={myRating}
         />
       )}
@@ -347,8 +391,13 @@ export function InspectorRatingsBreakdownPanel({
   portalBase,
   onNavigate,
 }: InspectorRatingsBreakdownPanelProps) {
-  const { t, formatDate } = useLocale();
+  const { locale, t, formatDate } = useLocale();
   const { summary, ratings, historyVisible } = profile;
+  const catalogQuery = useRatingCriteriaCatalog(true, !(summary.criteriaDefinitions && summary.criteriaDefinitions.length > 0));
+  const criteriaDefinitions: readonly RatingCriterionDefinition[] | undefined =
+    summary.criteriaDefinitions && summary.criteriaDefinitions.length > 0
+      ? summary.criteriaDefinitions
+      : catalogQuery.data;
   const [selectedItem, setSelectedItem] = useState<InspectorRatingItem | null>(null);
   const [previewImage, setPreviewImage] = useState<{
     src: string;
@@ -421,7 +470,9 @@ export function InspectorRatingsBreakdownPanel({
                 {customerCriteria.map(([key, score]) => (
                   <Box key={key}>
                     <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.25 }}>
-                      <Typography variant="caption">{t(CRITERIA_LABELS[key] ?? key)}</Typography>
+                      <Typography variant="caption">
+                        {resolveCriterionLabel(key, criteriaDefinitions, locale, t, 'CUSTOMER')}
+                      </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 700 }}>{score.toFixed(1)}</Typography>
                     </Stack>
                     <LinearProgress variant="determinate" value={(score / 5) * 100} sx={{ height: 5, borderRadius: 999 }} />
@@ -439,7 +490,9 @@ export function InspectorRatingsBreakdownPanel({
                 {managerCriteria.map(([key, score]) => (
                   <Box key={key}>
                     <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.25 }}>
-                      <Typography variant="caption">{t(CRITERIA_LABELS[key] ?? key)}</Typography>
+                      <Typography variant="caption">
+                        {resolveCriterionLabel(key, criteriaDefinitions, locale, t, 'MANAGER')}
+                      </Typography>
                       <Typography variant="caption" sx={{ fontWeight: 700 }}>{score.toFixed(1)}</Typography>
                     </Stack>
                     <LinearProgress variant="determinate" value={(score / 5) * 100} color="secondary" sx={{ height: 5, borderRadius: 999 }} />
@@ -674,7 +727,7 @@ export function InspectorRatingsBreakdownPanel({
                 {Object.entries(selectedItem.criterionScores).map(([key, score]) => (
                   <Stack key={key} direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography variant="caption" color="text.secondary">
-                      {t(CRITERIA_LABELS[key] ?? key)}
+                      {resolveCriterionLabel(key, criteriaDefinitions, locale, t, selectedItem.raterRole)}
                     </Typography>
                     <Rating value={score} readOnly size="small" />
                   </Stack>

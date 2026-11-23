@@ -133,6 +133,11 @@ export function ReportDeliverableTabs({
             <FlightOperationsReportView
               inspectionId={inspectionId}
               fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
+              flights={
+                openVersion.reportContext?.flights ??
+                fieldSessions?.flatMap((s) => s.flights ?? [])
+              }
+              sessions={fieldSessions}
               version={openVersion}
               evidenceList={evidenceList}
               assetName={openVersion.reportContext?.assetName ?? assetName}

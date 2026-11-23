@@ -459,6 +459,11 @@ export default function InspectionReportPage() {
                 <FlightOperationsReportView
                   inspectionId={inspectionId}
                   fieldSessionId={latestFieldSessionId}
+                  flights={
+                    draftPreviewVersion.reportContext?.flights ??
+                    fieldSessionsQuery?.data?.flatMap((s) => s.flights ?? [])
+                  }
+                  sessions={fieldSessionsQuery?.data}
                   version={draftPreviewVersion}
                   evidenceList={activeEvidenceList}
                   assetName={inspectionData?.assetName}
@@ -534,6 +539,11 @@ export default function InspectionReportPage() {
                 <FlightOperationsReportView
                   inspectionId={inspectionId}
                   fieldSessionId={latestFieldSessionId}
+                  flights={
+                    openVersion.reportContext?.flights ??
+                    fieldSessionsQuery?.data?.flatMap((s) => s.flights ?? [])
+                  }
+                  sessions={fieldSessionsQuery?.data}
                   version={openVersion}
                   evidenceList={activeEvidenceList}
                   assetName={openVersion.reportContext?.assetName ?? inspectionData?.assetName}

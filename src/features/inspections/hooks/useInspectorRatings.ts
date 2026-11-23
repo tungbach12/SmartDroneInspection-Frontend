@@ -1,9 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ratingApi, type UpsertInspectorRatingPayload } from '../api/ratingApi';
+import { ratingCriteriaApi, ratingCriteriaKeys } from '@/features/admin/api/ratingCriteriaApi';
 import { inspectionKeys } from './useInspections';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+export function useRatingCriteriaCatalog(includeInactive = false, enabled = true) {
+  return useQuery({
+    queryKey: ratingCriteriaKeys.public(includeInactive),
+    queryFn: () => ratingCriteriaApi.listPublic(includeInactive),
+    enabled,
+    staleTime: 60_000,
+  });
+}
 
 export function useInspectionRating(inspectionId: string, enabled = true) {
   return useQuery({
