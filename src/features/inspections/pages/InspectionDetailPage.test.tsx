@@ -267,8 +267,7 @@ describe('InspectionDetailPage', () => {
 
     expect(await screen.findByText(/ops@saigonbridge\.vn/)).toBeTruthy();
     expect(screen.getByText(/inspector@smartdrone\.vn/)).toBeTruthy();
-    expect(screen.getByText(/Planned Start/i)).toBeTruthy();
-    expect(screen.getByText(/Confirmed findings/i)).toBeTruthy();
+    expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
     expect(screen.queryByText('Field Completed')).toBeNull();
   });
 
@@ -304,12 +303,11 @@ describe('InspectionDetailPage', () => {
     expect(screen.queryByText('Tran Van Inspector')).toBeNull();
     expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.getByText(/Confirmed findings/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /View asset details/i }));
     expect(screen.getByText(/1581F4B0C2301009/)).toBeTruthy();
   });
 
-  it('shows map, coordinates, airspace, drone status, permit summary, and customer/manager contacts when Overview is expanded', () => {
+  it('shows map, coordinates, airspace, permit summary, and contacts in context dialogs without duplicated Overview', async () => {
     mocks.inspectionQuery = {
       data: {
         id: 'inspection-1',
@@ -332,6 +330,7 @@ describe('InspectionDetailPage', () => {
         flightPermitMaxAltitudeM: 120,
         flightPermitVerificationStatus: 'APPROVED',
         plannedStartAt: '2026-11-18T06:47:00Z',
+        inspectionItems: ['Tru cau P1', 'Dam chinh'],
         status: 'SCHEDULED',
       },
       isLoading: false,
@@ -343,22 +342,36 @@ describe('InspectionDetailPage', () => {
     signInAs('INSPECTOR');
     renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
 
-    expect(screen.queryByTestId('overview-asset-map')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
+    expect(screen.queryByTestId('asset-detail-dialog-map')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('button', { name: /View asset details/i }));
 
-    expect(screen.getByTestId('overview-asset-map')).toBeTruthy();
+    expect(screen.getByTestId('asset-detail-dialog-map')).toBeTruthy();
     expect(screen.getByText('10.780500, 106.710800')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Open in Google Maps/i }).getAttribute('href')).toContain(
       '10.7805,106.7108',
     );
-    expect(screen.getByText('0901234567')).toBeTruthy();
-    expect(screen.getByText('ops@saigoninfra.vn')).toBeTruthy();
-    expect(screen.getByText('0907654321')).toBeTruthy();
-    expect(screen.getByText('manager@smartdrone.vn')).toBeTruthy();
-    expect(screen.queryByText('ACTIVE')).toBeNull();
     expect(screen.getByText(/184\/GP-TC/)).toBeTruthy();
     expect(screen.getByText(/120m/)).toBeTruthy();
+    expect(screen.queryByText(/Target checkpoints/i)).toBeNull();
+    expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
+
+    const assetCloseBtn = screen.getAllByRole('button', { name: 'Close' })[0];
+    if (!assetCloseBtn) throw new Error('Expected asset close button');
+    fireEvent.click(assetCloseBtn);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: /Saigon Infra Co/i }));
+    expect(screen.getByText('0901234567')).toBeTruthy();
+    expect(screen.getByText('ops@saigoninfra.vn')).toBeTruthy();
+
+    const customerCloseBtn = screen.getAllByRole('button', { name: 'Close' })[0];
+    if (!customerCloseBtn) throw new Error('Expected customer close button');
+    fireEvent.click(customerCloseBtn);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: /Tran Minh Quan Ly/i }));
+    expect(screen.getByText('0907654321')).toBeTruthy();
+    expect(screen.getByText('manager@smartdrone.vn')).toBeTruthy();
   });
 
   it('shows Asset, Manager, Inspector and Schedule cleanly for CUSTOMER and hides technical Drone outside', () => {
@@ -391,8 +404,9 @@ describe('InspectionDetailPage', () => {
     expect(screen.getByText(/^Schedule$/i)).toBeTruthy();
     expect(screen.queryByText('Saigon Bridge Corp')).toBeNull();
     expect(screen.queryByText(/DJI Matrice 350 RTK/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('button', { name: /Tran Van Inspector/i }));
     expect(screen.getByText('DJI Matrice 350 RTK [MTOW: 9.2 kg]')).toBeTruthy();
     expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
   });
@@ -961,7 +975,7 @@ describe('InspectionDetailPage', () => {
     const navigationPending = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(
       navigationPending.querySelector(
-        'a[aria-label*="Pre-flight Check: Waiting. Flight permit is pending Platform Manager verification"]',
+        'a[aria-label*="Pre-flight Check: Waiting. The drone or schedule changed — upload an updated flight permit before starting the pre-flight checklist."]',
       ),
     ).toBeTruthy();
 
@@ -980,7 +994,7 @@ describe('InspectionDetailPage', () => {
     const navigationRejected = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(
       navigationRejected.querySelector(
-        'a[aria-label*="Pre-flight Check: Waiting. Flight permit was rejected by the Platform Manager"]',
+        'a[aria-label*="Pre-flight Check: Waiting. Upload a replacement flight permit before starting the pre-flight checklist."]',
       ),
     ).toBeTruthy();
   });

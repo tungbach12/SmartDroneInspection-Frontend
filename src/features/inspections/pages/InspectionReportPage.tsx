@@ -32,6 +32,7 @@ import {
   useWithdrawReportVersion,
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { useToastStore } from '@/shared/ui/Toast';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { StepActionBar } from '../components/StepActionBar';
 import { getOrGeneratePersistedAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
@@ -57,6 +58,7 @@ const NEXT_STEP: Record<string, string> = {
  */
 export default function InspectionReportPage() {
   const { t, locale } = useLocale();
+  const showToast = useToastStore((state) => state.showToast);
   const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
     | { onReportDirtyChange?: (dirty: boolean) => void }
     | null;
@@ -327,11 +329,6 @@ export default function InspectionReportPage() {
             )}
 
             {createDraft.isPending && <DraftProgressTracker />}
-            {createDraft.isSuccess && (
-              <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                {t('Report compiled successfully. Review the sections below.')}
-              </Alert>
-            )}
             {createDraft.isError && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 {getErrorMessage(createDraft.error, 'The report was not generated.')}
@@ -633,7 +630,10 @@ export default function InspectionReportPage() {
             });
           } else {
             createDraft.mutate(draftPreviewVersion.summary, {
-              onSuccess: () => setConfirmSubmitOpen(false),
+              onSuccess: () => {
+                setConfirmSubmitOpen(false);
+                showToast(t('Report compiled successfully. Review the sections below.'));
+              },
             });
           }
         }}

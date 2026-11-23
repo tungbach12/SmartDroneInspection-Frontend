@@ -186,10 +186,8 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/Awaiting Manager verification/i),
+      await screen.findByText(/The drone or schedule changed/i),
     ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Submit flight permit for verification' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Replace permit' }));
     expect(screen.getByRole('button', { name: 'Submit flight permit for verification' })).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -458,7 +456,7 @@ describe('FieldSessionPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Replace permit' }));
     expect(
       screen.getByText(
-        /Replacing an approved permit revokes the current approval and resets verification to Pending Review/i,
+        /Replacing the permit records the new document immediately; you remain responsible for its validity\./i,
       ),
     ).toBeTruthy();
 

@@ -1,13 +1,10 @@
-import { useState } from 'react';
 import {
   Alert,
-  Box,
   Button,
   Chip,
   Grid,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
@@ -18,8 +15,6 @@ import SecurityRounded from '@mui/icons-material/SecurityRounded';
 import VerifiedUserRounded from '@mui/icons-material/VerifiedUserRounded';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
-import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import {
@@ -30,11 +25,9 @@ import type {
   FlightPermitVerificationStatus,
   InspectionDetail,
 } from '../api/inspectionApi';
-import { useReviewFlightPermit } from '../hooks/useInspections';
 
 export interface FlightPermitVerificationPanelProps {
   inspection: InspectionDetail;
-  canReview?: boolean;
   onPreviewPermit?: () => void;
   compact?: boolean;
   hideHeader?: boolean;
@@ -75,19 +68,19 @@ function resolveStatusMeta(
   switch (status) {
     case 'APPROVED':
       return {
-        label: t('Approved by Manager'),
+        label: t('Submitted by Inspector'),
         severity: 'success' as const,
         icon: <CheckCircleRounded fontSize="small" />,
       };
     case 'PENDING_REVIEW':
       return {
-        label: t('Pending Manager Verification'),
+        label: t('Re-upload required'),
         severity: 'warning' as const,
         icon: <PendingActionsRounded fontSize="small" />,
       };
     case 'REJECTED':
       return {
-        label: t('Rejected by Manager'),
+        label: t('Invalid — re-upload required'),
         severity: 'error' as const,
         icon: <CancelRounded fontSize="small" />,
       };
@@ -102,7 +95,6 @@ function resolveStatusMeta(
 
 export function FlightPermitVerificationPanel({
   inspection,
-  canReview = false,
   onPreviewPermit,
   compact = false,
   hideHeader = false,
@@ -111,13 +103,6 @@ export function FlightPermitVerificationPanel({
   showPendingPrompt = true,
 }: FlightPermitVerificationPanelProps) {
   const { t, formatDateTime } = useLocale();
-  const reviewPermit = useReviewFlightPermit(inspection.id);
-
-  const [reviewNotes, setReviewNotes] = useState(
-    inspection.flightPermitReviewNotes ?? '',
-  );
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
 
   const verificationStatus: FlightPermitVerificationStatus =
     inspection.flightPermitVerificationStatus ??
@@ -164,12 +149,18 @@ export function FlightPermitVerificationPanel({
   const isPermitExpired =
     hasPermit && Number.isFinite(validToMs) && validToMs < Date.now();
 
-  const canApprovePermit = verificationStatus === 'PENDING_REVIEW';
-  const reviewAllowed =
-    canReview &&
-    hasPermit &&
-    inspection.status === 'SCHEDULED' &&
-    (verificationStatus === 'PENDING_REVIEW' || verificationStatus === 'APPROVED');
+  const hasVisibleBody =
+    !hideHeader ||
+    (showAirspace && Boolean(airspace)) ||
+    Boolean(inspection.flightPermitRejectionReason) ||
+    (showPendingPrompt && verificationStatus === 'PENDING_REVIEW') ||
+    (!compact && verificationStatus === 'APPROVED') ||
+    (!hasPermit && !hideEmptyNotice) ||
+    hasPermit;
+
+  if (!hasVisibleBody) {
+    return null;
+  }
 
   return (
     <Paper
@@ -178,11 +169,7 @@ export function FlightPermitVerificationPanel({
         p: compact ? 2 : 2.5,
         borderRadius: '12px',
         borderColor:
-          verificationStatus === 'PENDING_REVIEW' && canReview
-            ? 'warning.main'
-            : verificationStatus === 'REJECTED'
-              ? 'error.main'
-              : 'divider',
+          verificationStatus === 'REJECTED' ? 'error.main' : 'divider',
         bgcolor: 'background.paper',
       }}
     >
@@ -199,9 +186,13 @@ export function FlightPermitVerificationPanel({
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <VerifiedUserRounded color="primary" fontSize="small" />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {t('Flight Permit Verification')}
+                {t('Flight Permit')}
               </Typography>
-              <StatusChip status={verificationStatus} />
+              <StatusChip
+                status={verificationStatus}
+                label={statusMeta.label}
+                tone={statusMeta.severity}
+              />
             </Stack>
 
             {hasPermit && onPreviewPermit && (
@@ -262,28 +253,20 @@ export function FlightPermitVerificationPanel({
           </Stack>
         )}
 
-        {verificationStatus === 'REJECTED' && inspection.flightPermitRejectionReason && (
+        {inspection.flightPermitRejectionReason && (
           <Alert severity="error" sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {t('Rejection reason')}: {inspection.flightPermitRejectionReason}
             </Typography>
-            {inspection.flightPermitVerifiedByName && (
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
-                {t('Reviewed by')}: {inspection.flightPermitVerifiedByName}
-                {inspection.flightPermitVerifiedAt
-                  ? ` · ${formatDateTime(new Date(inspection.flightPermitVerifiedAt))}`
-                  : ''}
-              </Typography>
-            )}
           </Alert>
         )}
 
         {showPendingPrompt && verificationStatus === 'PENDING_REVIEW' && (
           <Alert severity="warning" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {canReview
-                ? t('Submitted by the Inspector — review the document and approve or reject.')
-                : t('Awaiting Manager verification. Pre-flight check stays locked until approved.')}
+              {t(
+                'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+              )}
             </Typography>
           </Alert>
         )}
@@ -291,16 +274,8 @@ export function FlightPermitVerificationPanel({
         {!compact && verificationStatus === 'APPROVED' && (
           <Alert severity="success" icon={statusMeta.icon} sx={{ borderRadius: '10px' }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t('Verified and approved for this mission window.')}
+              {t('Uploaded and self-attested by the assigned Inspector for this mission window.')}
             </Typography>
-            {inspection.flightPermitVerifiedByName && (
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.25 }}>
-                {t('Verified by')}: {inspection.flightPermitVerifiedByName}
-                {inspection.flightPermitVerifiedAt
-                  ? ` · ${formatDateTime(new Date(inspection.flightPermitVerifiedAt))}`
-                  : ''}
-              </Typography>
-            )}
           </Alert>
         )}
 
@@ -463,141 +438,7 @@ export function FlightPermitVerificationPanel({
                 </Typography>
               </Grid>
             )}
-
-            {inspection.flightPermitReviewNotes && (
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('Reviewer Notes')}
-                </Typography>
-                <Typography variant="body2">{inspection.flightPermitReviewNotes}</Typography>
-              </Grid>
-            )}
           </Grid>
-        )}
-
-        {reviewAllowed && (
-          <Box
-            sx={{
-              pt: 1.5,
-              borderTop: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Stack spacing={1.5}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                {t('Manager Verification Decision')}
-              </Typography>
-              {(canApprovePermit || rejectOpen) && (
-                <TextField
-                  size="small"
-                  label={t('Verification notes (optional)')}
-                  placeholder={t('Record cross-check remarks, airspace authority reference, or conditions')}
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  fullWidth
-                />
-              )}
-
-              {rejectOpen ? (
-                <Stack spacing={1.25}>
-                  <TextField
-                    size="small"
-                    required
-                    multiline
-                    minRows={2}
-                    label={t('Rejection reason')}
-                    placeholder={t('Specify why the permit cannot be accepted (e.g. invalid stamp, expired dates, wrong drone serial)')}
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    fullWidth
-                  />
-                  <Stack direction="row" spacing={1.25}>
-                    <LoadingButton
-                      variant="contained"
-                      color="error"
-                      loading={reviewPermit.isPending}
-                      disabled={!rejectionReason.trim()}
-                      onClick={() =>
-                        reviewPermit.mutate(
-                          {
-                            decision: 'REJECTED',
-                            reason: rejectionReason.trim(),
-                            notes: reviewNotes.trim() || undefined,
-                          },
-                          {
-                            onSuccess: () => {
-                              setRejectOpen(false);
-                              setRejectionReason('');
-                            },
-                          },
-                        )
-                      }
-                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                    >
-                      {t('Confirm permit rejection')}
-                    </LoadingButton>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      disabled={reviewPermit.isPending}
-                      onClick={() => {
-                        setRejectOpen(false);
-                        setRejectionReason('');
-                      }}
-                      sx={{ textTransform: 'none', borderRadius: '8px' }}
-                    >
-                      {t('Cancel')}
-                    </Button>
-                  </Stack>
-                </Stack>
-              ) : (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                  {canApprovePermit ? (
-                    <LoadingButton
-                      variant="contained"
-                      color="success"
-                      loading={reviewPermit.isPending}
-                      disabled={serialMismatch || scheduleOutOfPermitWindow || isPermitExpired}
-                      onClick={() =>
-                        reviewPermit.mutate({
-                          decision: 'APPROVED',
-                          notes: reviewNotes.trim() || undefined,
-                        })
-                      }
-                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                    >
-                      {t('Approve flight permit')}
-                    </LoadingButton>
-                  ) : (
-                    <Button
-                      variant="outlined"
-                      color="success"
-                      disabled
-                      startIcon={<CheckCircleRounded />}
-                      sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                    >
-                      {t('Already approved')}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    disabled={reviewPermit.isPending}
-                    onClick={() => setRejectOpen(true)}
-                    sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
-                  >
-                    {t('Reject flight permit')}
-                  </Button>
-                </Stack>
-              )}
-
-              <MutationProblemAlert
-                error={reviewPermit.error}
-                isError={reviewPermit.isError}
-                fallbackMessage={t('Could not submit flight permit verification decision.')}
-              />
-            </Stack>
-          </Box>
         )}
       </Stack>
     </Paper>

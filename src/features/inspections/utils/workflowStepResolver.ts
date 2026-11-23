@@ -150,9 +150,6 @@ export function resolveRowStageSubtitle(
     if (row.reportStatus === 'RETURNED') {
       return 'Step 2/3 · Returned for Revision';
     }
-    if (row.pendingAction === 'PERMIT_REVIEW') {
-      return 'Step 1/3 · Permit Review Due';
-    }
     if (row.status === 'FIELD_COMPLETED') {
       return 'Step 2/3 · Awaiting report submission';
     }
@@ -220,8 +217,10 @@ export function resolveOverviewGuidance(
       case 'SCHEDULED':
         if (permitStatus === 'PENDING_REVIEW') {
           return {
-            tip: t('Flight permit submitted and awaiting your verification before flight takeoff.'),
-            actionLabel: t('Verify flight permit'),
+            tip: t(
+              'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+            ),
+            actionLabel: t('Open field & evidence audit'),
             subpath: 'audit',
           };
         }
@@ -287,7 +286,9 @@ export function resolveOverviewGuidance(
       }
       if (permitStatus === 'PENDING_REVIEW') {
         return {
-          tip: t('Flight permit uploaded and awaiting Platform Manager verification before pre-flight checks can begin.'),
+          tip: t(
+            'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+          ),
           actionLabel: t('Review permit status'),
           subpath: 'permit',
         };

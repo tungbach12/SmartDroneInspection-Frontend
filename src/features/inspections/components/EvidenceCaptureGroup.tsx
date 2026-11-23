@@ -988,7 +988,7 @@ function DraftNoteAction({
   const citationCount =
     (result?.citedCases?.length ?? 0) + (result?.citedGuidelines?.length ?? 0);
 
-  if (!canDraft && citationCount === 0) return null;
+  if (finding.status === 'CONFIRMED' || (!canDraft && citationCount === 0)) return null;
 
   return (
     <Box sx={{ mt: 0.5 }}>

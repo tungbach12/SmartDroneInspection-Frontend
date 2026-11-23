@@ -2,6 +2,7 @@ import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithRouter } from '@/test/renderWithRouter';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useToastStore } from '@/shared/ui/Toast';
 
 const mocks = vi.hoisted(() => ({
   versionsQuery: {
@@ -118,6 +119,7 @@ describe('InspectionReportPage', () => {
     mocks.verifyVersion.mutate.mockReset();
     mocks.submitVersion.mutate.mockReset();
     mocks.withdrawVersion.mutate.mockReset();
+    useToastStore.getState().hideToast();
   });
 
   afterEach(() => {
@@ -293,5 +295,33 @@ describe('InspectionReportPage', () => {
     renderWithRouter(<InspectionReportPage />);
 
     expect(screen.getByText(/The report has been published/)).toBeTruthy();
+  });
+
+  it('shows compilation success as a toast instead of an inline banner on submit', () => {
+    mocks.workflowQuery = {
+      data: {
+        status: 'FIELD_COMPLETED',
+        findingsConfirmedAt: '2026-10-14T12:00:00Z',
+      },
+      isLoading: false,
+      error: null,
+    };
+    mocks.createDraft.isSuccess = true;
+    mocks.createDraft.mutate.mockImplementation(
+      (_summary: unknown, options?: { onSuccess?: () => void }) => {
+        options?.onSuccess?.();
+      },
+    );
+
+    renderWithRouter(<InspectionReportPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and Submit' }));
+
+    expect(screen.queryByText('Report compiled successfully. Review the sections below.')).toBeNull();
+    expect(useToastStore.getState().open).toBe(true);
+    expect(useToastStore.getState().message).toBe(
+      'Report compiled successfully. Review the sections below.',
+    );
   });
 });

@@ -1186,4 +1186,47 @@ describe('InspectionFindingsPage', () => {
     expect(screen.getByText('Confirmed spall')).toBeTruthy();
     expect(screen.getByText('clean-span.png')).toBeTruthy();
   });
+
+  it('hides Draft note with AI and References once a finding is confirmed', () => {
+    mocks.evidenceQuery = { data: [imageEvidence()], isLoading: false, error: null, refetch: vi.fn() };
+    mocks.findingsQuery = {
+      data: [
+        {
+          ...pendingFinding(),
+          id: 'finding-confirmed-1',
+          status: 'CONFIRMED',
+          findingCode: 'F-0004',
+          defectLabel: 'Confirmed spalling',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.draftAllNotes.draftedNotes = {
+      'finding-confirmed-1': {
+        note: 'Drafted note.',
+        mode: 'AI_VISION_RAG',
+        retrievalMode: 'PGVECTOR_RAG',
+        citedCases: [],
+        citedGuidelines: [
+          {
+            id: 'guide-1',
+            standardCode: 'EN 1504-9',
+            title: 'Concrete repair',
+            severity: 'MEDIUM',
+            similarity: 0.72,
+            guidance: 'Record as-found condition.',
+          },
+        ],
+      },
+    };
+
+    renderWithRouter(<InspectionFindingsPage />);
+
+    expect(screen.getByText('Confirmed spalling')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Draft note with AI' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /References/ })).toBeNull();
+  });
 });

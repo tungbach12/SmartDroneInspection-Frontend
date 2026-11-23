@@ -147,7 +147,7 @@ describe('InspectionWorkDetailDialog', () => {
       />,
     );
 
-    expect(screen.getByText(/awaiting Platform Manager verification/i)).toBeTruthy();
+    expect(screen.getByText(/The drone or schedule changed/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Review permit status/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/operations/inspections/insp-12345678-abcd/permit');
   });

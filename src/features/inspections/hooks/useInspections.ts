@@ -19,7 +19,6 @@ import {
   type ManualFindingInput,
   type PlatformAiAnalytics,
   type ReviewFindingInput,
-  type ReviewFlightPermitInput,
   type UpdatePlatformAiSettingsInput,
   type UploadFlightPermitInput,
 } from '../api/inspectionApi';
@@ -285,28 +284,7 @@ export function useUploadFlightPermit(inspectionId: string | null) {
   });
 }
 
-export function useReviewFlightPermit(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (payload: ReviewFlightPermitInput) =>
-      inspectionApi.reviewFlightPermit(inspectionId!, payload),
-    onSuccess: (_data, payload) => {
-      showToast(
-        payload.decision === 'APPROVED'
-          ? 'Flight permit approved'
-          : 'Flight permit rejected',
-      );
-      if (!inspectionId) return;
-      void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
-      void client.invalidateQueries({ queryKey: inspectionKeys.all });
-    },
-    onError: (error) =>
-      showToast(getErrorMessage(error, 'Could not review flight permit.'), 'error'),
-  });
-}
-
-export type { FlightPermitVerificationStatus, ReviewFlightPermitInput, UploadFlightPermitInput };
+export type { FlightPermitVerificationStatus, UploadFlightPermitInput };
 
 export interface EvidenceQueryFilters {
   status: 'ACTIVE' | 'RETIRED' | 'ALL';

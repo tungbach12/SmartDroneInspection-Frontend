@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link as RouterLink, NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   ButtonBase,
@@ -33,6 +34,7 @@ import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import ChatOutlined from '@mui/icons-material/ChatOutlined';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -58,10 +60,16 @@ import {
   useRescheduleInspection,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
-import { InspectionOverviewDetails } from '../components/InspectionOverviewDetails';
+import {
+  InspectionContextDialogs,
+  type InspectionContextModalType,
+} from '../components/InspectionContextDialogs';
 import { OverviewStakeholdersSection } from '../components/OverviewStakeholdersSection';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
-import { resolveInspectionMetadata } from '../utils/inspectorFinance';
+import {
+  resolveInspectionMetadata,
+  resolveInspectorFinanceBreakdown,
+} from '../utils/inspectorFinance';
 import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
@@ -296,6 +304,7 @@ export default function InspectionDetailPage() {
   const [forceAbortOpen, setForceAbortOpen] = useState(false);
   const [forceAbortReason, setForceAbortReason] = useState('');
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [contextModal, setContextModal] = useState<InspectionContextModalType>(null);
   const stageContentRef = useRef<HTMLDivElement>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -368,10 +377,11 @@ export default function InspectionDetailPage() {
     inspection?.inspectorName ||
     matchedInspector?.fullName ||
     (inspection?.inspectorId ? `#${inspection.inspectorId.slice(0, 8)}` : null);
-  const managerLabel =
-    inspection?.managerName ||
-    inspection?.flightPermitVerifiedByName ||
-    null;
+  const managerLabel = inspection?.managerName || null;
+  const customerAvatarUrl = inspection?.ownerCustomerAvatarUrl || null;
+  const inspectorAvatarUrl = inspection?.inspectorAvatarUrl || null;
+  const managerAvatarUrl = inspection?.managerAvatarUrl || null;
+  const primaryAssetPhotoId = inspection?.assetPhotoDocumentIds?.[0] ?? null;
   const droneShortName =
     inspection?.droneModel || inspection?.droneSerialNumber || t('Unassigned');
   const shortScheduleLabel = inspection?.plannedStartAt
@@ -781,12 +791,14 @@ export default function InspectionDetailPage() {
     }
     if ((step.value === 'pre-flight' || step.value === 'field-session') && !hasPermitReady) {
       if (permitVerificationStatus === 'PENDING_REVIEW') {
-        return t('Flight permit is pending Platform Manager verification before starting the pre-flight checklist.');
+        return t(
+          'The drone or schedule changed — upload an updated flight permit before starting the pre-flight checklist.',
+        );
       }
       if (permitVerificationStatus === 'REJECTED') {
-        return t('Flight permit was rejected by the Platform Manager. Upload a replacement permit before starting the pre-flight checklist.');
+        return t('Upload a replacement flight permit before starting the pre-flight checklist.');
       }
-      return t('Upload the flight permit and await Manager approval before starting the pre-flight checklist.');
+      return t('Upload the flight permit before starting the pre-flight checklist.');
     }
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
@@ -935,15 +947,36 @@ export default function InspectionDetailPage() {
         />
 
         {inspection && (() => {
-          const contextSummaryColumns: Array<{ label: string; value: string; tabular?: boolean }> = [];
+          const contextSummaryColumns: Array<{
+            label: string;
+            value: string;
+            tabular?: boolean;
+            modalKey?: Exclude<InspectionContextModalType, null>;
+            avatarUrl?: string | null;
+          }> = [];
           if (!isCustomer && customerLabel) {
-            contextSummaryColumns.push({ label: t('Customer'), value: customerLabel });
+            contextSummaryColumns.push({
+              label: t('Customer'),
+              value: customerLabel,
+              modalKey: 'customer',
+              avatarUrl: customerAvatarUrl,
+            });
           }
           if ((isReviewerAdmin || isCustomer) && inspectorLabel) {
-            contextSummaryColumns.push({ label: t('Inspector'), value: inspectorLabel });
+            contextSummaryColumns.push({
+              label: t('Inspector'),
+              value: inspectorLabel,
+              modalKey: 'inspector',
+              avatarUrl: inspectorAvatarUrl,
+            });
           }
           if (!isReviewerAdmin && managerLabel) {
-            contextSummaryColumns.push({ label: t('Manager'), value: managerLabel });
+            contextSummaryColumns.push({
+              label: t('Manager'),
+              value: managerLabel,
+              modalKey: 'manager',
+              avatarUrl: managerAvatarUrl,
+            });
           }
           if (!isCustomer) {
             contextSummaryColumns.push({ label: t('Drone'), value: droneShortName });
@@ -951,6 +984,11 @@ export default function InspectionDetailPage() {
           if (!isReviewerAdmin && shortScheduleLabel) {
             contextSummaryColumns.push({ label: t('Schedule'), value: shortScheduleLabel, tabular: true });
           }
+          const hasOverviewPanel =
+            isReviewerAdmin ||
+            (!isOrganizationAdmin &&
+              !isCustomer &&
+              Boolean(resolveInspectorFinanceBreakdown(inspection.id, null)));
           return (
             <Paper
               elevation={0}
@@ -979,22 +1017,67 @@ export default function InspectionDetailPage() {
                   <Stack
                     direction="row"
                     spacing={1.25}
-                    onClick={() => setContextOverviewOpen((prev) => !prev)}
                     sx={{
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       rowGap: 0.5,
-                      cursor: 'pointer',
                       minWidth: 0,
                       flex: 1,
                     }}
                   >
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
+                    <ButtonBase
+                      onClick={() => setContextModal('asset')}
+                      aria-label={t('View asset details')}
+                      title={t('View asset details')}
+                      sx={{
+                        textAlign: 'left',
+                        borderRadius: '8px',
+                        px: 0.5,
+                        mx: -0.5,
+                        py: 0.25,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 1.25,
+                        transition: 'color 150ms ease, background-color 150ms ease',
+                        '&:hover': {
+                          color: 'primary.main',
+                          bgcolor: 'action.hover',
+                        },
+                        '&:hover .asset-title-text': {
+                          color: 'primary.main',
+                          textDecoration: 'underline',
+                        },
+                      }}
                     >
-                      {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
-                    </Typography>
+                      {primaryAssetPhotoId && (
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            flexShrink: 0,
+                            borderRadius: '8px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'action.hover',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <AuthenticatedImage
+                            src={`/inspections/${inspection.id}/asset-photos/${primaryAssetPhotoId}/content`}
+                            alt={inspection.assetName || t('Asset')}
+                            maxHeight={36}
+                            sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        </Box>
+                      )}
+                      <Typography
+                        variant="subtitle2"
+                        className="asset-title-text"
+                        sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
+                      >
+                        {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
+                      </Typography>
+                    </ButtonBase>
 
                     {inspection.inspectionType === 'RE_INSPECTION' && (
                       <Chip
@@ -1015,16 +1098,18 @@ export default function InspectionDetailPage() {
                     )}
                   </Stack>
 
-                  <Button
-                    size="small"
-                    variant="text"
-                    aria-expanded={contextOverviewOpen}
-                    endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
-                    onClick={() => setContextOverviewOpen((prev) => !prev)}
-                    sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
-                  >
-                    {t('Overview')}
-                  </Button>
+                  {hasOverviewPanel && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      aria-expanded={contextOverviewOpen}
+                      endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                      onClick={() => setContextOverviewOpen((prev) => !prev)}
+                      sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
+                    >
+                      {t('Overview')}
+                    </Button>
+                  )}
                 </Stack>
 
                 {contextSummaryColumns.length > 0 && (
@@ -1059,77 +1144,111 @@ export default function InspectionDetailPage() {
                         >
                           {col.label}
                         </Typography>
-                        <Typography
-                          variant="body2"
-                          noWrap
-                          title={col.value}
-                          sx={{
-                            color: 'text.primary',
-                            fontWeight: 600,
-                            fontSize: '0.84rem',
-                            fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
-                          }}
-                        >
-                          {col.value}
-                        </Typography>
+                        {col.modalKey ? (
+                          <ButtonBase
+                            onClick={() => setContextModal(col.modalKey!)}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-start',
+                              gap: 0.75,
+                              width: '100%',
+                              maxWidth: '100%',
+                              textAlign: 'left',
+                              borderRadius: '4px',
+                              px: 0.5,
+                              mx: -0.5,
+                              transition: 'background-color 150ms ease',
+                              '&:hover': {
+                                bgcolor: 'action.hover',
+                              },
+                              '&:hover .context-col-value': {
+                                color: 'primary.main',
+                                textDecoration: 'underline',
+                              },
+                            }}
+                          >
+                            <Avatar
+                              src={col.avatarUrl ?? undefined}
+                              alt={col.value}
+                              sx={{ width: 22, height: 22, fontSize: '0.68rem', fontWeight: 700, flexShrink: 0 }}
+                            >
+                              {col.value.slice(0, 1).toUpperCase()}
+                            </Avatar>
+                            <Typography
+                              variant="body2"
+                              noWrap
+                              title={col.value}
+                              className="context-col-value"
+                              sx={{
+                                color: 'text.primary',
+                                fontWeight: 600,
+                                fontSize: '0.84rem',
+                                fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
+                              }}
+                            >
+                              {col.value}
+                            </Typography>
+                          </ButtonBase>
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            noWrap
+                            title={col.value}
+                            sx={{
+                              color: 'text.primary',
+                              fontWeight: 600,
+                              fontSize: '0.84rem',
+                              fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
+                            }}
+                          >
+                            {col.value}
+                          </Typography>
+                        )}
                       </Box>
                     ))}
                   </Box>
                 )}
               </Stack>
 
-              <Collapse in={contextOverviewOpen} unmountOnExit>
-                <Stack
-                  spacing={2}
-                  sx={{
-                    mt: 1.5,
-                    pt: 1.5,
-                    borderTop: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <InspectionOverviewDetails
-                    inspection={inspection}
-                    isCustomer={isCustomer}
-                    isReviewerAdmin={isReviewerAdmin}
-                    droneShortName={droneShortName}
-                  />
+              <InspectionContextDialogs
+                inspection={inspection}
+                openModal={contextModal}
+                onClose={() => setContextModal(null)}
+                isCustomer={isCustomer}
+                droneShortName={droneShortName}
+                chatInboxPath={chatInboxPath}
+                canOpenInspectionChat={canOpenInspectionChat}
+                customerAvatarUrl={customerAvatarUrl}
+                managerAvatarUrl={managerAvatarUrl}
+                inspectorAvatarUrl={inspectorAvatarUrl}
+              />
 
-                  {!isCustomer ? (
-                    <Box
-                      role="region"
-                      className="inspection-evidence-trace"
-                      aria-label={t('Inspection evidence trace')}
-                      sx={{ p: 0, border: 'none !important', bgcolor: 'transparent' }}
-                    >
-                      <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
-                        <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
-                        <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
-                      </Stack>
-                    </Box>
-                  ) : (
-                    <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>{t('Report')}</strong> ·{' '}
-                        {hasPublishedVersion ? t('Published') : t('Pending')}
-                      </Typography>
-                    </Stack>
-                  )}
+              {hasOverviewPanel && (
+                <Collapse in={contextOverviewOpen} unmountOnExit>
+                  <Stack
+                    spacing={2}
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {!isOrganizationAdmin && !isCustomer && (
+                      <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
+                    )}
 
-                  {!isOrganizationAdmin && !isCustomer && (
-                    <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
-                  )}
-
-                  {isReviewerAdmin && (
-                    <OverviewStakeholdersSection
-                      inspection={inspection}
-                      portal={reviewerPortal}
-                      onNavigateAway={() => setContextOverviewOpen(false)}
-                    />
-                  )}
-                </Stack>
-              </Collapse>
+                    {isReviewerAdmin && (
+                      <OverviewStakeholdersSection
+                        inspection={inspection}
+                        portal={reviewerPortal}
+                        onNavigateAway={() => setContextOverviewOpen(false)}
+                      />
+                    )}
+                  </Stack>
+                </Collapse>
+              )}
             </Paper>
           );
         })()}
@@ -1532,19 +1651,6 @@ export default function InspectionDetailPage() {
         )}
       </Box>
 
-      {inspection?.inspectionType === 'RE_INSPECTION' && !isCustomer && !isReviewerAdmin && (
-        <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
-          <Alert severity="info">
-            {t('This mission verifies the original repair outcome. Complete the normal permit, field session, evidence and report steps; a new permit is required for every re-inspection.')}
-            {inspection.sourceInspectionId && (
-              <>
-                {' '}
-                {t('Source inspection')}: {inspection.sourceInspectionId.slice(0, 8)}
-              </>
-            )}
-          </Alert>
-        </Box>
-      )}
       <Box ref={stageContentRef} className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
         {isExecutionLockedByAssignment ? (
           <Paper

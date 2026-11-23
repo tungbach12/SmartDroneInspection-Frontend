@@ -816,7 +816,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                       <Typography variant="subtitle1" sx={{ fontSize: '1.0625rem', fontWeight: 600, color: 'text.primary' }}>
                         {t('Flight permit')}
                       </Typography>
-                      <StatusChip status={permitVerificationStatus} />
                     </Stack>
                     {!stage && inspection.assetName && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -862,7 +861,6 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                 <FlightPermitVerificationPanel
                   inspection={inspection}
-                  canReview={isManagerOrAdmin}
                   onPreviewPermit={() => setPermitPreviewOpen(true)}
                   compact
                   showAirspace={false}
@@ -878,12 +876,15 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                 {inspection.status === 'SCHEDULED' &&
                   !isManagerOrAdmin &&
-                  (!hasPermit || permitVerificationStatus === 'REJECTED' || replacePermitOpen) && (
+                  (!hasPermit ||
+                    permitVerificationStatus === 'REJECTED' ||
+                    permitVerificationStatus === 'PENDING_REVIEW' ||
+                    replacePermitOpen) && (
                   <Stack spacing={2}>
                     {replacePermitOpen && isPermitApproved && (
                       <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                         {t(
-                          'Replacing an approved permit revokes the current approval and resets verification to Pending Review until a Platform Manager approves it again.',
+                          'Replacing the permit records the new document immediately; you remain responsible for its validity.',
                         )}
                       </Alert>
                     )}

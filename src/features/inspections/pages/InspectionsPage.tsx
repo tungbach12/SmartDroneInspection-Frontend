@@ -132,9 +132,6 @@ export default function InspectionsPage() {
       if (row.reportStatus === 'RETURNED') return t('Read returned report');
       return t('Open report');
     }
-    if (isPlatformManager && row.pendingAction === 'PERMIT_REVIEW') {
-      return t('Verify flight permit');
-    }
     if (portal === 'client') {
       return row.reportStatus === 'PUBLISHED' ? t('View report') : t('Track progress');
     }
@@ -147,9 +144,7 @@ export default function InspectionsPage() {
   const displayedItems = useMemo(() => {
     let result = visibleItems;
     if (statusFilter !== 'ALL') {
-      if (statusFilter === 'PERMIT_REVIEW') {
-        result = result.filter((item) => item.pendingAction === 'PERMIT_REVIEW');
-      } else if (statusFilter === 'UNDER_REVIEW') {
+      if (statusFilter === 'UNDER_REVIEW') {
         result = result.filter(
           (item) => item.status === 'UNDER_REVIEW' || item.pendingAction === 'REPORT_REVIEW' || item.reportStatus === 'SUBMITTED',
         );
@@ -173,7 +168,6 @@ export default function InspectionsPage() {
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
   const reportDueCount = items.filter((item) => item.pendingAction === 'REPORT_REVIEW').length;
-  const permitDueCount = items.filter((item) => item.pendingAction === 'PERMIT_REVIEW').length;
   const pendingAssignmentItems = useMemo(
     () =>
       items.filter(
@@ -342,37 +336,6 @@ export default function InspectionsPage() {
               </Stack>
             </Alert>
           )}
-          {isPlatformManager && view === 'all' && permitDueCount > 0 && (
-            <Alert severity="warning" sx={{ borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1.25}
-                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {permitDueCount} {t(permitDueCount === 1 ? 'inspection has a flight permit pending manager verification' : 'inspections have flight permits pending manager verification')}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="inherit"
-                  onClick={() => {
-                    setStatusFilter(statusFilter === 'PERMIT_REVIEW' ? 'ALL' : 'PERMIT_REVIEW');
-                    setPage(1);
-                  }}
-                  sx={{
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    borderRadius: '8px',
-                    alignSelf: { xs: 'flex-start', sm: 'center' },
-                    minHeight: 36,
-                  }}
-                >
-                  {statusFilter === 'PERMIT_REVIEW' ? t('Show all') : t('View pending permits')}
-                </Button>
-              </Stack>
-            </Alert>
-          )}
           {isPlatformManager && view === 'all' && declinedReassignCount > 0 && (
             <Alert severity="error" sx={{ borderRadius: '10px' }}>
               {declinedReassignCount} {t('declined inspections require reassignment')}
@@ -479,7 +442,6 @@ export default function InspectionsPage() {
                   ? {
                       statusOptions: [
                         { value: 'ALL', label: t('All statuses') },
-                        { value: 'PERMIT_REVIEW', label: t('Permit review due') },
                         { value: 'SCHEDULED', label: t('Scheduled') },
                         { value: 'IN_PROGRESS', label: t('In Progress') },
                         { value: 'FIELD_COMPLETED', label: t('Field Completed') },

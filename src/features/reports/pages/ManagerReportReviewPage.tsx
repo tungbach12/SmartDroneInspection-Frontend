@@ -51,9 +51,7 @@ export default function ManagerReportReviewPage({
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
-  const roles = useAuthStore((state) => state.roles);
   const userId = useAuthStore((state) => state.userId);
-  const canVerifyPermit = roles.includes('MANAGER') || roles.includes('ADMIN');
   const showAuditStage = stage === 'audit';
   const showReviewStage = !stage || stage === 'review';
   const showSettlementStage = !stage || stage === 'settlement';
@@ -93,6 +91,10 @@ export default function ManagerReportReviewPage({
   const resolvedPermitFileName =
     openVersion?.reportContext?.flightPermitFileName ??
     inspectionQuery.data?.flightPermitFileName ??
+    null;
+  const auditFieldSessionId =
+    openVersion?.reportContext?.fieldSessions?.at(-1)?.id ??
+    fieldSessionsQuery.data?.at(-1)?.id ??
     null;
 
   const isPaid =
@@ -147,7 +149,6 @@ export default function ManagerReportReviewPage({
           {inspectionQuery.data && (
             <FlightPermitVerificationPanel
               inspection={inspectionQuery.data}
-              canReview={canVerifyPermit}
               onPreviewPermit={() => setPermitPreviewOpen(true)}
               compact
               showAirspace={false}
@@ -173,20 +174,18 @@ export default function ManagerReportReviewPage({
             />
           )}
 
-          <FlightOperationsReportView
-            inspectionId={inspectionId}
-            fieldSessionId={
-              openVersion?.reportContext?.fieldSessions?.at(-1)?.id ??
-              fieldSessionsQuery.data?.at(-1)?.id ??
-              null
-            }
-            version={openVersion}
-            evidenceList={evidence.data ?? []}
-            assetName={inspectionQuery.data?.assetName}
-            droneSummary={resolvedDroneSummary}
-            flightPermitFileName={resolvedPermitFileName}
-            collapsible
-          />
+          {auditFieldSessionId && (
+            <FlightOperationsReportView
+              inspectionId={inspectionId}
+              fieldSessionId={auditFieldSessionId}
+              version={openVersion}
+              evidenceList={evidence.data ?? []}
+              assetName={inspectionQuery.data?.assetName}
+              droneSummary={resolvedDroneSummary}
+              flightPermitFileName={resolvedPermitFileName}
+              collapsible
+            />
+          )}
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button

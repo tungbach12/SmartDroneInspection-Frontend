@@ -37,7 +37,6 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
       uploadFlightPermit: vi.fn(),
-      reviewFlightPermit: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
       getFindingRecommendations: vi.fn(),

@@ -513,16 +513,8 @@ export interface UploadFlightPermitInput {
   maxAltitudeM?: number | null | undefined;
 }
 
-/** Platform manager / admin verification decision payload for an uploaded flight permit. */
-export interface ReviewFlightPermitInput {
-  decision: 'APPROVED' | 'REJECTED';
-  reason?: string | null | undefined;
-  notes?: string | null | undefined;
-}
-
 /** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
-  | 'PERMIT_REVIEW'
   | 'REPORT_REVIEW'
   | 'NONE';
 
@@ -548,16 +540,20 @@ export interface InspectionDetail {
   ownerCustomerName?: string | null;
   ownerCustomerEmail?: string | null;
   ownerCustomerPhone?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   managerName?: string | null;
   managerEmail?: string | null;
   managerPhone?: string | null;
+  managerAvatarUrl?: string | null;
   assetId: string;
   assetName: string | null;
+  assetPhotoDocumentIds?: string[];
   locationText?: string | null | undefined;
   assetLatitude?: number | null | undefined;
   assetLongitude?: number | null | undefined;
   inspectorId: string;
   inspectorName: string | null;
+  inspectorAvatarUrl?: string | null;
   droneId: string | null;
   droneSerialNumber: string | null;
   droneModel?: string | null;
@@ -691,11 +687,6 @@ export const inspectionApi = {
       .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit`, form)
       .then((response) => response.data);
   },
-
-  reviewFlightPermit: (inspectionId: string, payload: ReviewFlightPermitInput) =>
-    api
-      .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit/review`, payload)
-      .then((response) => response.data),
 
   flightPermitContentUrl: (inspectionId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/flight-permit/content`,
