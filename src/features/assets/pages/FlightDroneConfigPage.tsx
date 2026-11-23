@@ -154,26 +154,10 @@ function FlightChecklistsTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistTemplate | null>(null);
-  const [category, setCategory] = useState('AIRFRAME_POWER');
   const [label, setLabel] = useState('');
   const [labelVi, setLabelVi] = useState('');
-  const [referenceThreshold, setReferenceThreshold] = useState('');
   const [required, setRequired] = useState(kind === 'PRE_FLIGHT');
   const [deleting, setDeleting] = useState<ChecklistTemplate | null>(null);
-
-  const categoryOptions =
-    kind === 'PRE_FLIGHT'
-      ? [
-          { value: 'AIRFRAME_POWER', label: tr('Khung thân & Pin', 'Airframe & Power') },
-          { value: 'WEATHER_AIRSPACE', label: tr('Thời tiết & Không phận', 'Weather & Airspace') },
-          { value: 'NAVIGATION_FAILSAFE', label: tr('Định vị & RTH Failsafe', 'Navigation & Failsafe') },
-          { value: 'PAYLOAD_COMMS', label: tr('Cảm biến & Kết nối', 'Payload & Comms') },
-          { value: 'SITE_EMERGENCY', label: tr('Hiện trường & Khẩn cấp', 'Site & Emergency') },
-        ]
-      : [
-          { value: 'POST_FLIGHT_HARDWARE', label: tr('Phần cứng & Pin sau bay', 'Post-flight Hardware') },
-          { value: 'POST_FLIGHT_MEDIA', label: tr('Dữ liệu & Mặt bằng', 'Media & Site Clear') },
-        ];
 
   const items = useMemo(
     () =>
@@ -190,8 +174,7 @@ function FlightChecklistsTab() {
       if (
         query &&
         !item.label.toLowerCase().includes(query) &&
-        !(item.labelVi ?? '').toLowerCase().includes(query) &&
-        !(item.referenceThreshold ?? '').toLowerCase().includes(query)
+        !(item.labelVi ?? '').toLowerCase().includes(query)
       ) {
         return false;
       }
@@ -205,10 +188,8 @@ function FlightChecklistsTab() {
     createTemplate.reset();
     updateTemplate.reset();
     setEditing(null);
-    setCategory(kind === 'PRE_FLIGHT' ? 'AIRFRAME_POWER' : 'POST_FLIGHT_HARDWARE');
     setLabel('');
     setLabelVi('');
-    setReferenceThreshold('');
     setRequired(kind === 'PRE_FLIGHT');
     setDialogOpen(true);
   };
@@ -217,12 +198,8 @@ function FlightChecklistsTab() {
     createTemplate.reset();
     updateTemplate.reset();
     setEditing(item);
-    setCategory(
-      item.category || (kind === 'PRE_FLIGHT' ? 'AIRFRAME_POWER' : 'POST_FLIGHT_HARDWARE'),
-    );
     setLabel(item.label);
     setLabelVi(item.labelVi ?? '');
-    setReferenceThreshold(item.referenceThreshold ?? '');
     setRequired(item.required);
     setDialogOpen(true);
   };
@@ -236,12 +213,12 @@ function FlightChecklistsTab() {
         {
           id: editing.id,
           input: {
-            category,
+            category: editing.category || 'GENERAL',
             label: trimmed,
             labelVi: labelVi.trim() || null,
             details: null,
             detailsVi: null,
-            referenceThreshold: referenceThreshold.trim() || null,
+            referenceThreshold: null,
             safetyCritical: editing.safetyCritical ?? required,
             sortOrder: editing.sortOrder,
             active: editing.active,
@@ -257,12 +234,12 @@ function FlightChecklistsTab() {
       {
         templateType: kind,
         categoryId: null,
-        category,
+        category: 'GENERAL',
         label: trimmed,
         labelVi: labelVi.trim() || null,
         details: null,
         detailsVi: null,
-        referenceThreshold: referenceThreshold.trim() || null,
+        referenceThreshold: null,
         safetyCritical: required,
         sortOrder: nextSortOrder,
         required,
@@ -487,19 +464,6 @@ function FlightChecklistsTab() {
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField
-                select
-                size="small"
-                label={tr('Nhóm an toàn', 'Safety category')}
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-              >
-                {categoryOptions.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
                 required
                 autoFocus
                 size="small"
@@ -512,13 +476,6 @@ function FlightChecklistsTab() {
                 label={tr('Nhãn tiếng Việt', 'Vietnamese label')}
                 value={labelVi}
                 onChange={(event) => setLabelVi(event.target.value)}
-              />
-              <TextField
-                size="small"
-                label={tr('Ngưỡng tham chiếu (tùy chọn)', 'Reference note (optional)')}
-                placeholder={tr('Bỏ trống nếu phụ thuộc từng dòng drone', 'Leave blank if drone-specific')}
-                value={referenceThreshold}
-                onChange={(event) => setReferenceThreshold(event.target.value)}
               />
               <TextField
                 select
