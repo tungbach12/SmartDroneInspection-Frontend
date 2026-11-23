@@ -219,7 +219,7 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
 ] as const;
 
 /**
- * Platform Manager workspace stages (3 steps):
+ * Manager workspace stages (3 steps):
  * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
  */
 const REVIEWER_STEPS: readonly WorkflowStep[] = [
@@ -841,7 +841,7 @@ export default function InspectionDetailPage() {
       }
       if (isWindowExpired) {
         return {
-          description: t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.'),
+          description: t('The scheduled flight window has elapsed. Contact the Manager to reschedule before starting a new session.'),
           continueAction: null,
         };
       }
@@ -849,8 +849,8 @@ export default function InspectionDetailPage() {
         return {
           description:
             tabValue === 'permit'
-              ? t('Upload a valid flight permit below before starting a new session, or contact the Platform Manager to reschedule.')
-              : t('The flight session was stopped before completion. Upload a valid flight permit to prepare a new session, or contact the Platform Manager to reschedule.'),
+              ? t('Upload a valid flight permit below before starting a new session, or contact the Manager to reschedule.')
+              : t('The flight session was stopped before completion. Upload a valid flight permit to prepare a new session, or contact the Manager to reschedule.'),
           continueAction:
             tabValue === 'permit'
               ? { scrollToContent: true, label: t('Upload Flight Permit') }
@@ -860,8 +860,8 @@ export default function InspectionDetailPage() {
       return {
         description:
           tabValue === 'pre-flight'
-            ? t('Complete the pre-flight checklist below to start a new session when conditions are safe, or contact the Platform Manager to reschedule.')
-            : t('The flight session was stopped before completion. You can prepare a new session when conditions are safe, or contact the Platform Manager to reschedule.'),
+            ? t('Complete the pre-flight checklist below to start a new session when conditions are safe, or contact the Manager to reschedule.')
+            : t('The flight session was stopped before completion. You can prepare a new session when conditions are safe, or contact the Manager to reschedule.'),
         continueAction:
           tabValue === 'pre-flight'
             ? { scrollToContent: true, label: t('Complete Pre-flight Checklist') }
@@ -869,7 +869,7 @@ export default function InspectionDetailPage() {
       };
     }
     return {
-      description: t('The flight session was stopped before completion. The Platform Manager will reschedule or reassign this inspection as needed.'),
+      description: t('The flight session was stopped before completion. The Manager will reschedule or reassign this inspection as needed.'),
       continueAction: null,
     };
   })();
@@ -1367,7 +1367,7 @@ export default function InspectionDetailPage() {
                 <Typography variant="body2" sx={{ mt: 0.25 }}>
                   {canDispatch
                     ? t('The scheduled flight window elapsed with no active field session recorded. Follow up, reschedule, or reassign as needed.')
-                    : t('The scheduled flight window elapsed with no active field session recorded. Pending Platform Manager follow-up, rescheduling, or reassignment.')}
+                    : t('The scheduled flight window elapsed with no active field session recorded. Pending Manager follow-up, rescheduling, or reassignment.')}
                 </Typography>
               </Box>
               {renderDispatchRecoveryActions('reschedule')}
@@ -1723,7 +1723,7 @@ export default function InspectionDetailPage() {
                 required
                 value={declineReason}
                 onChange={(e) => setDeclineReason(e.target.value)}
-                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+                helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
               />
               <MutationProblemAlert
                 error={declineMutation.error}

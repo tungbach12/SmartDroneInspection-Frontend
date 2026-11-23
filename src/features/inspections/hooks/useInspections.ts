@@ -832,7 +832,7 @@ export function useSubmitReportVersion(inspectionId: string | null) {
     mutationFn: (versionId: string) =>
       inspectionApi.submitVersion(inspectionId!, versionId),
     onSuccess: () => {
-      showToast('Report submitted for Organization Manager review.');
+      showToast('Report submitted for Manager review.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }

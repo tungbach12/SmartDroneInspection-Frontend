@@ -610,7 +610,7 @@ export default function InspectorOnboardingPage({ embedded = false }: { embedded
                   ? 'Tài khoản Đối tác đã được phê duyệt kích hoạt!'
                   : profile.onboardingStatus === 'REJECTED'
                     ? `Yêu cầu bổ sung: ${profile.rejectionReason || 'Vui lòng kiểm tra lại hồ sơ'}`
-                    : 'Đang chờ Platform Manager kiểm tra và phê duyệt kích hoạt.'}
+                    : 'Đang chờ Manager kiểm tra và phê duyệt kích hoạt.'}
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.5 }}>
                 • Bản scan Bằng lái UAV: <strong>{profile.hasLicenseScan ? 'Đã nộp' : 'Chưa nộp'}</strong>

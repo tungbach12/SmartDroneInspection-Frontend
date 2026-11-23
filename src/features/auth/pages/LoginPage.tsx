@@ -714,7 +714,7 @@ export default function LoginPage() {
       >
         {registrationComplete && (
           <Alert severity="success" sx={{ borderRadius: 2 }}>
-            {t('Your organization and Organization Manager account are ready. Sign in to open your workspace.')}
+            {t('Your Customer account is ready. Sign in to open your workspace.')}
           </Alert>
         )}
         {passwordChanged && (

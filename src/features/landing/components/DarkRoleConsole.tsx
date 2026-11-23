@@ -6,22 +6,22 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 const roles = [
   {
     role: 'ADMIN',
-    title: 'Platform Administrator',
+    title: 'Administrator',
     description:
-      'Manage platform access and maintain secure, reliable service across workspaces.',
+      'Manage platform access and maintain secure, reliable service across accounts.',
     status: 'active' as const,
     statusLabel: 'PLATFORM ACCESS',
-    actionText: 'Platform Sign In',
+    actionText: 'Admin Sign In',
     href: '/login',
   },
   {
     role: 'CUSTOMER',
-    title: 'Organization Manager',
+    title: 'Customer',
     description:
       'Register site assets, submit inspection requests, and review released inspection reports.',
     status: 'pass' as const,
-    statusLabel: 'ORGANIZATION ACCESS',
-    actionText: 'Organization Sign In',
+    statusLabel: 'CUSTOMER ACCESS',
+    actionText: 'Customer Sign In',
     href: '/login',
   },
   {

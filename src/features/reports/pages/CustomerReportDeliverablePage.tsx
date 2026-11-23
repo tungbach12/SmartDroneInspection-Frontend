@@ -329,7 +329,7 @@ export default function CustomerReportDeliverablePage({
             {priorClarificationCount >= 2 ? (
               <Alert severity="error" sx={{ borderRadius: '8px' }}>
                 {t(
-                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Platform Manager directly for reconciliation.',
+                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Manager directly for reconciliation.',
                 )}
               </Alert>
             ) : (
@@ -455,7 +455,7 @@ export default function CustomerReportDeliverablePage({
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 {t(
-                  'Submit a formal service request linked to this source inspection so the Platform Manager can quote, schedule, and dispatch a partner crew.',
+                  'Submit a formal service request linked to this source inspection so the Manager can quote, schedule, and dispatch a partner crew.',
                 )}
               </Typography>
               <Button

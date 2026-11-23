@@ -168,7 +168,7 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByText('Flight permit')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(
-      screen.queryByText(/Upload the permit document and details for Platform Manager verification/i),
+      screen.queryByText(/Upload the permit document and details for Manager verification/i),
     ).toBeNull();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -402,7 +402,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/This inspection was declined and requires Platform Manager reassignment/i),
+      await screen.findByText(/This inspection was declined and requires Manager reassignment/i),
     ).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -427,7 +427,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i),
+      await screen.findByText(/The scheduled flight window has elapsed\. Contact the Manager to reschedule/i),
     ).toBeTruthy();
     expect(screen.queryByText('Previous flight session was aborted')).toBeNull();
     expect(

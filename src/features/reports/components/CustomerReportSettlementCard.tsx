@@ -649,7 +649,7 @@ export function CustomerReportSettlementCard({
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {t(
-                    'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+                    'You have submitted a dispute/clarification request regarding this report. The Manager has been notified and will review your inquiry.',
                   )}
                 </Typography>
                 {disputeReason && (

@@ -45,16 +45,16 @@ import type { ReinspectionVerificationItem } from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  SUBMITTED: 'Submitted for Platform Manager review. Report sections and sources are locked while awaiting review.',
+  SUBMITTED: 'Submitted for Manager review. Report sections and sources are locked while awaiting review.',
   RETURNED: 'Returned for revision. Re-evaluate findings and submit again.',
-  APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
+  APPROVED: 'Approved by the Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This report version and its PDF are immutable.',
   SUPERSEDED: 'Superseded by a newer published version.',
 };
 
 /**
  * Step 7: Report Synthesis — automated compilation from confirmed findings,
- * submission for Platform Manager review, and version history.
+ * submission for Manager review, and version history.
  */
 export default function InspectionReportPage() {
   const { t, locale } = useLocale();
@@ -226,7 +226,7 @@ export default function InspectionReportPage() {
       {openVersion && <VerdictExpiryBanner verifications={reinspectionVerifications?.data} />}
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
+          {t('Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 

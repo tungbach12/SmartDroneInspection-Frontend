@@ -4,7 +4,7 @@ import type { PartnerCandidate } from '@/features/contracts/api/contractApi';
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a Platform Manager / Admin reviewer who is not the author decides.
+ * and a Manager / Admin reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'

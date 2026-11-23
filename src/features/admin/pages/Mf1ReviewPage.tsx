@@ -558,7 +558,7 @@ export default function Mf1ReviewPage() {
             ? tr('Tìm theo tên, email, CCCD hoặc bằng lái', 'Search name, email, citizen ID, or license')
             : queue === 'drones'
               ? tr('Tìm theo drone, serial hoặc người gửi', 'Search drone, serial, or applicant')
-              : tr('Tìm theo tổ chức, tài sản hoặc vùng bay', 'Search organization, asset, or airspace')
+              : tr('Tìm theo khách hàng, tài sản hoặc vùng bay', 'Search customer, asset, or airspace')
         }
         visibleCount={visibleCount}
         totalCount={totalCount}
@@ -782,7 +782,7 @@ export default function Mf1ReviewPage() {
         >
           <QueueTable
             headers={[
-              tr('Tổ chức', 'Organization'),
+              tr('Khách hàng', 'Customer'),
               tr('Tài sản', 'Asset'),
               tr('Phân loại vùng bay', 'Airspace'),
               tr('Ngày nộp', 'Submitted'),
@@ -969,8 +969,8 @@ export default function Mf1ReviewPage() {
                   <Box
                     sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
                   >
-                    <DetailField label={tr('Tổ chức', 'Organization')} value={(selected as ProspectiveCustomerReview).organizationName} />
-                    <DetailField label={tr('Mã tổ chức', 'Organization code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
+                    <DetailField label={tr('Khách hàng', 'Customer')} value={(selected as ProspectiveCustomerReview).organizationName} />
+                    <DetailField label={tr('Mã khách hàng', 'Customer code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
                     <DetailField label={tr('Tài sản', 'Asset')} value={(selected as ProspectiveCustomerReview).assetName} />
                     <DetailField label={tr('Mã tài sản', 'Asset code')} value={(selected as ProspectiveCustomerReview).assetCode} />
                     <DetailField

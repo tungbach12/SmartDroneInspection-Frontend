@@ -283,7 +283,7 @@ describe('InspectionDetailPage', () => {
         ownerCustomerName: 'Saigon Bridge Corp',
         inspectorId: 'insp-12345678',
         inspectorName: 'Tran Van Inspector',
-        managerName: 'Platform Manager 2',
+        managerName: 'Manager 2',
         plannedStartAt: '2026-11-15T13:14:00Z',
         status: 'IN_PROGRESS',
       },
@@ -298,7 +298,7 @@ describe('InspectionDetailPage', () => {
 
     expect(screen.getByText('DJI Matrice 350 RTK')).toBeTruthy();
     expect(screen.getByText('Saigon Bridge Corp')).toBeTruthy();
-    expect(screen.getByText('Platform Manager 2')).toBeTruthy();
+    expect(screen.getByText('Manager 2')).toBeTruthy();
     expect(screen.getByText(/^Schedule$/i)).toBeTruthy();
     expect(screen.queryByText('Tran Van Inspector')).toBeNull();
     expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
@@ -386,7 +386,7 @@ describe('InspectionDetailPage', () => {
         ownerCustomerName: 'Saigon Bridge Corp',
         inspectorId: 'insp-12345678',
         inspectorName: 'Tran Van Inspector',
-        managerName: 'Platform Manager 2',
+        managerName: 'Manager 2',
         plannedStartAt: '2026-11-15T13:14:00Z',
         status: 'COMPLETED',
       },
@@ -399,7 +399,7 @@ describe('InspectionDetailPage', () => {
     signInAs('CUSTOMER');
     renderInspectionPage({ route: '/client/inspections/inspection-1/tracking' });
 
-    expect(screen.getByText('Platform Manager 2')).toBeTruthy();
+    expect(screen.getByText('Manager 2')).toBeTruthy();
     expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
     expect(screen.getByText(/^Schedule$/i)).toBeTruthy();
     expect(screen.queryByText('Saigon Bridge Corp')).toBeNull();
@@ -926,7 +926,7 @@ describe('InspectionDetailPage', () => {
     renderInspectionPage({ route: '/operations/inspections/inspection-1/field-session' });
 
     expect(
-      screen.getByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i),
+      screen.getByText(/The scheduled flight window has elapsed\. Contact the Manager to reschedule/i),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Go to Pre-flight Check' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
@@ -937,7 +937,7 @@ describe('InspectionDetailPage', () => {
 
     expect(screen.getByText('Previous flight session was aborted')).toBeTruthy();
     expect(
-      screen.getByText(/The Platform Manager will reschedule or reassign this inspection as needed/i),
+      screen.getByText(/The Manager will reschedule or reassign this inspection as needed/i),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Go to Pre-flight Check' })).toBeNull();

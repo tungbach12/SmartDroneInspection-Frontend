@@ -1228,7 +1228,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
             severity="warning"
             title={t('Replace approved flight permit?')}
             message={t(
-              'Replacing this approved permit will revoke the current Platform Manager approval and lock pre-flight checks until the new permit is verified again.',
+              'Replacing this approved permit will revoke the current Manager approval and lock pre-flight checks until the new permit is verified again.',
             )}
             confirmLabel={t('Replace & resubmit')}
             cancelLabel={t('Cancel')}
@@ -1346,7 +1346,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                     {!isCompletedPreFlight && inspection.reassignmentRequired && (
                       <Alert severity="error">
-                        {t('This inspection was declined and requires Platform Manager reassignment before starting a field session.')}
+                        {t('This inspection was declined and requires Manager reassignment before starting a field session.')}
                         {inspection.declineReason ? ` (${t('Reason')}: ${inspection.declineReason})` : ''}
                       </Alert>
                     )}
@@ -1385,8 +1385,8 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                         }
                       >
                         {permitVerificationStatus === 'REJECTED'
-                          ? t('Flight permit was rejected by the Platform Manager. Upload a replacement permit in Step 1 before starting the session.')
-                          : t('Flight permit is pending Platform Manager verification. You can prepare the checklist below, and session start will unlock once the permit is approved.')}
+                          ? t('Flight permit was rejected by the Manager. Upload a replacement permit in Step 1 before starting the session.')
+                          : t('Flight permit is pending Manager verification. You can prepare the checklist below, and session start will unlock once the permit is approved.')}
                       </Alert>
                     )}
 
@@ -1574,7 +1574,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                           {!openSession && inspection.status === 'SCHEDULED' && isWindowExpired && (
                             <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                              {t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.')}
+                              {t('The scheduled flight window has elapsed. Contact the Manager to reschedule before starting a new session.')}
                             </Alert>
                           )}
 
@@ -2261,7 +2261,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
 
                 {!openSession && !canContinueToEvidence && inspection.reassignmentRequired && (
                   <Alert severity="error">
-                    {t('This inspection was declined and requires Platform Manager reassignment before starting a field session.')}
+                    {t('This inspection was declined and requires Manager reassignment before starting a field session.')}
                     {inspection.declineReason ? ` (${t('Reason')}: ${inspection.declineReason})` : ''}
                   </Alert>
                 )}
@@ -2272,7 +2272,7 @@ export default function FieldSessionPage({ stage }: FieldSessionPageProps = {}) 
                   !inspection.reassignmentRequired &&
                   isWindowExpired && (
                     <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                      {t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.')}
+                      {t('The scheduled flight window has elapsed. Contact the Manager to reschedule before starting a new session.')}
                     </Alert>
                   )}
 

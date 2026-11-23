@@ -303,8 +303,7 @@ export default function InspectionsPage() {
 
       {!canBrowse ? (
         <Alert severity="info">
-          The inspection list is available to Inspectors, organization managers, and platform
-          administrators.
+          The inspection list is available to Inspectors, customers, managers, and administrators.
         </Alert>
       ) : (
         <Stack spacing={2.5}>
@@ -498,7 +497,7 @@ export default function InspectionsPage() {
                 required
                 value={declineReason}
                 onChange={(e) => setDeclineReason(e.target.value)}
-                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+                helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
               />
               <MutationProblemAlert
                 error={declineInspection.error}

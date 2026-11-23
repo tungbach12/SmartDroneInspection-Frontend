@@ -40,7 +40,7 @@ export interface ManagerReportReviewPageProps {
 }
 
 /**
- * Dedicated Report Review page for Platform Manager (/manager/inspections/:id/audit | /review | /settlement).
+ * Dedicated Report Review page for Manager (/manager/inspections/:id/audit | /review | /settlement).
  * Focused strictly on reviewing submitted reports, publishing approved versions, and viewing platform commission.
  */
 export default function ManagerReportReviewPage({

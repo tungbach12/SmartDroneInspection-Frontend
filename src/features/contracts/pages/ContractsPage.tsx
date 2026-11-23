@@ -53,7 +53,7 @@ export default function ContractsPage() {
     return (
       <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
         <Alert severity="error">
-          {t('Service requests are available to Customer and Platform Manager accounts.')}
+          {t('Service requests are available to Customer and Manager accounts.')}
         </Alert>
       </Box>
     );

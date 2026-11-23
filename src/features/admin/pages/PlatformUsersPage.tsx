@@ -53,9 +53,9 @@ type PlatformUserRow = PlatformUser & {
 };
 
 const ROLE_LABELS: Record<PlatformUserRole, string> = {
-  ADMIN: 'Platform admin',
-  MANAGER: 'Platform manager',
-  CUSTOMER: 'Customer admin',
+  ADMIN: 'Admin',
+  MANAGER: 'Manager',
+  CUSTOMER: 'Customer',
   INSPECTOR: 'Inspector',
 };
 
@@ -498,7 +498,7 @@ export default function PlatformUsersPage() {
 
                   {selectedIsLastAdmin && (
                     <Alert severity="warning">
-                      {t('This is the last active platform administrator. Suspend is disabled to keep the platform manageable.')}
+                      {t('This is the last active administrator. Suspend is disabled to keep the platform manageable.')}
                     </Alert>
                   )}
 

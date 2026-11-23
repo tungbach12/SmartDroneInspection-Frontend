@@ -1195,8 +1195,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       ) : (
                         <Alert severity={profile.onboardingStatus === 'APPROVED' ? 'success' : 'info'}>
                           {profile.onboardingStatus === 'APPROVED'
-                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Platform Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
-                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Platform Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
+                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
+                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
                         </Alert>
                       )}
                     </Paper>

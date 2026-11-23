@@ -279,7 +279,7 @@ export function resolveOverviewGuidance(
     case 'SCHEDULED':
       if (permitStatus === 'APPROVED') {
         return {
-          tip: t('Flight permit verified by Platform Manager. Complete the pre-flight safety checklist to start flight operation.'),
+          tip: t('Flight permit verified by Manager. Complete the pre-flight safety checklist to start flight operation.'),
           actionLabel: t('Open pre-flight check'),
           subpath: 'pre-flight',
         };
@@ -295,7 +295,7 @@ export function resolveOverviewGuidance(
       }
       if (permitStatus === 'REJECTED') {
         return {
-          tip: t('Flight permit was rejected by the Platform Manager. Upload a corrected permit to unlock pre-flight checks.'),
+          tip: t('Flight permit was rejected by the Manager. Upload a corrected permit to unlock pre-flight checks.'),
           actionLabel: t('Upload replacement permit'),
           subpath: 'permit',
         };
@@ -319,7 +319,7 @@ export function resolveOverviewGuidance(
       };
     case 'UNDER_REVIEW':
       return {
-        tip: t('Report submitted. Awaiting Platform Manager review and publication.'),
+        tip: t('Report submitted. Awaiting Manager review and publication.'),
         actionLabel: t('View submitted report'),
         subpath: 'report',
       };
