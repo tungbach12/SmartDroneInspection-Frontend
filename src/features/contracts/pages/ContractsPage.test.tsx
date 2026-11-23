@@ -77,6 +77,18 @@ describe('ContractsPage', () => {
       isError: false,
       error: null,
     } as any);
+    vi.spyOn(assetsHook, 'useAsset').mockReturnValue({
+      data: {
+        id: 'asset-1',
+        name: 'Bridge 1',
+        code: 'BR-1',
+        status: 'ACTIVE',
+        inspectionItems: [],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+    } as any);
     vi.spyOn(contractsHook, 'usePostRequestMessage').mockReturnValue({
       mutateAsync: vi.fn(),
       isPending: false,
@@ -391,7 +403,9 @@ describe('ContractsPage', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith('req-claim'));
     await waitFor(() =>
       expect(
-        screen.getByText('The customer-selected date cannot be changed for a one-time request.'),
+        screen.getByText(
+          'You may move the first inspection later. The Customer must accept the revised quote before it takes effect.',
+        ),
       ).toBeTruthy(),
     );
   });
@@ -574,6 +588,88 @@ describe('ContractsPage', () => {
       scopeSnapshot: 'Crack check',
       firstOccurrenceStartAt: '2026-11-01T01:00:00.000Z',
       firstOccurrenceEndAt: '2026-11-01T03:00:00.000Z',
+      pricePerOccurrenceVnd: 11000000,
+      requiredDroneFeatureCodes: [],
+    });
+  });
+
+  it('lets a manager propose a later first inspection date and warns that the customer must accept it', () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Platform Manager',
+      email: 'manager@test.local',
+    });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'req-later', status: 'QUOTED' });
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [
+        {
+          id: 'req-later',
+          ownerCustomerId: 'org-1',
+          assetId: 'asset-1',
+          description: 'Bridge survey',
+          requestedFrom: '2027-02-01',
+          requestedUntil: '2027-02-01',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'OPEN',
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-12-29T00:00:00Z',
+          currentQuote: null,
+          assignedManagerId: 'manager-1',
+          occurrences: [],
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({
+      data: undefined,
+      isFetching: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useIssueServiceQuote').mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as any);
+
+    renderPage();
+    openTrackProgress();
+
+    fireEvent.change(screen.getByLabelText('First occurrence start'), {
+      target: { value: '2027-02-05T08:00' },
+    });
+    expect(
+      screen.getByText(
+        'Moving the first inspection from Feb 1, 2027 to Feb 5, 2027. The Customer must accept the updated quote.',
+      ),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Price per occurrence (VND)'), {
+      target: { value: '11000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save quote' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      scopeSnapshot: 'Bridge survey',
+      firstOccurrenceStartAt: '2027-02-05T01:00:00.000Z',
+      firstOccurrenceEndAt: '2027-02-05T03:00:00.000Z',
       pricePerOccurrenceVnd: 11000000,
       requiredDroneFeatureCodes: [],
     });

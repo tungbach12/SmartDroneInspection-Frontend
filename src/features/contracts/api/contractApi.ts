@@ -303,6 +303,7 @@ export interface ServiceRequestOccurrence {
 export interface ServiceRequest {
   id: string;
   ownerCustomerId: string;
+  ownerCustomerName?: string | null;
   assetId: string;
   description: string;
   requestedFrom: string;

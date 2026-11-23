@@ -49,6 +49,11 @@ export function instantToDateTimeInput(instant: string, timeZone: string): strin
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
+/** Return the calendar date (yyyy-MM-dd) of an instant in the customer timezone. */
+export function instantToLocalDate(instant: string, timeZone: string): string {
+  return instantToDateTimeInput(instant, timeZone).slice(0, 10);
+}
+
 /** Convert a customer-local datetime input to the instant expected by the Backend API. */
 export function dateTimeInputToInstant(value: string, timeZone: string): string {
   const match = DATE_TIME_INPUT_PATTERN.exec(value);

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../../api/contractApi';
 import { enumerateMonthlySchedule } from '../../api/recurrenceSchedule';
+import { instantToLocalDate } from '../../api/scheduleTime';
 import { useAcceptServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, formatVndPerOccurrence } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
@@ -30,15 +31,30 @@ export function CustomerReviewQuoteStep({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const unitPrice = Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd ?? 0);
+  const quotedFirstDate = instantToLocalDate(quote.firstOccurrenceStartAt, request.timezone);
   const recurringDates =
     request.requestType === 'RECURRING'
-      ? enumerateMonthlySchedule(request.requestedFrom, request.recurrenceInterval ?? 1, {
+      ? enumerateMonthlySchedule(quotedFirstDate, request.recurrenceInterval ?? 1, {
           ...(request.occurrenceCount != null
             ? { count: request.occurrenceCount }
             : { endDate: request.recurrenceEndDate ?? request.requestedUntil }),
           maxOccurrences: 100,
         })
       : [];
+  const dateChanged = quotedFirstDate !== request.requestedFrom;
+  const dateLabelOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  };
+  const requestedDateLabel = new Date(`${request.requestedFrom}T12:00:00`).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    dateLabelOptions,
+  );
+  const quotedDateLabel = new Date(`${quotedFirstDate}T12:00:00`).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    dateLabelOptions,
+  );
   const occurrenceTotal = request.requestType === 'RECURRING' ? recurringDates.length : 1;
   const totalContractVnd = unitPrice * occurrenceTotal;
   const formattedTotal = totalContractVnd.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US');
@@ -88,6 +104,13 @@ export function CustomerReviewQuoteStep({
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
+          {dateChanged && (
+            <Alert severity="info">
+              {locale === 'vi'
+                ? `Quản lý đề xuất ngày kiểm tra đầu tiên là ${quotedDateLabel} thay vì ngày bạn yêu cầu (${requestedDateLabel}). Chấp nhận báo giá này cũng là xác nhận ngày mới.`
+                : `The Manager proposed ${quotedDateLabel} as the first inspection date instead of your requested ${requestedDateLabel}. Accepting this quote also confirms the new date.`}
+            </Alert>
+          )}
           <QuoteTermsSummary request={request} quote={quote} />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>

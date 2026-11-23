@@ -15,6 +15,7 @@ import {
   resolveActiveStepIndex,
   resolveCurrentQuote,
 } from '../shared/contractStage';
+import { ManagerAssetOverview } from './components/ManagerAssetOverview';
 import { ManagerQuoteWorkspace } from './steps/ManagerQuoteWorkspace';
 import { ManagerContractUploadStep } from './steps/ManagerContractUploadStep';
 import { ManagerOccurrencesStep } from './steps/ManagerOccurrencesStep';
@@ -206,6 +207,7 @@ export function ManagerRequestDetail({
       </Stack>
 
       <RequestHeaderBar request={request} effectiveStatus={effectiveStatus} />
+      <ManagerAssetOverview request={request} />
       <ContractLifecycleStepper
         status={effectiveStatus}
         role="MANAGER"
