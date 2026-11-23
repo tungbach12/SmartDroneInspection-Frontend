@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ratingApi, type UpsertInspectorRatingPayload } from '../api/ratingApi';
+import { inspectionKeys } from './useInspections';
 import { useToastStore } from '@/shared/ui/Toast';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -22,7 +23,8 @@ export function useUpsertInspectionRating(inspectionId: string) {
       ratingApi.upsertInspectionRating(inspectionId, payload),
     onSuccess: (updated) => {
       queryClient.setQueryData(['inspection-rating', inspectionId], updated);
-      void queryClient.invalidateQueries({ queryKey: ['inspection', inspectionId] });
+      void queryClient.invalidateQueries({ queryKey: inspectionKeys.detail(inspectionId) });
+      void queryClient.invalidateQueries({ queryKey: inspectionKeys.all });
       void queryClient.invalidateQueries({ queryKey: ['inspector-ratings'] });
       void queryClient.invalidateQueries({ queryKey: ['partner-candidates'] });
       showToast(t('Rating saved.'));
