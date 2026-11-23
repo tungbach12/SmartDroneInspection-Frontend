@@ -101,7 +101,7 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
       </LocaleProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset payment order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset order' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -160,7 +160,7 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
     );
 
     expect(
-      await screen.findByText('Confirming payment with the server… Please wait a moment.'),
+      await screen.findByText('Confirming payment…'),
     ).toBeTruthy();
     expect(screen.queryByText('Paid & Fulfilled')).toBeNull();
     await waitFor(() => {

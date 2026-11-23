@@ -268,11 +268,13 @@ export function CustomerReportSettlementCard({
                 label={
                   isPaid
                     ? t('Paid & Fulfilled')
-                    : isReportAccepted
-                      ? t('Payment Due')
-                      : t('Awaiting Acceptance')
+                    : isPaymentConfirming
+                      ? t('Confirming payment…')
+                      : isReportAccepted
+                        ? t('Payment Due')
+                        : t('Awaiting Acceptance')
                 }
-                color={isPaid ? 'success' : isReportAccepted ? 'warning' : 'primary'}
+                color={isPaid ? 'success' : isPaymentConfirming ? 'info' : isReportAccepted ? 'warning' : 'primary'}
                 sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
               />
               <Chip
@@ -524,11 +526,6 @@ export function CustomerReportSettlementCard({
           </Stack>
         ) : isReportAccepted ? (
           <Stack spacing={1.5}>
-            {isPaymentConfirming && (
-              <Alert severity="info" sx={{ borderRadius: '8px' }}>
-                {t('Confirming payment with the server… Please wait a moment.')}
-              </Alert>
-            )}
             {isPaymentCancelled && (
               <Alert severity="warning" sx={{ borderRadius: '8px' }}>
                 {t(
@@ -633,8 +630,8 @@ export function CustomerReportSettlementCard({
                     }}
                   >
                     {cancelOrderPending
-                      ? t('Cancelling order…')
-                      : t('Reset payment order')}
+                      ? t('Cancelling…')
+                      : t('Reset order')}
                   </Button>
                 )}
               </Stack>

@@ -188,93 +188,67 @@ export function OccurrenceFinanceDrawer({
         </Box>
 
         {hasUnpaidGatewayOrder && (
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.default',
-            }}
-          >
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1.25}
-              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+          <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {t('Unpaid order')} #{payment?.gatewayOrderCode}
+            </Typography>
+            <LoadingButton
+              size="small"
+              variant="outlined"
+              color="warning"
+              loading={cancelUnpaidOrder.isPending}
+              onClick={async () => {
+                setDrawerError('');
+                try {
+                  await cancelUnpaidOrder.mutateAsync();
+                  onChanged();
+                } catch (err) {
+                  setDrawerError(
+                    extractContractErrorText(err, 'Could not cancel the active payment order.'),
+                  );
+                }
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
             >
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {t('Active unpaid gateway order')} #{payment?.gatewayOrderCode}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t(
-                    'Clear an abandoned Sepay or expired VNPay order so the customer can switch payment methods.',
-                  )}
-                </Typography>
-              </Box>
-              <LoadingButton
-                size="small"
-                variant="outlined"
-                color="warning"
-                loading={cancelUnpaidOrder.isPending}
-                onClick={async () => {
-                  setDrawerError('');
-                  try {
-                    await cancelUnpaidOrder.mutateAsync();
-                    onChanged();
-                  } catch (err) {
-                    setDrawerError(
-                      extractContractErrorText(err, 'Could not cancel the active payment order.'),
-                    );
-                  }
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                {t('Reset payment order')}
-              </LoadingButton>
-            </Stack>
-          </Box>
+              {t('Reset order')}
+            </LoadingButton>
+          </Stack>
         )}
 
         {canConfirmManualPayment && (
-          <Stack spacing={1}>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {t('Manual wire transfer confirmation')}
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                size="small"
-                placeholder={t('Customer bank transfer reference (e.g. FT261123...)')}
-                value={paymentRef}
-                onChange={(e) => setPaymentRef(e.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <LoadingButton
-                size="small"
-                variant="contained"
-                color="success"
-                loading={confirmPayment.isPending}
-                disabled={!paymentRef.trim()}
-                onClick={async () => {
-                  setDrawerError('');
-                  try {
-                    await confirmPayment.mutateAsync({
-                      paymentReference: paymentRef.trim(),
-                      amount: totalPrice,
-                    });
-                    setPaymentRef('');
-                    onChanged();
-                  } catch (err) {
-                    setDrawerError(
-                      extractContractErrorText(err, 'Could not confirm customer payment.'),
-                    );
-                  }
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
-              >
-                {t('Confirm wire payment')}
-              </LoadingButton>
-            </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <TextField
+              size="small"
+              placeholder={t('Wire reference (e.g. FT261123)')}
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+              sx={{ flex: 1 }}
+            />
+            <LoadingButton
+              size="small"
+              variant="contained"
+              color="success"
+              loading={confirmPayment.isPending}
+              disabled={!paymentRef.trim()}
+              onClick={async () => {
+                setDrawerError('');
+                try {
+                  await confirmPayment.mutateAsync({
+                    paymentReference: paymentRef.trim(),
+                    amount: totalPrice,
+                  });
+                  setPaymentRef('');
+                  onChanged();
+                } catch (err) {
+                  setDrawerError(
+                    extractContractErrorText(err, 'Could not confirm customer payment.'),
+                  );
+                }
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
+            >
+              {t('Confirm payment')}
+            </LoadingButton>
           </Stack>
         )}
 
