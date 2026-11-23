@@ -37,6 +37,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import {
   inspectorProfileApi,
   type UpdateInspectorProfileInput,
@@ -44,6 +45,8 @@ import {
 } from '../api/inspectorProfileApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useInspectorRatingProfile } from '@/features/inspections/hooks/useInspectorRatings';
+import { InspectorRatingsBreakdownPanel } from '@/features/inspections/components/InspectorRatingDialog';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -60,6 +63,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const roles = useAuthStore((state) => state.roles);
   const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
   const [currentTab, setCurrentTab] = useState(0);
+  const ratingProfileQuery = useInspectorRatingProfile(
+    inspectorId ?? undefined,
+    0,
+    10,
+    open && Boolean(inspectorId) && currentTab === 5,
+  );
 
   // Profile Query
   const profileQuery = useQuery({
@@ -590,6 +599,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       `5. Lịch sử bay (${profile.companyFlightsCount})`,
                       `5. Flight Log (${profile.companyFlightsCount})`,
                     )}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<StarRounded />}
+                    iconPosition="start"
+                    label={tr('6. Đánh giá', '6. Ratings')}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
                 </Tabs>
@@ -1473,6 +1488,23 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         </Paper>
                       ))}
                     </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 5: INSPECTOR RATINGS */}
+              {currentTab === 5 && (
+                <Box sx={{ p: 3 }}>
+                  {ratingProfileQuery.isLoading ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : ratingProfileQuery.data ? (
+                    <InspectorRatingsBreakdownPanel profile={ratingProfileQuery.data} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {tr('Chưa có dữ liệu đánh giá.', 'No rating data available.')}
+                    </Typography>
                   )}
                 </Box>
               )}

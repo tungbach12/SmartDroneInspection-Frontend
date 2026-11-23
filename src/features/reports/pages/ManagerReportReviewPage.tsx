@@ -30,6 +30,7 @@ import { PlatformSettlementInvoiceCard } from '@/features/inspections/components
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
+import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
@@ -226,6 +227,9 @@ export default function ManagerReportReviewPage({
         {openVersion && (
           <Stack spacing={3}>
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
+            {showReviewStage && openVersion.status === 'PUBLISHED' && (
+              <InspectorRatingPromptCard inspectionId={inspectionId} />
+            )}
 
             {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
               <ReportAiSummaryCard

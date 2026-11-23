@@ -33,6 +33,8 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { inspectorProfileApi } from '@/features/admin/api/inspectorProfileApi';
 import { mf1DroneApi } from '@/features/assets/api/mf1DroneApi';
 import FlightRounded from '@mui/icons-material/FlightRounded';
+import { useMyInspectorRatings } from '@/features/inspections/hooks/useInspectorRatings';
+import { InspectorRatingsBreakdownPanel } from '@/features/inspections/components/InspectorRatingDialog';
 
 /**
  * Partner Drone Inspector Dashboard (`/operations/dashboard`).
@@ -59,6 +61,7 @@ export function InspectorDashboardPage() {
     queryFn: mf1DroneApi.drones,
     enabled: Boolean(user?.id),
   });
+  const myRatingsQuery = useMyInspectorRatings(0, 8, Boolean(user?.id));
   const myDrones = dronesQuery.data ?? [];
   const droneCount = myDrones.length;
   const activeDroneCount = myDrones.filter((d) => d.serviceability === 'ACTIVE').length;
@@ -812,6 +815,18 @@ export function InspectorDashboardPage() {
             </Table>
           </TableContainer>
         </Paper>
+
+        {myRatingsQuery.data && (
+          <Paper
+            variant="outlined"
+            sx={{ p: 2.5, borderRadius: '10px', borderColor: 'divider' }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+              {t('Ratings & Reviews')}
+            </Typography>
+            <InspectorRatingsBreakdownPanel profile={myRatingsQuery.data} />
+          </Paper>
+        )}
       </Stack>
     </Box>
   );

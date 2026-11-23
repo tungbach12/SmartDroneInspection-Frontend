@@ -31,6 +31,7 @@ import {
 } from '@/features/inspections/hooks/useInspections';
 import { CreateRequestDialog } from '@/features/contracts/components/CreateRequestDialog';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -235,6 +236,10 @@ export default function CustomerReportDeliverablePage({
                     : undefined
                 }
               />
+            )}
+
+            {showSettlementContent && openVersion.status === 'PUBLISHED' && inspectionId && (
+              <InspectorRatingPromptCard inspectionId={inspectionId} />
             )}
 
             <SepayQrDialog

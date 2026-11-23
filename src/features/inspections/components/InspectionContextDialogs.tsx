@@ -33,6 +33,7 @@ import {
 } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { InspectorRatingSummaryBadge } from './InspectorRatingSummaryBadge';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { CleanTileMapView } from './EvidenceGpsMapDialog';
 
@@ -529,18 +530,31 @@ export function InspectionContextDialogs({
             <Divider />
 
             {openModal === 'inspector' ? (
-              <DetailRow
-                label={t('Drone')}
-                value={
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {isCustomer
-                      ? droneShortName
-                      : [inspection.droneModel, inspection.droneSerialNumber]
-                          .filter(Boolean)
-                          .join(' · ') || droneShortName}
-                  </Typography>
-                }
-              />
+              <>
+                <DetailRow
+                  label={t('Drone')}
+                  value={
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {isCustomer
+                        ? droneShortName
+                        : [inspection.droneModel, inspection.droneSerialNumber]
+                            .filter(Boolean)
+                            .join(' · ') || droneShortName}
+                    </Typography>
+                  }
+                />
+                <DetailRow
+                  label={t('Rating')}
+                  value={
+                    <InspectorRatingSummaryBadge
+                      averageRating={inspection.inspectorAverageRating}
+                      ratingCount={inspection.inspectorRatingCount}
+                      variant="inline"
+                      showEmpty
+                    />
+                  }
+                />
+              </>
             ) : (
               <>
                 <DetailRow

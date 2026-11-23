@@ -554,6 +554,8 @@ export interface InspectionDetail {
   inspectorId: string;
   inspectorName: string | null;
   inspectorAvatarUrl?: string | null;
+  inspectorAverageRating?: number | null;
+  inspectorRatingCount?: number;
   droneId: string | null;
   droneSerialNumber: string | null;
   droneModel?: string | null;
