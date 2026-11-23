@@ -64,6 +64,7 @@ import { useInspections } from '@/features/inspections/hooks/useInspections';
 import { InspectionWorkDetailDialog } from '@/features/inspections/components/InspectionWorkDetailDialog';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { formatLocationLabel } from '@/shared/ui/formatLocation';
 import {
   AssetLocationPickerModal,
   GoogleMapsLocationCard,
@@ -74,19 +75,7 @@ import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'] as const;
 
 function formatLocation(text: string | null): string {
-  if (!text) return '—';
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === 'object') {
-      if (parsed.label) return String(parsed.label);
-      if (parsed.latitude != null && parsed.longitude != null) {
-        return `${Number(parsed.latitude).toFixed(4)}, ${Number(parsed.longitude).toFixed(4)}`;
-      }
-    }
-  } catch {
-    // not JSON
-  }
-  return text;
+  return formatLocationLabel(text);
 }
 
 function formatGpsLocationText(locale: string, lat: number, lon: number): string {

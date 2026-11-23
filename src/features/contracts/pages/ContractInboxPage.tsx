@@ -17,18 +17,20 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
-import { type InspectionChatThread, type ServiceRequest } from '../api/contractApi';
+import { type InspectionChatThread, type PartnerChatThread, type ServiceRequest } from '../api/contractApi';
 import {
   useInspectionChatThreads,
   useMarkInspectionMessagesRead,
   useMarkMessagesRead,
+  useMarkPartnerMessagesRead,
+  usePartnerChatThreads,
   useServiceRequests,
 } from '../hooks/useContracts';
-import { InspectionChatPanel, RequestChatPanel } from '../components/RequestChatPanel';
+import { InspectionChatPanel, PartnerChatPanel, RequestChatPanel } from '../components/RequestChatPanel';
 import { getEffectiveRequestStatus, getStatusLabel } from '../shared/contractStage';
 
 type InboxFilter = 'ALL' | 'UNREAD';
-type InboxChannel = 'requests' | 'inspections';
+type InboxChannel = 'requests' | 'inspections' | 'partners';
 
 function formatShortTime(isoDate: string): string {
   const date = new Date(isoDate);
@@ -72,34 +74,56 @@ export default function ContractInboxPage() {
 
   const canUseRequests = isCustomer || isManager;
   const canUseInspections = isCustomer || isInspector;
+  const canUsePartners = isManager || isInspector;
 
   const requests = useServiceRequests(canUseRequests, canUseRequests);
   const inspectionThreads = useInspectionChatThreads(canUseInspections, canUseInspections);
+  const partnerThreads = usePartnerChatThreads(canUsePartners, canUsePartners);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedParam = searchParams.get('requestId') ?? '';
   const inspectionParam = searchParams.get('inspectionId') ?? '';
+  const partnerRequestParam = searchParams.get('partnerRequestId') ?? '';
+  const partnerInspectorParam = searchParams.get('inspectorId') ?? '';
 
-  const [channelOverride, setChannelOverride] = useState<InboxChannel | null>(() =>
-    isInspector && !isCustomer ? 'inspections' : inspectionParam ? 'inspections' : null,
-  );
+  const [channelOverride, setChannelOverride] = useState<InboxChannel | null>(() => {
+    if (partnerRequestParam && canUsePartners) return 'partners';
+    if (inspectionParam && canUseInspections) return 'inspections';
+    if (isInspector && !isCustomer) return 'inspections';
+    return null;
+  });
   const [selectedId, setSelectedId] = useState<string>('');
   const [mobileShowChat, setMobileShowChat] = useState<boolean>(() =>
-    Boolean(requestedParam || inspectionParam),
+    Boolean(requestedParam || inspectionParam || partnerRequestParam),
   );
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<InboxFilter>('ALL');
   const [error, setError] = useState('');
 
-  const activeChannel: InboxChannel =
-    !canUseRequests && canUseInspections
-      ? 'inspections'
-      : channelOverride ?? (inspectionParam && canUseInspections ? 'inspections' : 'requests');
+  const activeChannel: InboxChannel = (() => {
+    if (channelOverride) {
+      if (channelOverride === 'requests' && canUseRequests) return 'requests';
+      if (channelOverride === 'inspections' && canUseInspections) return 'inspections';
+      if (channelOverride === 'partners' && canUsePartners) return 'partners';
+    }
+    if (partnerRequestParam && canUsePartners) return 'partners';
+    if (inspectionParam && canUseInspections) return 'inspections';
+    if (canUseRequests) return 'requests';
+    if (canUseInspections) return 'inspections';
+    return 'partners';
+  })();
 
   const requestList = useMemo<ServiceRequest[]>(() => requests?.data ?? [], [requests?.data]);
   const threadList = useMemo<InspectionChatThread[]>(
     () => inspectionThreads?.data ?? [],
     [inspectionThreads?.data],
   );
+  const partnerThreadList = useMemo<PartnerChatThread[]>(
+    () => partnerThreads?.data ?? [],
+    [partnerThreads?.data],
+  );
+
+  const partnerThreadKey = (thread: Pick<PartnerChatThread, 'requestId' | 'inspectorId'>) =>
+    `${thread.requestId}:${thread.inspectorId}`;
 
   const activeRequestId =
     (selectedId && requestList.some((item) => item.id === selectedId) ? selectedId : null) ??
@@ -117,8 +141,26 @@ export default function ContractInboxPage() {
       : null) ??
     (threadList[0]?.inspectionId ?? '');
 
+  const matchedPartnerThread =
+    (selectedId
+      ? partnerThreadList.find((item) => partnerThreadKey(item) === selectedId)
+      : undefined) ??
+    (partnerRequestParam
+      ? partnerThreadList.find(
+          (item) =>
+            item.requestId === partnerRequestParam &&
+            (!partnerInspectorParam || item.inspectorId === partnerInspectorParam),
+        )
+      : undefined) ??
+    partnerThreadList[0];
+  const activePartnerKey = matchedPartnerThread ? partnerThreadKey(matchedPartnerThread) : '';
+
   const markRead = useMarkMessagesRead(activeRequestId);
   const markInspectionRead = useMarkInspectionMessagesRead(activeInspectionId);
+  const markPartnerRead = useMarkPartnerMessagesRead(
+    matchedPartnerThread?.requestId ?? '',
+    matchedPartnerThread?.inspectorId ?? '',
+  );
 
   const countUnread = (messages: { authorUserId: string; readAt?: string | null }[]) =>
     messages.filter((m) => m.authorUserId !== currentUser?.id && !m.readAt).length;
@@ -131,6 +173,11 @@ export default function ContractInboxPage() {
   const inspectionUnreadThreads = useMemo(
     () => threadList.filter((item) => countUnread(item.messages || []) > 0).length,
     [threadList, currentUser?.id],
+  );
+
+  const partnerUnreadThreads = useMemo(
+    () => partnerThreadList.filter((item) => countUnread(item.messages || []) > 0).length,
+    [partnerThreadList, currentUser?.id],
   );
 
   const filteredRequests = useMemo(() => {
@@ -165,10 +212,83 @@ export default function ContractInboxPage() {
     });
   }, [threadList, search, filter, currentUser?.id]);
 
+  const filteredPartnerThreads = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return partnerThreadList.filter((item) => {
+      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
+      if (!query) return true;
+      const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
+      return (
+        item.assetName.toLowerCase().includes(query) ||
+        item.requestDescription.toLowerCase().includes(query) ||
+        item.counterpartName.toLowerCase().includes(query) ||
+        (item.customerName ?? '').toLowerCase().includes(query) ||
+        latestBody.toLowerCase().includes(query) ||
+        item.requestId.toLowerCase().includes(query)
+      );
+    });
+  }, [partnerThreadList, search, filter, currentUser?.id]);
+
   const activeItemsCount =
-    activeChannel === 'requests' ? requestList.length : threadList.length;
+    activeChannel === 'requests'
+      ? requestList.length
+      : activeChannel === 'inspections'
+        ? threadList.length
+        : partnerThreadList.length;
   const activeUnreadThreads =
-    activeChannel === 'requests' ? requestUnreadThreads : inspectionUnreadThreads;
+    activeChannel === 'requests'
+      ? requestUnreadThreads
+      : activeChannel === 'inspections'
+        ? inspectionUnreadThreads
+        : partnerUnreadThreads;
+
+  const availableChannels: Array<{ key: InboxChannel; label: string; unread: number }> = [
+    ...(canUseRequests
+      ? [
+          {
+            key: 'requests' as const,
+            label: isManager
+              ? locale === 'vi'
+                ? 'Khách hàng'
+                : 'Customer'
+              : locale === 'vi'
+                ? 'Quản lý dịch vụ'
+                : 'Manager',
+            unread: requestUnreadThreads,
+          },
+        ]
+      : []),
+    ...(canUseInspections
+      ? [
+          {
+            key: 'inspections' as const,
+            label: isInspector
+              ? locale === 'vi'
+                ? 'Khách hàng'
+                : 'Customer'
+              : locale === 'vi'
+                ? 'Phi công UAV'
+                : 'Inspector',
+            unread: inspectionUnreadThreads,
+          },
+        ]
+      : []),
+    ...(canUsePartners
+      ? [
+          {
+            key: 'partners' as const,
+            label: isManager
+              ? locale === 'vi'
+                ? 'Phi công UAV'
+                : 'Inspector'
+              : locale === 'vi'
+                ? 'Quản lý dịch vụ'
+                : 'Manager',
+            unread: partnerUnreadThreads,
+          },
+        ]
+      : []),
+  ];
 
   const handleSelectRequest = (id: string) => {
     setSelectedId(id);
@@ -182,6 +302,13 @@ export default function ContractInboxPage() {
     setMobileShowChat(true);
     setSearchParams({ inspectionId: id });
     markInspectionRead?.mutate(id);
+  };
+
+  const handleSelectPartnerThread = (thread: PartnerChatThread) => {
+    setSelectedId(partnerThreadKey(thread));
+    setMobileShowChat(true);
+    setSearchParams({ partnerRequestId: thread.requestId, inspectorId: thread.inspectorId });
+    markPartnerRead?.mutate({ requestId: thread.requestId, inspectorId: thread.inspectorId });
   };
 
   const handleSwitchChannel = (next: InboxChannel) => {
@@ -202,7 +329,11 @@ export default function ContractInboxPage() {
   }
 
   const isLoading =
-    activeChannel === 'requests' ? requests?.isPending : inspectionThreads?.isPending;
+    activeChannel === 'requests'
+      ? requests?.isPending
+      : activeChannel === 'inspections'
+        ? inspectionThreads?.isPending
+        : partnerThreads?.isPending;
 
   if (isLoading) {
     return (
@@ -220,9 +351,14 @@ export default function ContractInboxPage() {
     activeChannel === 'inspections'
       ? threadList.find((item) => item.inspectionId === activeInspectionId)
       : undefined;
+  const selectedPartnerThread =
+    activeChannel === 'partners'
+      ? partnerThreadList.find((item) => partnerThreadKey(item) === activePartnerKey)
+      : undefined;
 
-  const hasSelection = Boolean(selectedRequest || selectedInspectionThread);
-  const totalAvailableAnyChannel = requestList.length + threadList.length;
+  const hasSelection = Boolean(selectedRequest || selectedInspectionThread || selectedPartnerThread);
+  const totalAvailableAnyChannel =
+    requestList.length + threadList.length + partnerThreadList.length;
   const dashboardPath = isCustomer
     ? '/client/dashboard'
     : isInspector
@@ -250,8 +386,8 @@ export default function ContractInboxPage() {
           <Typography color="text.secondary">
             {isInspector
               ? locale === 'vi'
-                ? 'Chưa có đợt kiểm tra nào được phân công để nhắn tin với khách hàng.'
-                : 'No assigned inspections are available for messaging yet.'
+                ? 'Chưa có đợt kiểm tra hoặc đơn dịch vụ nào được phân công để nhắn tin.'
+                : 'No assigned inspections or service requests are available for messaging yet.'
               : t('No service requests available for messaging.')}
           </Typography>
         </Paper>
@@ -304,56 +440,35 @@ export default function ContractInboxPage() {
                 </Box>
               </Stack>
 
-              {canUseRequests && canUseInspections && (
+              {availableChannels.length > 1 && (
                 <Stack direction="row" spacing={0.75} sx={{ mb: 1.5 }}>
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={() => handleSwitchChannel('requests')}
-                    sx={{
-                      flex: 1,
-                      px: 1.25,
-                      py: 0.7,
-                      border: '1px solid',
-                      borderColor: activeChannel === 'requests' ? 'primary.main' : 'divider',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '0.8125rem',
-                      fontWeight: activeChannel === 'requests' ? 700 : 600,
-                      bgcolor:
-                        activeChannel === 'requests'
-                          ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
-                          : 'transparent',
-                      color: activeChannel === 'requests' ? 'primary.main' : 'text.secondary',
-                    }}
-                  >
-                    {locale === 'vi' ? 'Quản lý dịch vụ' : 'Manager'}
-                    {requestUnreadThreads > 0 ? ` (${requestUnreadThreads})` : ''}
-                  </Box>
-                  <Box
-                    component="button"
-                    type="button"
-                    onClick={() => handleSwitchChannel('inspections')}
-                    sx={{
-                      flex: 1,
-                      px: 1.25,
-                      py: 0.7,
-                      border: '1px solid',
-                      borderColor: activeChannel === 'inspections' ? 'primary.main' : 'divider',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '0.8125rem',
-                      fontWeight: activeChannel === 'inspections' ? 700 : 600,
-                      bgcolor:
-                        activeChannel === 'inspections'
-                          ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
-                          : 'transparent',
-                      color: activeChannel === 'inspections' ? 'primary.main' : 'text.secondary',
-                    }}
-                  >
-                    {locale === 'vi' ? 'Phi công UAV' : 'Inspector'}
-                    {inspectionUnreadThreads > 0 ? ` (${inspectionUnreadThreads})` : ''}
-                  </Box>
+                  {availableChannels.map((channel) => (
+                    <Box
+                      key={channel.key}
+                      component="button"
+                      type="button"
+                      onClick={() => handleSwitchChannel(channel.key)}
+                      sx={{
+                        flex: 1,
+                        px: 1.25,
+                        py: 0.7,
+                        border: '1px solid',
+                        borderColor: activeChannel === channel.key ? 'primary.main' : 'divider',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.8125rem',
+                        fontWeight: activeChannel === channel.key ? 700 : 600,
+                        bgcolor:
+                          activeChannel === channel.key
+                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                            : 'transparent',
+                        color: activeChannel === channel.key ? 'primary.main' : 'text.secondary',
+                      }}
+                    >
+                      {channel.label}
+                      {channel.unread > 0 ? ` (${channel.unread})` : ''}
+                    </Box>
+                  ))}
                 </Stack>
               )}
 
@@ -538,26 +653,139 @@ export default function ContractInboxPage() {
                     );
                   })
                 )
-              ) : filteredThreads.length === 0 ? (
+              ) : activeChannel === 'inspections' ? (
+                filteredThreads.length === 0 ? (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('No records found')}
+                    </Typography>
+                  </Box>
+                ) : (
+                  filteredThreads.map((thread) => {
+                    const isSelected = thread.inspectionId === activeInspectionId;
+                    const latestMessage = thread.messages[thread.messages.length - 1];
+                    const unreadCount = countUnread(thread.messages || []);
+                    const latestTime = formatShortTime(
+                      latestMessage?.createdAt ?? thread.plannedStartAt ?? '',
+                    );
+
+                    return (
+                      <ListItemButton
+                        key={thread.inspectionId}
+                        selected={isSelected}
+                        onClick={() => handleSelectInspection(thread.inspectionId)}
+                        sx={{
+                          borderRadius: '8px',
+                          mb: 0.5,
+                          py: 1.25,
+                          px: 1.25,
+                          gap: 1.5,
+                          alignItems: 'center',
+                          bgcolor: isSelected ? 'action.selected' : 'transparent',
+                          '&.Mui-selected': {
+                            bgcolor: 'action.selected',
+                            '&:hover': { bgcolor: 'action.selected' },
+                          },
+                          '&:hover': {
+                            bgcolor: isSelected ? 'action.selected' : 'action.hover',
+                          },
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
+                            color: 'primary.main',
+                          }}
+                        >
+                          {getInitialsFromText(thread.counterpartName || thread.assetName, 'IN')}
+                        </Avatar>
+
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: isSelected || unreadCount > 0 ? 700 : 600,
+                                color: 'text.primary',
+                              }}
+                              noWrap
+                            >
+                              {thread.counterpartName}
+                            </Typography>
+                            {latestTime && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ flexShrink: 0, fontSize: '0.75rem' }}
+                              >
+                                · {latestTime}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                            noWrap
+                          >
+                            {thread.assetName} · {t(thread.status)} · #{thread.inspectionId.slice(0, 8)}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              mt: 0.15,
+                              fontWeight: unreadCount > 0 ? 600 : 400,
+                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                            }}
+                            noWrap
+                          >
+                            {latestMessage ? latestMessage.body : t('No messages yet')}
+                          </Typography>
+                        </Box>
+
+                        {unreadCount > 0 && (
+                          <Box
+                            aria-label={`${unreadCount} unread`}
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
+                      </ListItemButton>
+                    );
+                  })
+                )
+              ) : filteredPartnerThreads.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('No records found')}
                   </Typography>
                 </Box>
               ) : (
-                filteredThreads.map((thread) => {
-                  const isSelected = thread.inspectionId === activeInspectionId;
+                filteredPartnerThreads.map((thread) => {
+                  const key = partnerThreadKey(thread);
+                  const isSelected = key === activePartnerKey;
                   const latestMessage = thread.messages[thread.messages.length - 1];
                   const unreadCount = countUnread(thread.messages || []);
                   const latestTime = formatShortTime(
-                    latestMessage?.createdAt ?? thread.plannedStartAt ?? '',
+                    latestMessage?.createdAt ?? thread.nextPlannedStartAt ?? '',
                   );
 
                   return (
                     <ListItemButton
-                      key={thread.inspectionId}
+                      key={key}
                       selected={isSelected}
-                      onClick={() => handleSelectInspection(thread.inspectionId)}
+                      onClick={() => handleSelectPartnerThread(thread)}
                       sx={{
                         borderRadius: '8px',
                         mb: 0.5,
@@ -586,7 +814,7 @@ export default function ContractInboxPage() {
                           color: 'primary.main',
                         }}
                       >
-                        {getInitialsFromText(thread.counterpartName || thread.assetName, 'IN')}
+                        {getInitialsFromText(thread.counterpartName || thread.assetName, 'PM')}
                       </Avatar>
 
                       <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -617,7 +845,7 @@ export default function ContractInboxPage() {
                           sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
                           noWrap
                         >
-                          {thread.assetName} · {t(thread.status)} · #{thread.inspectionId.slice(0, 8)}
+                          {[thread.assetName, thread.customerName].filter(Boolean).join(' · ')}
                         </Typography>
                         <Typography
                           variant="caption"
@@ -629,7 +857,7 @@ export default function ContractInboxPage() {
                           }}
                           noWrap
                         >
-                          {latestMessage ? latestMessage.body : t('No messages yet')}
+                          {latestMessage ? latestMessage.body : thread.requestDescription || t('No messages yet')}
                         </Typography>
                       </Box>
 
@@ -673,6 +901,13 @@ export default function ContractInboxPage() {
               <InspectionChatPanel
                 thread={selectedInspectionThread}
                 onChanged={() => void inspectionThreads.refetch()}
+                onError={setError}
+                onBack={() => setMobileShowChat(false)}
+              />
+            ) : selectedPartnerThread ? (
+              <PartnerChatPanel
+                thread={selectedPartnerThread}
+                onChanged={() => void partnerThreads.refetch()}
                 onError={setError}
                 onBack={() => setMobileShowChat(false)}
               />

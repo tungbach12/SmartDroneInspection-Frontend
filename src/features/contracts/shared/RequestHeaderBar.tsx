@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -11,9 +12,16 @@ import {
 interface RequestHeaderBarProps {
   request: ServiceRequest;
   effectiveStatus: ServiceRequest['status'];
+  headerAction?: ReactNode;
+  children?: ReactNode;
 }
 
-export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarProps) {
+export function RequestHeaderBar({
+  request,
+  effectiveStatus,
+  headerAction,
+  children,
+}: RequestHeaderBarProps) {
   const { locale, t } = useLocale();
   const scheduledCount =
     request.requestType === 'RECURRING'
@@ -29,14 +37,14 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
   return (
     <Box
       sx={{
-        p: { xs: 2, sm: 2.5 },
         borderRadius: '10px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
+        overflow: 'hidden',
       }}
     >
-      <Stack spacing={1.25}>
+      <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1.5}
@@ -58,7 +66,7 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
               {formatFlightTimeRange(request.windowStart, request.windowEnd)}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
             <StatusChip
               status={effectiveStatus}
               label={getStatusLabel(effectiveStatus, t)}
@@ -78,9 +86,11 @@ export function RequestHeaderBar({ request, effectiveStatus }: RequestHeaderBarP
                 sx={{ fontWeight: 600, borderRadius: '6px' }}
               />
             )}
+            {headerAction}
           </Stack>
         </Stack>
-      </Stack>
+      </Box>
+      {children}
     </Box>
   );
 }

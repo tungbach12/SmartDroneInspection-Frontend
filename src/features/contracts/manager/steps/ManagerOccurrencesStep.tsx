@@ -16,6 +16,7 @@ import {
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
 import PaidOutlined from '@mui/icons-material/PaidOutlined';
@@ -470,6 +471,24 @@ function ManagerOccurrenceRow({
                         : `${t('Apply this team to the remaining')} (${remainingUnassignedOther.length})`}
                     </Button>
                   )}
+                {occurrence.inspectorId && (
+                  <Button
+                    component={Link}
+                    to={`/manager/messages?partnerRequestId=${request.id}&inspectorId=${occurrence.inspectorId}`}
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ChatOutlinedIcon sx={{ fontSize: 14 }} />}
+                    sx={{
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('Messages')}
+                  </Button>
+                )}
                 {occurrence.inspectionId && (
                   <Button
                     component={Link}

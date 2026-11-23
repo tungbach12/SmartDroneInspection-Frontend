@@ -6,7 +6,7 @@ import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../api/contractApi';
 import { ContractLifecycleStepper } from '../shared/ContractLifecycleStepper';
-import { RequestHeaderBar } from '../shared/RequestHeaderBar';
+import { RequestOverviewCard } from '../shared/RequestOverviewCard';
 import { QuoteTermsSummary } from '../shared/QuoteTermsSummary';
 import {
   formatFlightTimeRange,
@@ -197,7 +197,7 @@ export function CustomerRequestDetail({
         )}
       </Stack>
 
-      <RequestHeaderBar request={request} effectiveStatus={effectiveStatus} />
+      <RequestOverviewCard request={request} role="CUSTOMER" effectiveStatus={effectiveStatus} />
       <ContractLifecycleStepper
         status={effectiveStatus}
         role="CUSTOMER"

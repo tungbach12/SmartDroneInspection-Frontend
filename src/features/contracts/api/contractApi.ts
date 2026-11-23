@@ -295,6 +295,8 @@ export interface ServiceRequestOccurrence {
   lastTimeoutCancelledAt?: string | null;
   lastTimeoutInspectorId?: string | null;
   lastTimeoutInspectorName?: string | null;
+  inspectorName?: string | null;
+  droneLabel?: string | null;
   invoice?: ServiceInvoiceSummary | null;
   payment?: ServicePaymentSummary | null;
   payout?: InspectorPayoutSummary | null;
@@ -305,6 +307,9 @@ export interface ServiceRequest {
   ownerCustomerId: string;
   ownerCustomerName?: string | null;
   assetId: string;
+  assetName?: string | null;
+  assetCode?: string | null;
+  assetLocationText?: string | null;
   description: string;
   requestedFrom: string;
   requestedUntil: string;
@@ -317,6 +322,7 @@ export interface ServiceRequest {
   occurrenceCount: number | null;
   recurrenceEndDate: string | null;
   sourceInspectionId?: string | null;
+  inspectionItems?: string[];
   status: ServiceRequestStatus;
   acceptedQuoteId: string | null;
   acceptedAt: string | null;
@@ -403,6 +409,7 @@ export interface IssueServiceQuoteInput {
   firstOccurrenceEndAt: string;
   pricePerOccurrenceVnd: number;
   requiredDroneFeatureCodes: string[];
+  inspectionItems?: string[];
 }
 
 export interface AssignOccurrenceInput {
@@ -519,6 +526,17 @@ export const contractApi = {
     const { data } = await api.post<PartnerCandidate[]>(
       `/contracts/requests/${requestId}/partner-candidates`,
       input,
+    );
+    return data;
+  },
+
+  async updateInspectionItems(
+    requestId: string,
+    inspectionItems: string[],
+  ): Promise<ServiceRequest> {
+    const { data } = await api.put<ServiceRequest>(
+      `/contracts/requests/${requestId}/inspection-items`,
+      { inspectionItems },
     );
     return data;
   },
@@ -777,6 +795,80 @@ export const inspectionChatApi = {
   async markMessagesRead(inspectionId: string): Promise<InspectionChatThread> {
     const { data } = await api.post<InspectionChatThread>(
       `/inspections/${inspectionId}/messages/read`,
+    );
+    return data;
+  },
+};
+
+export interface PartnerChatMessage {
+  id: string;
+  requestId: string;
+  inspectorId: string;
+  authorUserId: string;
+  authorName?: string | null;
+  authorRole?: string | null;
+  body: string;
+  readAt?: string | null;
+  createdAt: string;
+  attachments?: ServiceRequestMessageAttachment[];
+}
+
+export interface PartnerChatThread {
+  requestId: string;
+  inspectorId: string;
+  managerId: string | null;
+  ownerCustomerId: string;
+  customerName?: string | null;
+  assetId: string;
+  assetName: string;
+  assetCode?: string | null;
+  requestDescription: string;
+  requestStatus: string;
+  counterpartUserId: string | null;
+  counterpartName: string;
+  counterpartRole: string;
+  counterpartAvatarUrl: string | null;
+  occurrenceCount: number;
+  nextPlannedStartAt: string | null;
+  nextPlannedEndAt: string | null;
+  messages: PartnerChatMessage[];
+}
+
+export const partnerChatApi = {
+  async listThreads(): Promise<PartnerChatThread[]> {
+    const { data } = await api.get<PartnerChatThread[]>('/contracts/partner-messages/threads');
+    return data;
+  },
+
+  async getThread(requestId: string, inspectorId: string): Promise<PartnerChatThread> {
+    const { data } = await api.get<PartnerChatThread>(
+      `/contracts/partner-messages/${requestId}/inspectors/${inspectorId}`,
+    );
+    return data;
+  },
+
+  async postMessage(
+    requestId: string,
+    inspectorId: string,
+    input: { body: string; files?: File[] },
+  ): Promise<PartnerChatThread> {
+    const formData = new FormData();
+    if (input.body.trim()) {
+      formData.append('body', input.body.trim());
+    }
+    for (const file of input.files ?? []) {
+      formData.append('files', file);
+    }
+    const { data } = await api.post<PartnerChatThread>(
+      `/contracts/partner-messages/${requestId}/inspectors/${inspectorId}`,
+      formData,
+    );
+    return data;
+  },
+
+  async markMessagesRead(requestId: string, inspectorId: string): Promise<PartnerChatThread> {
+    const { data } = await api.post<PartnerChatThread>(
+      `/contracts/partner-messages/${requestId}/inspectors/${inspectorId}/read`,
     );
     return data;
   },

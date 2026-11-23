@@ -32,6 +32,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import {
   type InspectionChatThread,
+  type PartnerChatThread,
   type ServiceRequest,
   type ServiceRequestMessage,
   type ServiceRequestMessageAttachment,
@@ -39,7 +40,9 @@ import {
 import {
   useMarkInspectionMessagesRead,
   useMarkMessagesRead,
+  useMarkPartnerMessagesRead,
   usePostInspectionMessage,
+  usePostPartnerMessage,
   usePostRequestMessage,
 } from '../hooks/useContracts';
 import {
@@ -1039,6 +1042,93 @@ export function InspectionChatPanel({
       onMarkRead={() => markRead(thread.inspectionId)}
       getAttachmentPath={(messageId, attachmentId) =>
         `/inspections/${thread.inspectionId}/messages/${messageId}/attachments/${attachmentId}`
+      }
+      onError={onError}
+      onBack={onBack}
+    />
+  );
+}
+
+interface PartnerChatPanelProps {
+  thread: PartnerChatThread;
+  onChanged: () => void;
+  onError: (message: string) => void;
+  onBack?: () => void;
+}
+
+export function PartnerChatPanel({
+  thread,
+  onChanged,
+  onError,
+  onBack,
+}: PartnerChatPanelProps) {
+  const { locale, t } = useLocale();
+  const userRoles = useAuthStore((state) => state.roles);
+  const isManagerRole = userRoles.includes('MANAGER') || userRoles.includes('ADMIN');
+  const post = usePostPartnerMessage(thread.requestId, thread.inspectorId);
+  const { mutate: markRead } = useMarkPartnerMessagesRead(thread.requestId, thread.inspectorId);
+  const threadKey = `${thread.requestId}:${thread.inspectorId}`;
+
+  return (
+    <ChatConversationPanel
+      threadId={threadKey}
+      partnerName={
+        thread.counterpartName || (isManagerRole ? t('Inspector') : t('Service Manager'))
+      }
+      subtitle={`${thread.assetName}${thread.assetCode ? ` (${thread.assetCode})` : ''} · ${thread.requestDescription}`}
+      actionLabel={
+        isManagerRole
+          ? locale === 'vi'
+            ? 'Xem yêu cầu'
+            : 'Open request'
+          : locale === 'vi'
+            ? 'Danh sách đợt bay'
+            : 'Open inspections'
+      }
+      actionTo={
+        isManagerRole
+          ? `/manager/contracts?requestId=${thread.requestId}`
+          : '/operations/inspections'
+      }
+      emptyTitle={
+        locale === 'vi'
+          ? 'Chưa có trao đổi điều phối nào'
+          : 'No partner coordination messages yet'
+      }
+      emptyDescription={
+        locale === 'vi'
+          ? 'Trao đổi trực tiếp giữa Quản lý dịch vụ và Phi công UAV về kế hoạch bay, giấy phép, thiết bị và tiến độ thực địa của đơn hàng.'
+          : 'Coordinate directly between Service Manager and Inspector on flight schedule, permits, equipment, and field execution.'
+      }
+      contextStrip={
+        <>
+          <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {thread.customerName ? `${t('Customer')}: ${thread.customerName} · ` : ''}
+            {thread.occurrenceCount} {locale === 'vi' ? 'đợt phụ trách' : t('occurrences')}
+          </Typography>
+          {thread.nextPlannedStartAt && thread.nextPlannedEndAt && (
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
+            >
+              {new Date(thread.nextPlannedStartAt).toLocaleString()} –{' '}
+              {new Date(thread.nextPlannedEndAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Typography>
+          )}
+        </>
+      }
+      messages={thread.messages || []}
+      isSending={post.isPending}
+      onSend={async ({ body, files }) => {
+        await post.mutateAsync({ body, files });
+        onChanged();
+      }}
+      onMarkRead={() => markRead({ requestId: thread.requestId, inspectorId: thread.inspectorId })}
+      getAttachmentPath={(messageId, attachmentId) =>
+        `/contracts/partner-messages/${thread.requestId}/inspectors/${thread.inspectorId}/attachments/${messageId}/${attachmentId}`
       }
       onError={onError}
       onBack={onBack}

@@ -11,6 +11,7 @@ import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/schedu
 import { useIssueServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, resolveCurrentQuote } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
+import { RequestCheckpointsEditor } from '../components/RequestCheckpointsEditor';
 
 interface ManagerQuoteWorkspaceProps {
   request: ServiceRequest;
@@ -218,6 +219,11 @@ export function ManagerQuoteWorkspace({
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
+          <RequestCheckpointsEditor
+            request={request}
+            onChanged={onChanged}
+            onError={onError}
+          />
           {currentQuote && !quoteEditing && <QuoteTermsSummary request={request} quote={currentQuote} />}
 
           {currentQuote && !quoteEditing && (

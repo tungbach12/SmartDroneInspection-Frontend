@@ -1,5 +1,6 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -36,14 +37,19 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import type { ServiceRequest } from '../api/contractApi';
 import {
   type ContractRole,
   formatFlightTimeRange,
+  formatQuotedPriceSummary,
+  formatRequestScheduleSummary,
   getEffectiveRequestStatus,
   getRequestStageSubtitle,
   getStatusLabel,
+  resolveAssetDisplay,
   statusTone,
+  summarizeDispatchProgress,
 } from './contractStage';
 
 interface ServiceRequestListViewProps {
@@ -83,7 +89,9 @@ export function ServiceRequestListView({
   onClaimRequest,
   claimPending = false,
 }: ServiceRequestListViewProps) {
-  const { locale, t } = useLocale();
+  const { locale, t, formatDate } = useLocale();
+  const signedInUserId = useAuthStore((state) => state.userId);
+  const signedInUserName = useAuthStore((state) => state.userName);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
   const [search, setSearch] = useState('');
@@ -144,6 +152,9 @@ export function ServiceRequestListView({
     const matchesSearch =
       !search.trim() ||
       req.description.toLowerCase().includes(search.toLowerCase()) ||
+      (req.assetName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (req.assetCode ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (req.ownerCustomerName ?? '').toLowerCase().includes(search.toLowerCase()) ||
       effectiveStatus.toLowerCase().includes(search.toLowerCase()) ||
       req.requestType.toLowerCase().includes(search.toLowerCase());
 
@@ -367,12 +378,24 @@ export function ServiceRequestListView({
                   >
                     <Stack spacing={1}>
                       <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.35, minWidth: 0, flex: 1 }}
-                        >
-                          {req.description}
-                        </Typography>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.35 }}
+                          >
+                            {req.description}
+                          </Typography>
+                          {(req.assetName || (role === 'MANAGER' && req.ownerCustomerName)) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {[
+                                req.assetName ? [req.assetName, req.assetCode].filter(Boolean).join(' · ') : null,
+                                role === 'MANAGER' ? req.ownerCustomerName : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Typography>
+                          )}
+                        </Box>
                         <IconButton
                           size="small"
                           aria-label={t('Actions for service request')}
@@ -486,6 +509,20 @@ export function ServiceRequestListView({
                           >
                             {req.description}
                           </Typography>
+                          {(req.assetName || (role === 'MANAGER' && req.ownerCustomerName)) && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: 'block', mt: 0.25 }}
+                            >
+                              {[
+                                req.assetName ? [req.assetName, req.assetCode].filter(Boolean).join(' · ') : null,
+                                role === 'MANAGER' ? req.ownerCustomerName : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Typography>
+                          )}
                           <Chip
                             label={req.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
                             size="small"
@@ -713,79 +750,203 @@ export function ServiceRequestListView({
               </Stack>
             </DialogTitle>
             <DialogContent dividers sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'background.paper' }}>
-              <Stack spacing={2}>
-                <Box
-                  sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Table size="small" sx={{ tableLayout: { xs: 'fixed', sm: 'auto' } }}>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell sx={{ width: { xs: '42%', sm: 180 }, fontWeight: 600, color: 'text.secondary' }}>
-                          {t('Current service stage')}
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>
-                          {getRequestStageSubtitle(
-                            getEffectiveRequestStatus(overviewRequest),
-                            role,
-                            t,
-                            overviewRequest.occurrences.length > 0,
-                          ) || requestStatus}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: 0 }}>
-                          {t('Schedule')}
-                        </TableCell>
-                        <TableCell sx={{ fontVariantNumeric: 'tabular-nums', borderBottom: 0 }}>
-                          {requestDate(overviewRequest.requestedFrom)}
-                          {overviewRequest.requestedFrom !== overviewRequest.requestedUntil
-                            ? ` – ${requestDate(overviewRequest.requestedUntil)}`
-                            : ''}
-                          {' · '}
-                          {formatFlightTimeRange(
-                            overviewRequest.windowStart,
-                            overviewRequest.windowEnd,
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </Box>
-
-                {role === 'CUSTOMER' && managerContact && (
-                  <Box
-                    sx={{
-                      p: 1.75,
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.default',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
-                      {t('Service manager profile')}
-                    </Typography>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.5 }}>
-                      <Avatar src={managerContact.avatarUrl ?? undefined} alt={managerContact.fullName ?? ''} sx={{ width: 42, height: 42 }}>
-                        {(managerContact.fullName ?? 'M').slice(0, 1).toUpperCase()}
-                      </Avatar>
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                          {managerContact.fullName || t('Service manager')}
+              {(() => {
+                const effectiveStatus = getEffectiveRequestStatus(overviewRequest);
+                const assetDisplay = resolveAssetDisplay(overviewRequest);
+                const quotedPriceSummary = formatQuotedPriceSummary(overviewRequest, locale);
+                const scheduleSummary = formatRequestScheduleSummary(
+                  overviewRequest,
+                  formatDate,
+                  locale,
+                  t,
+                );
+                const hasDispatchInfo =
+                  overviewRequest.occurrences.length > 0 || effectiveStatus === 'ASSIGNED';
+                const dispatchSummary = hasDispatchInfo
+                  ? summarizeDispatchProgress(overviewRequest, locale, t)
+                  : null;
+                const overviewRows: Array<{ label: string; value: ReactNode }> = [
+                  {
+                    label: t('Current service stage'),
+                    value: (
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {getRequestStageSubtitle(
+                          effectiveStatus,
+                          role,
+                          t,
+                          overviewRequest.occurrences.length > 0,
+                        ) || requestStatus}
+                      </Typography>
+                    ),
+                  },
+                  {
+                    label: t('Asset'),
+                    value: (
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {[assetDisplay.name, assetDisplay.code].filter((v) => v && v !== '—').join(' · ') || '—'}
                         </Typography>
-                        {managerEmail && <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{managerEmail}</Typography>}
-                        {managerPhone && <Typography variant="body2" color="text.secondary">{managerPhone}</Typography>}
-                        {!managerEmail && !managerPhone && <Typography variant="caption" color="text.secondary">{t('No contact details available')}</Typography>}
+                        {assetDisplay.location && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {assetDisplay.location}
+                          </Typography>
+                        )}
                       </Box>
-                    </Stack>
-                  </Box>
-                )}
-              </Stack>
+                    ),
+                  },
+                  ...(role === 'MANAGER'
+                    ? [
+                        {
+                          label: t('Customer'),
+                          value: (
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {overviewRequest.ownerCustomerName || '—'}
+                            </Typography>
+                          ),
+                        },
+                        {
+                          label: t('Service manager'),
+                          value: (
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {overviewRequest.assignedManagerId
+                                ? overviewRequest.serviceManager?.fullName ||
+                                  (overviewRequest.assignedManagerId === signedInUserId
+                                    ? signedInUserName || t('Assigned to you')
+                                    : t('Assigned'))
+                                : t('Unclaimed')}
+                            </Typography>
+                          ),
+                        },
+                      ]
+                    : []),
+                  {
+                    label: t('Schedule'),
+                    value: (
+                      <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {scheduleSummary}
+                      </Typography>
+                    ),
+                  },
+                  ...(quotedPriceSummary
+                    ? [
+                        {
+                          label: t('Quoted price'),
+                          value: (
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                              {quotedPriceSummary}
+                            </Typography>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(dispatchSummary
+                    ? [
+                        {
+                          label: t('Inspection team'),
+                          value: (
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {dispatchSummary}
+                            </Typography>
+                          ),
+                        },
+                      ]
+                    : []),
+                ];
+
+                return (
+                  <Stack spacing={2}>
+                    <Box
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Table size="small" sx={{ tableLayout: { xs: 'fixed', sm: 'auto' } }}>
+                        <TableBody>
+                          {overviewRows.map((row, idx) => {
+                            const isLast = idx === overviewRows.length - 1;
+                            return (
+                              <TableRow key={row.label}>
+                                <TableCell
+                                  sx={{
+                                    width: { xs: '42%', sm: 180 },
+                                    fontWeight: 600,
+                                    color: 'text.secondary',
+                                    verticalAlign: 'top',
+                                    borderBottom: isLast ? 0 : undefined,
+                                  }}
+                                >
+                                  {row.label}
+                                </TableCell>
+                                <TableCell sx={{ borderBottom: isLast ? 0 : undefined }}>
+                                  {row.value}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </Box>
+
+                    {role === 'CUSTOMER' && effectiveStatus === 'QUOTED' && (
+                      <Alert severity="info" sx={{ borderRadius: '8px' }}>
+                        {t('Quote ready for review — open Track progress to review and accept.')}
+                      </Alert>
+                    )}
+
+                    {role === 'CUSTOMER' && managerContact && (
+                      <Box
+                        sx={{
+                          p: 1.75,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                          {t('Service manager profile')}
+                        </Typography>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' }, gap: 1.5 }}>
+                          <Avatar src={managerContact.avatarUrl ?? undefined} alt={managerContact.fullName ?? ''} sx={{ width: 42, height: 42 }}>
+                            {(managerContact.fullName ?? 'M').slice(0, 1).toUpperCase()}
+                          </Avatar>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              {managerContact.fullName || t('Service manager')}
+                            </Typography>
+                            {managerEmail && <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{managerEmail}</Typography>}
+                            {managerPhone && <Typography variant="body2" color="text.secondary">{managerPhone}</Typography>}
+                            {!managerEmail && !managerPhone && <Typography variant="caption" color="text.secondary">{t('No contact details available')}</Typography>}
+                          </Box>
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {role === 'CUSTOMER' && !managerContact && (
+                      <Box
+                        sx={{
+                          px: 1.75,
+                          py: 1.25,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+                          {t('Service manager')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                          {t('Waiting for a Service Manager to claim this request.')}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Stack>
+                );
+              })()}
             </DialogContent>
             <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
               <Button onClick={() => setOverviewRequest(null)} sx={{ textTransform: 'none' }}>

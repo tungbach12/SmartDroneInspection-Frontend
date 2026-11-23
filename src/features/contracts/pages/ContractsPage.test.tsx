@@ -6,10 +6,12 @@ import ContractsPage from './ContractsPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import * as contractsHook from '../hooks/useContracts';
 import * as assetsHook from '@/features/assets/hooks/useAssets';
+import * as catalogHook from '@/features/assets/hooks/useCatalog';
 import type { PartnerCandidate } from '../api/contractApi';
 
 vi.mock('../hooks/useContracts');
 vi.mock('@/features/assets/hooks/useAssets');
+vi.mock('@/features/assets/hooks/useCatalog');
 
 function makeEligibleCandidate(
   overrides: Partial<PartnerCandidate> = {},
@@ -151,6 +153,18 @@ describe('ContractsPage', () => {
     } as any);
     vi.spyOn(contractsHook, 'useServiceManagers').mockReturnValue({
       data: [{ id: 'manager-1', fullName: 'Manager One', email: 'manager@example.test' }],
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useUpdateServiceRequestInspectionItems').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-1' }),
+      isPending: false,
+    } as any);
+    vi.spyOn(catalogHook, 'useCategories').mockReturnValue({
+      data: [],
+      isPending: false,
+    } as any);
+    vi.spyOn(catalogHook, 'useChecklistTemplates').mockReturnValue({
+      data: [],
       isPending: false,
     } as any);
   });
@@ -593,7 +607,7 @@ describe('ContractsPage', () => {
     });
   });
 
-  it('lets a manager propose a later first inspection date and warns that the customer must accept it', () => {
+  it('lets a manager propose a later first inspection date and warns that the customer must accept it', async () => {
     useAuthStore.setState({
       status: 'authenticated',
       roles: ['MANAGER'],
@@ -1068,5 +1082,262 @@ describe('ContractsPage', () => {
     expect(await screen.findByText('Request review')).toBeTruthy();
     expect(container.textContent).not.toContain('Select partner Inspector and drone');
     expect(evaluateMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows asset, location, customer, and unclaimed status in Manager outer overview dialog', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Platform Manager',
+      email: 'manager@test.local',
+    });
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [
+        {
+          id: 'req-open-1',
+          ownerCustomerId: 'customer-1',
+          ownerCustomerName: 'Saigon Tower Co.',
+          assetId: 'asset-1',
+          assetName: 'Saigon Tower',
+          assetCode: 'ST-01',
+          assetLocationText: 'District 1, HCMC',
+          description: 'Facade crack inspection',
+          requestedFrom: '2026-12-20',
+          requestedUntil: '2026-12-20',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'OPEN',
+          assignedManagerId: null,
+          canClaim: true,
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-11-20T00:00:00Z',
+          currentQuote: null,
+          occurrences: [],
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Saigon Tower · ST-01');
+    expect(dialog.textContent).toContain('District 1, HCMC');
+    expect(dialog.textContent).toContain('Saigon Tower Co.');
+    expect(dialog.textContent).toContain('Unclaimed');
+  });
+
+  it('shows asset, quote price, review alert, and waiting manager notice in Customer outer overview dialog', async () => {
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [
+        {
+          id: 'req-quoted-1',
+          ownerCustomerId: 'customer-1',
+          assetId: 'asset-1',
+          assetName: 'Bridge 1',
+          assetCode: 'BR-1',
+          assetLocationText: 'Can Tho',
+          description: 'Quarterly bridge check',
+          requestedFrom: '2026-12-20',
+          requestedUntil: '2026-12-20',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'QUOTED',
+          assignedManagerId: null,
+          serviceManager: null,
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-11-20T00:00:00Z',
+          currentQuote: {
+            id: 'q-1',
+            scopeSnapshot: 'Bridge inspection',
+            firstOccurrenceStartAt: '2026-12-20T01:00:00Z',
+            firstOccurrenceEndAt: '2026-12-20T03:00:00Z',
+            inspectorId: '',
+            droneId: '',
+            pricePerOccurrenceVnd: 1500000,
+            pricePerOccurrenceUsd: 60,
+            issuedByUserId: 'manager-1',
+            createdAt: '2026-11-20T00:00:00Z',
+            updatedAt: '2026-11-20T00:00:00Z',
+            updatedByUserId: 'manager-1',
+            rowVersion: 1,
+            requiredDroneFeatureCodes: [],
+          },
+          occurrences: [],
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for service request' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Overview' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Bridge 1 · BR-1');
+    expect(dialog.textContent).toContain('Can Tho');
+    expect(dialog.textContent).toContain('1,500,000 VND / occurrence');
+    expect(dialog.textContent).toContain('Quote ready for review — open Track progress to review and accept.');
+    expect(dialog.textContent).toContain('Waiting for a Service Manager to claim this request.');
+  });
+
+  it('lets a manager configure inspection checkpoints from asset suggestions, category templates, and custom items', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Manager One',
+      email: 'manager@test.local',
+    });
+    const saveCheckpoints = vi.fn().mockResolvedValue({
+      id: 'req-1',
+      inspectionItems: ['Deck joints', 'Anchor bolts', 'Thermal roof sweep'],
+    });
+    vi.spyOn(contractsHook, 'useUpdateServiceRequestInspectionItems').mockReturnValue({
+      mutateAsync: saveCheckpoints,
+      isPending: false,
+    } as any);
+    vi.spyOn(assetsHook, 'useAsset').mockReturnValue({
+      data: {
+        id: 'asset-1',
+        name: 'Bridge 1',
+        code: 'BR-1',
+        status: 'ACTIVE',
+        categoryId: 'cat-1',
+        inspectionItems: ['Deck joints', 'Drainage channels'],
+      },
+      isPending: false,
+      isError: false,
+      error: null,
+    } as any);
+    vi.spyOn(catalogHook, 'useChecklistTemplates').mockReturnValue({
+      data: [
+        {
+          id: 'tpl-1',
+          templateType: 'CATEGORY_INSPECTION_ITEM',
+          categoryId: 'cat-1',
+          label: 'Anchor bolts',
+          sortOrder: 1,
+          active: true,
+          required: true,
+        },
+        {
+          id: 'tpl-2',
+          templateType: 'CATEGORY_INSPECTION_ITEM',
+          categoryId: 'cat-1',
+          label: 'Retired template',
+          sortOrder: 2,
+          active: false,
+          required: false,
+        },
+      ],
+      isPending: false,
+    } as any);
+
+    const request = {
+      id: 'req-1',
+      ownerCustomerId: 'org-1',
+      assetId: 'asset-1',
+      description: 'Bridge survey',
+      requestedFrom: '2027-02-01',
+      requestedUntil: '2027-02-01',
+      timezone: 'Asia/Ho_Chi_Minh',
+      windowStart: '08:00',
+      windowEnd: '17:00',
+      requestType: 'ONE_TIME',
+      recurrenceUnit: null,
+      recurrenceInterval: null,
+      occurrenceCount: null,
+      recurrenceEndDate: null,
+      status: 'OPEN',
+      acceptedQuoteId: null,
+      acceptedAt: null,
+      acceptedByUserId: null,
+      acceptedTermsSnapshot: null,
+      contractFileName: null,
+      contractContentType: null,
+      contractSizeBytes: null,
+      contractUploadedAt: null,
+      createdAt: '2026-10-12T00:00:00Z',
+      assignedManagerId: 'manager-1',
+      currentQuote: null,
+      inspectionItems: [],
+      occurrences: [],
+      messages: [],
+    };
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [request],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({
+      data: request,
+      isFetching: false,
+    } as any);
+
+    renderPage();
+    openTrackProgress();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Configure checkpoints' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Deck joints' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Anchor bolts' }));
+    expect(screen.queryByRole('button', { name: 'Retired template' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Add custom checkpoint'), {
+      target: { value: 'Thermal roof sweep' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save checkpoints' }));
+
+    await waitFor(() =>
+      expect(saveCheckpoints).toHaveBeenCalledWith([
+        'Deck joints',
+        'Anchor bolts',
+        'Thermal roof sweep',
+      ]),
+    );
   });
 });
