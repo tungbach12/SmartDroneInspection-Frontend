@@ -6,6 +6,8 @@ import {
   Chip,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -14,7 +16,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
@@ -47,6 +49,8 @@ import { InspectorRatingsBreakdownPanel } from '@/features/inspections/component
 export function InspectorDashboardPage() {
   const { formatNumber, t } = useLocale();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'ratings' ? 'ratings' : 'overview';
   const user = useAuthStore((state) => state.user);
 
   const profileQuery = useQuery({
@@ -218,6 +222,42 @@ export function InspectorDashboardPage() {
             </Button>
           </Stack>
         </Stack>
+
+        <Tabs
+          value={activeTab}
+          onChange={(_, val: 'overview' | 'ratings') =>
+            setSearchParams(val === 'ratings' ? { tab: 'ratings' } : {}, { replace: true })
+          }
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab value="overview" label={t('Overview')} sx={{ textTransform: 'none', fontWeight: 650 }} />
+          <Tab
+            value="ratings"
+            label={
+              myRatingsQuery.data?.summary.ratingCount
+                ? `${t('Ratings')} (${(myRatingsQuery.data.summary.averageRating ?? 0).toFixed(1)}★ · ${myRatingsQuery.data.summary.ratingCount})`
+                : t('Ratings')
+            }
+            sx={{ textTransform: 'none', fontWeight: 650 }}
+          />
+        </Tabs>
+
+        {activeTab === 'ratings' ? (
+          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: '10px', borderColor: 'divider' }}>
+            {myRatingsQuery.data ? (
+              <InspectorRatingsBreakdownPanel
+                profile={myRatingsQuery.data}
+                portalBase="/operations"
+                onNavigate={(to) => navigate(to)}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('No ratings yet')}
+              </Typography>
+            )}
+          </Paper>
+        ) : (
+          <>
 
         {/* License Expiry / Expiration Warning Banner */}
         {myProfile &&
@@ -815,17 +855,7 @@ export function InspectorDashboardPage() {
             </Table>
           </TableContainer>
         </Paper>
-
-        {myRatingsQuery.data && (
-          <Paper
-            variant="outlined"
-            sx={{ p: 2.5, borderRadius: '10px', borderColor: 'divider' }}
-          >
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-              {t('Ratings & Reviews')}
-            </Typography>
-            <InspectorRatingsBreakdownPanel profile={myRatingsQuery.data} />
-          </Paper>
+          </>
         )}
       </Stack>
     </Box>

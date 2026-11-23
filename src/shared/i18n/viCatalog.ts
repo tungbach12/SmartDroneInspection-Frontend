@@ -2697,6 +2697,7 @@
   "Customer criteria": "Tiêu chí Khách hàng",
   "Manager criteria": "Tiêu chí Quản lý",
   "Ratings & Reviews": "Đánh giá & Nhận xét",
+  "Ratings": "Đánh giá",
   "Rating": "Đánh giá",
   "Flight permit verified by Manager. Complete the pre-flight safety checklist to start flight operation.": "Giấy phép bay đã được Quản lý xác minh. Hãy hoàn tất danh mục kiểm tra trước bay để bắt đầu bay.",
   "Flight permit was rejected by the Manager. Upload a corrected permit to unlock pre-flight checks.": "Giấy phép bay đã bị Quản lý từ chối. Hãy tải lên giấy phép thay thế để mở khóa kiểm tra trước bay.",

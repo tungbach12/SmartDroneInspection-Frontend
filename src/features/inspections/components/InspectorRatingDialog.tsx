@@ -18,8 +18,10 @@ import {
   Typography,
 } from '@mui/material';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import StarRoundedIcon from '@mui/icons-material/StarRounded';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useInspectionRating, useUpsertInspectionRating } from '../hooks/useInspectorRatings';
 import type { InspectorRatingItem, InspectorRatingProfile } from '../api/ratingApi';
@@ -196,6 +198,7 @@ interface InspectorRatingPromptCardProps {
 export function InspectorRatingPromptCard({ inspectionId }: InspectorRatingPromptCardProps) {
   const { t } = useLocale();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
   const { data: bundle, isLoading } = useInspectionRating(inspectionId);
 
   if (isLoading || !bundle || !bundle.inspectorId) {
@@ -223,7 +226,19 @@ export function InspectorRatingPromptCard({ inspectionId }: InspectorRatingPromp
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-          <Avatar sx={{ width: 38, height: 38, fontSize: '0.8rem', fontWeight: 700, bgcolor: 'primary.main' }}>
+          <Avatar
+            src={bundle.inspectorAvatarUrl ?? undefined}
+            alt={bundle.inspectorName || t('Inspector')}
+            onClick={bundle.inspectorAvatarUrl ? () => setAvatarPreviewOpen(true) : undefined}
+            sx={{
+              width: 40,
+              height: 40,
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              bgcolor: 'primary.main',
+              cursor: bundle.inspectorAvatarUrl ? 'pointer' : 'default',
+            }}
+          >
             {getInitials(bundle.inspectorName)}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
@@ -293,20 +308,61 @@ export function InspectorRatingPromptCard({ inspectionId }: InspectorRatingPromp
           existingRating={myRating}
         />
       )}
+
+      {avatarPreviewOpen && bundle.inspectorAvatarUrl && (
+        <Dialog open onClose={() => setAvatarPreviewOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ pr: 5, fontWeight: 700 }}>
+            {bundle.inspectorName || t('Inspector')}
+            <IconButton
+              aria-label={t('Close')}
+              onClick={() => setAvatarPreviewOpen(false)}
+              size="small"
+              sx={{ position: 'absolute', right: 12, top: 12 }}
+            >
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ textAlign: 'center', p: 2 }}>
+            <Box
+              component="img"
+              src={bundle.inspectorAvatarUrl}
+              alt={bundle.inspectorName || t('Inspector')}
+              sx={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '10px', objectFit: 'contain' }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
 
 interface InspectorRatingsBreakdownPanelProps {
   profile: InspectorRatingProfile;
+  portalBase?: '/operations' | '/manager' | '/admin';
+  onNavigate?: (path: string) => void;
 }
 
-export function InspectorRatingsBreakdownPanel({ profile }: InspectorRatingsBreakdownPanelProps) {
+export function InspectorRatingsBreakdownPanel({
+  profile,
+  portalBase,
+  onNavigate,
+}: InspectorRatingsBreakdownPanelProps) {
   const { t, formatDate } = useLocale();
   const { summary, ratings, historyVisible } = profile;
+  const [selectedItem, setSelectedItem] = useState<InspectorRatingItem | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    src: string;
+    title: string;
+    authenticated?: boolean;
+  } | null>(null);
 
   const customerCriteria = Object.entries(summary.customerCriteriaAverages ?? {});
   const managerCriteria = Object.entries(summary.managerCriteriaAverages ?? {});
+
+  const buildInspectionPath = (inspectionId: string) =>
+    portalBase === '/operations'
+      ? `/operations/inspections/${inspectionId}/report`
+      : `${portalBase ?? '/manager'}/inspections/${inspectionId}/review`;
 
   return (
     <Stack spacing={2}>
@@ -402,41 +458,290 @@ export function InspectorRatingsBreakdownPanel({ profile }: InspectorRatingsBrea
               {t('No ratings yet')}
             </Typography>
           ) : (
-            ratings.map((item) => (
-              <Paper key={item.id} variant="outlined" sx={{ p: 1.5, borderRadius: '10px' }}>
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                      {item.raterName || t(item.raterRole === 'MANAGER' ? 'Manager' : 'Customer')}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={t(item.raterRole === 'MANAGER' ? 'Manager' : 'Customer')}
-                      sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                    />
-                    {item.assetName && (
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        · {item.assetName}
-                      </Typography>
+            ratings.map((item) => {
+              const roleLabel = t(item.raterRole === 'MANAGER' ? 'Manager' : 'Customer');
+              const assetPhotoPath = item.assetPhotoDocumentId
+                ? `/inspections/${item.inspectionId}/asset-photos/${item.assetPhotoDocumentId}/content`
+                : null;
+              return (
+                <Paper
+                  key={item.id}
+                  variant="outlined"
+                  onClick={() => setSelectedItem(item)}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                    <Avatar
+                      src={item.raterAvatarUrl ?? undefined}
+                      alt={item.raterName || roleLabel}
+                      onClick={(e) => {
+                        if (!item.raterAvatarUrl) return;
+                        e.stopPropagation();
+                        setPreviewImage({
+                          src: item.raterAvatarUrl,
+                          title: item.raterName || roleLabel,
+                        });
+                      }}
+                      sx={{
+                        width: 38,
+                        height: 38,
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        cursor: item.raterAvatarUrl ? 'zoom-in' : 'pointer',
+                      }}
+                    >
+                      {getInitials(item.raterName || roleLabel)}
+                    </Avatar>
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                            {item.raterName || roleLabel}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={roleLabel}
+                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                          />
+                          {item.assetName && (
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              · {item.assetName}
+                            </Typography>
+                          )}
+                        </Stack>
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                          <Rating value={item.overallScore} readOnly size="small" />
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDate(new Date(item.updatedAt))}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+
+                      {item.comment && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          {item.comment}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {assetPhotoPath && (
+                      <Box
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewImage({
+                            src: assetPhotoPath,
+                            title: item.assetName || t('Asset'),
+                            authenticated: true,
+                          });
+                        }}
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          border: 1,
+                          borderColor: 'divider',
+                          flexShrink: 0,
+                          cursor: 'zoom-in',
+                        }}
+                      >
+                        <AuthenticatedImage
+                          src={assetPhotoPath}
+                          alt={item.assetName || t('Asset')}
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      </Box>
                     )}
                   </Stack>
-                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexShrink: 0 }}>
-                    <Rating value={item.overallScore} readOnly size="small" />
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDate(new Date(item.updatedAt))}
-                    </Typography>
-                  </Stack>
-                </Stack>
-                {item.comment && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                    {item.comment}
-                  </Typography>
-                )}
-              </Paper>
-            ))
+                </Paper>
+              );
+            })
           )}
         </Stack>
+      )}
+
+      {selectedItem && (
+        <Dialog
+          open
+          onClose={() => setSelectedItem(null)}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{ paper: { sx: { borderRadius: '14px' } } }}
+        >
+          <DialogTitle sx={{ pr: 5 }}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <Avatar
+                src={selectedItem.raterAvatarUrl ?? undefined}
+                alt={selectedItem.raterName || ''}
+                onClick={() => {
+                  if (selectedItem.raterAvatarUrl) {
+                    setPreviewImage({
+                      src: selectedItem.raterAvatarUrl,
+                      title:
+                        selectedItem.raterName ||
+                        t(selectedItem.raterRole === 'MANAGER' ? 'Manager' : 'Customer'),
+                    });
+                  }
+                }}
+                sx={{
+                  width: 38,
+                  height: 38,
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: selectedItem.raterAvatarUrl ? 'zoom-in' : 'default',
+                }}
+              >
+                {getInitials(selectedItem.raterName)}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                  {selectedItem.raterName ||
+                    t(selectedItem.raterRole === 'MANAGER' ? 'Manager' : 'Customer')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t(selectedItem.raterRole === 'MANAGER' ? 'Manager' : 'Customer')} ·{' '}
+                  {formatDate(new Date(selectedItem.updatedAt))}
+                </Typography>
+              </Box>
+            </Stack>
+            <IconButton
+              aria-label={t('Close')}
+              onClick={() => setSelectedItem(null)}
+              size="small"
+              sx={{ position: 'absolute', right: 12, top: 12 }}
+            >
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent dividers>
+            <Stack spacing={1.75}>
+              {selectedItem.assetPhotoDocumentId && (
+                <Box
+                  onClick={() =>
+                    setPreviewImage({
+                      src: `/inspections/${selectedItem.inspectionId}/asset-photos/${selectedItem.assetPhotoDocumentId}/content`,
+                      title: selectedItem.assetName || t('Asset'),
+                      authenticated: true,
+                    })
+                  }
+                  sx={{
+                    width: '100%',
+                    height: 160,
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    border: 1,
+                    borderColor: 'divider',
+                    cursor: 'zoom-in',
+                  }}
+                >
+                  <AuthenticatedImage
+                    src={`/inspections/${selectedItem.inspectionId}/asset-photos/${selectedItem.assetPhotoDocumentId}/content`}
+                    alt={selectedItem.assetName || t('Asset')}
+                    sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </Box>
+              )}
+
+              {selectedItem.assetName && (
+                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                  {selectedItem.assetName}
+                </Typography>
+              )}
+
+              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {t('Overall')}
+                </Typography>
+                <Rating value={selectedItem.overallScore} readOnly size="medium" />
+              </Stack>
+
+              <Divider />
+
+              <Stack spacing={0.75}>
+                {Object.entries(selectedItem.criterionScores).map(([key, score]) => (
+                  <Stack key={key} direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t(CRITERIA_LABELS[key] ?? key)}
+                    </Typography>
+                    <Rating value={score} readOnly size="small" />
+                  </Stack>
+                ))}
+              </Stack>
+
+              {selectedItem.comment && (
+                <Paper variant="outlined" sx={{ p: 1.25, borderRadius: '8px', bgcolor: 'background.default' }}>
+                  <Typography variant="body2">{selectedItem.comment}</Typography>
+                </Paper>
+              )}
+            </Stack>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, py: 1.75, justifyContent: onNavigate ? 'space-between' : 'flex-end' }}>
+            {onNavigate && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                onClick={() => {
+                  const target = buildInspectionPath(selectedItem.inspectionId);
+                  setSelectedItem(null);
+                  onNavigate(target);
+                }}
+                sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px' }}
+              >
+                {t('Open inspection')}
+              </Button>
+            )}
+            <Button onClick={() => setSelectedItem(null)} variant="contained" size="small" sx={{ textTransform: 'none', borderRadius: '8px' }}>
+              {t('Close')}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {previewImage && (
+        <Dialog open onClose={() => setPreviewImage(null)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ pr: 5, fontWeight: 700 }}>
+            {previewImage.title}
+            <IconButton
+              aria-label={t('Close')}
+              onClick={() => setPreviewImage(null)}
+              size="small"
+              sx={{ position: 'absolute', right: 12, top: 12 }}
+            >
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ textAlign: 'center', p: 2 }}>
+            {previewImage.authenticated ? (
+              <AuthenticatedImage
+                src={previewImage.src}
+                alt={previewImage.title}
+                sx={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: '10px', objectFit: 'contain' }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src={previewImage.src}
+                alt={previewImage.title}
+                sx={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: '10px', objectFit: 'contain' }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       )}
     </Stack>
   );

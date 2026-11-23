@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pilotLicenseClassApi } from '@/features/auth/api/pilotLicenseClassApi';
 import {
@@ -60,8 +61,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
+  const portalBase = roles.includes('ADMIN') ? '/admin' : '/manager';
   const [currentTab, setCurrentTab] = useState(0);
   const ratingProfileQuery = useInspectorRatingProfile(
     inspectorId ?? undefined,
@@ -1500,7 +1503,14 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       <CircularProgress size={24} />
                     </Box>
                   ) : ratingProfileQuery.data ? (
-                    <InspectorRatingsBreakdownPanel profile={ratingProfileQuery.data} />
+                    <InspectorRatingsBreakdownPanel
+                      profile={ratingProfileQuery.data}
+                      portalBase={portalBase}
+                      onNavigate={(to) => {
+                        onClose();
+                        navigate(to);
+                      }}
+                    />
                   ) : (
                     <Typography variant="body2" color="text.secondary">
                       {tr('Chưa có dữ liệu đánh giá.', 'No rating data available.')}

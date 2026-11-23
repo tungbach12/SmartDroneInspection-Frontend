@@ -9,6 +9,7 @@ export interface InspectorRatingItem {
   raterAvatarUrl: string | null;
   raterRole: 'CUSTOMER' | 'MANAGER';
   assetName: string | null;
+  assetPhotoDocumentId: string | null;
   overallScore: number;
   criterionScores: Record<string, number>;
   comment: string | null;
@@ -35,6 +36,7 @@ export interface InspectionRatingBundle {
   inspectionId: string;
   inspectorId: string | null;
   inspectorName: string | null;
+  inspectorAvatarUrl: string | null;
   canRate: boolean;
   ineligibleReason: string | null;
   actorRole: 'CUSTOMER' | 'MANAGER' | 'ADMIN' | 'INSPECTOR';
