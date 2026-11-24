@@ -63,10 +63,10 @@ export function OccurrenceFinanceDrawer({
     totalPrice > 0;
   const hasUnpaidGatewayOrder =
     occurrence.paymentStatus === 'PAYMENT_DUE' && Boolean(payment?.gatewayOrderCode);
+  const effectivePayoutStatus = (payout?.status ?? occurrence.payoutStatus ?? 'PENDING').toUpperCase();
   const canSettlePayout =
-    isPaid &&
     !payout?.heldForRefund &&
-    (!['PAID', 'SETTLED'].includes(payout?.status ?? occurrence.payoutStatus ?? '') ||
+    (effectivePayoutStatus === 'ELIGIBLE' ||
       Boolean(payout?.reference?.startsWith('AUTO-DISBURSE')) ||
       Boolean(occurrence.payoutReference?.startsWith('AUTO-DISBURSE')));
 

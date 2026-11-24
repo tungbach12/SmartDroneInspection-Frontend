@@ -56,7 +56,8 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  SUBMITTED: 'Waiting for a qualified reviewer to publish or return.',
+  SUBMITTED: 'Waiting for a qualified reviewer to approve or return.',
+  APPROVED: 'Approved by Manager — pending Inspector payout and publication to Customer.',
   RETURNED: 'Returned to the author for revision.',
   PUBLISHED: 'Published. This version is immutable.',
   SUPERSEDED: 'Superseded by a later version.',

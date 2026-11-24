@@ -11,7 +11,9 @@ export interface InspectorOrderFinanceBreakdown {
   tncnRate: number;
   tncnAmount: number;
   netPayoutAmount: number;
+  payoutStatus: string;
   isPaid: boolean;
+  isPayoutEligible: boolean;
   isDisbursed: boolean;
 }
 
@@ -159,6 +161,7 @@ export function resolveInspectorFinanceBreakdown(
     (isPaid ? 'ELIGIBLE' : 'PENDING')
   ).toUpperCase();
   const isDisbursed = payoutStatus === 'PAID' || payoutStatus === 'SETTLED';
+  const isPayoutEligible = payoutStatus === 'ELIGIBLE';
 
   return {
     totalPrice,
@@ -171,7 +174,9 @@ export function resolveInspectorFinanceBreakdown(
     tncnRate,
     tncnAmount,
     netPayoutAmount,
+    payoutStatus,
     isPaid,
+    isPayoutEligible,
     isDisbursed,
   };
 }

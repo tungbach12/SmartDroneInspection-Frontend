@@ -8,9 +8,16 @@ import {
   Alert,
   Box,
   Button,
+  Divider,
+  Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
+import { getErrorMessage } from '@/shared/api/errorMessage';
+import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import {
   getSectionPath,
@@ -23,6 +30,7 @@ import {
   useInspection,
   useInspectionEvidence,
   useInspectionFindings,
+  usePublishReportVersion,
   useReinspectionVerifications,
   useReportPaymentStatus,
   useReportVersions,
@@ -31,6 +39,7 @@ import {
 import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
 import { FlightPermitVerificationPanel } from '@/features/inspections/components/FlightPermitVerificationPanel';
 import { PlatformSettlementInvoiceCard } from '@/features/inspections/components/PlatformSettlementInvoiceCard';
+import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
@@ -49,7 +58,7 @@ export interface ManagerReportReviewPageProps {
 export default function ManagerReportReviewPage({
   stage,
 }: ManagerReportReviewPageProps = {}) {
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -65,6 +74,9 @@ export default function ManagerReportReviewPage({
   const [reviewReason, setReviewReason] = useState('');
   const [showReturnBox, setShowReturnBox] = useState(false);
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
+  const [prePublishPayoutRef, setPrePublishPayoutRef] = useState('');
+  const [prePublishPayoutBusy, setPrePublishPayoutBusy] = useState(false);
+  const [prePublishPayoutError, setPrePublishPayoutError] = useState<string | null>(null);
   const [financeDrawerTarget, setFinanceDrawerTarget] = useState<{
     requestId: string;
     occurrence: ServiceRequestOccurrence;
@@ -77,6 +89,7 @@ export default function ManagerReportReviewPage({
   const evidence = useInspectionEvidence(inspectionId);
   const reinspectionVerifications = useReinspectionVerifications?.(inspectionId);
   const review = useReviewReportVersion(inspectionId);
+  const publishReport = usePublishReportVersion(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId);
 
   const openVersion =
@@ -110,9 +123,23 @@ export default function ManagerReportReviewPage({
     Boolean(paymentStatusQuery.data?.paid) ||
     paymentStatusQuery.data?.paymentStatus === 'PAID';
   const isAccepted = Boolean(paymentStatusQuery.data?.reportAccepted) || isPaid;
+  const payoutStatus = (paymentStatusQuery.data?.payoutStatus ?? '').toUpperCase();
+  const isPayoutSettled = payoutStatus === 'PAID' || payoutStatus === 'SETTLED';
+  const financeBreakdown = resolveInspectorFinanceBreakdown(
+    inspectionId,
+    inspectionQuery.data,
+    paymentStatusQuery.data,
+  );
 
-  const notPublished = Boolean(openVersion && openVersion.status !== 'PUBLISHED');
-  const customerStatusNotice = notPublished ? (
+  const isApproved = openVersion?.status === 'APPROVED';
+  const notPublished = Boolean(openVersion && openVersion.status !== 'PUBLISHED' && !isApproved);
+  const customerStatusNotice = isApproved ? (
+    <Alert severity={isPayoutSettled ? 'success' : 'warning'} sx={{ borderRadius: '10px', py: 0.75 }} aria-live="polite">
+      {isPayoutSettled
+        ? t('Report approved and Inspector payout settled. Ready to publish to Customer.')
+        : t('Report approved. Settle Inspector payout before publishing to Customer.')}
+    </Alert>
+  ) : notPublished ? (
     <Alert severity="info" sx={{ borderRadius: '10px', py: 0.75 }} aria-live="polite">
       {t('Not yet published')}
     </Alert>
@@ -265,7 +292,7 @@ export default function ManagerReportReviewPage({
         </Stack>
       ) : showSettlementStage && stage === 'settlement' ? (
         <Stack spacing={2.5}>
-          {notPublished && customerStatusNotice}
+          {(notPublished || isApproved) && customerStatusNotice}
           <PlatformSettlementInvoiceCard
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}
@@ -296,6 +323,146 @@ export default function ManagerReportReviewPage({
         {openVersion && (
           <Stack spacing={3}>
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
+
+            {showReviewStage && openVersion.status === 'APPROVED' && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: '12px',
+                  borderColor: isPayoutSettled ? 'divider' : 'warning.main',
+                  bgcolor: 'background.paper',
+                  boxShadow: 'none',
+                }}
+              >
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {t('Report decision & payout gate')}
+                    </Typography>
+                    <StatusChip status="approved" label={t('Approved')} tone="info" />
+                    <StatusChip
+                      status={isPayoutSettled ? 'settled' : 'payout_pending'}
+                      label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
+                      tone={isPayoutSettled ? 'success' : 'warning'}
+                    />
+                  </Stack>
+
+                  {!isPayoutSettled ? (
+                    <>
+                      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {t('Inspector payout required before publishing to Customer')}
+                        </Typography>
+                        {(inspectionQuery.data?.inspectorName || financeBreakdown) && (
+                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                            {inspectionQuery.data?.inspectorName ? `${inspectionQuery.data.inspectorName}` : t('Inspector')}
+                            {financeBreakdown
+                              ? ` · ${t('Inspector net payout')}: ${formatNumber(financeBreakdown.netPayoutAmount)} ₫`
+                              : ''}
+                          </Typography>
+                        )}
+                      </Alert>
+
+                      {prePublishPayoutError && (
+                        <Alert
+                          severity="error"
+                          onClose={() => setPrePublishPayoutError(null)}
+                          sx={{ borderRadius: '8px' }}
+                        >
+                          {prePublishPayoutError}
+                        </Alert>
+                      )}
+
+                      {portal === 'manager' && (
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                          <TextField
+                            size="small"
+                            placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
+                            value={prePublishPayoutRef}
+                            onChange={(e) => setPrePublishPayoutRef(e.target.value)}
+                            sx={{ flex: 1 }}
+                          />
+                          <LoadingButton
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            loading={prePublishPayoutBusy}
+                            disabled={!prePublishPayoutRef.trim()}
+                            onClick={async () => {
+                              setPrePublishPayoutBusy(true);
+                              setPrePublishPayoutError(null);
+                              try {
+                                await handleInlineSettlePayout(prePublishPayoutRef.trim());
+                                setPrePublishPayoutRef('');
+                              } catch (err) {
+                                setPrePublishPayoutError(
+                                  getErrorMessage(err, t('Could not settle payout.')),
+                                );
+                              } finally {
+                                setPrePublishPayoutBusy(false);
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', borderRadius: '8px', boxShadow: 'none' }}
+                          >
+                            {t('Settle Inspector payout')}
+                          </LoadingButton>
+                          <Button
+                            component={RouterLink}
+                            to="/manager/payout-settlements"
+                            size="small"
+                            variant="outlined"
+                            color="inherit"
+                            sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px', borderColor: 'divider' }}
+                          >
+                            {t('Open Inspector payouts')}
+                          </Button>
+                        </Stack>
+                      )}
+
+                      <Divider />
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {t('Settle Inspector payout to unlock publishing.')}
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          disabled
+                          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none' }}
+                        >
+                          {t('Publish to Customer')}
+                        </Button>
+                      </Stack>
+                    </>
+                  ) : (
+                    <>
+                      <Alert severity="success" sx={{ borderRadius: '8px' }}>
+                        {t('Inspector payout settled')}
+                        {paymentStatusQuery.data?.payoutReference
+                          ? ` · ${t('Ref')}: ${paymentStatusQuery.data.payoutReference}`
+                          : ''}
+                      </Alert>
+                      <MutationProblemAlert
+                        error={publishReport.error}
+                        isError={publishReport.isError}
+                        fallbackMessage={t('The report could not be published.')}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <LoadingButton
+                          variant="contained"
+                          color="primary"
+                          loading={publishReport.isPending}
+                          onClick={() => publishReport.mutate({ versionId: openVersion.id })}
+                          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none' }}
+                        >
+                          {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
+                        </LoadingButton>
+                      </Box>
+                    </>
+                  )}
+                </Stack>
+              </Paper>
+            )}
 
             {showSettlementStage && (
               <PlatformSettlementInvoiceCard
@@ -343,6 +510,15 @@ export default function ManagerReportReviewPage({
                 }
                 reviewError={review.error}
                 isReviewError={review.isError}
+                approveLabel={portal === 'manager' ? t('Approve report') : undefined}
+                pendingApproveLabel={portal === 'manager' ? t('Approving…') : undefined}
+                confirmTitle={portal === 'manager' ? t('Approve report?') : undefined}
+                confirmMessage={
+                  portal === 'manager'
+                    ? t('Approves the report and unlocks Inspector payout. You will publish it to the Customer after settling the Inspector payout.')
+                    : undefined
+                }
+                confirmLabel={portal === 'manager' ? t('Approve report') : undefined}
               />
             )}
 

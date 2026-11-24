@@ -160,6 +160,7 @@ describe('finance history page', () => {
     expect(await screen.findByText('Platform finance details')).toBeTruthy();
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getAllByText(/2,045,455/).length).toBeGreaterThan(0);
+    expect(mocks.listManager).toHaveBeenCalledWith(0, 20, 'REVENUE');
     expect(mocks.getManagerDetail).toHaveBeenCalledWith('occ-3');
   });
 
@@ -168,12 +169,12 @@ describe('finance history page', () => {
     mocks.listManager.mockResolvedValue({
       summary: {
         currency: 'VND',
-        transactionCount: 1,
-        totalCustomerPaid: 12000000,
+        transactionCount: 0,
+        totalCustomerPaid: 0,
         totalRefunded: 0,
-        netPlatformInflow: 12000000,
-        totalCommissionEarned: 1636364,
-        totalVatAmount: 1090909,
+        netPlatformInflow: 0,
+        totalCommissionEarned: 0,
+        totalVatAmount: 0,
         totalTncnWithheld: 927273,
         totalInspectorNetPayout: 8345454,
         paidInspectorPayout: 0,
@@ -183,27 +184,28 @@ describe('finance history page', () => {
         occurrenceId: 'occ-4', requestId: 'req-4', occurrenceIndex: 1,
         requestDescription: 'Highlands survey', assetId: 'asset-4', assetName: 'Highlands Coffee',
         customerId: 'cust-1', customerName: 'Sai Gon Infra', inspectorId: 'ins-2', inspectorName: 'Do Thi Phi Cong',
-        currency: 'VND', customerPaidAmount: 12000000, serviceBaseAmount: 10909091,
+        currency: 'VND', customerPaidAmount: 0, serviceBaseAmount: 10909091,
         vatRate: 10, vatAmount: 1090909, commissionRate: 15, commissionAmount: 1636364, netCommissionAmount: 1636364,
-        tncnRate: 10, tncnAmount: 927273, inspectorNetPayout: 8345454, refundedAmount: 0, netPlatformInflow: 12000000,
-        paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VN-4', paymentConfirmedAt: '2026-11-24T05:00:00Z',
-        payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
+        tncnRate: 10, tncnAmount: 927273, inspectorNetPayout: 8345454, refundedAmount: 0, netPlatformInflow: 0,
+        paymentStatus: 'PENDING', paymentMethod: null, paymentReference: null, paymentConfirmedAt: null,
+        payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null, payoutUpdatedAt: '2026-11-24T05:00:00Z',
       }],
       totalElements: 1, page: 0, size: 20,
     });
     mocks.getManagerDetail.mockResolvedValue({
       occurrenceId: 'occ-4', requestId: 'req-4', occurrenceIndex: 1, currency: 'VND',
-      totalPrice: 12000000, paymentAmount: 12000000, paymentStatus: 'PAID', serviceBaseAmount: 10909091,
+      totalPrice: 12000000, paymentAmount: null, paymentStatus: 'PENDING', serviceBaseAmount: 10909091,
       vatRate: 10, vatAmount: 1090909, commissionRate: 15, commissionAmount: 1636364,
       inspectorGrossPayout: 9272727, tncnRate: 10, tncnAmount: 927273, inspectorNetPayout: 8345454,
       payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
-      paymentConfirmedAt: '2026-11-24T05:00:00Z', refunds: [],
-      payment: { status: 'PAID', method: 'VNPAY', reference: 'VN-4' },
+      paymentConfirmedAt: null, refunds: [],
+      payment: { status: 'PENDING', method: null, reference: null },
     });
     mocks.recordPayout.mockResolvedValue({});
 
     renderPage('payouts');
     expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
+    expect(mocks.listManager).toHaveBeenCalledWith(0, 20, 'PAYOUTS');
     fireEvent.click(screen.getByRole('button', { name: 'Payout eligible (1)' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
     const drawer = await screen.findByRole('dialog');

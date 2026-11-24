@@ -849,7 +849,13 @@ export function useReviewReportVersion(inspectionId: string | null) {
     mutationFn: ({ versionId, reason }: { versionId: string; reason?: string }) =>
       inspectionApi.reviewVersion(inspectionId!, versionId, reason),
     onSuccess: (result) => {
-      showToast(result.publishedAt ? 'Report approved and published.' : 'Report returned to the Inspector.');
+      showToast(
+        result.status === 'APPROVED'
+          ? 'Report approved. Settle Inspector payout before publishing to Customer.'
+          : result.publishedAt
+            ? 'Report approved and published.'
+            : 'Report returned to the Inspector.',
+      );
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
@@ -858,9 +864,38 @@ export function useReviewReportVersion(inspectionId: string | null) {
         client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
         client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report review was not recorded.'), 'error'),
+  });
+}
+
+export function usePublishReportVersion(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ versionId }: { versionId: string }) =>
+      inspectionApi.publishVersion(inspectionId!, versionId),
+    onSuccess: () => {
+      showToast('Report published to Customer.');
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The report could not be published.'), 'error'),
   });
 }
 

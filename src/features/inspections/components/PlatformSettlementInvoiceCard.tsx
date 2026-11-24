@@ -127,7 +127,7 @@ export function PlatformSettlementInvoiceCard({
 
   const payoutChip = finance.isDisbursed
     ? { status: 'settled', label: 'Payout settled', tone: 'success' as const }
-    : finance.isPaid
+    : finance.isPayoutEligible
       ? { status: 'payout_pending', label: 'Payout eligible', tone: 'warning' as const }
       : { status: 'payout_locked', label: 'Payout pending', tone: 'default' as const };
 
@@ -145,9 +145,9 @@ export function PlatformSettlementInvoiceCard({
     ? payoutRef
       ? `${t('Settled')} · ${t('Ref')}: ${payoutRef}`
       : t('Payout recorded')
-    : finance.isPaid
+    : finance.isPayoutEligible
       ? t('Eligible for manager payout')
-      : t('Payable after customer payment');
+      : t('Payable after report approval');
   const payoutSublabel = inspectorName
     ? `${inspectorName} · ${payoutStatusNote}`
     : payoutStatusNote;
@@ -361,12 +361,12 @@ export function PlatformSettlementInvoiceCard({
               />
             </Box>
 
-            {((!finance.isDisbursed && finance.isPaid && Boolean(onSettlePayout)) || Boolean(onManageFinance)) && (
+            {((!finance.isDisbursed && finance.isPayoutEligible && Boolean(onSettlePayout)) || Boolean(onManageFinance)) && (
               <Stack
                 spacing={1.25}
                 sx={{ pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}
               >
-                {!finance.isDisbursed && finance.isPaid && onSettlePayout && (
+                {!finance.isDisbursed && finance.isPayoutEligible && onSettlePayout && (
                   <Stack spacing={1}>
                     <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       {t('Record partner transfer')}
@@ -441,7 +441,7 @@ export function PlatformSettlementInvoiceCard({
                         },
                       }}
                     >
-                      {onSettlePayout && finance.isPaid
+                      {onSettlePayout && finance.isPayoutEligible
                         ? t('Refunds & wire transfer')
                         : t('Manage payout & refunds')}
                     </Button>

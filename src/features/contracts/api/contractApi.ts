@@ -238,6 +238,7 @@ export interface ManagerFinanceHistoryItem {
   payoutStatus: string;
   payoutReference: string | null;
   payoutRecordedAt: string | null;
+  payoutUpdatedAt?: string | null;
 }
 
 export interface ManagerFinanceHistoryPage {
@@ -599,9 +600,14 @@ export const contractApi = {
     return data;
   },
 
-  async listManagerFinanceHistory(page = 0, size = 20): Promise<ManagerFinanceHistoryPage> {
+  async listManagerFinanceHistory(
+    page = 0,
+    size = 20,
+    scope?: 'REVENUE' | 'PAYOUTS',
+  ): Promise<ManagerFinanceHistoryPage> {
+    const scopeParam = scope ? `&scope=${scope}` : '';
     const { data } = await api.get<ManagerFinanceHistoryPage>(
-      `/contracts/requests/finance-history/manager?page=${page}&size=${size}`,
+      `/contracts/requests/finance-history/manager?page=${page}&size=${size}${scopeParam}`,
     );
     return data;
   },

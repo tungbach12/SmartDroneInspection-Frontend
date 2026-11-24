@@ -390,8 +390,14 @@ export default function InspectionDetailPage() {
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
+  const hasApprovedVersion = Boolean(
+    versions.data?.some((version) => version.status === 'APPROVED'),
+  );
   const paymentStatusQuery = useReportPaymentStatus?.(
-    hasPublishedVersion && (isReviewerAdmin || isCustomer) ? inspectionId : null,
+    (hasPublishedVersion || (hasApprovedVersion && isReviewerAdmin)) &&
+      (isReviewerAdmin || isCustomer)
+      ? inspectionId
+      : null,
   );
   const isCustomerAccepted = Boolean(paymentStatusQuery?.data?.reportAccepted);
   const isPaymentSettled =
@@ -767,7 +773,9 @@ export default function InspectionDetailPage() {
     if (step.value === 'permit' || step.value === 'audit') return 'ready';
     if (step.value === 'field-session') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'review') return versions.data?.length ? 'ready' : 'blocked';
-    if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
+    if (step.value === 'settlement') {
+      return hasPublishedVersion || (isReviewerAdmin && hasApprovedVersion) ? 'ready' : 'blocked';
+    }
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
@@ -810,7 +818,7 @@ export default function InspectionDetailPage() {
     if (step.value === 'review' && !versions.data?.length) {
       return t('Awaiting Inspector report submission before manager review.');
     }
-    if (step.value === 'settlement' && !hasPublishedVersion) {
+    if (step.value === 'settlement' && !hasPublishedVersion && !(isReviewerAdmin && hasApprovedVersion)) {
       return t('Publish the official inspection report before reviewing settlement.');
     }
     return null;
@@ -1557,7 +1565,7 @@ export default function InspectionDetailPage() {
                     </Typography>
                     {isReviewerAdmin &&
                       step.value === 'settlement' &&
-                      hasPublishedVersion &&
+                      (hasPublishedVersion || hasApprovedVersion) &&
                       !isPaymentSettled && (
                         <Typography
                           component="span"

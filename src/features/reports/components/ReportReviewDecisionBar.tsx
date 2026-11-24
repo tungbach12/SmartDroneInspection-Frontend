@@ -24,6 +24,11 @@ export interface ReportReviewDecisionBarProps {
   onReturn: () => void;
   reviewError: unknown;
   isReviewError: boolean;
+  approveLabel?: string | undefined;
+  pendingApproveLabel?: string | undefined;
+  confirmTitle?: string | undefined;
+  confirmMessage?: string | undefined;
+  confirmLabel?: string | undefined;
 }
 
 /**
@@ -41,6 +46,11 @@ export function ReportReviewDecisionBar({
   onReturn,
   reviewError,
   isReviewError,
+  approveLabel,
+  pendingApproveLabel,
+  confirmTitle,
+  confirmMessage,
+  confirmLabel,
 }: ReportReviewDecisionBarProps) {
   const { t } = useLocale();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -123,7 +133,9 @@ export function ReportReviewDecisionBar({
               onClick={() => setConfirmOpen(true)}
               sx={{ borderRadius: '8px', px: 2.5, minHeight: 44, textTransform: 'none', fontWeight: 600 }}
             >
-              {isPending ? t('Publishing…') : t('Approve & publish')}
+              {isPending
+                ? (pendingApproveLabel ?? t('Publishing…'))
+                : (approveLabel ?? t('Approve & publish'))}
             </Button>
           </Stack>
         )}
@@ -143,9 +155,9 @@ export function ReportReviewDecisionBar({
       </Stack>
       <ConfirmDialog
         open={confirmOpen}
-        title={t('Publish report?')}
-        message={t('Publish? Locks the report and sends it to the Customer.')}
-        confirmLabel={t('Publish')}
+        title={confirmTitle ?? t('Publish report?')}
+        message={confirmMessage ?? t('Publish? Locks the report and sends it to the Customer.')}
+        confirmLabel={confirmLabel ?? t('Publish')}
         cancelLabel={t('Cancel')}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {

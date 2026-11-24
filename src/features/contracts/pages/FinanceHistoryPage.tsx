@@ -111,10 +111,11 @@ export default function FinanceHistoryPage({
 
   const hasActiveFilter = isPayoutView ? payoutFilter !== 'ALL' : revenueFilter !== 'ALL';
   const managerPageSize = hasActiveFilter ? 100 : 20;
+  const managerScope = isPayoutView ? 'PAYOUTS' : 'REVENUE';
   const managerHistoryQuery = useQuery({
-    queryKey: ['finance-history', 'manager', page, managerPageSize],
+    queryKey: ['finance-history', 'manager', isPayoutView ? 'payouts' : 'revenue', page, managerPageSize],
     enabled: manager,
-    queryFn: () => contractApi.listManagerFinanceHistory(page, managerPageSize),
+    queryFn: () => contractApi.listManagerFinanceHistory(page, managerPageSize, managerScope),
   });
 
   const activeQuery = manager ? managerHistoryQuery : historyQuery;
@@ -237,13 +238,12 @@ export default function FinanceHistoryPage({
       : '/client/dashboard';
   const managerSummary = managerHistoryQuery.data?.summary ?? null;
 
-  const detailPayoutStatus = detail?.payout?.status ?? detail?.payoutStatus ?? 'PENDING';
+  const detailPayoutStatus = (detail?.payout?.status ?? detail?.payoutStatus ?? 'PENDING').toUpperCase();
   const detailCanSettlePayout = Boolean(
     isPayoutView &&
       detail &&
-      detail.paymentStatus === 'PAID' &&
       !detail.payout?.heldForRefund &&
-      (!['PAID', 'SETTLED'].includes(detailPayoutStatus) ||
+      (detailPayoutStatus === 'ELIGIBLE' ||
         Boolean(detail.payout?.reference?.startsWith('AUTO-DISBURSE')) ||
         Boolean(detail.payoutReference?.startsWith('AUTO-DISBURSE'))),
   );
@@ -446,7 +446,14 @@ export default function FinanceHistoryPage({
                               onClick={() => void openDetail(item)}
                             >
                               <TableCell sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: 'text.secondary' }}>
-                                {formatShortDate(item.paymentConfirmedAt)}
+                                {isPayoutView
+                                  ? formatShortDate(
+                                      item.payoutRecordedAt ??
+                                        item.paymentConfirmedAt ??
+                                        item.payoutUpdatedAt ??
+                                        null,
+                                    )
+                                  : formatShortDate(item.paymentConfirmedAt)}
                               </TableCell>
                               {isPayoutView ? (
                                 <>
@@ -753,6 +760,7 @@ export default function FinanceHistoryPage({
                   <Detail label={t('Payout status')} value={detail.payout?.status ?? detail.payoutStatus} />
                   <Detail label={t('Payout reference')} value={detail.payout?.reference ?? detail.payoutReference} />
                   <Detail label={t('Payout recorded')} value={formatTime(detail.payoutRecordedAt)} />
+                  <Detail label={t('Customer payment')} value={detail.paymentStatus} />
                   <Detail label={t('Payment confirmed')} value={formatTime(detail.paymentConfirmedAt)} />
                 </Stack>
               ) : (

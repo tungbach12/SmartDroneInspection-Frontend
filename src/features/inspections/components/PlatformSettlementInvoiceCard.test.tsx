@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/shared/i18n/LocaleProvider';
 import { inspectionApi } from '../api/inspectionApi';
 import { PlatformSettlementInvoiceCard } from './PlatformSettlementInvoiceCard';
@@ -11,6 +11,9 @@ vi.mock('../api/inspectionApi', () => ({
 }));
 
 describe('PlatformSettlementInvoiceCard', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('shows separate collection and payout pills, recipient, reference, PDF download, and finance link when paid', async () => {
     const onManageFinance = vi.fn();
 
@@ -132,5 +135,33 @@ describe('PlatformSettlementInvoiceCard', () => {
     const secondaryBtn = screen.getByRole('button', { name: 'Refunds & wire transfer' });
     fireEvent.click(secondaryBtn);
     expect(onManageFinance).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks inline Inspector payout right after report approval even while Customer payment is PENDING', () => {
+    const onSettlePayout = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <LocaleProvider>
+        <PlatformSettlementInvoiceCard
+          inspectionId="insp-4"
+          inspectorName="Phạm Văn Bay"
+          onSettlePayout={onSettlePayout}
+          paymentDetails={{
+            reportAccepted: false,
+            paid: false,
+            paymentStatus: 'PENDING',
+            amount: 12000000,
+            payoutStatus: 'ELIGIBLE',
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByText('Awaiting customer')).toBeTruthy();
+    expect(screen.getByText('Payout eligible')).toBeTruthy();
+    const input = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
+    fireEvent.change(input, { target: { value: 'UNC-BIDV-20261124' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Settle Inspector payout' }));
+    expect(onSettlePayout).toHaveBeenCalledWith('UNC-BIDV-20261124');
   });
 });

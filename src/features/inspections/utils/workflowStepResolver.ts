@@ -108,6 +108,7 @@ export function resolveInitialStepForRow(
   // Inspector ('operations' portal)
   if (
     row?.reportStatus === 'PUBLISHED' ||
+    row?.reportStatus === 'APPROVED' ||
     row?.reportStatus === 'SUBMITTED' ||
     row?.reportStatus === 'RETURNED' ||
     row?.status === 'UNDER_REVIEW' ||
@@ -143,6 +144,9 @@ export function resolveRowStageSubtitle(
       return row.paymentStatus === 'PAID'
         ? 'Step 3/3 · Settled'
         : 'Step 3/3 · Commission & Settlement';
+    }
+    if (row.reportStatus === 'APPROVED') {
+      return 'Step 2/3 · Approved · Settle payout to publish';
     }
     if (row.status === 'UNDER_REVIEW' || row.reportStatus === 'SUBMITTED') {
       return `Step 2/3 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;

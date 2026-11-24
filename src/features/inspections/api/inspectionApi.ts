@@ -9,6 +9,7 @@ import type { PartnerCandidate } from '@/features/contracts/api/contractApi';
 export type ReportStatus =
   | 'DRAFT'
   | 'SUBMITTED'
+  | 'APPROVED'
   | 'RETURNED'
   | 'PUBLISHED'
   | 'SUPERSEDED';
@@ -1083,6 +1084,13 @@ export const inspectionApi = {
         `/inspections/${inspectionId}/report/versions/${versionId}/review`,
         null,
         { params: { reason } },
+      )
+      .then((response) => response.data),
+
+  publishVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<ReportReviewResult>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
       )
       .then((response) => response.data),
 
