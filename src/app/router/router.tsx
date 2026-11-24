@@ -118,6 +118,9 @@ const AdminAuditLogPage = lazy(
 const NotificationsPage = lazy(
   () => import('@/features/notifications/pages/NotificationsPage'),
 );
+const PetLabPreviewPage = lazy(
+  () => import('@/features/pets3d/PetLabPreviewPage'),
+);
 
 const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   dashboard: <DashboardPage />,
@@ -391,6 +394,10 @@ export const router = createBrowserRouter([
       {
         path: 'motion-lab',
         element: <MotionLabPage />,
+      },
+      {
+        path: 'pet-lab',
+        element: <PetLabPreviewPage />,
       },
       {
         path: 'login',
