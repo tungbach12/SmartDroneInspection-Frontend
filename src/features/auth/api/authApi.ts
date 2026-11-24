@@ -123,6 +123,10 @@ interface ApiUser {
   pilotLicenseClass?: string;
   pilotLicenseExpiresAt?: string;
   pilotLicenseFileKey?: string;
+  payoutBankName?: string | null;
+  payoutBankAccountNumber?: string | null;
+  payoutBankAccountHolder?: string | null;
+  payoutBankBranch?: string | null;
 }
 
 interface ApiAuthFlow {
@@ -188,6 +192,18 @@ function parseUser(value: unknown): AuthUser {
       typeof user.pilotLicenseFileKey === 'string'
         ? user.pilotLicenseFileKey
         : undefined,
+    payoutBankName:
+      typeof user.payoutBankName === 'string' ? user.payoutBankName : undefined,
+    payoutBankAccountNumber:
+      typeof user.payoutBankAccountNumber === 'string'
+        ? user.payoutBankAccountNumber
+        : undefined,
+    payoutBankAccountHolder:
+      typeof user.payoutBankAccountHolder === 'string'
+        ? user.payoutBankAccountHolder
+        : undefined,
+    payoutBankBranch:
+      typeof user.payoutBankBranch === 'string' ? user.payoutBankBranch : undefined,
   };
 }
 
@@ -394,6 +410,20 @@ export interface UpdatePilotLicenseInput {
 
 export async function updatePilotLicense(input: UpdatePilotLicenseInput): Promise<AuthUser> {
   const { data } = await api.put<AuthUser>('/users/me/pilot-license', input);
+  return parseUser(data);
+}
+
+export interface UpdatePayoutBankDetailsInput {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  bankBranch?: string | undefined;
+}
+
+export async function updatePayoutBankDetails(
+  input: UpdatePayoutBankDetailsInput,
+): Promise<AuthUser> {
+  const { data } = await api.put<AuthUser>('/users/me/payout-bank-details', input);
   return parseUser(data);
 }
 

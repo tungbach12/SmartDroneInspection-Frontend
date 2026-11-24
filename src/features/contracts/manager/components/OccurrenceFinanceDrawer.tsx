@@ -55,6 +55,11 @@ export function OccurrenceFinanceDrawer({
   const invoice = occurrence.invoice;
   const payment = occurrence.payment;
   const payout = occurrence.payout;
+  const hasCompleteBankDetails = Boolean(
+    payout?.bankName?.trim() &&
+      payout?.bankAccountNumber?.trim() &&
+      payout?.bankAccountHolder?.trim(),
+  );
   const isReportAccepted = Boolean(occurrence.reportAcceptedAt ?? invoice?.reportAcceptedAt);
   const canConfirmManualPayment =
     occurrence.paymentStatus === 'PAYMENT_DUE' &&
@@ -257,34 +262,62 @@ export function OccurrenceFinanceDrawer({
         )}
 
         {canSettlePayout && (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <TextField
-              size="small"
-              placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-              value={payoutRef}
-              onChange={(e) => setPayoutRef(e.target.value)}
-              sx={{ flex: 1 }}
-            />
-            <LoadingButton
-              size="small"
-              variant="contained"
-              color="primary"
-              loading={recordPayout.isPending}
-              disabled={!payoutRef.trim()}
-              onClick={async () => {
-                setDrawerError('');
-                try {
-                  await recordPayout.mutateAsync({ payoutReference: payoutRef.trim() });
-                  setPayoutRef('');
-                  onChanged();
-                } catch (err) {
-                  setDrawerError(extractContractErrorText(err, 'Could not settle payout.'));
-                }
-              }}
-              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
-            >
-              {t('Settle Inspector payout')}
-            </LoadingButton>
+          <Stack spacing={1.25}>
+            {hasCompleteBankDetails ? (
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.default',
+                }}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', display: 'block', mb: 0.35 }}>
+                  {t('Inspector payout bank account')}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {payout?.bankName} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{payout?.bankAccountNumber}</Box>
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {payout?.bankAccountHolder}
+                  {payout?.bankBranch ? ` · ${payout.bankBranch}` : ''}
+                </Typography>
+              </Box>
+            ) : (
+              <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                {t('Inspector has not entered payout bank details yet.')}
+              </Alert>
+            )}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                size="small"
+                placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
+                value={payoutRef}
+                onChange={(e) => setPayoutRef(e.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <LoadingButton
+                size="small"
+                variant="contained"
+                color="primary"
+                loading={recordPayout.isPending}
+                disabled={!payoutRef.trim() || !hasCompleteBankDetails}
+                onClick={async () => {
+                  setDrawerError('');
+                  try {
+                    await recordPayout.mutateAsync({ payoutReference: payoutRef.trim() });
+                    setPayoutRef('');
+                    onChanged();
+                  } catch (err) {
+                    setDrawerError(extractContractErrorText(err, 'Could not settle payout.'));
+                  }
+                }}
+                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
+              >
+                {t('Settle Inspector payout')}
+              </LoadingButton>
+            </Stack>
           </Stack>
         )}
 

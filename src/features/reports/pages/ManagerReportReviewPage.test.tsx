@@ -86,16 +86,22 @@ vi.mock('@/features/reports/components/ReportDeliverableTabs', () => ({
   ReportDeliverableTabs: () => <div data-testid="report-deliverable-tabs" />,
 }));
 
-function renderReviewPage() {
+function renderStagePage(stage: 'review' | 'payout') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/manager/inspections/insp-1/review']}>
+      <MemoryRouter initialEntries={[`/manager/inspections/insp-1/${stage}`]}>
         <Routes>
-          <Route
-            path="/manager/inspections/:inspectionId/review"
-            element={<ManagerReportReviewPage stage="review" />}
-          />
+          <Route path="/manager/inspections/:inspectionId">
+            <Route
+              path="review"
+              element={<ManagerReportReviewPage stage="review" />}
+            />
+            <Route
+              path="payout"
+              element={<ManagerReportReviewPage stage="payout" />}
+            />
+          </Route>
           <Route path="/manager/payout-settlements" element={<div>Payouts Queue</div>} />
         </Routes>
       </MemoryRouter>
@@ -103,7 +109,7 @@ function renderReviewPage() {
   );
 }
 
-describe('ManagerReportReviewPage two-step approval and payout gate', () => {
+describe('ManagerReportReviewPage separate review & payout stages', () => {
   afterEach(() => {
     cleanup();
   });
@@ -119,7 +125,28 @@ describe('ManagerReportReviewPage two-step approval and payout gate', () => {
     mocks.recordOccurrencePayout.mockResolvedValue({});
   });
 
-  it('prompts Manager to settle Inspector payout and disables Publish to Customer while APPROVED & ELIGIBLE', async () => {
+  it('guides APPROVED report on Step 2 review stage toward Step 3 Inspector Payout', () => {
+    mocks.versionsData = [
+      { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
+    ];
+    mocks.paymentStatusData = {
+      reportAccepted: false,
+      paid: false,
+      paymentStatus: 'PENDING',
+      payoutStatus: 'ELIGIBLE',
+    };
+
+    renderStagePage('review');
+
+    expect(
+      screen.getByText('Report approved. Proceed to Inspector Payout before publishing to Customer.'),
+    ).toBeTruthy();
+    const nextLink = screen.getByRole('link', { name: 'Continue to Inspector Payout' });
+    expect(nextLink.getAttribute('href')).toBe('/manager/inspections/insp-1/payout');
+    expect(screen.queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
+  });
+
+  it('blocks payout settlement on Step 3 when Inspector bank details are missing', () => {
     mocks.versionsData = [
       { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
     ];
@@ -132,15 +159,41 @@ describe('ManagerReportReviewPage two-step approval and payout gate', () => {
       payoutStatus: 'ELIGIBLE',
     };
 
-    renderReviewPage();
+    renderStagePage('payout');
 
-    expect(
-      screen.getByText('Inspector payout required before publishing to Customer'),
-    ).toBeTruthy();
-    expect(screen.getByText(/8,345,455/)).toBeTruthy();
+    expect(screen.getByText('Inspector has not entered payout bank details yet.')).toBeTruthy();
+    const uncInput = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
+    fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
 
+    const settleBtn = screen.getByRole('button', { name: 'Settle Inspector payout' }) as HTMLButtonElement;
+    expect(settleBtn.disabled).toBe(true);
     const publishBtn = screen.getByRole('button', { name: 'Publish to Customer' }) as HTMLButtonElement;
     expect(publishBtn.disabled).toBe(true);
+  });
+
+  it('displays Inspector bank details on Step 3 and allows Manager to settle payout', async () => {
+    mocks.versionsData = [
+      { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
+    ];
+    mocks.paymentStatusData = {
+      reportAccepted: false,
+      paid: false,
+      paymentStatus: 'PENDING',
+      amount: 12000000,
+      inspectorNetPayout: 8345455,
+      payoutStatus: 'ELIGIBLE',
+      inspectorBankName: 'Vietcombank',
+      inspectorBankAccountNumber: '0071001234567',
+      inspectorBankAccountHolder: 'PHAM VAN BAY',
+      inspectorBankBranch: 'CN Sai Gon',
+    };
+
+    renderStagePage('payout');
+
+    expect(screen.getByText('Vietcombank')).toBeTruthy();
+    expect(screen.getByText('0071001234567')).toBeTruthy();
+    expect(screen.getByText('PHAM VAN BAY')).toBeTruthy();
+    expect(screen.getByText(/8,345,455/)).toBeTruthy();
 
     const uncInput = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
     fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
@@ -153,7 +206,7 @@ describe('ManagerReportReviewPage two-step approval and payout gate', () => {
     });
   });
 
-  it('enables Publish to Customer and calls publish mutation once Inspector payout is PAID', () => {
+  it('enables Publish to Customer on Step 3 once Inspector payout is PAID', () => {
     mocks.versionsData = [
       { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
     ];
@@ -165,14 +218,20 @@ describe('ManagerReportReviewPage two-step approval and payout gate', () => {
       inspectorNetPayout: 8345455,
       payoutStatus: 'PAID',
       payoutReference: 'UNC-VCB-20261124',
+      inspectorBankName: 'Vietcombank',
+      inspectorBankAccountNumber: '0071001234567',
+      inspectorBankAccountHolder: 'PHAM VAN BAY',
     };
 
-    renderReviewPage();
+    renderStagePage('payout');
 
     expect(screen.getByText(/Inspector payout settled.*UNC-VCB-20261124/)).toBeTruthy();
     const publishBtn = screen.getByRole('button', { name: 'Publish to Customer' }) as HTMLButtonElement;
     expect(publishBtn.disabled).toBe(false);
     fireEvent.click(publishBtn);
-    expect(mocks.publishMutate).toHaveBeenCalledWith({ versionId: 'ver-1' });
+    expect(mocks.publishMutate).toHaveBeenCalledWith(
+      { versionId: 'ver-1' },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });

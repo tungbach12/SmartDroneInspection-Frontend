@@ -259,6 +259,18 @@ const portalRoutes = PORTAL_IDS.map((portal: PortalId) => {
                 },
               ]
             : []),
+          ...(portal === 'manager'
+            ? [
+                {
+                  path: 'payout',
+                  element: (
+                    <RequireAuth roles={['MANAGER']}>
+                      <ManagerReportReviewPage stage="payout" />
+                    </RequireAuth>
+                  ),
+                },
+              ]
+            : []),
           ...(portal === 'client' || portal === 'manager'
             ? [
                 {

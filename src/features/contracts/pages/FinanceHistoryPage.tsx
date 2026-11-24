@@ -33,6 +33,7 @@ import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useToastStore } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { InspectorPayoutBankCard } from '@/features/auth/components/profile/InspectorPayoutBankCard';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   contractApi,
@@ -89,12 +90,14 @@ export default function FinanceHistoryPage({
 } = {}) {
   const { locale, t, formatDate, formatDateTime } = useLocale();
   const roles = useAuthStore((state) => state.roles);
+  const currentUser = useAuthStore((state) => state.user);
   const inspector = roles.includes('INSPECTOR');
   const manager = !inspector && roles.includes('MANAGER');
   const isPayoutView = manager && mode === 'payouts';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
+  const [bankDialogOpen, setBankDialogOpen] = useState(false);
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get('page') ?? '0') || 0);
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>('ALL');
@@ -239,6 +242,11 @@ export default function FinanceHistoryPage({
   const managerSummary = managerHistoryQuery.data?.summary ?? null;
 
   const detailPayoutStatus = (detail?.payout?.status ?? detail?.payoutStatus ?? 'PENDING').toUpperCase();
+  const detailHasCompleteBankDetails = Boolean(
+    detail?.payout?.bankName?.trim() &&
+      detail?.payout?.bankAccountNumber?.trim() &&
+      detail?.payout?.bankAccountHolder?.trim(),
+  );
   const detailCanSettlePayout = Boolean(
     isPayoutView &&
       detail &&
@@ -253,6 +261,63 @@ export default function FinanceHistoryPage({
     <Box className="workspace-page">
       <PageHeader title={title} breadcrumbs={[{ label: t('Operations'), to: dashboardPath }, { label: title }]} />
       <Stack spacing={2}>
+        {inspector && (
+          currentUser?.payoutBankName?.trim() &&
+          currentUser?.payoutBankAccountNumber?.trim() &&
+          currentUser?.payoutBankAccountHolder?.trim() ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderRadius: '12px',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+              >
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                    {t('Payout bank account')}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {currentUser.payoutBankName} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{currentUser.payoutBankAccountNumber}</Box> · {currentUser.payoutBankAccountHolder}
+                    {currentUser.payoutBankBranch ? ` (${currentUser.payoutBankBranch})` : ''}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setBankDialogOpen(true)}
+                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', flexShrink: 0 }}
+                >
+                  {t('Edit bank account')}
+                </Button>
+              </Stack>
+            </Paper>
+          ) : (
+            <Alert
+              severity="warning"
+              sx={{ borderRadius: '10px', alignItems: 'center' }}
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => setBankDialogOpen(true)}
+                  sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap' }}
+                >
+                  {t('Set up bank account')}
+                </Button>
+              }
+            >
+              {t('Set up your payout bank account so the Platform Manager can transfer your earnings.')}
+            </Alert>
+          )
+        )}
         {manager && managerSummary && (
           <Paper
             variant="outlined"
@@ -714,6 +779,32 @@ export default function FinanceHistoryPage({
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       {t('Settle Inspector payout')}
                     </Typography>
+                    {detailHasCompleteBankDetails ? (
+                      <Box
+                        sx={{
+                          p: 1.25,
+                          borderRadius: '8px',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.default',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.35 }}>
+                          {t('Inspector payout bank account')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {detail.payout?.bankName} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{detail.payout?.bankAccountNumber}</Box>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {detail.payout?.bankAccountHolder}
+                          {detail.payout?.bankBranch ? ` · ${detail.payout.bankBranch}` : ''}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                        {t('Inspector has not entered payout bank details yet.')}
+                      </Alert>
+                    )}
                     {payoutError && (
                       <Alert severity="error" onClose={() => setPayoutError(null)} sx={{ borderRadius: '8px' }}>
                         {payoutError}
@@ -732,7 +823,7 @@ export default function FinanceHistoryPage({
                         variant="contained"
                         color="primary"
                         loading={payoutBusy}
-                        disabled={!payoutRef.trim()}
+                        disabled={!payoutRef.trim() || !detailHasCompleteBankDetails}
                         onClick={() => void handleSettlePayout()}
                         sx={{
                           textTransform: 'none',
@@ -881,6 +972,22 @@ export default function FinanceHistoryPage({
           <Button startIcon={<ArrowBackRoundedIcon />} onClick={closeDetail}>{t('Close')}</Button>
         </DialogActions>
       </Dialog>
+
+      {inspector && (
+        <Dialog
+          open={bankDialogOpen}
+          onClose={() => setBankDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogContent sx={{ pt: 3 }}>
+            <InspectorPayoutBankCard compact onSaved={() => setBankDialogOpen(false)} />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setBankDialogOpen(false)}>{t('Close')}</Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 }

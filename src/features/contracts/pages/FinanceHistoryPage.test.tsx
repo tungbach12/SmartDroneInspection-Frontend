@@ -200,6 +200,15 @@ describe('finance history page', () => {
       payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
       paymentConfirmedAt: null, refunds: [],
       payment: { status: 'PENDING', method: null, reference: null },
+      payout: {
+        inspectorId: 'ins-2',
+        status: 'ELIGIBLE',
+        reference: null,
+        recordedAt: null,
+        bankName: 'Vietcombank',
+        bankAccountNumber: '0071001234567',
+        bankAccountHolder: 'DO THI PHI CONG',
+      },
     });
     mocks.recordPayout.mockResolvedValue({});
 
@@ -209,6 +218,7 @@ describe('finance history page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Payout eligible (1)' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
     const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByText(/0071001234567/)).toBeTruthy();
     const uncInput = within(drawer).getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
     fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
     fireEvent.click(within(drawer).getByRole('button', { name: 'Settle Inspector payout' }));

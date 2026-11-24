@@ -316,6 +316,11 @@ export interface ReportPaymentStatusDetails {
   paymentMethod?: string | null;
   paymentReference?: string | null;
   paymentDueAt?: string | null;
+  paymentConfirmedAt?: string | null;
+  inspectorBankName?: string | null;
+  inspectorBankAccountNumber?: string | null;
+  inspectorBankAccountHolder?: string | null;
+  inspectorBankBranch?: string | null;
 }
 
 export interface ManualDraftInput {}

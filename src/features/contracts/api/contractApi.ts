@@ -79,6 +79,10 @@ export interface InspectorPayoutSummary {
   recordedAt: string | null;
   heldForRefund?: boolean;
   finalPayoutAmount?: number | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountHolder?: string | null;
+  bankBranch?: string | null;
 }
 
 export interface InspectorReceivableRecoverySummary {

@@ -38,6 +38,10 @@ export interface InspectorProfile {
   approvedByUserId?: string | null;
   approvedAt?: string | null;
   rejectionReason?: string | null;
+  payoutBankName?: string | null;
+  payoutBankAccountNumber?: string | null;
+  payoutBankAccountHolder?: string | null;
+  payoutBankBranch?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +62,10 @@ export interface UpdateInspectorProfileInput {
   certifiedDroneModels?: string | null;
   specializations?: string | null;
   experienceSummary?: string | null;
+  payoutBankName?: string | null;
+  payoutBankAccountNumber?: string | null;
+  payoutBankAccountHolder?: string | null;
+  payoutBankBranch?: string | null;
 }
 
 export interface InspectorFlightLog {

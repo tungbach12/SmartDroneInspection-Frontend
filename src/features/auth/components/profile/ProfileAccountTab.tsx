@@ -28,6 +28,7 @@ import {
   updateProfile,
   updateVisionFallbackPreference,
 } from '../../api/authApi';
+import { InspectorPayoutBankCard } from './InspectorPayoutBankCard';
 import { profileUpdateSchema } from '../../schemas/authSchemas';
 import { useAuthStore } from '../../store/authStore';
 
@@ -414,6 +415,8 @@ export function ProfileAccountTab() {
       {/* Inspector-only controls preserved identically */}
       {user?.roles.includes('INSPECTOR') && (
         <>
+          <InspectorPayoutBankCard />
+
           <Box
             sx={{
               p: { xs: 2, sm: 3 },

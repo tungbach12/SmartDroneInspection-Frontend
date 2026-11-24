@@ -203,7 +203,7 @@ describe('InspectionDetailPage', () => {
     expect(navigation.querySelector('a[aria-label*="Field Evidence: Waiting"]')).toBeTruthy();
   });
 
-  it('renders a Platform Manager review workspace on manager portal with 3 review stages and returns to the review queue', () => {
+  it('renders a Platform Manager review workspace on manager portal with 4 review stages and returns to the review queue', () => {
     signInAs('MANAGER');
     renderInspectionPage({ route: '/manager/inspections/inspection-1/review' });
 
@@ -211,7 +211,8 @@ describe('InspectionDetailPage', () => {
     const managerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(managerNav.querySelector('a[aria-label*="Field & Evidence Audit"]')).toBeTruthy();
     expect(managerNav.querySelector('a[aria-label*="Report Decision"]')).toBeTruthy();
-    expect(managerNav.querySelector('a[aria-label*="Commission & Settlement"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label*="Inspector Payout"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label*="Customer Settlement"]')).toBeTruthy();
     const backToQueue = screen.getByRole('link', { name: 'Inspections' });
     expect(backToQueue.getAttribute('href')).toBe('/manager/inspections');
   });
@@ -464,7 +465,7 @@ describe('InspectionDetailPage', () => {
 
   });
 
-  it('keeps manager Commission & Settlement incomplete and awaiting customer right after report publish until paid', () => {
+  it('keeps manager Customer Settlement incomplete and awaiting customer right after report publish until paid', () => {
     mocks.inspectionQuery = {
       data: { id: 'inspection-1', assetId: 'asset-1', status: 'COMPLETED' } as any,
       isLoading: false,
@@ -496,7 +497,8 @@ describe('InspectionDetailPage', () => {
     const { unmount } = renderInspectionPage({ route: '/manager/inspections/inspection-1/settlement' });
     const managerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(managerNav.querySelector('a[aria-label="Report Decision: Complete"]')).toBeTruthy();
-    expect(managerNav.querySelector('a[aria-label="Commission & Settlement: Complete"]')).toBeNull();
+    expect(managerNav.querySelector('a[aria-label="Inspector Payout: Complete"]')).toBeTruthy();
+    expect(managerNav.querySelector('a[aria-label="Customer Settlement: Complete"]')).toBeNull();
     expect(screen.getAllByText('Awaiting customer').length).toBeGreaterThan(0);
     unmount();
 
@@ -507,7 +509,7 @@ describe('InspectionDetailPage', () => {
     };
     renderInspectionPage({ route: '/manager/inspections/inspection-1/settlement' });
     const settledNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
-    expect(settledNav.querySelector('a[aria-label="Commission & Settlement: Complete"]')).toBeTruthy();
+    expect(settledNav.querySelector('a[aria-label="Customer Settlement: Complete"]')).toBeTruthy();
   });
 
   it('renders Customer tracking workspace on client portal and provides customer progress stages', () => {

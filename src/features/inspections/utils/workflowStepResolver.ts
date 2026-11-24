@@ -74,6 +74,9 @@ export function resolveInitialStepForRow(
     if (row?.reportStatus === 'PUBLISHED' || row?.status === 'COMPLETED') {
       return 'settlement';
     }
+    if (row?.reportStatus === 'APPROVED') {
+      return 'payout';
+    }
     if (
       !isReportsQueue &&
       (row?.status === 'SCHEDULED' || row?.status === 'IN_PROGRESS')
@@ -142,22 +145,22 @@ export function resolveRowStageSubtitle(
   if (roleView === 'manager') {
     if (row.reportStatus === 'PUBLISHED' || row.status === 'COMPLETED') {
       return row.paymentStatus === 'PAID'
-        ? 'Step 3/3 · Settled'
-        : 'Step 3/3 · Commission & Settlement';
+        ? 'Step 4/4 · Settled'
+        : 'Step 4/4 · Customer Settlement';
     }
     if (row.reportStatus === 'APPROVED') {
-      return 'Step 2/3 · Approved · Settle payout to publish';
+      return 'Step 3/4 · Inspector Payout';
     }
     if (row.status === 'UNDER_REVIEW' || row.reportStatus === 'SUBMITTED') {
-      return `Step 2/3 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;
+      return `Step 2/4 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;
     }
     if (row.reportStatus === 'RETURNED') {
-      return 'Step 2/3 · Returned for Revision';
+      return 'Step 2/4 · Returned for Revision';
     }
     if (row.status === 'FIELD_COMPLETED') {
-      return 'Step 2/3 · Awaiting report submission';
+      return 'Step 2/4 · Awaiting report submission';
     }
-    return 'Step 1/3 · Field & Evidence Audit';
+    return 'Step 1/4 · Field & Evidence Audit';
   }
 
   if (roleView === 'customer') {
