@@ -200,7 +200,7 @@ export function InspectorPayoutStatementCard({
 
           <Stack spacing={0}>
             <StatementLine
-              label={t('Pre-VAT base')}
+              label={t('Base fee')}
               amount={`${formatNumber(finance.serviceBaseAmount)} ₫`}
             />
             <StatementLine

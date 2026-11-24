@@ -573,24 +573,24 @@ function formatVideoMmSs(seconds: number | null | undefined): string {
 
 function getSoftSeverityChipSx(severity: Finding['severity']) {
   if (severity === 'CRITICAL' || severity === 'HIGH') {
-    return (theme: { palette: { mode: string } }) => ({
+    return {
       height: 22,
       fontSize: '0.75rem',
       fontWeight: 600,
-      bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.14)' : '#fef2f2',
-      borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.35)' : '#fecaca',
-      color: theme.palette.mode === 'dark' ? '#fca5a5' : '#b91c1c',
-    });
+      bgcolor: 'action.hover',
+      borderColor: 'error.main',
+      color: 'error.main',
+    };
   }
   if (severity === 'MEDIUM') {
-    return (theme: { palette: { mode: string } }) => ({
+    return {
       height: 22,
       fontSize: '0.75rem',
       fontWeight: 600,
-      bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.14)' : '#fffbeb',
-      borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.38)' : '#fde68a',
-      color: theme.palette.mode === 'dark' ? '#fcd34d' : '#b45309',
-    });
+      bgcolor: 'action.hover',
+      borderColor: 'warning.main',
+      color: 'warning.main',
+    };
   }
   return {
     height: 22,
@@ -1469,7 +1469,7 @@ export function ReportDerivedSections({
                           />
                           <Stack spacing={1}>
                             <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                              {video.fileName}
+                              {t('Video evidence')}
                             </Typography>
                             <Field
                               label={t('Duration')}

@@ -35,6 +35,9 @@ function RouterBreadcrumbLink({ item }: { item: BreadcrumbItem }) {
         fontWeight: 500,
         color: 'text.secondary',
         textDecoration: 'none',
+        display: 'inline-flex',
+        alignItems: 'center',
+        minHeight: 44,
         '&:hover': { color: 'primary.main' },
       }}
     >
@@ -64,6 +67,9 @@ function FallbackBreadcrumbLink({ item }: { item: BreadcrumbItem }) {
         fontWeight: 500,
         color: 'text.secondary',
         textDecoration: 'none',
+        display: 'inline-flex',
+        alignItems: 'center',
+        minHeight: 44,
         '&:hover': { color: 'primary.main' },
       }}
     >

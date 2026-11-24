@@ -398,7 +398,7 @@ export default function InspectionReportPage() {
                 <Typography variant="body2" color="text.secondary">
                   {findingsConfirmed
                     ? t('Check both reports before submitting.')
-                    : t('Confirm findings before compiling the reports.')}
+                    : t('Confirm findings to continue.')}
                 </Typography>
               </Box>
 

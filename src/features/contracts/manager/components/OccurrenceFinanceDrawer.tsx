@@ -116,7 +116,7 @@ export function OccurrenceFinanceDrawer({
               <Stack spacing={0.35}>
                 {occurrence.serviceBaseAmount != null && (
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('Pre-VAT base')}:{' '}
+                    {t('Base fee')}:{' '}
                     <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
                       {formatNumber(occurrence.serviceBaseAmount)} ₫
                     </Box>

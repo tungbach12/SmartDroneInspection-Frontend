@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Alert,
   Button,
@@ -9,6 +10,7 @@ import { getErrorMessage } from '@/shared/api/errorMessage';
 import { isConflict } from '@/shared/api/problem';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { MutationProblemAlert, RefusalNotice } from '@/shared/ui/MutationProblemAlert';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 
 export interface ReportReviewDecisionBarProps {
   isPending: boolean;
@@ -41,6 +43,7 @@ export function ReportReviewDecisionBar({
   isReviewError,
 }: ReportReviewDecisionBarProps) {
   const { t } = useLocale();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <Paper
@@ -51,6 +54,10 @@ export function ReportReviewDecisionBar({
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
+        position: 'sticky',
+        bottom: { xs: 0, md: 2 },
+        zIndex: 2,
+        boxShadow: 'none',
       }}
     >
       <Stack spacing={2}>
@@ -105,7 +112,7 @@ export function ReportReviewDecisionBar({
               color="error"
               disabled={isPending || reportReadLoading}
               onClick={() => onShowReturnBox(true)}
-              sx={{ borderRadius: '8px', px: 2.5, textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '8px', px: 2.5, minHeight: 44, textTransform: 'none', fontWeight: 600 }}
             >
               {t('Return with reason')}
             </Button>
@@ -113,8 +120,8 @@ export function ReportReviewDecisionBar({
               variant="contained"
               color="primary"
               disabled={isPending || reportReadLoading}
-              onClick={onApprove}
-              sx={{ borderRadius: '8px', px: 2.5, textTransform: 'none', fontWeight: 600 }}
+              onClick={() => setConfirmOpen(true)}
+              sx={{ borderRadius: '8px', px: 2.5, minHeight: 44, textTransform: 'none', fontWeight: 600 }}
             >
               {isPending ? t('Publishing…') : t('Approve & publish')}
             </Button>
@@ -134,6 +141,18 @@ export function ReportReviewDecisionBar({
           fallbackMessage={t('Could not record this report review.')}
         />
       </Stack>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={t('Publish report?')}
+        message={t('Publish? Locks the report and sends it to the Customer.')}
+        confirmLabel={t('Publish')}
+        cancelLabel={t('Cancel')}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onApprove();
+        }}
+      />
     </Paper>
   );
 }

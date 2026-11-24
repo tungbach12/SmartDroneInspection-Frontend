@@ -13,13 +13,9 @@ import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
-import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded';
-import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRounded';
-import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
-import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
 import {
   inspectionApi,
   type Finding,
@@ -85,7 +81,7 @@ export function CustomerReportSettlementCard({
   onOpenDispute,
   onViewReport,
 }: CustomerReportSettlementCardProps) {
-  const { formatDateTime, formatNumber, t } = useLocale();
+  const { formatDate, formatDateTime, formatNumber, t } = useLocale();
   const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
   const [previewingPdf, setPreviewingPdf] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -188,37 +184,38 @@ export function CustomerReportSettlementCard({
   const invoiceRef = paymentStatus?.orderCode
     ? `INV-${paymentStatus.orderCode}`
     : `INV-${inspectionId.slice(0, 8).toUpperCase()}`;
+  const dueLabel = paymentStatus?.paymentDueAt
+    ? t('Pay by {date}').replace(
+        '{date}',
+        formatDate(paymentStatus.paymentDueAt, { dateStyle: 'medium' }),
+      )
+    : t('Pay within 15 days to complete your service.');
 
   const steps = [
     {
-      title: t('1. Accept Official Report'),
+      title: t('Report acceptance'),
       subtitle:
         isReportAccepted || isPaid
           ? `${t('Accepted')} · v${versionNo}`
-          : t('Review report & confirm acceptance'),
+          : t('Review & accept the report'),
       done: isReportAccepted || isPaid,
       active: !isReportAccepted && !isPaid,
-      icon: DescriptionOutlined,
     },
     {
-      title: t('2. Service Fee Payment'),
+      title: t('Service fee'),
       subtitle: isPaid
-        ? t('Paid via Sepay')
-        : amountVnd
-          ? `${t('Due')}: ${amountVnd}`
-          : t('Sepay VietQR payment'),
+        ? t('Paid')
+        : isReportAccepted
+          ? t('Awaiting payment')
+          : t('After acceptance'),
       done: isPaid,
       active: isReportAccepted && !isPaid,
-      icon: PaidOutlined,
     },
     {
-      title: t('3. Order Fulfilled'),
-      subtitle: isPaid
-        ? t('Deliverables verified & fulfilled')
-        : t('Fulfilled upon payment confirmation'),
+      title: t('Fulfilment'),
+      subtitle: isPaid ? t('Deliverables verified') : t('After payment'),
       done: isPaid,
       active: false,
-      icon: VerifiedOutlined,
     },
   ];
 
@@ -255,7 +252,7 @@ export function CustomerReportSettlementCard({
                       : t('Awaiting Acceptance')
                 }
                 color={isPaid ? 'success' : isReportAccepted ? 'warning' : 'primary'}
-                sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
+                sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
               />
               <Chip
                 size="small"
@@ -346,7 +343,7 @@ export function CustomerReportSettlementCard({
                     sx={{ justifyContent: 'space-between', py: 0.35 }}
                   >
                     <Typography variant="caption" color="text.secondary">
-                      {t('Pre-VAT base')}
+                      {t('Base fee')}
                     </Typography>
                     <Typography
                       variant="caption"
@@ -383,7 +380,7 @@ export function CustomerReportSettlementCard({
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: '1.125rem',
+                    fontSize: '1rem',
                     fontWeight: 800,
                     color: isPaid ? '#176B52' : 'primary.main',
                     fontVariantNumeric: 'tabular-nums',
@@ -396,65 +393,81 @@ export function CustomerReportSettlementCard({
           )}
         </Stack>
 
-        {/* 3-Step Commercial Settlement Strip */}
+        {/* Settlement trace: hairline dividers, one active step, no nested cards */}
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-            gap: 1.5,
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
           }}
         >
-          {steps.map((step) => {
-            const Icon = step.icon;
-            return (
+          {steps.map((step, index) => (
+            <Box
+              key={step.title}
+              aria-current={step.active ? 'step' : undefined}
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1.25,
+                py: { xs: 1.25, md: 0 },
+                pl: { md: index === 0 ? 0 : 2 },
+                borderTop: { xs: index === 0 ? 'none' : '1px solid', md: 'none' },
+                borderLeft: { xs: 'none', md: index === 0 ? 'none' : '1px solid' },
+                borderColor: 'divider',
+              }}
+            >
               <Box
-                key={step.title}
                 sx={{
-                  p: 1.5,
-                  borderRadius: '10px',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  display: 'grid',
+                  placeItems: 'center',
                   border: '1px solid',
                   borderColor: step.active ? 'primary.main' : 'divider',
-                  bgcolor: step.active ? 'action.hover' : 'background.default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.25,
+                  bgcolor: step.active
+                    ? 'primary.main'
+                    : step.done
+                      ? 'action.hover'
+                      : 'background.paper',
+                  color: step.active
+                    ? 'common.white'
+                    : step.done
+                      ? 'text.secondary'
+                      : 'text.disabled',
                 }}
               >
                 {step.done ? (
-                  <CheckCircleRounded sx={{ fontSize: 20, color: '#176B52', flexShrink: 0 }} />
-                ) : step.active ? (
-                  <RadioButtonCheckedRounded
-                    sx={{ fontSize: 20, color: 'primary.main', flexShrink: 0 }}
-                  />
+                  <CheckCircleRounded sx={{ fontSize: 16 }} />
                 ) : (
-                  <RadioButtonUncheckedRounded
-                    sx={{ fontSize: 20, color: 'text.disabled', flexShrink: 0 }}
-                  />
-                )}
-                <Box sx={{ minWidth: 0 }}>
-                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 650,
-                        fontSize: '0.875rem',
-                        color: step.done ? '#176B52' : 'text.primary',
-                      }}
-                    >
-                      {step.title}
-                    </Typography>
-                    <Icon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                  </Stack>
                   <Typography
                     variant="caption"
-                    sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                    sx={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: 1 }}
                   >
-                    {step.subtitle}
+                    {index + 1}
                   </Typography>
-                </Box>
+                )}
               </Box>
-            );
-          })}
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 650,
+                    fontSize: '0.875rem',
+                    color: step.done && isPaid ? '#176B52' : 'text.primary',
+                  }}
+                >
+                  {step.title}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {step.subtitle}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
         </Box>
 
         <Divider />
@@ -520,18 +533,11 @@ export function CustomerReportSettlementCard({
             >
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
-                  {t('Report accepted')}
-                  {amountVnd ? ` · ${t('Payment due')}: ${amountVnd}` : ''}
+                  {t('Choose a payment method')}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                  {t(
-                    'Please complete the online service payment via VNPay or Sepay (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
-                  )}
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                  {dueLabel}
                 </Typography>
-                <Alert severity="info" sx={{ mt: 1, py: 0.25, px: 1.25, fontSize: '0.75rem', borderRadius: '6px' }}>
-                  <strong>{t('Net 15 payment window:')}</strong>{' '}
-                  {t('Please complete payment within 15 days. PDF files downloaded before payment carry a "Preview" watermark and are not yet legally binding.')}
-                </Alert>
               </Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
                 <Button
@@ -544,7 +550,7 @@ export function CustomerReportSettlementCard({
                     fontWeight: 600,
                     borderRadius: '8px',
                     px: 2,
-                    py: 1,
+                    minHeight: 44,
                     textTransform: 'none',
                     whiteSpace: 'nowrap',
                   }}
@@ -553,19 +559,18 @@ export function CustomerReportSettlementCard({
                 </Button>
                 {onProceedToVnPay && (
                   <Button
-                    variant="contained"
+                    variant="outlined"
                     disabled={vnpayPending || sepayPending}
                     endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
                     onClick={onProceedToVnPay}
+                    title={t('Opens VNPay in a new tab.')}
                     sx={{
                       fontWeight: 650,
                       borderRadius: '8px',
                       px: 2.5,
-                      py: 1,
+                      minHeight: 44,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
-                      bgcolor: '#005baa',
-                      '&:hover': { bgcolor: '#004684' },
                     }}
                   >
                     {vnpayPending
@@ -574,8 +579,7 @@ export function CustomerReportSettlementCard({
                   </Button>
                 )}
                 <Button
-                  variant={onProceedToVnPay ? 'outlined' : 'contained'}
-                  color="primary"
+                  variant="outlined"
                   disabled={sepayPending || vnpayPending}
                   startIcon={<QrCode2Rounded sx={{ fontSize: 18 }} />}
                   onClick={onProceedToSepay}
@@ -583,7 +587,7 @@ export function CustomerReportSettlementCard({
                     fontWeight: 650,
                     borderRadius: '8px',
                     px: 2.5,
-                    py: 1,
+                    minHeight: 44,
                     textTransform: 'none',
                     whiteSpace: 'nowrap',
                   }}
@@ -593,6 +597,9 @@ export function CustomerReportSettlementCard({
                     : t('Pay with VietQR (Sepay)')}
                 </Button>
               </Stack>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {t('Opens VNPay in a new tab.')}
+              </Typography>
             </Stack>
           </Stack>
         ) : (
@@ -602,9 +609,7 @@ export function CustomerReportSettlementCard({
                 {t('Customer report acceptance')}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                {t(
-                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to online payment (VNPay or Sepay VietQR).',
-                )}
+                {t('Review the summary, then accept the report to continue to payment.')}
               </Typography>
             </Box>
 

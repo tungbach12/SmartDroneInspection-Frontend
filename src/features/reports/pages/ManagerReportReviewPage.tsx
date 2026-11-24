@@ -28,7 +28,6 @@ import { FlightPermitPreviewDialog } from '@/features/inspections/components/Fli
 import { FlightPermitVerificationPanel } from '@/features/inspections/components/FlightPermitVerificationPanel';
 import { PlatformSettlementInvoiceCard } from '@/features/inspections/components/PlatformSettlementInvoiceCard';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
-import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -102,12 +101,17 @@ export default function ManagerReportReviewPage({
     paymentStatusQuery.data?.paymentStatus === 'PAID';
   const isAccepted = Boolean(paymentStatusQuery.data?.reportAccepted) || isPaid;
 
-  const customerStatusNotice = isPaid ? (
-    <Alert severity="success" sx={{ borderRadius: '10px', py: 0.75 }}>
+  const notPublished = Boolean(openVersion && openVersion.status !== 'PUBLISHED');
+  const customerStatusNotice = notPublished ? (
+    <Alert severity="info" sx={{ borderRadius: '10px', py: 0.75 }} aria-live="polite">
+      {t('Not yet published')}
+    </Alert>
+  ) : isPaid ? (
+    <Alert severity="success" sx={{ borderRadius: '10px', py: 0.75 }} aria-live="polite">
       {t('Paid & settled')}
     </Alert>
   ) : (
-    <Alert severity="info" sx={{ borderRadius: '10px', py: 0.75 }}>
+    <Alert severity="info" sx={{ borderRadius: '10px', py: 0.75 }} aria-live="polite">
       {isAccepted
         ? t('Customer accepted the report. Awaiting payment.')
         : t('Report published. Awaiting customer acceptance.')}
@@ -226,15 +230,6 @@ export default function ManagerReportReviewPage({
         {openVersion && (
           <Stack spacing={3}>
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
-
-            {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
-              <ReportAiSummaryCard
-                inspectionId={inspectionId}
-                versionId={openVersion.id}
-                summary={openVersion.summary}
-                findings={findings.data ?? []}
-              />
-            )}
 
             {showSettlementStage && (
               <PlatformSettlementInvoiceCard

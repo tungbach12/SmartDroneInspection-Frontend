@@ -1071,6 +1071,7 @@ export default function InspectionDetailPage() {
                         </Box>
                       )}
                       <Typography
+                        component="span"
                         variant="subtitle2"
                         className="asset-title-text"
                         sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
@@ -1417,7 +1418,7 @@ export default function InspectionDetailPage() {
               const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
               const isCompleted = state === 'complete';
               const completeGreen = '#176B52';
-              const activePrimary = '#2B84EB';
+              const activePrimary = 'primary.main';
 
               return (
                 <ButtonBase
@@ -1565,7 +1566,7 @@ export default function InspectionDetailPage() {
                             mt: 0.25,
                             fontSize: '0.72rem',
                             fontWeight: 600,
-                            color: '#2B84EB',
+                            color: 'primary.main',
                             lineHeight: 1.2,
                             whiteSpace: 'nowrap',
                           }}
@@ -1593,7 +1594,7 @@ export default function InspectionDetailPage() {
                   const isCurrent = tabValue === step.value;
                   const isCompleted = state === 'complete';
                   const completeGreen = '#176B52';
-                  const activePrimary = '#2B84EB';
+                  const activePrimary = 'primary.main';
                   return (
                     <Box
                       key={step.value}
@@ -1603,6 +1604,7 @@ export default function InspectionDetailPage() {
                         component={NavLink}
                         to={step.to}
                         aria-current={isCurrent ? 'step' : undefined}
+                        aria-disabled={state === 'blocked' ? true : undefined}
                         aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
                         title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
                         sx={{
@@ -1623,7 +1625,7 @@ export default function InspectionDetailPage() {
                             : isCurrent
                               ? activePrimary
                               : 'text.secondary',
-                          boxShadow: isCurrent ? '0 0 0 3px rgba(43, 132, 235, 0.2)' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}

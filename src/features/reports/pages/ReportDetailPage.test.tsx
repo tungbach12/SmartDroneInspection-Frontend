@@ -169,6 +169,7 @@ describe('ReportDetailPage MF3 gates', () => {
 
     const headings = [...document.querySelectorAll('h2')].map((heading) => heading.textContent);
     expect(headings).toEqual([
+      'AI Executive Summary',
       'Identification',
       'Evidence register',
     ]);
@@ -280,6 +281,9 @@ describe('ReportDetailPage MF3 gates', () => {
       });
     }
     fireEvent.click(await screen.findByRole('button', { name: button }));
+    if (action === 'approve') {
+      fireEvent.click(await screen.findByRole('button', { name: 'Publish' }));
+    }
 
     expect(await screen.findByText(`Review ${action} failed.`)).toBeTruthy();
   });
@@ -291,6 +295,7 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish' }));
 
     expect(await screen.findByText('Publication failed.')).toBeTruthy();
   });
@@ -375,6 +380,7 @@ describe('ReportDetailPage MF3 gates', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Approve & publish' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish' }));
 
     expect(await screen.findByText(/Published version 1\. The PDF is immutable/i)).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Send findings to Maintenance' })).toBeNull();

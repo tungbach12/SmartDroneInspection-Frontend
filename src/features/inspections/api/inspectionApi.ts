@@ -314,6 +314,7 @@ export interface ReportPaymentStatusDetails {
   payoutReference?: string | null;
   paymentMethod?: string | null;
   paymentReference?: string | null;
+  paymentDueAt?: string | null;
 }
 
 export interface ManualDraftInput {}

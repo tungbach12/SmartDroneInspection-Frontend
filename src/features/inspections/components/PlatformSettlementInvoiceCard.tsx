@@ -54,7 +54,7 @@ function StatementLine({
         {sublabel && (
           <Typography
             variant="caption"
-            sx={{ color: 'text.disabled', display: 'block', fontSize: '0.72rem' }}
+            sx={{ color: 'text.secondary', display: 'block', fontSize: '0.75rem' }}
           >
             {sublabel}
           </Typography>
@@ -204,7 +204,7 @@ export function PlatformSettlementInvoiceCard({
 
           <Stack spacing={0}>
             <StatementLine
-              label={t('Pre-VAT base')}
+              label={t('Base fee')}
               amount={`${formatNumber(finance.serviceBaseAmount)} ₫`}
             />
             <StatementLine

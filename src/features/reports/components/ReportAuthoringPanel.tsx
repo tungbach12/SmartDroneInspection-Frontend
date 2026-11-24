@@ -176,7 +176,8 @@ export function ReportAuthoringPanel({
                 startIcon={<DownloadRounded />}
                 onClick={handleDownload}
                 disabled={!canDownload || downloading}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                aria-label={!canDownload ? t('Available once the report is published') : undefined}
+                sx={{ borderRadius: '8px', minHeight: 44, textTransform: 'none', fontWeight: 600 }}
               >
                 {downloading ? t('Downloading…') : t('Download report')}
               </Button>
@@ -230,7 +231,7 @@ export function ReportAuthoringPanel({
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
             <PictureAsPdfRounded sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem' }}>
               {isPublished ? t('Published Report PDF') : t('Draft Report Preview')}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>

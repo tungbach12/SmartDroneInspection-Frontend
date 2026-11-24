@@ -36,11 +36,11 @@ import {
   useInspection,
   useReinspectionVerifications,
   useReportPaymentStatus,
+  useRequestReportClarification,
 } from '@/features/inspections/hooks/useInspections';
 import ManagerReportReviewPage from './ManagerReportReviewPage';
 import CustomerReportDeliverablePage from './CustomerReportDeliverablePage';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
-import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
@@ -60,7 +60,7 @@ const NEXT_STEP: Record<string, string> = {
 };
 
 export default function ReportDetailPage() {
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
@@ -77,30 +77,6 @@ export default function ReportDetailPage() {
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
   const [sepayQrOpen, setSepayQrOpen] = useState(false);
 
-  useEffect(() => {
-    if (!inspectionId || typeof localStorage === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`sdi_report_dispute_${inspectionId}`);
-      if (!raw) {
-        setDisputeSubmitted(false);
-        setDisputeReason('');
-        setDisputeSubmittedAt(null);
-        return;
-      }
-      const parsed = JSON.parse(raw) as { reason?: string; submittedAt?: string };
-      if (parsed && typeof parsed.reason === 'string') {
-        setDisputeReason(parsed.reason);
-        setDisputeSubmittedAt(typeof parsed.submittedAt === 'string' ? parsed.submittedAt : null);
-        setDisputeSubmitted(true);
-      } else {
-        setDisputeReason(raw);
-        setDisputeSubmitted(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, [inspectionId]);
-
   const isClientPortal = portal === 'client';
   const isManagerPortal = portal === 'admin' || portal === 'manager';
   const findings = useInspectionFindings(inspectionId);
@@ -115,6 +91,7 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
+  const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
@@ -128,9 +105,8 @@ export default function ReportDetailPage() {
       paymentStatus?.paymentStatus === 'PAID' ||
       searchParams.get('payment') === 'success',
   );
-  const isReportAccepted = Boolean(
-    paymentStatus?.reportAccepted || acceptReport.isSuccess,
-  );
+  const isReportAccepted = Boolean(paymentStatus?.reportAccepted);
+  const priorClarificationCount = inspectionQuery.data?.clarificationCount ?? 0;
 
   useEffect(() => {
     if (sepayQrOpen && isPaid) {
@@ -383,15 +359,6 @@ export default function ReportDetailPage() {
                 </Paper>
               )}
 
-              {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
-                <ReportAiSummaryCard
-                  inspectionId={inspectionId}
-                  versionId={openVersion.id}
-                  summary={openVersion.summary}
-                  findings={findings.data ?? []}
-                />
-              )}
-
               {/* Customer Report Acceptance & Payment Gate (Customer view only) */}
               {openVersion.status === 'PUBLISHED' && isClientPortal && (
                 <CustomerReportSettlementCard
@@ -432,7 +399,7 @@ export default function ReportDetailPage() {
                 details={sepayQrOpen ? sepayLink.data : undefined}
                 amountVnd={
                   paymentStatus?.amount
-                    ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND`
+                    ? `${formatNumber(paymentStatus.amount)} ₫`
                     : undefined
                 }
                 checking={paymentStatusQuery.isFetching}
@@ -497,11 +464,11 @@ export default function ReportDetailPage() {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t(
-                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Platform Manager will review and provide a response.',
-              )}
-            </Typography>
+            {priorClarificationCount >= 2 && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t('Clarification limit reached. Contact your Manager.')}
+              </Alert>
+            )}
             <TextField
               label={t('Dispute details or questions')}
               multiline
@@ -512,6 +479,11 @@ export default function ReportDetailPage() {
               fullWidth
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
+            {requestClarification.isError && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t('Request not sent. Try again.')}
+              </Alert>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -521,23 +493,19 @@ export default function ReportDetailPage() {
           <Button
             variant="contained"
             color="warning"
-            disabled={!disputeReason.trim()}
+            disabled={priorClarificationCount >= 2 || !disputeReason.trim() || requestClarification.isPending}
             onClick={() => {
-              const timestamp = new Date().toISOString();
-              try {
-                localStorage.setItem(
-                  `sdi_report_dispute_${inspectionId}`,
-                  JSON.stringify({
-                    reason: disputeReason.trim(),
-                    submittedAt: timestamp,
-                  }),
-                );
-              } catch {
-                // ignore
-              }
-              setDisputeSubmittedAt(timestamp);
-              setDisputeSubmitted(true);
-              setDisputeOpen(false);
+              if (!openVersion) return;
+              requestClarification.mutate(
+                { versionId: openVersion.id, reason: disputeReason.trim() },
+                {
+                  onSuccess: () => {
+                    setDisputeSubmittedAt(new Date().toISOString());
+                    setDisputeSubmitted(true);
+                    setDisputeOpen(false);
+                  },
+                },
+              );
             }}
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
           >

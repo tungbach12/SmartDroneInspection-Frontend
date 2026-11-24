@@ -89,7 +89,7 @@ export function SepayQrDialog({
       onClose={onClose}
       maxWidth="xs"
       fullWidth
-      slotProps={{ paper: { sx: { borderRadius: '14px' } } }}
+      slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -105,7 +105,7 @@ export function SepayQrDialog({
             label={t('Awaiting automatic confirmation')}
             color="primary"
             variant="outlined"
-            sx={{ height: 24, fontSize: '0.7rem', fontWeight: 600 }}
+            sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }}
           />
         </Stack>
       </DialogTitle>
@@ -133,7 +133,7 @@ export function SepayQrDialog({
               <Box
                 component="img"
                 src={details.checkoutUrl}
-                alt={t('Sepay VietQR payment')}
+                alt={t('VietQR code for this service fee payment')}
                 onError={() => setQrLoadError(true)}
                 sx={{
                   width: 224,
@@ -270,9 +270,20 @@ export function SepayQrDialog({
           </Box>
 
           <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            {copiedKey === 'content'
-              ? t('Transfer content copied.')
-              : t('Keep the transfer content unchanged so the payment can be matched.')}
+            {t('Use the transfer content below when you pay; the invoice reference on the settlement page is for your records.')}
+          </Typography>
+          <Typography
+            component="p"
+            role="status"
+            aria-live="polite"
+            variant="caption"
+            sx={{ color: 'text.secondary', textAlign: 'center', m: 0 }}
+          >
+            {checking
+              ? t('Checking…')
+              : copiedKey === 'content'
+                ? t('Transfer content copied.')
+                : t('Keep the transfer content unchanged so the payment can be matched.')}
           </Typography>
         </Stack>
       </DialogContent>

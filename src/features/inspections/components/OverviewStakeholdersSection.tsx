@@ -156,6 +156,7 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
+              minHeight: 44,
               borderRadius: '10px',
               bgcolor: 'background.paper',
               border: '1px solid',
@@ -175,7 +176,7 @@ export function OverviewStakeholdersSection({
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
                 src={inspectorAvatar}
-                alt={inspectorName}
+                alt=""
                 sx={{ width: 40, height: 40, bgcolor: '#e6f4f1', color: '#176b52', fontWeight: 700 }}
               >
                 {inspectorName.slice(0, 1)}
@@ -212,6 +213,7 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
+              minHeight: 44,
               borderRadius: '10px',
               bgcolor: 'background.paper',
               border: '1px solid',
@@ -274,7 +276,7 @@ export function OverviewStakeholdersSection({
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
             <Avatar
               src={inspectorAvatar}
-              alt={inspectorName}
+              alt=""
               sx={{ width: 48, height: 48, border: '2px solid #228b6e' }}
             />
             <Box sx={{ minWidth: 0 }}>
