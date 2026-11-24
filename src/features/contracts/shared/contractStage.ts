@@ -70,6 +70,31 @@ export function getStatusLabel(
   }
 }
 
+const INSPECTION_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'Scheduled',
+  IN_PROGRESS: 'In Progress',
+  FIELD_COMPLETED: 'Field Completed',
+  UNDER_REVIEW: 'Under Review',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  ABORTED: 'Aborted',
+};
+
+export function getInspectionStatusLabel(
+  status: string,
+  t: (key: string) => string,
+): string {
+  const label = INSPECTION_STATUS_LABELS[status];
+  if (label) return t(label);
+  const formatted = status
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+  return t(formatted || status);
+}
+
 /** SRS §3.5.1 four-step lifecycle progress subtitle. */
 export function getRequestStageSubtitle(
   status: ServiceRequest['status'],

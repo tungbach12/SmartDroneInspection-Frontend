@@ -26,7 +26,11 @@ import {
   useServiceRequests,
 } from '../hooks/useContracts';
 import { InspectionChatPanel, PartnerChatPanel, RequestChatPanel } from '../components/RequestChatPanel';
-import { getEffectiveRequestStatus, getStatusLabel } from '../shared/contractStage';
+import {
+  getEffectiveRequestStatus,
+  getInspectionStatusLabel,
+  getStatusLabel,
+} from '../shared/contractStage';
 
 type InboxFilter = 'ALL' | 'UNREAD';
 type InboxChannel = 'requests' | 'inspections' | 'partners';
@@ -402,67 +406,136 @@ export default function ContractInboxPage() {
           {/* Left Conversations Sidebar */}
           <Box
             sx={{
-              width: { xs: '100%', md: 340 },
+              width: { xs: '100%', md: 336 },
               flexShrink: 0,
               minHeight: 0,
               flex: { xs: 1, md: 'none' },
-              borderRight: { md: '1px solid' },
-              borderColor: 'divider',
+              borderRight: { xs: 'none', md: '1px solid var(--mui-palette-divider)' },
               display: { xs: mobileShowChat && hasSelection ? 'none' : 'flex', md: 'flex' },
               flexDirection: 'column',
               bgcolor: 'background.paper',
             }}
           >
-            <Box sx={{ p: 2, pb: 1.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {t('Messages')}
-                </Typography>
-                <Box
+            <Box sx={{ px: 2, pt: 1.75, pb: 1.25 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}
+              >
+                <Stack direction="row" spacing={0.875} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                    {t('Messages')}
+                  </Typography>
+                  <Box
+                    sx={{
+                      px: 0.9,
+                      py: 0.1,
+                      borderRadius: '999px',
+                      bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)',
+                      color: 'primary.main',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {activeItemsCount}
+                  </Box>
+                </Stack>
+
+                <Stack
+                  direction="row"
+                  spacing={0.25}
                   sx={{
-                    px: 1,
-                    py: 0.15,
-                    borderRadius: '999px',
-                    bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
-                    color: 'primary.main',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    lineHeight: 1.4,
+                    p: 0.3,
+                    borderRadius: '8px',
+                    bgcolor: 'action.hover',
+                    flexShrink: 0,
                   }}
                 >
-                  {activeItemsCount}
-                </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setFilter('ALL')}
+                    sx={{
+                      px: 1.1,
+                      py: 0.35,
+                      border: 0,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: filter === 'ALL' ? 700 : 500,
+                      bgcolor: filter === 'ALL' ? 'background.paper' : 'transparent',
+                      color: filter === 'ALL' ? 'text.primary' : 'text.secondary',
+                      boxShadow: filter === 'ALL' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                      '&:hover': { color: 'text.primary' },
+                    }}
+                  >
+                    {locale === 'vi' ? 'Tất cả' : 'All'}
+                  </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setFilter('UNREAD')}
+                    sx={{
+                      px: 1.1,
+                      py: 0.35,
+                      border: 0,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: filter === 'UNREAD' ? 700 : 500,
+                      bgcolor: filter === 'UNREAD' ? 'background.paper' : 'transparent',
+                      color: filter === 'UNREAD' ? 'text.primary' : 'text.secondary',
+                      boxShadow: filter === 'UNREAD' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                      '&:hover': { color: 'text.primary' },
+                    }}
+                  >
+                    {locale === 'vi' ? 'Chưa đọc' : 'Unread'}
+                    {activeUnreadThreads > 0 ? ` (${activeUnreadThreads})` : ''}
+                  </Box>
+                </Stack>
               </Stack>
 
               {availableChannels.length > 1 && (
-                <Stack direction="row" spacing={0.75} sx={{ mb: 1.5 }}>
-                  {availableChannels.map((channel) => (
-                    <Box
-                      key={channel.key}
-                      component="button"
-                      type="button"
-                      onClick={() => handleSwitchChannel(channel.key)}
-                      sx={{
-                        flex: 1,
-                        px: 1.25,
-                        py: 0.7,
-                        border: '1px solid',
-                        borderColor: activeChannel === channel.key ? 'primary.main' : 'divider',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '0.8125rem',
-                        fontWeight: activeChannel === channel.key ? 700 : 600,
-                        bgcolor:
-                          activeChannel === channel.key
-                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
-                            : 'transparent',
-                        color: activeChannel === channel.key ? 'primary.main' : 'text.secondary',
-                      }}
-                    >
-                      {channel.label}
-                      {channel.unread > 0 ? ` (${channel.unread})` : ''}
-                    </Box>
-                  ))}
+                <Stack
+                  direction="row"
+                  spacing={0.35}
+                  sx={{
+                    p: 0.35,
+                    mb: 1.1,
+                    borderRadius: '8px',
+                    bgcolor: 'action.hover',
+                  }}
+                >
+                  {availableChannels.map((channel) => {
+                    const active = activeChannel === channel.key;
+                    return (
+                      <Box
+                        key={channel.key}
+                        component="button"
+                        type="button"
+                        onClick={() => handleSwitchChannel(channel.key)}
+                        sx={{
+                          flex: 1,
+                          px: 1.25,
+                          py: 0.6,
+                          border: 0,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.8125rem',
+                          fontWeight: active ? 600 : 500,
+                          bgcolor: active ? 'background.paper' : 'transparent',
+                          color: active ? 'primary.main' : 'text.secondary',
+                          boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                          transition: 'background-color 140ms ease, color 140ms ease',
+                          '&:hover': { color: active ? 'primary.main' : 'text.primary' },
+                        }}
+                      >
+                        {channel.label}
+                        {channel.unread > 0 ? ` (${channel.unread})` : ''}
+                      </Box>
+                    );
+                  })}
                 </Stack>
               )}
 
@@ -476,63 +549,25 @@ export default function ContractInboxPage() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary', fontSize: 18 }} />
                       </InputAdornment>
                     ),
                   },
                 }}
                 sx={{
-                  mb: 1.5,
                   '& .MuiOutlinedInput-root': {
-                    height: 38,
+                    height: 36,
                     borderRadius: '8px',
-                    fontSize: '0.875rem',
-                    bgcolor: 'background.default',
+                    fontSize: '0.84rem',
+                    bgcolor: 'action.hover',
+                    '& fieldset': { borderColor: 'transparent' },
+                    '&:hover fieldset': { borderColor: 'divider' },
+                    '&.Mui-focused': {
+                      bgcolor: 'background.paper',
+                    },
                   },
                 }}
               />
-
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setFilter('ALL')}
-                  sx={{
-                    px: 1.5,
-                    py: 0.6,
-                    border: 0,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: filter === 'ALL' ? 700 : 500,
-                    bgcolor: filter === 'ALL' ? 'action.selected' : 'transparent',
-                    color: filter === 'ALL' ? 'text.primary' : 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  {locale === 'vi' ? 'Tất cả' : 'All'}
-                </Box>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setFilter('UNREAD')}
-                  sx={{
-                    px: 1.5,
-                    py: 0.6,
-                    border: 0,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: filter === 'UNREAD' ? 700 : 500,
-                    bgcolor: filter === 'UNREAD' ? 'action.selected' : 'transparent',
-                    color: filter === 'UNREAD' ? 'text.primary' : 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  {locale === 'vi' ? 'Chưa đọc' : 'Unread'}
-                  {activeUnreadThreads > 0 ? ` (${activeUnreadThreads})` : ''}
-                </Box>
-              </Stack>
             </Box>
 
             <List disablePadding sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 1, pb: 1 }}>
@@ -616,20 +651,22 @@ export default function ContractInboxPage() {
                             sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
                             noWrap
                           >
-                            {statusLabel} · {item.requestedFrom} · #{item.id.slice(0, 8)}
+                            {statusLabel} · {item.requestedFrom}
                           </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              mt: 0.15,
-                              fontWeight: unreadCount > 0 ? 600 : 400,
-                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                            }}
-                            noWrap
-                          >
-                            {latestMessage ? latestMessage.body : t('No messages yet')}
-                          </Typography>
+                          {latestMessage && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                mt: 0.15,
+                                fontWeight: unreadCount > 0 ? 600 : 400,
+                                color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                              }}
+                              noWrap
+                            >
+                              {latestMessage.body}
+                            </Typography>
+                          )}
                         </Box>
 
                         {unreadCount > 0 && (
@@ -726,23 +763,25 @@ export default function ContractInboxPage() {
                           <Typography
                             variant="caption"
                             color="text.secondary"
-                            sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                            sx={{ display: 'block', fontSize: '0.75rem' }}
                             noWrap
                           >
-                            {thread.assetName} · {t(thread.status)} · #{thread.inspectionId.slice(0, 8)}
+                            {thread.assetName} · {getInspectionStatusLabel(thread.status, t)}
                           </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              mt: 0.15,
-                              fontWeight: unreadCount > 0 ? 600 : 400,
-                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                            }}
-                            noWrap
-                          >
-                            {latestMessage ? latestMessage.body : t('No messages yet')}
-                          </Typography>
+                          {latestMessage && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                mt: 0.15,
+                                fontWeight: unreadCount > 0 ? 600 : 400,
+                                color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                              }}
+                              noWrap
+                            >
+                              {latestMessage.body}
+                            </Typography>
+                          )}
                         </Box>
 
                         {unreadCount > 0 && (
@@ -839,23 +878,25 @@ export default function ContractInboxPage() {
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                          sx={{ display: 'block', fontSize: '0.75rem' }}
                           noWrap
                         >
-                          {[thread.assetName, thread.customerName].filter(Boolean).join(' · ')}
+                          {thread.assetName}
                         </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: 'block',
-                            mt: 0.15,
-                            fontWeight: unreadCount > 0 ? 600 : 400,
-                            color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                          }}
-                          noWrap
-                        >
-                          {latestMessage ? latestMessage.body : thread.requestDescription || t('No messages yet')}
-                        </Typography>
+                        {latestMessage && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              mt: 0.15,
+                              fontWeight: unreadCount > 0 ? 600 : 400,
+                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                            }}
+                            noWrap
+                          >
+                            {latestMessage.body}
+                          </Typography>
+                        )}
                       </Box>
 
                       {unreadCount > 0 && (

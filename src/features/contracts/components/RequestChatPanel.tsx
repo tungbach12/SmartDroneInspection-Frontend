@@ -48,6 +48,7 @@ import {
 import {
   formatVndPerOccurrence,
   getEffectiveRequestStatus,
+  getInspectionStatusLabel,
   getStatusLabel,
   resolveCurrentQuote,
 } from '../shared/contractStage';
@@ -510,9 +511,8 @@ function ChatConversationPanel({
       <Box
         sx={{
           px: { xs: 1.5, sm: 2.5 },
-          py: 1.5,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          py: 1.25,
+          borderBottom: '1px solid var(--mui-palette-divider)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -535,8 +535,8 @@ function ChatConversationPanel({
             sx={{
               bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)',
               color: 'primary.main',
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               fontSize: '0.875rem',
               fontWeight: 700,
               flexShrink: 0,
@@ -548,9 +548,24 @@ function ChatConversationPanel({
             <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }} noWrap>
               {partnerName}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }} noWrap>
               {subtitle}
             </Typography>
+            {contextStrip && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  columnGap: 1.25,
+                  rowGap: 0.25,
+                  flexWrap: 'wrap',
+                  mt: 0.25,
+                  color: 'text.secondary',
+                }}
+              >
+                {contextStrip}
+              </Box>
+            )}
           </Box>
         </Stack>
 
@@ -574,25 +589,6 @@ function ChatConversationPanel({
           {actionLabel}
         </Button>
       </Box>
-
-      {contextStrip && (
-        <Box
-          sx={{
-            px: { xs: 1.5, sm: 2.5 },
-            py: 0.75,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
-          {contextStrip}
-        </Box>
-      )}
 
       <Box
         ref={scrollRef}
@@ -787,14 +783,17 @@ function ChatConversationPanel({
         )}
       </Box>
 
-      <Box sx={{ p: 2, pt: 1 }}>
+      <Box sx={{ px: 2, pt: 1, pb: 1.5 }}>
         <Box
           sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '8px',
+            border: '1px solid var(--mui-palette-divider)',
+            borderRadius: '12px',
             bgcolor: 'background.paper',
             overflow: 'hidden',
+            transition: 'border-color 150ms ease',
+            '&:focus-within': {
+              borderColor: 'primary.main',
+            },
           }}
         >
           <input
@@ -805,31 +804,6 @@ function ChatConversationPanel({
             accept="image/png,image/jpeg,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={selectFiles}
           />
-          <Box
-            sx={{
-              px: 1.75,
-              py: 0.75,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              bgcolor: 'background.default',
-            }}
-          >
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              {locale === 'vi'
-                ? 'Enter để gửi · Shift + Enter để xuống dòng · Tối đa 5 tệp / 20 MB'
-                : 'Enter to send · Shift + Enter for new line · Up to 5 files / 20 MB'}
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums', flexShrink: 0, ml: 1 }}
-            >
-              {body.length}/{MAX_MESSAGE_LENGTH}
-            </Typography>
-          </Box>
 
           {selectedFiles.length > 0 && (
             <Stack direction="row" spacing={0.75} sx={{ p: 1.25, pb: 0, flexWrap: 'wrap' }}>
@@ -850,19 +824,19 @@ function ChatConversationPanel({
             </Stack>
           )}
 
-          <Stack direction="row" spacing={1.25} sx={{ p: 1.5, alignItems: 'flex-end' }}>
+          <Stack direction="row" spacing={1} sx={{ px: 1.25, py: 1, alignItems: 'flex-end' }}>
             <IconButton
               aria-label={locale === 'vi' ? 'Đính kèm tệp' : 'Attach files'}
               disabled={isSending || selectedFiles.length >= MAX_ATTACHMENT_COUNT}
               onClick={() => fileInputRef.current?.click()}
-              sx={{ width: 38, height: 38, borderRadius: '8px', flexShrink: 0 }}
+              sx={{ width: 36, height: 36, borderRadius: '8px', flexShrink: 0, color: 'text.secondary' }}
             >
               <AttachFileRoundedIcon fontSize="small" />
             </IconButton>
             <InputBase
               fullWidth
               multiline
-              minRows={2}
+              minRows={1}
               maxRows={5}
               placeholder={locale === 'vi' ? 'Nhập nội dung tin nhắn...' : 'Type your message...'}
               value={body}
@@ -877,7 +851,7 @@ function ChatConversationPanel({
                   void send();
                 }
               }}
-              sx={{ fontSize: '0.875rem', lineHeight: 1.5, py: 0.25 }}
+              sx={{ fontSize: '0.875rem', lineHeight: 1.5, py: 0.5 }}
             />
             <LoadingButton
               variant="contained"
@@ -887,9 +861,9 @@ function ChatConversationPanel({
               disabled={!body.trim() && selectedFiles.length === 0}
               onClick={() => void send()}
               sx={{
-                minWidth: 38,
-                width: 38,
-                height: 38,
+                minWidth: 36,
+                width: 36,
+                height: 36,
                 p: 0,
                 borderRadius: '8px',
                 boxShadow: 'none',
@@ -900,6 +874,29 @@ function ChatConversationPanel({
             </LoadingButton>
           </Stack>
         </Box>
+
+        <Stack
+          direction="row"
+          sx={{
+            px: 0.5,
+            pt: 0.6,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', opacity: 0.78 }}>
+            {locale === 'vi'
+              ? 'Enter để gửi · Shift + Enter để xuống dòng · Tối đa 5 tệp / 20 MB'
+              : 'Enter to send · Shift + Enter for new line · Up to 5 files / 20 MB'}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: '0.72rem', opacity: 0.78, fontVariantNumeric: 'tabular-nums', flexShrink: 0, ml: 1 }}
+          >
+            {body.length}/{MAX_MESSAGE_LENGTH}
+          </Typography>
+        </Stack>
       </Box>
     </Box>
   );
@@ -1005,7 +1002,7 @@ export function InspectionChatPanel({
         thread.counterpartName || (isInspectorRole ? t('Customer') : t('Inspector'))
       }
       partnerAvatarUrl={thread.counterpartAvatarUrl}
-      subtitle={`${thread.assetName} · ${t(thread.status)}`}
+      subtitle={`${thread.assetName} · ${getInspectionStatusLabel(thread.status, t)}`}
       actionLabel={locale === 'vi' ? 'Mở đợt kiểm tra' : 'Open inspection'}
       actionTo={`/${isInspectorRole ? 'operations' : 'client'}/inspections/${thread.inspectionId}`}
       emptyTitle={
@@ -1027,7 +1024,7 @@ export function InspectionChatPanel({
                 ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
               : thread.assetName}
           </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
             {thread.assignmentStatus === 'ACCEPTED'
               ? locale === 'vi'
                 ? 'Đã xác nhận lịch bay'
@@ -1115,7 +1112,7 @@ export function PartnerChatPanel({
           {thread.nextPlannedStartAt && thread.nextPlannedEndAt && (
             <Typography
               variant="caption"
-              sx={{ fontWeight: 700, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
+              sx={{ fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
             >
               {new Date(thread.nextPlannedStartAt).toLocaleString()} –{' '}
               {new Date(thread.nextPlannedEndAt).toLocaleTimeString([], {

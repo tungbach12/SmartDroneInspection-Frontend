@@ -300,6 +300,7 @@ describe('ContractInboxPage', () => {
 
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
     expect(screen.queryByRole('heading', { level: 1, name: 'Messages' })).toBeNull();
+    expect(screen.getAllByText(/Scheduled/).length).toBeGreaterThan(0);
     const customerAvatars = document.querySelectorAll('img[src="data:image/jpeg;base64,CUSTAVATAR"]');
     expect(customerAvatars.length).toBe(2);
 
