@@ -64,9 +64,6 @@ export function ReportReviewDecisionBar({
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
-        position: 'sticky',
-        bottom: { xs: 0, md: 2 },
-        zIndex: 2,
         boxShadow: 'none',
       }}
     >
