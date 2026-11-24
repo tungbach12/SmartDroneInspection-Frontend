@@ -19,6 +19,7 @@ import {
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 function VnPayLogoMark() {
@@ -288,6 +289,32 @@ function formatPaymentMethodLabel(method: string | null | undefined, t: (key: st
   return method?.trim() || 'Sepay';
 }
 
+function PaymentMethodLogoMark({ method }: { method: string | null | undefined }) {
+  const normalized = (method ?? '').trim().toUpperCase();
+  if (normalized === 'VNPAY') return <VnPayLogoMark />;
+  if (normalized === 'SEPAY') return <SepayVietQrLogoMark />;
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 44,
+        height: 32,
+        borderRadius: '6px',
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
+        color: 'text.secondary',
+        flexShrink: 0,
+      }}
+    >
+      <ReceiptLongOutlined sx={{ fontSize: 18 }} />
+    </Box>
+  );
+}
+
 /**
  * Customer Report Acceptance & Sepay / VNPay Commercial Settlement Panel.
  *
@@ -375,11 +402,10 @@ export function CustomerReportSettlementCard({
             {t('Report acceptance & service fee payment')}
           </Typography>
           {(isPaid || isPaymentConfirming) && (
-            <Chip
-              size="small"
-              label={isPaid ? t('Paid & Fulfilled') : t('Confirming payment…')}
-              color={isPaid ? 'success' : 'info'}
-              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
+            <StatusChip
+              status={isPaid ? 'paid' : 'confirming'}
+              label={isPaid ? 'Paid & Fulfilled' : 'Confirming payment…'}
+              tone={isPaid ? 'success' : 'info'}
             />
           )}
           <Chip
@@ -388,9 +414,12 @@ export function CustomerReportSettlementCard({
             icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
             label={invoiceRef}
             sx={{
-              height: 22,
+              height: 24,
+              borderRadius: '6px',
+              borderColor: 'divider',
+              color: 'text.secondary',
               fontSize: '0.75rem',
-              fontWeight: 650,
+              fontWeight: 600,
               fontFamily: 'monospace',
             }}
           />
@@ -422,8 +451,8 @@ export function CustomerReportSettlementCard({
                 p: 2,
                 borderRadius: '10px',
                 border: '1px solid',
-                borderColor: isPaid ? '#176B52' : 'divider',
-                bgcolor: 'background.default',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -490,14 +519,14 @@ export function CustomerReportSettlementCard({
                   spacing={2}
                   sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 650, fontSize: '0.875rem', color: 'text.primary' }}>
                     {isPaid ? t('Total paid') : t('Amount to pay')}
                   </Typography>
                   <Typography
                     sx={{
-                      fontSize: '1rem',
-                      fontWeight: 800,
-                      color: isPaid ? '#176B52' : 'primary.main',
+                      fontSize: '0.9375rem',
+                      fontWeight: 700,
+                      color: 'text.primary',
                       fontVariantNumeric: 'tabular-nums',
                     }}
                   >
@@ -519,30 +548,45 @@ export function CustomerReportSettlementCard({
                   borderRadius: '10px',
                   border: '1px solid',
                   borderColor: 'divider',
-                  bgcolor: 'background.default',
+                  bgcolor: 'background.paper',
                 }}
               >
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                  <CheckCircleRounded sx={{ fontSize: 22, color: '#176B52', flexShrink: 0, mt: 0.15 }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 650, color: '#176B52' }}>
-                      {t('Payment successful! Inspection service is officially fulfilled and deliverables are verified.')}
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <CheckCircleRounded sx={{ fontSize: 18, color: '#16A34A', flexShrink: 0 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {t('Payment confirmed')}
                     </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums', display: 'block', mt: 0.5 }}
-                    >
-                      {paymentStatus?.paymentMethod
-                        ? `${t('Paid via')} ${paymentMethodLabel}`
-                        : t('Paid')}
-                      {paymentStatus?.orderCode ? ` · ${t('Order')} #${paymentStatus.orderCode}` : ''}
-                      {` · ${t('Official receipt verified')}`}
-                    </Typography>
-                  </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                    <PaymentMethodLogoMark method={paymentStatus?.paymentMethod} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        {paymentStatus?.paymentMethod
+                          ? `${t('Paid via')} ${paymentMethodLabel}`
+                          : t('Paid')}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontVariantNumeric: 'tabular-nums',
+                          display: 'block',
+                        }}
+                      >
+                        {paymentStatus?.orderCode
+                          ? `${t('Order')} #${paymentStatus.orderCode}`
+                          : t('Official receipt verified')}
+                      </Typography>
+                    </Box>
+                  </Stack>
                 </Stack>
+
                 <Box>
                   <Button
                     variant="outlined"
+                    color="inherit"
                     size="small"
                     disabled={documentBusy}
                     startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
@@ -550,8 +594,15 @@ export function CustomerReportSettlementCard({
                     sx={{
                       fontWeight: 600,
                       borderRadius: '8px',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
+                      '&:hover': {
+                        borderColor: 'text.secondary',
+                        bgcolor: 'action.hover',
+                      },
                     }}
                   >
                     {documentBusy ? t('Generating PDF…') : t('Download payment receipt (PDF)')}
