@@ -8,7 +8,19 @@ export type ThemePresetId =
 
 export type BackgroundSource = 'default' | 'preset' | 'custom';
 export type BackgroundTarget = 'both' | 'sidebar' | 'workspace';
+export type CursorStyleId = 'waypoint-diamond' | 'system';
 export type CursorEffectId = 'none' | 'trail' | 'spotlight' | 'reticle' | 'ripple';
+
+export interface CursorStyleOption {
+  id: CursorStyleId;
+  labelEn: string;
+  labelVi: string;
+}
+
+export const CURSOR_STYLE_OPTIONS: readonly CursorStyleOption[] = [
+  { id: 'waypoint-diamond', labelEn: 'Waypoint Diamond', labelVi: 'Waypoint Diamond' },
+  { id: 'system', labelEn: 'System Default', labelVi: 'Mặc định hệ thống' },
+] as const;
 
 export interface CursorEffectOption {
   id: CursorEffectId;
@@ -55,6 +67,7 @@ export interface UserThemePreferences {
   customBackgroundName: string | null;
   backgroundTarget: BackgroundTarget;
   surfaceOpacity: number;
+  cursorStyle: CursorStyleId;
   cursorEffect: CursorEffectId;
 }
 
@@ -198,6 +211,7 @@ export const DEFAULT_USER_THEME_PREFERENCES: UserThemePreferences = {
   customBackgroundName: null,
   backgroundTarget: 'both',
   surfaceOpacity: 0.88,
+  cursorStyle: 'waypoint-diamond',
   cursorEffect: 'trail',
 };
 
@@ -250,6 +264,10 @@ function isValidBackgroundTarget(value: unknown): value is BackgroundTarget {
   return value === 'both' || value === 'sidebar' || value === 'workspace';
 }
 
+function isValidCursorStyleId(value: unknown): value is CursorStyleId {
+  return value === 'waypoint-diamond' || value === 'system';
+}
+
 function isValidCursorEffectId(value: unknown): value is CursorEffectId {
   return (
     typeof value === 'string' &&
@@ -288,6 +306,9 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     typeof obj.surfaceOpacity === 'number'
       ? clampSurfaceOpacity(obj.surfaceOpacity)
       : DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity;
+  const cursorStyle = isValidCursorStyleId(obj.cursorStyle)
+    ? obj.cursorStyle
+    : DEFAULT_USER_THEME_PREFERENCES.cursorStyle;
   const cursorEffect = isValidCursorEffectId(obj.cursorEffect)
     ? obj.cursorEffect
     : DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
@@ -307,6 +328,7 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     customBackgroundName,
     backgroundTarget,
     surfaceOpacity,
+    cursorStyle,
     cursorEffect,
   };
 }

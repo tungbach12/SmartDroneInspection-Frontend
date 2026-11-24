@@ -12,6 +12,7 @@ import {
   writeUserThemePreferences,
   type BackgroundTarget,
   type CursorEffectId,
+  type CursorStyleId,
   type ThemePresetId,
   type UserThemePreferences,
 } from './customTheme';
@@ -152,6 +153,13 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
     [updatePreferences],
   );
 
+  const setCursorStyle = useCallback(
+    (cursorStyle: CursorStyleId) => {
+      updatePreferences((prev) => ({ ...prev, cursorStyle }));
+    },
+    [updatePreferences],
+  );
+
   const setCursorEffect = useCallback(
     (cursorEffect: CursorEffectId) => {
       updatePreferences((prev) => ({ ...prev, cursorEffect }));
@@ -180,6 +188,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       removeCustomBackground,
       setBackgroundTarget,
       setSurfaceOpacity,
+      setCursorStyle,
       setCursorEffect,
       resetToDefault,
     }),
@@ -197,6 +206,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       removeCustomBackground,
       setBackgroundTarget,
       setSurfaceOpacity,
+      setCursorStyle,
       setCursorEffect,
       resetToDefault,
     ],

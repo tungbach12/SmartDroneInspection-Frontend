@@ -93,6 +93,12 @@ select {
   filter: none !important;
 }
 
+/* Custom #08 Waypoint Diamond global mouse cursor */
+html.sdi-custom-cursor,
+html.sdi-custom-cursor *:not(iframe) {
+  cursor: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

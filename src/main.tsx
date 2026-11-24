@@ -6,6 +6,7 @@ import { useColorScheme } from '@mui/material/styles';
 import { ColorModeContext } from './app/layouts/ColorModeContext';
 import { CustomThemeProvider } from './app/theme/CustomThemeProvider';
 import { useCustomTheme } from './app/theme/CustomThemeContext';
+import { CustomCursorPointer } from './app/theme/CustomCursorPointer';
 import { CursorEffectOverlay } from './app/theme/CursorEffectOverlay';
 import { createAppTheme } from './app/theme/theme';
 import { GlassIconGradientDefs } from './shared/ui/GradientGlassIcons';
@@ -61,6 +62,7 @@ function ThemedApp() {
         <CssBaseline />
         <GlassIconGradientDefs />
         <CursorEffectOverlay />
+        <CustomCursorPointer />
         <QueryClientProvider client={queryClient}>
           <RouterWithToast />
         </QueryClientProvider>
