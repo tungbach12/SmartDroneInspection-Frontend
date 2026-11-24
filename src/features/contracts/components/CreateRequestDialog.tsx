@@ -445,7 +445,7 @@ export function CreateRequestDialog({
                   const hasActiveRequest = activeAssetIds.has(asset.id);
                   return (
                     <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
-                      {asset.code} — {asset.name}
+                      {asset.code ? `${asset.code} — ${asset.name}` : asset.name}
                       {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
                     </MenuItem>
                   );

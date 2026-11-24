@@ -18,7 +18,6 @@ import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import {
   useAcceptReportVersion,
-  useCreateDirectReinspection,
   useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
   useInspection,
@@ -36,7 +35,6 @@ import {
 } from '@/features/reports/components/CustomerReportSettlementCard';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
-import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -66,8 +64,6 @@ export default function CustomerReportDeliverablePage({
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitted, setDisputeSubmitted] = useState(false);
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
-  const [reinspectionOpen, setReinspectionOpen] = useState(false);
-  const [confirmQuickOpen, setConfirmQuickOpen] = useState(false);
   const [mf2RequestOpen, setMf2RequestOpen] = useState(false);
 
   const inspectionQuery = useInspection(inspectionId);
@@ -81,7 +77,6 @@ export default function CustomerReportDeliverablePage({
   );
   const acceptReport = useAcceptReportVersion(inspectionId);
   const requestClarification = useRequestReportClarification(inspectionId);
-  const createDirectReinspection = useCreateDirectReinspection(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
   const searchParams = new URLSearchParams(location.search);
@@ -327,7 +322,8 @@ export default function CustomerReportDeliverablePage({
                     <Button
                       variant="text"
                       color="primary"
-                      onClick={() => setReinspectionOpen(true)}
+                      disabled={!inspectionQuery.data?.assetId}
+                      onClick={() => setMf2RequestOpen(true)}
                       sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                     >
                       {t('Schedule Re-inspection')}
@@ -432,58 +428,6 @@ export default function CustomerReportDeliverablePage({
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={reinspectionOpen}
-        onClose={() => setReinspectionOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '12px', p: 1 } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {t('Schedule Post-Remediation Re-inspection')}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Paper variant="outlined" sx={{ p: 1.75, borderRadius: '10px' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {t('Quick re-inspection')}
-              </Typography>
-              <Button
-                variant="contained"
-                disabled={createDirectReinspection.isPending}
-                onClick={() => setConfirmQuickOpen(true)}
-                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-              >
-                {createDirectReinspection.isPending
-                  ? t('Scheduling…')
-                  : t('Start Quick Re-inspection')}
-              </Button>
-            </Paper>
-
-            <Paper variant="outlined" sx={{ p: 1.75, borderRadius: '10px' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {t('Request a quote')}
-              </Typography>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setReinspectionOpen(false);
-                  setMf2RequestOpen(true);
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-              >
-                {t('Create request')}
-              </Button>
-            </Paper>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setReinspectionOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
-            {t('Cancel')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {inspectionQuery.data?.assetId && (
         <CreateRequestDialog
           open={mf2RequestOpen}
@@ -504,27 +448,6 @@ export default function CustomerReportDeliverablePage({
           onError={() => {}}
         />
       )}
-
-      <ConfirmDialog
-        open={confirmQuickOpen}
-        title={t('Start re-inspection?')}
-        message={t('Create a re-inspection mission now.')}
-        confirmLabel={t('Create')}
-        cancelLabel={t('Cancel')}
-        onCancel={() => setConfirmQuickOpen(false)}
-        onConfirm={() => {
-          setConfirmQuickOpen(false);
-          createDirectReinspection.mutate(
-            {},
-            {
-              onSuccess: (created) => {
-                setReinspectionOpen(false);
-                navigate(`${getSectionPath('client', 'inspections')}/${created.id}/tracking`);
-              },
-            },
-          );
-        }}
-      />
     </Box>
   );
 }

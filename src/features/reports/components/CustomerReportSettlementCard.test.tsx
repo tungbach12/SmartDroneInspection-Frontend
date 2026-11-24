@@ -385,4 +385,74 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
       expect(mockedApi.downloadPaymentDocument).not.toHaveBeenCalled();
     });
   });
+
+  it('opens MF2 Create inspection request dialog directly on Schedule Re-inspection without a two-option modal', async () => {
+    mockedApi.getById.mockResolvedValue({
+      id: 'insp-1',
+      assetId: 'asset-1',
+      assetName: 'Bridge A',
+      inspectionType: 'INITIAL',
+    } as never);
+    mockedApi.listVersions.mockResolvedValue([
+      {
+        id: 'ver-1',
+        inspectionReportId: 'rep-1',
+        versionNo: 1,
+        status: 'PUBLISHED',
+        authorUserId: 'u-1',
+        submittedAt: null,
+        reviewerUserId: null,
+        reviewedAt: null,
+        returnReason: null,
+        publishedAt: '2026-11-20T10:00:00Z',
+        createdAt: '2026-11-20T09:00:00Z',
+        summary: 'Summary',
+        omissionDisclosure: null,
+      },
+    ]);
+    mockedApi.listFindings.mockResolvedValue([
+      {
+        id: 'f-1',
+        status: 'CONFIRMED',
+        isDeleted: false,
+      } as never,
+    ]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.getReportPaymentStatus.mockResolvedValue({
+      reportAccepted: true,
+      paid: true,
+      paymentStatus: 'PAID',
+      orderCode: 100047,
+      amount: 5000000,
+      checkoutUrl: null,
+      paymentMethod: 'VNPAY',
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/settlement']}>
+            <Routes>
+              <Route
+                path="/client/inspections/:inspectionId/settlement"
+                element={<CustomerReportDeliverablePage stage="settlement" />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    const scheduleBtn = await screen.findByRole('button', { name: 'Schedule Re-inspection' });
+    fireEvent.click(scheduleBtn);
+
+    expect(await screen.findByText('Create inspection request')).toBeTruthy();
+    expect(screen.getByText(/Re-inspection linked to source inspection: Bridge A/)).toBeTruthy();
+    expect(screen.queryByText('Quick re-inspection')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start Quick Re-inspection' })).toBeNull();
+  });
 });
