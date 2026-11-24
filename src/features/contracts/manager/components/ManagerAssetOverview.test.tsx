@@ -122,25 +122,26 @@ describe('ManagerAssetOverview', () => {
     });
   });
 
-  it('shows the asset and request context above every workflow step', () => {
+  it('hides overview details by default and shows them when toggled', () => {
     render(<ManagerAssetOverview request={assignedRequest()} />);
 
     expect(screen.getByText('Bridge 1')).toBeTruthy();
-    expect(screen.getByText('BR-1')).toBeTruthy();
     expect(screen.getByText('Saigon Infrastructure Co.')).toBeTruthy();
     expect(screen.getByText('Platform Manager')).toBeTruthy();
-    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
     expect(screen.getByText('2026-12-01 · 08:00 – 17:00')).toBeTruthy();
-  });
-
-  it('collapses and expands the overview details', () => {
-    render(<ManagerAssetOverview request={assignedRequest()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.queryByText('Saigon Infrastructure Co.')).toBeNull();
+    expect(screen.queryByText('BR-1')).toBeNull();
+    expect(screen.queryByText('DJI M300 · SN-001')).toBeNull();
+    expect(screen.queryByText('signed-contract.pdf')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.getByText('Saigon Infrastructure Co.')).toBeTruthy();
+    expect(screen.getByText('BR-1')).toBeTruthy();
+    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
+    expect(screen.getByText('signed-contract.pdf')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(screen.queryByText('BR-1')).toBeNull();
+    expect(screen.queryByText('DJI M300 · SN-001')).toBeNull();
+    expect(screen.queryByText('signed-contract.pdf')).toBeNull();
   });
 
   it('shows asset specs, location, quote, and recurring dispatch progress for Manager', () => {
@@ -194,12 +195,15 @@ describe('ManagerAssetOverview', () => {
     ];
 
     render(<ManagerAssetOverview request={req} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('Ninh Kieu, Can Tho')).toBeTruthy();
     expect(screen.getByText('42 m · 1,200 m²')).toBeTruthy();
     expect(screen.getByText('3 checkpoints')).toBeTruthy();
     expect(screen.getByText('Asset suggested')).toBeTruthy();
-    expect(screen.getByText('1/2 occurrences assigned · Partner Alice · DJI M300 · SN-001')).toBeTruthy();
+    expect(screen.getByText('Partner Alice')).toBeTruthy();
+    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
+    expect(screen.getByText('1/2 occurrences assigned')).toBeTruthy();
     expect(screen.getByText(/2,000,000 VND \/ occurrence/)).toBeTruthy();
     expect(screen.getByText('signed-contract.pdf')).toBeTruthy();
   });
@@ -230,13 +234,15 @@ describe('ManagerAssetOverview', () => {
     req.occurrences[0]!.droneLabel = 'DJI M300 · SN-001';
 
     render(<RequestOverviewCard request={req} role="CUSTOMER" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('Can Tho Riverbank')).toBeTruthy();
     expect(screen.getByText('2 checkpoints')).toBeTruthy();
     expect(screen.getByText('Asset suggested')).toBeTruthy();
     expect(screen.getByText('MF2 Test Manager')).toBeTruthy();
     expect(screen.getByText('Pending quote')).toBeTruthy();
-    expect(screen.getByText('Partner Alice · DJI M300 · SN-001')).toBeTruthy();
+    expect(screen.getByText('Partner Alice')).toBeTruthy();
+    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
     expect(screen.queryByText('Saigon Infrastructure Co.')).toBeNull();
     expect(screen.queryByText('Asset specs')).toBeNull();
     expect(screen.queryByText('ACTIVE')).toBeNull();
@@ -308,6 +314,7 @@ describe('ManagerAssetOverview', () => {
     req.inspectionItems = ['Thermal roof sweep', 'Anchor bolts'];
 
     render(<ManagerAssetOverview request={req} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('2 checkpoints')).toBeTruthy();
     expect(screen.getByText('Thermal roof sweep')).toBeTruthy();

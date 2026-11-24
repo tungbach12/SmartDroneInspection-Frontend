@@ -1,23 +1,24 @@
 import { type ReactNode, useState } from 'react';
-import { Avatar, Box, Button, ButtonBase, Chip, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Button, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import { useAssetDocuments } from '@/features/assets/hooks/useAssetDocuments';
 import { useAsset } from '@/features/assets/hooks/useAssets';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import type { ServiceRequest } from '../api/contractApi';
 import { AssetOverviewDialog } from './AssetOverviewDialog';
 import { CheckpointsOverviewDialog } from './CheckpointsOverviewDialog';
-import { RequestHeaderBar } from './RequestHeaderBar';
 import {
   type ContractRole,
   formatQuotedPriceSummary,
   formatRequestScheduleSummary,
   getEffectiveRequestStatus,
+  getStatusLabel,
   resolveAssetDisplay,
-  summarizeDispatchProgress,
+  statusTone,
 } from './contractStage';
 
 interface FallbackDrone {
@@ -61,25 +62,40 @@ function OverviewField({
           letterSpacing: '0.04em',
           textTransform: 'uppercase',
           lineHeight: 1.2,
-          mb: 0.35,
+          mb: 0.25,
         }}
       >
         {label}
       </Typography>
-      <Typography
-        variant="body2"
-        component="div"
-        sx={{
-          color: 'text.primary',
-          fontWeight: 600,
-          fontSize: '0.84rem',
-          lineHeight: 1.38,
-          overflowWrap: 'anywhere',
-          fontVariantNumeric: tabular ? 'tabular-nums' : undefined,
-        }}
-      >
-        {value}
-      </Typography>
+      {typeof value === 'string' ? (
+        <Typography
+          variant="body2"
+          noWrap
+          title={value}
+          sx={{
+            color: 'text.primary',
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            lineHeight: 1.35,
+            fontVariantNumeric: tabular ? 'tabular-nums' : undefined,
+          }}
+        >
+          {value}
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            color: 'text.primary',
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            lineHeight: 1.35,
+            minWidth: 0,
+            fontVariantNumeric: tabular ? 'tabular-nums' : undefined,
+          }}
+        >
+          {value}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -127,7 +143,7 @@ export function RequestOverviewCard({
   fallbackDrones,
 }: RequestOverviewCardProps) {
   const { locale, t, formatDate } = useLocale();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [checkpointsDialogOpen, setCheckpointsDialogOpen] = useState(false);
   const assetQuery = useAsset(request.assetId);
@@ -144,8 +160,38 @@ export function RequestOverviewCard({
 
   const resolvedStatus = effectiveStatus ?? getEffectiveRequestStatus(request);
   const scheduleLabel = formatRequestScheduleSummary(request, formatDate, locale, t);
-  const dispatchLabel = summarizeDispatchProgress(request, locale, t, fallbackDrones);
   const quotedPriceLabel = formatQuotedPriceSummary(request, locale);
+  const activeOccurrences = (request.occurrences ?? []).filter((occ) => occ.status !== 'CANCELLED');
+  const assignedOccurrences = activeOccurrences.filter(
+    (occ) => occ.status === 'ASSIGNED' || Boolean(occ.inspectorId) || Boolean(occ.droneId),
+  );
+  const primaryAssigned = assignedOccurrences[0] ?? null;
+  const assignedInspectorName = primaryAssigned?.inspectorName?.trim() || null;
+  let assignedDroneLabel = primaryAssigned?.droneLabel?.trim() || '';
+  if (!assignedDroneLabel && primaryAssigned?.droneId && fallbackDrones?.length) {
+    const matched = fallbackDrones.find((d) => d.id === primaryAssigned.droneId);
+    if (matched) {
+      assignedDroneLabel = [matched.model, matched.serialNumber].filter(Boolean).join(' · ');
+    }
+  }
+  const recurringProgressLabel =
+    request.requestType === 'RECURRING' && activeOccurrences.length > 1
+      ? locale === 'vi'
+        ? `${assignedOccurrences.length}/${activeOccurrences.length} đợt đã gán`
+        : `${assignedOccurrences.length}/${activeOccurrences.length} ${t('occurrences assigned')}`
+      : null;
+  const inspectorValue: ReactNode = assignedInspectorName ? (
+    renderStakeholderValue(assignedInspectorName)
+  ) : (
+    <Typography
+      component="span"
+      variant="body2"
+      noWrap
+      sx={{ fontWeight: 500, fontSize: '0.84rem', color: 'text.secondary', lineHeight: 1.35 }}
+    >
+      {t('Unassigned')}
+    </Typography>
+  );
 
   const specParts: string[] = [];
   if (assetDisplay.heightMeters != null) {
@@ -176,15 +222,14 @@ export function RequestOverviewCard({
         aria-label={`${t('View checkpoints')}: ${checkpointsCountLabel}`}
         sx={{
           display: 'inline-flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          textAlign: 'left',
+          alignItems: 'baseline',
+          justifyContent: 'flex-start',
+          gap: 0.5,
           maxWidth: '100%',
+          textAlign: 'left',
           borderRadius: '6px',
           px: 0.5,
           mx: -0.5,
-          py: 0.15,
-          my: -0.15,
           transition: 'color 150ms ease, background-color 150ms ease',
           '&:hover': {
             bgcolor: 'action.hover',
@@ -195,31 +240,36 @@ export function RequestOverviewCard({
           },
         }}
       >
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-          <Typography
-            component="span"
-            className="checkpoints-count-label"
-            sx={{
-              fontWeight: 600,
-              fontSize: '0.84rem',
-              color: 'text.primary',
-              fontVariantNumeric: 'tabular-nums',
-              lineHeight: 1.35,
-            }}
-          >
-            {checkpointsCountLabel}
-          </Typography>
-          <OpenInNewRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-        </Stack>
         <Typography
           component="span"
-          variant="caption"
-          color="text.secondary"
-          noWrap
-          sx={{ display: 'block', maxWidth: '100%', fontWeight: 500, lineHeight: 1.3 }}
+          className="checkpoints-count-label"
+          sx={{
+            flexShrink: 0,
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            color: 'text.primary',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.35,
+          }}
         >
-          {checkpointsPreview}
+          {checkpointsCountLabel}
         </Typography>
+        {checkpointsPreview && (
+          <>
+            <Typography component="span" sx={{ color: 'text.secondary', fontSize: '0.84rem' }}>
+              ·
+            </Typography>
+            <Typography
+              component="span"
+              color="text.secondary"
+              noWrap
+              title={checkpointsPreview}
+              sx={{ fontWeight: 500, fontSize: '0.84rem', lineHeight: 1.35, minWidth: 0 }}
+            >
+              {checkpointsPreview}
+            </Typography>
+          </>
+        )}
       </ButtonBase>
     );
 
@@ -246,101 +296,106 @@ export function RequestOverviewCard({
     </Typography>
   );
 
-  const fields: Array<{ label: string; value: ReactNode; tabular?: boolean; spanTwo?: boolean }> =
+  const scheduledCount =
+    request.requestType === 'RECURRING'
+      ? request.occurrenceCount ?? request.occurrences.length
+      : 0;
+
+  const summaryFields: Array<{ label: string; value: ReactNode; tabular?: boolean }> =
     role === 'MANAGER'
       ? [
           { label: t('Customer'), value: renderStakeholderValue(request.ownerCustomerName || '—') },
           { label: t('Manager'), value: managerValue },
-          { label: t('Inspection team'), value: dispatchLabel, tabular: true },
+          { label: t('Inspector'), value: inspectorValue },
           { label: t('Schedule'), value: scheduleLabel, tabular: true },
-          { label: t('Location'), value: assetDisplay.location || '—' },
-          { label: t('Asset specs'), value: specsLabel, tabular: true },
-          { label: t('Checkpoints'), value: checkpointsValue },
-          ...(quotedPriceLabel
-            ? [{ label: t('Quoted price'), value: quotedPriceLabel, tabular: true }]
-            : []),
-          ...(request.contractFileName
-            ? [
-                {
-                  label: t('Signed contract'),
-                  value: (
-                    <Typography
-                      variant="body2"
-                      component="span"
-                      noWrap
-                      title={request.contractFileName}
-                      sx={{
-                        display: 'block',
-                        fontWeight: 600,
-                        fontSize: '0.84rem',
-                        color: 'text.primary',
-                        lineHeight: 1.38,
-                      }}
-                    >
-                      {request.contractFileName}
-                    </Typography>
-                  ),
-                  spanTwo: true,
-                },
-              ]
-            : []),
         ]
       : [
           { label: t('Service manager'), value: managerValue },
-          { label: t('Inspection team'), value: dispatchLabel, tabular: true },
+          { label: t('Inspector'), value: inspectorValue },
           { label: t('Schedule'), value: scheduleLabel, tabular: true },
           {
             label: t('Quoted price'),
             value: quotedPriceLabel || t('Pending quote'),
             tabular: Boolean(quotedPriceLabel),
           },
+        ];
+
+  const detailFields: Array<{ label: string; value: ReactNode; tabular?: boolean; spanTwo?: boolean }> =
+    role === 'MANAGER'
+      ? [
+          { label: t('Request'), value: request.description || '—' },
+          ...(assetDisplay.code
+            ? [{ label: t('Code'), value: assetDisplay.code, tabular: true }]
+            : []),
+          { label: t('Location'), value: assetDisplay.location || '—' },
+          { label: t('Asset specs'), value: specsLabel, tabular: true },
+          { label: t('Checkpoints'), value: checkpointsValue },
+          { label: t('Drone'), value: assignedDroneLabel || t('Unassigned'), tabular: true },
+          ...(recurringProgressLabel
+            ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
+            : []),
+          ...(quotedPriceLabel
+            ? [{ label: t('Quoted price'), value: quotedPriceLabel, tabular: true }]
+            : []),
+          ...(request.contractFileName
+            ? [{ label: t('Signed contract'), value: request.contractFileName, spanTwo: true }]
+            : []),
+        ]
+      : [
+          { label: t('Request'), value: request.description || '—' },
+          ...(assetDisplay.code
+            ? [{ label: t('Code'), value: assetDisplay.code, tabular: true }]
+            : []),
           { label: t('Location'), value: assetDisplay.location || '—' },
           { label: t('Checkpoints'), value: checkpointsValue },
+          { label: t('Drone'), value: assignedDroneLabel || t('Unassigned'), tabular: true },
+          ...(recurringProgressLabel
+            ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
+            : []),
         ];
 
   return (
-    <RequestHeaderBar
-      request={request}
-      effectiveStatus={resolvedStatus}
-      headerAction={
-        <Button
-          size="small"
-          variant="text"
-          onClick={() => setExpanded((value) => !value)}
-          endIcon={
-            <ExpandMoreRoundedIcon
-              fontSize="small"
-              sx={{
-                transform: expanded ? 'rotate(180deg)' : 'none',
-                transition: 'transform 150ms ease',
-              }}
-            />
-          }
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          {t('Overview')}
-        </Button>
-      }
-    >
-      {expanded && (
-        <Box
-          sx={{
-            px: { xs: 2, sm: 2.5 },
-            py: 1.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Stack spacing={1.25}>
+    <>
+      <Paper
+        elevation={0}
+        sx={{
+          px: { xs: 1.75, sm: 2.25 },
+          py: { xs: 1.25, sm: 1.5 },
+          borderRadius: '10px',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+        }}
+      >
+        <Stack spacing={1.25}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              rowGap: 0.75,
+              gap: 1.5,
+            }}
+          >
             <Stack
               direction="row"
-              spacing={1}
-              sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5, minWidth: 0 }}
+              spacing={1.25}
+              sx={{
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                rowGap: 0.5,
+                minWidth: 0,
+                flex: 1,
+              }}
             >
               <ButtonBase
                 type="button"
                 onClick={() => setAssetDialogOpen(true)}
                 aria-label={`${t('View full asset details')}: ${assetDisplay.name}`}
+                title={t('View full asset details')}
                 sx={{
                   textAlign: 'left',
                   borderRadius: '8px',
@@ -396,51 +451,100 @@ export function RequestOverviewCard({
                 >
                   {assetDisplay.name}
                 </Typography>
-                <OpenInNewRoundedIcon sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
               </ButtonBase>
-              {assetDisplay.code && (
+              <StatusChip
+                status={resolvedStatus}
+                label={getStatusLabel(resolvedStatus, t)}
+                tone={statusTone(resolvedStatus)}
+              />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={request.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+              />
+              {scheduledCount > 0 && (
                 <Chip
                   size="small"
                   variant="outlined"
-                  label={assetDisplay.code}
-                  sx={{
-                    height: 22,
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    fontVariantNumeric: 'tabular-nums',
-                    color: 'text.secondary',
-                  }}
+                  label={`${scheduledCount} ${t('occurrences')}`}
+                  sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                 />
               )}
             </Stack>
 
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: 'repeat(2, minmax(0, 1fr))',
-                  sm: 'repeat(2, minmax(0, 1fr))',
-                  md: 'repeat(4, minmax(0, 1fr))',
-                },
-                gap: { xs: 1.25, md: 2 },
-                pt: 1.15,
-                borderTop: '1px solid',
-                borderColor: 'divider',
-              }}
+            <Button
+              size="small"
+              variant="text"
+              aria-expanded={expanded}
+              endIcon={
+                expanded ? (
+                  <ExpandLessRoundedIcon fontSize="small" />
+                ) : (
+                  <ExpandMoreRoundedIcon fontSize="small" />
+                )
+              }
+              onClick={() => setExpanded((value) => !value)}
+              sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
             >
-              {fields.map((field) => (
-                <OverviewField
-                  key={field.label}
-                  label={field.label}
-                  value={field.value}
-                  tabular={Boolean(field.tabular)}
-                  spanTwo={Boolean(field.spanTwo)}
-                />
-              ))}
-            </Box>
+              {t('Overview')}
+            </Button>
           </Stack>
-        </Box>
-      )}
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: { xs: 1.25, md: 2 },
+              pt: 1.15,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {summaryFields.map((field) => (
+              <OverviewField
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                tabular={Boolean(field.tabular)}
+              />
+            ))}
+          </Box>
+        </Stack>
+
+        {expanded && (
+          <Box
+            sx={{
+              mt: 1.5,
+              pt: 1.5,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: { xs: 1.25, md: 2 },
+            }}
+          >
+            {detailFields.map((field) => (
+              <OverviewField
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                tabular={Boolean(field.tabular)}
+                spanTwo={Boolean(field.spanTwo)}
+              />
+            ))}
+          </Box>
+        )}
+      </Paper>
+
       <AssetOverviewDialog
         open={assetDialogOpen}
         onClose={() => setAssetDialogOpen(false)}
@@ -456,6 +560,6 @@ export function RequestOverviewCard({
         items={assetDisplay.checkpointLabels}
         source={assetDisplay.checkpointsSource}
       />
-    </RequestHeaderBar>
+    </>
   );
 }
