@@ -124,8 +124,8 @@ export function AdminTableToolbar({
             },
           }}
           sx={{
-            flex: { xs: '1 1 auto', lg: '0 1 360px' },
-            minWidth: { xs: 0, sm: 240 },
+            flex: { xs: '1 1 auto', lg: '0 1 300px' },
+            minWidth: { xs: 0, sm: 200 },
             '& .MuiOutlinedInput-root': {
               height: 38,
               bgcolor: 'background.paper',

@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { type InspectionChatThread, type PartnerChatThread, type ServiceRequest } from '../api/contractApi';
@@ -26,8 +25,17 @@ import {
   usePartnerChatThreads,
   useServiceRequests,
 } from '../hooks/useContracts';
-import { InspectionChatPanel, PartnerChatPanel, RequestChatPanel } from '../components/RequestChatPanel';
-import { getEffectiveRequestStatus, getStatusLabel } from '../shared/contractStage';
+import {
+  type ChatContextThreadItem,
+  InspectionChatPanel,
+  PartnerChatPanel,
+  RequestChatPanel,
+} from '../components/RequestChatPanel';
+import {
+  getEffectiveRequestStatus,
+  getInspectionStatusLabel,
+  getStatusLabel,
+} from '../shared/contractStage';
 
 type InboxFilter = 'ALL' | 'UNREAD';
 type InboxChannel = 'requests' | 'inspections' | 'partners';
@@ -57,11 +65,118 @@ function getInitialsFromText(source: string, fallback = 'SR'): string {
   return (source.trim().slice(0, 2) || fallback).toUpperCase();
 }
 
-function getConversationInitials(request: ServiceRequest, currentUserId?: string): string {
-  const partnerMsg = [...(request.messages || [])]
-    .reverse()
-    .find((m) => m.authorUserId !== currentUserId && m.authorName);
-  return getInitialsFromText(partnerMsg?.authorName || request.description, 'SR');
+interface PersonGroup {
+  personKey: string;
+  personName: string;
+  avatarUrl?: string | null | undefined;
+  contextItems: ChatContextThreadItem[];
+  unreadCount: number;
+  latestMessage: { body: string; createdAt: string } | null;
+  latestActivityIso: string;
+  searchCorpus: string;
+  singleItemTitle: string;
+  singleItemMeta: string;
+  multiItemMeta: string;
+}
+
+function buildPersonGroups<T>(
+  items: T[],
+  currentUserId: string | undefined,
+  describe: (item: T) => {
+    personKey: string;
+    personName: string;
+    avatarUrl?: string | null | undefined;
+    contextItem: ChatContextThreadItem;
+    fallbackActivityIso: string;
+    searchTokens: string[];
+    singleTitle: string;
+    singleMeta: string;
+    formatMultiLabel: (count: number) => string;
+  },
+): PersonGroup[] {
+  const countUnread = (messages: { authorUserId: string; readAt?: string | null }[]) =>
+    messages.filter((m) => m.authorUserId !== currentUserId && !m.readAt).length;
+
+  const grouped = new Map<
+    string,
+    {
+      personKey: string;
+      personName: string;
+      avatarUrl?: string | null | undefined;
+      contextItems: ChatContextThreadItem[];
+      unreadCount: number;
+      latestMessage: { body: string; createdAt: string; timeMs: number } | null;
+      latestActivityIso: string;
+      latestActivityMs: number;
+      searchTokens: string[];
+      singleTitle: string;
+      singleMeta: string;
+      formatMultiLabel: (count: number) => string;
+    }
+  >();
+
+  for (const raw of items) {
+    const meta = describe(raw);
+    const messages = meta.contextItem.messages;
+    const lastMsg = messages[messages.length - 1];
+    const lastMsgMs = lastMsg ? Date.parse(lastMsg.createdAt) || 0 : 0;
+    const activityIso = lastMsg?.createdAt || meta.fallbackActivityIso;
+    const activityMs = activityIso ? Date.parse(activityIso) || 0 : 0;
+    const itemUnread = countUnread(messages);
+
+    const existing = grouped.get(meta.personKey);
+    if (!existing) {
+      grouped.set(meta.personKey, {
+        personKey: meta.personKey,
+        personName: meta.personName,
+        avatarUrl: meta.avatarUrl,
+        contextItems: [{ ...meta.contextItem, unreadCount: itemUnread }],
+        unreadCount: itemUnread,
+        latestMessage: lastMsg
+          ? { body: lastMsg.body, createdAt: lastMsg.createdAt, timeMs: lastMsgMs }
+          : null,
+        latestActivityIso: activityIso,
+        latestActivityMs: activityMs,
+        searchTokens: [...meta.searchTokens],
+        singleTitle: meta.singleTitle,
+        singleMeta: meta.singleMeta,
+        formatMultiLabel: meta.formatMultiLabel,
+      });
+      continue;
+    }
+
+    existing.contextItems.push({ ...meta.contextItem, unreadCount: itemUnread });
+    existing.unreadCount += itemUnread;
+    if (!existing.avatarUrl && meta.avatarUrl) {
+      existing.avatarUrl = meta.avatarUrl;
+    }
+    if (lastMsg && (!existing.latestMessage || lastMsgMs > existing.latestMessage.timeMs)) {
+      existing.latestMessage = { body: lastMsg.body, createdAt: lastMsg.createdAt, timeMs: lastMsgMs };
+    }
+    if (activityMs > existing.latestActivityMs) {
+      existing.latestActivityMs = activityMs;
+      existing.latestActivityIso = activityIso;
+    }
+    existing.searchTokens.push(...meta.searchTokens);
+  }
+
+  return Array.from(grouped.values())
+    .sort((a, b) => b.latestActivityMs - a.latestActivityMs)
+    .map((group) => ({
+      personKey: group.personKey,
+      personName: group.personName,
+      avatarUrl: group.avatarUrl,
+      contextItems: group.contextItems,
+      unreadCount: group.unreadCount,
+      latestMessage: group.latestMessage
+        ? { body: group.latestMessage.body, createdAt: group.latestMessage.createdAt }
+        : null,
+      latestActivityIso: group.latestActivityIso,
+      searchCorpus: group.searchTokens.join(' ').toLowerCase(),
+      singleItemTitle: group.singleTitle,
+      singleItemMeta: group.singleMeta,
+      multiItemMeta: `${group.formatMultiLabel(group.contextItems.length)} · ${group.contextItems[0]?.title ?? ''}`,
+    }));
 }
 
 export default function ContractInboxPage() {
@@ -125,12 +240,170 @@ export default function ContractInboxPage() {
   const partnerThreadKey = (thread: Pick<PartnerChatThread, 'requestId' | 'inspectorId'>) =>
     `${thread.requestId}:${thread.inspectorId}`;
 
+  const requestGroups = useMemo(
+    () =>
+      buildPersonGroups(requestList, currentUser?.id, (item) => {
+        const statusLabel = getStatusLabel(getEffectiveRequestStatus(item), t);
+        const otherMsg = [...(item.messages || [])]
+          .reverse()
+          .find((m) => m.authorUserId !== currentUser?.id && m.authorName);
+        const personKey = isManager
+          ? `customer:${item.ownerCustomerId}`
+          : `manager:${item.assignedManagerId || item.serviceManager?.id || 'unassigned'}`;
+        const personName = isManager
+          ? item.ownerCustomerName || otherMsg?.authorName || item.description
+          : item.serviceManager?.fullName || otherMsg?.authorName || t('Service Manager');
+        const avatarUrl = !isManager ? item.serviceManager?.avatarUrl : undefined;
+        const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
+
+        return {
+          personKey,
+          personName,
+          avatarUrl,
+          fallbackActivityIso: item.createdAt,
+          singleTitle: item.description,
+          singleMeta: `${statusLabel} · ${item.requestedFrom}`,
+          formatMultiLabel: (count) =>
+            locale === 'vi' ? `${count} yêu cầu` : `${count} requests`,
+          searchTokens: [
+            item.description,
+            item.assetName ?? '',
+            item.ownerCustomerName ?? '',
+            item.serviceManager?.fullName ?? '',
+            latestBody,
+            item.status,
+            item.requestedFrom,
+            item.id,
+          ],
+          contextItem: {
+            id: item.id,
+            title: item.assetName || item.description,
+            subtitle: `${statusLabel} · ${item.requestedFrom}`,
+            actionTo: `/${isManager ? 'manager' : 'client'}/contracts?requestId=${item.id}`,
+            unreadCount: 0,
+            messages: item.messages || [],
+            getAttachmentPath: (messageId, attachmentId) =>
+              `/contracts/requests/${item.id}/messages/${messageId}/attachments/${attachmentId}`,
+          },
+        };
+      }),
+    [requestList, currentUser?.id, isManager, locale, t],
+  );
+
+  const inspectionGroups = useMemo(
+    () =>
+      buildPersonGroups(threadList, currentUser?.id, (thread) => {
+        const statusLabel = getInspectionStatusLabel(thread.status, t);
+        const personName =
+          thread.counterpartName || (isInspector ? t('Customer') : t('Inspector'));
+        const personKey = thread.counterpartUserId || `name:${personName}`;
+        const latestBody = thread.messages[thread.messages.length - 1]?.body ?? '';
+
+        return {
+          personKey,
+          personName,
+          avatarUrl: thread.counterpartAvatarUrl,
+          fallbackActivityIso: thread.plannedStartAt ?? '',
+          singleTitle: thread.assetName,
+          singleMeta: statusLabel,
+          formatMultiLabel: (count) =>
+            locale === 'vi' ? `${count} đợt kiểm tra` : `${count} inspections`,
+          searchTokens: [
+            thread.assetName,
+            personName,
+            latestBody,
+            thread.status,
+            statusLabel,
+            thread.inspectionId,
+          ],
+          contextItem: {
+            id: thread.inspectionId,
+            title: thread.assetName,
+            subtitle: statusLabel,
+            meta: thread.plannedStartAt
+              ? new Date(thread.plannedStartAt).toLocaleDateString()
+              : undefined,
+            actionTo: `/${isInspector ? 'operations' : 'client'}/inspections/${thread.inspectionId}`,
+            unreadCount: 0,
+            messages: thread.messages || [],
+            getAttachmentPath: (messageId, attachmentId) =>
+              `/inspections/${thread.inspectionId}/messages/${messageId}/attachments/${attachmentId}`,
+          },
+        };
+      }),
+    [threadList, currentUser?.id, isInspector, locale, t],
+  );
+
+  const partnerGroups = useMemo(
+    () =>
+      buildPersonGroups(partnerThreadList, currentUser?.id, (thread) => {
+        const personName =
+          thread.counterpartName || (isManager ? t('Inspector') : t('Service Manager'));
+        const personKey = thread.counterpartUserId || `name:${personName}`;
+        const latestBody = thread.messages[thread.messages.length - 1]?.body ?? '';
+        const key = `${thread.requestId}:${thread.inspectorId}`;
+
+        return {
+          personKey,
+          personName,
+          avatarUrl: thread.counterpartAvatarUrl,
+          fallbackActivityIso: thread.nextPlannedStartAt ?? '',
+          singleTitle: thread.assetName,
+          singleMeta: thread.customerName || thread.requestDescription,
+          formatMultiLabel: (count) =>
+            locale === 'vi' ? `${count} đơn phối hợp` : `${count} assignments`,
+          searchTokens: [
+            thread.assetName,
+            thread.requestDescription,
+            personName,
+            thread.customerName ?? '',
+            latestBody,
+            thread.requestId,
+          ],
+          contextItem: {
+            id: key,
+            title: thread.assetName,
+            subtitle: thread.requestDescription,
+            meta: thread.customerName || undefined,
+            actionTo: isManager
+              ? `/manager/contracts?requestId=${thread.requestId}`
+              : '/operations/inspections',
+            unreadCount: 0,
+            messages: thread.messages || [],
+            getAttachmentPath: (messageId, attachmentId) =>
+              `/contracts/partner-messages/${thread.requestId}/inspectors/${thread.inspectorId}/attachments/${messageId}/${attachmentId}`,
+          },
+        };
+      }),
+    [partnerThreadList, currentUser?.id, isManager, locale, t],
+  );
+
+  const requestUnreadThreads = useMemo(
+    () => requestGroups.filter((group) => group.unreadCount > 0).length,
+    [requestGroups],
+  );
+
+  const inspectionUnreadThreads = useMemo(
+    () => inspectionGroups.filter((group) => group.unreadCount > 0).length,
+    [inspectionGroups],
+  );
+
+  const partnerUnreadThreads = useMemo(
+    () => partnerGroups.filter((group) => group.unreadCount > 0).length,
+    [partnerGroups],
+  );
+
+  const defaultGroupThreadId = (group?: PersonGroup) =>
+    group?.contextItems.find((item) => item.unreadCount > 0)?.id ??
+    group?.contextItems[0]?.id ??
+    '';
+
   const activeRequestId =
     (selectedId && requestList.some((item) => item.id === selectedId) ? selectedId : null) ??
     (requestedParam && requestList.some((item) => item.id === requestedParam)
       ? requestedParam
       : null) ??
-    (requestList[0]?.id ?? '');
+    defaultGroupThreadId(requestGroups[0]);
 
   const activeInspectionId =
     (selectedId && threadList.some((item) => item.inspectionId === selectedId)
@@ -139,7 +412,7 @@ export default function ContractInboxPage() {
     (inspectionParam && threadList.some((item) => item.inspectionId === inspectionParam)
       ? inspectionParam
       : null) ??
-    (threadList[0]?.inspectionId ?? '');
+    defaultGroupThreadId(inspectionGroups[0]);
 
   const matchedPartnerThread =
     (selectedId
@@ -152,6 +425,10 @@ export default function ContractInboxPage() {
             (!partnerInspectorParam || item.inspectorId === partnerInspectorParam),
         )
       : undefined) ??
+    (() => {
+      const firstId = defaultGroupThreadId(partnerGroups[0]);
+      return partnerThreadList.find((item) => partnerThreadKey(item) === firstId);
+    })() ??
     partnerThreadList[0];
   const activePartnerKey = matchedPartnerThread ? partnerThreadKey(matchedPartnerThread) : '';
 
@@ -162,79 +439,26 @@ export default function ContractInboxPage() {
     matchedPartnerThread?.inspectorId ?? '',
   );
 
-  const countUnread = (messages: { authorUserId: string; readAt?: string | null }[]) =>
-    messages.filter((m) => m.authorUserId !== currentUser?.id && !m.readAt).length;
-
-  const requestUnreadThreads = useMemo(
-    () => requestList.filter((item) => countUnread(item.messages || []) > 0).length,
-    [requestList, currentUser?.id],
-  );
-
-  const inspectionUnreadThreads = useMemo(
-    () => threadList.filter((item) => countUnread(item.messages || []) > 0).length,
-    [threadList, currentUser?.id],
-  );
-
-  const partnerUnreadThreads = useMemo(
-    () => partnerThreadList.filter((item) => countUnread(item.messages || []) > 0).length,
-    [partnerThreadList, currentUser?.id],
-  );
-
-  const filteredRequests = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return requestList.filter((item) => {
-      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
-      if (!query) return true;
-      const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
-      return (
-        item.description.toLowerCase().includes(query) ||
-        latestBody.toLowerCase().includes(query) ||
-        item.status.toLowerCase().includes(query) ||
-        item.requestedFrom.includes(query) ||
-        item.id.toLowerCase().includes(query)
-      );
-    });
-  }, [requestList, search, filter, currentUser?.id]);
-
-  const filteredThreads = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return threadList.filter((item) => {
-      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
-      if (!query) return true;
-      const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
-      return (
-        item.assetName.toLowerCase().includes(query) ||
-        item.counterpartName.toLowerCase().includes(query) ||
-        latestBody.toLowerCase().includes(query) ||
-        item.status.toLowerCase().includes(query) ||
-        item.inspectionId.toLowerCase().includes(query)
-      );
-    });
-  }, [threadList, search, filter, currentUser?.id]);
-
-  const filteredPartnerThreads = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return partnerThreadList.filter((item) => {
-      if (filter === 'UNREAD' && countUnread(item.messages || []) === 0) return false;
-      if (!query) return true;
-      const latestBody = item.messages[item.messages.length - 1]?.body ?? '';
-      return (
-        item.assetName.toLowerCase().includes(query) ||
-        item.requestDescription.toLowerCase().includes(query) ||
-        item.counterpartName.toLowerCase().includes(query) ||
-        (item.customerName ?? '').toLowerCase().includes(query) ||
-        latestBody.toLowerCase().includes(query) ||
-        item.requestId.toLowerCase().includes(query)
-      );
-    });
-  }, [partnerThreadList, search, filter, currentUser?.id]);
-
-  const activeItemsCount =
+  const activeGroups =
     activeChannel === 'requests'
-      ? requestList.length
+      ? requestGroups
       : activeChannel === 'inspections'
-        ? threadList.length
-        : partnerThreadList.length;
+        ? inspectionGroups
+        : partnerGroups;
+
+  const filteredGroups = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return activeGroups.filter((group) => {
+      if (filter === 'UNREAD' && group.unreadCount === 0) return false;
+      if (!query) return true;
+      return (
+        group.personName.toLowerCase().includes(query) ||
+        group.searchCorpus.includes(query)
+      );
+    });
+  }, [activeGroups, search, filter]);
+
+  const activeItemsCount = activeGroups.length;
   const activeUnreadThreads =
     activeChannel === 'requests'
       ? requestUnreadThreads
@@ -356,24 +580,36 @@ export default function ContractInboxPage() {
       ? partnerThreadList.find((item) => partnerThreadKey(item) === activePartnerKey)
       : undefined;
 
+  const activeContextId =
+    activeChannel === 'requests'
+      ? activeRequestId
+      : activeChannel === 'inspections'
+        ? activeInspectionId
+        : activePartnerKey;
+  const selectedGroup = activeGroups.find((group) =>
+    group.contextItems.some((item) => item.id === activeContextId),
+  );
+  const handleSelectGroup = (group: PersonGroup) => {
+    const targetId = defaultGroupThreadId(group);
+    if (!targetId) return;
+    if (activeChannel === 'requests') {
+      handleSelectRequest(targetId);
+    } else if (activeChannel === 'inspections') {
+      handleSelectInspection(targetId);
+    } else {
+      const matched = partnerThreadList.find((item) => partnerThreadKey(item) === targetId);
+      if (matched) handleSelectPartnerThread(matched);
+    }
+  };
+
   const hasSelection = Boolean(selectedRequest || selectedInspectionThread || selectedPartnerThread);
   const totalAvailableAnyChannel =
     requestList.length + threadList.length + partnerThreadList.length;
-  const dashboardPath = isCustomer
-    ? '/client/dashboard'
-    : isInspector
-      ? '/operations/dashboard'
-      : '/manager/dashboard';
 
   return (
-    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      <PageHeader
-        title={t('Messages')}
-        breadcrumbs={[{ label: t('Operations'), to: dashboardPath }, { label: t('Messages') }]}
-      />
-
+    <Box sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2, borderRadius: '8px' }}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ m: 2, mb: 1, borderRadius: '8px', flexShrink: 0 }}>
           {error}
         </Alert>
       )}
@@ -381,7 +617,14 @@ export default function ContractInboxPage() {
       {totalAvailableAnyChannel === 0 ? (
         <Paper
           variant="outlined"
-          sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider', boxShadow: 'none' }}
+          sx={{
+            m: { xs: 2, md: 3 },
+            p: 4,
+            borderRadius: '10px',
+            textAlign: 'center',
+            borderColor: 'divider',
+            boxShadow: 'none',
+          }}
         >
           <Typography color="text.secondary">
             {isInspector
@@ -396,79 +639,146 @@ export default function ContractInboxPage() {
           sx={{
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '10px',
+            flex: 1,
+            minHeight: 0,
+            width: '100%',
             bgcolor: 'background.paper',
             overflow: 'hidden',
-            height: { xs: 'calc(100dvh - 180px)', md: 'calc(100dvh - 190px)' },
-            minHeight: { xs: 460, md: 500 },
           }}
         >
           {/* Left Conversations Sidebar */}
           <Box
             sx={{
-              width: { xs: '100%', md: 340 },
+              width: { xs: '100%', md: 336 },
               flexShrink: 0,
               minHeight: 0,
               flex: { xs: 1, md: 'none' },
-              borderRight: { md: '1px solid' },
-              borderColor: 'divider',
+              borderRight: { xs: 'none', md: '1px solid var(--mui-palette-divider)' },
               display: { xs: mobileShowChat && hasSelection ? 'none' : 'flex', md: 'flex' },
               flexDirection: 'column',
               bgcolor: 'background.paper',
             }}
           >
-            <Box sx={{ p: 2, pb: 1.5 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {t('Messages')}
-                </Typography>
-                <Box
+            <Box sx={{ px: 2, pt: 1.75, pb: 1.25 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}
+              >
+                <Stack direction="row" spacing={0.875} sx={{ alignItems: 'center', minWidth: 0 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                    {t('Messages')}
+                  </Typography>
+                  <Box
+                    sx={{
+                      px: 0.9,
+                      py: 0.1,
+                      borderRadius: '999px',
+                      bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)',
+                      color: 'primary.main',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {activeItemsCount}
+                  </Box>
+                </Stack>
+
+                <Stack
+                  direction="row"
+                  spacing={0.25}
                   sx={{
-                    px: 1,
-                    py: 0.15,
-                    borderRadius: '999px',
-                    bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
-                    color: 'primary.main',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    lineHeight: 1.4,
+                    p: 0.3,
+                    borderRadius: '8px',
+                    bgcolor: 'action.hover',
+                    flexShrink: 0,
                   }}
                 >
-                  {activeItemsCount}
-                </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setFilter('ALL')}
+                    sx={{
+                      px: 1.1,
+                      py: 0.35,
+                      border: 0,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: filter === 'ALL' ? 700 : 500,
+                      bgcolor: filter === 'ALL' ? 'background.paper' : 'transparent',
+                      color: filter === 'ALL' ? 'text.primary' : 'text.secondary',
+                      boxShadow: filter === 'ALL' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                      '&:hover': { color: 'text.primary' },
+                    }}
+                  >
+                    {locale === 'vi' ? 'Tất cả' : 'All'}
+                  </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setFilter('UNREAD')}
+                    sx={{
+                      px: 1.1,
+                      py: 0.35,
+                      border: 0,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: filter === 'UNREAD' ? 700 : 500,
+                      bgcolor: filter === 'UNREAD' ? 'background.paper' : 'transparent',
+                      color: filter === 'UNREAD' ? 'text.primary' : 'text.secondary',
+                      boxShadow: filter === 'UNREAD' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                      '&:hover': { color: 'text.primary' },
+                    }}
+                  >
+                    {locale === 'vi' ? 'Chưa đọc' : 'Unread'}
+                    {activeUnreadThreads > 0 ? ` (${activeUnreadThreads})` : ''}
+                  </Box>
+                </Stack>
               </Stack>
 
               {availableChannels.length > 1 && (
-                <Stack direction="row" spacing={0.75} sx={{ mb: 1.5 }}>
-                  {availableChannels.map((channel) => (
-                    <Box
-                      key={channel.key}
-                      component="button"
-                      type="button"
-                      onClick={() => handleSwitchChannel(channel.key)}
-                      sx={{
-                        flex: 1,
-                        px: 1.25,
-                        py: 0.7,
-                        border: '1px solid',
-                        borderColor: activeChannel === channel.key ? 'primary.main' : 'divider',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '0.8125rem',
-                        fontWeight: activeChannel === channel.key ? 700 : 600,
-                        bgcolor:
-                          activeChannel === channel.key
-                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
-                            : 'transparent',
-                        color: activeChannel === channel.key ? 'primary.main' : 'text.secondary',
-                      }}
-                    >
-                      {channel.label}
-                      {channel.unread > 0 ? ` (${channel.unread})` : ''}
-                    </Box>
-                  ))}
+                <Stack
+                  direction="row"
+                  spacing={0.35}
+                  sx={{
+                    p: 0.35,
+                    mb: 1.1,
+                    borderRadius: '8px',
+                    bgcolor: 'action.hover',
+                  }}
+                >
+                  {availableChannels.map((channel) => {
+                    const active = activeChannel === channel.key;
+                    return (
+                      <Box
+                        key={channel.key}
+                        component="button"
+                        type="button"
+                        onClick={() => handleSwitchChannel(channel.key)}
+                        sx={{
+                          flex: 1,
+                          px: 1.25,
+                          py: 0.6,
+                          border: 0,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.8125rem',
+                          fontWeight: active ? 600 : 500,
+                          bgcolor: active ? 'background.paper' : 'transparent',
+                          color: active ? 'primary.main' : 'text.secondary',
+                          boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                          transition: 'background-color 140ms ease, color 140ms ease',
+                          '&:hover': { color: active ? 'primary.main' : 'text.primary' },
+                        }}
+                      >
+                        {channel.label}
+                        {channel.unread > 0 ? ` (${channel.unread})` : ''}
+                      </Box>
+                    );
+                  })}
                 </Stack>
               )}
 
@@ -482,310 +792,49 @@ export default function ContractInboxPage() {
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                        <SearchRoundedIcon fontSize="small" sx={{ color: 'text.secondary', fontSize: 18 }} />
                       </InputAdornment>
                     ),
                   },
                 }}
                 sx={{
-                  mb: 1.5,
                   '& .MuiOutlinedInput-root': {
-                    height: 38,
+                    height: 36,
                     borderRadius: '8px',
-                    fontSize: '0.875rem',
-                    bgcolor: 'background.default',
+                    fontSize: '0.84rem',
+                    bgcolor: 'action.hover',
+                    '& fieldset': { borderColor: 'transparent' },
+                    '&:hover fieldset': { borderColor: 'divider' },
+                    '&.Mui-focused': {
+                      bgcolor: 'background.paper',
+                    },
                   },
                 }}
               />
-
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setFilter('ALL')}
-                  sx={{
-                    px: 1.5,
-                    py: 0.6,
-                    border: 0,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: filter === 'ALL' ? 700 : 500,
-                    bgcolor: filter === 'ALL' ? 'action.selected' : 'transparent',
-                    color: filter === 'ALL' ? 'text.primary' : 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  {locale === 'vi' ? 'Tất cả' : 'All'}
-                </Box>
-                <Box
-                  component="button"
-                  type="button"
-                  onClick={() => setFilter('UNREAD')}
-                  sx={{
-                    px: 1.5,
-                    py: 0.6,
-                    border: 0,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: filter === 'UNREAD' ? 700 : 500,
-                    bgcolor: filter === 'UNREAD' ? 'action.selected' : 'transparent',
-                    color: filter === 'UNREAD' ? 'text.primary' : 'text.secondary',
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  {locale === 'vi' ? 'Chưa đọc' : 'Unread'}
-                  {activeUnreadThreads > 0 ? ` (${activeUnreadThreads})` : ''}
-                </Box>
-              </Stack>
             </Box>
 
             <List disablePadding sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 1, pb: 1 }}>
-              {activeChannel === 'requests' ? (
-                filteredRequests.length === 0 ? (
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('No records found')}
-                    </Typography>
-                  </Box>
-                ) : (
-                  filteredRequests.map((item) => {
-                    const isSelected = item.id === activeRequestId;
-                    const latestMessage = item.messages[item.messages.length - 1];
-                    const unreadCount = countUnread(item.messages || []);
-                    const latestTime = formatShortTime(latestMessage?.createdAt ?? item.createdAt);
-                    const statusLabel = getStatusLabel(getEffectiveRequestStatus(item), t);
-
-                    return (
-                      <ListItemButton
-                        key={item.id}
-                        selected={isSelected}
-                        onClick={() => handleSelectRequest(item.id)}
-                        sx={{
-                          borderRadius: '8px',
-                          mb: 0.5,
-                          py: 1.25,
-                          px: 1.25,
-                          gap: 1.5,
-                          alignItems: 'center',
-                          bgcolor: isSelected ? 'action.selected' : 'transparent',
-                          '&.Mui-selected': {
-                            bgcolor: 'action.selected',
-                            '&:hover': { bgcolor: 'action.selected' },
-                          },
-                          '&:hover': {
-                            bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                          },
-                        }}
-                      >
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            flexShrink: 0,
-                            bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
-                            color: 'primary.main',
-                          }}
-                        >
-                          {getConversationInitials(item, currentUser?.id)}
-                        </Avatar>
-
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: isSelected || unreadCount > 0 ? 700 : 600,
-                                color: 'text.primary',
-                              }}
-                              noWrap
-                            >
-                              {item.description}
-                            </Typography>
-                            {latestTime && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ flexShrink: 0, fontSize: '0.75rem' }}
-                              >
-                                · {latestTime}
-                              </Typography>
-                            )}
-                          </Stack>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
-                            noWrap
-                          >
-                            {statusLabel} · {item.requestedFrom} · #{item.id.slice(0, 8)}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              mt: 0.15,
-                              fontWeight: unreadCount > 0 ? 600 : 400,
-                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                            }}
-                            noWrap
-                          >
-                            {latestMessage ? latestMessage.body : t('No messages yet')}
-                          </Typography>
-                        </Box>
-
-                        {unreadCount > 0 && (
-                          <Box
-                            aria-label={`${unreadCount} unread`}
-                            sx={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: '50%',
-                              bgcolor: 'primary.main',
-                              flexShrink: 0,
-                            }}
-                          />
-                        )}
-                      </ListItemButton>
-                    );
-                  })
-                )
-              ) : activeChannel === 'inspections' ? (
-                filteredThreads.length === 0 ? (
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('No records found')}
-                    </Typography>
-                  </Box>
-                ) : (
-                  filteredThreads.map((thread) => {
-                    const isSelected = thread.inspectionId === activeInspectionId;
-                    const latestMessage = thread.messages[thread.messages.length - 1];
-                    const unreadCount = countUnread(thread.messages || []);
-                    const latestTime = formatShortTime(
-                      latestMessage?.createdAt ?? thread.plannedStartAt ?? '',
-                    );
-
-                    return (
-                      <ListItemButton
-                        key={thread.inspectionId}
-                        selected={isSelected}
-                        onClick={() => handleSelectInspection(thread.inspectionId)}
-                        sx={{
-                          borderRadius: '8px',
-                          mb: 0.5,
-                          py: 1.25,
-                          px: 1.25,
-                          gap: 1.5,
-                          alignItems: 'center',
-                          bgcolor: isSelected ? 'action.selected' : 'transparent',
-                          '&.Mui-selected': {
-                            bgcolor: 'action.selected',
-                            '&:hover': { bgcolor: 'action.selected' },
-                          },
-                          '&:hover': {
-                            bgcolor: isSelected ? 'action.selected' : 'action.hover',
-                          },
-                        }}
-                      >
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            flexShrink: 0,
-                            bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 12%, transparent)',
-                            color: 'primary.main',
-                          }}
-                        >
-                          {getInitialsFromText(thread.counterpartName || thread.assetName, 'IN')}
-                        </Avatar>
-
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: isSelected || unreadCount > 0 ? 700 : 600,
-                                color: 'text.primary',
-                              }}
-                              noWrap
-                            >
-                              {thread.counterpartName}
-                            </Typography>
-                            {latestTime && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ flexShrink: 0, fontSize: '0.75rem' }}
-                              >
-                                · {latestTime}
-                              </Typography>
-                            )}
-                          </Stack>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
-                            noWrap
-                          >
-                            {thread.assetName} · {t(thread.status)} · #{thread.inspectionId.slice(0, 8)}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              display: 'block',
-                              mt: 0.15,
-                              fontWeight: unreadCount > 0 ? 600 : 400,
-                              color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                            }}
-                            noWrap
-                          >
-                            {latestMessage ? latestMessage.body : t('No messages yet')}
-                          </Typography>
-                        </Box>
-
-                        {unreadCount > 0 && (
-                          <Box
-                            aria-label={`${unreadCount} unread`}
-                            sx={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: '50%',
-                              bgcolor: 'primary.main',
-                              flexShrink: 0,
-                            }}
-                          />
-                        )}
-                      </ListItemButton>
-                    );
-                  })
-                )
-              ) : filteredPartnerThreads.length === 0 ? (
+              {filteredGroups.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('No records found')}
                   </Typography>
                 </Box>
               ) : (
-                filteredPartnerThreads.map((thread) => {
-                  const key = partnerThreadKey(thread);
-                  const isSelected = key === activePartnerKey;
-                  const latestMessage = thread.messages[thread.messages.length - 1];
-                  const unreadCount = countUnread(thread.messages || []);
-                  const latestTime = formatShortTime(
-                    latestMessage?.createdAt ?? thread.nextPlannedStartAt ?? '',
-                  );
+                filteredGroups.map((group) => {
+                  const isSelected = selectedGroup?.personKey === group.personKey;
+                  const latestTime = formatShortTime(group.latestActivityIso);
+                  const isMulti = group.contextItems.length > 1;
+                  const showTitleSpan =
+                    !isMulti &&
+                    Boolean(group.singleItemTitle) &&
+                    group.singleItemTitle !== group.personName;
 
                   return (
                     <ListItemButton
-                      key={key}
+                      key={group.personKey}
                       selected={isSelected}
-                      onClick={() => handleSelectPartnerThread(thread)}
+                      onClick={() => handleSelectGroup(group)}
                       sx={{
                         borderRadius: '8px',
                         mb: 0.5,
@@ -804,6 +853,7 @@ export default function ContractInboxPage() {
                       }}
                     >
                       <Avatar
+                        src={group.avatarUrl?.trim() || undefined}
                         sx={{
                           width: 40,
                           height: 40,
@@ -814,7 +864,7 @@ export default function ContractInboxPage() {
                           color: 'primary.main',
                         }}
                       >
-                        {getInitialsFromText(thread.counterpartName || thread.assetName, 'PM')}
+                        {getInitialsFromText(group.personName, 'CH')}
                       </Avatar>
 
                       <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -822,12 +872,12 @@ export default function ContractInboxPage() {
                           <Typography
                             variant="body2"
                             sx={{
-                              fontWeight: isSelected || unreadCount > 0 ? 700 : 600,
+                              fontWeight: isSelected || group.unreadCount > 0 ? 700 : 600,
                               color: 'text.primary',
                             }}
                             noWrap
                           >
-                            {thread.counterpartName}
+                            {group.personName}
                           </Typography>
                           {latestTime && (
                             <Typography
@@ -842,28 +892,39 @@ export default function ContractInboxPage() {
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ display: 'block', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                          sx={{ display: 'block', fontSize: '0.75rem' }}
                           noWrap
                         >
-                          {[thread.assetName, thread.customerName].filter(Boolean).join(' · ')}
+                          {isMulti ? (
+                            group.multiItemMeta
+                          ) : showTitleSpan ? (
+                            <>
+                              <Box component="span">{group.singleItemTitle}</Box>
+                              {group.singleItemMeta ? ` · ${group.singleItemMeta}` : ''}
+                            </>
+                          ) : (
+                            group.singleItemMeta
+                          )}
                         </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: 'block',
-                            mt: 0.15,
-                            fontWeight: unreadCount > 0 ? 600 : 400,
-                            color: unreadCount > 0 ? 'text.primary' : 'text.secondary',
-                          }}
-                          noWrap
-                        >
-                          {latestMessage ? latestMessage.body : thread.requestDescription || t('No messages yet')}
-                        </Typography>
+                        {group.latestMessage && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              display: 'block',
+                              mt: 0.15,
+                              fontWeight: group.unreadCount > 0 ? 600 : 400,
+                              color: group.unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                            }}
+                            noWrap
+                          >
+                            {group.latestMessage.body}
+                          </Typography>
+                        )}
                       </Box>
 
-                      {unreadCount > 0 && (
+                      {group.unreadCount > 0 && (
                         <Box
-                          aria-label={`${unreadCount} unread`}
+                          aria-label={`${group.unreadCount} unread`}
                           sx={{
                             width: 8,
                             height: 8,
@@ -893,6 +954,9 @@ export default function ContractInboxPage() {
             {selectedRequest ? (
               <RequestChatPanel
                 request={selectedRequest}
+                partnerNameOverride={selectedGroup?.personName}
+                contextThreads={selectedGroup?.contextItems}
+                onSelectContext={handleSelectRequest}
                 onChanged={() => void requests.refetch()}
                 onError={setError}
                 onBack={() => setMobileShowChat(false)}
@@ -900,6 +964,8 @@ export default function ContractInboxPage() {
             ) : selectedInspectionThread ? (
               <InspectionChatPanel
                 thread={selectedInspectionThread}
+                contextThreads={selectedGroup?.contextItems}
+                onSelectContext={handleSelectInspection}
                 onChanged={() => void inspectionThreads.refetch()}
                 onError={setError}
                 onBack={() => setMobileShowChat(false)}
@@ -907,6 +973,13 @@ export default function ContractInboxPage() {
             ) : selectedPartnerThread ? (
               <PartnerChatPanel
                 thread={selectedPartnerThread}
+                contextThreads={selectedGroup?.contextItems}
+                onSelectContext={(targetKey) => {
+                  const matched = partnerThreadList.find(
+                    (item) => partnerThreadKey(item) === targetKey,
+                  );
+                  if (matched) handleSelectPartnerThread(matched);
+                }}
                 onChanged={() => void partnerThreads.refetch()}
                 onError={setError}
                 onBack={() => setMobileShowChat(false)}

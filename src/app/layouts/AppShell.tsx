@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useState,
   useEffect,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -32,10 +34,6 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
-import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
-import LogoutRounded from '@mui/icons-material/LogoutRounded';
-import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import {
   canAccessSection,
   getAvailablePortals,
@@ -45,6 +43,9 @@ import {
   PORTAL_CONFIG,
   type PortalId,
 } from '@/app/permissions/accessPolicy';
+import { hexToRgba } from '@/app/theme/customTheme';
+import { useCustomTheme } from '@/app/theme/CustomThemeContext';
+import { ThemeCustomizerDrawer } from '@/app/theme/ThemeCustomizerDrawer';
 import { layoutTokens } from '@/app/theme/tokens';
 import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -54,22 +55,36 @@ import {
 } from '@/features/auth/api/authApi';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
-  NextAdminBellIcon,
-  NextAdminCalendarIcon,
-  NextAdminChartsIcon,
+  GlassAiFindingsIcon,
+  GlassAirspaceIcon,
+  GlassAssetIcon,
+  GlassBellIcon,
+  GlassCatalogIcon,
+  GlassChartsIcon,
+  GlassChatIcon,
+  GlassChecklistIcon,
+  GlassContractIcon,
+  GlassDashboardIcon,
+  GlassDroneIcon,
+  GlassInspectionIcon,
+  GlassLogoutIcon,
+  GlassPaletteIcon,
+  GlassPaymentIcon,
+  GlassPermitIcon,
+  GlassScheduleIcon,
+  GlassSearchIcon,
+  GlassSettingsIcon,
+  GlassSwapIcon,
+  GlassUserIcon,
+  GlassUsersIcon,
+} from '@/shared/ui/GradientGlassIcons';
+import {
   NextAdminChevronDownIcon,
-  NextAdminFormsIcon,
-  NextAdminHomeIcon,
-  NextAdminInvoiceIcon,
   NextAdminLogoMark,
   NextAdminMoonIcon,
-  NextAdminPagesIcon,
-  NextAdminProfileIcon,
   NextAdminSearchIcon,
   NextAdminSidebarToggleIcon,
   NextAdminSunIcon,
-  NextAdminTablesIcon,
-  NextAdminTaskIcon,
 } from '@/shared/ui/NextAdminIcons';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -85,28 +100,32 @@ import { useInspections } from '@/features/inspections/hooks/useInspections';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
+const PetCompanionWidget = lazy(
+  () => import('@/features/pets3d/PetCompanionWidget'),
+);
+
 const NAV_ITEMS = [
-  { section: 'dashboard', icon: <NextAdminHomeIcon /> },
-  { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
-  { section: 'messages', icon: <NextAdminFormsIcon /> },
-  { section: 'assignments', icon: <NextAdminTaskIcon />, path: '/operations/inspections?view=assignments' },
-  { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
-  { section: 'assets', icon: <NextAdminTablesIcon /> },
-  { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
-  { section: 'flight-drone-config', icon: <NextAdminTaskIcon /> },
-  { section: 'inspections', icon: <NextAdminTaskIcon /> },
-  { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
-  { section: 'finance-history', icon: <NextAdminInvoiceIcon /> },
-  { section: 'payout-settlements', icon: <NextAdminChartsIcon /> },
-  { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
-  { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
-  { section: 'drone-registrations', icon: <NextAdminTaskIcon /> },
-  { section: 'customer-airspace', icon: <NextAdminTablesIcon /> },
-  { section: 'audit-logs', icon: <NextAdminSearchIcon /> },
-  { section: 'platform-users', icon: <NextAdminProfileIcon /> },
-  { section: 'platform-settings', icon: <NextAdminTaskIcon /> },
-  { section: 'notifications', icon: <NextAdminBellIcon /> },
-  { section: 'settings', icon: <NextAdminProfileIcon /> },
+  { section: 'dashboard', icon: <GlassDashboardIcon /> },
+  { section: 'contracts', icon: <GlassContractIcon /> },
+  { section: 'messages', icon: <GlassChatIcon /> },
+  { section: 'assignments', icon: <GlassChecklistIcon />, path: '/operations/inspections?view=assignments' },
+  { section: 'schedule', icon: <GlassScheduleIcon />, path: '/operations/inspections?view=calendar' },
+  { section: 'assets', icon: <GlassAssetIcon /> },
+  { section: 'asset-catalog', icon: <GlassCatalogIcon /> },
+  { section: 'flight-drone-config', icon: <GlassAiFindingsIcon /> },
+  { section: 'inspections', icon: <GlassInspectionIcon /> },
+  { section: 'inspector-drones', icon: <GlassDroneIcon /> },
+  { section: 'finance-history', icon: <GlassPaymentIcon /> },
+  { section: 'payout-settlements', icon: <GlassChartsIcon /> },
+  { section: 'partner-onboarding', icon: <GlassContractIcon />, path: '/operations/partner-onboarding' },
+  { section: 'onboarding-reviews', icon: <GlassUsersIcon /> },
+  { section: 'drone-registrations', icon: <GlassPermitIcon /> },
+  { section: 'customer-airspace', icon: <GlassAirspaceIcon /> },
+  { section: 'audit-logs', icon: <GlassSearchIcon /> },
+  { section: 'platform-users', icon: <GlassUsersIcon /> },
+  { section: 'platform-settings', icon: <GlassSettingsIcon /> },
+  { section: 'notifications', icon: <GlassBellIcon /> },
+  { section: 'settings', icon: <GlassSettingsIcon /> },
 ] as const;
 
 const NAV_GROUPS: ReadonlyArray<{
@@ -159,6 +178,7 @@ export function AppShell({ portal }: AppShellProps) {
   const theme = useTheme();
   const { toggle: toggleColorMode } = useColorMode();
   const isDark = useIsDarkMode();
+  const { preferences: themePreferences, activePreset, activeBackgroundUrl } = useCustomTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -207,6 +227,7 @@ export function AppShell({ portal }: AppShellProps) {
   const isNavOpen = !hasMatchMedia || isDesktop ? navVisible : mobileOpen;
   const [navFilter, setNavFilter] = useState('');
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [themeDrawerOpen, setThemeDrawerOpen] = useState(false);
   const [activeSearchIdx, setActiveSearchIdx] = useState(0);
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<HTMLElement | null>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -341,14 +362,48 @@ export function AppShell({ portal }: AppShellProps) {
     }
   };
 
+  const hasCustomBackground = Boolean(activeBackgroundUrl);
+  const applyBgToSidebar =
+    hasCustomBackground &&
+    (themePreferences.backgroundTarget === 'both' ||
+      themePreferences.backgroundTarget === 'sidebar');
+  const applyBgToWorkspace =
+    hasCustomBackground &&
+    (themePreferences.backgroundTarget === 'both' ||
+      themePreferences.backgroundTarget === 'workspace');
+  const applyBgToEntireShell = applyBgToSidebar && applyBgToWorkspace;
+
+  const sidebarOverlayColor = hexToRgba(
+    isDark ? activePreset.darkCanvas : activePreset.lightCanvas,
+    themePreferences.surfaceOpacity,
+  );
+  const workspaceOverlayColor = hexToRgba(
+    isDark ? activePreset.darkInset : activePreset.lightSurface,
+    themePreferences.surfaceOpacity,
+  );
+  const solidWorkspaceColor = isDark ? activePreset.darkInset : activePreset.lightSurface;
+
   const drawerContent = (
     <Box
+      data-testid="appshell-sidebar-surface"
       sx={{
         display: 'flex',
         height: '100%',
         minHeight: 0,
         flexDirection: 'column',
-        bgcolor: 'background.default',
+        overflow: 'hidden',
+        borderRadius: { xs: 0, md: applyBgToSidebar && isDesktop ? '16px' : 0 },
+        border: {
+          xs: 'none',
+          md:
+            applyBgToSidebar && isDesktop
+              ? isDark
+                ? '1px solid #27272A'
+                : '1px solid rgba(229, 229, 229, 0.9)'
+              : 'none',
+        },
+        bgcolor: applyBgToSidebar ? sidebarOverlayColor : 'background.default',
+        backdropFilter: applyBgToSidebar ? 'blur(12px)' : undefined,
       }}
     >
       <Box
@@ -600,12 +655,21 @@ export function AppShell({ portal }: AppShellProps) {
 
   return (
     <Box
+      data-testid="appshell-root"
       sx={{
         display: 'flex',
         height: '100dvh',
         minHeight: 0,
         overflow: 'hidden',
         bgcolor: 'background.default',
+        ...(applyBgToEntireShell && activeBackgroundUrl
+          ? {
+              backgroundImage: `url("${activeBackgroundUrl}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }
+          : {}),
       }}
     >
       <Drawer
@@ -622,7 +686,22 @@ export function AppShell({ portal }: AppShellProps) {
             width: DRAWER_WIDTH,
             height: '100dvh',
             boxSizing: 'border-box',
-            bgcolor: 'background.default',
+            p: {
+              xs: 0,
+              md: applyBgToSidebar ? '12px 0 12px 12px' : 0,
+              lg: applyBgToSidebar ? '16px 0 16px 16px' : 0,
+            },
+            bgcolor: applyBgToSidebar ? 'transparent' : 'background.default',
+            ...(applyBgToSidebar &&
+            (!applyBgToEntireShell || !isDesktop) &&
+            activeBackgroundUrl
+              ? {
+                  backgroundImage: `url("${activeBackgroundUrl}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                }
+              : {}),
             borderRight: 'none',
             boxShadow: 'none',
             transform: isDesktop && !navVisible ? `translateX(-${DRAWER_WIDTH}px)` : 'none',
@@ -634,24 +713,35 @@ export function AppShell({ portal }: AppShellProps) {
       </Drawer>
 
       <Box
+        data-testid="appshell-workspace-outer"
         sx={{
           flex: 1,
           minWidth: 0,
           height: '100dvh',
           overflow: 'hidden',
-          p: { xs: 0, lg: '16px 16px 16px 0' },
+          p: { xs: 0, md: '12px', lg: '16px' },
+          ...(applyBgToWorkspace && !applyBgToEntireShell && activeBackgroundUrl
+            ? {
+                backgroundImage: `url("${activeBackgroundUrl}")`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }
+            : {}),
         }}
       >
         <Box
+          data-testid="appshell-workspace-frame"
           sx={{
             height: '100%',
             minHeight: 0,
-            borderRadius: { xs: 0, lg: '16px' },
+            borderRadius: { xs: 0, md: '16px' },
             border: {
               xs: 'none',
-              lg: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
+              md: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
             },
-            bgcolor: isDark ? '#111827' : '#FFFFFF',
+            bgcolor: applyBgToWorkspace ? workspaceOverlayColor : solidWorkspaceColor,
+            backdropFilter: applyBgToWorkspace ? 'blur(14px)' : undefined,
             boxShadow: {
               xs: 'none',
               lg: '0 3px 6px -2px rgba(0,0,0,0.02), 0 1px 1px 0 rgba(0,0,0,0.04)',
@@ -669,7 +759,7 @@ export function AppShell({ portal }: AppShellProps) {
               minHeight: 0,
               flexShrink: 0,
               zIndex: (tTheme) => tTheme.zIndex.appBar,
-              bgcolor: isDark ? '#111827' : '#FFFFFF',
+              bgcolor: applyBgToWorkspace ? 'transparent' : solidWorkspaceColor,
               borderBottom: isDark ? '1px solid #27272A' : '1px solid #E8E8E8',
               boxShadow: 'none',
               px: { xs: 2, sm: 3, lg: 3.5 },
@@ -773,6 +863,34 @@ export function AppShell({ portal }: AppShellProps) {
               </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexShrink: 0 }}>
+                <Tooltip title={locale === 'vi' ? 'Tùy chỉnh giao diện' : 'Customize theme'}>
+                  <IconButton
+                    onClick={() => setThemeDrawerOpen(true)}
+                    aria-label={locale === 'vi' ? 'Tùy chỉnh giao diện' : 'Customize theme'}
+                    data-testid="theme-customizer-trigger"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      border: '1px solid',
+                      borderColor: hasCustomBackground || themePreferences.presetId !== 'default'
+                        ? 'primary.main'
+                        : 'divider',
+                      bgcolor: isDark ? '#27272A' : '#F3F4F6',
+                      color:
+                        hasCustomBackground || themePreferences.presetId !== 'default'
+                          ? 'primary.main'
+                          : 'text.secondary',
+                      '&:hover': {
+                        bgcolor: isDark ? '#3F3F46' : '#E5E7EB',
+                        color: 'text.primary',
+                      },
+                    }}
+                  >
+                    <GlassPaletteIcon size={18} />
+                  </IconButton>
+                </Tooltip>
+
                 <Tooltip title={isDark ? t('Switch to light mode') : t('Switch to dark mode')}>
                   <IconButton
                     onClick={toggleColorMode}
@@ -852,7 +970,7 @@ export function AppShell({ portal }: AppShellProps) {
                     }}
                   >
                     {userName?.trim().charAt(0).toUpperCase() ?? (
-                      <AccountCircleOutlined fontSize="small" />
+                      <GlassUserIcon size={18} />
                     )}
                   </Avatar>
                   <Typography
@@ -889,14 +1007,35 @@ export function AppShell({ portal }: AppShellProps) {
               flex: 1,
               minHeight: 0,
               minWidth: 0,
-              overflowY: 'auto',
-              overscrollBehavior: 'contain',
-              scrollPaddingTop: { xs: 2, md: 3.5 },
-              px: layoutTokens.pageGutter,
-              py: { xs: 2.5, md: 3.5 },
+              ...(location.pathname.endsWith('/messages')
+                ? {
+                    p: 0,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }
+                : {
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                    scrollPaddingTop: { xs: 2, md: 3.5 },
+                    px: layoutTokens.pageGutter,
+                    py: { xs: 2.5, md: 3.5 },
+                  }),
             }}
           >
-            <Box sx={{ width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }}>
+            <Box
+              sx={
+                location.pathname.endsWith('/messages')
+                  ? {
+                      width: '100%',
+                      flex: 1,
+                      minHeight: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }
+                  : { width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }
+              }
+            >
               <Outlet />
             </Box>
           </Box>
@@ -941,7 +1080,7 @@ export function AppShell({ portal }: AppShellProps) {
           sx={{ mt: 0.5 }}
         >
           <ListItemIcon>
-            <SettingsOutlined fontSize="small" />
+            <GlassSettingsIcon size={18} />
           </ListItemIcon>
           {t('Settings')}
         </MenuItem>
@@ -955,14 +1094,14 @@ export function AppShell({ portal }: AppShellProps) {
             }}
           >
             <ListItemIcon>
-              <SwapHorizOutlined fontSize="small" />
+              <GlassSwapIcon size={18} />
             </ListItemIcon>
             {t('Switch workspace')}
           </MenuItem>
         )}
         <MenuItem onClick={signOut} disabled={signingOut}>
           <ListItemIcon>
-            <LogoutRounded fontSize="small" />
+            <GlassLogoutIcon size={18} />
           </ListItemIcon>
           {signingOut ? t('Signing out…') : t('Sign out')}
         </MenuItem>
@@ -1267,6 +1406,17 @@ export function AppShell({ portal }: AppShellProps) {
           </Box>
         </Box>
       </Dialog>
+
+      <ThemeCustomizerDrawer
+        open={themeDrawerOpen}
+        onClose={() => setThemeDrawerOpen(false)}
+      />
+
+      {themePreferences.petCompanionId !== 'none' && (
+        <Suspense fallback={null}>
+          <PetCompanionWidget petId={themePreferences.petCompanionId} />
+        </Suspense>
+      )}
     </Box>
   );
 }

@@ -64,7 +64,6 @@ import {
   InspectionContextDialogs,
   type InspectionContextModalType,
 } from '../components/InspectionContextDialogs';
-import { OverviewStakeholdersSection } from '../components/OverviewStakeholdersSection';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
 import {
   resolveInspectionMetadata,
@@ -1041,10 +1040,10 @@ export default function InspectionDetailPage() {
             contextSummaryColumns.push({ label: t('Schedule'), value: shortScheduleLabel, tabular: true });
           }
           const hasOverviewPanel =
-            isReviewerAdmin ||
-            (!isOrganizationAdmin &&
-              !isCustomer &&
-              Boolean(resolveInspectorFinanceBreakdown(inspection.id, null)));
+            !isReviewerAdmin &&
+            !isOrganizationAdmin &&
+            !isCustomer &&
+            Boolean(resolveInspectorFinanceBreakdown(inspection.id, null));
           return (
             <Paper
               elevation={0}
@@ -1273,6 +1272,8 @@ export default function InspectionDetailPage() {
                 openModal={contextModal}
                 onClose={() => setContextModal(null)}
                 isCustomer={isCustomer}
+                isReviewerAdmin={isReviewerAdmin}
+                portal={reviewerPortal}
                 droneShortName={droneShortName}
                 chatInboxPath={chatInboxPath}
                 canOpenInspectionChat={canOpenInspectionChat}
@@ -1292,17 +1293,7 @@ export default function InspectionDetailPage() {
                       borderColor: 'divider',
                     }}
                   >
-                    {!isOrganizationAdmin && !isCustomer && (
-                      <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
-                    )}
-
-                    {isReviewerAdmin && (
-                      <OverviewStakeholdersSection
-                        inspection={inspection}
-                        portal={reviewerPortal}
-                        onNavigateAway={() => setContextOverviewOpen(false)}
-                      />
-                    )}
+                    <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
                   </Stack>
                 </Collapse>
               )}

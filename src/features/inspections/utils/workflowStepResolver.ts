@@ -152,7 +152,7 @@ export function resolveRowStageSubtitle(
       return 'Step 3/4 · Inspector Payout';
     }
     if (row.status === 'UNDER_REVIEW' || row.reportStatus === 'SUBMITTED') {
-      return `Step 2/4 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;
+      return 'Step 2/4 · Report Decision';
     }
     if (row.reportStatus === 'RETURNED') {
       return 'Step 2/4 · Returned for Revision';
@@ -177,7 +177,7 @@ export function resolveRowStageSubtitle(
     }
     const accepted = options?.resolvedReportAccepted ?? Boolean(row.reportAccepted);
     if (!accepted) {
-      return `Step 2/${total} · Report ready · v${row.reportVersionNo ?? 1}`;
+      return `Step 2/${total} · Report ready`;
     }
     return `Step 3/${total} · Settled`;
   }

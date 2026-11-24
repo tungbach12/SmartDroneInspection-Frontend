@@ -202,5 +202,71 @@ describe('MF1 review queues', () => {
     expect(screen.queryByText(/Loại 5/)).toBeNull();
     expect(screen.getByText(/6\.47 kg/)).toBeTruthy();
     expect(screen.getByText(/20 MP/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /View details|Xem chi tiết/i }));
+    expect(
+      await screen.findByText(/Drone registration approved|Hồ sơ drone đã được phê duyệt/i),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Confirm approval|Xác nhận duyệt/i })).toBeNull();
+  });
+
+  it('filters inspector applications by license class, phone search, and awaiting contract status', async () => {
+    vi.mocked(inspectorApplicationApi.listPending).mockResolvedValue([
+      {
+        id: 'app-a',
+        email: 'pilot.a@test.com',
+        fullName: 'Pilot Class A',
+        phoneNumber: '0901112222',
+        citizenId: '079200011111',
+        address: 'District 1',
+        pilotLicenseNumber: 'UAV-A-1',
+        pilotLicenseClass: 'CLASS_A',
+        pilotLicenseExpiresAt: '2028-12-31',
+        hasLicenseScan: true,
+        status: 'PENDING_REVIEW',
+        createdAt: '2026-11-14T00:00:00Z',
+      },
+    ]);
+    vi.mocked(inspectorApplicationApi.listApprovedAwaitingContract).mockResolvedValue([
+      {
+        id: 'app-b',
+        email: 'pilot.b@test.com',
+        fullName: 'Pilot Class B',
+        phoneNumber: '0987654321',
+        citizenId: '079200022222',
+        address: 'District 7',
+        pilotLicenseNumber: 'UAV-B-2',
+        pilotLicenseClass: 'CLASS_B',
+        pilotLicenseExpiresAt: '2028-12-31',
+        hasLicenseScan: false,
+        status: 'APPROVED',
+        createdAt: '2026-11-15T00:00:00Z',
+      },
+    ]);
+
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('tab', { name: /Inspector Apps|Inspector Applications|Đơn Inspector|Đơn đăng ký Inspector/i }),
+    );
+    expect(await screen.findByText('Pilot Class A')).toBeTruthy();
+    expect(screen.getByText('Pilot Class B')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText(/Status|Trạng thái/i));
+    expect(
+      await screen.findByRole('option', { name: /Awaiting contract \(1\)|Chờ hợp đồng \(1\)/i }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: /All \(2\)|Tất cả \(2\)/i }));
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '0987654321' } });
+    expect(screen.getByText('Pilot Class B')).toBeTruthy();
+    expect(screen.queryByText('Pilot Class A')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Clear all|Xóa hết/i }));
+    expect(screen.getByText('Pilot Class A')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText(/License class|Hạng bằng lái/i));
+    fireEvent.click(await screen.findByRole('option', { name: /Class B|Hạng B/i }));
+    expect(screen.getByText('Pilot Class B')).toBeTruthy();
+    expect(screen.queryByText('Pilot Class A')).toBeNull();
   });
 });

@@ -1,53 +1,119 @@
 import { type ReactNode, useState } from 'react';
-import { Box, Button, ButtonBase, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Button, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import { useAssetDocuments } from '@/features/assets/hooks/useAssetDocuments';
 import { useAsset } from '@/features/assets/hooks/useAssets';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import type { ServiceRequest } from '../api/contractApi';
 import { AssetOverviewDialog } from './AssetOverviewDialog';
 import { CheckpointsOverviewDialog } from './CheckpointsOverviewDialog';
-import { RequestHeaderBar } from './RequestHeaderBar';
 import {
   type ContractRole,
-  formatQuotedPriceSummary,
   formatRequestScheduleSummary,
   getEffectiveRequestStatus,
+  getStatusLabel,
   resolveAssetDisplay,
-  summarizeDispatchProgress,
+  statusTone,
 } from './contractStage';
-
-interface FallbackDrone {
-  id: string;
-  model?: string | null;
-  serialNumber?: string | null;
-}
 
 interface RequestOverviewCardProps {
   request: ServiceRequest;
   role: ContractRole;
   effectiveStatus?: ServiceRequest['status'];
-  fallbackDrones?: FallbackDrone[] | undefined;
 }
 
-function OverviewField({ label, value }: { label: string; value: ReactNode }) {
+function OverviewField({
+  label,
+  value,
+  tabular = false,
+}: {
+  label: string;
+  value: ReactNode;
+  tabular?: boolean;
+}) {
   return (
     <Box sx={{ minWidth: 0 }}>
       <Typography
         variant="caption"
-        sx={{ display: 'block', color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}
+        sx={{
+          display: 'block',
+          color: 'text.secondary',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          lineHeight: 1.2,
+          mb: 0.25,
+        }}
       >
         {label}
       </Typography>
+      {typeof value === 'string' ? (
+        <Typography
+          variant="body2"
+          noWrap
+          title={value}
+          sx={{
+            color: 'text.primary',
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            lineHeight: 1.35,
+            fontVariantNumeric: tabular ? 'tabular-nums' : undefined,
+          }}
+        >
+          {value}
+        </Typography>
+      ) : (
+        <Box
+          sx={{
+            color: 'text.primary',
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            lineHeight: 1.35,
+            minWidth: 0,
+            fontVariantNumeric: tabular ? 'tabular-nums' : undefined,
+          }}
+        >
+          {value}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function renderStakeholderValue(name: string, avatarUrl?: string | null): ReactNode {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed === '—') {
+    return '—';
+  }
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
+      <Avatar
+        src={avatarUrl || undefined}
+        alt={trimmed}
+        sx={{ width: 22, height: 22, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+      >
+        {trimmed.slice(0, 1).toUpperCase()}
+      </Avatar>
       <Typography
         variant="body2"
-        component="div"
-        sx={{ fontWeight: 600, mt: 0.25, overflowWrap: 'anywhere', lineHeight: 1.4 }}
+        component="span"
+        noWrap
+        title={trimmed}
+        sx={{
+          color: 'text.primary',
+          fontWeight: 600,
+          fontSize: '0.84rem',
+          lineHeight: 1.35,
+        }}
       >
-        {value}
+        {trimmed}
       </Typography>
-    </Box>
+    </Stack>
   );
 }
 
@@ -59,40 +125,44 @@ export function RequestOverviewCard({
   request,
   role,
   effectiveStatus,
-  fallbackDrones,
 }: RequestOverviewCardProps) {
   const { locale, t, formatDate } = useLocale();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [checkpointsDialogOpen, setCheckpointsDialogOpen] = useState(false);
   const assetQuery = useAsset(request.assetId);
+  const documentsQuery = useAssetDocuments(request.assetId);
   const assetDisplay = resolveAssetDisplay(request, assetQuery.data);
   const signedInUserName = useAuthStore((state) => state.userName);
+  const signedInUserAvatarUrl = useAuthStore((state) => state.user?.avatarUrl);
+
+  const imageDocs = (documentsQuery?.data ?? []).filter((doc) =>
+    doc.contentType?.toLowerCase().startsWith('image/'),
+  );
+  const primaryImageDoc =
+    imageDocs.find((doc) => doc.documentType === 'ASSET_PHOTO') ?? imageDocs[0] ?? null;
 
   const resolvedStatus = effectiveStatus ?? getEffectiveRequestStatus(request);
   const scheduleLabel = formatRequestScheduleSummary(request, formatDate, locale, t);
-  const dispatchLabel = summarizeDispatchProgress(request, locale, t, fallbackDrones);
-  const quotedPriceLabel = formatQuotedPriceSummary(request, locale);
+  const compactLocation = assetDisplay.location
+    ? assetDisplay.location.replace(/^Pinned Location\s*\(([^)]+)\)$/i, '$1')
+    : '—';
+  const activeOccurrences = (request.occurrences ?? []).filter((occ) => occ.status !== 'CANCELLED');
+  const assignedOccurrences = activeOccurrences.filter(
+    (occ) => occ.status === 'ASSIGNED' || Boolean(occ.inspectorId) || Boolean(occ.droneId),
+  );
+  const recurringProgressLabel =
+    request.requestType === 'RECURRING' && activeOccurrences.length > 1
+      ? locale === 'vi'
+        ? `${assignedOccurrences.length}/${activeOccurrences.length} đợt đã gán`
+        : `${assignedOccurrences.length}/${activeOccurrences.length} ${t('occurrences assigned')}`
+      : null;
 
-  const specParts: string[] = [];
-  if (assetDisplay.heightMeters != null) {
-    specParts.push(`${assetDisplay.heightMeters} m`);
-  }
-  if (assetDisplay.footprintAreaSquareMeters != null) {
-    specParts.push(
-      `${assetDisplay.footprintAreaSquareMeters.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} m²`,
-    );
-  }
-  const specsLabel = specParts.length > 0 ? specParts.join(' · ') : '—';
   const checkpointCount = assetDisplay.checkpointLabels.length;
   const checkpointsCountLabel =
     checkpointCount === 1
       ? `1 ${t('checkpoint')}`
       : `${checkpointCount} ${t('checkpoints')}`;
-  const checkpointsPreview =
-    assetDisplay.checkpointsSource === 'ASSET_SUGGESTED'
-      ? t('Asset suggested')
-      : assetDisplay.checkpointLabels[0] ?? '';
   const checkpointsValue: ReactNode =
     checkpointCount === 0 ? (
       '—'
@@ -103,32 +173,36 @@ export function RequestOverviewCard({
         aria-label={`${t('View checkpoints')}: ${checkpointsCountLabel}`}
         sx={{
           display: 'inline-flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          textAlign: 'left',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
           maxWidth: '100%',
+          textAlign: 'left',
           borderRadius: '6px',
-          p: 0.25,
-          m: -0.25,
-          color: 'primary.main',
+          px: 0.5,
+          mx: -0.5,
+          transition: 'color 150ms ease, background-color 150ms ease',
           '&:hover': {
-            textDecoration: 'underline',
             bgcolor: 'action.hover',
+          },
+          '&:hover .checkpoints-count-label': {
+            color: 'primary.main',
+            textDecoration: 'underline',
           },
         }}
       >
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-          <span>{checkpointsCountLabel}</span>
-          <OpenInNewRoundedIcon sx={{ fontSize: 13 }} />
-        </Stack>
         <Typography
           component="span"
-          variant="caption"
-          color="text.secondary"
+          className="checkpoints-count-label"
           noWrap
-          sx={{ display: 'block', maxWidth: '100%', fontWeight: 500 }}
+          sx={{
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            color: 'text.primary',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.35,
+          }}
         >
-          {checkpointsPreview}
+          {checkpointsCountLabel}
         </Typography>
       </ButtonBase>
     );
@@ -137,110 +211,244 @@ export function RequestOverviewCard({
     role === 'MANAGER'
       ? request.serviceManager?.fullName || signedInUserName || '—'
       : request.serviceManager?.fullName || t('Waiting for manager');
-
-  const assetValue: ReactNode = (
-    <ButtonBase
-      type="button"
-      onClick={() => setAssetDialogOpen(true)}
-      aria-label={`${t('View full asset details')}: ${assetDisplay.name}`}
-      sx={{
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        textAlign: 'left',
-        borderRadius: '6px',
-        p: 0.25,
-        m: -0.25,
-        color: 'primary.main',
-        '&:hover': {
-          textDecoration: 'underline',
-          bgcolor: 'action.hover',
-        },
-      }}
+  const hasAssignedManager =
+    role === 'MANAGER'
+      ? Boolean(request.serviceManager?.fullName || signedInUserName)
+      : Boolean(request.serviceManager?.fullName);
+  const managerAvatarUrl =
+    request.serviceManager?.avatarUrl ??
+    (role === 'MANAGER' && !request.serviceManager?.fullName ? signedInUserAvatarUrl : undefined);
+  const managerValue: ReactNode = hasAssignedManager ? (
+    renderStakeholderValue(managerLabel, managerAvatarUrl)
+  ) : (
+    <Typography
+      component="span"
+      variant="body2"
+      sx={{ fontWeight: 500, fontSize: '0.84rem', color: 'text.secondary', lineHeight: 1.35 }}
     >
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-        <span>{assetDisplay.name}</span>
-        <OpenInNewRoundedIcon sx={{ fontSize: 13 }} />
-      </Stack>
-      {assetDisplay.code && (
-        <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-          {assetDisplay.code}
-        </Typography>
-      )}
-    </ButtonBase>
+      {managerLabel}
+    </Typography>
   );
 
-  const fields: Array<{ label: string; value: ReactNode }> =
+  const scheduledCount =
+    request.requestType === 'RECURRING'
+      ? request.occurrenceCount ?? request.occurrences.length
+      : 0;
+
+  const summaryFields: Array<{ label: string; value: ReactNode; tabular?: boolean }> =
     role === 'MANAGER'
       ? [
-          { label: t('Asset'), value: assetValue },
-          { label: t('Customer'), value: request.ownerCustomerName || '—' },
-          { label: t('Manager'), value: managerLabel },
-          { label: t('Location'), value: assetDisplay.location || '—' },
-          { label: t('Asset specs'), value: specsLabel },
+          { label: t('Customer'), value: renderStakeholderValue(request.ownerCustomerName || '—') },
+          { label: t('Manager'), value: managerValue },
           { label: t('Checkpoints'), value: checkpointsValue },
-          { label: t('Schedule'), value: scheduleLabel },
-          { label: t('Inspection team'), value: dispatchLabel },
-          ...(quotedPriceLabel ? [{ label: t('Quoted price'), value: quotedPriceLabel }] : []),
-          ...(request.contractFileName
-            ? [{ label: t('Signed contract'), value: request.contractFileName }]
-            : []),
+          { label: t('Requested window'), value: scheduleLabel, tabular: true },
         ]
       : [
-          { label: t('Asset'), value: assetValue },
-          { label: t('Location'), value: assetDisplay.location || '—' },
+          { label: t('Service manager'), value: managerValue },
+          { label: t('Location'), value: compactLocation },
           { label: t('Checkpoints'), value: checkpointsValue },
-          { label: t('Service manager'), value: managerLabel },
-          { label: t('Schedule'), value: scheduleLabel },
-          { label: t('Quoted price'), value: quotedPriceLabel || t('Pending quote') },
-          { label: t('Inspection team'), value: dispatchLabel },
+          { label: t('Requested window'), value: scheduleLabel, tabular: true },
         ];
 
+  const detailFields: Array<{ label: string; value: ReactNode; tabular?: boolean }> =
+    recurringProgressLabel
+      ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
+      : [];
+
+  const hasOverviewPanel = detailFields.length > 0;
+
   return (
-    <RequestHeaderBar
-      request={request}
-      effectiveStatus={resolvedStatus}
-      headerAction={
-        <Button
-          size="small"
-          variant="text"
-          onClick={() => setExpanded((value) => !value)}
-          endIcon={
-            <ExpandMoreRoundedIcon
-              fontSize="small"
+    <>
+      <Paper
+        elevation={0}
+        sx={{
+          px: { xs: 1.75, sm: 2.25 },
+          py: { xs: 1.25, sm: 1.5 },
+          borderRadius: '10px',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+        }}
+      >
+        <Stack spacing={1.25}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              rowGap: 0.75,
+              gap: 1.5,
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1.25}
               sx={{
-                transform: expanded ? 'rotate(180deg)' : 'none',
-                transition: 'transform 150ms ease',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                rowGap: 0.5,
+                minWidth: 0,
+                flex: 1,
               }}
-            />
-          }
-          sx={{ textTransform: 'none', fontWeight: 600 }}
-        >
-          {t('Overview')}
-        </Button>
-      }
-    >
-      {expanded && (
-        <Box
-          sx={{
-            px: { xs: 2, sm: 2.5 },
-            py: 1.75,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'repeat(2, minmax(0, 1fr))',
-              sm: 'repeat(3, minmax(0, 1fr))',
-              md: 'repeat(4, minmax(0, 1fr))',
-            },
-            gap: 1.5,
-          }}
-        >
-          {fields.map((field) => (
-            <OverviewField key={field.label} label={field.label} value={field.value} />
-          ))}
-        </Box>
-      )}
+            >
+              <ButtonBase
+                type="button"
+                onClick={() => setAssetDialogOpen(true)}
+                aria-label={`${t('View full asset details')}: ${assetDisplay.name}`}
+                title={t('View full asset details')}
+                sx={{
+                  textAlign: 'left',
+                  borderRadius: '8px',
+                  px: 0.5,
+                  mx: -0.5,
+                  py: 0.25,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  maxWidth: '100%',
+                  transition: 'color 150ms ease, background-color 150ms ease',
+                  '&:hover': {
+                    color: 'primary.main',
+                    bgcolor: 'action.hover',
+                  },
+                  '&:hover .asset-title-text': {
+                    color: 'primary.main',
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                {primaryImageDoc && (
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      flexShrink: 0,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'action.hover',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <AuthenticatedImage
+                      src={`/assets/${request.assetId}/documents/${primaryImageDoc.id}/content`}
+                      alt={assetDisplay.name}
+                      maxHeight={36}
+                      sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </Box>
+                )}
+                <Typography
+                  component="span"
+                  variant="subtitle2"
+                  className="asset-title-text"
+                  sx={{
+                    fontWeight: 700,
+                    color: 'text.primary',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {assetDisplay.name}
+                </Typography>
+              </ButtonBase>
+              <StatusChip
+                status={resolvedStatus}
+                label={getStatusLabel(resolvedStatus, t)}
+                tone={statusTone(resolvedStatus)}
+              />
+              <Chip
+                size="small"
+                variant="outlined"
+                label={request.requestType === 'ONE_TIME' ? t('One-time') : t('Recurring')}
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+              />
+              {scheduledCount > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`${scheduledCount} ${t('occurrences')}`}
+                  sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                />
+              )}
+            </Stack>
+
+            {hasOverviewPanel && (
+              <Button
+                size="small"
+                variant="text"
+                aria-expanded={expanded}
+                endIcon={
+                  expanded ? (
+                    <ExpandLessRoundedIcon fontSize="small" />
+                  ) : (
+                    <ExpandMoreRoundedIcon fontSize="small" />
+                  )
+                }
+                onClick={() => setExpanded((value) => !value)}
+                sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
+              >
+                {t('Overview')}
+              </Button>
+            )}
+          </Stack>
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: { xs: 1.25, md: 2 },
+              pt: 1.15,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {summaryFields.map((field) => (
+              <OverviewField
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                tabular={Boolean(field.tabular)}
+              />
+            ))}
+          </Box>
+        </Stack>
+
+        {hasOverviewPanel && expanded && (
+          <Box
+            sx={{
+              mt: 1.5,
+              pt: 1.5,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: { xs: 1.25, md: 2 },
+            }}
+          >
+            {detailFields.map((field) => (
+              <OverviewField
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                tabular={Boolean(field.tabular)}
+              />
+            ))}
+          </Box>
+        )}
+      </Paper>
+
       <AssetOverviewDialog
         open={assetDialogOpen}
         onClose={() => setAssetDialogOpen(false)}
@@ -256,6 +464,6 @@ export function RequestOverviewCard({
         items={assetDisplay.checkpointLabels}
         source={assetDisplay.checkpointsSource}
       />
-    </RequestHeaderBar>
+    </>
   );
 }

@@ -1,6 +1,8 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
+  Avatar,
   Box,
+  Button,
   Chip,
   Divider,
   IconButton,
@@ -24,6 +26,7 @@ import {
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import SearchIcon from '@mui/icons-material/Search';
+import SwapVertRounded from '@mui/icons-material/SwapVertRounded';
 import type { InspectionListItem, PendingAction } from '../api/inspectionApi';
 import { resolveInspectionMetadata, resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import { resolveRowStageSubtitle } from '../utils/workflowStepResolver';
@@ -72,7 +75,20 @@ interface InspectionListTableProps {
   statusFilter?: string;
   onStatusFilterChange?: (status: string) => void;
   statusOptions?: Array<{ value: string; label: string }>;
+  sortOrder?: string;
+  onSortOrderChange?: (sort: string) => void;
+  sortOptions?: Array<{ value: string; label: string }>;
   actions?: ReactNode;
+}
+
+function getInitials(name?: string | null): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  if (!first) return '?';
+  if (parts.length === 1 || !last) return first.slice(0, 2).toUpperCase();
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
 }
 
 function isSameLocalDay(a: Date, b: Date): boolean {
@@ -184,6 +200,9 @@ export function InspectionListTable({
   statusFilter,
   onStatusFilterChange,
   statusOptions,
+  sortOrder,
+  onSortOrderChange,
+  sortOptions,
   actions,
 }: InspectionListTableProps) {
   const { t, formatDate: formatDateValue, formatNumber } = useLocale();
@@ -340,13 +359,28 @@ export function InspectionListTable({
             input: {
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
+                  <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                 </InputAdornment>
               ),
+              endAdornment:
+                onSearchChange && (searchQuery ?? '').trim().length > 0 ? (
+                  <InputAdornment position="end">
+                    <Button
+                      size="small"
+                      color="inherit"
+                      aria-label={t('Clear search')}
+                      onClick={() => onSearchChange('')}
+                      sx={{ minWidth: 0, p: 0.25, fontSize: '1rem', lineHeight: 1, color: 'text.secondary' }}
+                    >
+                      ×
+                    </Button>
+                  </InputAdornment>
+                ) : undefined,
             },
           }}
           sx={{
-            width: { xs: '100%', sm: 280, md: 320 },
+            flex: { xs: '1 1 auto', md: '0 1 340px' },
+            minWidth: { xs: 0, sm: 220 },
             '& .MuiOutlinedInput-root': {
               height: 40,
               borderRadius: '8px',
@@ -368,7 +402,7 @@ export function InspectionListTable({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                      <FilterListRounded fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 },
@@ -392,6 +426,40 @@ export function InspectionListTable({
                 { value: 'COMPLETED', label: t('Completed') },
                 { value: 'CANCELLED', label: t('Cancelled') },
               ]).map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          {sortOrder !== undefined && onSortOrderChange && sortOptions && sortOptions.length > 0 && (
+            <TextField
+              select
+              size="small"
+              value={sortOrder}
+              onChange={(e) => onSortOrderChange(e.target.value)}
+              slotProps={{
+                htmlInput: { 'aria-label': t('Sort inspections') },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SwapVertRounded fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{
+                minWidth: 165,
+                '& .MuiOutlinedInput-root': {
+                  height: 40,
+                  borderRadius: '8px',
+                  bgcolor: 'background.paper',
+                  fontSize: '0.875rem',
+                },
+              }}
+            >
+              {sortOptions.map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </MenuItem>
@@ -459,20 +527,6 @@ export function InspectionListTable({
                           >
                             {meta.displayName}
                           </Typography>
-                          {meta.assetCode && (
-                            <Chip
-                              size="small"
-                              label={meta.assetCode}
-                              variant="outlined"
-                              sx={{
-                                height: 18,
-                                borderRadius: '5px',
-                                fontSize: '0.75rem',
-                                fontFamily: 'monospace',
-                                fontWeight: 600,
-                              }}
-                            />
-                          )}
                         </Stack>
                         {isManager ? (
                           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
@@ -536,7 +590,7 @@ export function InspectionListTable({
                                 fontVariantNumeric: 'tabular-nums',
                               }}
                             >
-                              {formatNumber(row.paymentAmount)} ₫
+                              {formatNumber(Math.round(row.paymentAmount))} ₫
                             </Typography>
                           )
                         ) : (
@@ -545,14 +599,14 @@ export function InspectionListTable({
                               variant="body2"
                               sx={{
                                 fontWeight: 700,
-                                color: '#176B52',
+                                color: 'success.main',
                                 fontSize: '0.875rem',
                                 fontVariantNumeric: 'tabular-nums',
                               }}
                             >
                               {isManager
-                                ? `+${formatNumber(finance.commissionAmount)} ₫`
-                                : `${formatNumber(finance.netPayoutAmount)} ₫`}
+                                ? `+${formatNumber(Math.round(finance.commissionAmount))} ₫`
+                                : `${formatNumber(Math.round(finance.netPayoutAmount))} ₫`}
                             </Typography>
                           )
                         )}
@@ -575,32 +629,32 @@ export function InspectionListTable({
             <TableRow>
               <TableCell
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 155,
+                  minWidth: 145,
                 }}
               >
                 {t('Asset')}
               </TableCell>
               <TableCell
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 140,
+                  minWidth: 130,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -608,16 +662,16 @@ export function InspectionListTable({
               </TableCell>
               <TableCell
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 118,
+                  width: 120,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -625,33 +679,34 @@ export function InspectionListTable({
               </TableCell>
               <TableCell
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 136,
+                  minWidth: 135,
                   whiteSpace: 'nowrap',
                 }}
               >
                 {t('Stage')}
               </TableCell>
               <TableCell
+                align="right"
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 122,
+                  minWidth: 125,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -660,16 +715,16 @@ export function InspectionListTable({
               {(showReportColumn || reviewerMode) && (
                 <TableCell
                   sx={{
-                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                    color: '#71717A',
-                    fontSize: '0.8125rem',
+                    bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                    color: 'text.secondary',
+                    fontSize: '0.75rem',
                     fontWeight: 600,
-                    letterSpacing: '0.01em',
+                    letterSpacing: '0.02em',
                     py: 1.5,
                     px: 1.25,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
-                    width: 96,
+                    width: 105,
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -679,11 +734,11 @@ export function InspectionListTable({
               <TableCell
                 align="right"
                 sx={{
-                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
-                  color: '#71717A',
-                  fontSize: '0.8125rem',
+                  bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                  color: 'text.secondary',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  letterSpacing: '0.01em',
+                  letterSpacing: '0.02em',
                   py: 1.5,
                   px: 1.25,
                   borderBottom: '1px solid',
@@ -745,43 +800,32 @@ export function InspectionListTable({
                   >
                     <TableCell
                       sx={{
-                        py: 1.75,
+                        py: 1.5,
                         px: 1.25,
                         fontSize: '0.875rem',
                         fontWeight: 600,
                         color: 'text.primary',
                         borderBottom: '1px solid',
                         borderColor: 'divider',
+                        maxWidth: 190,
+                        overflow: 'hidden',
                       }}
                     >
                       <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75, minWidth: 0 }}>
+                        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
                           <Typography
                             variant="body2"
+                            noWrap
                             title={meta.displayName}
                             sx={{
                               fontWeight: 650,
                               color: 'text.primary',
                               lineHeight: 1.35,
+                              minWidth: 0,
                             }}
                           >
                             {meta.displayName}
                           </Typography>
-                          {meta.assetCode && (
-                            <Chip
-                              size="small"
-                              label={meta.assetCode}
-                              variant="outlined"
-                              sx={{
-                                height: 18,
-                                borderRadius: '5px',
-                                fontSize: '0.75rem',
-                                fontFamily: 'monospace',
-                                fontWeight: 600,
-                                flexShrink: 0,
-                              }}
-                            />
-                          )}
                           {row.inspectionType === 'RE_INSPECTION' && (
                             <Chip
                               size="small"
@@ -793,74 +837,109 @@ export function InspectionListTable({
                           )}
                         </Stack>
 
-                        {(locationLabel || meta.objective) ? (
+                        {isManager ? (
+                          row.ownerCustomerName ? (
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              title={row.ownerCustomerName}
+                              sx={{ color: 'text.secondary', display: 'block', fontWeight: 500 }}
+                            >
+                              {t('Customer')}: {row.ownerCustomerName}
+                            </Typography>
+                          ) : (locationLabel || meta.objective) ? (
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              title={locationLabel ?? meta.objective ?? undefined}
+                              sx={{ color: 'text.secondary', display: 'block' }}
+                            >
+                              {locationLabel ?? meta.objective}
+                            </Typography>
+                          ) : null
+                        ) : (locationLabel || meta.objective) ? (
                           <Typography
                             variant="caption"
+                            noWrap
                             title={locationLabel ?? meta.objective ?? undefined}
-                            sx={{
-                              color: 'text.secondary',
-                              display: 'block',
-                            }}
+                            sx={{ color: 'text.secondary', display: 'block' }}
                           >
                             {locationLabel ?? meta.objective}
                           </Typography>
                         ) : null}
-                        {isManager && row.ownerCustomerName && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: 'text.secondary',
-                              display: 'block',
-                              fontWeight: 500,
-                            }}
-                          >
-                            {t('Customer')}: {row.ownerCustomerName}
-                          </Typography>
-                        )}
                       </Stack>
                     </TableCell>
 
                     <TableCell
                       sx={{
-                        py: 1.75,
+                        py: 1.5,
                         px: 1.25,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
+                        maxWidth: 165,
+                        overflow: 'hidden',
                       }}
                     >
-                      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: 600,
-                            color: 'text.primary',
-                            fontSize: '0.875rem',
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          {isManager || isCustomer
-                            ? (row.inspectorName || '—')
-                            : (row.ownerCustomerName || '—')}
-                        </Typography>
-                        {isCustomer ? (
-                          row.managerName && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {t('Manager')}: {row.managerName}
-                            </Typography>
-                          )
-                        ) : (
-                          (row.droneModel || row.droneSerialNumber) && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {[row.droneModel, row.droneSerialNumber].filter(Boolean).join(' · ')}
-                            </Typography>
-                          )
-                        )}
-                      </Stack>
+                      {(() => {
+                        const primaryPerson =
+                          isManager || isCustomer ? row.inspectorName : row.ownerCustomerName;
+                        const secondaryLine = isCustomer
+                          ? row.managerName
+                            ? `${t('Manager')}: ${row.managerName}`
+                            : null
+                          : row.droneModel || row.droneSerialNumber
+                            ? [row.droneModel, row.droneSerialNumber].filter(Boolean).join(' · ')
+                            : null;
+                        return (
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                            {primaryPerson && (
+                              <Avatar
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  flexShrink: 0,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  bgcolor: isManager ? 'primary.main' : 'action.selected',
+                                  color: isManager ? 'primary.contrastText' : 'text.primary',
+                                }}
+                              >
+                                {getInitials(primaryPerson)}
+                              </Avatar>
+                            )}
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography
+                                variant="body2"
+                                noWrap
+                                title={primaryPerson ?? undefined}
+                                sx={{
+                                  fontWeight: 600,
+                                  color: 'text.primary',
+                                  fontSize: '0.875rem',
+                                  lineHeight: 1.35,
+                                }}
+                              >
+                                {primaryPerson || '—'}
+                              </Typography>
+                              {secondaryLine && (
+                                <Typography
+                                  variant="caption"
+                                  noWrap
+                                  title={secondaryLine}
+                                  sx={{ color: 'text.secondary', display: 'block' }}
+                                >
+                                  {secondaryLine}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        );
+                      })()}
                     </TableCell>
 
                       <TableCell
                         sx={{
-                          py: 1.75,
+                          py: 1.5,
                           px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
@@ -895,10 +974,11 @@ export function InspectionListTable({
 
                       <TableCell
                         sx={{
-                          py: 1.75,
+                          py: 1.5,
                           px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         <Stack spacing={0.35} sx={{ alignItems: 'flex-start' }}>
@@ -911,6 +991,7 @@ export function InspectionListTable({
                           )}
                           <Typography
                             variant="caption"
+                            noWrap
                             sx={{
                               color: 'text.secondary',
                               fontSize: '0.75rem',
@@ -927,16 +1008,18 @@ export function InspectionListTable({
                       </TableCell>
 
                       <TableCell
+                        align="right"
                         sx={{
-                          py: 1.75,
+                          py: 1.5,
                           px: 1.25,
                           borderBottom: '1px solid',
                           borderColor: 'divider',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {isCustomer ? (
                           row.paymentAmount != null ? (
-                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-end' }}>
                               <Typography
                                 variant="body2"
                                 sx={{
@@ -946,7 +1029,7 @@ export function InspectionListTable({
                                   fontVariantNumeric: 'tabular-nums',
                                 }}
                               >
-                                {formatNumber(row.paymentAmount)} ₫
+                                {formatNumber(Math.round(row.paymentAmount))} ₫
                               </Typography>
                               {row.paymentStatus && row.paymentStatus !== 'NOT_APPLICABLE' && (
                                 <Typography
@@ -956,9 +1039,9 @@ export function InspectionListTable({
                                     fontSize: '0.75rem',
                                     color:
                                       row.paymentStatus === 'PAID'
-                                        ? '#176B52'
+                                        ? 'success.main'
                                         : row.paymentStatus === 'PAYMENT_DUE'
-                                          ? '#8C520B'
+                                          ? 'warning.main'
                                           : 'text.secondary',
                                   }}
                                 >
@@ -977,17 +1060,17 @@ export function InspectionListTable({
                           )
                         ) : finance ? (
                           isManager ? (
-                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-end' }}>
                               <Typography
                                 variant="body2"
                                 sx={{
                                   fontWeight: 700,
-                                  color: '#176B52',
+                                  color: 'success.main',
                                   fontSize: '0.875rem',
                                   fontVariantNumeric: 'tabular-nums',
                                 }}
                               >
-                                +{formatNumber(finance.commissionAmount)} ₫
+                                +{formatNumber(Math.round(finance.commissionAmount))} ₫
                               </Typography>
                               <Typography
                                 variant="caption"
@@ -997,27 +1080,27 @@ export function InspectionListTable({
                                   fontVariantNumeric: 'tabular-nums',
                                 }}
                               >
-                                {t('Order')}: {formatNumber(finance.totalPrice)} ₫ ({finance.commissionRate}%)
+                                {t('Order')}: {formatNumber(Math.round(finance.totalPrice))} ₫ ({finance.commissionRate}%)
                               </Typography>
                             </Stack>
                           ) : (
-                            <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                            <Stack spacing={0.25} sx={{ alignItems: 'flex-end' }}>
                               <Typography
                                 variant="body2"
                                 sx={{
                                   fontWeight: 700,
-                                  color: '#176B52',
+                                  color: 'success.main',
                                   fontSize: '0.875rem',
                                   fontVariantNumeric: 'tabular-nums',
                                 }}
                               >
-                                {formatNumber(finance.netPayoutAmount)} ₫
+                                {formatNumber(Math.round(finance.netPayoutAmount))} ₫
                               </Typography>
                               {row.payoutStatus && (
                                 <Typography
                                   variant="caption"
                                   sx={{
-                                    color: row.payoutStatus === 'PAID' ? '#176B52' : 'text.secondary',
+                                    color: row.payoutStatus === 'PAID' ? 'success.main' : 'text.secondary',
                                     fontWeight: 600,
                                     fontSize: '0.75rem',
                                   }}
@@ -1054,22 +1137,6 @@ export function InspectionListTable({
                             <Typography variant="caption" sx={{ color: 'text.disabled' }}>
                               {t('No report')}
                             </Typography>
-                          )}
-                          {row.reportVersionNo !== null && (
-                            <Box
-                              component="span"
-                              sx={{
-                                px: 0.75,
-                                py: '1px',
-                                borderRadius: '5px',
-                                bgcolor: 'action.hover',
-                                color: 'text.primary',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              v{row.reportVersionNo}
-                            </Box>
                           )}
                         </Stack>
                         {reviewerMode ? (

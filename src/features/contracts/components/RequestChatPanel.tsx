@@ -1,4 +1,4 @@
-import { type ReactNode, Fragment, useEffect, useRef, useState } from 'react';
+import { type ReactNode, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   Avatar,
@@ -11,6 +11,9 @@ import {
   DialogTitle,
   IconButton,
   InputBase,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
   Typography,
@@ -21,6 +24,8 @@ import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import { api } from '@/shared/api/client';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
@@ -48,6 +53,7 @@ import {
 import {
   formatVndPerOccurrence,
   getEffectiveRequestStatus,
+  getInspectionStatusLabel,
   getStatusLabel,
   resolveCurrentQuote,
 } from '../shared/contractStage';
@@ -366,15 +372,28 @@ function MessageAttachment({
   );
 }
 
+export interface ChatContextThreadItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  meta?: string | undefined;
+  actionTo: string;
+  unreadCount: number;
+  messages: ServiceRequestMessage[];
+  getAttachmentPath: (messageId: string, attachmentId: string) => string;
+}
+
 interface ChatConversationPanelProps {
   threadId: string;
   partnerName: string;
+  partnerAvatarUrl?: string | null | undefined;
   subtitle: string;
-  actionLabel: string;
-  actionTo: string;
   emptyTitle: string;
   emptyDescription: string;
   contextStrip?: ReactNode | undefined;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
+  contextPickerLabel?: string | undefined;
   messages: ServiceRequestMessage[];
   isSending: boolean;
   onSend: (input: { body: string; files: File[] }) => Promise<void>;
@@ -403,12 +422,14 @@ function formatDateHeading(isoDate: string, locale: string): string {
 function ChatConversationPanel({
   threadId,
   partnerName,
+  partnerAvatarUrl,
   subtitle,
-  actionLabel,
-  actionTo,
   emptyTitle,
   emptyDescription,
   contextStrip,
+  contextThreads,
+  onSelectContext,
+  contextPickerLabel,
   messages,
   isSending,
   onSend,
@@ -421,10 +442,48 @@ function ChatConversationPanel({
   const currentUser = useAuthStore((state) => state.user);
   const [body, setBody] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [contextMenuAnchor, setContextMenuAnchor] = useState<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onMarkReadRef = useRef(onMarkRead);
   const lastMarkedKeyRef = useRef<string>('');
+
+  const hasMultipleContexts = Boolean(contextThreads && contextThreads.length > 1);
+  const activeContextItem = useMemo(
+    () =>
+      contextThreads?.find((item) => item.id === threadId) ??
+      contextThreads?.[0],
+    [contextThreads, threadId],
+  );
+
+  const timelineEntries = useMemo(() => {
+    if (!hasMultipleContexts || !contextThreads) {
+      return messages.map((message) => ({
+        key: `${threadId}:${message.id}`,
+        message,
+        contextId: threadId,
+        contextTitle: activeContextItem?.title ?? '',
+        contextSubtitle: activeContextItem?.subtitle ?? '',
+        contextActionTo: activeContextItem?.actionTo ?? '',
+        getAttachmentPath,
+      }));
+    }
+    return contextThreads
+      .flatMap((ctx) =>
+        ctx.messages.map((message, index) => ({
+          key: `${ctx.id}:${message.id}`,
+          message,
+          contextId: ctx.id,
+          contextTitle: ctx.title,
+          contextSubtitle: ctx.subtitle,
+          contextActionTo: ctx.actionTo,
+          getAttachmentPath: ctx.getAttachmentPath,
+          sortTime: Date.parse(message.createdAt) || 0,
+          sortOrder: index,
+        })),
+      )
+      .sort((a, b) => a.sortTime - b.sortTime || a.sortOrder - b.sortOrder);
+  }, [hasMultipleContexts, contextThreads, messages, threadId, activeContextItem, getAttachmentPath]);
 
   useEffect(() => {
     onMarkReadRef.current = onMarkRead;
@@ -438,7 +497,7 @@ function ChatConversationPanel({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [timelineEntries]);
 
   useEffect(() => {
     if (!latestUnreadId) return;
@@ -491,7 +550,9 @@ function ChatConversationPanel({
   };
 
   const partnerInitial = partnerName.trim().charAt(0).toUpperCase() || 'U';
-  const myMessages = messages.filter((m) => m.authorUserId === currentUser?.id);
+  const myMessages = timelineEntries
+    .map((entry) => entry.message)
+    .filter((m) => m.authorUserId === currentUser?.id);
   const lastMyMessage = myMessages[myMessages.length - 1];
 
   return (
@@ -508,9 +569,8 @@ function ChatConversationPanel({
       <Box
         sx={{
           px: { xs: 1.5, sm: 2.5 },
-          py: 1.5,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          py: 1.25,
+          borderBottom: '1px solid var(--mui-palette-divider)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -529,11 +589,12 @@ function ChatConversationPanel({
             </IconButton>
           )}
           <Avatar
+            src={partnerAvatarUrl?.trim() || undefined}
             sx={{
               bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)',
               color: 'primary.main',
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               fontSize: '0.875rem',
               fontWeight: 700,
               flexShrink: 0,
@@ -545,51 +606,27 @@ function ChatConversationPanel({
             <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.25 }} noWrap>
               {partnerName}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }} noWrap>
               {subtitle}
             </Typography>
+            {contextStrip && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  columnGap: 1.25,
+                  rowGap: 0.25,
+                  flexWrap: 'wrap',
+                  mt: 0.25,
+                  color: 'text.secondary',
+                }}
+              >
+                {contextStrip}
+              </Box>
+            )}
           </Box>
         </Stack>
-
-        <Button
-          component={Link}
-          to={actionTo}
-          size="small"
-          variant="outlined"
-          endIcon={<ArrowOutwardRoundedIcon sx={{ fontSize: 15 }} />}
-          sx={{
-            borderRadius: '8px',
-            textTransform: 'none',
-            fontWeight: 600,
-            fontSize: '0.75rem',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            borderColor: 'divider',
-            color: 'text.primary',
-          }}
-        >
-          {actionLabel}
-        </Button>
       </Box>
-
-      {contextStrip && (
-        <Box
-          sx={{
-            px: { xs: 1.5, sm: 2.5 },
-            py: 0.75,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.default',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
-          {contextStrip}
-        </Box>
-      )}
 
       <Box
         ref={scrollRef}
@@ -606,7 +643,7 @@ function ChatConversationPanel({
           scrollBehavior: 'smooth',
         }}
       >
-        {messages.length === 0 ? (
+        {timelineEntries.length === 0 ? (
           <Box
             sx={{
               display: 'flex',
@@ -643,16 +680,26 @@ function ChatConversationPanel({
             </Typography>
           </Box>
         ) : (
-          messages.map((message, index) => {
+          timelineEntries.map((entry, index) => {
+            const { message } = entry;
             const isMe = currentUser?.id === message.authorUserId;
             const isLastFromMe = isMe && message.id === lastMyMessage?.id;
-            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const prevEntry = index > 0 ? timelineEntries[index - 1] : null;
             const showDateHeader =
-              !prevMessage ||
-              getDateGroupKey(prevMessage.createdAt) !== getDateGroupKey(message.createdAt);
+              !prevEntry ||
+              getDateGroupKey(prevEntry.message.createdAt) !== getDateGroupKey(message.createdAt);
+            const showContextTag =
+              Boolean(entry.contextActionTo || hasMultipleContexts) &&
+              (!prevEntry || prevEntry.contextId !== entry.contextId);
+            const isActiveContext = entry.contextId === threadId;
+            const contextChipLabel = `${entry.contextTitle}${
+              entry.contextSubtitle && !entry.contextSubtitle.startsWith(entry.contextTitle)
+                ? ` · ${entry.contextSubtitle}`
+                : ''
+            }`;
 
             return (
-              <Fragment key={message.id}>
+              <Fragment key={entry.key}>
                 {showDateHeader && (
                   <Box sx={{ textAlign: 'center', my: 0.5 }}>
                     <Typography
@@ -662,6 +709,63 @@ function ChatConversationPanel({
                     >
                       {formatDateHeading(message.createdAt, locale)}
                     </Typography>
+                  </Box>
+                )}
+
+                {showContextTag && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 0.25 }}>
+                    {entry.contextActionTo ? (
+                      <Chip
+                        component={Link}
+                        to={entry.contextActionTo}
+                        size="small"
+                        clickable
+                        icon={<LinkRoundedIcon sx={{ fontSize: 14 }} />}
+                        label={
+                          <Box
+                            component="span"
+                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.45 }}
+                          >
+                            <span>{contextChipLabel}</span>
+                            <ArrowOutwardRoundedIcon sx={{ fontSize: 13, opacity: 0.85 }} />
+                          </Box>
+                        }
+                        sx={{
+                          height: 24,
+                          fontSize: '0.75rem',
+                          fontWeight: isActiveContext ? 600 : 500,
+                          textDecoration: 'none',
+                          bgcolor: isActiveContext
+                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                            : 'action.hover',
+                          color: isActiveContext ? 'primary.main' : 'text.secondary',
+                          borderRadius: '6px',
+                          '&:hover': {
+                            bgcolor:
+                              'color-mix(in srgb, var(--mui-palette-primary-main) 16%, transparent)',
+                            color: 'primary.main',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        size="small"
+                        icon={<LinkRoundedIcon sx={{ fontSize: 14 }} />}
+                        label={contextChipLabel}
+                        onClick={() => onSelectContext?.(entry.contextId)}
+                        clickable={Boolean(onSelectContext)}
+                        sx={{
+                          height: 24,
+                          fontSize: '0.75rem',
+                          fontWeight: isActiveContext ? 600 : 500,
+                          bgcolor: isActiveContext
+                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                            : 'action.hover',
+                          color: isActiveContext ? 'primary.main' : 'text.secondary',
+                          borderRadius: '6px',
+                        }}
+                      />
+                    )}
                   </Box>
                 )}
 
@@ -727,7 +831,7 @@ function ChatConversationPanel({
                       {(message.attachments ?? []).map((attachment) => (
                         <MessageAttachment
                           key={attachment.id}
-                          attachmentPath={getAttachmentPath(message.id, attachment.id)}
+                          attachmentPath={entry.getAttachmentPath(message.id, attachment.id)}
                           attachment={attachment}
                           locale={locale}
                           onError={onError}
@@ -784,14 +888,17 @@ function ChatConversationPanel({
         )}
       </Box>
 
-      <Box sx={{ p: 2, pt: 1 }}>
+      <Box sx={{ px: 2, pt: 1, pb: 1.5 }}>
         <Box
           sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '8px',
+            border: '1px solid var(--mui-palette-divider)',
+            borderRadius: '12px',
             bgcolor: 'background.paper',
             overflow: 'hidden',
+            transition: 'border-color 150ms ease',
+            '&:focus-within': {
+              borderColor: 'primary.main',
+            },
           }}
         >
           <input
@@ -802,31 +909,98 @@ function ChatConversationPanel({
             accept="image/png,image/jpeg,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={selectFiles}
           />
-          <Box
-            sx={{
-              px: 1.75,
-              py: 0.75,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              bgcolor: 'background.default',
-            }}
-          >
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              {locale === 'vi'
-                ? 'Enter để gửi · Shift + Enter để xuống dòng · Tối đa 5 tệp / 20 MB'
-                : 'Enter to send · Shift + Enter for new line · Up to 5 files / 20 MB'}
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums', flexShrink: 0, ml: 1 }}
-            >
-              {body.length}/{MAX_MESSAGE_LENGTH}
-            </Typography>
-          </Box>
+
+          {hasMultipleContexts && activeContextItem && contextThreads && (
+            <Box sx={{ px: 1.25, pt: 1, pb: 0.25, display: 'flex', alignItems: 'center' }}>
+              <Chip
+                size="small"
+                icon={<LinkRoundedIcon sx={{ fontSize: 15 }} />}
+                deleteIcon={<KeyboardArrowDownRoundedIcon sx={{ fontSize: 17 }} />}
+                onDelete={(event) => setContextMenuAnchor(event.currentTarget.closest('div'))}
+                onClick={(event) => setContextMenuAnchor(event.currentTarget)}
+                aria-label={locale === 'vi' ? 'Chọn mục đính kèm' : 'Select attached context'}
+                label={`${contextPickerLabel ? `${contextPickerLabel}: ` : ''}${activeContextItem.title}${activeContextItem.subtitle && !activeContextItem.subtitle.startsWith(activeContextItem.title) ? ` · ${activeContextItem.subtitle}` : ''}`}
+                sx={{
+                  maxWidth: '100%',
+                  height: 26,
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)',
+                  color: 'primary.main',
+                  '& .MuiChip-icon': { color: 'primary.main' },
+                  '& .MuiChip-deleteIcon': { color: 'primary.main', ml: 0.25 },
+                }}
+              />
+              <Menu
+                anchorEl={contextMenuAnchor}
+                open={Boolean(contextMenuAnchor)}
+                onClose={() => setContextMenuAnchor(null)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      maxWidth: 420,
+                      maxHeight: 320,
+                      borderRadius: '8px',
+                      border: '1px solid var(--mui-palette-divider)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                    },
+                  },
+                }}
+              >
+                {contextThreads.map((item) => {
+                  const selected = item.id === activeContextItem.id;
+                  return (
+                    <MenuItem
+                      key={item.id}
+                      selected={selected}
+                      onClick={() => {
+                        setContextMenuAnchor(null);
+                        onSelectContext?.(item.id);
+                      }}
+                      sx={{ py: 0.85, px: 1.5, gap: 1 }}
+                    >
+                      <ListItemText
+                        primary={item.title}
+                        secondary={
+                          [item.subtitle, item.meta].filter(Boolean).join(' · ') || undefined
+                        }
+                        slotProps={{
+                          primary: {
+                            noWrap: true,
+                            sx: { fontSize: '0.8125rem', fontWeight: selected ? 700 : 600 },
+                          },
+                          secondary: {
+                            noWrap: true,
+                            sx: { fontSize: '0.75rem' },
+                          },
+                        }}
+                      />
+                      {item.unreadCount > 0 && (
+                        <Box
+                          sx={{
+                            px: 0.75,
+                            py: 0.1,
+                            borderRadius: '999px',
+                            bgcolor: 'primary.main',
+                            color: '#ffffff',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {item.unreadCount}
+                        </Box>
+                      )}
+                      {selected && <CheckRoundedIcon fontSize="small" color="primary" />}
+                    </MenuItem>
+                  );
+                })}
+              </Menu>
+            </Box>
+          )}
 
           {selectedFiles.length > 0 && (
             <Stack direction="row" spacing={0.75} sx={{ p: 1.25, pb: 0, flexWrap: 'wrap' }}>
@@ -847,19 +1021,19 @@ function ChatConversationPanel({
             </Stack>
           )}
 
-          <Stack direction="row" spacing={1.25} sx={{ p: 1.5, alignItems: 'flex-end' }}>
+          <Stack direction="row" spacing={1} sx={{ px: 1.25, py: 1, alignItems: 'flex-end' }}>
             <IconButton
               aria-label={locale === 'vi' ? 'Đính kèm tệp' : 'Attach files'}
               disabled={isSending || selectedFiles.length >= MAX_ATTACHMENT_COUNT}
               onClick={() => fileInputRef.current?.click()}
-              sx={{ width: 38, height: 38, borderRadius: '8px', flexShrink: 0 }}
+              sx={{ width: 36, height: 36, borderRadius: '8px', flexShrink: 0, color: 'text.secondary' }}
             >
               <AttachFileRoundedIcon fontSize="small" />
             </IconButton>
             <InputBase
               fullWidth
               multiline
-              minRows={2}
+              minRows={1}
               maxRows={5}
               placeholder={locale === 'vi' ? 'Nhập nội dung tin nhắn...' : 'Type your message...'}
               value={body}
@@ -874,7 +1048,7 @@ function ChatConversationPanel({
                   void send();
                 }
               }}
-              sx={{ fontSize: '0.875rem', lineHeight: 1.5, py: 0.25 }}
+              sx={{ fontSize: '0.875rem', lineHeight: 1.5, py: 0.5 }}
             />
             <LoadingButton
               variant="contained"
@@ -884,9 +1058,9 @@ function ChatConversationPanel({
               disabled={!body.trim() && selectedFiles.length === 0}
               onClick={() => void send()}
               sx={{
-                minWidth: 38,
-                width: 38,
-                height: 38,
+                minWidth: 36,
+                width: 36,
+                height: 36,
                 p: 0,
                 borderRadius: '8px',
                 boxShadow: 'none',
@@ -897,6 +1071,29 @@ function ChatConversationPanel({
             </LoadingButton>
           </Stack>
         </Box>
+
+        <Stack
+          direction="row"
+          sx={{
+            px: 0.5,
+            pt: 0.6,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', opacity: 0.78 }}>
+            {locale === 'vi'
+              ? 'Enter để gửi · Shift + Enter để xuống dòng · Tối đa 5 tệp / 20 MB'
+              : 'Enter to send · Shift + Enter for new line · Up to 5 files / 20 MB'}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: '0.72rem', opacity: 0.78, fontVariantNumeric: 'tabular-nums', flexShrink: 0, ml: 1 }}
+          >
+            {body.length}/{MAX_MESSAGE_LENGTH}
+          </Typography>
+        </Stack>
       </Box>
     </Box>
   );
@@ -904,12 +1101,23 @@ function ChatConversationPanel({
 
 interface RequestChatPanelProps {
   request: ServiceRequest;
+  partnerNameOverride?: string | undefined;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
 }
 
-export function RequestChatPanel({ request, onChanged, onError, onBack }: RequestChatPanelProps) {
+export function RequestChatPanel({
+  request,
+  partnerNameOverride,
+  contextThreads,
+  onSelectContext,
+  onChanged,
+  onError,
+  onBack,
+}: RequestChatPanelProps) {
   const { locale, t } = useLocale();
   const currentUser = useAuthStore((state) => state.user);
   const userRoles = useAuthStore((state) => state.roles);
@@ -921,7 +1129,10 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
     .reverse()
     .find((m) => m.authorUserId !== currentUser?.id && m.authorName);
   const partnerName =
-    otherPartyMessage?.authorName || (isManagerRole ? t('Customer') : t('Service Manager'));
+    partnerNameOverride ||
+    (isManagerRole ? request.ownerCustomerName : request.serviceManager?.fullName) ||
+    otherPartyMessage?.authorName ||
+    (isManagerRole ? t('Customer') : t('Service Manager'));
   const currentQuote = resolveCurrentQuote(request);
   const statusLabel = getStatusLabel(getEffectiveRequestStatus(request), t);
   const quoteAmount = Number(
@@ -932,15 +1143,17 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
     <ChatConversationPanel
       threadId={request.id}
       partnerName={partnerName}
+      partnerAvatarUrl={!isManagerRole ? request.serviceManager?.avatarUrl : undefined}
       subtitle={`${request.description} · ${statusLabel}`}
-      actionLabel={locale === 'vi' ? 'Xem yêu cầu' : 'Open request'}
-      actionTo={`/${isManagerRole ? 'manager' : 'client'}/contracts?requestId=${request.id}`}
       emptyTitle={locale === 'vi' ? 'Chưa có tin nhắn đàm phán nào' : 'No messages yet'}
       emptyDescription={
         locale === 'vi'
           ? 'Gửi tin nhắn để trao đổi chi tiết về phạm vi, khung giờ bay và thống nhất báo giá hợp đồng.'
           : 'Send a message to discuss inspection scope, flight timing, and quotation terms.'
       }
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Yêu cầu' : 'Request'}
       contextStrip={
         <>
           <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -977,6 +1190,8 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
 
 interface InspectionChatPanelProps {
   thread: InspectionChatThread;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
@@ -984,6 +1199,8 @@ interface InspectionChatPanelProps {
 
 export function InspectionChatPanel({
   thread,
+  contextThreads,
+  onSelectContext,
   onChanged,
   onError,
   onBack,
@@ -1000,9 +1217,11 @@ export function InspectionChatPanel({
       partnerName={
         thread.counterpartName || (isInspectorRole ? t('Customer') : t('Inspector'))
       }
-      subtitle={`${thread.assetName} · ${t(thread.status)}`}
-      actionLabel={locale === 'vi' ? 'Mở đợt kiểm tra' : 'Open inspection'}
-      actionTo={`/${isInspectorRole ? 'operations' : 'client'}/inspections/${thread.inspectionId}`}
+      partnerAvatarUrl={thread.counterpartAvatarUrl}
+      subtitle={`${thread.assetName} · ${getInspectionStatusLabel(thread.status, t)}`}
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Đợt kiểm tra' : 'Inspection'}
       emptyTitle={
         locale === 'vi'
           ? 'Chưa có trao đổi nào cho đợt kiểm tra này'
@@ -1022,7 +1241,7 @@ export function InspectionChatPanel({
                 ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
               : thread.assetName}
           </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
             {thread.assignmentStatus === 'ACCEPTED'
               ? locale === 'vi'
                 ? 'Đã xác nhận lịch bay'
@@ -1051,6 +1270,8 @@ export function InspectionChatPanel({
 
 interface PartnerChatPanelProps {
   thread: PartnerChatThread;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
@@ -1058,6 +1279,8 @@ interface PartnerChatPanelProps {
 
 export function PartnerChatPanel({
   thread,
+  contextThreads,
+  onSelectContext,
   onChanged,
   onError,
   onBack,
@@ -1075,21 +1298,11 @@ export function PartnerChatPanel({
       partnerName={
         thread.counterpartName || (isManagerRole ? t('Inspector') : t('Service Manager'))
       }
+      partnerAvatarUrl={thread.counterpartAvatarUrl}
       subtitle={`${thread.assetName}${thread.assetCode ? ` (${thread.assetCode})` : ''} · ${thread.requestDescription}`}
-      actionLabel={
-        isManagerRole
-          ? locale === 'vi'
-            ? 'Xem yêu cầu'
-            : 'Open request'
-          : locale === 'vi'
-            ? 'Danh sách đợt bay'
-            : 'Open inspections'
-      }
-      actionTo={
-        isManagerRole
-          ? `/manager/contracts?requestId=${thread.requestId}`
-          : '/operations/inspections'
-      }
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Yêu cầu' : 'Request'}
       emptyTitle={
         locale === 'vi'
           ? 'Chưa có trao đổi điều phối nào'
@@ -1109,7 +1322,7 @@ export function PartnerChatPanel({
           {thread.nextPlannedStartAt && thread.nextPlannedEndAt && (
             <Typography
               variant="caption"
-              sx={{ fontWeight: 700, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
+              sx={{ fontWeight: 500, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
             >
               {new Date(thread.nextPlannedStartAt).toLocaleString()} –{' '}
               {new Date(thread.nextPlannedEndAt).toLocaleTimeString([], {

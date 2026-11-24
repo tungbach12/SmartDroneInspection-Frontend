@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Avatar,
   Box,
@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import type { PortalId } from '@/app/permissions/accessPolicy';
@@ -32,6 +33,7 @@ import { formatLocation } from '@/shared/airspace/airspaceZones';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
+import { InspectorRatingSummaryBadge } from './InspectorRatingSummaryBadge';
 
 interface OverviewStakeholdersSectionProps {
   inspection: InspectionDetail;
@@ -78,8 +80,7 @@ export function OverviewStakeholdersSection({
   portal,
   onNavigateAway,
 }: OverviewStakeholdersSectionProps) {
-  const { t, formatDate, formatDateTime, formatNumber } = useLocale();
-  const navigate = useNavigate();
+  const { t } = useLocale();
 
   const [inspectorProfile, setInspectorProfile] = useState<InspectorProfile | null>(null);
   const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
@@ -117,11 +118,11 @@ export function OverviewStakeholdersSection({
     inspectorProfile?.fullName ||
     matchedInspectorUser?.fullName ||
     inspection.inspectorName ||
-    `${t('Inspector')} #${inspection.inspectorId.slice(0, 8)}`;
+    (inspection.inspectorId ? `${t('Inspector')} #${inspection.inspectorId.slice(0, 8)}` : t('Unassigned'));
   const inspectorEmail =
     inspectorProfile?.email ||
     matchedInspectorUser?.email ||
-    'inspector@mf3bridge.test';
+    '—';
   const inspectorAvatar =
     inspection.inspectorAvatarUrl ||
     inspectorProfile?.avatarUrl ||
@@ -130,12 +131,10 @@ export function OverviewStakeholdersSection({
   const customerName =
     matchedCustomerUser?.fullName ||
     inspection.ownerCustomerName ||
-    `${t('Customer')} #${inspection.ownerCustomerId.slice(0, 8)}`;
+    (inspection.ownerCustomerId ? `${t('Customer')} #${inspection.ownerCustomerId.slice(0, 8)}` : t('Customer'));
   const customerEmail =
-    matchedCustomerUser?.email || inspection.ownerCustomerEmail || 'customer@mf3bridge.test';
+    matchedCustomerUser?.email || inspection.ownerCustomerEmail || '—';
   const customerAvatar = inspection.ownerCustomerAvatarUrl || undefined;
-
-  const finance = resolveInspectorFinanceBreakdown(inspection.id, null);
 
   return (
     <>
@@ -255,10 +254,117 @@ export function OverviewStakeholdersSection({
         </Grid>
       </Grid>
 
-      {/* Read-only Partner Inspector Detail Dialog */}
-      <Dialog
+      <PartnerInspectorDetailDialog
         open={inspectorDialogOpen}
         onClose={() => setInspectorDialogOpen(false)}
+        inspection={inspection}
+        portal={portal}
+        inspectorProfile={inspectorProfile}
+        platformUsers={platformUsers}
+        inspectorAvatarUrl={inspectorAvatar}
+        onNavigateAway={onNavigateAway}
+      />
+
+      <CustomerDetailDialog
+        open={customerDialogOpen}
+        onClose={() => setCustomerDialogOpen(false)}
+        inspection={inspection}
+        portal={portal}
+        platformUsers={platformUsers}
+        customerAvatarUrl={customerAvatar}
+        onNavigateAway={onNavigateAway}
+      />
+    </>
+  );
+}
+
+interface PartnerInspectorDetailDialogProps {
+  open: boolean;
+  onClose: () => void;
+  inspection: InspectionDetail;
+  portal: PortalId;
+  inspectorProfile?: InspectorProfile | null | undefined;
+  platformUsers?: PlatformUser[] | undefined;
+  inspectorAvatarUrl?: string | null | undefined;
+  onNavigateAway?: (() => void) | undefined;
+  chatInboxPath?: string | undefined;
+  canOpenInspectionChat?: boolean | undefined;
+}
+
+/**
+ * Full read-only Partner Inspector profile modal shared across the Inspection review header and
+ * inspection overview dialogs so clicking Inspector always surfaces the same complete view.
+ */
+export function PartnerInspectorDetailDialog({
+  open,
+  onClose,
+  inspection,
+  portal,
+  inspectorProfile: externalProfile,
+  platformUsers: externalUsers,
+  inspectorAvatarUrl,
+  onNavigateAway,
+  chatInboxPath,
+  canOpenInspectionChat = false,
+}: PartnerInspectorDetailDialogProps) {
+  const { t, formatDate } = useLocale();
+  const navigate = useNavigate();
+  const [fetchedProfile, setFetchedProfile] = useState<InspectorProfile | null>(null);
+  const [fetchedUsers, setFetchedUsers] = useState<PlatformUser[]>([]);
+
+  useEffect(() => {
+    if (!open || externalProfile !== undefined) return;
+    let active = true;
+    if (inspection.inspectorId) {
+      inspectorProfileApi
+        .get(inspection.inspectorId)
+        .then((profile) => {
+          if (active && profile) setFetchedProfile(profile);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, [open, externalProfile, inspection.inspectorId]);
+
+  useEffect(() => {
+    if (!open || externalUsers !== undefined) return;
+    let active = true;
+    platformUserApi
+      .list()
+      .then((users) => {
+        if (active && Array.isArray(users)) setFetchedUsers(users);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, externalUsers]);
+
+  const inspectorProfile = externalProfile !== undefined ? externalProfile : fetchedProfile;
+  const platformUsers = externalUsers !== undefined ? externalUsers : fetchedUsers;
+  const matchedInspectorUser = platformUsers.find((u) => u.id === inspection.inspectorId);
+
+  const inspectorName =
+    inspectorProfile?.fullName ||
+    matchedInspectorUser?.fullName ||
+    inspection.inspectorName ||
+    (inspection.inspectorId ? `${t('Inspector')} #${inspection.inspectorId.slice(0, 8)}` : t('Unassigned'));
+  const inspectorEmail =
+    inspectorProfile?.email ||
+    matchedInspectorUser?.email ||
+    t('Not provided');
+  const inspectorAvatar =
+    inspectorAvatarUrl ||
+    inspection.inspectorAvatarUrl ||
+    inspectorProfile?.avatarUrl ||
+    undefined;
+
+  return (
+      <Dialog
+        open={open}
+        onClose={onClose}
         maxWidth="sm"
         fullWidth
       >
@@ -301,7 +407,7 @@ export function OverviewStakeholdersSection({
               </Typography>
             </Box>
           </Stack>
-          <IconButton size="small" onClick={() => setInspectorDialogOpen(false)}>
+          <IconButton aria-label={t('Close')} size="small" onClick={onClose}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -476,8 +582,21 @@ export function OverviewStakeholdersSection({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <ReadOnlyField
+                    label={t('Rating')}
+                    value={
+                      <InspectorRatingSummaryBadge
+                        averageRating={inspection.inspectorAverageRating}
+                        ratingCount={inspection.inspectorRatingCount}
+                        variant="inline"
+                        showEmpty
+                      />
+                    }
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <ReadOnlyField
                     label={t('Inspector ID')}
-                    value={`${inspection.inspectorId.slice(0, 13)}…`}
+                    value={inspection.inspectorId ? `${inspection.inspectorId.slice(0, 13)}…` : '—'}
                     monospace
                   />
                 </Grid>
@@ -502,31 +621,104 @@ export function OverviewStakeholdersSection({
           <Button
             size="small"
             color="inherit"
-            onClick={() => setInspectorDialogOpen(false)}
+            onClick={onClose}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {t('Close')}
           </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            endIcon={<OpenInNewRoundedIcon sx={{ fontSize: 14 }} />}
-            onClick={() => {
-              setInspectorDialogOpen(false);
-              onNavigateAway();
-              navigate(`/${portal}/platform-users`);
-            }}
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-          >
-            {t('Partner roster')}
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {canOpenInspectionChat && chatInboxPath && (
+              <Button
+                component={RouterLink}
+                to={chatInboxPath}
+                onClick={onClose}
+                size="small"
+                variant="outlined"
+                startIcon={<ChatOutlinedIcon fontSize="small" />}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+              >
+                {t('Messages')}
+              </Button>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              endIcon={<OpenInNewRoundedIcon sx={{ fontSize: 14 }} />}
+              onClick={() => {
+                onClose();
+                onNavigateAway?.();
+                navigate(`/${portal}/platform-users`);
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            >
+              {t('Partner roster')}
+            </Button>
+          </Stack>
         </DialogActions>
       </Dialog>
+  );
+}
 
-      {/* Read-only Customer & Organization Detail Dialog */}
+interface CustomerDetailDialogProps {
+  open: boolean;
+  onClose: () => void;
+  inspection: InspectionDetail;
+  portal: PortalId;
+  platformUsers?: PlatformUser[] | undefined;
+  customerAvatarUrl?: string | null | undefined;
+  onNavigateAway?: (() => void) | undefined;
+  chatInboxPath?: string | undefined;
+  canOpenInspectionChat?: boolean | undefined;
+}
+
+/**
+ * Full read-only Customer account and mission summary modal shared across the Inspection
+ * review header and overview cards.
+ */
+export function CustomerDetailDialog({
+  open,
+  onClose,
+  inspection,
+  portal,
+  platformUsers: externalUsers,
+  customerAvatarUrl,
+  onNavigateAway,
+  chatInboxPath,
+  canOpenInspectionChat = false,
+}: CustomerDetailDialogProps) {
+  const { t, formatDateTime, formatNumber } = useLocale();
+  const navigate = useNavigate();
+  const [fetchedUsers, setFetchedUsers] = useState<PlatformUser[]>([]);
+
+  useEffect(() => {
+    if (!open || externalUsers !== undefined) return;
+    let active = true;
+    platformUserApi
+      .list()
+      .then((users) => {
+        if (active && Array.isArray(users)) setFetchedUsers(users);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, externalUsers]);
+
+  const platformUsers = externalUsers !== undefined ? externalUsers : fetchedUsers;
+  const matchedCustomerUser = platformUsers.find((u) => u.id === inspection.ownerCustomerId);
+  const customerName =
+    matchedCustomerUser?.fullName ||
+    inspection.ownerCustomerName ||
+    (inspection.ownerCustomerId ? `${t('Customer')} #${inspection.ownerCustomerId.slice(0, 8)}` : t('Customer'));
+  const customerEmail =
+    matchedCustomerUser?.email || inspection.ownerCustomerEmail || t('Not provided');
+  const customerAvatar = customerAvatarUrl || inspection.ownerCustomerAvatarUrl || undefined;
+  const finance = resolveInspectorFinanceBreakdown(inspection.id, null);
+
+  return (
       <Dialog
-        open={customerDialogOpen}
-        onClose={() => setCustomerDialogOpen(false)}
+        open={open}
+        onClose={onClose}
         maxWidth="sm"
         fullWidth
       >
@@ -556,7 +748,7 @@ export function OverviewStakeholdersSection({
               </Typography>
             </Box>
           </Stack>
-          <IconButton size="small" onClick={() => setCustomerDialogOpen(false)}>
+          <IconButton aria-label={t('Close')} size="small" onClick={onClose}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -584,6 +776,12 @@ export function OverviewStakeholdersSection({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <ReadOnlyField label={t('Email')} value={customerEmail} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <ReadOnlyField
+                    label={t('Phone Number')}
+                    value={inspection.ownerCustomerPhone || t('Not provided')}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <ReadOnlyField
@@ -616,13 +814,16 @@ export function OverviewStakeholdersSection({
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <ReadOnlyField
                     label={t('Asset Name')}
-                    value={inspection.assetName || `#${inspection.assetId.slice(0, 8)}`}
+                    value={
+                      inspection.assetName ||
+                      (inspection.assetId ? `#${inspection.assetId.slice(0, 8)}` : '—')
+                    }
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <ReadOnlyField
                     label={t('Asset ID')}
-                    value={`${inspection.assetId.slice(0, 13)}…`}
+                    value={inspection.assetId ? `${inspection.assetId.slice(0, 13)}…` : '—'}
                     monospace
                   />
                 </Grid>
@@ -657,19 +858,32 @@ export function OverviewStakeholdersSection({
           <Button
             size="small"
             color="inherit"
-            onClick={() => setCustomerDialogOpen(false)}
+            onClick={onClose}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {t('Close')}
           </Button>
           <Stack direction="row" spacing={1}>
+            {canOpenInspectionChat && chatInboxPath && (
+              <Button
+                component={RouterLink}
+                to={chatInboxPath}
+                onClick={onClose}
+                size="small"
+                variant="outlined"
+                startIcon={<ChatOutlinedIcon fontSize="small" />}
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+              >
+                {t('Messages')}
+              </Button>
+            )}
             <Button
               size="small"
               variant="outlined"
               endIcon={<OpenInNewRoundedIcon sx={{ fontSize: 14 }} />}
               onClick={() => {
-                setCustomerDialogOpen(false);
-                onNavigateAway();
+                onClose();
+                onNavigateAway?.();
                 navigate(`/${portal}/assets`);
               }}
               sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
@@ -682,8 +896,8 @@ export function OverviewStakeholdersSection({
                 variant="contained"
                 endIcon={<OpenInNewRoundedIcon sx={{ fontSize: 14 }} />}
                 onClick={() => {
-                  setCustomerDialogOpen(false);
-                  onNavigateAway();
+                  onClose();
+                  onNavigateAway?.();
                   navigate('/manager/contracts');
                 }}
                 sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', boxShadow: 'none' }}
@@ -694,6 +908,5 @@ export function OverviewStakeholdersSection({
           </Stack>
         </DialogActions>
       </Dialog>
-    </>
   );
 }

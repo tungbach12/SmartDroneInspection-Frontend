@@ -80,6 +80,7 @@ export default function InspectionsPage() {
   const [declineReason, setDeclineReason] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'DEFAULT' | 'SCHEDULE_ASC' | 'SCHEDULE_DESC' | 'AMOUNT_DESC'>('DEFAULT');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -159,11 +160,25 @@ export default function InspectionsPage() {
           (item.assetName && item.assetName.toLowerCase().includes(q)) ||
           (item.assetCode && item.assetCode.toLowerCase().includes(q)) ||
           (item.assetLocation && item.assetLocation.toLowerCase().includes(q)) ||
-          (item.objective && item.objective.toLowerCase().includes(q)),
+          (item.objective && item.objective.toLowerCase().includes(q)) ||
+          (item.ownerCustomerName && item.ownerCustomerName.toLowerCase().includes(q)) ||
+          (item.inspectorName && item.inspectorName.toLowerCase().includes(q)) ||
+          (item.droneModel && item.droneModel.toLowerCase().includes(q)) ||
+          (item.droneSerialNumber && item.droneSerialNumber.toLowerCase().includes(q)),
       );
     }
+    if (sortOrder !== 'DEFAULT') {
+      result = [...result].sort((left, right) => {
+        if (sortOrder === 'AMOUNT_DESC') {
+          return (right.paymentAmount ?? 0) - (left.paymentAmount ?? 0);
+        }
+        const leftTs = new Date(left.plannedStartAt ?? left.updatedAt).getTime();
+        const rightTs = new Date(right.plannedStartAt ?? right.updatedAt).getTime();
+        return sortOrder === 'SCHEDULE_ASC' ? leftTs - rightTs : rightTs - leftTs;
+      });
+    }
     return result;
-  }, [visibleItems, statusFilter, searchQuery]);
+  }, [visibleItems, statusFilter, searchQuery, sortOrder]);
 
   // The administrator's queue is the decisions, not the records. The server names the phase on
   // each row, so the counts below are read rather than inferred from a status.
@@ -390,9 +405,26 @@ export default function InspectionsPage() {
                 <EmptyState
                   title={t('No inspections available')}
                   description={
-                    statusFilter !== 'ALL'
-                      ? `No inspections found with status "${statusFilter}".`
-                      : 'Inspections you can see will appear here.'
+                    statusFilter !== 'ALL' || searchQuery.trim()
+                      ? t('No inspection missions match your current filter criteria.')
+                      : t('Inspections you can see will appear here.')
+                  }
+                  action={
+                    statusFilter !== 'ALL' || searchQuery.trim() || sortOrder !== 'DEFAULT' ? (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setStatusFilter('ALL');
+                          setSearchQuery('');
+                          setSortOrder('DEFAULT');
+                          setPage(1);
+                        }}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                      >
+                        {t('Clear filters')}
+                      </Button>
+                    ) : undefined
                   }
                 />
               }
@@ -429,14 +461,30 @@ export default function InspectionsPage() {
                 onForceAbort={(id) => openInspection(id, 'forceAbort')}
                 acceptingId={acceptInspection.isPending ? (acceptInspection.variables ?? null) : null}
                 getActionLabel={getActionLabel}
-                showReportColumn={view === 'reports' || isReviewer}
+                showReportColumn={view === 'reports'}
                 reviewerMode={view === 'reports'}
                 roleView={roleView}
                 searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                searchPlaceholder={t('Search by asset name, code, or location…')}
+                onSearchChange={(next) => {
+                  setSearchQuery(next);
+                  setPage(1);
+                }}
+                searchPlaceholder={t('Search asset, customer, inspector, drone…')}
                 statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
+                onStatusFilterChange={(next) => {
+                  setStatusFilter(next);
+                  setPage(1);
+                }}
+                sortOrder={sortOrder}
+                onSortOrderChange={(next) =>
+                  setSortOrder(next as 'DEFAULT' | 'SCHEDULE_ASC' | 'SCHEDULE_DESC' | 'AMOUNT_DESC')
+                }
+                sortOptions={[
+                  { value: 'DEFAULT', label: t('Default order') },
+                  { value: 'SCHEDULE_DESC', label: t('Latest schedule') },
+                  { value: 'SCHEDULE_ASC', label: t('Upcoming first') },
+                  { value: 'AMOUNT_DESC', label: t('Highest value') },
+                ]}
                 {...(isPlatformManager && view === 'all'
                   ? {
                       statusOptions: [

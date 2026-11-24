@@ -224,7 +224,8 @@ describe('finance history page', () => {
     renderPage('payouts');
     expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
     expect(mocks.listManager).toHaveBeenCalledWith(0, 20, 'PAYOUTS');
-    fireEvent.click(screen.getByRole('button', { name: 'Payout eligible (1)' }));
+    fireEvent.mouseDown(screen.getByLabelText('Status'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Payout eligible (1)' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByText(/0071001234567/)).toBeTruthy();
@@ -234,5 +235,129 @@ describe('finance history page', () => {
     expect(await screen.findByText('Inspector payout VietQR')).toBeTruthy();
     expect(mocks.createSepayPayoutLink).toHaveBeenCalledWith('req-4', 'occ-4');
     expect(screen.getByText('SDIPAY200999888')).toBeTruthy();
+  });
+
+  it('supports search, payment method filter, status filter, sorting, and clear filters on Manager revenue', async () => {
+    mocks.roles = ['MANAGER'];
+    mocks.listManager.mockResolvedValue({
+      summary: {
+        currency: 'VND',
+        transactionCount: 2,
+        totalCustomerPaid: 25000000,
+        totalRefunded: 2000000,
+        netPlatformInflow: 23000000,
+        totalCommissionEarned: 3500000,
+        totalVatAmount: 2000000,
+        totalTncnWithheld: 1500000,
+        totalInspectorNetPayout: 14000000,
+        paidInspectorPayout: 14000000,
+        pendingInspectorPayout: 0,
+      },
+      content: [
+        {
+          occurrenceId: 'occ-rev-1', requestId: 'req-rev-1', occurrenceIndex: 1,
+          requestDescription: 'Solar array audit', assetId: 'a-1', assetName: 'Solar Plant Alpha',
+          customerId: 'c-1', customerName: 'Alpha Energy', inspectorId: 'i-1', inspectorName: 'Inspector A',
+          currency: 'VND', customerPaidAmount: 10000000, serviceBaseAmount: 9090909,
+          vatRate: 10, vatAmount: 909091, commissionRate: 15, commissionAmount: 1363636, netCommissionAmount: 1363636,
+          tncnRate: 10, tncnAmount: 772727, inspectorNetPayout: 6954546, refundedAmount: 2000000, netPlatformInflow: 8000000,
+          paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VNP-999', paymentConfirmedAt: '2026-11-10T10:00:00Z',
+          payoutStatus: 'PAID', payoutReference: 'PAYOUT-1', payoutRecordedAt: '2026-11-11T10:00:00Z',
+        },
+        {
+          occurrenceId: 'occ-rev-2', requestId: 'req-rev-2', occurrenceIndex: 1,
+          requestDescription: 'Tower facade scan', assetId: 'a-2', assetName: 'Saigon Tower B',
+          customerId: 'c-2', customerName: 'Metro Holdings', inspectorId: 'i-2', inspectorName: 'Inspector B',
+          currency: 'VND', customerPaidAmount: 15000000, serviceBaseAmount: 13636364,
+          vatRate: 10, vatAmount: 1363636, commissionRate: 15, commissionAmount: 2045455, netCommissionAmount: 2045455,
+          tncnRate: 10, tncnAmount: 1159091, inspectorNetPayout: 10431818, refundedAmount: 0, netPlatformInflow: 15000000,
+          paymentStatus: 'PAID', paymentMethod: 'SEPAY', paymentReference: 'SEP-123', paymentConfirmedAt: '2026-11-12T10:00:00Z',
+          payoutStatus: 'PAID', payoutReference: 'PAYOUT-2', payoutRecordedAt: '2026-11-13T10:00:00Z',
+        },
+      ],
+      totalElements: 2, page: 0, size: 20,
+    });
+
+    renderPage('revenue');
+    expect(await screen.findByText('Solar Plant Alpha')).toBeTruthy();
+    expect(screen.getByText('Saigon Tower B')).toBeTruthy();
+    expect(screen.getByText('Showing 2 of 2')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search revenue' }), { target: { value: 'SEP-123' } });
+    expect(await screen.findByText('Saigon Tower B')).toBeTruthy();
+    expect(screen.queryByText('Solar Plant Alpha')).toBeNull();
+    expect(mocks.listManager).toHaveBeenCalledWith(0, 100, 'REVENUE');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(await screen.findByText('Solar Plant Alpha')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText('Method'));
+    fireEvent.click(await screen.findByRole('option', { name: 'VNPAY' }));
+    expect(await screen.findByText('Solar Plant Alpha')).toBeTruthy();
+    expect(screen.queryByText('Saigon Tower B')).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search revenue' }), { target: { value: 'nomatch' } });
+    expect(await screen.findByText('No matching revenue records')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(await screen.findByText('Saigon Tower B')).toBeTruthy();
+  });
+
+  it('supports filtering Manager payouts by Inspector and shows status counts', async () => {
+    mocks.roles = ['MANAGER'];
+    mocks.listManager.mockResolvedValue({
+      summary: {
+        currency: 'VND',
+        transactionCount: 2,
+        totalCustomerPaid: 20000000,
+        totalRefunded: 0,
+        netPlatformInflow: 20000000,
+        totalCommissionEarned: 3000000,
+        totalVatAmount: 1800000,
+        totalTncnWithheld: 1500000,
+        totalInspectorNetPayout: 13700000,
+        paidInspectorPayout: 6700000,
+        pendingInspectorPayout: 7000000,
+      },
+      content: [
+        {
+          occurrenceId: 'occ-pay-1', requestId: 'req-pay-1', occurrenceIndex: 1,
+          requestDescription: 'East bridge', assetId: 'a-10', assetName: 'East Bridge',
+          customerId: 'c-10', customerName: 'Infra Co', inspectorId: 'ins-1', inspectorName: 'Pham Van Bay',
+          currency: 'VND', customerPaidAmount: 10000000, serviceBaseAmount: 9090909,
+          vatRate: 10, vatAmount: 909091, commissionRate: 15, commissionAmount: 1363636, netCommissionAmount: 1363636,
+          tncnRate: 10, tncnAmount: 772727, inspectorNetPayout: 7000000, refundedAmount: 0, netPlatformInflow: 10000000,
+          paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VN-10', paymentConfirmedAt: '2026-11-10T10:00:00Z',
+          payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
+        },
+        {
+          occurrenceId: 'occ-pay-2', requestId: 'req-pay-2', occurrenceIndex: 1,
+          requestDescription: 'West port', assetId: 'a-11', assetName: 'West Port',
+          customerId: 'c-11', customerName: 'Port Co', inspectorId: 'ins-2', inspectorName: 'Do Thi Phi Cong',
+          currency: 'VND', customerPaidAmount: 10000000, serviceBaseAmount: 9090909,
+          vatRate: 10, vatAmount: 909091, commissionRate: 15, commissionAmount: 1363636, netCommissionAmount: 1363636,
+          tncnRate: 10, tncnAmount: 772727, inspectorNetPayout: 6700000, refundedAmount: 0, netPlatformInflow: 10000000,
+          paymentStatus: 'PAID', paymentMethod: 'SEPAY', paymentReference: 'SP-11', paymentConfirmedAt: '2026-11-11T10:00:00Z',
+          payoutStatus: 'PAID', payoutReference: 'PAYOUT-22', payoutRecordedAt: '2026-11-12T10:00:00Z',
+        },
+      ],
+      totalElements: 2, page: 0, size: 20,
+    });
+
+    renderPage('payouts');
+    expect(await screen.findByText('East Bridge')).toBeTruthy();
+    expect(screen.getByText('Eligible for payout')).toBeTruthy();
+    expect(screen.getByText('Settled payouts')).toBeTruthy();
+    expect(screen.getByText('Total net payout')).toBeTruthy();
+    expect(screen.getByText('49% settled')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText('Status'));
+    expect(await screen.findByRole('option', { name: 'All statuses (2)' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Payout settled (1)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: 'All statuses (2)' }));
+
+    fireEvent.mouseDown(screen.getByLabelText('Inspector'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Do Thi Phi Cong' }));
+    expect(await screen.findByText('West Port')).toBeTruthy();
+    expect(screen.queryByText('East Bridge')).toBeNull();
   });
 });

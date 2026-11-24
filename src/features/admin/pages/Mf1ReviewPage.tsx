@@ -10,9 +10,8 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  InputAdornment,
   Link,
-  MenuItem,
+  Pagination,
   Paper,
   Stack,
   Tab,
@@ -29,12 +28,13 @@ import {
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import HighlightOffRounded from '@mui/icons-material/HighlightOffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
-import SearchRounded from '@mui/icons-material/SearchRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
+import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   mf1ReviewApi,
@@ -53,7 +53,18 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 type QueueId = 'inspectors' | 'drones' | 'customers';
-type SortOption = 'NEWEST' | 'OLDEST';
+type SortOption = 'NEWEST' | 'OLDEST' | 'NAME_ASC';
+type LicenseClassFilter = 'ALL' | 'CLASS_A' | 'CLASS_B';
+type ScanFilter = 'ALL' | 'HAS_SCAN' | 'MISSING_SCAN';
+type DroneTierFilter = 'ALL' | 'CLASS_A' | 'CLASS_B_REQUIRED' | 'LICENSE_MISMATCH';
+
+function matchesLicenseClass(rawClass: string | null | undefined, expected: 'CLASS_A' | 'CLASS_B'): boolean {
+  const normalized = (rawClass ?? '').trim().toUpperCase();
+  if (expected === 'CLASS_B') {
+    return normalized.includes('B') || normalized === 'CLASS_B';
+  }
+  return (normalized.includes('A') || normalized === 'CLASS_A') && !normalized.includes('B');
+}
 
 interface EvidenceDoc {
   label: string;
@@ -201,7 +212,12 @@ export default function Mf1ReviewPage({
   const queue = fixedQueue ?? selectedQueue;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [licenseClassFilter, setLicenseClassFilter] = useState<LicenseClassFilter>('ALL');
+  const [scanFilter, setScanFilter] = useState<ScanFilter>('ALL');
+  const [droneTierFilter, setDroneTierFilter] = useState<DroneTierFilter>('ALL');
   const [sort, setSort] = useState<SortOption>('NEWEST');
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
 
   // Review dialog state for drone registrations and customer airspace
   const [selected, setSelected] = useState<ReviewItem | null>(null);
@@ -267,8 +283,31 @@ export default function Mf1ReviewPage({
     setSelectedQueue(next);
     setSearch('');
     setStatusFilter('ALL');
+    setLicenseClassFilter('ALL');
+    setScanFilter('ALL');
+    setDroneTierFilter('ALL');
     setSort('NEWEST');
+    setPage(0);
   };
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setStatusFilter('ALL');
+    setLicenseClassFilter('ALL');
+    setScanFilter('ALL');
+    setDroneTierFilter('ALL');
+    setSort('NEWEST');
+    setPage(0);
+  };
+
+  const inspectorCounts = useMemo(
+    () => ({
+      all: (pendingInspectorApps.data?.length ?? 0) + (awaitingContractApps.data?.length ?? 0),
+      pending: pendingInspectorApps.data?.length ?? 0,
+      awaiting: awaitingContractApps.data?.length ?? 0,
+    }),
+    [awaitingContractApps.data?.length, pendingInspectorApps.data?.length],
+  );
 
   const inspectorRows = useMemo(() => {
     const pending = (pendingInspectorApps.data ?? []).map((application) => ({
@@ -283,20 +322,56 @@ export default function Mf1ReviewPage({
     const rows = [...pending, ...awaiting].filter(({ kind, application }) => {
       if (statusFilter === 'PENDING' && kind !== 'PENDING') return false;
       if (statusFilter === 'APPROVED' && kind !== 'AWAITING_CONTRACT') return false;
+      if (licenseClassFilter !== 'ALL' && !matchesLicenseClass(application.pilotLicenseClass, licenseClassFilter)) {
+        return false;
+      }
+      if (scanFilter === 'HAS_SCAN' && !application.hasLicenseScan) return false;
+      if (scanFilter === 'MISSING_SCAN' && application.hasLicenseScan) return false;
       if (!query) return true;
       return (
         application.fullName.toLowerCase().includes(query) ||
         application.email.toLowerCase().includes(query) ||
+        (application.phoneNumber ?? '').toLowerCase().includes(query) ||
         application.pilotLicenseNumber.toLowerCase().includes(query) ||
         application.citizenId.toLowerCase().includes(query)
       );
     });
     return rows.sort((left, right) => {
+      if (sort === 'NAME_ASC') {
+        return left.application.fullName.localeCompare(right.application.fullName, dateLocale, {
+          sensitivity: 'base',
+        });
+      }
       const leftDate = new Date(left.application.createdAt).getTime();
       const rightDate = new Date(right.application.createdAt).getTime();
       return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
     });
-  }, [awaitingContractApps.data, pendingInspectorApps.data, search, sort, statusFilter]);
+  }, [
+    awaitingContractApps.data,
+    dateLocale,
+    licenseClassFilter,
+    pendingInspectorApps.data,
+    scanFilter,
+    search,
+    sort,
+    statusFilter,
+  ]);
+
+  const droneCounts = useMemo(() => {
+    const pending = drones.data?.length ?? 0;
+    let approved = 0;
+    let rejected = 0;
+    for (const app of droneHistory.data ?? []) {
+      if (app.status === 'APPROVED') approved += 1;
+      else rejected += 1;
+    }
+    return {
+      all: pending + approved + rejected,
+      pending,
+      approved,
+      rejected,
+    };
+  }, [droneHistory.data, drones.data?.length]);
 
   const droneRows = useMemo(() => {
     const pending = (drones.data ?? []).map((application) => ({
@@ -311,6 +386,13 @@ export default function Mf1ReviewPage({
     return [...pending, ...history]
       .filter(({ status, application }) => {
         if (statusFilter !== 'ALL' && status !== statusFilter) return false;
+        if (droneTierFilter !== 'ALL') {
+          const tier = classifyDroneLegalTier(application);
+          const mismatch = tier.requiresClassB && application.inspectorPilotLicenseClass === 'CLASS_A';
+          if (droneTierFilter === 'CLASS_A' && tier.requiresClassB) return false;
+          if (droneTierFilter === 'CLASS_B_REQUIRED' && !tier.requiresClassB) return false;
+          if (droneTierFilter === 'LICENSE_MISMATCH' && !mismatch) return false;
+        }
         if (!query) return true;
         return (
           (application.model ?? '').toLowerCase().includes(query) ||
@@ -322,11 +404,16 @@ export default function Mf1ReviewPage({
         );
       })
       .sort((left, right) => {
+        if (sort === 'NAME_ASC') {
+          const leftName = stripLegacySpecsFromModel(left.application.model) || left.application.model || '';
+          const rightName = stripLegacySpecsFromModel(right.application.model) || right.application.model || '';
+          return leftName.localeCompare(rightName, dateLocale, { sensitivity: 'base' });
+        }
         const leftDate = new Date(left.application.createdAt).getTime();
         const rightDate = new Date(right.application.createdAt).getTime();
         return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
       });
-  }, [droneHistory.data, drones.data, search, sort, statusFilter]);
+  }, [dateLocale, droneHistory.data, droneTierFilter, drones.data, search, sort, statusFilter]);
 
   const customerRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -343,29 +430,34 @@ export default function Mf1ReviewPage({
         );
       })
       .sort((left, right) => {
+        if (sort === 'NAME_ASC') {
+          return left.organizationName.localeCompare(right.organizationName, dateLocale, {
+            sensitivity: 'base',
+          });
+        }
         const leftDate = new Date(left.createdAt).getTime();
         const rightDate = new Date(right.createdAt).getTime();
         return sort === 'NEWEST' ? rightDate - leftDate : leftDate - rightDate;
       });
-  }, [customers.data, search, sort, statusFilter]);
+  }, [customers.data, dateLocale, search, sort, statusFilter]);
 
   const statusOptions =
     queue === 'inspectors'
       ? [
-          { value: 'ALL', label: tr('Tất cả', 'All') },
-          { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
-          { value: 'APPROVED', label: tr('Đã duyệt', 'Approved') },
+          { value: 'ALL', label: `${tr('Tất cả', 'All')} (${inspectorCounts.all})` },
+          { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${inspectorCounts.pending})` },
+          { value: 'APPROVED', label: `${tr('Chờ hợp đồng', 'Awaiting contract')} (${inspectorCounts.awaiting})` },
         ]
       : queue === 'drones'
         ? [
-            { value: 'ALL', label: tr('Tất cả', 'All') },
-            { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
-            { value: 'APPROVED', label: tr('Đã duyệt', 'Approved') },
-            { value: 'REJECTED', label: tr('Từ chối', 'Rejected') },
+            { value: 'ALL', label: `${tr('Tất cả', 'All')} (${droneCounts.all})` },
+            { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${droneCounts.pending})` },
+            { value: 'APPROVED', label: `${tr('Đã duyệt', 'Approved')} (${droneCounts.approved})` },
+            { value: 'REJECTED', label: `${tr('Từ chối', 'Rejected')} (${droneCounts.rejected})` },
           ]
         : [
-            { value: 'ALL', label: tr('Tất cả', 'All') },
-            { value: 'PENDING', label: tr('Chờ duyệt', 'Pending') },
+            { value: 'ALL', label: `${tr('Tất cả', 'All')} (${customers.data?.length ?? 0})` },
+            { value: 'PENDING', label: `${tr('Chờ duyệt', 'Pending')} (${customers.data?.length ?? 0})` },
           ];
 
   const clearReview = () => {
@@ -548,6 +640,19 @@ export default function Mf1ReviewPage({
   const visibleCount =
     queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneRows.length : customerRows.length;
   const totalCount = queueCounts[queue];
+  const maxPage = Math.max(0, Math.ceil(visibleCount / rowsPerPage) - 1);
+  const safePage = Math.min(page, maxPage);
+  const pagedInspectorRows = inspectorRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
+  const pagedDroneRows = droneRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
+  const pagedCustomerRows = customerRows.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
+
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    statusFilter !== 'ALL' ||
+    licenseClassFilter !== 'ALL' ||
+    scanFilter !== 'ALL' ||
+    droneTierFilter !== 'ALL' ||
+    sort !== 'NEWEST';
 
   const pageTitle = fixedQueue
     ? fixedQueue === 'inspectors'
@@ -600,84 +705,151 @@ export default function Mf1ReviewPage({
         </Tabs>
       )}
 
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 1.5, sm: 2 },
-          borderRadius: '12px',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          boxShadow: 'none',
-          mb: 2,
+      <AdminTableToolbar
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(0);
         }}
-      >
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-            {statusOptions.map((option) => {
-              const active = statusFilter === option.value;
-              return (
-                <Chip
-                  key={option.value}
-                  size="small"
-                  clickable
-                  label={option.label}
-                  color={active ? 'primary' : 'default'}
-                  variant={active ? 'filled' : 'outlined'}
-                  onClick={() => setStatusFilter(option.value)}
-                  sx={{
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    borderColor: active ? undefined : 'divider',
-                  }}
-                />
-              );
-            })}
-          </Stack>
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <TextField
-              size="small"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={
-                queue === 'inspectors'
-                  ? tr('Tìm theo tên, email, bằng lái…', 'Search name, email, license…')
-                  : queue === 'drones'
-                    ? tr('Tìm drone, serial, người gửi…', 'Search drone, serial, applicant…')
-                    : tr('Tìm khách hàng, tài sản hoặc vùng bay…', 'Search customer, asset, or airspace…')
-              }
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchRounded fontSize="small" sx={{ color: 'text.secondary' }} />
-                    </InputAdornment>
-                  ),
+        searchPlaceholder={
+          queue === 'inspectors'
+            ? tr('Tìm tên, email, SĐT, bằng lái…', 'Search name, email, phone, license…')
+            : queue === 'drones'
+              ? tr('Tìm model, serial, đăng ký, inspector…', 'Search drone, serial, reg, applicant…')
+              : tr('Tìm khách hàng, mã, tài sản hoặc vùng bay…', 'Search customer, code, asset, or airspace…')
+        }
+        visibleCount={visibleCount}
+        totalCount={totalCount}
+        onClearAll={clearAllFilters}
+        filters={
+          queue === 'inspectors'
+            ? [
+                {
+                  key: 'status',
+                  label: tr('Trạng thái', 'Status'),
+                  value: statusFilter,
+                  options: statusOptions,
+                  onChange: (value) => {
+                    setStatusFilter(value);
+                    setPage(0);
+                  },
+                  width: 155,
                 },
-              }}
-              sx={{ width: { xs: '100%', sm: 250 } }}
-            />
-            <TextField
-              select
-              size="small"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as SortOption)}
-              sx={{ minWidth: 130 }}
-            >
-              <MenuItem value="NEWEST">{tr('Mới nhất', 'Newest')}</MenuItem>
-              <MenuItem value="OLDEST">{tr('Cũ nhất', 'Oldest')}</MenuItem>
-            </TextField>
-            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-              {visibleCount}/{totalCount}
-            </Typography>
-          </Stack>
-        </Stack>
-      </Paper>
+                {
+                  key: 'licenseClass',
+                  label: tr('Hạng bằng lái', 'License class'),
+                  value: licenseClassFilter,
+                  options: [
+                    { value: 'ALL', label: tr('Tất cả hạng', 'All classes') },
+                    { value: 'CLASS_A', label: tr('Hạng A', 'Class A') },
+                    { value: 'CLASS_B', label: tr('Hạng B', 'Class B') },
+                  ],
+                  onChange: (value) => {
+                    setLicenseClassFilter(value as LicenseClassFilter);
+                    setPage(0);
+                  },
+                  width: 125,
+                },
+                {
+                  key: 'scan',
+                  label: tr('Bản scan', 'License scan'),
+                  value: scanFilter,
+                  options: [
+                    { value: 'ALL', label: tr('Tất cả tài liệu', 'All documents') },
+                    { value: 'HAS_SCAN', label: tr('Đã có scan', 'Scan uploaded') },
+                    { value: 'MISSING_SCAN', label: tr('Thiếu scan', 'Missing scan') },
+                  ],
+                  onChange: (value) => {
+                    setScanFilter(value as ScanFilter);
+                    setPage(0);
+                  },
+                  width: 135,
+                },
+                {
+                  key: 'sort',
+                  label: tr('Sắp xếp', 'Sort'),
+                  value: sort,
+                  allValue: 'NEWEST',
+                  options: [
+                    { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
+                    { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
+                    { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
+                  ],
+                  onChange: (value) => setSort(value as SortOption),
+                  width: 125,
+                },
+              ]
+            : queue === 'drones'
+              ? [
+                  {
+                    key: 'status',
+                    label: tr('Trạng thái', 'Status'),
+                    value: statusFilter,
+                    options: statusOptions,
+                    onChange: (value) => {
+                      setStatusFilter(value);
+                      setPage(0);
+                    },
+                    width: 155,
+                  },
+                  {
+                    key: 'tier',
+                    label: tr('Phân hạng MTOW', 'Aircraft tier'),
+                    value: droneTierFilter,
+                    options: [
+                      { value: 'ALL', label: tr('Tất cả hạng bay', 'All tiers') },
+                      { value: 'CLASS_A', label: tr('Nhẹ (< 2 kg)', 'Light (< 2 kg)') },
+                      { value: 'CLASS_B_REQUIRED', label: tr('Cần Hạng B (≥ 2 kg)', 'Class B req (≥ 2 kg)') },
+                      { value: 'LICENSE_MISMATCH', label: tr('Cảnh báo thiếu Hạng B', 'License mismatch') },
+                    ],
+                    onChange: (value) => {
+                      setDroneTierFilter(value as DroneTierFilter);
+                      setPage(0);
+                    },
+                    width: 185,
+                  },
+                  {
+                    key: 'sort',
+                    label: tr('Sắp xếp', 'Sort'),
+                    value: sort,
+                    allValue: 'NEWEST',
+                    options: [
+                      { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
+                      { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
+                      { value: 'NAME_ASC', label: tr('Model A–Z', 'Model A–Z') },
+                    ],
+                    onChange: (value) => setSort(value as SortOption),
+                    width: 145,
+                  },
+                ]
+              : [
+                  {
+                    key: 'status',
+                    label: tr('Trạng thái', 'Status'),
+                    value: statusFilter,
+                    options: statusOptions,
+                    onChange: (value) => {
+                      setStatusFilter(value);
+                      setPage(0);
+                    },
+                    width: 155,
+                  },
+                  {
+                    key: 'sort',
+                    label: tr('Sắp xếp', 'Sort'),
+                    value: sort,
+                    allValue: 'NEWEST',
+                    options: [
+                      { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
+                      { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
+                      { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
+                    ],
+                    onChange: (value) => setSort(value as SortOption),
+                    width: 150,
+                  },
+                ]
+        }
+      />
 
       {queue === 'inspectors' && (
         <QueryState
@@ -688,7 +860,24 @@ export default function Mf1ReviewPage({
             void awaitingContractApps.refetch();
           }}
           isEmpty={inspectorRows.length === 0}
-          empty={<EmptyState title={tr('Không có hồ sơ Inspector nào.', 'No inspector applications')} />}
+          empty={
+            <EmptyState
+              title={tr('Không có hồ sơ Inspector nào.', 'No inspector applications')}
+              description={tr('Thử điều chỉnh từ khóa tìm kiếm hoặc xóa bộ lọc đang áp dụng.', 'Try adjusting your search or clearing the active filters.')}
+              action={
+                hasActiveFilters ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={clearAllFilters}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {tr('Xóa bộ lọc', 'Clear filters')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
         >
           <QueueTable
             headers={[
@@ -699,8 +888,13 @@ export default function Mf1ReviewPage({
               '',
             ]}
             ariaLabel={tr('Đơn đăng ký Inspector', 'Inspector applications')}
+            totalCount={inspectorRows.length}
+            page={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, inspectorRows.length)} ${t('of')} ${inspectorRows.length}`}
           >
-            {inspectorRows.map(({ kind, application }) => (
+            {pagedInspectorRows.map(({ kind, application }) => (
               <TableRow
                 key={application.id}
                 hover
@@ -778,7 +972,24 @@ export default function Mf1ReviewPage({
             void droneHistory.refetch();
           }}
           isEmpty={droneRows.length === 0}
-          empty={<EmptyState title={tr('Không có hồ sơ drone nào.', 'No drone registrations')} />}
+          empty={
+            <EmptyState
+              title={tr('Không có hồ sơ drone nào.', 'No drone registrations')}
+              description={tr('Thử điều chỉnh từ khóa tìm kiếm hoặc xóa bộ lọc đang áp dụng.', 'Try adjusting your search or clearing the active filters.')}
+              action={
+                hasActiveFilters ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={clearAllFilters}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {tr('Xóa bộ lọc', 'Clear filters')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
         >
           <QueueTable
             headers={[
@@ -789,8 +1000,13 @@ export default function Mf1ReviewPage({
               '',
             ]}
             ariaLabel={tr('Đăng ký Drone', 'Drone registrations')}
+            totalCount={droneRows.length}
+            page={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, droneRows.length)} ${t('of')} ${droneRows.length}`}
           >
-            {droneRows.map(({ status, application }) => {
+            {pagedDroneRows.map(({ status, application }) => {
               const cleanModel = stripLegacySpecsFromModel(application.model) || application.model;
               const legacySpecs = extractLegacyDroneSpecs(application.model);
               const mtowKg = application.mtowKg ?? legacySpecs.mtowKg;
@@ -812,16 +1028,14 @@ export default function Mf1ReviewPage({
                   key={application.id}
                   hover
                   tabIndex={0}
-                  onClick={() => {
-                    if (status === 'PENDING') void openDroneReview(application);
-                  }}
+                  onClick={() => void openDroneReview(application)}
                   onKeyDown={(event) => {
-                    if ((event.key === 'Enter' || event.key === ' ') && status === 'PENDING') {
+                    if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
                       void openDroneReview(application);
                     }
                   }}
-                  sx={{ cursor: status === 'PENDING' ? 'pointer' : 'default' }}
+                  sx={{ cursor: 'pointer' }}
                 >
                   <TableCell>
                     <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
@@ -872,7 +1086,7 @@ export default function Mf1ReviewPage({
                     />
                   </TableCell>
                   <TableCell align="right">
-                    {status === 'PENDING' && (
+                    {status === 'PENDING' ? (
                       <Button
                         size="small"
                         variant="outlined"
@@ -884,6 +1098,26 @@ export default function Mf1ReviewPage({
                         sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                       >
                         {tr('Thẩm định hồ sơ', 'Review application')}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<VisibilityOutlined />}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openDroneReview(application);
+                        }}
+                        sx={{
+                          borderRadius: '8px',
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          borderColor: 'divider',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        {tr('Xem chi tiết', 'View details')}
                       </Button>
                     )}
                   </TableCell>
@@ -900,7 +1134,24 @@ export default function Mf1ReviewPage({
           error={customers.error}
           onRetry={() => void customers.refetch()}
           isEmpty={customerRows.length === 0}
-          empty={<EmptyState title={tr('Không có vùng bay khách hàng nào.', 'No customer airspace reviews')} />}
+          empty={
+            <EmptyState
+              title={tr('Không có vùng bay khách hàng nào.', 'No customer airspace reviews')}
+              description={tr('Thử điều chỉnh từ khóa tìm kiếm hoặc xóa bộ lọc đang áp dụng.', 'Try adjusting your search or clearing the active filters.')}
+              action={
+                hasActiveFilters ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={clearAllFilters}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {tr('Xóa bộ lọc', 'Clear filters')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
         >
           <QueueTable
             headers={[
@@ -911,8 +1162,13 @@ export default function Mf1ReviewPage({
               '',
             ]}
             ariaLabel={tr('Vùng bay khách hàng', 'Customer airspace')}
+            totalCount={customerRows.length}
+            page={safePage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            summaryText={`${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, customerRows.length)} ${t('of')} ${customerRows.length}`}
           >
-            {customerRows.map((review) => (
+            {pagedCustomerRows.map((review) => (
               <TableRow
                 key={review.id}
                 hover
@@ -1137,54 +1393,88 @@ export default function Mf1ReviewPage({
 
                 <Divider />
 
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant={action === 'approve' ? 'contained' : 'outlined'}
-                    color="success"
-                    startIcon={<CheckCircleOutlineRounded />}
-                    onClick={() => setAction('approve')}
+                {reviewQueue === 'drones' &&
+                (selected as DroneRegistrationApplication).status !== 'PENDING' ? (
+                  <Alert
+                    severity={
+                      (selected as DroneRegistrationApplication).status === 'APPROVED'
+                        ? 'success'
+                        : 'error'
+                    }
+                    variant="outlined"
                   >
-                    {tr('Duyệt', 'Approve')}
-                  </Button>
-                  <Button
-                    variant={action === 'reject' ? 'contained' : 'outlined'}
-                    color="error"
-                    startIcon={<HighlightOffRounded />}
-                    onClick={() => setAction('reject')}
-                  >
-                    {tr('Từ chối', 'Reject')}
-                  </Button>
-                </Stack>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {(selected as DroneRegistrationApplication).status === 'APPROVED'
+                        ? tr('Hồ sơ drone đã được phê duyệt', 'Drone registration approved')
+                        : tr('Hồ sơ drone đã bị từ chối', 'Drone registration rejected')}
+                    </Typography>
+                    {(selected as DroneRegistrationApplication).reviewNote && (
+                      <Typography variant="body2" sx={{ mt: 0.5 }}>
+                        {(selected as DroneRegistrationApplication).reviewNote}
+                      </Typography>
+                    )}
+                  </Alert>
+                ) : (
+                  <>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant={action === 'approve' ? 'contained' : 'outlined'}
+                        color="success"
+                        startIcon={<CheckCircleOutlineRounded />}
+                        onClick={() => setAction('approve')}
+                      >
+                        {tr('Duyệt', 'Approve')}
+                      </Button>
+                      <Button
+                        variant={action === 'reject' ? 'contained' : 'outlined'}
+                        color="error"
+                        startIcon={<HighlightOffRounded />}
+                        onClick={() => setAction('reject')}
+                      >
+                        {tr('Từ chối', 'Reject')}
+                      </Button>
+                    </Stack>
 
-                <TextField
-                  multiline
-                  minRows={3}
-                  label={
-                    action === 'reject'
-                      ? tr('Lý do từ chối (bắt buộc)', 'Rejection reason (required)')
-                      : tr('Ghi chú duyệt', 'Review note')
-                  }
-                  value={reviewNote}
-                  onChange={(event) => setReviewNote(event.target.value)}
-                />
+                    <TextField
+                      multiline
+                      minRows={3}
+                      label={
+                        action === 'reject'
+                          ? tr('Lý do từ chối (bắt buộc)', 'Rejection reason (required)')
+                          : tr('Ghi chú duyệt', 'Review note')
+                      }
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                    />
+                  </>
+                )}
               </Stack>
             </DialogContent>
             <DialogActions sx={{ px: 3, py: 2 }}>
-              <Button onClick={clearReview} disabled={pending} color="inherit">
-                {tr('Hủy', 'Cancel')}
-              </Button>
-              <Button
-                variant="contained"
-                color={action === 'reject' ? 'error' : 'primary'}
-                onClick={() => void submitReview()}
-                disabled={pending}
-              >
-                {pending
-                  ? tr('Đang lưu…', 'Saving…')
-                  : action === 'reject'
-                    ? tr('Xác nhận từ chối', 'Confirm rejection')
-                    : tr('Xác nhận duyệt', 'Confirm approval')}
-              </Button>
+              {reviewQueue === 'drones' &&
+              (selected as DroneRegistrationApplication).status !== 'PENDING' ? (
+                <Button onClick={clearReview} color="inherit">
+                  {tr('Đóng', 'Close')}
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={clearReview} disabled={pending} color="inherit">
+                    {tr('Hủy', 'Cancel')}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color={action === 'reject' ? 'error' : 'primary'}
+                    onClick={() => void submitReview()}
+                    disabled={pending}
+                  >
+                    {pending
+                      ? tr('Đang lưu…', 'Saving…')
+                      : action === 'reject'
+                        ? tr('Xác nhận từ chối', 'Confirm rejection')
+                        : tr('Xác nhận duyệt', 'Confirm approval')}
+                  </Button>
+                </>
+              )}
             </DialogActions>
           </>
         )}
@@ -1360,10 +1650,20 @@ function QueueTable({
   headers,
   ariaLabel,
   children,
+  totalCount,
+  page,
+  rowsPerPage,
+  onPageChange,
+  summaryText,
 }: {
   headers: string[];
   ariaLabel: string;
   children: ReactNode;
+  totalCount: number;
+  page: number;
+  rowsPerPage: number;
+  onPageChange: (nextPage: number) => void;
+  summaryText: string;
 }) {
   return (
     <Paper variant="outlined" sx={{ borderRadius: '10px', overflow: 'hidden', borderColor: 'divider' }}>
@@ -1396,6 +1696,52 @@ function QueueTable({
           <TableBody>{children}</TableBody>
         </Table>
       </TableContainer>
+      {totalCount > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: { xs: 2, sm: 2.5 },
+            py: 1.5,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            flexWrap: 'wrap',
+            gap: 1.5,
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {summaryText}
+          </Typography>
+          <Pagination
+            count={Math.max(1, Math.ceil(totalCount / rowsPerPage))}
+            page={page + 1}
+            onChange={(_, nextPage) => onPageChange(nextPage - 1)}
+            shape="rounded"
+            size="small"
+            sx={{
+              '& .MuiPaginationItem-root': {
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                color: 'text.primary',
+              },
+              '& .MuiPaginationItem-page.Mui-selected': {
+                bgcolor: 'primary.main',
+                color: '#FFFFFF',
+                '&:hover': { bgcolor: 'primary.dark' },
+              },
+              '& .MuiPaginationItem-previousNext': {
+                border: '1px solid',
+                borderColor: 'divider',
+              },
+            }}
+          />
+        </Box>
+      )}
     </Paper>
   );
 }
