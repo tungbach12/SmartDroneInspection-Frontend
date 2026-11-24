@@ -34,31 +34,31 @@ function getMarkerColor(linkedFindings: Finding[]): string {
     return '#dc2626';
   }
   if (linkedFindings.some((f) => f.severity === 'MEDIUM')) {
-    return '#d97706';
+    return '#92400e';
   }
   return '#0284c7';
 }
 
 function getSoftSeverityChipSx(severity: Finding['severity']) {
   if (severity === 'CRITICAL' || severity === 'HIGH') {
-    return (theme: { palette: { mode: string } }) => ({
+    return {
       height: 22,
       fontSize: '0.75rem',
       fontWeight: 600,
-      bgcolor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.14)' : '#fef2f2',
-      borderColor: theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.35)' : '#fecaca',
-      color: theme.palette.mode === 'dark' ? '#fca5a5' : '#b91c1c',
-    });
+      bgcolor: 'action.hover',
+      borderColor: 'error.main',
+      color: 'error.main',
+    };
   }
   if (severity === 'MEDIUM') {
-    return (theme: { palette: { mode: string } }) => ({
+    return {
       height: 22,
       fontSize: '0.75rem',
       fontWeight: 600,
-      bgcolor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.14)' : '#fffbeb',
-      borderColor: theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.38)' : '#fde68a',
-      color: theme.palette.mode === 'dark' ? '#fcd34d' : '#b45309',
-    });
+      bgcolor: 'action.hover',
+      borderColor: 'warning.main',
+      color: 'warning.main',
+    };
   }
   return {
     height: 22,
@@ -134,7 +134,7 @@ export function ReportFindingsMapPanel({
       latitude: Number(item.latitude),
       longitude: Number(item.longitude),
       label: pinLabel,
-      ariaLabel: `Finding pin ${item.fileName}`,
+      ariaLabel: `Finding ${pinLabel} · ${linked[0]?.severity ?? 'UNKNOWN'}`,
       color: getMarkerColor(linked),
       selected: item.id === activeItem.id,
       onClick: () => onSelectEvidence(item.id),

@@ -251,6 +251,14 @@ export function useConfirmOccurrencePayment(requestId: string, occurrenceId: str
   );
 }
 
+export function useCancelUnpaidPaymentOrder(requestId: string, occurrenceId: string) {
+  return useContractMutation<void>(
+    () => contractApi.cancelUnpaidPaymentOrder(requestId, occurrenceId),
+    'Unpaid payment order cleared.',
+    requestId,
+  );
+}
+
 export function useInitiateOccurrenceRefund(requestId: string, occurrenceId: string) {
   return useContractMutation<{ amount: number; requestReference: string; reasonCode: string; serviceStage: string; reason: string; contractClauseReference: string; evidenceReference: string; inspectorReceivableAmount: number; platformAbsorbedAmount: number }>(
     (input) => contractApi.initiateOccurrenceRefund(requestId, occurrenceId, input),

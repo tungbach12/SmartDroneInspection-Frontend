@@ -14,6 +14,7 @@ import type {
 export type ReportStatus =
   | 'DRAFT'
   | 'SUBMITTED'
+  | 'APPROVED'
   | 'RETURNED'
   | 'PUBLISHED'
   | 'SUPERSEDED';
@@ -324,6 +325,12 @@ export interface ReportPaymentStatusDetails {
   payoutReference?: string | null;
   paymentMethod?: string | null;
   paymentReference?: string | null;
+  paymentDueAt?: string | null;
+  paymentConfirmedAt?: string | null;
+  inspectorBankName?: string | null;
+  inspectorBankAccountNumber?: string | null;
+  inspectorBankAccountHolder?: string | null;
+  inspectorBankBranch?: string | null;
 }
 
 export interface ManualDraftInput {}
@@ -1079,6 +1086,13 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  publishVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<ReportReviewResult>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+      )
+      .then((response) => response.data),
+
   listVersions: (inspectionId: string) =>
     api
       .get<InspectionReport[]>(
@@ -1175,6 +1189,14 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Generates a Sepay VietQR payout link targeting the assigned Inspector's bank account. */
+  createSepayPayoutLink: (inspectionId: string) =>
+    api
+      .post<SepayCheckoutDetails>(
+        `/inspections/${inspectionId}/sepay/create-payout-link`,
+      )
+      .then((response) => response.data),
+
   /** Generates a signed VNPay online checkout URL for an accepted inspection. */
   createVnPayPaymentUrl: (inspectionId: string) =>
     api
@@ -1193,6 +1215,12 @@ export const inspectionApi = {
       .get<ReportPaymentStatusDetails>(
         `/inspections/${inspectionId}/report/payment-status`,
       )
+      .then((response) => response.data),
+
+  /** Clears a resolvable unpaid gateway order on the accepted inspection so another method can be used. */
+  cancelUnpaidPaymentOrder: (inspectionId: string) =>
+    api
+      .post<void>(`/inspections/${inspectionId}/report/cancel-unpaid-order`)
       .then((response) => response.data),
 
   /** Customer or Manager creates a quick RE_INSPECTION directly from a completed inspection. */

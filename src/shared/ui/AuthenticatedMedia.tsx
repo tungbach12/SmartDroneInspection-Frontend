@@ -297,6 +297,11 @@ export function AuthenticatedMedia({
           }}
         />
       )}
+      {isVideo && !loading && (
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          {t('No captions')}
+        </Typography>
+      )}
     </>
   );
 }

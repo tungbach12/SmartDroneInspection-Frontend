@@ -37,7 +37,7 @@ describe('ReportAuthoringPanel', () => {
     );
 
     expect(screen.getByText('Report details')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Preview PDF' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Preview PDF' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Download report' })).toBeTruthy();
   });
 });

@@ -24,6 +24,10 @@ export interface AuthUser {
   pilotLicenseClass?: string | undefined;
   pilotLicenseExpiresAt?: string | undefined;
   pilotLicenseFileKey?: string | undefined;
+  payoutBankName?: string | undefined;
+  payoutBankAccountNumber?: string | undefined;
+  payoutBankAccountHolder?: string | undefined;
+  payoutBankBranch?: string | undefined;
 }
 
 interface AuthSession {

@@ -31,10 +31,13 @@ export const SECTION_IDS = [
   'platform-users',
   'platform-settings',
   'onboarding-reviews',
+  'drone-registrations',
+  'customer-airspace',
   'audit-logs',
   'inspector-drones',
   'notifications',
   'finance-history',
+  'payout-settlements',
   'settings',
 ] as const;
 
@@ -51,11 +54,14 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   reports: 'Reports',
   'platform-users': 'Platform accounts',
   'platform-settings': 'Platform settings',
-  'onboarding-reviews': 'Onboarding reviews',
+  'onboarding-reviews': 'Inspector applications',
+  'drone-registrations': 'Drone registrations',
+  'customer-airspace': 'Customer airspace',
   'audit-logs': 'Activity log',
   'inspector-drones': 'My drones',
   notifications: 'Notifications',
   'finance-history': 'Payment history',
+  'payout-settlements': 'Inspector payouts',
   settings: 'Settings',
 };
 
@@ -81,11 +87,14 @@ const SECTION_LABELS_VI: Record<SectionId, string> = {
   reports: 'Báo cáo',
   'platform-users': 'Tài khoản nền tảng',
   'platform-settings': 'Cấu hình nền tảng',
-  'onboarding-reviews': 'Duyệt hồ sơ đăng ký',
+  'onboarding-reviews': 'Đơn đăng ký Inspector',
+  'drone-registrations': 'Đăng ký Drone',
+  'customer-airspace': 'Vùng bay khách hàng',
   'audit-logs': 'Nhật ký hoạt động',
   'inspector-drones': 'Drone của tôi',
   notifications: 'Thông báo',
   'finance-history': 'Lịch sử thanh toán',
+  'payout-settlements': 'Chi trả kiểm định viên',
   settings: 'Cài đặt',
 };
 
@@ -120,7 +129,7 @@ export function getSectionLabel(
     return locale === 'vi' ? 'Phi công đối tác' : 'Partner inspectors';
   }
   if (portal === 'manager' && section === 'finance-history') {
-    return locale === 'vi' ? 'Hoa hồng & Dòng tiền' : 'Platform revenue & commissions';
+    return locale === 'vi' ? 'Doanh thu & Thu tiền' : 'Revenue & payments';
   }
   return locale === 'vi' ? SECTION_LABELS_VI[section] : SECTION_LABELS[section];
 }
@@ -160,10 +169,13 @@ const SECTION_ROLE_ACCESS = {
     'platform-users': ['ADMIN'],
     'platform-settings': ['ADMIN'],
     'onboarding-reviews': ['ADMIN'],
+    'drone-registrations': ['ADMIN'],
+    'customer-airspace': ['ADMIN'],
     'audit-logs': ['ADMIN'],
     'inspector-drones': [],
     notifications: ['ADMIN'],
     'finance-history': [],
+    'payout-settlements': [],
     settings: ['ADMIN'],
   },
   manager: {
@@ -178,10 +190,13 @@ const SECTION_ROLE_ACCESS = {
     'platform-users': ['MANAGER'],
     'platform-settings': [],
     'onboarding-reviews': ['MANAGER'],
+    'drone-registrations': ['MANAGER'],
+    'customer-airspace': [],
     'audit-logs': [],
     'inspector-drones': [],
     notifications: ['MANAGER'],
     'finance-history': ['MANAGER'],
+    'payout-settlements': ['MANAGER'],
     settings: ['MANAGER'],
   },
   client: {
@@ -197,10 +212,13 @@ const SECTION_ROLE_ACCESS = {
     'platform-users': [],
     'platform-settings': [],
     'onboarding-reviews': [],
+    'drone-registrations': [],
+    'customer-airspace': [],
     'audit-logs': [],
     'inspector-drones': [],
     notifications: ['CUSTOMER'],
     'finance-history': ['CUSTOMER'],
+    'payout-settlements': [],
     settings: ['CUSTOMER'],
   },
   operations: {
@@ -215,10 +233,13 @@ const SECTION_ROLE_ACCESS = {
     'platform-users': [],
     'platform-settings': [],
     'onboarding-reviews': [],
+    'drone-registrations': [],
+    'customer-airspace': [],
     'audit-logs': [],
     'inspector-drones': ['INSPECTOR'],
     notifications: ['INSPECTOR'],
     'finance-history': ['INSPECTOR'],
+    'payout-settlements': [],
     settings: ['INSPECTOR'],
   },
 } as const satisfies Record<

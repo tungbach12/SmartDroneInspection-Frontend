@@ -857,7 +857,13 @@ export function useReviewReportVersion(inspectionId: string | null) {
     mutationFn: ({ versionId, reason }: { versionId: string; reason?: string }) =>
       inspectionApi.reviewVersion(inspectionId!, versionId, reason),
     onSuccess: (result) => {
-      showToast(result.publishedAt ? 'Report approved and published.' : 'Report returned to the Inspector.');
+      showToast(
+        result.status === 'APPROVED'
+          ? 'Report approved. Settle Inspector payout before publishing to Customer.'
+          : result.publishedAt
+            ? 'Report approved and published.'
+            : 'Report returned to the Inspector.',
+      );
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
@@ -866,9 +872,38 @@ export function useReviewReportVersion(inspectionId: string | null) {
         client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
         client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report review was not recorded.'), 'error'),
+  });
+}
+
+export function usePublishReportVersion(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ versionId }: { versionId: string }) =>
+      inspectionApi.publishVersion(inspectionId!, versionId),
+    onSuccess: () => {
+      showToast('Report published to Customer.');
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The report could not be published.'), 'error'),
   });
 }
 
@@ -933,12 +968,16 @@ export function useAcceptReportVersion(inspectionId: string | null) {
 }
 
 export function useCreateInspectionSepayLink(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createSepayPaymentLink(inspectionId!),
     // Sepay has no hosted checkout page: it returns a VietQR image URL that must be shown in-app,
     // so the caller renders a QR dialog instead of navigating away.
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (!data?.checkoutUrl) {
         showToast('The VietQR code could not be generated.', 'error');
       }
@@ -948,11 +987,33 @@ export function useCreateInspectionSepayLink(inspectionId: string | null) {
   });
 }
 
+export function useCreateInspectionSepayPayoutLink(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.createSepayPayoutLink(inspectionId!),
+    onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+      if (!data?.checkoutUrl) {
+        showToast('The VietQR code could not be generated.', 'error');
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not create SePay payout QR link.'), 'error'),
+  });
+}
+
 export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createVnPayPaymentUrl(inspectionId!),
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (data?.checkoutUrl) {
         window.location.assign(data.checkoutUrl);
       }
@@ -962,15 +1023,45 @@ export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
   });
 }
 
+export function useCancelUnpaidInspectionPaymentOrder(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.cancelUnpaidPaymentOrder(inspectionId!),
+    onSuccess: () => {
+      showToast('Unpaid payment order cleared. You can choose a payment method again.');
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not cancel the active payment order.'), 'error'),
+  });
+}
+
 export function useReportPaymentStatus(
   inspectionId: string | null,
-  options?: { pollIntervalMs?: number | false },
+  options?: {
+    pollIntervalMs?: number | false;
+    pollWhenUnpaid?: boolean;
+    pollWhenPayoutUnpaid?: boolean;
+  },
 ) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],
     queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
     enabled: Boolean(inspectionId),
-    refetchInterval: options?.pollIntervalMs ?? false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (options?.pollWhenUnpaid) {
+        return data?.paid || data?.paymentStatus === 'PAID' ? false : 3000;
+      }
+      if (options?.pollWhenPayoutUnpaid) {
+        const payoutStatus = (data?.payoutStatus ?? '').toUpperCase();
+        return payoutStatus === 'PAID' || payoutStatus === 'SETTLED' ? false : 3000;
+      }
+      return options?.pollIntervalMs ?? false;
+    },
   });
 }
 

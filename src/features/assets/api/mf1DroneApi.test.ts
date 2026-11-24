@@ -26,8 +26,8 @@ describe('inspector drone registration API', () => {
     };
     await mf1DroneApi.submit(payload);
     expect(api.post).toHaveBeenCalledWith('/drone-registration-applications', payload);
-    await mf1DroneApi.submit({ ...payload, maxAltitudeMeters: undefined });
-    expect(api.post).toHaveBeenLastCalledWith('/drone-registration-applications', expect.objectContaining({ maxWindResistanceMps: 12, maxAltitudeMeters: undefined }));
+    await mf1DroneApi.submit({ ...payload, maxAltitudeMeters: undefined, mtowKg: 6.47, maxFlightTimeMinutes: 55, cameraSensor: '20 MP' });
+    expect(api.post).toHaveBeenLastCalledWith('/drone-registration-applications', expect.objectContaining({ maxWindResistanceMps: 12, maxAltitudeMeters: undefined, mtowKg: 6.47, maxFlightTimeMinutes: 55, cameraSensor: '20 MP' }));
   });
 
   it('uploads drone evidence with a typed evidence category and returns the server key', async () => {

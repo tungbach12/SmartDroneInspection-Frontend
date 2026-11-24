@@ -79,6 +79,10 @@ export interface InspectorPayoutSummary {
   recordedAt: string | null;
   heldForRefund?: boolean;
   finalPayoutAmount?: number | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountHolder?: string | null;
+  bankBranch?: string | null;
 }
 
 export interface InspectorReceivableRecoverySummary {
@@ -238,6 +242,7 @@ export interface ManagerFinanceHistoryItem {
   payoutStatus: string;
   payoutReference: string | null;
   payoutRecordedAt: string | null;
+  payoutUpdatedAt?: string | null;
 }
 
 export interface ManagerFinanceHistoryPage {
@@ -603,9 +608,14 @@ export const contractApi = {
     return data;
   },
 
-  async listManagerFinanceHistory(page = 0, size = 20): Promise<ManagerFinanceHistoryPage> {
+  async listManagerFinanceHistory(
+    page = 0,
+    size = 20,
+    scope?: 'REVENUE' | 'PAYOUTS',
+  ): Promise<ManagerFinanceHistoryPage> {
+    const scopeParam = scope ? `&scope=${scope}` : '';
     const { data } = await api.get<ManagerFinanceHistoryPage>(
-      `/contracts/requests/finance-history/manager?page=${page}&size=${size}`,
+      `/contracts/requests/finance-history/manager?page=${page}&size=${size}${scopeParam}`,
     );
     return data;
   },
@@ -632,6 +642,16 @@ export const contractApi = {
     const { data } = await api.post<ServiceRequest>(
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/confirm-payment`,
       input,
+    );
+    return data;
+  },
+
+  async cancelUnpaidPaymentOrder(
+    requestId: string,
+    occurrenceId: string,
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/cancel-unpaid-order`,
     );
     return data;
   },
@@ -690,6 +710,26 @@ export const contractApi = {
       `/contracts/requests/${requestId}/occurrences/${occurrenceId}/record-payout`,
       input,
     );
+    return data;
+  },
+
+  async createOccurrenceSepayPayoutLink(
+    requestId: string,
+    occurrenceId: string,
+  ): Promise<{
+    orderCode: number;
+    amount: number;
+    paymentLinkId: string;
+    checkoutUrl: string;
+    qrCode: string;
+  }> {
+    const { data } = await api.post<{
+      orderCode: number;
+      amount: number;
+      paymentLinkId: string;
+      checkoutUrl: string;
+      qrCode: string;
+    }>(`/contracts/requests/${requestId}/occurrences/${occurrenceId}/sepay/create-payout-link`);
     return data;
   },
 

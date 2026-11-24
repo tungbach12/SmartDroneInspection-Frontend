@@ -44,6 +44,10 @@ export interface DroneRegistrationApplication {
   maxWindResistanceMps?: number | null;
   maxAltitudeMeters?: number | null;
   opticalZoomLevel?: string | null;
+  mtowKg?: number | null;
+  maxFlightTimeMinutes?: number | null;
+  cameraSensor?: string | null;
+  legalCategory?: string | null;
   hasThermalCamera?: boolean;
   hasRtk?: boolean;
   documentFiles?: Record<string, string> | null;

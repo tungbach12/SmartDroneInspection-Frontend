@@ -1655,7 +1655,7 @@ function BatteryAndModeSummaryCard({
                     flexGrow: Math.max(item.pct, 4),
                     flexBasis: 0,
                     bgcolor: item.color,
-                    borderRadius: '5px',
+                    borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     px: 1,
@@ -1694,7 +1694,7 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
         sx={{
           width: 10,
           height: 10,
-          borderRadius: '2px',
+          borderRadius: '6px',
           bgcolor: color,
           flexShrink: 0,
         }}

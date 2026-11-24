@@ -219,10 +219,10 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
 ] as const;
 
 /**
- * Manager workspace stages (3 steps):
- * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
+ * Platform Manager workspace stages (4 steps):
+ * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Inspector Payout -> 4. Customer Settlement
  */
-const REVIEWER_STEPS: readonly WorkflowStep[] = [
+const MANAGER_REVIEWER_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
     value: 'audit',
@@ -237,18 +237,48 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
     value: 'review',
     label: 'Report Decision',
     title: 'Report Decision',
-    sublabel: 'Publish or Return',
+    sublabel: 'Approve or Return',
     to: 'review',
     icon: AssignmentTurnedInOutlined,
   },
   {
     step: 3,
+    value: 'payout',
+    label: 'Inspector Payout',
+    title: 'Inspector Payout',
+    sublabel: 'Transfer & Publish',
+    to: 'payout',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 4,
     value: 'settlement',
-    label: 'Commission',
-    title: 'Commission & Settlement',
-    sublabel: 'Fee & Payout',
+    label: 'Customer Settlement',
+    title: 'Customer Settlement',
+    sublabel: 'Invoice & Payment',
     to: 'settlement',
     icon: FactCheckOutlined,
+  },
+] as const;
+
+const ADMIN_REVIEWER_STEPS: readonly WorkflowStep[] = [
+  {
+    step: 1,
+    value: 'audit',
+    label: 'Field Audit',
+    title: 'Field & Evidence Audit',
+    sublabel: 'Flight & Captures',
+    to: 'audit',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
+    value: 'review',
+    label: 'Report Decision',
+    title: 'Report Decision',
+    sublabel: 'Inspect Deliverable',
+    to: 'review',
+    icon: AssignmentTurnedInOutlined,
   },
 ] as const;
 
@@ -267,7 +297,7 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     value: 'report',
     label: 'Official Report',
     title: 'Inspection Report',
-    sublabel: 'Published Deliverable',
+    sublabel: 'Review & Acceptance',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -275,8 +305,8 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     step: 3,
     value: 'settlement',
     label: 'Settlement',
-    title: 'Acceptance & Payment',
-    sublabel: 'Accept & Sepay',
+    title: 'Service Payment',
+    sublabel: 'Sepay, VNPay & Receipt',
     to: 'settlement',
     icon: FactCheckOutlined,
   },
@@ -335,10 +365,12 @@ export default function InspectionDetailPage() {
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
+  const reviewerSteps =
+    reviewerPortal === 'manager' ? MANAGER_REVIEWER_STEPS : ADMIN_REVIEWER_STEPS;
   const steps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
-      ? REVIEWER_STEPS
+      ? reviewerSteps
       : isReinspection
         ? REINSPECTION_STEPS
         : INSPECTOR_STEPS;
@@ -390,8 +422,14 @@ export default function InspectionDetailPage() {
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
+  const hasApprovedVersion = Boolean(
+    versions.data?.some((version) => version.status === 'APPROVED'),
+  );
   const paymentStatusQuery = useReportPaymentStatus?.(
-    hasPublishedVersion && (isReviewerAdmin || isCustomer) ? inspectionId : null,
+    (hasPublishedVersion || (hasApprovedVersion && isReviewerAdmin)) &&
+      (isReviewerAdmin || isCustomer)
+      ? inspectionId
+      : null,
   );
   const isCustomerAccepted = Boolean(paymentStatusQuery?.data?.reportAccepted);
   const isPaymentSettled =
@@ -596,7 +634,7 @@ export default function InspectionDetailPage() {
   const visibleSteps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
-      ? REVIEWER_STEPS
+      ? reviewerSteps
       : steps;
 
   const reviewerSourceRoutes = ['evidence', 'findings'];
@@ -626,6 +664,7 @@ export default function InspectionDetailPage() {
         'findings',
         'audit',
         'review',
+        'payout',
       ];
       if (forbiddenForCustomer.includes(current)) {
         const dest = hasPublishedVersion ? 'report' : 'tracking';
@@ -646,7 +685,7 @@ export default function InspectionDetailPage() {
         return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
       }
       if (stepValue === 'report') {
-        return hasPublishedVersion;
+        return hasPublishedVersion && (isCustomerAccepted || isPaymentSettled);
       }
       if (stepValue === 'settlement') {
         return (
@@ -658,9 +697,16 @@ export default function InspectionDetailPage() {
     }
     if (isReviewerAdmin) {
       if (stepValue === 'audit') {
-        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
+        return (
+          ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) ||
+          hasApprovedVersion ||
+          hasPublishedVersion
+        );
       }
       if (stepValue === 'review') {
+        return hasApprovedVersion || hasPublishedVersion;
+      }
+      if (stepValue === 'payout') {
         return hasPublishedVersion;
       }
       if (stepValue === 'settlement') {
@@ -763,11 +809,18 @@ export default function InspectionDetailPage() {
     if (step.value === 'evidence' && !isFieldWorkComplete) return 'blocked';
     if (step.value === 'findings' && !hasEvidence) return 'blocked';
     if (step.value === 'report' && !findingsComplete) return 'blocked';
+    if (step.value === 'payout' && !hasApprovedVersion && !hasPublishedVersion) return 'blocked';
+    if (step.value === 'settlement' && !hasPublishedVersion) return 'blocked';
     if (tabValue === step.value) return 'active';
     if (step.value === 'permit' || step.value === 'audit') return 'ready';
     if (step.value === 'field-session') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'review') return versions.data?.length ? 'ready' : 'blocked';
-    if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
+    if (step.value === 'payout') {
+      return hasApprovedVersion || hasPublishedVersion ? 'ready' : 'blocked';
+    }
+    if (step.value === 'settlement') {
+      return hasPublishedVersion ? 'ready' : 'blocked';
+    }
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
@@ -810,8 +863,11 @@ export default function InspectionDetailPage() {
     if (step.value === 'review' && !versions.data?.length) {
       return t('Awaiting Inspector report submission before manager review.');
     }
+    if (step.value === 'payout' && !hasApprovedVersion && !hasPublishedVersion) {
+      return t('Approve the inspection report before settling Inspector payout.');
+    }
     if (step.value === 'settlement' && !hasPublishedVersion) {
-      return t('Publish the official inspection report before reviewing settlement.');
+      return t('Settle Inspector payout and publish the report before tracking customer settlement.');
     }
     return null;
   };
@@ -1071,6 +1127,7 @@ export default function InspectionDetailPage() {
                         </Box>
                       )}
                       <Typography
+                        component="span"
                         variant="subtitle2"
                         className="asset-title-text"
                         sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
@@ -1417,7 +1474,7 @@ export default function InspectionDetailPage() {
               const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
               const isCompleted = state === 'complete';
               const completeGreen = '#176B52';
-              const activePrimary = '#2B84EB';
+              const activePrimary = 'primary.main';
 
               return (
                 <ButtonBase
@@ -1565,7 +1622,7 @@ export default function InspectionDetailPage() {
                             mt: 0.25,
                             fontSize: '0.72rem',
                             fontWeight: 600,
-                            color: '#2B84EB',
+                            color: 'primary.main',
                             lineHeight: 1.2,
                             whiteSpace: 'nowrap',
                           }}
@@ -1593,7 +1650,7 @@ export default function InspectionDetailPage() {
                   const isCurrent = tabValue === step.value;
                   const isCompleted = state === 'complete';
                   const completeGreen = '#176B52';
-                  const activePrimary = '#2B84EB';
+                  const activePrimary = 'primary.main';
                   return (
                     <Box
                       key={step.value}
@@ -1603,6 +1660,7 @@ export default function InspectionDetailPage() {
                         component={NavLink}
                         to={step.to}
                         aria-current={isCurrent ? 'step' : undefined}
+                        aria-disabled={state === 'blocked' ? true : undefined}
                         aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
                         title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
                         sx={{
@@ -1623,7 +1681,7 @@ export default function InspectionDetailPage() {
                             : isCurrent
                               ? activePrimary
                               : 'text.secondary',
-                          boxShadow: isCurrent ? '0 0 0 3px rgba(43, 132, 235, 0.2)' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}

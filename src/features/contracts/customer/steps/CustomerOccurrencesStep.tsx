@@ -1,7 +1,7 @@
 import {
   Box,
   Button,
-  Chip,
+  Paper,
   Stack,
   Table,
   TableBody,
@@ -14,11 +14,10 @@ import {
   useTheme,
 } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import { Link } from 'react-router-dom';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../../api/contractApi';
-import { ContractFileBanner } from '../../shared/ContractFileBanner';
 
 interface CustomerOccurrencesStepProps {
   request: ServiceRequest;
@@ -27,28 +26,30 @@ interface CustomerOccurrencesStepProps {
 
 export function CustomerOccurrencesStep({
   request,
-  onError,
 }: CustomerOccurrencesStepProps) {
   const { formatNumber, t } = useLocale();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true });
+  const isOneTime =
+    request.requestType === 'ONE_TIME' && request.occurrences.length <= 1;
 
   return (
-    <Stack spacing={2.5}>
-      <ContractFileBanner request={request} onError={onError} />
-
-      <Box
+    <Stack spacing={2}>
+      <Paper
+        variant="outlined"
         sx={{
-          border: '1px solid',
           borderColor: 'divider',
-          borderRadius: '10px',
+          borderRadius: '12px',
           bgcolor: 'background.paper',
+          boxShadow: 'none',
           overflow: 'hidden',
         }}
       >
-        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>
-            {t('Occurrences')} ({request.occurrences.length})
+            {isOneTime
+              ? t('Scheduled inspection')
+              : `${t('Occurrences')} (${request.occurrences.length})`}
           </Typography>
         </Box>
 
@@ -81,13 +82,14 @@ export function CustomerOccurrencesStep({
                   <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                     <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {t('Occurrence')} {occurrence.occurrenceIndex}
+                        {isOneTime
+                          ? t('Inspection flight')
+                          : `${t('Occurrence')} ${occurrence.occurrenceIndex}`}
                       </Typography>
-                      <Chip
-                        size="small"
-                        label={occurrence.status === 'ASSIGNED' ? t('Assigned') : t('Unassigned')}
-                        color={isAssigned ? 'success' : 'default'}
-                        sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
+                      <StatusChip
+                        status={isAssigned ? 'assigned' : 'pending'}
+                        label={occurrence.status === 'ASSIGNED' ? 'Assigned' : 'Unassigned'}
+                        tone={isAssigned ? 'success' : 'default'}
                       />
                     </Stack>
                     <Typography variant="body2" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -107,32 +109,10 @@ export function CustomerOccurrencesStep({
 
                   <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                      {isPaid && (
-                        <Chip
-                          size="small"
-                          icon={<CheckCircleRounded sx={{ fontSize: 14 }} />}
-                          label={t('Paid')}
-                          color="success"
-                          variant="outlined"
-                          sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                        />
-                      )}
-                      {isPaymentDue && (
-                        <Chip
-                          size="small"
-                          label={t('Payment Due')}
-                          color="warning"
-                          sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                        />
-                      )}
+                      {isPaid && <StatusChip status="paid" label="Paid" tone="success" />}
+                      {isPaymentDue && <StatusChip status="payment_due" label="Payment Due" tone="warning" />}
                       {occurrence.reportAcceptedAt && (
-                        <Chip
-                          size="small"
-                          label={t('Report accepted')}
-                          color="success"
-                          variant="outlined"
-                          sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                        />
+                        <StatusChip status="accepted" label="Report accepted" tone="success" />
                       )}
                     </Stack>
                     {inspectionUrl && (
@@ -163,18 +143,18 @@ export function CustomerOccurrencesStep({
           <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
-                  {t('Occurrence')}
+              <TableRow sx={{ bgcolor: 'background.default' }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>
+                  {isOneTime ? t('Inspection') : t('Occurrence')}
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>
                   {t('Requested window')}
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>{t('Status')}</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>{t('Status')}</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>
                   {t('Service invoice')}
                 </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>
+                <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>
                   {t('Action')}
                 </TableCell>
               </TableRow>
@@ -192,9 +172,11 @@ export function CustomerOccurrencesStep({
                 return (
                   <TableRow key={occurrence.id} hover>
                     <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      {t('Occurrence')} {occurrence.occurrenceIndex}
+                      {isOneTime
+                        ? t('Inspection flight')
+                        : `${t('Occurrence')} ${occurrence.occurrenceIndex}`}
                     </TableCell>
-                    <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <TableCell sx={{ fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}>
                       {new Date(occurrence.plannedStartAt).toLocaleString(undefined, {
                         timeZone: request.timezone,
                       })}{' '}
@@ -205,20 +187,13 @@ export function CustomerOccurrencesStep({
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                        <Chip
-                          size="small"
-                          label={occurrence.status === 'ASSIGNED' ? t('Assigned') : t('Unassigned')}
-                          color={isAssigned ? 'success' : 'default'}
-                          sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
+                        <StatusChip
+                          status={isAssigned ? 'assigned' : 'pending'}
+                          label={occurrence.status === 'ASSIGNED' ? 'Assigned' : 'Unassigned'}
+                          tone={isAssigned ? 'success' : 'default'}
                         />
                         {occurrence.reportAcceptedAt && (
-                          <Chip
-                            size="small"
-                            label={t('Report accepted')}
-                            color="success"
-                            variant="outlined"
-                            sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                          />
+                          <StatusChip status="accepted" label="Report accepted" tone="success" />
                         )}
                       </Stack>
                     </TableCell>
@@ -227,23 +202,9 @@ export function CustomerOccurrencesStep({
                         <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {feeVnd}
                         </Typography>
-                        {isPaid && (
-                          <Chip
-                            size="small"
-                            icon={<CheckCircleRounded sx={{ fontSize: 14 }} />}
-                            label={t('Paid')}
-                            color="success"
-                            variant="outlined"
-                            sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                          />
-                        )}
+                        {isPaid && <StatusChip status="paid" label="Paid" tone="success" />}
                         {isPaymentDue && (
-                          <Chip
-                            size="small"
-                            label={t('Payment Due')}
-                            color="warning"
-                            sx={{ height: 22, borderRadius: '6px', fontWeight: 600 }}
-                          />
+                          <StatusChip status="payment_due" label="Payment Due" tone="warning" />
                         )}
                       </Stack>
                     </TableCell>
@@ -280,7 +241,7 @@ export function CustomerOccurrencesStep({
           </Table>
         </TableContainer>
         )}
-      </Box>
+      </Paper>
     </Stack>
   );
 }

@@ -34,11 +34,22 @@ describe('MF1 guarded onboarding routes', () => {
   it.each([
     ['/admin/onboarding-reviews', 'onboarding-reviews'],
     ['/manager/onboarding-reviews', 'onboarding-reviews'],
+    ['/admin/drone-registrations', 'drone-registrations'],
+    ['/manager/drone-registrations', 'drone-registrations'],
+    ['/admin/customer-airspace', 'customer-airspace'],
+    ['/manager/payout-settlements', 'payout-settlements'],
     ['/manager/inspections/inspection-1/review', 'review'],
+    ['/manager/inspections/inspection-1/payout', 'payout'],
     ['/operations/inspector-drones', 'inspector-drones'],
   ])('matches guarded route %s', (path, expected) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path).toBe(expected);
+  });
+
+  it('keeps manager-only payout settlements and admin-only airspace off other portals', () => {
+    expect(matchRoutes(router.routes, '/client/payout-settlements')?.at(-1)?.route.path).toBe('*');
+    expect(matchRoutes(router.routes, '/operations/payout-settlements')?.at(-1)?.route.path).toBe('*');
+    expect(matchRoutes(router.routes, '/manager/customer-airspace')?.at(-1)?.route.path).toBe('*');
   });
 });
 
@@ -49,11 +60,14 @@ describe('role aligned inspection workspaces', () => {
   });
 
   it.each([
+    '/admin/inspections/inspection-1/payout',
     '/admin/inspections/inspection-1/settlement',
     '/admin/inspections/inspection-1/pre-flight',
     '/admin/inspections/inspection-1/field-session',
     '/admin/inspections/inspection-1/post-flight',
     '/client/inspections/inspection-1/audit',
+    '/client/inspections/inspection-1/payout',
+    '/operations/inspections/inspection-1/payout',
   ])('does not expose the business-only stage %s to that portal', (path) => {
     const matches = matchRoutes(router.routes, path);
     expect(matches?.at(-1)?.route.path).toBe('*');

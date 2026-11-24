@@ -537,7 +537,7 @@ describe('ReportDerivedSections confirmed findings', () => {
     expect(within(mapSection).getByText('Findings location map')).toBeTruthy();
 
     // Clicking pin F-2 updates the map's right-hand findings summary to ev-east
-    fireEvent.click(within(mapSection).getByRole('button', { name: 'Finding pin photo-02-defect-east.jpg' }));
+    fireEvent.click(within(mapSection).getByRole('button', { name: 'Finding F-2 · MEDIUM' }));
     expect(within(mapSection).getAllByText('F-2').length).toBeGreaterThanOrEqual(2);
     expect(within(mapSection).getByText('abscission')).toBeTruthy();
     expect(within(mapSection).getByText('MEDIUM')).toBeTruthy();
