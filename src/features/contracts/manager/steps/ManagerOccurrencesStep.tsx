@@ -455,7 +455,7 @@ function ManagerOccurrenceRow({
             {isAssigned && occurrence.inspectionId && (
               <Button
                 component={Link}
-                to={`/manager/inspections/${occurrence.inspectionId}/review`}
+                to={`/manager/inspections/${occurrence.inspectionId}/audit`}
                 size="small"
                 variant="outlined"
                 endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
@@ -623,24 +623,6 @@ function ManagerOccurrenceRow({
                     }}
                   >
                     {t('Messages')}
-                  </Button>
-                )}
-                {occurrence.inspectionId && (
-                  <Button
-                    component={Link}
-                    to={`/manager/inspections/${occurrence.inspectionId}/audit`}
-                    size="small"
-                    variant="outlined"
-                    endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
-                    sx={{
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {t('Open review')}
                   </Button>
                 )}
               </Stack>
