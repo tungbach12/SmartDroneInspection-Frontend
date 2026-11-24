@@ -25,6 +25,7 @@ export interface CustomThemeContextValue {
   setBackgroundTarget: (target: BackgroundTarget) => void;
   setSurfaceOpacity: (opacity: number) => void;
   setCursorStyle: (style: CursorStyleId) => void;
+  setCursorColor: (color: string) => void;
   setCursorEffect: (effect: CursorEffectId) => void;
   resetToDefault: () => void;
 }
@@ -46,6 +47,7 @@ export const CustomThemeContext = createContext<CustomThemeContextValue>({
   setBackgroundTarget: noop,
   setSurfaceOpacity: noop,
   setCursorStyle: noop,
+  setCursorColor: noop,
   setCursorEffect: noop,
   resetToDefault: noop,
 });

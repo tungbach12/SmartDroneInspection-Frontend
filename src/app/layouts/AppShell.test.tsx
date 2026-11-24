@@ -152,6 +152,7 @@ describe('AppShell with NotificationBell integration', () => {
     });
 
     fireEvent.click(screen.getByTestId('theme-customizer-trigger'));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(await screen.findByTestId('theme-customization-panel')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('bg-preset-teal-mesh'));

@@ -19,15 +19,19 @@ import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { NextAdminMoonIcon, NextAdminSunIcon } from '@/shared/ui/NextAdminIcons';
 import {
+  CURSOR_COLOR_SWATCHES,
+  CURSOR_STYLE_OPTIONS,
+  CursorDesignSvg,
+  resolveCursorColors,
+} from './cursorDesigns';
+import {
   BACKGROUND_PRESETS,
   CURSOR_EFFECT_OPTIONS,
-  CURSOR_STYLE_OPTIONS,
   DEFAULT_USER_THEME_PREFERENCES,
   THEME_PRESETS,
   type BackgroundSource,
   type BackgroundTarget,
   type CursorEffectId,
-  type CursorStyleId,
 } from './customTheme';
 import { useCustomTheme } from './CustomThemeContext';
 
@@ -46,6 +50,7 @@ export function ThemeCustomizationPanel({
   const isDark = useIsDarkMode();
   const {
     preferences,
+    activePreset,
     activeBackgroundUrl,
     storageError,
     clearStorageError,
@@ -58,9 +63,15 @@ export function ThemeCustomizationPanel({
     setBackgroundTarget,
     setSurfaceOpacity,
     setCursorStyle,
+    setCursorColor,
     setCursorEffect,
     resetToDefault,
   } = useCustomTheme();
+
+  const { primary: cursorPrimary, secondary: cursorSecondary } = resolveCursorColors(
+    preferences.cursorColor,
+    activePreset,
+  );
 
   const [uploadPending, setUploadPending] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -71,6 +82,7 @@ export function ThemeCustomizationPanel({
     preferences.backgroundTarget !== DEFAULT_USER_THEME_PREFERENCES.backgroundTarget ||
     preferences.surfaceOpacity !== DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity ||
     preferences.cursorStyle !== DEFAULT_USER_THEME_PREFERENCES.cursorStyle ||
+    preferences.cursorColor !== DEFAULT_USER_THEME_PREFERENCES.cursorColor ||
     preferences.cursorEffect !== DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
 
   const handleSourceChange = (
@@ -645,60 +657,214 @@ export function ThemeCustomizationPanel({
 
       <Divider />
 
-      {/* Cursor Style & Effect Selectors */}
-      <Stack spacing={1.75}>
+      {/* Cursor Style, Color & Trail Effect Selectors */}
+      <Stack spacing={2}>
         <Box>
           <Typography sx={{ fontWeight: 600, fontSize: '0.9375rem', color: 'text.primary' }}>
             {isVi ? 'Thiết kế con trỏ chuột' : 'Mouse cursor design'}
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+            {isVi
+              ? 'Chọn 1 trong 10 kiểu con trỏ hoặc dùng con trỏ mặc định của hệ thống.'
+              : 'Pick from 10 custom pointer designs or keep the default OS cursor.'}
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: compact
+                ? 'repeat(3, minmax(0, 1fr))'
+                : { xs: 'repeat(3, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+              gap: 1,
+            }}
+          >
+            {CURSOR_STYLE_OPTIONS.map((opt) => {
+              const selected = preferences.cursorStyle === opt.id;
+              return (
+                <Box
+                  key={opt.id}
+                  component="button"
+                  type="button"
+                  onClick={() => setCursorStyle(opt.id)}
+                  aria-pressed={selected}
+                  data-testid={`cursor-style-${opt.id}`}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 0.75,
+                    p: 1,
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: selected ? 'primary.main' : 'divider',
+                    bgcolor: selected
+                      ? isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'action.selected'
+                      : 'background.paper',
+                    color: 'text.primary',
+                    cursor: 'pointer',
+                    transition: 'border-color 140ms ease, background-color 140ms ease',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                    },
+                    '&:focus-visible': {
+                      outline: '2px solid',
+                      outlineColor: 'primary.main',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.default',
+                      display: 'grid',
+                      placeItems: 'center',
+                    }}
+                  >
+                    <CursorDesignSvg
+                      styleId={opt.id}
+                      primary={cursorPrimary}
+                      secondary={cursorSecondary}
+                      isDark={isDark}
+                      size={22}
+                    />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{
+                      maxWidth: '100%',
+                      fontWeight: selected ? 700 : 600,
+                      fontSize: '0.72rem',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {isVi ? opt.labelVi : opt.labelEn}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+
+        {/* Cursor Color Picker */}
+        <Box>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'text.primary' }}>
+            {isVi ? 'Màu sắc con trỏ & vệt chuột' : 'Cursor & trail color'}
+          </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
             {isVi
-              ? 'Thay con trỏ hệ thống bằng Waypoint Diamond hoặc dùng con trỏ mặc định.'
-              : 'Use the Waypoint Diamond pointer across the app or keep the OS cursor.'}
+              ? 'Theo màu chủ đề hiện tại hoặc chọn màu riêng cho con trỏ.'
+              : 'Follow the active theme accent or pick a dedicated cursor color.'}
           </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={preferences.cursorStyle}
-            onChange={(_e, nextStyle: CursorStyleId | null) => {
-              if (nextStyle) setCursorStyle(nextStyle);
-            }}
-            aria-label={isVi ? 'Thiết kế con trỏ chuột' : 'Mouse cursor design'}
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 0.75,
-              '& .MuiToggleButtonGroup-grouped': {
-                borderRadius: '8px !important',
-                border: '1px solid var(--mui-palette-divider) !important',
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
+            <Button
+              type="button"
+              size="small"
+              variant={preferences.cursorColor === 'theme' ? 'contained' : 'outlined'}
+              onClick={() => setCursorColor('theme')}
+              data-testid="cursor-color-theme"
+              sx={{
+                borderRadius: '8px',
                 textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.75rem',
-                px: 1.25,
-                py: 0.625,
-              },
-              '& .MuiToggleButton-root.Mui-selected': {
-                borderColor: 'var(--mui-palette-primary-main) !important',
-              },
-            }}
-          >
-            {CURSOR_STYLE_OPTIONS.map((opt) => (
-              <ToggleButton
-                key={opt.id}
-                value={opt.id}
-                data-testid={`cursor-style-${opt.id}`}
-              >
-                {isVi ? opt.labelVi : opt.labelEn}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+                minHeight: 32,
+              }}
+            >
+              {isVi ? 'Theo chủ đề' : 'Match theme'}
+            </Button>
+
+            {CURSOR_COLOR_SWATCHES.map((swatch) => {
+              const selected =
+                preferences.cursorColor.toLowerCase() === swatch.primary.toLowerCase();
+              return (
+                <Box
+                  key={swatch.id}
+                  component="button"
+                  type="button"
+                  onClick={() => setCursorColor(swatch.primary)}
+                  aria-label={isVi ? swatch.labelVi : swatch.labelEn}
+                  aria-pressed={selected}
+                  data-testid={`cursor-color-${swatch.primary.slice(1).toLowerCase()}`}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '8px',
+                    border: '2px solid',
+                    borderColor: selected ? 'text.primary' : 'divider',
+                    background: `linear-gradient(135deg, ${swatch.primary}, ${swatch.secondary})`,
+                    cursor: 'pointer',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#FFFFFF',
+                    p: 0,
+                    '&:focus-visible': {
+                      outline: '2px solid',
+                      outlineColor: 'primary.main',
+                    },
+                  }}
+                >
+                  {selected && <CheckRounded sx={{ fontSize: 15 }} />}
+                </Box>
+              );
+            })}
+
+            <Box
+              component="label"
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                px: 1,
+                height: 32,
+                borderRadius: '8px',
+                border: '1px solid',
+                borderColor:
+                  preferences.cursorColor !== 'theme' &&
+                  !CURSOR_COLOR_SWATCHES.some(
+                    (s) => s.primary.toLowerCase() === preferences.cursorColor.toLowerCase(),
+                  )
+                    ? 'primary.main'
+                    : 'divider',
+                bgcolor: 'background.paper',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'text.secondary',
+              }}
+            >
+              <input
+                type="color"
+                value={cursorPrimary}
+                onChange={(e) => setCursorColor(e.target.value)}
+                aria-label={isVi ? 'Chọn màu con trỏ tùy chỉnh' : 'Custom cursor color'}
+                data-testid="cursor-color-picker"
+                style={{
+                  width: 18,
+                  height: 18,
+                  padding: 0,
+                  border: 0,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                }}
+              />
+              <span>{isVi ? 'Tùy chỉnh' : 'Custom'}</span>
+            </Box>
+          </Stack>
         </Box>
 
+        {/* Cursor Trail Effect */}
         <Box>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.9375rem', color: 'text.primary' }}>
+          <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'text.primary' }}>
             {isVi ? 'Hiệu ứng vệt chuột' : 'Cursor trail effect'}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
             {isVi
               ? 'Tự động tắt khi bật chế độ giảm chuyển động của hệ thống.'
               : 'Automatically respects system reduced-motion preferences.'}

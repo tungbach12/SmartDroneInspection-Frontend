@@ -1,4 +1,4 @@
-import { Box, Drawer, IconButton, Typography } from '@mui/material';
+import { Box, Dialog, IconButton, Typography } from '@mui/material';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { GlassIconBadge, GlassPaletteIcon } from '@/shared/ui/GradientGlassIcons';
@@ -14,33 +14,38 @@ export function ThemeCustomizerDrawer({ open, onClose }: ThemeCustomizerDrawerPr
   const isVi = locale === 'vi';
 
   return (
-    <Drawer
-      anchor="right"
+    <Dialog
       open={open}
       onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      aria-labelledby="theme-customizer-dialog-title"
       slotProps={{
         backdrop: {
           sx: {
-            bgcolor: 'rgba(9, 9, 11, 0.24)',
+            bgcolor: 'rgba(9, 9, 11, 0.28)',
           },
         },
         paper: {
           sx: {
-            width: { xs: '100%', sm: 400 },
-            maxWidth: '100vw',
+            width: '100%',
+            maxWidth: 740,
+            maxHeight: '88dvh',
+            borderRadius: '10px',
             bgcolor: 'background.paper',
-            borderLeft: '1px solid',
+            border: '1px solid',
             borderColor: 'divider',
-            boxShadow: 'none',
+            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.16)',
             display: 'flex',
             flexDirection: 'column',
+            overflow: 'hidden',
           },
         },
       }}
     >
       <Box
         sx={{
-          px: 2.5,
+          px: 3,
           py: 2,
           borderBottom: '1px solid',
           borderColor: 'divider',
@@ -56,13 +61,17 @@ export function ThemeCustomizerDrawer({ open, onClose }: ThemeCustomizerDrawerPr
             <GlassPaletteIcon size={18} />
           </GlassIconBadge>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-              {isVi ? 'Tùy chỉnh giao diện' : 'Customize theme'}
+            <Typography
+              id="theme-customizer-dialog-title"
+              variant="subtitle1"
+              sx={{ fontWeight: 700, lineHeight: 1.3 }}
+            >
+              {isVi ? 'Tùy chỉnh giao diện & Con trỏ chuột' : 'Customize Theme & Cursor'}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
               {isVi
-                ? 'Chọn bảng màu mặc định hoặc ảnh nền cá nhân'
-                : 'Select default, preset themes, or upload wallpaper'}
+                ? 'Chọn chủ đề, ảnh nền cá nhân, kiểu con trỏ chuột và màu sắc theo ý thích'
+                : 'Personalize color themes, wallpapers, mouse cursor design, and cursor color'}
             </Typography>
           </Box>
         </Box>
@@ -81,9 +90,9 @@ export function ThemeCustomizerDrawer({ open, onClose }: ThemeCustomizerDrawerPr
         </IconButton>
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
-        <ThemeCustomizationPanel showColorModeToggle compact />
+      <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, sm: 3 } }}>
+        <ThemeCustomizationPanel showColorModeToggle />
       </Box>
-    </Drawer>
+    </Dialog>
   );
 }

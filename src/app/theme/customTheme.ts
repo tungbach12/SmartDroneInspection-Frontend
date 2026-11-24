@@ -1,3 +1,8 @@
+import {
+  CURSOR_STYLE_OPTIONS,
+  type CursorStyleId,
+} from './cursorDesigns';
+
 export type ThemePresetId =
   | 'default'
   | 'aero-teal'
@@ -8,19 +13,8 @@ export type ThemePresetId =
 
 export type BackgroundSource = 'default' | 'preset' | 'custom';
 export type BackgroundTarget = 'both' | 'sidebar' | 'workspace';
-export type CursorStyleId = 'waypoint-diamond' | 'system';
 export type CursorEffectId = 'none' | 'trail' | 'spotlight' | 'reticle' | 'ripple';
-
-export interface CursorStyleOption {
-  id: CursorStyleId;
-  labelEn: string;
-  labelVi: string;
-}
-
-export const CURSOR_STYLE_OPTIONS: readonly CursorStyleOption[] = [
-  { id: 'waypoint-diamond', labelEn: 'Waypoint Diamond', labelVi: 'Waypoint Diamond' },
-  { id: 'system', labelEn: 'System Default', labelVi: 'Mặc định hệ thống' },
-] as const;
+export type { CursorStyleId };
 
 export interface CursorEffectOption {
   id: CursorEffectId;
@@ -68,6 +62,7 @@ export interface UserThemePreferences {
   backgroundTarget: BackgroundTarget;
   surfaceOpacity: number;
   cursorStyle: CursorStyleId;
+  cursorColor: string;
   cursorEffect: CursorEffectId;
 }
 
@@ -212,6 +207,7 @@ export const DEFAULT_USER_THEME_PREFERENCES: UserThemePreferences = {
   backgroundTarget: 'both',
   surfaceOpacity: 0.88,
   cursorStyle: 'waypoint-diamond',
+  cursorColor: 'theme',
   cursorEffect: 'trail',
 };
 
@@ -265,7 +261,17 @@ function isValidBackgroundTarget(value: unknown): value is BackgroundTarget {
 }
 
 function isValidCursorStyleId(value: unknown): value is CursorStyleId {
-  return value === 'waypoint-diamond' || value === 'system';
+  return (
+    typeof value === 'string' &&
+    CURSOR_STYLE_OPTIONS.some((option) => option.id === value)
+  );
+}
+
+function isValidCursorColor(value: unknown): value is string {
+  return (
+    value === 'theme' ||
+    (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value))
+  );
 }
 
 function isValidCursorEffectId(value: unknown): value is CursorEffectId {
@@ -309,6 +315,9 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
   const cursorStyle = isValidCursorStyleId(obj.cursorStyle)
     ? obj.cursorStyle
     : DEFAULT_USER_THEME_PREFERENCES.cursorStyle;
+  const cursorColor = isValidCursorColor(obj.cursorColor)
+    ? obj.cursorColor
+    : DEFAULT_USER_THEME_PREFERENCES.cursorColor;
   const cursorEffect = isValidCursorEffectId(obj.cursorEffect)
     ? obj.cursorEffect
     : DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
@@ -329,6 +338,7 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     backgroundTarget,
     surfaceOpacity,
     cursorStyle,
+    cursorColor,
     cursorEffect,
   };
 }

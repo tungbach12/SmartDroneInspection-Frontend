@@ -160,6 +160,17 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
     [updatePreferences],
   );
 
+  const setCursorColor = useCallback(
+    (cursorColor: string) => {
+      const normalized =
+        cursorColor === 'theme' || /^#[0-9a-fA-F]{6}$/.test(cursorColor)
+          ? cursorColor
+          : 'theme';
+      updatePreferences((prev) => ({ ...prev, cursorColor: normalized }));
+    },
+    [updatePreferences],
+  );
+
   const setCursorEffect = useCallback(
     (cursorEffect: CursorEffectId) => {
       updatePreferences((prev) => ({ ...prev, cursorEffect }));
@@ -189,6 +200,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       setBackgroundTarget,
       setSurfaceOpacity,
       setCursorStyle,
+      setCursorColor,
       setCursorEffect,
       resetToDefault,
     }),
@@ -207,6 +219,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       setBackgroundTarget,
       setSurfaceOpacity,
       setCursorStyle,
+      setCursorColor,
       setCursorEffect,
       resetToDefault,
     ],

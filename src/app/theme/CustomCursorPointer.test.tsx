@@ -6,9 +6,15 @@ import { useCustomTheme } from './CustomThemeContext';
 import { CustomThemeProvider } from './CustomThemeProvider';
 
 function PointerHarness() {
-  const { setCursorStyle } = useCustomTheme();
+  const { setCursorStyle, setCursorColor } = useCustomTheme();
   return (
     <div>
+      <button type="button" data-cursor-tag="FLY" onClick={() => setCursorStyle('pilot-badge')}>
+        Use Pilot Badge
+      </button>
+      <button type="button" onClick={() => setCursorColor('#087E8B')}>
+        Set Teal Cursor
+      </button>
       <button type="button" onClick={() => setCursorStyle('system')}>
         Use System Cursor
       </button>
@@ -18,7 +24,7 @@ function PointerHarness() {
   );
 }
 
-describe('CustomCursorPointer (Waypoint Diamond)', () => {
+describe('CustomCursorPointer (10 Designs + Color)', () => {
   const originalMatchMedia = window.matchMedia;
 
   beforeEach(() => {
@@ -48,7 +54,7 @@ describe('CustomCursorPointer (Waypoint Diamond)', () => {
     vi.restoreAllMocks();
   });
 
-  it('activates Waypoint Diamond globally, morphs on text inputs, and toggles back to system cursor', () => {
+  it('defaults to Waypoint Diamond, supports switching cursor design & color, and toggles to system cursor', () => {
     render(
       <CustomThemeProvider>
         <PointerHarness />
@@ -58,6 +64,19 @@ describe('CustomCursorPointer (Waypoint Diamond)', () => {
     expect(document.documentElement.classList.contains('sdi-custom-cursor')).toBe(true);
     const pointer = screen.getByTestId('custom-cursor-pointer');
     expect(pointer.getAttribute('data-cursor-style')).toBe('waypoint-diamond');
+
+    fireEvent.click(screen.getByText('Set Teal Cursor'));
+    expect(screen.getByTestId('custom-cursor-pointer').getAttribute('data-cursor-color')).toBe(
+      '#087E8B',
+    );
+
+    const pilotBtn = screen.getByText('Use Pilot Badge');
+    fireEvent.click(pilotBtn);
+    expect(screen.getByTestId('custom-cursor-pointer').getAttribute('data-cursor-style')).toBe(
+      'pilot-badge',
+    );
+    fireEvent(pilotBtn, new MouseEvent('pointermove', { bubbles: true, clientX: 60, clientY: 40 }));
+    expect(screen.getByTestId('custom-cursor-tag').textContent).toBe('FLY');
 
     const input = screen.getByLabelText('Search input');
     fireEvent(input, new MouseEvent('pointermove', { bubbles: true, clientX: 120, clientY: 80 }));

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { resolveCursorColors } from './cursorDesigns';
 import { hexToRgba } from './customTheme';
 import { useCustomTheme } from './CustomThemeContext';
 
@@ -56,8 +57,10 @@ export function CursorEffectOverlay() {
     }
     if (!ctx) return;
 
-    const primaryHex = activePreset.primary;
-    const accentHex = activePreset.primaryLight;
+    const { primary: primaryHex, secondary: accentHex } = resolveCursorColors(
+      preferences.cursorColor,
+      activePreset,
+    );
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -287,7 +290,7 @@ export function CursorEffectOverlay() {
       window.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('mouseleave', handlePointerLeave);
     };
-  }, [disabled, effect, activePreset.primary, activePreset.primaryLight]);
+  }, [disabled, effect, preferences.cursorColor, activePreset]);
 
   if (disabled) {
     return null;

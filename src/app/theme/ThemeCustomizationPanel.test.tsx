@@ -52,6 +52,14 @@ describe('ThemeCustomizationPanel', () => {
     fireEvent.click(screen.getByTestId('bg-target-sidebar'));
     expect(screen.getByTestId('bg-target-sidebar').getAttribute('aria-pressed')).toBe('true');
 
+    fireEvent.click(screen.getByTestId('cursor-style-micro-drone'));
+    expect(screen.getByTestId('cursor-style-micro-drone').getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('cursor-color-059669'));
+    expect(screen.getByTestId('cursor-color-059669').getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.change(screen.getByTestId('cursor-color-picker'), { target: { value: '#ff5500' } });
+
     fireEvent.click(screen.getByTestId('cursor-style-system'));
     expect(screen.getByTestId('cursor-style-system').getAttribute('aria-pressed')).toBe('true');
 
