@@ -357,8 +357,6 @@ export default function ManagerReportReviewPage({
           <PlatformSettlementInvoiceCard
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}
-            inspectorName={inspectionQuery.data?.inspectorName}
-            onSettlePayout={portal === 'manager' ? handleInlineSettlePayout : undefined}
             onManageFinance={
               portal === 'manager' ? () => void handleOpenFinanceDrawer() : undefined
             }
@@ -414,8 +412,6 @@ export default function ManagerReportReviewPage({
               <PlatformSettlementInvoiceCard
                 inspectionId={inspectionId}
                 paymentDetails={paymentStatusQuery.data}
-                inspectorName={inspectionQuery.data?.inspectorName}
-                onSettlePayout={portal === 'manager' ? handleInlineSettlePayout : undefined}
                 onManageFinance={
                   portal === 'manager' ? () => void handleOpenFinanceDrawer() : undefined
                 }
@@ -499,16 +495,12 @@ export default function ManagerReportReviewPage({
                     )}
                   </Box>
 
-                  {/* Vertical Sequential Sections separated by crisp 8px structural bands */}
+                  {/* Vertical Sequential Sections separated by crisp 2px section dividers */}
                   <Stack
                     divider={
-                      <Box
-                        aria-hidden="true"
+                      <Divider
                         sx={{
-                          height: 8,
-                          bgcolor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F4F4F5',
-                          borderTop: '1px solid',
-                          borderBottom: '1px solid',
+                          borderBottomWidth: 2,
                           borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#D4D4D8',
                         }}
                       />

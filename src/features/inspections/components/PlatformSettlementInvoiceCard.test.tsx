@@ -14,14 +14,14 @@ describe('PlatformSettlementInvoiceCard', () => {
   afterEach(() => {
     cleanup();
   });
-  it('shows separate collection and payout pills, recipient, reference, PDF download, and finance link when paid', async () => {
+
+  it('shows customer paid status, rounded invoice amounts, PDF receipt, and refunds dialog trigger without Inspector payout', () => {
     const onManageFinance = vi.fn();
 
     render(
       <LocaleProvider>
         <PlatformSettlementInvoiceCard
           inspectionId="insp-1"
-          inspectorName="Đỗ Thị Phi Công"
           onManageFinance={onManageFinance}
           paymentDetails={{
             reportAccepted: true,
@@ -38,39 +38,44 @@ describe('PlatformSettlementInvoiceCard', () => {
             tncnRate: 10,
             tncnAmount: 927272.73,
             inspectorNetPayout: 8345454.54,
-            payoutStatus: 'ELIGIBLE',
+            payoutStatus: 'PAID',
+            payoutReference: 'SEPAY-OUT-FT2601',
             paymentMethod: 'VNPAY',
             paymentReference: 'VNPAY-14998899',
+            paymentConfirmedAt: '2026-11-24T10:30:00Z',
           }}
         />
       </LocaleProvider>,
     );
 
-    expect(screen.getByText('Order & settlement breakdown')).toBeTruthy();
+    expect(screen.getByText('Customer Settlement')).toBeTruthy();
     expect(screen.getByText('INV-1858020523')).toBeTruthy();
     expect(screen.getByText('Customer paid')).toBeTruthy();
-    expect(screen.getByText('Payout eligible')).toBeTruthy();
-    expect(screen.getByText('Paid via VNPay · Order #1858020523 · Ref: VNPAY-14998899')).toBeTruthy();
-    expect(screen.getByText('Inspector gross payout')).toBeTruthy();
-    expect(screen.getByText('Đỗ Thị Phi Công · Eligible for manager payout')).toBeTruthy();
-    expect(screen.getAllByText(/Platform commission/)).toHaveLength(1);
-    expect(screen.queryByText('Platform revenue')).toBeNull();
+    expect(screen.getByText('Accepted')).toBeTruthy();
+    expect(screen.getByText('Paid at')).toBeTruthy();
+    expect(screen.getByText('VNPay · Order #1858020523 · Ref: VNPAY-14998899')).toBeTruthy();
+    expect(screen.getByText('10,909,091 ₫')).toBeTruthy();
 
-    const receiptBtn = screen.getByRole('button', { name: 'Download receipt (PDF)' });
-    fireEvent.click(receiptBtn);
+    expect(screen.queryByText('Commission & payout')).toBeNull();
+    expect(screen.queryByText('Inspector net payout')).toBeNull();
+    expect(screen.queryByText('Go to Inspector Payout')).toBeNull();
+    expect(screen.queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download receipt (PDF)' }));
     expect(vi.mocked(inspectionApi.downloadPaymentDocument)).toHaveBeenCalledWith('insp-1');
 
-    const manageBtn = screen.getByRole('button', { name: 'Manage payout & refunds' });
-    fireEvent.click(manageBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Refunds & adjustments' }));
     expect(onManageFinance).toHaveBeenCalledTimes(1);
   });
 
-  it('shows due date and Payment Notice download when report is accepted but unpaid', () => {
+  it('shows due date, Payment Notice download, and collection controls when report is accepted but unpaid', () => {
+    const onManageFinance = vi.fn();
+
     render(
       <LocaleProvider>
         <PlatformSettlementInvoiceCard
           inspectionId="insp-2"
-          inspectorName="Phạm Văn Bay"
+          onManageFinance={onManageFinance}
           paymentDetails={{
             reportAccepted: true,
             paid: false,
@@ -84,84 +89,11 @@ describe('PlatformSettlementInvoiceCard', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByText('Awaiting payment')).toBeTruthy();
-    expect(screen.getByText('Payout pending')).toBeTruthy();
+    expect(screen.getByText('Awaiting customer payment')).toBeTruthy();
     expect(screen.getByText(/Pay by/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download payment notice (PDF)' })).toBeTruthy();
-  });
 
-  it('settles payout inline via UNC reference when eligible and offers secondary drawer button', async () => {
-    const onSettlePayout = vi.fn().mockResolvedValue(undefined);
-    const onManageFinance = vi.fn();
-
-    render(
-      <LocaleProvider>
-        <PlatformSettlementInvoiceCard
-          inspectionId="insp-3"
-          inspectorName="Đỗ Thị Phi Công"
-          onSettlePayout={onSettlePayout}
-          onManageFinance={onManageFinance}
-          paymentDetails={{
-            reportAccepted: true,
-            paid: true,
-            paymentStatus: 'PAID',
-            orderCode: 1858020523,
-            amount: 12000000,
-            serviceBaseAmount: 10909090.91,
-            vatRate: 10,
-            vatAmount: 1090909.09,
-            commissionRate: 15,
-            commissionAmount: 1636363.64,
-            inspectorGrossPayout: 9272727.27,
-            tncnRate: 10,
-            tncnAmount: 927272.73,
-            inspectorNetPayout: 8345454.54,
-            payoutStatus: 'ELIGIBLE',
-            paymentMethod: 'VNPAY',
-          }}
-        />
-      </LocaleProvider>,
-    );
-
-    const input = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
-    const settleBtn = screen.getByRole('button', { name: 'Settle Inspector payout' });
-    expect((settleBtn as HTMLButtonElement).disabled).toBe(true);
-
-    fireEvent.change(input, { target: { value: 'UNC-VCB-20261124' } });
-    expect((settleBtn as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(settleBtn);
-    expect(onSettlePayout).toHaveBeenCalledWith('UNC-VCB-20261124');
-
-    const secondaryBtn = screen.getByRole('button', { name: 'Refunds & wire transfer' });
-    fireEvent.click(secondaryBtn);
+    fireEvent.click(screen.getByRole('button', { name: 'Collection & refund controls' }));
     expect(onManageFinance).toHaveBeenCalledTimes(1);
-  });
-
-  it('unlocks inline Inspector payout right after report approval even while Customer payment is PENDING', () => {
-    const onSettlePayout = vi.fn().mockResolvedValue(undefined);
-
-    render(
-      <LocaleProvider>
-        <PlatformSettlementInvoiceCard
-          inspectionId="insp-4"
-          inspectorName="Phạm Văn Bay"
-          onSettlePayout={onSettlePayout}
-          paymentDetails={{
-            reportAccepted: false,
-            paid: false,
-            paymentStatus: 'PENDING',
-            amount: 12000000,
-            payoutStatus: 'ELIGIBLE',
-          }}
-        />
-      </LocaleProvider>,
-    );
-
-    expect(screen.getByText('Awaiting customer')).toBeTruthy();
-    expect(screen.getByText('Payout eligible')).toBeTruthy();
-    const input = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
-    fireEvent.change(input, { target: { value: 'UNC-BIDV-20261124' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Settle Inspector payout' }));
-    expect(onSettlePayout).toHaveBeenCalledWith('UNC-BIDV-20261124');
   });
 });

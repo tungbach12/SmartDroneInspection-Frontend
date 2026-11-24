@@ -2,21 +2,24 @@ import { useState } from 'react';
 import {
   Alert,
   Box,
+  Dialog,
+  DialogContent,
   Divider,
-  Drawer,
   IconButton,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequestOccurrence } from '../../api/contractApi';
 import {
   useCancelUnpaidPaymentOrder,
   useConfirmOccurrencePayment,
-  useRecordOccurrencePayout,
 } from '../../hooks/useContracts';
 import { RefundControls } from '../../components/RefundControls';
 import { extractContractErrorText } from '../../shared/contractStage';
@@ -31,6 +34,54 @@ interface OccurrenceFinanceDrawerProps {
   onError?: (message: string) => void;
 }
 
+function formatCollectionMethod(method: string | null | undefined, t: (key: string) => string) {
+  const normalized = (method ?? '').trim().toUpperCase();
+  if (normalized === 'VNPAY') return 'VNPay';
+  if (normalized === 'SEPAY') return 'Sepay (VietQR)';
+  if (normalized === 'MANUAL_WIRE') return t('Bank transfer');
+  return method?.trim() || '';
+}
+
+function SummaryRow({
+  label,
+  value,
+  bold = false,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+}) {
+  return (
+    <Stack
+      direction="row"
+      spacing={2}
+      sx={{ justifyContent: 'space-between', alignItems: 'center', py: 0.45 }}
+    >
+      <Typography
+        variant="body2"
+        sx={{ color: bold ? 'text.primary' : 'text.secondary', fontWeight: bold ? 700 : 500 }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          color: 'text.primary',
+          fontWeight: bold ? 700 : 600,
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {value}
+      </Typography>
+    </Stack>
+  );
+}
+
+/**
+ * Centered modal for Customer collection overrides and post-payment Refunds & adjustments.
+ * Inspector payout disbursement is handled separately via SePay VietQR on Step 3 / Payouts.
+ */
 export function OccurrenceFinanceDrawer({
   open,
   onClose,
@@ -38,28 +89,23 @@ export function OccurrenceFinanceDrawer({
   occurrence,
   isOneTime = false,
   onChanged,
+  onError,
 }: OccurrenceFinanceDrawerProps) {
   const { formatNumber, t } = useLocale();
-  const [payoutRef, setPayoutRef] = useState('');
+  const isDark = useIsDarkMode();
   const [paymentRef, setPaymentRef] = useState('');
   const [drawerError, setDrawerError] = useState('');
   const confirmPayment = useConfirmOccurrencePayment(requestId, occurrence?.id ?? '');
   const cancelUnpaidOrder = useCancelUnpaidPaymentOrder(requestId, occurrence?.id ?? '');
-  const recordPayout = useRecordOccurrencePayout(requestId, occurrence?.id ?? '');
 
   if (!occurrence) return null;
 
+  const paymentStatus = (occurrence.payment?.status ?? occurrence.paymentStatus ?? 'PENDING').toUpperCase();
   const isPaid = occurrence.paymentStatus === 'PAID';
   const totalPrice = occurrence.totalPrice;
-  const feeVnd = totalPrice != null && totalPrice > 0 ? `${formatNumber(totalPrice)} ₫` : null;
+  const feeVnd = totalPrice != null && totalPrice > 0 ? `${formatNumber(Math.round(totalPrice))} ₫` : null;
   const invoice = occurrence.invoice;
   const payment = occurrence.payment;
-  const payout = occurrence.payout;
-  const hasCompleteBankDetails = Boolean(
-    payout?.bankName?.trim() &&
-      payout?.bankAccountNumber?.trim() &&
-      payout?.bankAccountHolder?.trim(),
-  );
   const isReportAccepted = Boolean(occurrence.reportAcceptedAt ?? invoice?.reportAcceptedAt);
   const canConfirmManualPayment =
     occurrence.paymentStatus === 'PAYMENT_DUE' &&
@@ -68,12 +114,30 @@ export function OccurrenceFinanceDrawer({
     totalPrice > 0;
   const hasUnpaidGatewayOrder =
     occurrence.paymentStatus === 'PAYMENT_DUE' && Boolean(payment?.gatewayOrderCode);
-  const effectivePayoutStatus = (payout?.status ?? occurrence.payoutStatus ?? 'PENDING').toUpperCase();
-  const canSettlePayout =
-    !payout?.heldForRefund &&
-    (effectivePayoutStatus === 'ELIGIBLE' ||
-      Boolean(payout?.reference?.startsWith('AUTO-DISBURSE')) ||
-      Boolean(occurrence.payoutReference?.startsWith('AUTO-DISBURSE')));
+
+  const methodLabel = formatCollectionMethod(payment?.method, t);
+  const invoiceCode = payment?.gatewayOrderCode ? `INV-${payment.gatewayOrderCode}` : null;
+  const sectionDividerColor = isDark ? 'rgba(255, 255, 255, 0.14)' : '#D4D4D8';
+
+  const statusTone = isPaid
+    ? {
+        bg: isDark ? 'rgba(16, 185, 129, 0.10)' : '#F0FDF4',
+        titleColor: isDark ? '#6EE7B7' : '#15803D',
+        iconColor: isDark ? '#34D399' : '#16A34A',
+        title: t('Customer paid'),
+        Icon: CheckCircleRounded,
+      }
+    : {
+        bg: isDark ? 'rgba(59, 130, 246, 0.10)' : '#EFF3FF',
+        titleColor: isDark ? '#93C5FD' : '#1D4ED8',
+        iconColor: isDark ? '#60A5FA' : '#3758F9',
+        title:
+          paymentStatus === 'PAYMENT_DUE'
+            ? t('Awaiting customer payment')
+            : t('Awaiting customer report acceptance'),
+        Icon: ScheduleRounded,
+      };
+  const StatusIcon = statusTone.Icon;
 
   const handleClose = () => {
     setDrawerError('');
@@ -81,259 +145,280 @@ export function OccurrenceFinanceDrawer({
     onClose();
   };
 
+  const reportError = (message: string) => {
+    setDrawerError(message);
+    onError?.(message);
+  };
+
   return (
-    <Drawer
-      anchor="right"
+    <Dialog
       open={open}
       onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      scroll="paper"
       slotProps={{
         paper: {
           sx: {
-            width: { xs: '100%', sm: 540 },
-            p: { xs: 2, sm: 2.5 },
+            borderRadius: '16px',
+            border: '1px solid',
+            borderColor: 'divider',
             bgcolor: 'background.paper',
+            backgroundImage: 'none',
+            boxShadow: 'none',
           },
         },
       }}
     >
-      <Stack spacing={2}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+      <Box
+        sx={{
+          px: { xs: 2.5, sm: 3 },
+          py: 2,
+          bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#FAFAFB',
+          borderBottom: '2px solid',
+          borderColor: sectionDividerColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+        }}
+      >
+        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.02rem', color: 'text.primary' }}>
             {isOneTime
-              ? t('Service invoice')
-              : `${t('Occurrence')} ${occurrence.occurrenceIndex} · ${t('Service invoice')}`}
+              ? t('Customer collection & refunds')
+              : `${t('Occurrence')} ${occurrence.occurrenceIndex} · ${t('Customer collection & refunds')}`}
           </Typography>
-          <IconButton size="small" onClick={handleClose} aria-label={t('Close')}>
-            <CloseRoundedIcon fontSize="small" />
-          </IconButton>
+          {invoiceCode && (
+            <Typography
+              variant="caption"
+              sx={{ fontFamily: 'monospace', fontWeight: 600, color: 'text.secondary' }}
+            >
+              {invoiceCode}
+            </Typography>
+          )}
         </Stack>
-        <Divider />
+        <IconButton size="small" onClick={handleClose} aria-label={t('Close')}>
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </Box>
 
-        {drawerError && (
-          <Alert severity="error" onClose={() => setDrawerError('')} sx={{ borderRadius: '8px' }}>
-            {drawerError}
-          </Alert>
-        )}
-
-        <Box
-          sx={{
-            p: 1.75,
-            borderRadius: '8px',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.default',
-          }}
-        >
-          <Stack spacing={1} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-              {t('Service invoice')}:{' '}
-              <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
-                {feeVnd ?? t('Awaiting invoice snapshot')}
-              </Box>
-              {invoice?.vatRate != null ? ` · VAT ${invoice.vatRate}%` : ''}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('Service payment')}: {payment?.status ?? occurrence.paymentStatus ?? 'PENDING'}
-              {payment?.method ? ` · ${payment.method}` : ''}
-              {payment?.gatewayOrderCode ? ` · #${payment.gatewayOrderCode}` : ''}
-            </Typography>
-            {totalPrice != null && totalPrice > 0 && (
-              <Stack spacing={0.35}>
-                {occurrence.serviceBaseAmount != null && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('Base fee')}:{' '}
-                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-                      {formatNumber(occurrence.serviceBaseAmount)} ₫
-                    </Box>
-                    {occurrence.vatAmount != null ? ` · VAT ${formatNumber(occurrence.vatAmount)} ₫` : ''}
-                  </Typography>
-                )}
-                {occurrence.commissionAmount != null && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {occurrence.commissionRate != null
-                      ? `${t('Platform commission')} (${occurrence.commissionRate}%)`
-                      : t('Platform commission')}
-                    :{' '}
-                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-                      {formatNumber(occurrence.commissionAmount)} ₫
-                    </Box>
-                  </Typography>
-                )}
-                {occurrence.tncnAmount != null && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {occurrence.tncnRate != null
-                      ? `${t('TNCN tax')} (${occurrence.tncnRate}%)`
-                      : t('TNCN tax')}
-                    :{' '}
-                    <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-                      −{formatNumber(occurrence.tncnAmount)} ₫
-                    </Box>
-                  </Typography>
-                )}
-                {occurrence.inspectorNetPayout != null && (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('Inspector net payout')}:{' '}
-                    <Box component="strong" sx={{ color: 'info.main', whiteSpace: 'nowrap' }}>
-                      {formatNumber(occurrence.inspectorNetPayout)} ₫
-                    </Box>
-                  </Typography>
-                )}
-              </Stack>
-            )}
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {t('Inspector payout')}: {payout?.status ?? occurrence.payoutStatus ?? 'PENDING'}
-              {payout?.reference ? ` · UNC: ${payout.reference}` : ''}
-              {payout?.inspectorId ? ` · ${t('Inspector')} #${payout.inspectorId.slice(0, 8)}` : ''}
-            </Typography>
-            {occurrence.remainingInspectorNetPayout != null && (
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {t('Remaining to pay')}:{' '}
-                <Box component="strong" sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
-                  {formatNumber(occurrence.remainingInspectorNetPayout)} ₫
-                </Box>
-              </Typography>
-            )}
-          </Stack>
-        </Box>
-
-        {hasUnpaidGatewayOrder && (
-          <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t('Unpaid order')} #{payment?.gatewayOrderCode}
-            </Typography>
-            <LoadingButton
-              size="small"
-              variant="outlined"
-              color="warning"
-              loading={cancelUnpaidOrder.isPending}
-              onClick={async () => {
-                setDrawerError('');
-                try {
-                  await cancelUnpaidOrder.mutateAsync();
-                  onChanged();
-                } catch (err) {
-                  setDrawerError(
-                    extractContractErrorText(err, 'Could not cancel the active payment order.'),
-                  );
-                }
+      <DialogContent sx={{ p: 0 }}>
+        <Stack
+          divider={
+            <Divider
+              sx={{
+                borderBottomWidth: 2,
+                borderColor: sectionDividerColor,
               }}
-              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              {t('Reset order')}
-            </LoadingButton>
-          </Stack>
-        )}
-
-        {canConfirmManualPayment && (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <TextField
-              size="small"
-              placeholder={t('Wire reference (e.g. FT261123)')}
-              value={paymentRef}
-              onChange={(e) => setPaymentRef(e.target.value)}
-              sx={{ flex: 1 }}
             />
-            <LoadingButton
-              size="small"
-              variant="contained"
-              color="success"
-              loading={confirmPayment.isPending}
-              disabled={!paymentRef.trim()}
-              onClick={async () => {
-                setDrawerError('');
-                try {
-                  await confirmPayment.mutateAsync({
-                    paymentReference: paymentRef.trim(),
-                    amount: totalPrice,
-                  });
-                  setPaymentRef('');
-                  onChanged();
-                } catch (err) {
-                  setDrawerError(
-                    extractContractErrorText(err, 'Could not confirm customer payment.'),
-                  );
-                }
-              }}
-              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
-            >
-              {t('Confirm payment')}
-            </LoadingButton>
-          </Stack>
-        )}
+          }
+        >
+          {/* 1. Customer Invoice & Collection Status */}
+          <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
+            <Stack spacing={2}>
+              {drawerError && (
+                <Alert
+                  severity="error"
+                  onClose={() => setDrawerError('')}
+                  sx={{ borderRadius: '8px' }}
+                >
+                  {drawerError}
+                </Alert>
+              )}
 
-        {canSettlePayout && (
-          <Stack spacing={1.25}>
-            {hasCompleteBankDetails ? (
               <Box
                 sx={{
-                  p: 1.25,
-                  borderRadius: '8px',
+                  p: 2,
+                  borderRadius: '10px',
                   border: '1px solid',
                   borderColor: 'divider',
-                  bgcolor: 'background.default',
+                  bgcolor: statusTone.bg,
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', display: 'block', mb: 0.35 }}>
-                  {t('Inspector payout bank account')}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {payout?.bankName} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{payout?.bankAccountNumber}</Box>
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {payout?.bankAccountHolder}
-                  {payout?.bankBranch ? ` · ${payout.bankBranch}` : ''}
-                </Typography>
-              </Box>
-            ) : (
-              <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                {t('Inspector has not entered payout bank details yet.')}
-              </Alert>
-            )}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                size="small"
-                placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-                value={payoutRef}
-                onChange={(e) => setPayoutRef(e.target.value)}
-                sx={{ flex: 1 }}
-              />
-              <LoadingButton
-                size="small"
-                variant="contained"
-                color="primary"
-                loading={recordPayout.isPending}
-                disabled={!payoutRef.trim() || !hasCompleteBankDetails}
-                onClick={async () => {
-                  setDrawerError('');
-                  try {
-                    await recordPayout.mutateAsync({ payoutReference: payoutRef.trim() });
-                    setPayoutRef('');
-                    onChanged();
-                  } catch (err) {
-                    setDrawerError(extractContractErrorText(err, 'Could not settle payout.'));
-                  }
-                }}
-                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
-              >
-                {t('Settle Inspector payout')}
-              </LoadingButton>
-            </Stack>
-          </Stack>
-        )}
+                <Stack spacing={1.25}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+                  >
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <StatusIcon sx={{ fontSize: 19, color: statusTone.iconColor }} />
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 700, color: statusTone.titleColor }}
+                      >
+                        {statusTone.title}
+                      </Typography>
+                    </Stack>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 700,
+                        color: 'text.primary',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {feeVnd ?? t('Awaiting invoice snapshot')}
+                    </Typography>
+                  </Stack>
 
-        {isPaid && occurrence.paymentStatus === 'PAID' && (
-          <RefundControls
-            requestId={requestId}
-            occurrence={occurrence}
-            enabled
-            onChanged={() => {
-              setDrawerError('');
-              onChanged();
-            }}
-            onError={setDrawerError}
-          />
-        )}
-      </Stack>
-    </Drawer>
+                  <Divider sx={{ opacity: 0.5 }} />
+
+                  <Stack spacing={0.25}>
+                    {methodLabel || payment?.gatewayOrderCode ? (
+                      <SummaryRow
+                        label={t('Payment method')}
+                        value={[
+                          methodLabel || paymentStatus,
+                          payment?.gatewayOrderCode ? `#${payment.gatewayOrderCode}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      />
+                    ) : null}
+                    {occurrence.serviceBaseAmount != null && (
+                      <SummaryRow
+                        label={t('Base fee')}
+                        value={`${formatNumber(Math.round(occurrence.serviceBaseAmount))} ₫`}
+                      />
+                    )}
+                    {occurrence.vatAmount != null && (
+                      <SummaryRow
+                        label={
+                          invoice?.vatRate != null ? `VAT (${invoice.vatRate}%)` : 'VAT'
+                        }
+                        value={`+${formatNumber(Math.round(occurrence.vatAmount))} ₫`}
+                      />
+                    )}
+                    {feeVnd && (
+                      <SummaryRow
+                        label={isPaid ? t('Total paid') : t('Order total (incl. VAT)')}
+                        value={feeVnd}
+                        bold
+                      />
+                    )}
+                  </Stack>
+                </Stack>
+              </Box>
+
+              {hasUnpaidGatewayOrder && (
+                <Box
+                  sx={{
+                    p: 1.75,
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#FAFAFB',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { sm: 'center' },
+                    justifyContent: 'space-between',
+                    gap: 1.5,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {t('Unpaid order')} #{payment?.gatewayOrderCode}
+                  </Typography>
+                  <LoadingButton
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    loading={cancelUnpaidOrder.isPending}
+                    onClick={async () => {
+                      setDrawerError('');
+                      try {
+                        await cancelUnpaidOrder.mutateAsync();
+                        onChanged();
+                      } catch (err) {
+                        reportError(
+                          extractContractErrorText(err, 'Could not cancel the active payment order.'),
+                        );
+                      }
+                    }}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {t('Reset order')}
+                  </LoadingButton>
+                </Box>
+              )}
+
+              {canConfirmManualPayment && (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                  <TextField
+                    size="small"
+                    placeholder={t('Wire reference (e.g. FT261123)')}
+                    value={paymentRef}
+                    onChange={(e) => setPaymentRef(e.target.value)}
+                    sx={{ flex: 1 }}
+                  />
+                  <LoadingButton
+                    size="small"
+                    variant="contained"
+                    color="success"
+                    loading={confirmPayment.isPending}
+                    disabled={!paymentRef.trim()}
+                    onClick={async () => {
+                      setDrawerError('');
+                      try {
+                        await confirmPayment.mutateAsync({
+                          paymentReference: paymentRef.trim(),
+                          amount: totalPrice,
+                        });
+                        setPaymentRef('');
+                        onChanged();
+                      } catch (err) {
+                        reportError(
+                          extractContractErrorText(err, 'Could not confirm customer payment.'),
+                        );
+                      }
+                    }}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      whiteSpace: 'nowrap',
+                      boxShadow: 'none',
+                    }}
+                  >
+                    {t('Confirm payment')}
+                  </LoadingButton>
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+
+          {/* 2. Refunds & Adjustments Workflow */}
+          <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
+            {isPaid && occurrence.paymentStatus === 'PAID' ? (
+              <RefundControls
+                requestId={requestId}
+                occurrence={occurrence}
+                enabled
+                onChanged={() => {
+                  setDrawerError('');
+                  onChanged();
+                }}
+                onError={reportError}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('Refund and adjustment controls unlock after customer payment is confirmed.')}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, Paper, Stack, Typography } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
-import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import HourglassEmptyRounded from '@mui/icons-material/HourglassEmptyRounded';
+import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
-import { LoadingButton } from '@/shared/ui/LoadingButton';
-import { StatusChip } from '@/shared/ui/StatusChip';
 import { resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import {
   inspectionApi,
@@ -18,12 +19,13 @@ export interface PlatformSettlementInvoiceCardProps {
   inspectionId: string;
   listRow?: Partial<InspectionListItem> | null | undefined;
   paymentDetails?: Partial<ReportPaymentStatusDetails> | null | undefined;
-  inspectorName?: string | null | undefined;
-  onSettlePayout?: ((payoutReference: string) => Promise<void>) | undefined;
   onManageFinance?: (() => void) | undefined;
 }
 
-function formatPaymentMethodLabel(method: string | null | undefined, t: (key: string) => string): string {
+function formatPaymentMethodLabel(
+  method: string | null | undefined,
+  t: (key: string) => string,
+): string {
   const normalized = (method ?? '').trim().toUpperCase();
   if (normalized === 'VNPAY') return 'VNPay';
   if (normalized === 'SEPAY') return 'Sepay (VietQR)';
@@ -54,15 +56,14 @@ function StatementLine({
   return (
     <Stack
       direction="row"
-      spacing={2}
-      sx={{ justifyContent: 'space-between', alignItems: 'baseline', py: 0.5 }}
+      spacing={3}
+      sx={{ justifyContent: 'space-between', alignItems: 'center', py: 0.85 }}
     >
       <Box sx={{ minWidth: 0 }}>
         <Typography
           variant="body2"
           sx={{
-            fontSize: bold ? '0.875rem' : '0.8125rem',
-            fontWeight: bold ? 650 : 500,
+            fontWeight: bold ? 700 : 500,
             color: bold ? 'text.primary' : 'text.secondary',
           }}
         >
@@ -71,19 +72,19 @@ function StatementLine({
         {sublabel && (
           <Typography
             variant="caption"
-            sx={{ color: 'text.secondary', display: 'block', fontSize: '0.75rem' }}
+            sx={{ color: 'text.secondary', display: 'block', mt: 0.2 }}
           >
             {sublabel}
           </Typography>
         )}
       </Box>
       <Typography
-        variant="body2"
+        variant={bold ? 'subtitle1' : 'body2'}
         sx={{
-          fontSize: bold ? '0.875rem' : '0.8125rem',
           fontWeight: bold ? 700 : 600,
           color: amountColor,
           fontVariantNumeric: 'tabular-nums',
+          letterSpacing: bold ? '-0.01em' : undefined,
           whiteSpace: 'nowrap',
           flexShrink: 0,
         }}
@@ -95,62 +96,72 @@ function StatementLine({
 }
 
 /**
- * Clean financial breakdown card for Platform Manager / Admin:
- * Shows Customer invoice (left) alongside Platform Commission & Partner Inspector payout (right)
- * using calm neutral surfaces without duplicated metric panels.
+ * Unified Step 4 Customer Settlement card for Platform Manager / Admin.
+ *
+ * Strictly scoped to customer collection & acceptance tracking, integer-rounded VND
+ * customer invoice breakdown, PDF receipt/notice download, and refund/collection adjustments.
+ * Inspector payouts are managed separately in Step 3.
  */
 export function PlatformSettlementInvoiceCard({
   inspectionId,
   listRow,
   paymentDetails,
-  inspectorName,
-  onSettlePayout,
   onManageFinance,
 }: PlatformSettlementInvoiceCardProps) {
-  const { formatDate, formatNumber, t } = useLocale();
+  const { formatDate, formatDateTime, formatNumber, t } = useLocale();
+  const isDark = useIsDarkMode();
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentError, setDocumentError] = useState<string | null>(null);
-  const [payoutRefInput, setPayoutRefInput] = useState('');
-  const [payoutBusy, setPayoutBusy] = useState(false);
-  const [payoutError, setPayoutError] = useState<string | null>(null);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, listRow, paymentDetails);
 
   if (!finance) {
     return null;
   }
 
-  const customerChip = finance.isPaid
-    ? { status: 'paid', label: 'Customer paid', tone: 'success' as const }
-    : paymentDetails?.reportAccepted
-      ? { status: 'payment_due', label: 'Awaiting payment', tone: 'info' as const }
-      : { status: 'awaiting', label: 'Awaiting customer', tone: 'default' as const };
-
-  const payoutChip = finance.isDisbursed
-    ? { status: 'settled', label: 'Payout settled', tone: 'success' as const }
-    : finance.isPayoutEligible
-      ? { status: 'payout_pending', label: 'Payout eligible', tone: 'warning' as const }
-      : { status: 'payout_locked', label: 'Payout pending', tone: 'default' as const };
-
   const invoiceRef = paymentDetails?.orderCode ? `INV-${paymentDetails.orderCode}` : null;
   const methodLabel = formatPaymentMethodLabel(paymentDetails?.paymentMethod, t);
-  const canDownloadDocument = Boolean(finance.isPaid || paymentDetails?.reportAccepted);
+  const isAccepted = Boolean(paymentDetails?.reportAccepted || finance.isPaid);
+  const canDownloadDocument = Boolean(finance.isPaid || isAccepted);
   const dueLabel = paymentDetails?.paymentDueAt
     ? t('Pay by {date}').replace(
         '{date}',
         formatDate(paymentDetails.paymentDueAt, { dateStyle: 'medium' }),
       )
     : null;
-  const payoutRef = paymentDetails?.payoutReference;
-  const payoutStatusNote = finance.isDisbursed
-    ? payoutRef
-      ? `${t('Settled')} · ${t('Ref')}: ${payoutRef}`
-      : t('Payout recorded')
-    : finance.isPayoutEligible
-      ? t('Eligible for manager payout')
-      : t('Payable after report approval');
-  const payoutSublabel = inspectorName
-    ? `${inspectorName} · ${payoutStatusNote}`
-    : payoutStatusNote;
+  const confirmedAtLabel = paymentDetails?.paymentConfirmedAt
+    ? formatDateTime(paymentDetails.paymentConfirmedAt)
+    : null;
+
+  const sectionDividerColor = isDark ? 'rgba(255, 255, 255, 0.14)' : '#D4D4D8';
+
+  const statusTone = finance.isPaid
+    ? {
+        bg: isDark ? 'rgba(16, 185, 129, 0.10)' : '#F0FDF4',
+        border: isDark ? 'rgba(255, 255, 255, 0.14)' : 'divider',
+        titleColor: isDark ? '#6EE7B7' : '#15803D',
+        iconColor: isDark ? '#34D399' : '#16A34A',
+        title: t('Customer paid'),
+        Icon: CheckCircleRounded,
+      }
+    : isAccepted
+      ? {
+          bg: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF3FF',
+          border: isDark ? 'rgba(255, 255, 255, 0.14)' : 'divider',
+          titleColor: isDark ? '#93C5FD' : '#1D4ED8',
+          iconColor: isDark ? '#60A5FA' : '#3758F9',
+          title: t('Awaiting customer payment'),
+          Icon: ScheduleRounded,
+        }
+      : {
+          bg: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB',
+          border: isDark ? 'rgba(255, 255, 255, 0.14)' : 'divider',
+          titleColor: 'text.primary',
+          iconColor: 'text.secondary',
+          title: t('Awaiting customer report acceptance'),
+          Icon: HourglassEmptyRounded,
+        };
+
+  const StatusIcon = statusTone.iconColor ? statusTone.Icon : HourglassEmptyRounded;
 
   const handleDownloadDocument = async () => {
     setDocumentBusy(true);
@@ -176,118 +187,146 @@ export function PlatformSettlementInvoiceCard({
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        width: '100%',
         borderRadius: '12px',
         borderColor: 'divider',
         bgcolor: 'background.paper',
         boxShadow: 'none',
+        overflow: 'hidden',
       }}
     >
-      <Stack spacing={2.25}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
-            {t('Order & settlement breakdown')}
+      {/* Header Band */}
+      <Box
+        sx={{
+          px: { xs: 2.5, sm: 3 },
+          py: 2,
+          bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#FAFAFB',
+          borderBottom: '1px solid',
+          borderColor: sectionDividerColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+          {t('Customer Settlement')}
+        </Typography>
+        {invoiceRef && (
+          <Typography
+            variant="caption"
+            sx={{ fontFamily: 'monospace', fontWeight: 650, color: 'text.secondary' }}
+          >
+            {invoiceRef}
           </Typography>
-          {invoiceRef && (
-            <Chip
-              size="small"
-              variant="outlined"
-              icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
-              label={invoiceRef}
-              sx={{
-                height: 24,
-                borderRadius: '6px',
-                borderColor: 'divider',
-                color: 'text.secondary',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                fontFamily: 'monospace',
-              }}
-            />
-          )}
-          <StatusChip
-            status={customerChip.status}
-            label={customerChip.label}
-            tone={customerChip.tone}
-          />
-          <StatusChip
-            status={payoutChip.status}
-            label={payoutChip.label}
-            tone={payoutChip.tone}
-          />
-        </Stack>
-
-        {documentError && (
-          <Alert severity="error" sx={{ borderRadius: '8px' }}>
-            {documentError}
-          </Alert>
         )}
+      </Box>
 
-        <Divider />
-
+      {/* Vertical Sequential Sections separated by crisp 2px section dividers */}
+      <Stack
+        divider={
+          <Divider
+            sx={{
+              borderBottomWidth: 2,
+              borderColor: sectionDividerColor,
+            }}
+          />
+        }
+      >
+        {/* 1. Prominent Customer Collection & Acceptance Status */}
         <Box
           sx={{
+            px: { xs: 2.5, sm: 3 },
+            py: 2.5,
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 2.5,
-            alignItems: 'stretch',
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 1fr) minmax(0, 2fr)' },
+            gap: { xs: 1.5, md: 4 },
+            alignItems: 'start',
           }}
         >
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: '10px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 1.5,
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.25 }}>
-                {t('Service invoice')}
-              </Typography>
-              <StatementLine
-                label={t('Base fee')}
-                amount={`${formatNumber(finance.serviceBaseAmount)} ₫`}
-              />
-              <StatementLine
-                label={`VAT (${finance.vatRate}%)`}
-                amount={`+${formatNumber(finance.vatAmount)} ₫`}
-                tone="muted"
-              />
-              <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
-              <StatementLine
-                label={finance.isPaid ? t('Total paid') : t('Order total (incl. VAT)')}
-                amount={`${formatNumber(finance.totalPrice)} ₫`}
-                bold
-              />
-            </Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', pt: 0.75 }}>
+            {t('Collection status')}
+          </Typography>
 
-            {(finance.isPaid || dueLabel || canDownloadDocument) && (
-              <Stack spacing={1.25}>
-                {finance.isPaid ? (
+          <Stack spacing={1.5}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: statusTone.border,
+                bgcolor: statusTone.bg,
+              }}
+            >
+              <Stack spacing={1.5}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
+                  sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+                >
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <StatusIcon sx={{ fontSize: 20, color: statusTone.iconColor }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: statusTone.titleColor }}>
+                      {statusTone.title}
+                    </Typography>
+                  </Stack>
                   <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                    variant="subtitle1"
+                    sx={{ fontWeight: 700, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
                   >
-                    {methodLabel ? `${t('Paid via')} ${methodLabel}` : t('Paid')}
-                    {paymentDetails?.orderCode ? ` · ${t('Order')} #${paymentDetails.orderCode}` : ''}
-                    {paymentDetails?.paymentReference
-                      ? ` · ${t('Ref')}: ${paymentDetails.paymentReference}`
-                      : ''}
+                    {`${formatNumber(Math.round(finance.totalPrice))} ₫`}
                   </Typography>
-                ) : dueLabel ? (
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {dueLabel}
-                  </Typography>
-                ) : null}
+                </Stack>
+
+                <Divider sx={{ opacity: 0.5 }} />
+
+                <Stack spacing={0.75} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('Report acceptance')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                      {isAccepted ? t('Accepted') : t('Awaiting customer acceptance')}
+                    </Typography>
+                  </Stack>
+
+                  {finance.isPaid ? (
+                    <>
+                      <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {t('Paid at')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                          {confirmedAtLabel ?? t('Confirmed')}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {t('Payment method')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right' }}>
+                          {methodLabel || 'Sepay'}
+                          {paymentDetails?.orderCode ? ` · ${t('Order')} #${paymentDetails.orderCode}` : ''}
+                          {paymentDetails?.paymentReference
+                            ? ` · ${t('Ref')}: ${paymentDetails.paymentReference}`
+                            : ''}
+                        </Typography>
+                      </Stack>
+                    </>
+                  ) : (
+                    <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {t('Payment due')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        {isAccepted ? (dueLabel ?? t('Awaiting payment')) : t('Starts on acceptance')}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
 
                 {canDownloadDocument && (
-                  <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
                     <Button
                       variant="outlined"
                       color="inherit"
@@ -318,138 +357,77 @@ export function PlatformSettlementInvoiceCard({
                   </Box>
                 )}
               </Stack>
-            )}
-          </Box>
-
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: '10px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 1.5,
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.25 }}>
-                {t('Commission & payout')}
-              </Typography>
-              <StatementLine
-                label={`${t('Platform commission')} (${finance.commissionRate}%)`}
-                amount={`+${formatNumber(finance.commissionAmount)} ₫`}
-                tone="accent"
-              />
-              <StatementLine
-                label={t('Inspector gross payout')}
-                amount={`${formatNumber(finance.afterCommissionAmount)} ₫`}
-              />
-              <StatementLine
-                label={`${t('TNCN tax')} (${finance.tncnRate}%)`}
-                amount={`−${formatNumber(finance.tncnAmount)} ₫`}
-                tone="deduct"
-              />
-              <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
-              <StatementLine
-                label={t('Inspector net payout')}
-                sublabel={payoutSublabel}
-                amount={`${formatNumber(finance.netPayoutAmount)} ₫`}
-                bold
-              />
             </Box>
 
-            {((!finance.isDisbursed && finance.isPayoutEligible && Boolean(onSettlePayout)) || Boolean(onManageFinance)) && (
-              <Stack
-                spacing={1.25}
-                sx={{ pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}
-              >
-                {!finance.isDisbursed && finance.isPayoutEligible && onSettlePayout && (
-                  <Stack spacing={1}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                      {t('Record partner transfer')}
-                    </Typography>
-                    {payoutError && (
-                      <Alert severity="error" onClose={() => setPayoutError(null)} sx={{ borderRadius: '8px' }}>
-                        {payoutError}
-                      </Alert>
-                    )}
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                      <TextField
-                        size="small"
-                        placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-                        value={payoutRefInput}
-                        onChange={(e) => setPayoutRefInput(e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <LoadingButton
-                        size="small"
-                        variant="contained"
-                        color="primary"
-                        loading={payoutBusy}
-                        disabled={!payoutRefInput.trim()}
-                        onClick={async () => {
-                          setPayoutBusy(true);
-                          setPayoutError(null);
-                          try {
-                            await onSettlePayout(payoutRefInput.trim());
-                            setPayoutRefInput('');
-                          } catch (error) {
-                            setPayoutError(
-                              getErrorMessage(error, t('Could not settle payout.')),
-                            );
-                          } finally {
-                            setPayoutBusy(false);
-                          }
-                        }}
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 650,
-                          whiteSpace: 'nowrap',
-                          borderRadius: '8px',
-                          boxShadow: 'none',
-                        }}
-                      >
-                        {t('Settle Inspector payout')}
-                      </LoadingButton>
-                    </Stack>
-                  </Stack>
-                )}
-
-                {onManageFinance && (
-                  <Box>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      size="small"
-                      endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-                      onClick={onManageFinance}
-                      sx={{
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                        color: 'text.secondary',
-                        textTransform: 'none',
-                        whiteSpace: 'nowrap',
-                        '&:hover': {
-                          borderColor: 'text.secondary',
-                          color: 'text.primary',
-                          bgcolor: 'action.hover',
-                        },
-                      }}
-                    >
-                      {onSettlePayout && finance.isPayoutEligible
-                        ? t('Refunds & wire transfer')
-                        : t('Manage payout & refunds')}
-                    </Button>
-                  </Box>
-                )}
-              </Stack>
+            {documentError && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {documentError}
+              </Alert>
             )}
-          </Box>
+          </Stack>
+        </Box>
+
+        {/* 2. Customer Invoice Breakdown & Refund Adjustments */}
+        <Box
+          sx={{
+            px: { xs: 2.5, sm: 3 },
+            py: 2.5,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 1fr) minmax(0, 2fr)' },
+            gap: { xs: 1.5, md: 4 },
+            alignItems: 'start',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', pt: 0.75 }}>
+            {t('Service invoice')}
+          </Typography>
+
+          <Stack spacing={2}>
+            <Stack divider={<Divider sx={{ opacity: 0.55 }} />} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              <StatementLine
+                label={t('Base fee')}
+                amount={`${formatNumber(Math.round(finance.serviceBaseAmount))} ₫`}
+              />
+              <StatementLine
+                label={`VAT (${finance.vatRate}%)`}
+                amount={`+${formatNumber(Math.round(finance.vatAmount))} ₫`}
+                tone="muted"
+              />
+              <StatementLine
+                label={finance.isPaid ? t('Total paid') : t('Order total (incl. VAT)')}
+                amount={`${formatNumber(Math.round(finance.totalPrice))} ₫`}
+                bold
+              />
+            </Stack>
+
+            {onManageFinance && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  size="small"
+                  endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                  onClick={onManageFinance}
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    color: 'text.secondary',
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      borderColor: 'text.secondary',
+                      color: 'text.primary',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  {finance.isPaid ? t('Refunds & adjustments') : t('Collection & refund controls')}
+                </Button>
+              </Box>
+            )}
+          </Stack>
         </Box>
       </Stack>
     </Paper>
