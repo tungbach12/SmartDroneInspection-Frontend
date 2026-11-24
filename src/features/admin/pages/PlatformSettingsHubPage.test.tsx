@@ -17,6 +17,10 @@ vi.mock('./PlatformAiSettingsPage', () => ({
   default: () => <div>AI settings panel</div>,
 }));
 
+vi.mock('../components/RatingCriteriaConfigTab', () => ({
+  RatingCriteriaConfigTab: () => <div>Rating criteria settings panel</div>,
+}));
+
 function renderPage(entry = '/admin/platform-settings') {
   return render(
     <ThemeProvider theme={theme}>
@@ -30,13 +34,14 @@ function renderPage(entry = '/admin/platform-settings') {
 describe('PlatformSettingsHubPage', () => {
   afterEach(cleanup);
 
-  it('renders the three consolidated settings workspaces', () => {
+  it('renders the four consolidated settings workspaces', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Platform settings' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Finance & Tax/i })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Operations & Dispatch/i })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /AI & Model Performance/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Inspector Ratings/i })).toBeTruthy();
     expect(screen.getByText('Finance settings panel')).toBeTruthy();
   });
 
@@ -46,10 +51,13 @@ describe('PlatformSettingsHubPage', () => {
     expect(screen.queryByText('Finance settings panel')).toBeNull();
   });
 
-  it('switches to the AI settings workspace', () => {
+  it('switches to the AI and Inspector Ratings workspaces', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /AI & Model Performance/i }));
     expect(screen.getByText('AI settings panel')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Inspector Ratings/i }));
+    expect(screen.getByText('Rating criteria settings panel')).toBeTruthy();
   });
 });

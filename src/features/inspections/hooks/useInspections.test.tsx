@@ -37,7 +37,6 @@ vi.mock('../api/inspectionApi', async (importOriginal) => {
       updateFinding: vi.fn(),
       deleteFinding: vi.fn(),
       uploadFlightPermit: vi.fn(),
-      reviewFlightPermit: vi.fn(),
       confirmFindings: vi.fn(),
       submitVersion: vi.fn(),
       getFindingRecommendations: vi.fn(),
@@ -243,7 +242,7 @@ function buildCases(): MutationCase[] {
       apiMock: vi.mocked(inspectionApi.submitVersion),
       render: (client) => renderMutation(client, () => useSubmitReportVersion('inspection-1')),
       run: (runner) => (runner.mutateAsync as (input: string) => Promise<unknown>)('version-1'),
-      successMessage: 'Report submitted for Organization Manager review.',
+      successMessage: 'Report submitted for Manager review.',
     },
   ];
 }

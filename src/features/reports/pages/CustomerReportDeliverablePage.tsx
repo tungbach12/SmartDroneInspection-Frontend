@@ -31,6 +31,7 @@ import {
 } from '@/features/inspections/hooks/useInspections';
 import { CreateRequestDialog } from '@/features/contracts/components/CreateRequestDialog';
 import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -237,6 +238,10 @@ export default function CustomerReportDeliverablePage({
               />
             )}
 
+            {showSettlementContent && openVersion.status === 'PUBLISHED' && inspectionId && (
+              <InspectorRatingPromptCard inspectionId={inspectionId} />
+            )}
+
             <SepayQrDialog
               details={sepayQrOpen ? sepayLink.data : undefined}
               amountVnd={paymentStatus?.amount ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND` : undefined}
@@ -329,7 +334,7 @@ export default function CustomerReportDeliverablePage({
             {priorClarificationCount >= 2 ? (
               <Alert severity="error" sx={{ borderRadius: '8px' }}>
                 {t(
-                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Platform Manager directly for reconciliation.',
+                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Manager directly for reconciliation.',
                 )}
               </Alert>
             ) : (
@@ -455,7 +460,7 @@ export default function CustomerReportDeliverablePage({
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 {t(
-                  'Submit a formal service request linked to this source inspection so the Platform Manager can quote, schedule, and dispatch a partner crew.',
+                  'Submit a formal service request linked to this source inspection so the Manager can quote, schedule, and dispatch a partner crew.',
                 )}
               </Typography>
               <Button

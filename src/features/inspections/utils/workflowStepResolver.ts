@@ -150,9 +150,6 @@ export function resolveRowStageSubtitle(
     if (row.reportStatus === 'RETURNED') {
       return 'Step 2/3 · Returned for Revision';
     }
-    if (row.pendingAction === 'PERMIT_REVIEW') {
-      return 'Step 1/3 · Permit Review Due';
-    }
     if (row.status === 'FIELD_COMPLETED') {
       return 'Step 2/3 · Awaiting report submission';
     }
@@ -220,8 +217,10 @@ export function resolveOverviewGuidance(
       case 'SCHEDULED':
         if (permitStatus === 'PENDING_REVIEW') {
           return {
-            tip: t('Flight permit submitted and awaiting your verification before flight takeoff.'),
-            actionLabel: t('Verify flight permit'),
+            tip: t(
+              'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+            ),
+            actionLabel: t('Open field & evidence audit'),
             subpath: 'audit',
           };
         }
@@ -280,21 +279,23 @@ export function resolveOverviewGuidance(
     case 'SCHEDULED':
       if (permitStatus === 'APPROVED') {
         return {
-          tip: t('Flight permit verified by Platform Manager. Complete the pre-flight safety checklist to start flight operation.'),
+          tip: t('Flight permit verified by Manager. Complete the pre-flight safety checklist to start flight operation.'),
           actionLabel: t('Open pre-flight check'),
           subpath: 'pre-flight',
         };
       }
       if (permitStatus === 'PENDING_REVIEW') {
         return {
-          tip: t('Flight permit uploaded and awaiting Platform Manager verification before pre-flight checks can begin.'),
+          tip: t(
+            'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+          ),
           actionLabel: t('Review permit status'),
           subpath: 'permit',
         };
       }
       if (permitStatus === 'REJECTED') {
         return {
-          tip: t('Flight permit was rejected by the Platform Manager. Upload a corrected permit to unlock pre-flight checks.'),
+          tip: t('Flight permit was rejected by the Manager. Upload a corrected permit to unlock pre-flight checks.'),
           actionLabel: t('Upload replacement permit'),
           subpath: 'permit',
         };
@@ -318,7 +319,7 @@ export function resolveOverviewGuidance(
       };
     case 'UNDER_REVIEW':
       return {
-        tip: t('Report submitted. Awaiting Platform Manager review and publication.'),
+        tip: t('Report submitted. Awaiting Manager review and publication.'),
         actionLabel: t('View submitted report'),
         subpath: 'report',
       };

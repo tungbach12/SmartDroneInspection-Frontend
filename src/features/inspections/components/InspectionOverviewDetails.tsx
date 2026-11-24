@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Avatar,
   Box,
   Button,
   ButtonGroup,
@@ -37,48 +38,61 @@ function ContactBlock({
   name,
   phone,
   email,
+  avatarUrl,
 }: {
   label: string;
   name?: string | null | undefined;
   phone?: string | null | undefined;
   email?: string | null | undefined;
+  avatarUrl?: string | null | undefined;
 }) {
   if (!name && !phone && !email) return null;
 
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35 }}>
         {label}
       </Typography>
-      {name && (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          {name}
-        </Typography>
-      )}
-      {(phone || email) && (
-        <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 0.25, mt: 0.25 }}>
-          {phone && (
-            <Link
-              href={`tel:${phone}`}
-              underline="hover"
-              variant="caption"
-              sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-            >
-              {phone}
-            </Link>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Avatar
+          src={avatarUrl ?? undefined}
+          alt={name || label}
+          sx={{ width: 28, height: 28, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+        >
+          {(name || label).slice(0, 1).toUpperCase()}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          {name && (
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              {name}
+            </Typography>
           )}
-          {email && (
-            <Link
-              href={`mailto:${email}`}
-              underline="hover"
-              variant="caption"
-              sx={{ color: 'text.secondary', wordBreak: 'break-word' }}
-            >
-              {email}
-            </Link>
+          {(phone || email) && (
+            <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 0.25, mt: 0.15 }}>
+              {phone && (
+                <Link
+                  href={`tel:${phone}`}
+                  underline="hover"
+                  variant="caption"
+                  sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {phone}
+                </Link>
+              )}
+              {email && (
+                <Link
+                  href={`mailto:${email}`}
+                  underline="hover"
+                  variant="caption"
+                  sx={{ color: 'text.secondary', wordBreak: 'break-word' }}
+                >
+                  {email}
+                </Link>
+              )}
+            </Stack>
           )}
-        </Stack>
-      )}
+        </Box>
+      </Stack>
     </Box>
   );
 }
@@ -217,6 +231,7 @@ export function InspectionOverviewDetails({
                 name={inspection.ownerCustomerName}
                 phone={inspection.ownerCustomerPhone}
                 email={inspection.ownerCustomerEmail}
+                avatarUrl={inspection.ownerCustomerAvatarUrl}
               />
             </Grid>
           )}
@@ -228,6 +243,7 @@ export function InspectionOverviewDetails({
                 name={inspection.managerName}
                 phone={inspection.managerPhone}
                 email={inspection.managerEmail}
+                avatarUrl={inspection.managerAvatarUrl}
               />
             </Grid>
           )}

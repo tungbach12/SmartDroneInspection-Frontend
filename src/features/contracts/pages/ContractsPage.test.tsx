@@ -675,7 +675,7 @@ describe('ContractsPage', () => {
     });
     renderPage();
     expect(
-      screen.getByText(/Service requests are available to Customer and Platform Manager accounts\./),
+      screen.getByText(/Service requests are available to Customer and Manager accounts\./),
     ).toBeTruthy();
   });
 

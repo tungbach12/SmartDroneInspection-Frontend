@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * Lightweight real-time presence broadcaster & listener between browser tabs/windows.
- * Detects whether a Platform Manager / Admin is currently online and active.
+ * Detects whether a Manager / Admin is currently online and active.
  */
 
 const PRESENCE_KEY = 'sdi_presence_manager_heartbeat';

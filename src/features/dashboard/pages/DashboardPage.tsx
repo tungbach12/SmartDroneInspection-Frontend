@@ -95,8 +95,8 @@ export default function DashboardPage() {
 const BACKEND_VI_TO_EN: Record<string, string> = {
   'Tổng số tài sản': 'Total assets',
   'công trình đăng ký quản lý': 'registered structures',
-  'Tổ chức khách hàng': 'Customer organizations',
-  'doanh nghiệp hạ tầng': 'infrastructure enterprises',
+  'Tổ chức khách hàng': 'Customer accounts',
+  'doanh nghiệp hạ tầng': 'customer accounts',
   'Hồ sơ tài sản': 'Asset records',
   'tài sản toàn hệ thống': 'platform-wide assets',
   'Đợt kiểm tra': 'Inspections',

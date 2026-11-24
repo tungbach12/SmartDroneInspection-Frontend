@@ -301,11 +301,11 @@ export function FlightPermitPreviewDialog({
                     icon={<CheckCircleRounded />}
                     label={
                       verificationStatus === 'APPROVED'
-                        ? t('Approved by Manager')
+                        ? t('Submitted by Inspector')
                         : verificationStatus === 'REJECTED'
-                          ? t('Rejected by Manager')
+                          ? t('Invalid — re-upload required')
                           : verificationStatus === 'PENDING_REVIEW'
-                            ? t('Pending Manager Verification')
+                            ? t('Re-upload required')
                             : t('Flight Document')
                     }
                     sx={{ fontWeight: 700, alignSelf: { xs: 'flex-start', sm: 'center' } }}

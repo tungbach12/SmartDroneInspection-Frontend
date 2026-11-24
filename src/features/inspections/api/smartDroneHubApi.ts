@@ -72,50 +72,83 @@ export const smartDroneHubApi = {
     inspectionId: string,
     sessionId: string,
     telemetrySource: 'AUTO' | 'MAVLINK' | 'SIMULATION' = 'AUTO',
+    flightId?: string,
   ) =>
     api
       .post<SmartDroneHubTelemetry>(
         `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/start`,
         undefined,
-        { params: { telemetrySource } },
+        { params: { telemetrySource, ...(flightId ? { flightId } : {}) } },
       )
       .then((response) => response.data),
-  complete: (inspectionId: string, sessionId: string) =>
+  complete: (inspectionId: string, sessionId: string, flightId?: string) =>
     api
       .post<SmartDroneHubFlightReport>(
         `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/complete`,
+        undefined,
+        flightId ? { params: { flightId } } : undefined,
       )
       .then((response) => response.data),
-  telemetry: (inspectionId: string, sessionId: string) =>
+  telemetry: (inspectionId: string, sessionId: string, flightId?: string) =>
     api
       .get<SmartDroneHubTelemetry>(
         `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/telemetry`,
+        flightId ? { params: { flightId } } : undefined,
       )
       .then((response) => response.data),
-  importFlightLog: (inspectionId: string, sessionId: string, file: File) => {
+  importFlightLog: (
+    inspectionId: string,
+    sessionId: string,
+    file: File,
+    options?: { flightId?: string; flightDate?: string; flightLabel?: string },
+  ) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post<SmartDroneHubFlightReport>(
-      `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/import-log`,
-      form,
-    ).then((response) => response.data);
+    const params: Record<string, string> = {};
+    if (options?.flightId) params.flightId = options.flightId;
+    if (options?.flightDate) params.flightDate = options.flightDate;
+    if (options?.flightLabel) params.flightLabel = options.flightLabel;
+    return api
+      .post<SmartDroneHubFlightReport>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/import-log`,
+        form,
+        Object.keys(params).length > 0 ? { params } : undefined,
+      )
+      .then((response) => response.data);
   },
   declareManualFlight: (
     inspectionId: string,
     sessionId: string,
-    payload: { reasonCode: string; estimatedDurationMinutes: number; maxAltitudeMeters?: number | null; notes: string },
-  ) => api.post<SmartDroneHubFlightReport>(
-    `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/manual-declaration`,
-    payload,
-  ).then((response) => response.data),
-  flightReport: (inspectionId: string, sessionId: string) =>
-    api.get<SmartDroneHubFlightReport>(
-      `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/flight-report`,
-    ).then((response) => response.data),
-  syncVideo: (inspectionId: string, sessionId: string) =>
+    payload: {
+      reasonCode: string;
+      estimatedDurationMinutes: number;
+      maxAltitudeMeters?: number | null;
+      notes: string;
+      flightDate?: string | null;
+      flightLabel?: string | null;
+    },
+    flightId?: string,
+  ) =>
+    api
+      .post<SmartDroneHubFlightReport>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/manual-declaration`,
+        payload,
+        flightId ? { params: { flightId } } : undefined,
+      )
+      .then((response) => response.data),
+  flightReport: (inspectionId: string, sessionId: string, flightId?: string) =>
+    api
+      .get<SmartDroneHubFlightReport>(
+        `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/flight-report`,
+        flightId ? { params: { flightId } } : undefined,
+      )
+      .then((response) => response.data),
+  syncVideo: (inspectionId: string, sessionId: string, flightId?: string) =>
     api
       .post<EvidenceItem>(
         `/inspections/${inspectionId}/field-sessions/${sessionId}/drone-hub/sync-video`,
+        undefined,
+        flightId ? { params: { flightId } } : undefined,
       )
       .then((response) => response.data),
   captureFrame: (inspectionId: string, sessionId: string) =>

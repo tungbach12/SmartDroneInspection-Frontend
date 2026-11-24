@@ -558,46 +558,4 @@ describe('InspectionsPage', () => {
     expect(screen.getByText('Already Accepted Bridge')).toBeTruthy();
   });
 
-  it('filters to pending flight permit reviews when Platform Manager clicks View pending permits', async () => {
-    signInAs(['MANAGER']);
-    mocks.listQuery = {
-      data: {
-        items: [
-          {
-            ...listedInspection(),
-            id: 'permit-due-1',
-            assetName: 'Nhat Tan Permit Due',
-            status: 'SCHEDULED',
-            pendingAction: 'PERMIT_REVIEW',
-          },
-          {
-            ...listedInspection(),
-            id: 'other-1',
-            assetName: 'Wind Turbine Other',
-            status: 'SCHEDULED',
-            pendingAction: 'NONE',
-          },
-        ],
-        page: 1,
-        pageSize: 10,
-        totalCount: 2,
-        totalPages: 1,
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-
-    renderPage('/manager/inspections');
-
-    expect(await screen.findByText(/1 inspection has a flight permit pending manager verification/)).toBeTruthy();
-    expect(screen.getByText('Wind Turbine Other')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'View pending permits' }));
-    expect(screen.getByText('Nhat Tan Permit Due')).toBeTruthy();
-    expect(screen.queryByText('Wind Turbine Other')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
-    expect(screen.getByText('Wind Turbine Other')).toBeTruthy();
-  });
 });

@@ -30,7 +30,7 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import { DashboardHeaderActions } from '../components/LyticHeaderActions';
 
 /**
- * Customer Organization Dashboard (`/client/dashboard`).
+ * Customer Dashboard (`/client/dashboard`).
  *
  * Focused, zero-redundancy overview:
  * 1. 4 non-overlapping KPIs (Registered assets, Active surveys, Published reports, Settled fees)

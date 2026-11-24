@@ -141,7 +141,8 @@ export default function FlightDroneConfigPage() {
 }
 
 function FlightChecklistsTab() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const [kind, setKind] = useState<ChecklistKind>('PRE_FLIGHT');
   const [search, setSearch] = useState('');
   const [policy, setPolicy] = useState<PolicyFilter>('ALL');
@@ -154,6 +155,7 @@ function FlightChecklistsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistTemplate | null>(null);
   const [label, setLabel] = useState('');
+  const [labelVi, setLabelVi] = useState('');
   const [required, setRequired] = useState(kind === 'PRE_FLIGHT');
   const [deleting, setDeleting] = useState<ChecklistTemplate | null>(null);
 
@@ -169,7 +171,13 @@ function FlightChecklistsTab() {
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return items.filter((item) => {
-      if (query && !item.label.toLowerCase().includes(query)) return false;
+      if (
+        query &&
+        !item.label.toLowerCase().includes(query) &&
+        !(item.labelVi ?? '').toLowerCase().includes(query)
+      ) {
+        return false;
+      }
       if (policy === 'REQUIRED' && !item.required) return false;
       if (policy === 'OPTIONAL' && item.required) return false;
       return true;
@@ -181,6 +189,7 @@ function FlightChecklistsTab() {
     updateTemplate.reset();
     setEditing(null);
     setLabel('');
+    setLabelVi('');
     setRequired(kind === 'PRE_FLIGHT');
     setDialogOpen(true);
   };
@@ -190,6 +199,7 @@ function FlightChecklistsTab() {
     updateTemplate.reset();
     setEditing(item);
     setLabel(item.label);
+    setLabelVi(item.labelVi ?? '');
     setRequired(item.required);
     setDialogOpen(true);
   };
@@ -202,7 +212,18 @@ function FlightChecklistsTab() {
       updateTemplate.mutate(
         {
           id: editing.id,
-          input: { label: trimmed, sortOrder: editing.sortOrder, active: editing.active, required },
+          input: {
+            category: editing.category || 'GENERAL',
+            label: trimmed,
+            labelVi: labelVi.trim() || null,
+            details: null,
+            detailsVi: null,
+            referenceThreshold: null,
+            safetyCritical: editing.safetyCritical ?? required,
+            sortOrder: editing.sortOrder,
+            active: editing.active,
+            required,
+          },
         },
         { onSuccess: () => setDialogOpen(false) },
       );
@@ -210,7 +231,19 @@ function FlightChecklistsTab() {
     }
     const nextSortOrder = items.reduce((highest, item) => Math.max(highest, item.sortOrder), 0) + 1;
     createTemplate.mutate(
-      { templateType: kind, categoryId: null, label: trimmed, sortOrder: nextSortOrder, required },
+      {
+        templateType: kind,
+        categoryId: null,
+        category: 'GENERAL',
+        label: trimmed,
+        labelVi: labelVi.trim() || null,
+        details: null,
+        detailsVi: null,
+        referenceThreshold: null,
+        safetyCritical: required,
+        sortOrder: nextSortOrder,
+        required,
+      },
       { onSuccess: () => setDialogOpen(false) },
     );
   };
@@ -372,7 +405,8 @@ function FlightChecklistsTab() {
                       </TableCell>
                       <TableCell sx={{ py: 1.25 }}>
                         <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                          {item.label}
+                          {locale === 'vi' && item.labelVi ? item.labelVi : item.label}
+                          {item.referenceThreshold ? ` · ${item.referenceThreshold}` : ''}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -438,7 +472,14 @@ function FlightChecklistsTab() {
                 onChange={(event) => setLabel(event.target.value)}
               />
               <TextField
+                size="small"
+                label={tr('Nhãn tiếng Việt', 'Vietnamese label')}
+                value={labelVi}
+                onChange={(event) => setLabelVi(event.target.value)}
+              />
+              <TextField
                 select
+                fullWidth
                 size="small"
                 label={t('Policy')}
                 value={required ? 'REQUIRED' : 'OPTIONAL'}

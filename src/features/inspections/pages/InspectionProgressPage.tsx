@@ -75,7 +75,7 @@ export default function InspectionProgressPage() {
   // 1. Mission setup & dispatch
   // 2. Drone aerial flight operation
   // 3. Evidence intake & AI defect detection
-  // 4. Platform Manager technical review
+  // 4. Manager technical review
   // 5. Official publication & deliverable
   const isStage1Complete = ['IN_PROGRESS', 'FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
   const isStage2Complete = ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status);
@@ -121,7 +121,7 @@ export default function InspectionProgressPage() {
       title: t('Technical report review'),
       complete: isStage4Complete,
       active: currentStageIndex === 3,
-      description: t('Platform Manager audits defect assessments, technical notes, and report accuracy.'),
+      description: t('Manager audits defect assessments, technical notes, and report accuracy.'),
       icon: AssignmentTurnedInOutlined,
     },
     {
@@ -266,7 +266,7 @@ export default function InspectionProgressPage() {
           </Typography>
           <Typography variant="body2">
             {status === 'UNDER_REVIEW'
-              ? t('The field flight and AI analysis are complete. The Platform Manager is currently conducting technical quality review. Once approved and published, the official report will become available here.')
+              ? t('The field flight and AI analysis are complete. The Manager is currently conducting technical quality review. Once approved and published, the official report will become available here.')
               : status === 'FIELD_COMPLETED'
                 ? t('Field operations and evidence collection are complete. Findings are being finalized and compiled into the technical report.')
                 : status === 'IN_PROGRESS'

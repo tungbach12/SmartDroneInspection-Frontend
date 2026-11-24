@@ -1,10 +1,15 @@
 import { api } from '@/shared/api/client';
 import type { PartnerCandidate } from '@/features/contracts/api/contractApi';
+import type {
+  ChecklistItemSnapshot,
+  FieldSessionFlight,
+  PreFlightConditions,
+} from './fieldSessionApi';
 
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a Platform Manager / Admin reviewer who is not the author decides.
+ * and a Manager / Admin reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'
@@ -68,7 +73,12 @@ export interface InspectionReportContext {
     droneManufacturer: string | null;
     droneModel: string | null;
     telemetrySource?: string | null;
+    sessionDate?: string | null;
+    preFlightChecklistSnapshot?: ChecklistItemSnapshot[];
+    preFlightConditions?: PreFlightConditions | null;
+    postFlightChecklistSnapshot?: ChecklistItemSnapshot[];
   }>;
+  flights?: FieldSessionFlight[];
   reviewerQualificationDisclosure: string | null;
   findingsConfirmedAt: string | null;
 }
@@ -513,16 +523,8 @@ export interface UploadFlightPermitInput {
   maxAltitudeM?: number | null | undefined;
 }
 
-/** Platform manager / admin verification decision payload for an uploaded flight permit. */
-export interface ReviewFlightPermitInput {
-  decision: 'APPROVED' | 'REJECTED';
-  reason?: string | null | undefined;
-  notes?: string | null | undefined;
-}
-
 /** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
-  | 'PERMIT_REVIEW'
   | 'REPORT_REVIEW'
   | 'NONE';
 
@@ -548,16 +550,22 @@ export interface InspectionDetail {
   ownerCustomerName?: string | null;
   ownerCustomerEmail?: string | null;
   ownerCustomerPhone?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   managerName?: string | null;
   managerEmail?: string | null;
   managerPhone?: string | null;
+  managerAvatarUrl?: string | null;
   assetId: string;
   assetName: string | null;
+  assetPhotoDocumentIds?: string[];
   locationText?: string | null | undefined;
   assetLatitude?: number | null | undefined;
   assetLongitude?: number | null | undefined;
   inspectorId: string;
   inspectorName: string | null;
+  inspectorAvatarUrl?: string | null;
+  inspectorAverageRating?: number | null;
+  inspectorRatingCount?: number;
   droneId: string | null;
   droneSerialNumber: string | null;
   droneModel?: string | null;
@@ -598,6 +606,7 @@ export interface InspectionDetail {
   clarificationCount?: number;
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
+  findingsConfirmedAt?: string | null;
   workOrderId?: string | null;
   sourceReportVersionId?: string | null;
 }
@@ -638,26 +647,7 @@ export interface CreateReinspectionPayload {
   plannedEndAt?: string | null;
 }
 
-export type FieldSessionStatus =
-  | 'PLANNED'
-  | 'IN_PROGRESS'
-  | 'FIELD_COMPLETED'
-  | 'POSTPONED'
-  | 'ABORTED';
-
-export interface FieldSession {
-  id: string;
-  inspectionId: string;
-  status: FieldSessionStatus;
-  preFlightChecklistNote: string | null;
-  startedAt: string | null;
-  endedAt: string | null;
-  postponementReason: string | null;
-  abortReason: string | null;
-  outcomeNotes: string | null;
-  telemetrySource?: string | null;
-  hasFlightReport?: boolean;
-}
+export type { FieldSession, FieldSessionStatus } from './fieldSessionApi';
 
 export const inspectionApi = {
   create: (input: CreateInspectionInput) =>
@@ -691,11 +681,6 @@ export const inspectionApi = {
       .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit`, form)
       .then((response) => response.data);
   },
-
-  reviewFlightPermit: (inspectionId: string, payload: ReviewFlightPermitInput) =>
-    api
-      .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit/review`, payload)
-      .then((response) => response.data),
 
   flightPermitContentUrl: (inspectionId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/flight-permit/content`,

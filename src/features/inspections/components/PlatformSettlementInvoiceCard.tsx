@@ -78,7 +78,7 @@ function StatementLine({
 }
 
 /**
- * Dedicated financial statement card for Platform Manager / Admin:
+ * Dedicated financial statement card for Manager / Admin:
  * Shows the full customer invoice and direct partner transfer while highlighting Platform Commission Revenue (+15%).
  */
 export function PlatformSettlementInvoiceCard({
