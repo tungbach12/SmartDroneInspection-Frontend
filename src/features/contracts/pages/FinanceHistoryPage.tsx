@@ -872,17 +872,18 @@ export default function FinanceHistoryPage({
                         variant="outlined"
                         loading={payoutBusy}
                         disabled={!detailHasCompleteBankDetails}
-                        startIcon={<SepayVietQrLogoMark />}
                         onClick={() => void handleOpenSepayPayoutQr()}
                         sx={{
-                          minHeight: 44,
+                          justifyContent: 'flex-start',
+                          alignItems: 'center',
+                          minHeight: 50,
                           textTransform: 'none',
                           fontWeight: 650,
                           whiteSpace: 'nowrap',
                           borderRadius: '10px',
                           boxShadow: 'none',
                           px: 1.75,
-                          gap: 1.25,
+                          py: 0.75,
                           borderColor: 'divider',
                           bgcolor: 'background.paper',
                           color: 'text.primary',
@@ -892,7 +893,12 @@ export default function FinanceHistoryPage({
                           },
                         }}
                       >
-                        {t('Pay Inspector via SePay (VietQR)')}
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                          <SepayVietQrLogoMark />
+                          <Typography variant="body2" sx={{ fontWeight: 650, color: 'inherit' }}>
+                            {t('Pay Inspector via SePay (VietQR)')}
+                          </Typography>
+                        </Stack>
                       </LoadingButton>
                     </Stack>
                   </Stack>

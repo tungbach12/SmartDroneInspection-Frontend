@@ -464,7 +464,6 @@ export default function ManagerReportReviewPage({
                   variant="outlined"
                   sx={{
                     width: '100%',
-                    maxWidth: 720,
                     borderRadius: '12px',
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
@@ -473,67 +472,81 @@ export default function ManagerReportReviewPage({
                   }}
                 >
                   {/* Unified Header Band */}
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    sx={{
+                  <Box
+                    sx={(theme) => ({
                       px: { xs: 2.5, sm: 3 },
                       py: 2,
+                      bgcolor:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.03)'
+                          : '#FAFAFB',
                       borderBottom: '1px solid',
-                      borderColor: 'divider',
+                      borderColor:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.14)'
+                          : '#D4D4D8',
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 1,
-                    }}
+                      gap: 1.5,
+                    })}
                   >
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
-                        {t('Inspector Payout')}
-                      </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                      {t('Inspector Payout')}
+                    </Typography>
+                    {isPayoutSettled && (
                       <StatusChip
-                        status={isPayoutSettled ? 'settled' : 'payout_pending'}
-                        label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
-                        tone={isPayoutSettled ? 'success' : 'warning'}
+                        status="settled"
+                        label={t('Payout settled')}
+                        tone="success"
                       />
-                    </Stack>
-                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                      {inspectionQuery.data?.inspectorName && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          {inspectionQuery.data.inspectorName}
-                        </Typography>
-                      )}
-                      {portal === 'manager' && (
-                        <Button
-                          component={RouterLink}
-                          to="/manager/payout-settlements"
-                          size="small"
-                          variant="text"
-                          endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-                          sx={{ textTransform: 'none', fontWeight: 600, px: 0.75, minWidth: 'auto' }}
-                        >
-                          {t('All payouts')}
-                        </Button>
-                      )}
-                    </Stack>
-                  </Stack>
+                    )}
+                  </Box>
 
-                  {/* Vertical Sequential Sections: Breakdown -> Recipient & Payout -> Publish */}
-                  <Stack divider={<Divider />}>
-                    {/* 1. Top: Payout breakdown (integer VND) */}
-                    <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                  {/* Vertical Sequential Sections separated by crisp 8px structural bands */}
+                  <Stack
+                    divider={
+                      <Box
+                        aria-hidden="true"
+                        sx={(theme) => ({
+                          height: 8,
+                          bgcolor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.04)'
+                              : '#F4F4F5',
+                          borderTop: '1px solid',
+                          borderBottom: '1px solid',
+                          borderColor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.14)'
+                              : '#D4D4D8',
+                        })}
+                      />
+                    }
+                  >
+                    {/* 1. Top: Payout breakdown */}
+                    <Box
+                      sx={{
+                        px: { xs: 2.5, sm: 3 },
+                        py: 2.5,
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 1fr) minmax(0, 2fr)' },
+                        gap: { xs: 1.5, md: 4 },
+                        alignItems: 'start',
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', pt: 0.75 }}>
                         {t('Payout breakdown')}
                       </Typography>
                       {financeBreakdown ? (
-                        <Stack spacing={1} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                        <Stack divider={<Divider sx={{ opacity: 0.55 }} />} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                             <Typography variant="body2" color="text.secondary">{t('Base fee')}</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {formatNumber(Math.round(financeBreakdown.serviceBaseAmount))} ₫
                             </Typography>
                           </Stack>
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                             <Typography variant="body2" color="text.secondary">
                               {`${t('Platform commission')} (${financeBreakdown.commissionRate}%)`}
                             </Typography>
@@ -541,13 +554,13 @@ export default function ManagerReportReviewPage({
                               −{formatNumber(Math.round(financeBreakdown.commissionAmount))} ₫
                             </Typography>
                           </Stack>
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                             <Typography variant="body2" color="text.secondary">{t('Inspector gross payout')}</Typography>
                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {formatNumber(Math.round(financeBreakdown.afterCommissionAmount))} ₫
                             </Typography>
                           </Stack>
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                             <Typography variant="body2" color="text.secondary">
                               {`${t('TNCN tax')} (${financeBreakdown.tncnRate}%)`}
                             </Typography>
@@ -555,8 +568,7 @@ export default function ManagerReportReviewPage({
                               −{formatNumber(Math.round(financeBreakdown.tncnAmount))} ₫
                             </Typography>
                           </Stack>
-                          <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />
-                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 0.25 }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 3, pt: 1.25 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                               {t('Inspector net payout')}
                             </Typography>
@@ -573,21 +585,30 @@ export default function ManagerReportReviewPage({
                     </Box>
 
                     {/* 2. Middle: Recipient bank account & SePay payout */}
-                    <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
-                      <Stack spacing={2}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                          {t('Recipient bank account')}
-                        </Typography>
+                    <Box
+                      sx={{
+                        px: { xs: 2.5, sm: 3 },
+                        py: 2.5,
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, 1fr) minmax(0, 2fr)' },
+                        gap: { xs: 1.5, md: 4 },
+                        alignItems: 'start',
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', pt: 0.75 }}>
+                        {t('Recipient bank account')}
+                      </Typography>
 
+                      <Stack spacing={2}>
                         {hasCompleteBankDetails ? (
-                          <Stack spacing={1}>
-                            <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Stack divider={<Divider sx={{ opacity: 0.55 }} />}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                               <Typography variant="body2" color="text.secondary">{t('Bank name')}</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right' }}>
                                 {formatVietQrBankDisplay(inspectorBankName)}
                               </Typography>
                             </Stack>
-                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                               <Typography variant="body2" color="text.secondary">{t('Bank account number')}</Typography>
                               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                                 <Typography variant="body2" sx={{ fontWeight: 650, fontFamily: 'monospace', color: 'text.primary' }}>
@@ -609,14 +630,14 @@ export default function ManagerReportReviewPage({
                                 </Tooltip>
                               </Stack>
                             </Stack>
-                            <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                               <Typography variant="body2" color="text.secondary">{t('Account holder name')}</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right' }}>
                                 {inspectorBankAccountHolder}
                               </Typography>
                             </Stack>
                             {inspectorBankBranch && (
-                              <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 3, py: 0.85 }}>
                                 <Typography variant="body2" color="text.secondary">{t('Branch')}</Typography>
                                 <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500, textAlign: 'right' }}>
                                   {inspectorBankBranch}
@@ -642,23 +663,23 @@ export default function ManagerReportReviewPage({
 
                         {!isPayoutSettled ? (
                           portal === 'manager' && (
-                            <Box sx={{ pt: 0.5 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
                               <LoadingButton
-                                fullWidth
                                 variant="outlined"
                                 loading={createSepayPayoutLink.isPending}
                                 disabled={!hasCompleteBankDetails}
-                                startIcon={<SepayVietQrLogoMark />}
                                 onClick={() => void handleOpenSepayPayoutQr()}
                                 sx={{
-                                  minHeight: 48,
+                                  width: { xs: '100%', sm: 'auto' },
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                  px: 1.75,
+                                  py: 0.75,
+                                  minHeight: 46,
                                   textTransform: 'none',
                                   fontWeight: 650,
                                   borderRadius: '10px',
                                   boxShadow: 'none',
-                                  px: 2,
-                                  py: 1,
-                                  gap: 1.25,
                                   borderColor: 'divider',
                                   bgcolor: 'background.paper',
                                   color: 'text.primary',
@@ -668,7 +689,12 @@ export default function ManagerReportReviewPage({
                                   },
                                 }}
                               >
-                                {t('Pay Inspector via SePay (VietQR)')}
+                                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+                                  <SepayVietQrLogoMark />
+                                  <Typography variant="body2" sx={{ fontWeight: 650, color: 'inherit', whiteSpace: 'nowrap' }}>
+                                    {t('Pay Inspector via SePay (VietQR)')}
+                                  </Typography>
+                                </Stack>
                               </LoadingButton>
                             </Box>
                           )
@@ -683,7 +709,7 @@ export default function ManagerReportReviewPage({
                       </Stack>
                     </Box>
 
-                    {/* 3. Bottom: Publish to Customer */}
+                    {/* 3. Bottom: Publish action bar */}
                     <Box
                       sx={(theme) => ({
                         px: { xs: 2.5, sm: 3 },
@@ -700,41 +726,14 @@ export default function ManagerReportReviewPage({
                           isError={publishReport.isError}
                           fallbackMessage={t('The report could not be published.')}
                         />
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
-                          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                              {t('Publish report to Customer')}
-                            </Typography>
-                            <StatusChip
-                              status={
-                                openVersion.status === 'PUBLISHED'
-                                  ? 'published'
-                                  : isPayoutSettled
-                                    ? 'ready'
-                                    : 'locked'
-                              }
-                              label={
-                                openVersion.status === 'PUBLISHED'
-                                  ? t('Published')
-                                  : isPayoutSettled
-                                    ? t('Ready to publish')
-                                    : t('Locked')
-                              }
-                              tone={
-                                openVersion.status === 'PUBLISHED' || isPayoutSettled
-                                  ? 'success'
-                                  : 'default'
-                              }
-                            />
-                          </Stack>
-
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                           {openVersion.status === 'PUBLISHED' ? (
                             <Button
                               component={RouterLink}
                               to="../settlement"
                               variant="contained"
                               endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
-                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none', flexShrink: 0 }}
+                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none' }}
                             >
                               {t('Continue to Customer Settlement')}
                             </Button>
@@ -757,12 +756,12 @@ export default function ManagerReportReviewPage({
                                   },
                                 )
                               }
-                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none', flexShrink: 0 }}
+                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none' }}
                             >
                               {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
                             </LoadingButton>
                           )}
-                        </Stack>
+                        </Box>
                       </Stack>
                     </Box>
                   </Stack>

@@ -435,9 +435,6 @@ export default function InspectionDetailPage() {
   const isPaymentSettled =
     Boolean(paymentStatusQuery?.data?.paid) ||
     paymentStatusQuery?.data?.paymentStatus === 'PAID';
-  const payoutStatusNormalized = (paymentStatusQuery?.data?.payoutStatus ?? '').toUpperCase();
-  const isInspectorPayoutSettled =
-    payoutStatusNormalized === 'PAID' || payoutStatusNormalized === 'SETTLED';
 
   const sessionsQuery = useFieldSessions(inspectionId);
   const acceptMutation = useAcceptInspection(inspectionId);
@@ -1614,25 +1611,6 @@ export default function InspectionDetailPage() {
                     >
                       {t(step.title)}
                     </Typography>
-                    {isReviewerAdmin &&
-                      step.value === 'payout' &&
-                      hasApprovedVersion &&
-                      !hasPublishedVersion && (
-                        <Typography
-                          component="span"
-                          sx={{
-                            display: 'block',
-                            mt: 0.25,
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            color: isInspectorPayoutSettled ? 'success.main' : 'warning.dark',
-                            lineHeight: 1.2,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {isInspectorPayoutSettled ? t('Ready to publish') : t('Payout required')}
-                        </Typography>
-                      )}
                     {isReviewerAdmin &&
                       step.value === 'settlement' &&
                       hasPublishedVersion &&
