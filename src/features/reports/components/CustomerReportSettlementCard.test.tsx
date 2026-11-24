@@ -104,6 +104,7 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
     expect(screen.queryByText(/Official report version/)).toBeNull();
     expect(screen.queryByText(/Official PDF ready/)).toBeNull();
     expect(screen.queryByText('Opens VNPay in a new tab.')).toBeNull();
+    expect(screen.queryByText('Payment Due')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reset order' })).toBeNull();
   });
 

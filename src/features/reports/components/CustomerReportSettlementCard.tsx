@@ -12,9 +12,7 @@ import {
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
-import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
-import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import {
   inspectionApi,
@@ -458,20 +456,14 @@ export function CustomerReportSettlementCard({
             <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
               {t('Report acceptance & service fee payment')}
             </Typography>
-            <Chip
-              size="small"
-              label={
-                isPaid
-                  ? t('Paid & Fulfilled')
-                  : isPaymentConfirming
-                    ? t('Confirming payment…')
-                    : isReportAccepted
-                      ? t('Payment Due')
-                      : t('Awaiting Acceptance')
-              }
-              color={isPaid ? 'success' : isPaymentConfirming ? 'info' : isReportAccepted ? 'warning' : 'primary'}
-              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
-            />
+            {(isPaid || isPaymentConfirming) && (
+              <Chip
+                size="small"
+                label={isPaid ? t('Paid & Fulfilled') : t('Confirming payment…')}
+                color={isPaid ? 'success' : 'info'}
+                sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
+              />
+            )}
             <Chip
               size="small"
               variant="outlined"
@@ -745,7 +737,7 @@ export function CustomerReportSettlementCard({
                     disabled={sepayPending || vnpayPending}
                     onClick={onProceedToSepay}
                     sx={{
-                      justifyContent: 'space-between',
+                      justifyContent: 'flex-start',
                       alignItems: 'center',
                       gap: 1.5,
                       px: 1.75,
@@ -763,15 +755,12 @@ export function CustomerReportSettlementCard({
                       },
                     }}
                   >
-                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-                      <SepayVietQrLogoMark />
-                      <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
-                        {sepayPending
-                          ? t('Connecting to Sepay gateway…')
-                          : t('Pay with VietQR (Sepay)')}
-                      </Typography>
-                    </Stack>
-                    <QrCode2Rounded sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+                    <SepayVietQrLogoMark />
+                    <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
+                      {sepayPending
+                        ? t('Connecting to Sepay gateway…')
+                        : t('Pay with VietQR (Sepay)')}
+                    </Typography>
                   </Button>
 
                   {onProceedToVnPay && (
@@ -780,7 +769,7 @@ export function CustomerReportSettlementCard({
                       disabled={vnpayPending || sepayPending}
                       onClick={onProceedToVnPay}
                       sx={{
-                        justifyContent: 'space-between',
+                        justifyContent: 'flex-start',
                         alignItems: 'center',
                         gap: 1.5,
                         px: 1.75,
@@ -798,15 +787,12 @@ export function CustomerReportSettlementCard({
                         },
                       }}
                     >
-                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-                        <VnPayLogoMark />
-                        <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
-                          {vnpayPending
-                            ? t('Connecting to VNPay gateway…')
-                            : t('Pay with VNPay')}
-                        </Typography>
-                      </Stack>
-                      <OpenInNewRounded sx={{ fontSize: 17, color: 'text.secondary', flexShrink: 0 }} />
+                      <VnPayLogoMark />
+                      <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
+                        {vnpayPending
+                          ? t('Connecting to VNPay gateway…')
+                          : t('Pay with VNPay')}
+                      </Typography>
                     </Button>
                   )}
                 </Stack>
