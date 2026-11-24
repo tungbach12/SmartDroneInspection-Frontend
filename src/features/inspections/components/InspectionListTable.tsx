@@ -638,7 +638,7 @@ export function InspectionListTable({
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 160,
+                  minWidth: 145,
                 }}
               >
                 {t('Asset')}
@@ -654,7 +654,7 @@ export function InspectionListTable({
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 140,
+                  minWidth: 130,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -671,7 +671,7 @@ export function InspectionListTable({
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  width: 132,
+                  width: 120,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -688,7 +688,7 @@ export function InspectionListTable({
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 145,
+                  minWidth: 135,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -706,7 +706,7 @@ export function InspectionListTable({
                   px: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  minWidth: 135,
+                  minWidth: 125,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -807,7 +807,7 @@ export function InspectionListTable({
                         color: 'text.primary',
                         borderBottom: '1px solid',
                         borderColor: 'divider',
-                        maxWidth: 210,
+                        maxWidth: 190,
                         overflow: 'hidden',
                       }}
                     >
@@ -876,7 +876,7 @@ export function InspectionListTable({
                         px: 1.25,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
-                        maxWidth: 185,
+                        maxWidth: 165,
                         overflow: 'hidden',
                       }}
                     >
