@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Box,
   Button,
-  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,8 +14,9 @@ import {
   Typography,
 } from '@mui/material';
 import CheckRounded from '@mui/icons-material/CheckRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
-import HourglassTopRounded from '@mui/icons-material/HourglassTopRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import type { SepayCheckoutDetails } from '@/features/inspections/api/inspectionApi';
 import { formatVietQrBankDisplay } from '@/shared/constants/vietQrBanks';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -50,11 +51,20 @@ export function SepayPayoutQrDialog({
   onCheckNow,
   onClose,
 }: SepayPayoutQrDialogProps) {
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const [copiedKey, setCopiedKey] = useState<'account' | 'content' | null>(null);
   const [qrLoadError, setQrLoadError] = useState(false);
 
   const formattedBank = bankName ? formatVietQrBankDisplay(bankName) : null;
+  const resolvedAmount =
+    details?.amount != null && Number.isFinite(details.amount)
+      ? `${
+          typeof formatNumber === 'function'
+            ? formatNumber(Math.round(details.amount))
+            : new Intl.NumberFormat('en-US').format(Math.round(details.amount))
+        } ₫`
+      : amountVnd;
+  const recipientName = bankAccountHolder?.trim() || inspectorName?.trim() || null;
 
   const copyText = async (key: 'account' | 'content', value: string | null | undefined) => {
     if (!value) return;
@@ -71,128 +81,147 @@ export function SepayPayoutQrDialog({
     <Dialog
       open={Boolean(details)}
       onClose={onClose}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
-      slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: '16px',
+            boxShadow: 'none',
+            border: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+          },
+        },
+      }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <SepayVietQrLogoMark />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {t('Inspector payout VietQR')}
-            </Typography>
-          </Stack>
-          <Chip
-            size="small"
-            icon={<HourglassTopRounded sx={{ fontSize: 14 }} />}
-            label={t('Awaiting SePay confirmation')}
-            color="primary"
-            variant="outlined"
-            sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600 }}
-          />
+      <DialogTitle
+        sx={{
+          px: 3,
+          py: 1.75,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.5,
+        }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+          <SepayVietQrLogoMark />
+          <Divider orientation="vertical" flexItem sx={{ height: 18, alignSelf: 'center' }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }} noWrap>
+            {t('Inspector payout VietQR')}
+          </Typography>
         </Stack>
+        <IconButton
+          size="small"
+          aria-label={t('Close')}
+          onClick={onClose}
+          sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+        >
+          <CloseRounded fontSize="small" />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent dividers sx={{ pt: 2 }}>
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            {t(
-              'Scan this VietQR code with the company banking app to transfer the net payout to the Inspector. Payout settles automatically once SePay confirms the outgoing transfer.',
-            )}
-          </Typography>
-
-          {details?.checkoutUrl && !qrLoadError ? (
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: '#ffffff',
-                display: 'inline-flex',
-                justifyContent: 'center',
-              }}
-            >
+      <DialogContent sx={{ px: 3, py: 2.5 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '212px minmax(0, 1fr)' },
+            gap: 3,
+            alignItems: 'center',
+          }}
+        >
+          {/* Left column: single crisp QR surface */}
+          <Stack spacing={1} sx={{ alignItems: 'center' }}>
+            {details?.checkoutUrl && !qrLoadError ? (
               <Box
-                component="img"
-                src={details.checkoutUrl}
-                alt={t('VietQR code for Inspector payout')}
-                onError={() => setQrLoadError(true)}
                 sx={{
-                  width: 224,
-                  height: 'auto',
-                  display: 'block',
-                  borderRadius: '6px',
+                  p: 1.25,
+                  borderRadius: '12px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: '#FFFFFF',
+                  display: 'inline-flex',
+                  justifyContent: 'center',
                 }}
-              />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                width: '100%',
-                p: 1.5,
-                borderRadius: '8px',
-                bgcolor: 'action.hover',
-                textAlign: 'center',
-              }}
-            >
-              <Typography variant="caption" color="text.secondary">
-                {t('QR image unavailable. Use the bank details below to transfer manually.')}
-              </Typography>
-            </Box>
-          )}
+              >
+                <Box
+                  component="img"
+                  src={details.checkoutUrl}
+                  alt={t('VietQR code for Inspector payout')}
+                  onError={() => setQrLoadError(true)}
+                  sx={{
+                    width: 188,
+                    height: 'auto',
+                    display: 'block',
+                    borderRadius: '6px',
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  width: '100%',
+                  minHeight: 188,
+                  p: 2,
+                  borderRadius: '12px',
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  bgcolor: 'background.default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {t('QR image unavailable. Use the bank details below to transfer manually.')}
+                </Typography>
+              </Box>
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+              {t('Scan with banking app')}
+            </Typography>
+          </Stack>
 
-          <Box
-            sx={{
-              width: '100%',
-              p: 1.5,
-              borderRadius: '10px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.default',
-            }}
-          >
-            <Stack spacing={0.85} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-              {amountVnd && (
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('Inspector net payout')}
-                  </Typography>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                    {amountVnd}
-                  </Typography>
-                </Stack>
-              )}
+          {/* Right column: clean border-separated transfer specification */}
+          <Stack spacing={1.75} sx={{ minWidth: 0, fontVariantNumeric: 'tabular-nums' }}>
+            {resolvedAmount && (
+              <Box sx={{ pb: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+                  {t('Transfer amount')}
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontSize: '1.625rem',
+                    lineHeight: 1.2,
+                    fontWeight: 700,
+                    letterSpacing: '-0.02em',
+                    color: 'text.primary',
+                  }}
+                >
+                  {resolvedAmount}
+                </Typography>
+              </Box>
+            )}
 
-              {(inspectorName || formattedBank || bankAccountNumber || bankAccountHolder) && (
-                <Divider sx={{ borderStyle: 'dashed' }} />
-              )}
-
-              {inspectorName && (
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('Inspector')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {inspectorName}
-                  </Typography>
-                </Stack>
-              )}
-
+            <Stack spacing={1}>
               {formattedBank && (
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('Bank')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
                     {formattedBank}
                   </Typography>
                 </Stack>
               )}
 
               {bankAccountNumber && (
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('Account number')}
                   </Typography>
@@ -205,7 +234,7 @@ export function SepayPayoutQrDialog({
                         size="small"
                         aria-label={t('Account number')}
                         onClick={() => void copyText('account', bankAccountNumber)}
-                        sx={{ p: 0.35 }}
+                        sx={{ p: 0.35, color: 'text.secondary' }}
                       >
                         {copiedKey === 'account' ? (
                           <CheckRounded sx={{ fontSize: 15, color: 'success.main' }} />
@@ -218,82 +247,131 @@ export function SepayPayoutQrDialog({
                 </Stack>
               )}
 
-              {bankAccountHolder && (
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              {recipientName && (
+                <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="caption" color="text.secondary">
                     {t('Account holder')}
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {bankAccountHolder}
+                  <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                    {recipientName}
                   </Typography>
                 </Stack>
               )}
-
-              {details?.qrCode && (
-                <>
-                  <Divider sx={{ borderStyle: 'dashed' }} />
-                  <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('Transfer content')}
-                    </Typography>
-                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'primary.main' }}
-                      >
-                        {details.qrCode}
-                      </Typography>
-                      <Tooltip title={copiedKey === 'content' ? t('Copied') : t('Copy')}>
-                        <IconButton
-                          size="small"
-                          aria-label={t('Transfer content')}
-                          onClick={() => void copyText('content', details.qrCode)}
-                          sx={{ p: 0.35 }}
-                        >
-                          {copiedKey === 'content' ? (
-                            <CheckRounded sx={{ fontSize: 15, color: 'success.main' }} />
-                          ) : (
-                            <ContentCopyRounded sx={{ fontSize: 14 }} />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </Stack>
-                </>
-              )}
             </Stack>
-          </Box>
 
-          <Typography
-            component="p"
-            role="status"
-            aria-live="polite"
-            variant="caption"
-            sx={{ color: 'text.secondary', textAlign: 'center', m: 0 }}
-          >
+            {details?.qrCode && (
+              <Box
+                sx={{
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: '8px',
+                  bgcolor: 'action.hover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
+                    {t('Transfer content')}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'primary.main', mt: 0.25 }}
+                    noWrap
+                  >
+                    {details.qrCode}
+                  </Typography>
+                </Box>
+                <Tooltip title={copiedKey === 'content' ? t('Copied') : t('Copy')}>
+                  <IconButton
+                    size="small"
+                    aria-label={t('Transfer content')}
+                    onClick={() => void copyText('content', details.qrCode)}
+                    sx={{ p: 0.5, color: 'text.secondary', flexShrink: 0 }}
+                  >
+                    {copiedKey === 'content' ? (
+                      <CheckRounded sx={{ fontSize: 16, color: 'success.main' }} />
+                    ) : (
+                      <ContentCopyRounded sx={{ fontSize: 15 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
+
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45 }}>
+              {t('Keep the transfer content unchanged for automatic confirmation.')}
+            </Typography>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 1.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.default',
+          justifyContent: 'space-between',
+          gap: 1.5,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          role="status"
+          aria-live="polite"
+          sx={{ alignItems: 'center', minWidth: 0 }}
+        >
+          {checking ? (
+            <CircularProgress size={12} thickness={5} />
+          ) : (
+            <Box
+              aria-hidden="true"
+              sx={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                bgcolor: copiedKey === 'content' ? 'success.main' : 'primary.main',
+                flexShrink: 0,
+              }}
+            />
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
             {checking
               ? t('Checking…')
               : copiedKey === 'content'
                 ? t('Transfer content copied.')
-                : t('Keep the transfer content unchanged so SePay can match this payout automatically.')}
+                : t('Awaiting SePay confirmation')}
           </Typography>
         </Stack>
-      </DialogContent>
 
-      <DialogActions sx={{ px: 2.5, py: 1.5, justifyContent: onCheckNow ? 'space-between' : 'flex-end' }}>
-        {onCheckNow && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          {onCheckNow && (
+            <Button
+              onClick={onCheckNow}
+              disabled={checking}
+              size="small"
+              startIcon={<RefreshRounded sx={{ fontSize: 15 }} />}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', color: 'text.secondary' }}
+            >
+              {checking ? t('Checking…') : t('Check payout status')}
+            </Button>
+          )}
           <Button
-            onClick={onCheckNow}
-            disabled={checking}
+            onClick={onClose}
+            variant="outlined"
+            color="inherit"
             size="small"
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', borderColor: 'divider' }}
           >
-            {checking ? t('Checking…') : t('Check payout status')}
+            {t('Close')}
           </Button>
-        )}
-        <Button onClick={onClose} variant="outlined" size="small" sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}>
-          {t('Close')}
-        </Button>
+        </Stack>
       </DialogActions>
     </Dialog>
   );

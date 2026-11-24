@@ -12,14 +12,16 @@ import {
   Box,
   Button,
   Divider,
+  IconButton,
   Paper,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
+import LockOutlined from '@mui/icons-material/LockOutlined';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { MutationProblemAlert } from '@/shared/ui/MutationProblemAlert';
@@ -88,7 +90,7 @@ export default function ManagerReportReviewPage({
     undefined,
   );
   const [prePublishPayoutError, setPrePublishPayoutError] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<'account' | 'amount' | null>(null);
+  const [copiedAccount, setCopiedAccount] = useState(false);
   const [financeDrawerTarget, setFinanceDrawerTarget] = useState<{
     requestId: string;
     occurrence: ServiceRequestOccurrence;
@@ -155,11 +157,11 @@ export default function ManagerReportReviewPage({
     inspectorBankName && inspectorBankAccountNumber && inspectorBankAccountHolder,
   );
 
-  const handleCopyText = async (value: string, key: 'account' | 'amount') => {
+  const handleCopyAccount = async (value: string) => {
     try {
       await navigator.clipboard?.writeText(value);
-      setCopiedKey(key);
-      window.setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
+      setCopiedAccount(true);
+      window.setTimeout(() => setCopiedAccount(false), 1800);
     } catch {
       // Ignore clipboard failures in restricted environments
     }
@@ -458,305 +460,313 @@ export default function ManagerReportReviewPage({
                   </Stack>
                 </Paper>
               ) : (
-                <Stack spacing={2.5}>
-                  <Paper
-                    variant="outlined"
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    width: '100%',
+                    maxWidth: 720,
+                    borderRadius: '12px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    boxShadow: 'none',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Unified Header Band */}
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
                     sx={{
-                      p: { xs: 2, sm: 2.5 },
-                      borderRadius: '12px',
-                      borderColor: isPayoutSettled ? 'divider' : 'warning.main',
-                      bgcolor: 'background.paper',
-                      boxShadow: 'none',
+                      px: { xs: 2.5, sm: 3 },
+                      py: 2,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 1,
                     }}
                   >
-                    <Stack spacing={2.25}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
-                      >
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: 'text.primary' }}>
-                            {t('Inspector Payout')}
-                          </Typography>
-                          <StatusChip
-                            status={isPayoutSettled ? 'settled' : 'payout_pending'}
-                            label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
-                            tone={isPayoutSettled ? 'success' : 'warning'}
-                          />
-                        </Stack>
-                        {inspectionQuery.data?.inspectorName && (
-                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                            {t('Inspector')}: {inspectionQuery.data.inspectorName}
-                          </Typography>
-                        )}
-                      </Stack>
-
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                          gap: 2,
-                        }}
-                      >
-                        {/* Left: Payout calculation */}
-                        <Box
-                          sx={{
-                            p: 2,
-                            borderRadius: '10px',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'background.default',
-                          }}
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
+                        {t('Inspector Payout')}
+                      </Typography>
+                      <StatusChip
+                        status={isPayoutSettled ? 'settled' : 'payout_pending'}
+                        label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
+                        tone={isPayoutSettled ? 'success' : 'warning'}
+                      />
+                    </Stack>
+                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      {inspectionQuery.data?.inspectorName && (
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          {inspectionQuery.data.inspectorName}
+                        </Typography>
+                      )}
+                      {portal === 'manager' && (
+                        <Button
+                          component={RouterLink}
+                          to="/manager/payout-settlements"
+                          size="small"
+                          variant="text"
+                          endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                          sx={{ textTransform: 'none', fontWeight: 600, px: 0.75, minWidth: 'auto' }}
                         >
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.25 }}>
-                            {t('Payout breakdown')}
-                          </Typography>
-                          {financeBreakdown ? (
-                            <Stack spacing={0.75} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                                <Typography variant="body2" color="text.secondary">{t('Base fee')}</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatNumber(financeBreakdown.serviceBaseAmount)} ₫</Typography>
-                              </Stack>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                                <Typography variant="body2" color="text.secondary">
-                                  {`${t('Platform commission')} (${financeBreakdown.commissionRate}%)`}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">−{formatNumber(financeBreakdown.commissionAmount)} ₫</Typography>
-                              </Stack>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                                <Typography variant="body2" color="text.secondary">{t('Inspector gross payout')}</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatNumber(financeBreakdown.afterCommissionAmount)} ₫</Typography>
-                              </Stack>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                                <Typography variant="body2" color="text.secondary">
-                                  {`${t('TNCN tax')} (${financeBreakdown.tncnRate}%)`}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">−{formatNumber(financeBreakdown.tncnAmount)} ₫</Typography>
-                              </Stack>
-                              <Divider sx={{ my: 0.75, borderStyle: 'dashed' }} />
-                              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{t('Inspector net payout')}</Typography>
-                                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                                    {formatNumber(financeBreakdown.netPayoutAmount)} ₫
-                                  </Typography>
-                                  <Button
-                                    size="small"
-                                    variant="text"
-                                    onClick={() =>
-                                      void handleCopyText(String(financeBreakdown.netPayoutAmount), 'amount')
-                                    }
-                                    startIcon={
-                                      copiedKey === 'amount' ? (
-                                        <CheckRounded sx={{ fontSize: 14 }} />
-                                      ) : (
-                                        <ContentCopyOutlined sx={{ fontSize: 14 }} />
-                                      )
-                                    }
-                                    sx={{ minWidth: 'auto', px: 0.75, textTransform: 'none', fontSize: '0.75rem' }}
-                                  >
-                                    {copiedKey === 'amount' ? t('Copied') : t('Copy')}
-                                  </Button>
-                                </Stack>
-                              </Stack>
-                            </Stack>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              {t('Payout breakdown unavailable for this inspection.')}
-                            </Typography>
-                          )}
-                        </Box>
+                          {t('All payouts')}
+                        </Button>
+                      )}
+                    </Stack>
+                  </Stack>
 
-                        {/* Right: Inspector receiving bank details */}
-                        <Box
-                          sx={{
-                            p: 2,
-                            borderRadius: '10px',
-                            border: '1px solid',
-                            borderColor: hasCompleteBankDetails ? 'divider' : 'warning.main',
-                            bgcolor: 'background.default',
-                          }}
-                        >
-                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.25 }}>
-                            <AccountBalanceOutlined sx={{ fontSize: 18, color: hasCompleteBankDetails ? 'primary.main' : 'warning.dark' }} />
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {t('Inspector payout bank account')}
+                  {/* Vertical Sequential Sections: Breakdown -> Recipient & Payout -> Publish */}
+                  <Stack divider={<Divider />}>
+                    {/* 1. Top: Payout breakdown (integer VND) */}
+                    <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                        {t('Payout breakdown')}
+                      </Typography>
+                      {financeBreakdown ? (
+                        <Stack spacing={1} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">{t('Base fee')}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                              {formatNumber(Math.round(financeBreakdown.serviceBaseAmount))} ₫
                             </Typography>
                           </Stack>
-
-                          {hasCompleteBankDetails ? (
-                            <Stack spacing={0.85}>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-                                <Typography variant="body2" color="text.secondary">{t('Bank name')}</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'right' }}>{formatVietQrBankDisplay(inspectorBankName)}</Typography>
-                              </Stack>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="body2" color="text.secondary">{t('Bank account number')}</Typography>
-                                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
-                                    {inspectorBankAccountNumber}
-                                  </Typography>
-                                  <Button
-                                    size="small"
-                                    variant="text"
-                                    onClick={() => void handleCopyText(inspectorBankAccountNumber, 'account')}
-                                    startIcon={
-                                      copiedKey === 'account' ? (
-                                        <CheckRounded sx={{ fontSize: 14 }} />
-                                      ) : (
-                                        <ContentCopyOutlined sx={{ fontSize: 14 }} />
-                                      )
-                                    }
-                                    sx={{ minWidth: 'auto', px: 0.75, textTransform: 'none', fontSize: '0.75rem' }}
-                                  >
-                                    {copiedKey === 'account' ? t('Copied') : t('Copy')}
-                                  </Button>
-                                </Stack>
-                              </Stack>
-                              <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-                                <Typography variant="body2" color="text.secondary">{t('Account holder name')}</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'right' }}>{inspectorBankAccountHolder}</Typography>
-                              </Stack>
-                              {inspectorBankBranch && (
-                                <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-                                  <Typography variant="body2" color="text.secondary">{t('Branch')}</Typography>
-                                  <Typography variant="body2" sx={{ textAlign: 'right' }}>{inspectorBankBranch}</Typography>
-                                </Stack>
-                              )}
-                            </Stack>
-                          ) : (
-                            <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {t('Inspector has not entered payout bank details yet.')}
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'block', mt: 0.35 }}>
-                                {t('Ask the assigned Inspector to add their bank account in Settings -> Account or Payouts before settling payout.')}
-                              </Typography>
-                            </Alert>
-                          )}
-                        </Box>
-                      </Box>
-
-                      {prePublishPayoutError && (
-                        <Alert
-                          severity="error"
-                          onClose={() => setPrePublishPayoutError(null)}
-                          sx={{ borderRadius: '8px' }}
-                        >
-                          {prePublishPayoutError}
-                        </Alert>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              {`${t('Platform commission')} (${financeBreakdown.commissionRate}%)`}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              −{formatNumber(Math.round(financeBreakdown.commissionAmount))} ₫
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">{t('Inspector gross payout')}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                              {formatNumber(Math.round(financeBreakdown.afterCommissionAmount))} ₫
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              {`${t('TNCN tax')} (${financeBreakdown.tncnRate}%)`}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              −{formatNumber(Math.round(financeBreakdown.tncnAmount))} ₫
+                            </Typography>
+                          </Stack>
+                          <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                              {t('Inspector net payout')}
+                            </Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.01em' }}>
+                              {formatNumber(Math.round(financeBreakdown.netPayoutAmount))} ₫
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          {t('Payout breakdown unavailable for this inspection.')}
+                        </Typography>
                       )}
+                    </Box>
 
-                      {!isPayoutSettled ? (
-                        portal === 'manager' && (
-                          <Stack spacing={1.25}>
-                            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                              <SepayVietQrLogoMark />
-                              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                                {t('Transfer automatically via SePay VietQR — payout settles once outgoing webhook is confirmed.')}
+                    {/* 2. Middle: Recipient bank account & SePay payout */}
+                    <Box sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
+                      <Stack spacing={2}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                          {t('Recipient bank account')}
+                        </Typography>
+
+                        {hasCompleteBankDetails ? (
+                          <Stack spacing={1}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                              <Typography variant="body2" color="text.secondary">{t('Bank name')}</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right' }}>
+                                {formatVietQrBankDisplay(inspectorBankName)}
                               </Typography>
                             </Stack>
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                              <Typography variant="body2" color="text.secondary">{t('Bank account number')}</Typography>
+                              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 650, fontFamily: 'monospace', color: 'text.primary' }}>
+                                  {inspectorBankAccountNumber}
+                                </Typography>
+                                <Tooltip title={copiedAccount ? t('Copied') : t('Copy')}>
+                                  <IconButton
+                                    size="small"
+                                    aria-label={t('Bank account number')}
+                                    onClick={() => void handleCopyAccount(inspectorBankAccountNumber)}
+                                    sx={{ p: 0.35, color: 'text.secondary' }}
+                                  >
+                                    {copiedAccount ? (
+                                      <CheckRounded sx={{ fontSize: 15, color: 'success.main' }} />
+                                    ) : (
+                                      <ContentCopyOutlined sx={{ fontSize: 14 }} />
+                                    )}
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </Stack>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                              <Typography variant="body2" color="text.secondary">{t('Account holder name')}</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right' }}>
+                                {inspectorBankAccountHolder}
+                              </Typography>
+                            </Stack>
+                            {inspectorBankBranch && (
+                              <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                                <Typography variant="body2" color="text.secondary">{t('Branch')}</Typography>
+                                <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500, textAlign: 'right' }}>
+                                  {inspectorBankBranch}
+                                </Typography>
+                              </Stack>
+                            )}
+                          </Stack>
+                        ) : (
+                          <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                            {t('Inspector has not entered payout bank details yet.')}
+                          </Alert>
+                        )}
+
+                        {prePublishPayoutError && (
+                          <Alert
+                            severity="error"
+                            onClose={() => setPrePublishPayoutError(null)}
+                            sx={{ borderRadius: '8px' }}
+                          >
+                            {prePublishPayoutError}
+                          </Alert>
+                        )}
+
+                        {!isPayoutSettled ? (
+                          portal === 'manager' && (
+                            <Box sx={{ pt: 0.5 }}>
                               <LoadingButton
-                                size="small"
-                                variant="contained"
-                                color="primary"
+                                fullWidth
+                                variant="outlined"
                                 loading={createSepayPayoutLink.isPending}
                                 disabled={!hasCompleteBankDetails}
+                                startIcon={<SepayVietQrLogoMark />}
                                 onClick={() => void handleOpenSepayPayoutQr()}
-                                sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', borderRadius: '8px', boxShadow: 'none' }}
+                                sx={{
+                                  minHeight: 48,
+                                  textTransform: 'none',
+                                  fontWeight: 650,
+                                  borderRadius: '10px',
+                                  boxShadow: 'none',
+                                  px: 2,
+                                  py: 1,
+                                  gap: 1.25,
+                                  borderColor: 'divider',
+                                  bgcolor: 'background.paper',
+                                  color: 'text.primary',
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                    bgcolor: 'action.hover',
+                                  },
+                                }}
                               >
                                 {t('Pay Inspector via SePay (VietQR)')}
                               </LoadingButton>
-                              <Button
-                                component={RouterLink}
-                                to="/manager/payout-settlements"
-                                size="small"
-                                variant="outlined"
-                                color="inherit"
-                                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px', borderColor: 'divider' }}
-                              >
-                                {t('Open Inspector payouts')}
-                              </Button>
-                            </Stack>
-                          </Stack>
-                        )
-                      ) : (
-                        <Alert severity="success" sx={{ borderRadius: '8px' }}>
-                          {t('Inspector payout settled')}
-                          {paymentStatusQuery.data?.payoutReference
-                            ? ` · ${t('Ref')}: ${paymentStatusQuery.data.payoutReference}`
-                            : ''}
-                        </Alert>
-                      )}
-                    </Stack>
-                  </Paper>
+                            </Box>
+                          )
+                        ) : (
+                          <Alert severity="success" sx={{ borderRadius: '8px' }}>
+                            {t('Inspector payout settled')}
+                            {paymentStatusQuery.data?.payoutReference
+                              ? ` · ${t('Ref')}: ${paymentStatusQuery.data.payoutReference}`
+                              : ''}
+                          </Alert>
+                        )}
+                      </Stack>
+                    </Box>
 
-                  {/* Publish report card (unlocked after payout settled) */}
-                  <Paper
-                    variant="outlined"
-                    sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '12px', borderColor: 'divider', bgcolor: 'background.paper', boxShadow: 'none' }}
-                  >
-                    <Stack spacing={1.5}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {t('Publish report to Customer')}
-                      </Typography>
-                      <MutationProblemAlert
-                        error={publishReport.error}
-                        isError={publishReport.isError}
-                        fallbackMessage={t('The report could not be published.')}
-                      />
-                      {openVersion.status === 'PUBLISHED' ? (
+                    {/* 3. Bottom: Publish to Customer */}
+                    <Box
+                      sx={(theme) => ({
+                        px: { xs: 2.5, sm: 3 },
+                        py: 2,
+                        bgcolor:
+                          theme.palette.mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.02)'
+                            : '#FCFCFD',
+                      })}
+                    >
+                      <Stack spacing={1.25}>
+                        <MutationProblemAlert
+                          error={publishReport.error}
+                          isError={publishReport.isError}
+                          fallbackMessage={t('The report could not be published.')}
+                        />
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
-                          <Typography variant="body2" color="text.secondary">
-                            {isAccepted
-                              ? t('Report published. Customer has accepted the report.')
-                              : t('Report published. Awaiting customer acceptance.')}
-                          </Typography>
-                          <Button
-                            component={RouterLink}
-                            to="../settlement"
-                            variant="contained"
-                            endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
-                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none' }}
-                          >
-                            {t('Continue to Customer Settlement')}
-                          </Button>
-                        </Stack>
-                      ) : (
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
-                          <Typography variant="body2" color="text.secondary">
-                            {isPayoutSettled
-                              ? t('Inspector payout is settled. Publish the official report so the Customer can review and pay.')
-                              : t('Settle Inspector payout above to unlock publishing.')}
-                          </Typography>
-                          <LoadingButton
-                            variant="contained"
-                            color="primary"
-                            loading={publishReport.isPending}
-                            disabled={!isPayoutSettled}
-                            onClick={() =>
-                              publishReport.mutate(
-                                { versionId: openVersion.id },
-                                {
-                                  onSuccess: () => {
-                                    if (portal === 'manager') {
-                                      navigate('../settlement');
-                                    }
+                          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                              {t('Publish report to Customer')}
+                            </Typography>
+                            <StatusChip
+                              status={
+                                openVersion.status === 'PUBLISHED'
+                                  ? 'published'
+                                  : isPayoutSettled
+                                    ? 'ready'
+                                    : 'locked'
+                              }
+                              label={
+                                openVersion.status === 'PUBLISHED'
+                                  ? t('Published')
+                                  : isPayoutSettled
+                                    ? t('Ready to publish')
+                                    : t('Locked')
+                              }
+                              tone={
+                                openVersion.status === 'PUBLISHED' || isPayoutSettled
+                                  ? 'success'
+                                  : 'default'
+                              }
+                            />
+                          </Stack>
+
+                          {openVersion.status === 'PUBLISHED' ? (
+                            <Button
+                              component={RouterLink}
+                              to="../settlement"
+                              variant="contained"
+                              endIcon={<ArrowForwardRounded sx={{ fontSize: 16 }} />}
+                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none', flexShrink: 0 }}
+                            >
+                              {t('Continue to Customer Settlement')}
+                            </Button>
+                          ) : (
+                            <LoadingButton
+                              variant="contained"
+                              color="primary"
+                              loading={publishReport.isPending}
+                              disabled={!isPayoutSettled}
+                              startIcon={!isPayoutSettled ? <LockOutlined sx={{ fontSize: 16 }} /> : undefined}
+                              onClick={() =>
+                                publishReport.mutate(
+                                  { versionId: openVersion.id },
+                                  {
+                                    onSuccess: () => {
+                                      if (portal === 'manager') {
+                                        navigate('../settlement');
+                                      }
+                                    },
                                   },
-                                },
-                              )
-                            }
-                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none', flexShrink: 0 }}
-                          >
-                            {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
-                          </LoadingButton>
+                                )
+                              }
+                              sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none', flexShrink: 0 }}
+                            >
+                              {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
+                            </LoadingButton>
+                          )}
                         </Stack>
-                      )}
-                    </Stack>
-                  </Paper>
-                </Stack>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Paper>
               )
             )}
 
@@ -830,7 +840,7 @@ export default function ManagerReportReviewPage({
       <SepayPayoutQrDialog
         details={payoutQrDetails}
         amountVnd={
-          financeBreakdown ? `${formatNumber(financeBreakdown.netPayoutAmount)} ₫` : undefined
+          financeBreakdown ? `${formatNumber(Math.round(financeBreakdown.netPayoutAmount))} ₫` : undefined
         }
         inspectorName={inspectionQuery.data?.inspectorName}
         bankName={inspectorBankName}

@@ -24,6 +24,7 @@ vi.mock('@/shared/i18n/LocaleProvider', () => ({
   useLocale: () => ({
     locale: 'en',
     t: (value: string) => value,
+    formatNumber: (value: number) => new Intl.NumberFormat('en-US').format(value),
     formatDate: (value: string | Date) => String(value),
     formatDateTime: (value: string) => value,
   }),

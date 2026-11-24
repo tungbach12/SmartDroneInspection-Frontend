@@ -3172,4 +3172,11 @@
   "Keep the transfer content unchanged so SePay can match this payout automatically.": "Giữ nguyên nội dung chuyển khoản để SePay tự động đối soát giao dịch chi trả này.",
   "Check payout status": "Kiểm tra trạng thái chi trả",
   "Could not create SePay payout QR link.": "Không thể tạo mã QR chi trả SePay.",
+  "All payouts": "Tất cả chi trả",
+  "Recipient bank account": "Tài khoản nhận chi trả",
+  "Transfer amount": "Số tiền chuyển khoản",
+  "Scan with banking app": "Quét mã bằng ứng dụng ngân hàng",
+  "Automatic confirmation via SePay VietQR": "Tự động xác nhận qua SePay VietQR",
+  "Keep the transfer content unchanged for automatic confirmation.": "Giữ nguyên nội dung chuyển khoản để tự động xác nhận.",
+  "Locked": "Đang khóa",
 };

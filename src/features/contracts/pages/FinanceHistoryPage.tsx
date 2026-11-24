@@ -804,65 +804,92 @@ export default function FinanceHistoryPage({
               {detailCanSettlePayout && (
                 <Box
                   sx={{
-                    p: 1.75,
                     borderRadius: '10px',
                     border: '1px solid',
                     borderColor: 'divider',
-                    bgcolor: 'background.paper',
+                    bgcolor: 'background.default',
+                    overflow: 'hidden',
                   }}
                 >
-                  <Stack spacing={1.25}>
-                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        {t('Pay Inspector via SePay (VietQR)')}
-                      </Typography>
-                      <SepayVietQrLogoMark />
-                    </Stack>
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {t('Recipient bank account')}
+                    </Typography>
+                  </Box>
+
+                  <Stack spacing={1.5} sx={{ p: 2 }}>
                     {detailHasCompleteBankDetails ? (
-                      <Box
-                        sx={{
-                          p: 1.25,
-                          borderRadius: '8px',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          bgcolor: 'background.default',
-                        }}
-                      >
-                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.35 }}>
-                          {t('Inspector payout bank account')}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {formatVietQrBankDisplay(detail.payout?.bankName)} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{detail.payout?.bankAccountNumber}</Box>
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {detail.payout?.bankAccountHolder}
-                          {detail.payout?.bankBranch ? ` · ${detail.payout.bankBranch}` : ''}
-                        </Typography>
-                      </Box>
+                      <Stack spacing={0.75}>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Typography variant="body2" color="text.secondary">{t('Bank name')}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                            {formatVietQrBankDisplay(detail.payout?.bankName)}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Typography variant="body2" color="text.secondary">{t('Bank account number')}</Typography>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 650 }}>
+                            {detail.payout?.bankAccountNumber}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}>
+                          <Typography variant="body2" color="text.secondary">{t('Account holder name')}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                            {detail.payout?.bankAccountHolder}
+                            {detail.payout?.bankBranch ? ` · ${detail.payout.bankBranch}` : ''}
+                          </Typography>
+                        </Stack>
+                      </Stack>
                     ) : (
                       <Alert severity="warning" sx={{ borderRadius: '8px' }}>
                         {t('Inspector has not entered payout bank details yet.')}
                       </Alert>
                     )}
+
                     {payoutError && (
                       <Alert severity="error" onClose={() => setPayoutError(null)} sx={{ borderRadius: '8px' }}>
                         {payoutError}
                       </Alert>
                     )}
-                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+
+                    <Divider sx={{ borderStyle: 'dashed' }} />
+
+                    <Stack
+                      direction="row"
+                      spacing={1.25}
+                      sx={{ alignItems: 'center', justifyContent: 'flex-end' }}
+                    >
                       <LoadingButton
                         size="small"
-                        variant="contained"
-                        color="primary"
+                        variant="outlined"
                         loading={payoutBusy}
                         disabled={!detailHasCompleteBankDetails}
+                        startIcon={<SepayVietQrLogoMark />}
                         onClick={() => void handleOpenSepayPayoutQr()}
                         sx={{
+                          minHeight: 44,
                           textTransform: 'none',
                           fontWeight: 650,
                           whiteSpace: 'nowrap',
-                          borderRadius: '8px',
+                          borderRadius: '10px',
                           boxShadow: 'none',
+                          px: 1.75,
+                          gap: 1.25,
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          color: 'text.primary',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            bgcolor: 'action.hover',
+                          },
                         }}
                       >
                         {t('Pay Inspector via SePay (VietQR)')}
@@ -1024,7 +1051,9 @@ export default function FinanceHistoryPage({
       <SepayPayoutQrDialog
         details={payoutQrDetails}
         amountVnd={
-          detail ? money(detail.inspectorNetPayout, locale, detail.currency) : undefined
+          detail && detail.inspectorNetPayout != null
+            ? money(Math.round(detail.inspectorNetPayout), locale, detail.currency)
+            : undefined
         }
         inspectorName={selectedManagerItem?.inspectorName}
         bankName={detail?.payout?.bankName}
