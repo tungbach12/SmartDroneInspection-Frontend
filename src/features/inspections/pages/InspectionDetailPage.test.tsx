@@ -217,7 +217,7 @@ describe('InspectionDetailPage', () => {
     expect(backToQueue.getAttribute('href')).toBe('/manager/inspections');
   });
 
-  it('shows only asset, drone, customer, and inspector names in collapsed header and expands full overview on click', async () => {
+  it('shows asset, drone, customer, and inspector names cleanly and opens full stakeholder dialogs on click without redundant Overview toggle', async () => {
     mocks.inspectionQuery = {
       data: {
         id: 'inspection-1',
@@ -258,18 +258,22 @@ describe('InspectionDetailPage', () => {
     expect(await screen.findByText('Saigon Bridge Corp')).toBeTruthy();
     expect(screen.getByText(/^Inspector$/i)).toBeTruthy();
     expect(screen.getByText('Tran Van Inspector')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
     expect(screen.queryByText(/^Manager$/i)).toBeNull();
     expect(screen.queryByText(/ops@saigonbridge\.vn/)).toBeNull();
     expect(screen.queryByText(/inspector@smartdrone\.vn/)).toBeNull();
     expect(screen.queryByText(/Planned Start/i)).toBeNull();
     expect(screen.queryByText('Field Completed')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    fireEvent.click(screen.getByRole('button', { name: /Tran Van Inspector/i }));
+    expect((await screen.findAllByText(/inspector@smartdrone\.vn/)).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Pilot License & Equipment Qualification/i)).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
-    expect(await screen.findByText(/ops@saigonbridge\.vn/)).toBeTruthy();
-    expect(screen.getByText(/inspector@smartdrone\.vn/)).toBeTruthy();
-    expect(screen.queryByText(/Confirmed findings/i)).toBeNull();
-    expect(screen.queryByText('Field Completed')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Saigon Bridge Corp/i }));
+    expect((await screen.findAllByText(/ops@saigonbridge\.vn/)).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Inspected Asset & Mission Summary/i)).toBeTruthy();
   });
 
   it('shows Asset, Drone, Customer, Manager and Schedule cleanly for INSPECTOR and hides self Inspector name', () => {

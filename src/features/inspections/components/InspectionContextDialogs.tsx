@@ -25,6 +25,7 @@ import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
 import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
+import type { PortalId } from '@/app/permissions/accessPolicy';
 import {
   evaluateAirspace,
   extractCoordinates,
@@ -36,6 +37,10 @@ import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { InspectorRatingSummaryBadge } from './InspectorRatingSummaryBadge';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { CleanTileMapView } from './EvidenceGpsMapDialog';
+import {
+  CustomerDetailDialog,
+  PartnerInspectorDetailDialog,
+} from './OverviewStakeholdersSection';
 
 export type InspectionContextModalType = 'asset' | 'customer' | 'manager' | 'inspector' | null;
 
@@ -44,6 +49,8 @@ export interface InspectionContextDialogsProps {
   openModal: InspectionContextModalType;
   onClose: () => void;
   isCustomer: boolean;
+  isReviewerAdmin?: boolean;
+  portal?: PortalId;
   droneShortName: string;
   chatInboxPath?: string | undefined;
   canOpenInspectionChat?: boolean;
@@ -131,6 +138,8 @@ export function InspectionContextDialogs({
   openModal,
   onClose,
   isCustomer,
+  isReviewerAdmin = false,
+  portal = 'manager',
   droneShortName,
   chatInboxPath,
   canOpenInspectionChat = false,
@@ -175,8 +184,12 @@ export function InspectionContextDialogs({
       ].filter(Boolean)
     : [];
 
+  const useReviewerStakeholderDialog =
+    isReviewerAdmin && (openModal === 'customer' || openModal === 'inspector');
+
   const isContactModal =
-    openModal === 'customer' || openModal === 'manager' || openModal === 'inspector';
+    !useReviewerStakeholderDialog &&
+    (openModal === 'customer' || openModal === 'manager' || openModal === 'inspector');
 
   const contactConfig = (() => {
     if (openModal === 'customer') {
@@ -637,6 +650,29 @@ export function InspectionContextDialogs({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {isReviewerAdmin && openModal === 'inspector' && (
+        <PartnerInspectorDetailDialog
+          open
+          onClose={onClose}
+          inspection={inspection}
+          portal={portal}
+          inspectorAvatarUrl={inspectorAvatarUrl ?? inspection.inspectorAvatarUrl}
+          chatInboxPath={chatInboxPath}
+          canOpenInspectionChat={canOpenInspectionChat}
+        />
+      )}
+      {isReviewerAdmin && openModal === 'customer' && (
+        <CustomerDetailDialog
+          open
+          onClose={onClose}
+          inspection={inspection}
+          portal={portal}
+          customerAvatarUrl={customerAvatarUrl ?? inspection.ownerCustomerAvatarUrl}
+          chatInboxPath={chatInboxPath}
+          canOpenInspectionChat={canOpenInspectionChat}
+        />
+      )}
     </>
   );
 }
