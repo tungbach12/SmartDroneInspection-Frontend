@@ -979,6 +979,24 @@ export function useCreateInspectionSepayLink(inspectionId: string | null) {
   });
 }
 
+export function useCreateInspectionSepayPayoutLink(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.createSepayPayoutLink(inspectionId!),
+    onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+      if (!data?.checkoutUrl) {
+        showToast('The VietQR code could not be generated.', 'error');
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not create SePay payout QR link.'), 'error'),
+  });
+}
+
 export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
@@ -1015,16 +1033,24 @@ export function useCancelUnpaidInspectionPaymentOrder(inspectionId: string | nul
 
 export function useReportPaymentStatus(
   inspectionId: string | null,
-  options?: { pollIntervalMs?: number | false; pollWhenUnpaid?: boolean },
+  options?: {
+    pollIntervalMs?: number | false;
+    pollWhenUnpaid?: boolean;
+    pollWhenPayoutUnpaid?: boolean;
+  },
 ) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],
     queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
     enabled: Boolean(inspectionId),
     refetchInterval: (query) => {
+      const data = query.state.data;
       if (options?.pollWhenUnpaid) {
-        const data = query.state.data;
         return data?.paid || data?.paymentStatus === 'PAID' ? false : 3000;
+      }
+      if (options?.pollWhenPayoutUnpaid) {
+        const payoutStatus = (data?.payoutStatus ?? '').toUpperCase();
+        return payoutStatus === 'PAID' || payoutStatus === 'SETTLED' ? false : 3000;
       }
       return options?.pollIntervalMs ?? false;
     },

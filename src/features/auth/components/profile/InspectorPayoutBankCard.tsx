@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Chip,
@@ -10,34 +9,20 @@ import {
   Typography,
 } from '@mui/material';
 import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
+import { findVietQrBank } from '@/shared/constants/vietQrBanks';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { VietQrBankAutocomplete } from '@/shared/ui/VietQrBankAutocomplete';
 import {
   getAuthErrorMessage,
   updatePayoutBankDetails,
 } from '../../api/authApi';
 import { useAuthStore, type AuthUser } from '../../store/authStore';
 
-const COMMON_VN_BANKS = [
-  'Vietcombank',
-  'VietinBank',
-  'BIDV',
-  'Agribank',
-  'Techcombank',
-  'MB Bank',
-  'ACB',
-  'VPBank',
-  'TPBank',
-  'Sacombank',
-  'VIB',
-  'HDBank',
-  'SHB',
-  'OCB',
-  'MSB',
-  'Eximbank',
-  'LPBank',
-  'SeABank',
-];
+function resolveBankCode(value: string | null | undefined): string {
+  if (!value?.trim()) return '';
+  return findVietQrBank(value)?.code ?? '';
+}
 
 export interface InspectorPayoutBankCardProps {
   compact?: boolean | undefined;
@@ -51,7 +36,7 @@ export function InspectorPayoutBankCard({
   const { locale, t } = useLocale();
   const user = useAuthStore((state) => state.user);
 
-  const [bankName, setBankName] = useState(user?.payoutBankName ?? '');
+  const [bankName, setBankName] = useState(() => resolveBankCode(user?.payoutBankName));
   const [accountNumber, setAccountNumber] = useState(user?.payoutBankAccountNumber ?? '');
   const [accountHolder, setAccountHolder] = useState(user?.payoutBankAccountHolder ?? '');
   const [bankBranch, setBankBranch] = useState(user?.payoutBankBranch ?? '');
@@ -60,7 +45,7 @@ export function InspectorPayoutBankCard({
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    setBankName(user?.payoutBankName ?? '');
+    setBankName(resolveBankCode(user?.payoutBankName));
     setAccountNumber(user?.payoutBankAccountNumber ?? '');
     setAccountHolder(user?.payoutBankAccountHolder ?? '');
     setBankBranch(user?.payoutBankBranch ?? '');
@@ -180,23 +165,12 @@ export function InspectorPayoutBankCard({
               gap: 2,
             }}
           >
-            <Autocomplete
-              freeSolo
-              options={COMMON_VN_BANKS}
+            <VietQrBankAutocomplete
               value={bankName}
-              inputValue={bankName}
-              onInputChange={(_event, newInputValue) =>
-                setBankName(newInputValue.slice(0, 120))
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('Bank name')}
-                  required
-                  size="small"
-                  placeholder="Vietcombank, MB Bank, Techcombank..."
-                />
-              )}
+              onChange={(code) => setBankName(code)}
+              label={t('Bank name')}
+              required
+              size="small"
             />
             <TextField
               label={t('Bank account number')}
@@ -236,7 +210,7 @@ export function InspectorPayoutBankCard({
                 variant="outlined"
                 disabled={pending}
                 onClick={() => {
-                  setBankName(user?.payoutBankName ?? '');
+                  setBankName(resolveBankCode(user?.payoutBankName));
                   setAccountNumber(user?.payoutBankAccountNumber ?? '');
                   setAccountHolder(user?.payoutBankAccountHolder ?? '');
                   setBankBranch(user?.payoutBankBranch ?? '');

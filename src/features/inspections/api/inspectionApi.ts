@@ -1195,6 +1195,14 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Generates a Sepay VietQR payout link targeting the assigned Inspector's bank account. */
+  createSepayPayoutLink: (inspectionId: string) =>
+    api
+      .post<SepayCheckoutDetails>(
+        `/inspections/${inspectionId}/sepay/create-payout-link`,
+      )
+      .then((response) => response.data),
+
   /** Generates a signed VNPay online checkout URL for an accepted inspection. */
   createVnPayPaymentUrl: (inspectionId: string) =>
     api

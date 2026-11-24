@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { contractApi, contractQueryKeys, type ServiceRequestOccurrence } from '@/features/contracts/api/contractApi';
 import { OccurrenceFinanceDrawer } from '@/features/contracts/manager/components/OccurrenceFinanceDrawer';
+import type { SepayCheckoutDetails } from '@/features/inspections/api/inspectionApi';
+import { formatVietQrBankDisplay } from '@/shared/constants/vietQrBanks';
+import { SepayVietQrLogoMark } from '@/shared/ui/PaymentBrandLogos';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
   Alert,
@@ -11,7 +14,6 @@ import {
   Divider,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import AccountBalanceOutlined from '@mui/icons-material/AccountBalanceOutlined';
@@ -30,6 +32,7 @@ import {
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
+  useCreateInspectionSepayPayoutLink,
   useFieldSessions,
   useInspection,
   useInspectionEvidence,
@@ -47,6 +50,7 @@ import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/i
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
+import { SepayPayoutQrDialog } from '@/features/reports/components/SepayPayoutQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -80,8 +84,9 @@ export default function ManagerReportReviewPage({
   const [reviewReason, setReviewReason] = useState('');
   const [showReturnBox, setShowReturnBox] = useState(false);
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
-  const [prePublishPayoutRef, setPrePublishPayoutRef] = useState('');
-  const [prePublishPayoutBusy, setPrePublishPayoutBusy] = useState(false);
+  const [payoutQrDetails, setPayoutQrDetails] = useState<SepayCheckoutDetails | undefined>(
+    undefined,
+  );
   const [prePublishPayoutError, setPrePublishPayoutError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<'account' | 'amount' | null>(null);
   const [financeDrawerTarget, setFinanceDrawerTarget] = useState<{
@@ -97,7 +102,10 @@ export default function ManagerReportReviewPage({
   const reinspectionVerifications = useReinspectionVerifications?.(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const publishReport = usePublishReportVersion(inspectionId);
-  const paymentStatusQuery = useReportPaymentStatus(inspectionId);
+  const createSepayPayoutLink = useCreateInspectionSepayPayoutLink(inspectionId);
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
+    pollWhenPayoutUnpaid: Boolean(payoutQrDetails),
+  });
 
   const openVersion =
     versions.data?.find((version) => version.id === openVersionId) ??
@@ -233,6 +241,29 @@ export default function ManagerReportReviewPage({
     showToast(t('Inspector partner payout settled.'), 'success');
     await refreshFinanceContext();
   };
+
+  const handleOpenSepayPayoutQr = async () => {
+    setPrePublishPayoutError(null);
+    try {
+      const details = await createSepayPayoutLink.mutateAsync();
+      if (details?.checkoutUrl) {
+        setPayoutQrDetails(details);
+      }
+    } catch (err) {
+      setPrePublishPayoutError(
+        getErrorMessage(err, t('Could not create SePay payout QR link.')),
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!payoutQrDetails || !isPayoutSettled) return;
+    setPayoutQrDetails(undefined);
+    showToast(t('Inspector payout confirmed via SePay.'), 'success');
+    void refreshFinanceContext();
+    // refreshFinanceContext triggers query refetches; dependencies intentionally track settlement transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payoutQrDetails, isPayoutSettled]);
 
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
@@ -558,7 +589,7 @@ export default function ManagerReportReviewPage({
                             <Stack spacing={0.85}>
                               <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
                                 <Typography variant="body2" color="text.secondary">{t('Bank name')}</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'right' }}>{inspectorBankName}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'right' }}>{formatVietQrBankDisplay(inspectorBankName)}</Typography>
                               </Stack>
                               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                                 <Typography variant="body2" color="text.secondary">{t('Bank account number')}</Typography>
@@ -620,40 +651,23 @@ export default function ManagerReportReviewPage({
                       {!isPayoutSettled ? (
                         portal === 'manager' && (
                           <Stack spacing={1.25}>
-                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                              {t('Record partner transfer')}
-                            </Typography>
+                            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                              <SepayVietQrLogoMark />
+                              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                {t('Transfer automatically via SePay VietQR — payout settles once outgoing webhook is confirmed.')}
+                              </Typography>
+                            </Stack>
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-                              <TextField
-                                size="small"
-                                placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-                                value={prePublishPayoutRef}
-                                onChange={(e) => setPrePublishPayoutRef(e.target.value)}
-                                sx={{ flex: 1, minWidth: { sm: 240 } }}
-                              />
                               <LoadingButton
                                 size="small"
                                 variant="contained"
                                 color="primary"
-                                loading={prePublishPayoutBusy}
-                                disabled={!prePublishPayoutRef.trim() || !hasCompleteBankDetails}
-                                onClick={async () => {
-                                  setPrePublishPayoutBusy(true);
-                                  setPrePublishPayoutError(null);
-                                  try {
-                                    await handleInlineSettlePayout(prePublishPayoutRef.trim());
-                                    setPrePublishPayoutRef('');
-                                  } catch (err) {
-                                    setPrePublishPayoutError(
-                                      getErrorMessage(err, t('Could not settle payout.')),
-                                    );
-                                  } finally {
-                                    setPrePublishPayoutBusy(false);
-                                  }
-                                }}
+                                loading={createSepayPayoutLink.isPending}
+                                disabled={!hasCompleteBankDetails}
+                                onClick={() => void handleOpenSepayPayoutQr()}
                                 sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', borderRadius: '8px', boxShadow: 'none' }}
                               >
-                                {t('Settle Inspector payout')}
+                                {t('Pay Inspector via SePay (VietQR)')}
                               </LoadingButton>
                               <Button
                                 component={RouterLink}
@@ -811,6 +825,20 @@ export default function ManagerReportReviewPage({
         requestId={financeDrawerTarget?.requestId ?? ''}
         occurrence={financeDrawerTarget?.occurrence ?? null}
         onChanged={() => void refreshFinanceContext()}
+      />
+
+      <SepayPayoutQrDialog
+        details={payoutQrDetails}
+        amountVnd={
+          financeBreakdown ? `${formatNumber(financeBreakdown.netPayoutAmount)} ₫` : undefined
+        }
+        inspectorName={inspectionQuery.data?.inspectorName}
+        bankName={inspectorBankName}
+        bankAccountNumber={inspectorBankAccountNumber}
+        bankAccountHolder={inspectorBankAccountHolder}
+        checking={paymentStatusQuery.isFetching}
+        onCheckNow={() => void paymentStatusQuery.refetch()}
+        onClose={() => setPayoutQrDetails(undefined)}
       />
     </Box>
   );

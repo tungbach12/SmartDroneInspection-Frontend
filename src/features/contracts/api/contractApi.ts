@@ -709,6 +709,26 @@ export const contractApi = {
     return data;
   },
 
+  async createOccurrenceSepayPayoutLink(
+    requestId: string,
+    occurrenceId: string,
+  ): Promise<{
+    orderCode: number;
+    amount: number;
+    paymentLinkId: string;
+    checkoutUrl: string;
+    qrCode: string;
+  }> {
+    const { data } = await api.post<{
+      orderCode: number;
+      amount: number;
+      paymentLinkId: string;
+      checkoutUrl: string;
+      qrCode: string;
+    }>(`/contracts/requests/${requestId}/occurrences/${occurrenceId}/sepay/create-payout-link`);
+    return data;
+  },
+
   async listPartnerInspectors(): Promise<PartnerInspector[]> {
     const { data } = await api.get<PartnerInspector[]>('/contracts/partners/inspectors');
     return data;

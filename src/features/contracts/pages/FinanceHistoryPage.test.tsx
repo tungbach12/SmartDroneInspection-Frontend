@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getInspectorDetail: vi.fn(),
   getManagerDetail: vi.fn(),
   recordPayout: vi.fn(),
+  createSepayPayoutLink: vi.fn(),
 }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
@@ -40,6 +41,7 @@ vi.mock('../api/contractApi', () => ({
     getInspectorFinanceHistoryDetail: mocks.getInspectorDetail,
     getManagerFinanceHistoryDetail: mocks.getManagerDetail,
     recordOccurrencePayout: mocks.recordPayout,
+    createOccurrenceSepayPayoutLink: mocks.createSepayPayoutLink,
   },
 }));
 
@@ -164,7 +166,7 @@ describe('finance history page', () => {
     expect(mocks.getManagerDetail).toHaveBeenCalledWith('occ-3');
   });
 
-  it('lets Manager filter eligible payouts and settle via UNC reference directly inside Finance drawer', async () => {
+  it('lets Manager filter eligible payouts and generate SePay VietQR payout dialog inside Finance drawer', async () => {
     mocks.roles = ['MANAGER'];
     mocks.listManager.mockResolvedValue({
       summary: {
@@ -210,7 +212,13 @@ describe('finance history page', () => {
         bankAccountHolder: 'DO THI PHI CONG',
       },
     });
-    mocks.recordPayout.mockResolvedValue({});
+    mocks.createSepayPayoutLink.mockResolvedValue({
+      orderCode: 200999888,
+      amount: 8345454,
+      paymentLinkId: 'payout-200999888',
+      checkoutUrl: 'https://vietqr.app/img?acc=0071001234567&bank=VCB&amount=8345454&des=SDIPAY200999888',
+      qrCode: 'SDIPAY200999888',
+    });
 
     renderPage('payouts');
     expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
@@ -219,9 +227,11 @@ describe('finance history page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByText(/0071001234567/)).toBeTruthy();
-    const uncInput = within(drawer).getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
-    fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Settle Inspector payout' }));
-    expect(mocks.recordPayout).toHaveBeenCalledWith('req-4', 'occ-4', { payoutReference: 'UNC-VCB-20261124' });
+    expect(within(drawer).getByText(/Vietcombank \(VCB\)/)).toBeTruthy();
+    expect(within(drawer).queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Pay Inspector via SePay (VietQR)' }));
+    expect(await screen.findByText('Inspector payout VietQR')).toBeTruthy();
+    expect(mocks.createSepayPayoutLink).toHaveBeenCalledWith('req-4', 'occ-4');
+    expect(screen.getByText('SDIPAY200999888')).toBeTruthy();
   });
 });

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   reviewMutate: vi.fn(),
   listRequests: vi.fn(),
   recordOccurrencePayout: vi.fn(),
+  createSepayPayoutLinkMutateAsync: vi.fn(),
   refetchPayment: vi.fn(),
   refetchInspection: vi.fn(),
   showToast: vi.fn(),
@@ -76,8 +77,13 @@ vi.mock('@/features/inspections/hooks/useInspections', () => ({
     isError: false,
     mutate: mocks.publishMutate,
   }),
+  useCreateInspectionSepayPayoutLink: () => ({
+    isPending: false,
+    mutateAsync: mocks.createSepayPayoutLinkMutateAsync,
+  }),
   useReportPaymentStatus: () => ({
     data: mocks.paymentStatusData,
+    isFetching: false,
     refetch: mocks.refetchPayment,
   }),
 }));
@@ -123,6 +129,13 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
       },
     ]);
     mocks.recordOccurrencePayout.mockResolvedValue({});
+    mocks.createSepayPayoutLinkMutateAsync.mockResolvedValue({
+      orderCode: 2001234567,
+      amount: 8345455,
+      paymentLinkId: 'payout-2001234567',
+      checkoutUrl: 'https://vietqr.app/img?acc=0071001234567&bank=VCB&amount=8345455&des=SDIPAY2001234567',
+      qrCode: 'SDIPAY2001234567',
+    });
   });
 
   it('guides APPROVED report on Step 2 review stage toward Step 3 Inspector Payout', () => {
@@ -146,7 +159,7 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
     expect(screen.queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
   });
 
-  it('blocks payout settlement on Step 3 when Inspector bank details are missing', () => {
+  it('blocks SePay payout on Step 3 when Inspector bank details are missing', () => {
     mocks.versionsData = [
       { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
     ];
@@ -162,16 +175,15 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
     renderStagePage('payout');
 
     expect(screen.getByText('Inspector has not entered payout bank details yet.')).toBeTruthy();
-    const uncInput = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
-    fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
+    expect(screen.queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
 
-    const settleBtn = screen.getByRole('button', { name: 'Settle Inspector payout' }) as HTMLButtonElement;
-    expect(settleBtn.disabled).toBe(true);
+    const payBtn = screen.getByRole('button', { name: 'Pay Inspector via SePay (VietQR)' }) as HTMLButtonElement;
+    expect(payBtn.disabled).toBe(true);
     const publishBtn = screen.getByRole('button', { name: 'Publish to Customer' }) as HTMLButtonElement;
     expect(publishBtn.disabled).toBe(true);
   });
 
-  it('displays Inspector bank details on Step 3 and allows Manager to settle payout', async () => {
+  it('displays formatted bank details on Step 3 and opens SePay VietQR payout dialog automatically', async () => {
     mocks.versionsData = [
       { id: 'ver-1', versionNo: 1, status: 'APPROVED', authorUserId: 'insp-user-1' },
     ];
@@ -190,20 +202,21 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
 
     renderStagePage('payout');
 
-    expect(screen.getByText('Vietcombank')).toBeTruthy();
+    expect(screen.getByText('Vietcombank (VCB)')).toBeTruthy();
     expect(screen.getByText('0071001234567')).toBeTruthy();
     expect(screen.getByText('PHAM VAN BAY')).toBeTruthy();
     expect(screen.getByText(/8,345,455/)).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)')).toBeNull();
 
-    const uncInput = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
-    fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Settle Inspector payout' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay Inspector via SePay (VietQR)' }));
 
     await vi.waitFor(() => {
-      expect(mocks.recordOccurrencePayout).toHaveBeenCalledWith('req-1', 'occ-1', {
-        payoutReference: 'UNC-VCB-20261124',
-      });
+      expect(mocks.createSepayPayoutLinkMutateAsync).toHaveBeenCalledTimes(1);
     });
+    expect(await screen.findByText('Inspector payout VietQR')).toBeTruthy();
+    expect(screen.getByText('SDIPAY2001234567')).toBeTruthy();
+    const qrImg = screen.getByAltText('VietQR code for Inspector payout') as HTMLImageElement;
+    expect(qrImg.src).toContain('acc=0071001234567');
   });
 
   it('enables Publish to Customer on Step 3 once Inspector payout is PAID', () => {
@@ -217,15 +230,15 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
       amount: 12000000,
       inspectorNetPayout: 8345455,
       payoutStatus: 'PAID',
-      payoutReference: 'UNC-VCB-20261124',
-      inspectorBankName: 'Vietcombank',
+      payoutReference: 'SEPAY-OUT-FT2401',
+      inspectorBankName: 'VCB',
       inspectorBankAccountNumber: '0071001234567',
       inspectorBankAccountHolder: 'PHAM VAN BAY',
     };
 
     renderStagePage('payout');
 
-    expect(screen.getByText(/Inspector payout settled.*UNC-VCB-20261124/)).toBeTruthy();
+    expect(screen.getByText(/Inspector payout settled.*SEPAY-OUT-FT2401/)).toBeTruthy();
     const publishBtn = screen.getByRole('button', { name: 'Publish to Customer' }) as HTMLButtonElement;
     expect(publishBtn.disabled).toBe(false);
     fireEvent.click(publishBtn);

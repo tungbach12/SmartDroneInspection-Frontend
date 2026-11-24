@@ -44,6 +44,7 @@ import {
 } from '../api/inspectorProfileApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { VietQrBankAutocomplete } from '@/shared/ui/VietQrBankAutocomplete';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -679,12 +680,11 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         {tr('Tài khoản ngân hàng nhận chi trả', 'Payout bank account')}
                       </Typography>
                     </Box>
-                    <TextField
+                    <VietQrBankAutocomplete
                       fullWidth
                       label={tr('Ngân hàng', 'Bank name')}
-                      placeholder="Vietcombank, MB Bank..."
                       value={form.payoutBankName || ''}
-                      onChange={(e) => setForm({ ...form, payoutBankName: e.target.value })}
+                      onChange={(code) => setForm({ ...form, payoutBankName: code })}
                     />
                     <TextField
                       fullWidth

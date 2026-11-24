@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,12 +21,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import type { SepayCheckoutDetails } from '@/features/inspections/api/inspectionApi';
+import { SepayPayoutQrDialog } from '@/features/reports/components/SepayPayoutQrDialog';
+import { formatVietQrBankDisplay } from '@/shared/constants/vietQrBanks';
+import { SepayVietQrLogoMark } from '@/shared/ui/PaymentBrandLogos';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -158,15 +161,16 @@ export default function FinanceHistoryPage({
   const [detail, setDetail] = useState<OccurrenceFinanceHistoryDetail | null>(null);
   const [selectedManagerItem, setSelectedManagerItem] = useState<ManagerFinanceHistoryItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [payoutRef, setPayoutRef] = useState('');
+  const [payoutQrDetails, setPayoutQrDetails] = useState<SepayCheckoutDetails | undefined>(undefined);
   const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutChecking, setPayoutChecking] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
 
   const openDetail = async (item: OccurrenceFinanceHistoryItem | ManagerFinanceHistoryItem) => {
     setDetailLoading(true);
     setDetail(null);
     setPayoutError(null);
-    setPayoutRef('');
+    setPayoutQrDetails(undefined);
     setSelectedManagerItem(manager ? (item as ManagerFinanceHistoryItem) : null);
     try {
       const result = manager
@@ -190,7 +194,7 @@ export default function FinanceHistoryPage({
   const closeDetail = () => {
     setDetail(null);
     setSelectedManagerItem(null);
-    setPayoutRef('');
+    setPayoutQrDetails(undefined);
     setPayoutError(null);
     setParams((current) => {
       const next = new URLSearchParams(current);
@@ -199,29 +203,61 @@ export default function FinanceHistoryPage({
     }, { replace: false });
   };
 
-  const handleSettlePayout = async () => {
-    if (!detail || !payoutRef.trim()) return;
+  const refreshDetailPayoutStatus = async (occurrenceId: string) => {
+    setPayoutChecking(true);
+    try {
+      const refreshedDetail = await contractApi.getManagerFinanceHistoryDetail(occurrenceId);
+      setDetail(refreshedDetail);
+      const nextStatus = (
+        refreshedDetail.payout?.status ??
+        refreshedDetail.payoutStatus ??
+        ''
+      ).toUpperCase();
+      if (nextStatus === 'PAID' || nextStatus === 'SETTLED') {
+        setPayoutQrDetails(undefined);
+        showToast(t('Inspector payout confirmed via SePay.'), 'success');
+        await Promise.all([
+          managerHistoryQuery.refetch(),
+          queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() }),
+          queryClient.invalidateQueries({ queryKey: ['inspections'] }),
+        ]);
+      }
+    } catch {
+      // Keep polling quietly when transient background check fails
+    } finally {
+      setPayoutChecking(false);
+    }
+  };
+
+  const handleOpenSepayPayoutQr = async () => {
+    if (!detail) return;
     setPayoutBusy(true);
     setPayoutError(null);
     try {
-      await contractApi.recordOccurrencePayout(detail.requestId, detail.occurrenceId, {
-        payoutReference: payoutRef.trim(),
-      });
-      setPayoutRef('');
-      showToast(t('Inspector partner payout settled.'), 'success');
-      const [refreshedDetail] = await Promise.all([
-        contractApi.getManagerFinanceHistoryDetail(detail.occurrenceId),
-        managerHistoryQuery.refetch(),
-        queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() }),
-        queryClient.invalidateQueries({ queryKey: ['inspections'] }),
-      ]);
-      setDetail(refreshedDetail);
+      const details = await contractApi.createOccurrenceSepayPayoutLink(
+        detail.requestId,
+        detail.occurrenceId,
+      );
+      if (details?.checkoutUrl) {
+        setPayoutQrDetails(details);
+      } else {
+        setPayoutError(t('The VietQR code could not be generated.'));
+      }
     } catch (err) {
-      setPayoutError(extractContractErrorText(err, 'Could not settle payout.'));
+      setPayoutError(extractContractErrorText(err, 'Could not create SePay payout QR link.'));
     } finally {
       setPayoutBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!payoutQrDetails || !detail?.occurrenceId) return;
+    const intervalId = window.setInterval(() => {
+      void refreshDetailPayoutStatus(detail.occurrenceId);
+    }, 3000);
+    return () => window.clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payoutQrDetails, detail?.occurrenceId]);
 
   const title = manager
     ? isPayoutView
@@ -776,9 +812,12 @@ export default function FinanceHistoryPage({
                   }}
                 >
                   <Stack spacing={1.25}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {t('Settle Inspector payout')}
-                    </Typography>
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {t('Pay Inspector via SePay (VietQR)')}
+                      </Typography>
+                      <SepayVietQrLogoMark />
+                    </Stack>
                     {detailHasCompleteBankDetails ? (
                       <Box
                         sx={{
@@ -793,7 +832,7 @@ export default function FinanceHistoryPage({
                           {t('Inspector payout bank account')}
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {detail.payout?.bankName} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{detail.payout?.bankAccountNumber}</Box>
+                          {formatVietQrBankDisplay(detail.payout?.bankName)} · <Box component="span" sx={{ fontFamily: 'monospace' }}>{detail.payout?.bankAccountNumber}</Box>
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {detail.payout?.bankAccountHolder}
@@ -810,21 +849,14 @@ export default function FinanceHistoryPage({
                         {payoutError}
                       </Alert>
                     )}
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                      <TextField
-                        size="small"
-                        placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-                        value={payoutRef}
-                        onChange={(e) => setPayoutRef(e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
+                    <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                       <LoadingButton
                         size="small"
                         variant="contained"
                         color="primary"
                         loading={payoutBusy}
-                        disabled={!payoutRef.trim() || !detailHasCompleteBankDetails}
-                        onClick={() => void handleSettlePayout()}
+                        disabled={!detailHasCompleteBankDetails}
+                        onClick={() => void handleOpenSepayPayoutQr()}
                         sx={{
                           textTransform: 'none',
                           fontWeight: 650,
@@ -833,7 +865,7 @@ export default function FinanceHistoryPage({
                           boxShadow: 'none',
                         }}
                       >
-                        {t('Settle Inspector payout')}
+                        {t('Pay Inspector via SePay (VietQR)')}
                       </LoadingButton>
                     </Stack>
                   </Stack>
@@ -988,6 +1020,24 @@ export default function FinanceHistoryPage({
           </DialogActions>
         </Dialog>
       )}
+
+      <SepayPayoutQrDialog
+        details={payoutQrDetails}
+        amountVnd={
+          detail ? money(detail.inspectorNetPayout, locale, detail.currency) : undefined
+        }
+        inspectorName={selectedManagerItem?.inspectorName}
+        bankName={detail?.payout?.bankName}
+        bankAccountNumber={detail?.payout?.bankAccountNumber}
+        bankAccountHolder={detail?.payout?.bankAccountHolder}
+        checking={payoutChecking}
+        onCheckNow={() => {
+          if (detail?.occurrenceId) {
+            void refreshDetailPayoutStatus(detail.occurrenceId);
+          }
+        }}
+        onClose={() => setPayoutQrDetails(undefined)}
+      />
     </Box>
   );
 }
