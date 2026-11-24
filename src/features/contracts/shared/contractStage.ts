@@ -1,3 +1,5 @@
+import type { Asset } from '@/features/assets/api/assetApi';
+import { formatLocationLabel } from '@/shared/ui/formatLocation';
 import type { ServiceRequest } from '../api/contractApi';
 
 export type ContractRole = 'CUSTOMER' | 'MANAGER';
@@ -175,4 +177,109 @@ export function resolveActiveStepIndex(status: string, hasOccurrences = false): 
     default:
       return 0;
   }
+}
+
+export function resolveAssetDisplay(request: ServiceRequest, asset?: Asset | null) {
+  const rawLocation = asset?.locationText || request.assetLocationText || null;
+  const requestCheckpoints = (request.inspectionItems ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const assetSuggestedCheckpoints = (asset?.inspectionItems ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const hasRequestCheckpoints = requestCheckpoints.length > 0;
+  const checkpointLabels = hasRequestCheckpoints ? requestCheckpoints : assetSuggestedCheckpoints;
+  const checkpointsSource: 'REQUEST' | 'ASSET_SUGGESTED' = hasRequestCheckpoints
+    ? 'REQUEST'
+    : 'ASSET_SUGGESTED';
+  return {
+    name: asset?.name || request.assetName || '—',
+    code: asset?.code || request.assetCode || null,
+    location: rawLocation ? formatLocationLabel(rawLocation) : null,
+    status: asset?.status || null,
+    checkpointCount:
+      hasRequestCheckpoints || asset?.inspectionItems ? checkpointLabels.length : null,
+    checkpointLabels,
+    checkpointsSource,
+    heightMeters: asset?.structureHeightMeters ?? null,
+    footprintAreaSquareMeters: asset?.footprintAreaSquareMeters ?? null,
+  };
+}
+
+export function formatRequestScheduleSummary(
+  request: ServiceRequest,
+  formatDate: (date: Date) => string,
+  locale: string,
+  t: (key: string) => string,
+): string {
+  const startLabel = formatDate(new Date(`${request.requestedFrom}T00:00:00`));
+  const endLabel = request.requestedUntil
+    ? formatDate(new Date(`${request.requestedUntil}T00:00:00`))
+    : startLabel;
+  const datePart =
+    request.requestType === 'ONE_TIME' || !request.requestedUntil || request.requestedUntil === request.requestedFrom
+      ? startLabel
+      : `${startLabel} – ${endLabel}`;
+  const timePart = formatFlightTimeRange(request.windowStart, request.windowEnd);
+  if (request.requestType !== 'RECURRING') {
+    return `${datePart} · ${timePart}`;
+  }
+  const count = request.occurrenceCount ?? request.occurrences.length;
+  const countPart = count > 0 ? ` · ${count} ${locale === 'vi' ? 'đợt' : t('occurrences')}` : '';
+  return `${datePart} · ${timePart}${countPart}`;
+}
+
+export function formatQuotedPriceSummary(
+  request: ServiceRequest,
+  locale: string,
+): string | null {
+  const quote = resolveCurrentQuote(request);
+  if (!quote) return null;
+  const unitPrice = Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd ?? 0);
+  const base = formatVndPerOccurrence(unitPrice, locale);
+  if (request.requestType !== 'RECURRING') {
+    return base;
+  }
+  const count = request.occurrenceCount ?? request.occurrences.length;
+  if (!count || count <= 1) return base;
+  const total = (unitPrice * count).toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US');
+  return `${base} (${count} ${locale === 'vi' ? 'đợt' : 'occurrences'} · ${total} VND)`;
+}
+
+export function summarizeDispatchProgress(
+  request: ServiceRequest,
+  locale: string,
+  t: (key: string) => string,
+  fallbackDrones?: Array<{ id: string; model?: string | null; serialNumber?: string | null }>,
+): string {
+  const occurrences = request.occurrences ?? [];
+  const activeOccurrences = occurrences.filter((occ) => occ.status !== 'CANCELLED');
+  const assignedOccurrences = activeOccurrences.filter(
+    (occ) => occ.status === 'ASSIGNED' || Boolean(occ.inspectorId) || Boolean(occ.droneId),
+  );
+  if (assignedOccurrences.length === 0) {
+    return t('Not dispatched yet');
+  }
+  const primary = assignedOccurrences[0];
+  if (!primary) {
+    return t('Not dispatched yet');
+  }
+  let droneLabel = primary.droneLabel?.trim() || '';
+  if (!droneLabel && primary.droneId && fallbackDrones?.length) {
+    const matched = fallbackDrones.find((d) => d.id === primary.droneId);
+    if (matched) {
+      droneLabel = [matched.model, matched.serialNumber].filter(Boolean).join(' · ');
+    }
+  }
+  const partnerLabel = [primary.inspectorName?.trim(), droneLabel].filter(Boolean).join(' · ');
+
+  if (request.requestType === 'RECURRING' && activeOccurrences.length > 1) {
+    const progress =
+      locale === 'vi'
+        ? `${assignedOccurrences.length}/${activeOccurrences.length} đợt đã gán`
+        : `${assignedOccurrences.length}/${activeOccurrences.length} ${t('occurrences assigned')}`;
+    return partnerLabel ? `${progress} · ${partnerLabel}` : progress;
+  }
+
+  return partnerLabel || t('Assigned');
 }

@@ -145,6 +145,21 @@ describe('ContractInboxPage', () => {
       mutate: vi.fn(),
       isPending: false,
     } as any);
+    vi.spyOn(contractsHook, 'usePartnerChatThreads').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostPartnerMessage').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkPartnerMessagesRead').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
 
     renderInbox();
 
@@ -166,5 +181,136 @@ describe('ContractInboxPage', () => {
     expect(screen.getByText('20/4000')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     expect(postMutate).toHaveBeenCalledWith({ body: 'Confirmed for 08:00.', files: [] });
+  });
+
+  it('lets an Inspector switch between Customer and Manager channels and send a partner message', () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['INSPECTOR'],
+      user: {
+        id: 'insp-1',
+        email: 'inspector@test.local',
+        fullName: 'Le Inspector',
+        roles: ['INSPECTOR'],
+      } as any,
+      userId: 'insp-1',
+      userName: 'Le Inspector',
+      email: 'inspector@test.local',
+    });
+
+    const postPartnerMutate = vi.fn().mockResolvedValue({});
+    const markPartnerReadMutate = vi.fn();
+
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostRequestMessage').mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkMessagesRead').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useInspectionChatThreads').mockReturnValue({
+      data: [
+        {
+          inspectionId: 'insp-exec-1',
+          assetId: 'asset-1',
+          assetName: 'Can Tho Bridge',
+          status: 'SCHEDULED',
+          assignmentStatus: 'ACCEPTED',
+          plannedStartAt: '2026-12-26T01:00:00Z',
+          plannedEndAt: '2026-12-26T03:00:00Z',
+          counterpartUserId: 'cust-1',
+          counterpartName: 'Saigon Customer',
+          counterpartRole: 'CUSTOMER',
+          counterpartAvatarUrl: null,
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostInspectionMessage').mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkInspectionMessagesRead').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerChatThreads').mockReturnValue({
+      data: [
+        {
+          requestId: 'req-1',
+          inspectorId: 'insp-1',
+          managerId: 'mgr-1',
+          ownerCustomerId: 'cust-1',
+          customerName: 'Saigon Customer',
+          assetId: 'asset-1',
+          assetName: 'Can Tho Bridge',
+          assetCode: 'CTB-01',
+          requestDescription: 'Bridge thermal survey',
+          requestStatus: 'ASSIGNED',
+          counterpartUserId: 'mgr-1',
+          counterpartName: 'Tran Manager',
+          counterpartRole: 'MANAGER',
+          counterpartAvatarUrl: null,
+          occurrenceCount: 1,
+          nextPlannedStartAt: '2026-12-26T01:00:00Z',
+          nextPlannedEndAt: '2026-12-26T03:00:00Z',
+          messages: [
+            {
+              id: 'pm-1',
+              requestId: 'req-1',
+              inspectorId: 'insp-1',
+              authorUserId: 'mgr-1',
+              authorName: 'Tran Manager',
+              authorRole: 'MANAGER',
+              body: 'Please verify permit before takeoff.',
+              readAt: null,
+              createdAt: '2026-11-23T08:00:00Z',
+              attachments: [],
+            },
+          ],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostPartnerMessage').mockReturnValue({
+      mutateAsync: postPartnerMutate,
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkPartnerMessagesRead').mockReturnValue({
+      mutate: markPartnerReadMutate,
+      isPending: false,
+    } as any);
+
+    renderInbox(['/operations/messages']);
+
+    expect(screen.getAllByText('Saigon Customer').length).toBeGreaterThan(0);
+    const managerTab = screen.getByRole('button', { name: /Manager/ });
+    fireEvent.click(managerTab);
+
+    expect(screen.getAllByText('Tran Manager').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Please verify permit before takeoff.').length).toBeGreaterThan(0);
+
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'Permit verified and ready.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    expect(postPartnerMutate).toHaveBeenCalledWith({
+      body: 'Permit verified and ready.',
+      files: [],
+    });
   });
 });

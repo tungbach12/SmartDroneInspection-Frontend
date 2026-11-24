@@ -20,6 +20,7 @@ import {
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
@@ -454,7 +455,7 @@ function ManagerOccurrenceRow({
             {isAssigned && occurrence.inspectionId && (
               <Button
                 component={Link}
-                to={`/manager/inspections/${occurrence.inspectionId}/review`}
+                to={`/manager/inspections/${occurrence.inspectionId}/audit`}
                 size="small"
                 variant="outlined"
                 endIcon={<ArrowForwardRounded sx={{ fontSize: 14 }} />}
@@ -579,33 +580,52 @@ function ManagerOccurrenceRow({
                   )
                 )}
               </Stack>
-              {remainingUnassignedOther.length > 0 &&
-                occurrence.inspectorId &&
-                occurrence.droneId && (
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, flexShrink: 0 }}>
+                {remainingUnassignedOther.length > 0 &&
+                  occurrence.inspectorId &&
+                  occurrence.droneId && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={bulkAssign.isPending}
+                      onClick={() =>
+                        setBulkPair({
+                          inspectorId: occurrence.inspectorId as string,
+                          droneId: occurrence.droneId as string,
+                        })
+                      }
+                      sx={{
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {bulkAssign.isPending
+                        ? t('Assigning…')
+                        : `${t('Apply this team to the remaining')} (${remainingUnassignedOther.length})`}
+                    </Button>
+                  )}
+                {occurrence.inspectorId && (
                   <Button
+                    component={Link}
+                    to={`/manager/messages?partnerRequestId=${request.id}&inspectorId=${occurrence.inspectorId}`}
                     size="small"
                     variant="outlined"
-                    disabled={bulkAssign.isPending}
-                    onClick={() =>
-                      setBulkPair({
-                        inspectorId: occurrence.inspectorId as string,
-                        droneId: occurrence.droneId as string,
-                      })
-                    }
+                    startIcon={<ChatOutlinedIcon sx={{ fontSize: 14 }} />}
                     sx={{
                       borderRadius: '8px',
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       textTransform: 'none',
                       whiteSpace: 'nowrap',
-                      flexShrink: 0,
                     }}
                   >
-                    {bulkAssign.isPending
-                      ? t('Assigning…')
-                      : `${t('Apply this team to the remaining')} (${remainingUnassignedOther.length})`}
+                    {t('Messages')}
                   </Button>
                 )}
+              </Stack>
             </Stack>
 
             {occurrence.reassignmentRequired && (

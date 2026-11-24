@@ -6,7 +6,6 @@ import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../api/contractApi';
 import { ContractLifecycleStepper } from '../shared/ContractLifecycleStepper';
-import { RequestHeaderBar } from '../shared/RequestHeaderBar';
 import { QuoteTermsSummary } from '../shared/QuoteTermsSummary';
 import {
   formatFlightTimeRange,
@@ -15,6 +14,7 @@ import {
   resolveActiveStepIndex,
   resolveCurrentQuote,
 } from '../shared/contractStage';
+import { ManagerAssetOverview } from './components/ManagerAssetOverview';
 import { ManagerQuoteWorkspace } from './steps/ManagerQuoteWorkspace';
 import { ManagerContractUploadStep } from './steps/ManagerContractUploadStep';
 import { ManagerOccurrencesStep } from './steps/ManagerOccurrencesStep';
@@ -205,7 +205,7 @@ export function ManagerRequestDetail({
         )}
       </Stack>
 
-      <RequestHeaderBar request={request} effectiveStatus={effectiveStatus} />
+      <ManagerAssetOverview request={request} effectiveStatus={effectiveStatus} />
       <ContractLifecycleStepper
         status={effectiveStatus}
         role="MANAGER"

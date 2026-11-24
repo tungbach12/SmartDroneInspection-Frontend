@@ -2,6 +2,7 @@ import { Box, Table, TableBody, TableCell, TableRow, Typography } from '@mui/mat
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequest } from '../api/contractApi';
 import { enumerateMonthlySchedule } from '../api/recurrenceSchedule';
+import { instantToLocalDate } from '../api/scheduleTime';
 import { formatVndPerOccurrence } from './contractStage';
 
 interface QuoteTermsSummaryProps {
@@ -13,9 +14,11 @@ interface QuoteTermsSummaryProps {
 export function QuoteTermsSummary({ request, quote, partnerSummary }: QuoteTermsSummaryProps) {
   const { locale, t } = useLocale();
   const unitPrice = Number(quote.pricePerOccurrenceVnd ?? quote.pricePerOccurrenceUsd ?? 0);
+  // The recurring term follows the quoted first date; an end-date term keeps the customer end date.
+  const quotedFirstDate = instantToLocalDate(quote.firstOccurrenceStartAt, request.timezone);
   const recurringDates =
     request.requestType === 'RECURRING'
-      ? enumerateMonthlySchedule(request.requestedFrom, request.recurrenceInterval ?? 1, {
+      ? enumerateMonthlySchedule(quotedFirstDate, request.recurrenceInterval ?? 1, {
           ...(request.occurrenceCount != null
             ? { count: request.occurrenceCount }
             : { endDate: request.recurrenceEndDate ?? request.requestedUntil }),

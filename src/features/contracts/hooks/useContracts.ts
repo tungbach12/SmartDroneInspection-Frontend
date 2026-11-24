@@ -10,6 +10,7 @@ import {
   contractApi,
   contractQueryKeys,
   inspectionChatApi,
+  partnerChatApi,
   type AssignOccurrenceInput,
   type CreateServiceRequestInput,
   type EvaluatePartnerCandidatesInput,
@@ -17,6 +18,7 @@ import {
   type IssueServiceQuoteInput,
   type PartnerCandidate,
   type PartnerCapabilityOption,
+  type PartnerChatThread,
   type ServiceRequest,
   type ServiceManagerOption,
 } from '../api/contractApi';
@@ -155,6 +157,25 @@ export function usePartnerCapabilities() {
 export function useEvaluatePartnerCandidates(requestId: string) {
   return useMutation<PartnerCandidate[], Error, EvaluatePartnerCandidatesInput>({
     mutationFn: (input) => contractApi.evaluatePartnerCandidates(requestId, input),
+  });
+}
+
+export function useUpdateServiceRequestInspectionItems(requestId: string) {
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: (inspectionItems: string[]) =>
+      contractApi.updateInspectionItems(requestId, inspectionItems),
+    onSuccess: async (updatedRequest) => {
+      queryClient.setQueryData(contractQueryKeys.request(requestId), updatedRequest);
+      queryClient.setQueryData<ServiceRequest[]>(contractQueryKeys.requests(), (old) => {
+        if (!old) return old;
+        return old.map((item) => (item.id === updatedRequest.id ? updatedRequest : item));
+      });
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.request(requestId) });
+      await queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() });
+      showToast('Inspection checkpoints saved.', 'success');
+    },
   });
 }
 
@@ -357,6 +378,12 @@ export const inspectionChatQueryKeys = {
   thread: (inspectionId: string) => ['inspections', 'messages', 'thread', inspectionId] as const,
 };
 
+export const partnerChatQueryKeys = {
+  threads: ['contracts', 'partner-messages', 'threads'] as const,
+  thread: (requestId: string, inspectorId: string) =>
+    ['contracts', 'partner-messages', 'thread', requestId, inspectorId] as const,
+};
+
 export function useInspectionChatThreads(enabled = true, realtime = true) {
   return useQuery({
     queryKey: inspectionChatQueryKeys.threads,
@@ -397,6 +424,58 @@ export function useMarkInspectionMessagesRead(inspectionId: string) {
   });
 }
 
+export function usePartnerChatThreads(enabled = true, realtime = true) {
+  return useQuery({
+    queryKey: partnerChatQueryKeys.threads,
+    queryFn: partnerChatApi.listThreads,
+    enabled,
+    refetchInterval: realtime ? 3000 : false,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function usePostPartnerMessage(requestId: string, inspectorId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { body: string; files?: File[] }) =>
+      partnerChatApi.postMessage(requestId, inspectorId, input),
+    onSuccess: async (updatedThread: PartnerChatThread) => {
+      queryClient.setQueryData(
+        partnerChatQueryKeys.thread(requestId, inspectorId),
+        updatedThread,
+      );
+      await queryClient.invalidateQueries({ queryKey: partnerChatQueryKeys.threads });
+    },
+  });
+}
+
+export function useMarkPartnerMessagesRead(requestId: string, inspectorId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (target?: { requestId: string; inspectorId: string }) =>
+      partnerChatApi.markMessagesRead(
+        target?.requestId ?? requestId,
+        target?.inspectorId ?? inspectorId,
+      ),
+    onSuccess: (updatedThread: PartnerChatThread) => {
+      queryClient.setQueryData(
+        partnerChatQueryKeys.thread(updatedThread.requestId, updatedThread.inspectorId),
+        updatedThread,
+      );
+      queryClient.setQueryData<PartnerChatThread[]>(
+        partnerChatQueryKeys.threads,
+        (prev) =>
+          prev?.map((item) =>
+            item.requestId === updatedThread.requestId &&
+            item.inspectorId === updatedThread.inspectorId
+              ? updatedThread
+              : item,
+          ) ?? prev,
+      );
+    },
+  });
+}
+
 export function useUnreadChatSummary() {
   const currentUser = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
@@ -406,10 +485,16 @@ export function useUnreadChatSummary() {
     isAuth && (roles.includes('CUSTOMER') || roles.includes('MANAGER'));
   const canAccessInspectionChat =
     isAuth && (roles.includes('CUSTOMER') || roles.includes('INSPECTOR'));
+  const canAccessPartnerChat =
+    isAuth && (roles.includes('MANAGER') || roles.includes('INSPECTOR'));
   const { data: requests = [] } = useServiceRequests(canAccessContracts, canAccessContracts);
   const { data: inspectionThreads = [] } = useInspectionChatThreads(
     canAccessInspectionChat,
     canAccessInspectionChat,
+  );
+  const { data: partnerThreads = [] } = usePartnerChatThreads(
+    canAccessPartnerChat,
+    canAccessPartnerChat,
   );
 
   return useMemo(() => {
@@ -466,9 +551,32 @@ export function useUnreadChatSummary() {
         }
       });
 
+      partnerThreads.forEach((thread) => {
+        const incomingMessages = (thread.messages || []).filter(
+          (m) => m.authorUserId !== currentUser.id,
+        );
+        if (incomingMessages.length === 0) return;
+
+        const unreadIncoming = incomingMessages.filter((m) => !m.readAt);
+        const unreadForThis = unreadIncoming.length;
+
+        if (unreadForThis > 0) {
+          totalUnread += unreadForThis;
+          const latestIncoming = incomingMessages[incomingMessages.length - 1];
+          items.push({
+            requestId: thread.requestId,
+            requestDescription: thread.requestDescription || thread.assetName || 'Partner dispatch',
+            unreadCount: unreadForThis,
+            latestMessageBody: latestIncoming?.body || '',
+            latestMessageAuthor: latestIncoming?.authorName || thread.counterpartName || 'Partner',
+            latestMessageTime: latestIncoming?.createdAt || '',
+          });
+        }
+      });
+
       return { totalUnread, items };
     } catch {
       return { totalUnread: 0, items: [] as UnreadChatNotification[] };
     }
-  }, [requests, inspectionThreads, currentUser, isAuth]);
+  }, [requests, inspectionThreads, partnerThreads, currentUser, isAuth]);
 }

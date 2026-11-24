@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
@@ -11,6 +11,7 @@ import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/schedu
 import { useIssueServiceQuote } from '../../hooks/useContracts';
 import { extractContractErrorText, resolveCurrentQuote } from '../../shared/contractStage';
 import { QuoteTermsSummary } from '../../shared/QuoteTermsSummary';
+import { RequestCheckpointsEditor } from '../components/RequestCheckpointsEditor';
 
 interface ManagerQuoteWorkspaceProps {
   request: ServiceRequest;
@@ -75,16 +76,41 @@ export function ManagerQuoteWorkspace({
   // explicitly starts a revision, so the default view answers "what happens next?".
   const [quoteEditing, setQuoteEditing] = useState(false);
 
+  // The Manager may move the first visit later; recurring previews follow the proposed date.
+  const proposedStartDate = start.slice(0, 10) || request.requestedFrom;
   const recurringDates =
     request.requestType === 'RECURRING'
-      ? enumerateMonthlySchedule(request.requestedFrom, request.recurrenceInterval ?? 1, {
+      ? enumerateMonthlySchedule(proposedStartDate, request.recurrenceInterval ?? 1, {
           ...(request.occurrenceCount != null
             ? { count: request.occurrenceCount }
             : { endDate: request.recurrenceEndDate ?? request.requestedUntil }),
           maxOccurrences: 100,
         })
       : [];
-  const scheduleEndDate = recurringDates.at(-1) ?? request.requestedUntil;
+  const customerEndDate = request.recurrenceEndDate ?? request.requestedUntil;
+  const proposedDateChanged =
+    Boolean(proposedStartDate) && proposedStartDate !== request.requestedFrom;
+  const dateLabelOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  };
+  const proposedDateLabel = new Date(`${proposedStartDate}T12:00:00`).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    dateLabelOptions,
+  );
+  const requestedDateLabel = new Date(`${request.requestedFrom}T12:00:00`).toLocaleDateString(
+    locale === 'vi' ? 'vi-VN' : 'en-US',
+    dateLabelOptions,
+  );
+
+  const handleStartChange = (value: string) => {
+    const previousDate = start.slice(0, 10);
+    setStart(value);
+    if (value && end.slice(0, 10) === previousDate) {
+      setEnd(`${value.slice(0, 10)}T${end.slice(11)}`);
+    }
+  };
 
   const saveQuote = async () => {
     if (!scope.trim()) {
@@ -105,22 +131,27 @@ export function ManagerQuoteWorkspace({
       }
       const firstDate = start.slice(0, 10);
       const lastDate = end.slice(0, 10);
-      const scheduleEnd =
-        request.requestType === 'RECURRING' ? scheduleEndDate : request.requestedUntil;
-      if (
-        lastDate > scheduleEnd ||
-        (request.requestType === 'ONE_TIME' &&
-          (firstDate !== request.requestedFrom || lastDate !== request.requestedFrom)) ||
-        (request.requestType === 'RECURRING' && firstDate !== request.requestedFrom)
-      ) {
-        onError(
-          request.requestType === 'ONE_TIME'
-            ? t('One-time service must remain on the customer-selected date.')
-            : t(
-                'The first occurrence must match the customer-requested date, and the quote must remain inside the requested schedule.',
-              ),
-        );
+      if (firstDate < request.requestedFrom) {
+        onError(t('The first inspection cannot be earlier than the customer-requested date.'));
         return;
+      }
+      if (lastDate !== firstDate) {
+        onError(t('The first occurrence must start and end on the same day.'));
+        return;
+      }
+      if (request.requestType === 'RECURRING' && request.occurrenceCount == null) {
+        if (
+          firstDate > customerEndDate ||
+          recurringDates.length < 2 ||
+          (recurringDates.at(-1) ?? firstDate) > customerEndDate
+        ) {
+          onError(
+            t(
+              'The revised schedule must keep at least two occurrences on or before the customer-selected end date.',
+            ),
+          );
+          return;
+        }
       }
       await save.mutateAsync({
         scopeSnapshot: scope.trim(),
@@ -188,6 +219,11 @@ export function ManagerQuoteWorkspace({
 
       <Box sx={{ p: 2 }}>
         <Stack spacing={2}>
+          <RequestCheckpointsEditor
+            request={request}
+            onChanged={onChanged}
+            onError={onError}
+          />
           {currentQuote && !quoteEditing && <QuoteTermsSummary request={request} quote={currentQuote} />}
 
           {currentQuote && !quoteEditing && (
@@ -243,6 +279,14 @@ export function ManagerQuoteWorkspace({
                 onChange={(event) => setScope(event.target.value)}
               />
 
+              {proposedDateChanged && (
+                <Alert severity="info">
+                  {locale === 'vi'
+                    ? `Bạn đang dời ngày kiểm tra đầu tiên từ ${requestedDateLabel} sang ${proposedDateLabel}. Khách hàng phải chấp nhận báo giá cập nhật.`
+                    : `Moving the first inspection from ${requestedDateLabel} to ${proposedDateLabel}. The Customer must accept the updated quote.`}
+                </Alert>
+              )}
+
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
                   fullWidth
@@ -250,8 +294,17 @@ export function ManagerQuoteWorkspace({
                   type="datetime-local"
                   size="small"
                   value={start}
-                  onChange={(event) => setStart(event.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  onChange={(event) => handleStartChange(event.target.value)}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    htmlInput: {
+                      min: `${request.requestedFrom}T${request.windowStart}`,
+                      max:
+                        request.requestType === 'RECURRING' && request.occurrenceCount == null
+                          ? `${customerEndDate}T${request.windowEnd}`
+                          : undefined,
+                    },
+                  }}
                 />
                 <TextField
                   fullWidth
@@ -270,13 +323,9 @@ export function ManagerQuoteWorkspace({
                 size="small"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
-                helperText={
-                  request.requestType === 'ONE_TIME'
-                    ? t('The customer-selected date cannot be changed for a one-time request.')
-                    : t(
-                        'The first scheduled occurrence is used as the anchor for the recurring schedule.',
-                      )
-                }
+                helperText={t(
+                  'You may move the first inspection later. The Customer must accept the revised quote before it takes effect.',
+                )}
                 slotProps={{
                   htmlInput: { inputMode: 'decimal', spellCheck: false, 'data-lpignore': 'true' },
                 }}
