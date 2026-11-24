@@ -18,10 +18,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -169,6 +169,10 @@ function CalendarDateField({ label, value, minDate, locale, onChange }: Calendar
             event.preventDefault();
             openPicker(event.currentTarget);
           }
+        }}
+        sx={{
+          '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'background.paper' },
+          '& .MuiFormHelperText-root': { mx: 0.25, mt: 0.75, fontSize: '0.75rem' },
         }}
         slotProps={{
           input: {
@@ -405,62 +409,158 @@ export function CreateRequestDialog({
   };
 
   const earliestSecondOccurrence = from && isValidInterval ? addAnchoredMonths(from, intervalMonths) : '';
+  const activeAssetSelection = assetId || initialAssetId || '';
+  const lockedReinspectionAsset = Boolean(sourceInspectionId && initialAssetId);
+  const selectedAsset = selectableAssets.find((asset) => asset.id === activeAssetSelection);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <AddBusinessRoundedIcon color="primary" />
-        {t('Create inspection request')}
-      </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: {
+            maxWidth: 480,
+            borderRadius: '12px',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 48px rgba(15, 23, 42, 0.14)',
+            bgcolor: 'background.paper',
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 3,
+          pt: 2.5,
+          pb: 1.5,
+        }}
+      >
+        <DialogTitle
+          sx={{
+            p: 0,
+            fontSize: '1rem',
+            fontWeight: 700,
+            letterSpacing: '-0.015em',
+            color: 'text.primary',
+          }}
+        >
+          {t('Create inspection request')}
+        </DialogTitle>
+        <IconButton
+          size="small"
+          aria-label={t('Cancel')}
+          onClick={onClose}
+          sx={{ color: 'text.secondary', mr: -0.5 }}
+        >
+          <CloseRounded fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <DialogContent sx={{ px: 3, pt: 0.75, pb: 2.5 }}>
+        <Stack spacing={2.25}>
           {validationError && (
-            <Alert severity="error" onClose={() => setValidationError('')}>
+            <Alert severity="error" onClose={() => setValidationError('')} sx={{ borderRadius: '10px' }}>
               {validationError}
             </Alert>
           )}
 
-          {sourceInspectionId && (
-            <Alert severity="info" sx={{ borderRadius: '8px' }}>
-              {t('Re-inspection linked to source inspection')}
-              {sourceInspectionLabel ? `: ${sourceInspectionLabel}` : ` #${sourceInspectionId.slice(0, 8)}`}
-            </Alert>
-          )}
-
-          {selectableAssets.length === 0 ? (
-            <Alert severity="info" sx={{ borderRadius: '8px' }}>
-              {t('No active assets found. Register an asset before submitting a service request.')}
-            </Alert>
+          {lockedReinspectionAsset ? (
+            <Box
+              sx={{
+                px: 1.75,
+                py: 1.25,
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                {t('Re-inspection linked to source inspection')}
+                {sourceInspectionLabel
+                  ? `: ${sourceInspectionLabel}`
+                  : ` #${sourceInspectionId?.slice(0, 8)}`}
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary', mt: 0.25 }}>
+                {selectedAsset
+                  ? selectedAsset.code
+                    ? `${selectedAsset.code} — ${selectedAsset.name}`
+                    : selectedAsset.name
+                  : (sourceInspectionLabel ?? t('Inspected structure'))}
+              </Typography>
+            </Box>
           ) : (
-            <FormControl fullWidth size="small" required>
-              <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
-              <Select
-                labelId="dialog-asset-label"
-                label={t('Asset / structure')}
-                value={activeAssetIds.has(assetId || initialAssetId || '') ? '' : (assetId || initialAssetId || '')}
-                disabled={Boolean(sourceInspectionId && initialAssetId)}
-                onChange={(event) => setAssetId(event.target.value)}
-              >
-                {selectableAssets.map((asset) => {
-                  const hasActiveRequest = activeAssetIds.has(asset.id);
-                  return (
-                    <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
-                      {asset.code ? `${asset.code} — ${asset.name}` : asset.name}
-                      {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
+            <>
+              {sourceInspectionId && (
+                <Box
+                  sx={{
+                    px: 1.75,
+                    py: 1,
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t('Re-inspection linked to source inspection')}
+                    {sourceInspectionLabel
+                      ? `: ${sourceInspectionLabel}`
+                      : ` #${sourceInspectionId.slice(0, 8)}`}
+                  </Typography>
+                </Box>
+              )}
+
+              {selectableAssets.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                  {t('No active assets found. Register an asset before submitting a service request.')}
+                </Alert>
+              ) : (
+                <FormControl
+                  fullWidth
+                  size="small"
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                >
+                  <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
+                  <Select
+                    labelId="dialog-asset-label"
+                    label={t('Asset / structure')}
+                    value={activeAssetIds.has(activeAssetSelection) ? '' : activeAssetSelection}
+                    onChange={(event) => setAssetId(event.target.value)}
+                  >
+                    {selectableAssets.map((asset) => {
+                      const hasActiveRequest = activeAssetIds.has(asset.id);
+                      return (
+                        <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
+                          {asset.code ? `${asset.code} — ${asset.name}` : asset.name}
+                          {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+              )}
+            </>
           )}
 
-          {allAssetsBusy && (
-            <Alert severity="info">
+          {!lockedReinspectionAsset && allAssetsBusy && (
+            <Alert severity="info" sx={{ borderRadius: '10px' }}>
               {t('All available assets already have an active service request in progress.')}
             </Alert>
           )}
 
-          <FormControl fullWidth size="small">
+          <FormControl
+            fullWidth
+            size="small"
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          >
             <InputLabel id="dialog-type-label">{t('Inspection frequency')}</InputLabel>
             <Select
               labelId="dialog-type-label"
@@ -601,17 +701,31 @@ export function CreateRequestDialog({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          gap: 1,
+        }}
+      >
+        <Button
+          onClick={onClose}
+          color="inherit"
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', px: 1.75 }}
+        >
           {t('Cancel')}
         </Button>
         <LoadingButton
           variant="contained"
+          disableElevation
           loading={create.isPending}
           onClick={() => void handleSubmit()}
+          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.25 }}
           disabled={
-            !(assetId || initialAssetId) ||
-            (!sourceInspectionId && activeAssetIds.has(assetId || initialAssetId || '')) ||
+            !activeAssetSelection ||
+            (!sourceInspectionId && activeAssetIds.has(activeAssetSelection)) ||
             !from ||
             from < minStartDate
           }

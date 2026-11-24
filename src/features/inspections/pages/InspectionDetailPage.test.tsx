@@ -457,7 +457,7 @@ describe('InspectionDetailPage', () => {
     });
     const customerNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(customerNav.querySelector('a[aria-label="Inspection Report: Complete"]')).toBeTruthy();
-    expect(customerNav.querySelector('a[aria-label="Acceptance & Payment: Complete"]')).toBeTruthy();
+    expect(customerNav.querySelector('a[aria-label="Service Payment: Complete"]')).toBeTruthy();
     expect(customerNav.querySelector('a[aria-label*="Corrective Action"]')).toBeNull();
     unmountCustomer();
 
@@ -518,7 +518,7 @@ describe('InspectionDetailPage', () => {
     const stageNav = screen.getByRole('navigation', { name: 'Inspection workflow stages' });
     expect(stageNav.querySelector('a[aria-label="Inspection Progress: In progress"]')).toBeTruthy();
     expect(stageNav.querySelector('a[aria-label*="Inspection Report"]')).toBeTruthy();
-    expect(stageNav.querySelector('a[aria-label*="Acceptance & Payment"]')).toBeTruthy();
+    expect(stageNav.querySelector('a[aria-label*="Service Payment"]')).toBeTruthy();
     expect(screen.getByRole('link', { name: /inspections/i }).getAttribute('href')).toBe(
       '/client/inspections',
     );

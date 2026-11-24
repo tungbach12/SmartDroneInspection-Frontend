@@ -399,7 +399,7 @@ export function CustomerReportSettlementCard({
         {/* Header Bar: Title + Status + Invoice Ref */}
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
           <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
-            {t('Report acceptance & service fee payment')}
+            {t('Service fee payment')}
           </Typography>
           {(isPaid || isPaymentConfirming) && (
             <StatusChip

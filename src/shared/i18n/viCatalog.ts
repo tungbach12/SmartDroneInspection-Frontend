@@ -3049,4 +3049,8 @@
   "Go to Inspection Report": "Về Báo cáo kiểm định",
   "Could not accept report.": "Không thể chấp nhận báo cáo.",
   "Payment checkout could not be started.": "Không thể khởi tạo thanh toán.",
+  "Service Payment": "Thanh toán dịch vụ",
+  "Service fee payment": "Thanh toán phí dịch vụ",
+  "Review & Acceptance": "Xem xét & Chấp nhận",
+  "Sepay, VNPay & Receipt": "Sepay, VNPay & Biên lai",
 };
