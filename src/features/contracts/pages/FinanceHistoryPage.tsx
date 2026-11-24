@@ -1071,6 +1071,24 @@ export default function FinanceHistoryPage({
             void refreshDetailPayoutStatus(detail.occurrenceId);
           }
         }}
+        onMockPay={
+          manager && detail && payoutQrDetails
+            ? async () => {
+                try {
+                  await contractApi.recordOccurrencePayout(
+                    detail.requestId,
+                    detail.occurrenceId,
+                    { payoutReference: `SEPAY-MOCK-${payoutQrDetails.orderCode}` },
+                  );
+                  await refreshDetailPayoutStatus(detail.occurrenceId);
+                } catch (err) {
+                  setPayoutError(
+                    extractContractErrorText(err, 'Could not settle payout.'),
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => setPayoutQrDetails(undefined)}
       />
     </Box>

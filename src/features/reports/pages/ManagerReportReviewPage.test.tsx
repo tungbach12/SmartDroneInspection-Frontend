@@ -217,6 +217,13 @@ describe('ManagerReportReviewPage separate review & payout stages', () => {
     expect(screen.getByText('SDIPAY2001234567')).toBeTruthy();
     const qrImg = screen.getByAltText('VietQR code for Inspector payout') as HTMLImageElement;
     expect(qrImg.src).toContain('acc=0071001234567');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mock pay' }));
+    await vi.waitFor(() => {
+      expect(mocks.recordOccurrencePayout).toHaveBeenCalledWith('req-1', 'occ-1', {
+        payoutReference: 'SEPAY-MOCK-2001234567',
+      });
+    });
   });
 
   it('enables Publish to Customer on Step 3 once Inspector payout is PAID', () => {

@@ -31,6 +31,7 @@ export interface SepayPayoutQrDialogProps {
   bankAccountHolder?: string | null | undefined;
   checking?: boolean;
   onCheckNow?: () => void;
+  onMockPay?: (() => Promise<void>) | undefined;
   onClose: () => void;
 }
 
@@ -49,11 +50,13 @@ export function SepayPayoutQrDialog({
   bankAccountHolder,
   checking = false,
   onCheckNow,
+  onMockPay,
   onClose,
 }: SepayPayoutQrDialogProps) {
   const { formatNumber, t } = useLocale();
   const [copiedKey, setCopiedKey] = useState<'account' | 'content' | null>(null);
   const [qrLoadError, setQrLoadError] = useState(false);
+  const [mockBusy, setMockBusy] = useState(false);
 
   const formattedBank = bankName ? formatVietQrBankDisplay(bankName) : null;
   const resolvedAmount =
@@ -327,7 +330,7 @@ export function SepayPayoutQrDialog({
           aria-live="polite"
           sx={{ alignItems: 'center', minWidth: 0 }}
         >
-          {checking ? (
+          {checking || mockBusy ? (
             <CircularProgress size={12} thickness={5} />
           ) : (
             <Box
@@ -342,12 +345,42 @@ export function SepayPayoutQrDialog({
             />
           )}
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-            {checking
+            {checking || mockBusy
               ? t('Checking…')
               : copiedKey === 'content'
                 ? t('Transfer content copied.')
                 : t('Awaiting SePay confirmation')}
           </Typography>
+          {onMockPay && (
+            <Button
+              size="small"
+              disabled={mockBusy || checking}
+              aria-label="Mock pay"
+              onClick={() => {
+                setMockBusy(true);
+                void onMockPay().finally(() => setMockBusy(false));
+              }}
+              sx={{
+                minWidth: 'auto',
+                px: 1,
+                py: 0.25,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                borderRadius: '6px',
+                color: 'text.secondary',
+                opacity: 0.04,
+                transition: 'opacity 150ms ease',
+                '&:hover, &:focus-visible': {
+                  opacity: 1,
+                  bgcolor: 'action.hover',
+                  color: 'text.primary',
+                },
+              }}
+            >
+              Mock pay
+            </Button>
+          )}
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

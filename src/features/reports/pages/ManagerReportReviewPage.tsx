@@ -33,6 +33,7 @@ import {
   type PortalId,
 } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import {
   useCreateInspectionSepayPayoutLink,
   useFieldSessions,
@@ -69,6 +70,7 @@ export default function ManagerReportReviewPage({
   stage,
 }: ManagerReportReviewPageProps = {}) {
   const { formatNumber, t } = useLocale();
+  const isDark = useIsDarkMode();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -473,23 +475,17 @@ export default function ManagerReportReviewPage({
                 >
                   {/* Unified Header Band */}
                   <Box
-                    sx={(theme) => ({
+                    sx={{
                       px: { xs: 2.5, sm: 3 },
                       py: 2,
-                      bgcolor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255, 255, 255, 0.03)'
-                          : '#FAFAFB',
+                      bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#FAFAFB',
                       borderBottom: '1px solid',
-                      borderColor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255, 255, 255, 0.14)'
-                          : '#D4D4D8',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#D4D4D8',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 1.5,
-                    })}
+                    }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                       {t('Inspector Payout')}
@@ -508,19 +504,13 @@ export default function ManagerReportReviewPage({
                     divider={
                       <Box
                         aria-hidden="true"
-                        sx={(theme) => ({
+                        sx={{
                           height: 8,
-                          bgcolor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255, 255, 255, 0.04)'
-                              : '#F4F4F5',
+                          bgcolor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F4F4F5',
                           borderTop: '1px solid',
                           borderBottom: '1px solid',
-                          borderColor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255, 255, 255, 0.14)'
-                              : '#D4D4D8',
-                        })}
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#D4D4D8',
+                        }}
                       />
                     }
                   >
@@ -711,14 +701,11 @@ export default function ManagerReportReviewPage({
 
                     {/* 3. Bottom: Publish action bar */}
                     <Box
-                      sx={(theme) => ({
+                      sx={{
                         px: { xs: 2.5, sm: 3 },
                         py: 2,
-                        bgcolor:
-                          theme.palette.mode === 'dark'
-                            ? 'rgba(255, 255, 255, 0.02)'
-                            : '#FCFCFD',
-                      })}
+                        bgcolor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#FCFCFD',
+                      }}
                     >
                       <Stack spacing={1.25}>
                         <MutationProblemAlert
@@ -847,6 +834,20 @@ export default function ManagerReportReviewPage({
         bankAccountHolder={inspectorBankAccountHolder}
         checking={paymentStatusQuery.isFetching}
         onCheckNow={() => void paymentStatusQuery.refetch()}
+        onMockPay={
+          portal === 'manager' && payoutQrDetails
+            ? async () => {
+                try {
+                  await handleInlineSettlePayout(`SEPAY-MOCK-${payoutQrDetails.orderCode}`);
+                  setPayoutQrDetails(undefined);
+                } catch (err) {
+                  setPrePublishPayoutError(
+                    getErrorMessage(err, t('Could not settle payout.')),
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => setPayoutQrDetails(undefined)}
       />
     </Box>
