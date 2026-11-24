@@ -49,6 +49,50 @@ select {
   outline-offset: 2px;
 }
 
+/* Style 5: Gradient Glass global upgrade for remaining MUI material SVG icons */
+.MuiSvgIcon-root:not([data-glass-icon="true"]):not(.MuiStepIcon-root) {
+  fill: url(#sdi-glass-neutral-light);
+  filter: drop-shadow(0 1px 2px rgba(24, 24, 27, 0.12));
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+[data-mui-color-scheme="dark"] .MuiSvgIcon-root:not([data-glass-icon="true"]):not(.MuiStepIcon-root) {
+  fill: url(#sdi-glass-neutral-dark);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.MuiSvgIcon-root.MuiSvgIcon-colorPrimary:not([data-glass-icon="true"]) {
+  fill: url(#sdi-glass-blue);
+}
+
+.MuiSvgIcon-root.MuiSvgIcon-colorSuccess:not([data-glass-icon="true"]) {
+  fill: url(#sdi-glass-emerald);
+}
+
+.MuiSvgIcon-root.MuiSvgIcon-colorWarning:not([data-glass-icon="true"]) {
+  fill: url(#sdi-glass-amber);
+}
+
+.MuiSvgIcon-root.MuiSvgIcon-colorError:not([data-glass-icon="true"]) {
+  fill: url(#sdi-glass-rose);
+}
+
+.MuiSvgIcon-root.MuiSvgIcon-colorInfo:not([data-glass-icon="true"]) {
+  fill: url(#sdi-glass-cyan);
+}
+
+/* Preserve readable contrast inside solid-filled controls */
+.MuiButton-contained .MuiSvgIcon-root,
+.MuiChip-filled:not(.MuiChip-colorDefault) .MuiSvgIcon-root,
+.MuiAlert-filled .MuiSvgIcon-root,
+.MuiFab-root .MuiSvgIcon-root,
+.MuiAvatar-root .MuiSvgIcon-root,
+.MuiBadge-badge .MuiSvgIcon-root,
+.MuiToggleButton-root.Mui-selected .MuiSvgIcon-root {
+  fill: currentColor !important;
+  filter: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

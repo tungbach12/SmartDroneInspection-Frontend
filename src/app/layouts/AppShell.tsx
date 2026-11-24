@@ -32,11 +32,6 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import SwapHorizOutlined from '@mui/icons-material/SwapHorizOutlined';
-import AccountCircleOutlined from '@mui/icons-material/AccountCircleOutlined';
-import LogoutRounded from '@mui/icons-material/LogoutRounded';
-import PaletteOutlined from '@mui/icons-material/PaletteOutlined';
-import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import {
   canAccessSection,
   getAvailablePortals,
@@ -58,22 +53,36 @@ import {
 } from '@/features/auth/api/authApi';
 import { useToastStore } from '@/shared/ui/Toast';
 import {
-  NextAdminBellIcon,
-  NextAdminCalendarIcon,
-  NextAdminChartsIcon,
+  GlassAiFindingsIcon,
+  GlassAirspaceIcon,
+  GlassAssetIcon,
+  GlassBellIcon,
+  GlassCatalogIcon,
+  GlassChartsIcon,
+  GlassChatIcon,
+  GlassChecklistIcon,
+  GlassContractIcon,
+  GlassDashboardIcon,
+  GlassDroneIcon,
+  GlassInspectionIcon,
+  GlassLogoutIcon,
+  GlassPaletteIcon,
+  GlassPaymentIcon,
+  GlassPermitIcon,
+  GlassScheduleIcon,
+  GlassSearchIcon,
+  GlassSettingsIcon,
+  GlassSwapIcon,
+  GlassUserIcon,
+  GlassUsersIcon,
+} from '@/shared/ui/GradientGlassIcons';
+import {
   NextAdminChevronDownIcon,
-  NextAdminFormsIcon,
-  NextAdminHomeIcon,
-  NextAdminInvoiceIcon,
   NextAdminLogoMark,
   NextAdminMoonIcon,
-  NextAdminPagesIcon,
-  NextAdminProfileIcon,
   NextAdminSearchIcon,
   NextAdminSidebarToggleIcon,
   NextAdminSunIcon,
-  NextAdminTablesIcon,
-  NextAdminTaskIcon,
 } from '@/shared/ui/NextAdminIcons';
 import '@/features/dashboard/styles/workspace-pages.css';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -90,27 +99,27 @@ import { useInspections } from '@/features/inspections/hooks/useInspections';
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
 
 const NAV_ITEMS = [
-  { section: 'dashboard', icon: <NextAdminHomeIcon /> },
-  { section: 'contracts', icon: <NextAdminInvoiceIcon /> },
-  { section: 'messages', icon: <NextAdminFormsIcon /> },
-  { section: 'assignments', icon: <NextAdminTaskIcon />, path: '/operations/inspections?view=assignments' },
-  { section: 'schedule', icon: <NextAdminCalendarIcon />, path: '/operations/inspections?view=calendar' },
-  { section: 'assets', icon: <NextAdminTablesIcon /> },
-  { section: 'asset-catalog', icon: <NextAdminPagesIcon /> },
-  { section: 'flight-drone-config', icon: <NextAdminTaskIcon /> },
-  { section: 'inspections', icon: <NextAdminTaskIcon /> },
-  { section: 'inspector-drones', icon: <NextAdminChartsIcon /> },
-  { section: 'finance-history', icon: <NextAdminInvoiceIcon /> },
-  { section: 'payout-settlements', icon: <NextAdminChartsIcon /> },
-  { section: 'partner-onboarding', icon: <NextAdminFormsIcon />, path: '/operations/partner-onboarding' },
-  { section: 'onboarding-reviews', icon: <NextAdminFormsIcon /> },
-  { section: 'drone-registrations', icon: <NextAdminTaskIcon /> },
-  { section: 'customer-airspace', icon: <NextAdminTablesIcon /> },
-  { section: 'audit-logs', icon: <NextAdminSearchIcon /> },
-  { section: 'platform-users', icon: <NextAdminProfileIcon /> },
-  { section: 'platform-settings', icon: <NextAdminTaskIcon /> },
-  { section: 'notifications', icon: <NextAdminBellIcon /> },
-  { section: 'settings', icon: <NextAdminProfileIcon /> },
+  { section: 'dashboard', icon: <GlassDashboardIcon /> },
+  { section: 'contracts', icon: <GlassContractIcon /> },
+  { section: 'messages', icon: <GlassChatIcon /> },
+  { section: 'assignments', icon: <GlassChecklistIcon />, path: '/operations/inspections?view=assignments' },
+  { section: 'schedule', icon: <GlassScheduleIcon />, path: '/operations/inspections?view=calendar' },
+  { section: 'assets', icon: <GlassAssetIcon /> },
+  { section: 'asset-catalog', icon: <GlassCatalogIcon /> },
+  { section: 'flight-drone-config', icon: <GlassAiFindingsIcon /> },
+  { section: 'inspections', icon: <GlassInspectionIcon /> },
+  { section: 'inspector-drones', icon: <GlassDroneIcon /> },
+  { section: 'finance-history', icon: <GlassPaymentIcon /> },
+  { section: 'payout-settlements', icon: <GlassChartsIcon /> },
+  { section: 'partner-onboarding', icon: <GlassContractIcon />, path: '/operations/partner-onboarding' },
+  { section: 'onboarding-reviews', icon: <GlassUsersIcon /> },
+  { section: 'drone-registrations', icon: <GlassPermitIcon /> },
+  { section: 'customer-airspace', icon: <GlassAirspaceIcon /> },
+  { section: 'audit-logs', icon: <GlassSearchIcon /> },
+  { section: 'platform-users', icon: <GlassUsersIcon /> },
+  { section: 'platform-settings', icon: <GlassSettingsIcon /> },
+  { section: 'notifications', icon: <GlassBellIcon /> },
+  { section: 'settings', icon: <GlassSettingsIcon /> },
 ] as const;
 
 const NAV_GROUPS: ReadonlyArray<{
@@ -856,7 +865,7 @@ export function AppShell({ portal }: AppShellProps) {
                       },
                     }}
                   >
-                    <PaletteOutlined sx={{ fontSize: 18 }} />
+                    <GlassPaletteIcon size={18} />
                   </IconButton>
                 </Tooltip>
 
@@ -939,7 +948,7 @@ export function AppShell({ portal }: AppShellProps) {
                     }}
                   >
                     {userName?.trim().charAt(0).toUpperCase() ?? (
-                      <AccountCircleOutlined fontSize="small" />
+                      <GlassUserIcon size={18} />
                     )}
                   </Avatar>
                   <Typography
@@ -1028,7 +1037,7 @@ export function AppShell({ portal }: AppShellProps) {
           sx={{ mt: 0.5 }}
         >
           <ListItemIcon>
-            <SettingsOutlined fontSize="small" />
+            <GlassSettingsIcon size={18} />
           </ListItemIcon>
           {t('Settings')}
         </MenuItem>
@@ -1042,14 +1051,14 @@ export function AppShell({ portal }: AppShellProps) {
             }}
           >
             <ListItemIcon>
-              <SwapHorizOutlined fontSize="small" />
+              <GlassSwapIcon size={18} />
             </ListItemIcon>
             {t('Switch workspace')}
           </MenuItem>
         )}
         <MenuItem onClick={signOut} disabled={signingOut}>
           <ListItemIcon>
-            <LogoutRounded fontSize="small" />
+            <GlassLogoutIcon size={18} />
           </ListItemIcon>
           {signingOut ? t('Signing out…') : t('Sign out')}
         </MenuItem>

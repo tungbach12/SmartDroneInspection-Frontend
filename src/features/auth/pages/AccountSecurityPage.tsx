@@ -1,12 +1,17 @@
+import type { ReactNode } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
-import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
-import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { PORTAL_IDS, type PortalId } from '@/app/permissions/accessPolicy';
 import InspectorOnboardingPage from '@/features/admin/pages/InspectorOnboardingPage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  GlassBellIcon,
+  GlassIconBadge,
+  GlassPermitIcon,
+  GlassSecurityIcon,
+  GlassUserIcon,
+  type GlassTone,
+} from '@/shared/ui/GradientGlassIcons';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useAuthStore } from '../store/authStore';
 import { ProfileAccountTab } from '../components/profile/ProfileAccountTab';
@@ -48,13 +53,15 @@ export default function AccountSecurityPage() {
     key: ProfileTab;
     title: string;
     subtitle: string;
-    icon: typeof PersonOutlineRoundedIcon;
+    tone: GlassTone;
+    icon: ReactNode;
   }> = [
     {
       key: 'account',
       title: locale === 'vi' ? 'Tài khoản' : 'Account',
       subtitle: locale === 'vi' ? 'Quản lý thông tin tài khoản' : 'Manage your personal data',
-      icon: PersonOutlineRoundedIcon,
+      tone: 'blue',
+      icon: <GlassUserIcon size={18} />,
     },
     {
       key: 'security',
@@ -63,7 +70,8 @@ export default function AccountSecurityPage() {
         locale === 'vi'
           ? 'Đổi mật khẩu và phiên đăng nhập'
           : 'Set your password, authentication & etc',
-      icon: VerifiedUserOutlinedIcon,
+      tone: 'emerald',
+      icon: <GlassSecurityIcon size={18} />,
     },
     {
       key: 'notification',
@@ -72,7 +80,8 @@ export default function AccountSecurityPage() {
         locale === 'vi'
           ? 'Trạng thái thông báo quy trình'
           : 'Customize your notification preferences',
-      icon: NotificationsNoneOutlinedIcon,
+      tone: 'amber',
+      icon: <GlassBellIcon size={18} />,
     },
   ];
 
@@ -85,7 +94,8 @@ export default function AccountSecurityPage() {
         locale === 'vi'
           ? 'Giấy phép bay và hợp đồng đối tác'
           : 'Pilot license and partner contract',
-      icon: BadgeOutlinedIcon,
+      tone: 'blue',
+      icon: <GlassPermitIcon size={18} />,
     });
   }
 
@@ -125,7 +135,6 @@ export default function AccountSecurityPage() {
         >
           <Stack spacing={0.75}>
             {navItems.map((item) => {
-              const Icon = item.icon;
               const isSelected = activeTab === item.key;
 
               return (
@@ -157,22 +166,14 @@ export default function AccountSecurityPage() {
                     },
                   }}
                 >
-                  <Box
-                    sx={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: isSelected ? 'primary.main' : 'text.secondary',
-                      flexShrink: 0,
-                    }}
+                  <GlassIconBadge
+                    size={38}
+                    borderRadius="10px"
+                    muted={!isSelected}
+                    tone={item.tone}
                   >
-                    <Icon fontSize="small" />
-                  </Box>
+                    {item.icon}
+                  </GlassIconBadge>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
                       {item.title}

@@ -1,7 +1,7 @@
 import { Box, Drawer, IconButton, Typography } from '@mui/material';
 import CloseRounded from '@mui/icons-material/CloseRounded';
-import PaletteOutlined from '@mui/icons-material/PaletteOutlined';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { GlassIconBadge, GlassPaletteIcon } from '@/shared/ui/GradientGlassIcons';
 import { ThemeCustomizationPanel } from './ThemeCustomizationPanel';
 
 interface ThemeCustomizerDrawerProps {
@@ -52,22 +52,9 @@ export function ThemeCustomizerDrawer({ open, onClose }: ThemeCustomizerDrawerPr
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-          <Box
-            sx={{
-              width: 34,
-              height: 34,
-              borderRadius: '8px',
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.default',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'primary.main',
-              flexShrink: 0,
-            }}
-          >
-            <PaletteOutlined fontSize="small" />
-          </Box>
+          <GlassIconBadge size={36} borderRadius="10px" tone="indigo">
+            <GlassPaletteIcon size={18} />
+          </GlassIconBadge>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
               {isVi ? 'Tùy chỉnh giao diện' : 'Customize theme'}
