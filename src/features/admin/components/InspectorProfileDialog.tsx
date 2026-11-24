@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pilotLicenseClassApi } from '@/features/auth/api/pilotLicenseClassApi';
 import {
@@ -37,6 +38,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import {
   inspectorProfileApi,
   type UpdateInspectorProfileInput,
@@ -45,6 +47,8 @@ import {
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { VietQrBankAutocomplete } from '@/shared/ui/VietQrBankAutocomplete';
+import { useInspectorRatingProfile } from '@/features/inspections/hooks/useInspectorRatings';
+import { InspectorRatingsBreakdownPanel } from '@/features/inspections/components/InspectorRatingDialog';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -58,9 +62,17 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
+  const portalBase = roles.includes('ADMIN') ? '/admin' : '/manager';
   const [currentTab, setCurrentTab] = useState(0);
+  const ratingProfileQuery = useInspectorRatingProfile(
+    inspectorId ?? undefined,
+    0,
+    10,
+    open && Boolean(inspectorId) && currentTab === 5,
+  );
 
   // Profile Query
   const profileQuery = useQuery({
@@ -599,6 +611,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       `5. Lịch sử bay (${profile.companyFlightsCount})`,
                       `5. Flight Log (${profile.companyFlightsCount})`,
                     )}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
+                  <Tab
+                    icon={<StarRounded />}
+                    iconPosition="start"
+                    label={tr('6. Đánh giá', '6. Ratings')}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
                 </Tabs>
@@ -1241,8 +1259,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       ) : (
                         <Alert severity={profile.onboardingStatus === 'APPROVED' ? 'success' : 'info'}>
                           {profile.onboardingStatus === 'APPROVED'
-                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Platform Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
-                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Platform Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
+                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
+                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
                         </Alert>
                       )}
                     </Paper>
@@ -1519,6 +1537,30 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         </Paper>
                       ))}
                     </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 5: INSPECTOR RATINGS */}
+              {currentTab === 5 && (
+                <Box sx={{ p: 3 }}>
+                  {ratingProfileQuery.isLoading ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : ratingProfileQuery.data ? (
+                    <InspectorRatingsBreakdownPanel
+                      profile={ratingProfileQuery.data}
+                      portalBase={portalBase}
+                      onNavigate={(to) => {
+                        onClose();
+                        navigate(to);
+                      }}
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {tr('Chưa có dữ liệu đánh giá.', 'No rating data available.')}
+                    </Typography>
                   )}
                 </Box>
               )}

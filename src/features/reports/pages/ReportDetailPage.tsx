@@ -325,7 +325,7 @@ export default function ReportDetailPage() {
                           {submit.isPending ? t('Submitting…') : t('Resubmit for review')}
                         </Button>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {t('Resubmits this revised report for Platform Manager review.')}
+                          {t('Resubmits this revised report for Manager review.')}
                         </Typography>
                       </Stack>
                     )}
@@ -432,7 +432,7 @@ export default function ReportDetailPage() {
                 onClose={() => setSepayQrOpen(false)}
               />
 
-              {/* Platform Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
+              {/* Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
               {!isClientPortal && (
                 <InspectorPayoutSummaryBar
                   inspectionId={inspectionId}
@@ -494,6 +494,11 @@ export default function ReportDetailPage() {
                 {t('Clarification limit reached. Contact your Manager.')}
               </Alert>
             )}
+            <Typography variant="body2" color="text.secondary">
+              {t(
+                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Manager will review and provide a response.',
+              )}
+            </Typography>
             <TextField
               label={t('Dispute details or questions')}
               multiline

@@ -639,17 +639,12 @@ export default function Mf1ReviewPage({
             })}
           </Stack>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <TextField
-              size="small"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
               placeholder={
                 queue === 'inspectors'
                   ? tr('Tìm theo tên, email, bằng lái…', 'Search name, email, license…')
                   : queue === 'drones'
                     ? tr('Tìm drone, serial, người gửi…', 'Search drone, serial, applicant…')
-                    : tr('Tìm tổ chức, công trình…', 'Search organization, asset…')
+                    : tr('Tìm khách hàng, tài sản hoặc vùng bay…', 'Search customer, asset, or airspace…')
               }
               slotProps={{
                 input: {
@@ -904,7 +899,7 @@ export default function Mf1ReviewPage({
         >
           <QueueTable
             headers={[
-              tr('Tổ chức', 'Organization'),
+              tr('Khách hàng', 'Customer'),
               tr('Tài sản', 'Asset'),
               tr('Phân loại vùng bay', 'Airspace'),
               tr('Ngày nộp', 'Submitted'),
@@ -1120,8 +1115,8 @@ export default function Mf1ReviewPage({
                   <Box
                     sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
                   >
-                    <DetailField label={tr('Tổ chức', 'Organization')} value={(selected as ProspectiveCustomerReview).organizationName} />
-                    <DetailField label={tr('Mã tổ chức', 'Organization code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
+                    <DetailField label={tr('Khách hàng', 'Customer')} value={(selected as ProspectiveCustomerReview).organizationName} />
+                    <DetailField label={tr('Mã khách hàng', 'Customer code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
                     <DetailField label={tr('Tài sản', 'Asset')} value={(selected as ProspectiveCustomerReview).assetName} />
                     <DetailField label={tr('Mã tài sản', 'Asset code')} value={(selected as ProspectiveCustomerReview).assetCode} />
                     <DetailField

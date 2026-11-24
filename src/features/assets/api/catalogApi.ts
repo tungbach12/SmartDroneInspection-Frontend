@@ -20,7 +20,13 @@ export interface ChecklistTemplate {
   id: string;
   templateType: ChecklistTemplateType;
   categoryId: string | null;
+  category?: string | null;
   label: string;
+  labelVi?: string | null;
+  details?: string | null;
+  detailsVi?: string | null;
+  referenceThreshold?: string | null;
+  safetyCritical?: boolean;
   sortOrder: number;
   active: boolean;
   required: boolean;
@@ -29,13 +35,25 @@ export interface ChecklistTemplate {
 export interface CreateChecklistTemplateInput {
   templateType: ChecklistTemplateType;
   categoryId?: string | null;
+  category?: string | null;
   label: string;
+  labelVi?: string | null;
+  details?: string | null;
+  detailsVi?: string | null;
+  referenceThreshold?: string | null;
+  safetyCritical?: boolean;
   sortOrder?: number;
   required?: boolean;
 }
 
 export interface UpdateChecklistTemplateInput {
+  category?: string | null;
   label: string;
+  labelVi?: string | null;
+  details?: string | null;
+  detailsVi?: string | null;
+  referenceThreshold?: string | null;
+  safetyCritical?: boolean;
   sortOrder?: number;
   active?: boolean;
   required?: boolean;

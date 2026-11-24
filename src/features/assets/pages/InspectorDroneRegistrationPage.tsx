@@ -388,8 +388,8 @@ export default function InspectorDroneRegistrationPage() {
       setExistingImageKeys([]);
       setMessage(
         locale === 'vi'
-          ? 'Đã gửi hồ sơ đăng ký thiết bị drone thành công! Platform Manager sẽ xác minh giấy tờ trước khi kích hoạt.'
-          : 'Drone registration application submitted! Platform Manager will verify the documents before activation.',
+          ? 'Đã gửi hồ sơ đăng ký thiết bị drone thành công! Manager sẽ xác minh giấy tờ trước khi kích hoạt.'
+          : 'Drone registration application submitted! Manager will verify the documents before activation.',
       );
       setOpenRegisterDialog(false);
       setTabIndex('APPLICATIONS');
@@ -675,8 +675,8 @@ export default function InspectorDroneRegistrationPage() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto', mt: 0.5, mb: 2.5 }}>
                     {tr(
-                      'Hãy gửi hồ sơ đăng ký thiết bị bay kèm đầy đủ giấy tờ kỹ thuật. Platform Manager sẽ kiểm tra và kích hoạt để bạn sử dụng trong các ca kiểm định.',
-                      'Submit a drone registration application with the required technical documents. The Platform Manager will verify and activate your drone for field inspections.',
+                      'Hãy gửi hồ sơ đăng ký thiết bị bay kèm đầy đủ giấy tờ kỹ thuật. Manager sẽ kiểm tra và kích hoạt để bạn sử dụng trong các ca kiểm định.',
+                      'Submit a drone registration application with the required technical documents. The Manager will verify and activate your drone for field inspections.',
                     )}
                   </Typography>
                   <Button

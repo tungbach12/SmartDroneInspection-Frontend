@@ -73,8 +73,8 @@ describe('dashboard', () => {
     expect(document.querySelector('a[href="/admin/asset-catalog"]')).toBeTruthy();
     expect(document.querySelector('a[href="/client/assets"]')).toBeNull();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
-    expect(screen.getByRole('button', { name: 'Platform Admin' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Org Manager' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Admin' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Inspector' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Maintenance' })).toBeNull();
   });
@@ -82,7 +82,7 @@ describe('dashboard', () => {
   it('supports MANAGER in /manager/dashboard', () => {
     renderDashboard(['MANAGER'], '/manager/dashboard');
     expect(screen.getByRole('heading', { name: 'Platform overview' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Platform Manager' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Manager' })).toBeTruthy();
     expect(mocks.useAssets).toHaveBeenCalledWith({ page: 1, pageSize: 50 }, false);
   });
 

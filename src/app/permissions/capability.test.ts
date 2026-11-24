@@ -16,7 +16,7 @@ describe('canPerform capability gate', () => {
     expect(canPerform('inspections.authorReport', makeUser(['INSPECTOR']))).toBe(true);
     expect(canPerform('inspections.authorReport', makeUser(['CUSTOMER']))).toBe(false);
 
-    // MF3-09: only Platform Manager / Admin reviews and publishes; Customer and Inspector never do.
+    // MF3-09: only Manager / Admin reviews and publishes; Customer and Inspector never do.
     expect(canPerform('reports.review', makeUser(['CUSTOMER']))).toBe(false);
     expect(canPerform('reports.review', makeUser(['ADMIN']))).toBe(true);
     expect(canPerform('reports.review', makeUser(['MANAGER']))).toBe(true);

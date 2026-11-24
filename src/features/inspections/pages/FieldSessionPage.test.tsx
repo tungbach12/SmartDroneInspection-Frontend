@@ -168,7 +168,7 @@ describe('FieldSessionPage', () => {
     expect(await screen.findByText('Flight permit')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose permit file' })).toBeTruthy();
     expect(
-      screen.queryByText(/Upload the permit document and details for Platform Manager verification/i),
+      screen.queryByText(/Upload the permit document and details for Manager verification/i),
     ).toBeNull();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -386,7 +386,7 @@ describe('FieldSessionPage', () => {
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith(
         'inspection-1',
-        expect.stringContaining('[✓] Airframe, propellers & mounting secure'),
+        expect.stringContaining('[✓] Airframe, propellers & gimbal mounting lock verified'),
       ),
     );
   });
@@ -402,7 +402,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/This inspection was declined and requires Platform Manager reassignment/i),
+      await screen.findByText(/This inspection was declined and requires Manager reassignment/i),
     ).toBeTruthy();
     expect(
       (screen.getByRole('button', { name: 'Start session' }) as HTMLButtonElement).disabled,
@@ -427,7 +427,7 @@ describe('FieldSessionPage', () => {
     renderWithClient();
 
     expect(
-      await screen.findByText(/The scheduled flight window has elapsed\. Contact the Platform Manager to reschedule/i),
+      await screen.findByText(/The scheduled flight window has elapsed\. Contact the Manager to reschedule/i),
     ).toBeTruthy();
     expect(screen.queryByText('Previous flight session was aborted')).toBeNull();
     expect(
@@ -492,29 +492,31 @@ describe('FieldSessionPage', () => {
     expect(screen.getAllByRole('button', { name: 'Check all' })).toHaveLength(1);
 
     const codes = screen
-      .getAllByText(/^PF-0[1-7]$/)
+      .getAllByText(/^PF-0[1-8]$/)
       .map((el) => el.textContent?.trim());
-    expect(codes).toEqual(['PF-01', 'PF-02', 'PF-03', 'PF-04', 'PF-05', 'PF-06', 'PF-07']);
+    expect(codes).toEqual(['PF-01', 'PF-02', 'PF-03', 'PF-04', 'PF-05', 'PF-06', 'PF-07', 'PF-08']);
 
     const submitButton = screen.getByRole('button', {
       name: 'Start session & Continue to Flight',
     }) as HTMLButtonElement;
     expect(submitButton.disabled).toBe(true);
 
-    // Tick only the 4 required items (leave PF-05..PF-07 optional unchecked)
-    fireEvent.click(screen.getByText('Airframe, propellers & mounting secure'));
-    fireEvent.click(screen.getByText('Battery levels sufficient for planned flight'));
-    fireEvent.click(screen.getByText('Weather & visibility within safe operating limits'));
-    fireEvent.click(screen.getByText('Takeoff/landing zone clear of people & hazards'));
+    // Tick the 6 required items (leave PF-07..PF-08 optional unchecked)
+    fireEvent.click(screen.getByText('Airframe, propellers & gimbal mounting lock verified'));
+    fireEvent.click(screen.getByText('Flight & controller batteries healthy, balanced & sufficient for mission'));
+    fireEvent.click(screen.getByText('Surface wind, gusts & visibility within assigned drone operating limits'));
+    fireEvent.click(screen.getByText('Takeoff/landing pad & safety perimeter clear of obstacles and bystanders'));
+    fireEvent.click(screen.getByText('Flight permit ceiling & surrounding obstacle/EMF clearance checked'));
+    fireEvent.click(screen.getByText('GNSS lock, compass/IMU status & RTH failsafe set above obstacles'));
 
     expect(submitButton.disabled).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Check all' }));
-    expect(screen.getByText('7/7 verified')).toBeTruthy();
+    expect(screen.getByText('8/8 verified')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeTruthy();
   });
 
-  it('treats default post-flight checks as optional while still gating on unchecked building inspection items', async () => {
+  it('requires required post-flight safety checks and building inspection items unless explained in notes', async () => {
     mocks.list.mockResolvedValue([
       { ...SESSION, hasFlightReport: true, telemetrySource: 'IMPORTED_LOG_SRT' },
     ]);
@@ -522,17 +524,20 @@ describe('FieldSessionPage', () => {
     renderWithClient('post-flight');
 
     expect(await screen.findByText('Post-flight & Inspection Items')).toBeTruthy();
-    expect(screen.getByText('Optional')).toBeTruthy();
+    expect(screen.getAllByText(/Optional/).length).toBeGreaterThan(0);
 
     const completeButton = screen.getByRole('button', {
       name: 'Complete session & Continue to Evidence',
     }) as HTMLButtonElement;
-    // Unchecked building inspection items still require checking or explanation
+    // Unchecked building inspection items & required post-flight items gate completion
     expect(completeButton.disabled).toBe(true);
 
-    // Checking only Target Building Inspection Items unlocks completion even with optional post-flight items unchecked
+    // Checking building items + required post-flight items unlocks completion while optional PO-04 remains unchecked
     fireEvent.click(screen.getByText('Mố cầu'));
     fireEvent.click(screen.getByText('Dầm chính'));
+    fireEvent.click(screen.getByText('Aircraft landed cleanly & propulsion/power completely disarmed'));
+    fireEvent.click(screen.getByText('Motors, ESCs & batteries checked for abnormal heat or swelling'));
+    fireEvent.click(screen.getByText('All sortie photos, videos & flight logs verified & backed up'));
     expect(completeButton.disabled).toBe(false);
   });
 
@@ -567,8 +572,11 @@ describe('FieldSessionPage', () => {
     await waitFor(() =>
       expect(mocks.start).toHaveBeenCalledWith(
         'inspection-1',
-        'Immediate demo start requested',
-        true,
+        expect.objectContaining({
+          preFlightChecklistNote: 'Immediate demo start requested',
+          startNow: true,
+          preFlightChecklistSnapshot: expect.any(Array),
+        }),
       ),
     );
   });

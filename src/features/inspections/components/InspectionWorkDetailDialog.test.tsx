@@ -125,7 +125,7 @@ describe('InspectionWorkDetailDialog', () => {
     expect(screen.getByText('Deck Joint East')).toBeTruthy();
 
     // Guidance banner for SCHEDULED when permit is verified -> pre-flight
-    expect(screen.getByText(/Flight permit verified by Platform Manager/i)).toBeTruthy();
+    expect(screen.getByText(/Flight permit verified by Manager/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Open pre-flight check/i })).toBeTruthy();
   });
 

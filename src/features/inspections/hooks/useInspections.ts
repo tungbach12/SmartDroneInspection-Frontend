@@ -331,6 +331,14 @@ export function useFieldSessions(inspectionId: string | null, enabled = true) {
   });
 }
 
+export function useInspectionFlights(inspectionId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: fieldSessionKeys.flightsForInspection(inspectionId ?? ''),
+    queryFn: () => fieldSessionApi.listAllFlights(inspectionId!),
+    enabled: Boolean(inspectionId) && enabled,
+  });
+}
+
 export function useUploadInspectionEvidence(inspectionId: string | null) {
   const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
@@ -832,7 +840,7 @@ export function useSubmitReportVersion(inspectionId: string | null) {
     mutationFn: (versionId: string) =>
       inspectionApi.submitVersion(inspectionId!, versionId),
     onSuccess: () => {
-      showToast('Report submitted for Organization Manager review.');
+      showToast('Report submitted for Manager review.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
@@ -1068,6 +1076,9 @@ export type StartFieldSessionVariables =
   | {
       preFlightChecklistNote: string;
       startNow?: boolean;
+      sessionDate?: string | null;
+      preFlightChecklistSnapshot?: import('../api/fieldSessionApi').ChecklistItemSnapshot[];
+      preFlightConditions?: import('../api/fieldSessionApi').PreFlightConditions | null;
     };
 
 export function useStartFieldSession(inspectionId: string | null) {
@@ -1078,6 +1089,13 @@ export function useStartFieldSession(inspectionId: string | null) {
       if (typeof variables === 'string') {
         return fieldSessionApi.start(inspectionId!, variables);
       }
+      if (
+        variables.sessionDate !== undefined ||
+        variables.preFlightChecklistSnapshot !== undefined ||
+        variables.preFlightConditions !== undefined
+      ) {
+        return fieldSessionApi.start(inspectionId!, variables);
+      }
       return variables.startNow
         ? fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote, true)
         : fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote);
@@ -1086,6 +1104,9 @@ export function useStartFieldSession(inspectionId: string | null) {
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.flightsForInspection(inspectionId),
         });
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
@@ -1103,13 +1124,20 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       sessionId,
       outcome,
       reason,
+      postFlightChecklistSnapshot,
     }: {
       sessionId: string;
       outcome: 'abort' | 'complete';
       reason: string;
+      postFlightChecklistSnapshot?: import('../api/fieldSessionApi').ChecklistItemSnapshot[];
     }) => {
       if (outcome === 'complete') {
-        return fieldSessionApi.complete(inspectionId!, sessionId, reason);
+        return postFlightChecklistSnapshot && postFlightChecklistSnapshot.length > 0
+          ? fieldSessionApi.complete(inspectionId!, sessionId, {
+              outcomeNotes: reason,
+              postFlightChecklistSnapshot,
+            })
+          : fieldSessionApi.complete(inspectionId!, sessionId, reason);
       }
       return fieldSessionApi.abort(inspectionId!, sessionId, reason);
     },
@@ -1117,6 +1145,9 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.flightsForInspection(inspectionId),
         });
         void client.invalidateQueries({
           queryKey: inspectionKeys.workflowState(inspectionId),

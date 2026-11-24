@@ -393,6 +393,10 @@ export interface PartnerCandidate {
   declineCount?: number;
   noShowCount?: number;
   abortCount?: number;
+  averageRating?: number | null;
+  ratingCount?: number;
+  customerAverageRating?: number | null;
+  managerAverageRating?: number | null;
 }
 
 export interface EvaluatePartnerCandidatesInput {

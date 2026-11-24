@@ -19,7 +19,7 @@ const CAPABILITY_ROLES: Record<Capability, readonly Role[]> = {
   'contracts.manage': ['MANAGER'],
   'inspections.capture': ['INSPECTOR'],
   'inspections.authorReport': ['INSPECTOR'],
-  // MF3-09: only Platform Manager / Admin reviews and publishes reports. The backend separately
+  // MF3-09: only Manager / Admin reviews and publishes reports. The backend separately
   // enforces separation of duties against the report author.
   'reports.review': ['ADMIN', 'MANAGER'],
   'reports.publish': ['ADMIN', 'MANAGER'],

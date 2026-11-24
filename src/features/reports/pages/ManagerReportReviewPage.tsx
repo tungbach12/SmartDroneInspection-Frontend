@@ -52,6 +52,7 @@ import { PlatformSettlementInvoiceCard } from '@/features/inspections/components
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
 import { FlightOperationsReportView } from '@/features/reports/components/FlightOperationsReportView';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
+import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
 import { SepayPayoutQrDialog } from '@/features/reports/components/SepayPayoutQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -382,6 +383,9 @@ export default function ManagerReportReviewPage({
         {openVersion && (
           <Stack spacing={3}>
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
+            {showReviewStage && openVersion.status === 'PUBLISHED' && (
+              <InspectorRatingPromptCard inspectionId={inspectionId} />
+            )}
 
             {showReviewStage && openVersion.status === 'APPROVED' && portal === 'manager' && (
               <Alert

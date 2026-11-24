@@ -28,6 +28,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { classifyDroneByMtow } from '@/features/assets/utils/droneClassification';
 import { usePartnerCapabilities } from '../hooks/useContracts';
 import type { PartnerCandidate, PartnerCandidateCheck } from '../api/contractApi';
+import { InspectorRatingSummaryBadge } from '@/features/inspections/components/InspectorRatingSummaryBadge';
 
 export function isSelectablePartnerCandidate(candidate: PartnerCandidate): boolean {
   return candidate.eligibility === 'PASS' && candidate.capabilityFit === 'MATCH';
@@ -99,6 +100,8 @@ interface InspectorCandidateGroup {
   declineCount: number;
   noShowCount: number;
   abortCount: number;
+  averageRating: number | null;
+  ratingCount: number;
   items: PartnerCandidate[];
 }
 
@@ -116,6 +119,8 @@ function groupByInspector(items: PartnerCandidate[]): InspectorCandidateGroup[] 
         declineCount: item.declineCount ?? 0,
         noShowCount: item.noShowCount ?? 0,
         abortCount: item.abortCount ?? 0,
+        averageRating: item.averageRating ?? null,
+        ratingCount: item.ratingCount ?? 0,
         items: [item],
       });
     }
@@ -466,10 +471,15 @@ export function PartnerCandidateResults({
                 <Typography variant="body2" color="text.secondary">
                   {t('Partner Inspector')}
                 </Typography>
-                {((activeDetailCandidate.declineCount ?? 0) > 0 ||
+                {((activeDetailCandidate.ratingCount ?? 0) > 0 ||
+                  (activeDetailCandidate.declineCount ?? 0) > 0 ||
                   (activeDetailCandidate.noShowCount ?? 0) > 0 ||
                   (activeDetailCandidate.abortCount ?? 0) > 0) && (
                   <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.5 }}>
+                    <InspectorRatingSummaryBadge
+                      averageRating={activeDetailCandidate.averageRating}
+                      ratingCount={activeDetailCandidate.ratingCount}
+                    />
                     {(activeDetailCandidate.declineCount ?? 0) > 0 && (
                       <Chip
                         size="small"
@@ -1063,6 +1073,10 @@ export function PartnerCandidateResults({
                         {getInspectorInitials(group.inspectorName)}
                       </Avatar>
                       <Typography variant="body2" sx={{ minWidth: 0, fontWeight: 700 }} noWrap>{group.inspectorName}</Typography>
+                      <InspectorRatingSummaryBadge
+                        averageRating={group.averageRating}
+                        ratingCount={group.ratingCount}
+                      />
                       {group.declineCount > 0 && (
                         <Chip
                           size="small"

@@ -195,7 +195,7 @@ export default function ContractInboxPage() {
     return (
       <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
         <Alert severity="error">
-          {t('Messages inbox is available to Customer, Platform Manager, and Inspector accounts.')}
+          {t('Messages inbox is available to Customer, Manager, and Inspector accounts.')}
         </Alert>
       </Box>
     );

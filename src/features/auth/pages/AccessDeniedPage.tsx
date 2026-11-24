@@ -22,7 +22,7 @@ export default function AccessDeniedPage() {
   const isAuthenticated = status === 'authenticated' && roles.length > 0;
   const userPortalPath = isAuthenticated ? getPortalEntryPath(roles) : '/';
   const roleName = roles.includes('MANAGER')
-    ? 'Platform Manager'
+    ? 'Manager'
     : roles.includes('ADMIN')
       ? 'Administrator'
       : roles.includes('CUSTOMER')

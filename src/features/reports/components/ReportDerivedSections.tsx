@@ -213,6 +213,29 @@ function parseSessionChecklist(raw: string | null | undefined): ParsedChecklist 
 
 const INSPECTED_ITEM_PREFIX = /^(?:Inspected|Đã kiểm tra)\s*:\s*/i;
 
+function formatChecklistSnapshot(
+  snapshot: readonly {
+    code: string;
+    category?: string | null;
+    label: string;
+    referenceThreshold?: string | null;
+    checked: boolean;
+  }[] | null | undefined,
+): ParsedChecklist | null {
+  if (!snapshot || snapshot.length === 0) return null;
+  const checkedItems: string[] = [];
+  const skippedItems: string[] = [];
+  for (const item of snapshot) {
+    const tag = item.referenceThreshold ? `${item.label} (${item.referenceThreshold})` : item.label;
+    if (item.checked) {
+      checkedItems.push(tag);
+    } else {
+      skippedItems.push(tag);
+    }
+  }
+  return { checkedItems, skippedItems, remark: null };
+}
+
 function splitOutcomeAndInspectionChecklists(
   rawOutcomeNotes: string | null | undefined,
   fallbackInspectionItems?: string[] | null,
@@ -859,8 +882,13 @@ export function ReportDerivedSections({
                     context?.inspectionItems,
                     session.status,
                   );
-                const hasPreChecklist = Boolean(session.preFlightChecklistNote?.trim());
+                const snapshotPreChecklist = formatChecklistSnapshot(session.preFlightChecklistSnapshot);
+                const snapshotPostChecklist = formatChecklistSnapshot(session.postFlightChecklistSnapshot);
+                const hasPreChecklist = Boolean(
+                  snapshotPreChecklist || session.preFlightChecklistNote?.trim(),
+                );
                 const hasPostChecklist =
+                  Boolean(snapshotPostChecklist) ||
                   postFlightChecklist.checkedItems.length > 0 ||
                   postFlightChecklist.skippedItems.length > 0 ||
                   (isUnstructuredRemarkOnly && Boolean(session.outcomeNotes?.trim()));
@@ -900,6 +928,7 @@ export function ReportDerivedSections({
                         <FlightTakeoffRounded sx={{ fontSize: 18, color: 'primary.main' }} />
                         <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                           {t('Field session')}
+                          {session.sessionDate ? ` · ${session.sessionDate}` : ''}
                         </Typography>
                       </Stack>
 
@@ -923,6 +952,26 @@ export function ReportDerivedSections({
                       </Stack>
                     </Stack>
 
+                    {session.preFlightConditions && (
+                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75, mb: 1.25 }}>
+                        {session.preFlightConditions.windSpeedMs != null && (
+                          <Chip size="small" variant="outlined" label={`${t('Wind')}: ${session.preFlightConditions.windSpeedMs} m/s`} />
+                        )}
+                        {session.preFlightConditions.minBatteryPercent != null && (
+                          <Chip size="small" variant="outlined" label={`${t('Battery')}: ${session.preFlightConditions.minBatteryPercent}%`} />
+                        )}
+                        {session.preFlightConditions.gpsSatellites != null && (
+                          <Chip size="small" variant="outlined" label={`GNSS: ${session.preFlightConditions.gpsSatellites} sats`} />
+                        )}
+                        {session.preFlightConditions.rthAltitudeMeters != null && (
+                          <Chip size="small" variant="outlined" label={`RTH: ${session.preFlightConditions.rthAltitudeMeters} m`} />
+                        )}
+                        {session.preFlightConditions.weatherSummary && (
+                          <Chip size="small" variant="outlined" label={session.preFlightConditions.weatherSummary} />
+                        )}
+                      </Stack>
+                    )}
+
                     <Box
                       sx={{
                         display: 'grid',
@@ -939,10 +988,11 @@ export function ReportDerivedSections({
                         alignItems: 'start',
                       }}
                     >
-                      {hasPreChecklist && session.preFlightChecklistNote && (
+                      {hasPreChecklist && (
                         <SessionChecklistBlock
                           label={t('Pre-flight safety checklist')}
-                          rawNote={session.preFlightChecklistNote}
+                          {...(session.preFlightChecklistNote ? { rawNote: session.preFlightChecklistNote } : {})}
+                          {...(snapshotPreChecklist ? { parsedChecklist: snapshotPreChecklist } : {})}
                         />
                       )}
 
@@ -950,7 +1000,7 @@ export function ReportDerivedSections({
                         <SessionChecklistBlock
                           label={t('Post-flight checklist')}
                           rawNote={session.outcomeNotes ?? undefined}
-                          parsedChecklist={postFlightChecklist}
+                          parsedChecklist={snapshotPostChecklist ?? postFlightChecklist}
                         />
                       )}
 

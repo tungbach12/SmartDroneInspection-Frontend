@@ -33,6 +33,7 @@ import {
   CustomerReportAcceptanceBar,
   CustomerReportSettlementCard,
 } from '@/features/reports/components/CustomerReportSettlementCard';
+import { InspectorRatingPromptCard } from '@/features/inspections/components/InspectorRatingDialog';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -283,6 +284,10 @@ export default function CustomerReportDeliverablePage({
                 </Paper>
               ) : null)}
 
+            {showSettlementContent && openVersion.status === 'PUBLISHED' && inspectionId && (
+              <InspectorRatingPromptCard inspectionId={inspectionId} />
+            )}
+
             <SepayQrDialog
               details={sepayQrOpen ? sepayLink.data : undefined}
               amountVnd={paymentStatus?.amount ? `${formatNumber(paymentStatus.amount)} ₫` : undefined}
@@ -377,7 +382,9 @@ export default function CustomerReportDeliverablePage({
           <Stack spacing={2} sx={{ pt: 1 }}>
             {priorClarificationCount >= 2 ? (
               <Alert severity="error" sx={{ borderRadius: '8px' }}>
-                {t('Clarification limit reached. Contact your Manager.')}
+                {t(
+                  'This report has already reached the maximum of 02 clarification requests allowed under the contract. Online dispute submission is locked to protect schedule progress. Please contact the Manager directly for reconciliation.',
+                )}
               </Alert>
             ) : (
               <>

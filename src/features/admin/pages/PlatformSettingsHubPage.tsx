@@ -2,17 +2,20 @@ import { useSearchParams } from 'react-router-dom';
 import { Box, Tab, Tabs } from '@mui/material';
 import AnalyticsOutlined from '@mui/icons-material/AnalyticsOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import StarOutlineRounded from '@mui/icons-material/StarOutlineRounded';
 import TuneRounded from '@mui/icons-material/TuneRounded';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import PlatformFinanceSettingsPage from './PlatformFinanceSettingsPage';
 import PlatformOperationsSettingsPage from './PlatformOperationsSettingsPage';
 import PlatformAiSettingsPage from './PlatformAiSettingsPage';
+import { RatingCriteriaConfigTab } from '../components/RatingCriteriaConfigTab';
 
 const SETTINGS_TABS = [
   { value: 'finance', label: 'Finance & Tax', icon: <ReceiptLongOutlined fontSize="small" /> },
   { value: 'operations', label: 'Operations & Dispatch', icon: <TuneRounded fontSize="small" /> },
   { value: 'ai', label: 'AI & Model Performance', icon: <AnalyticsOutlined fontSize="small" /> },
+  { value: 'ratings', label: 'Inspector Ratings', icon: <StarOutlineRounded fontSize="small" /> },
 ] as const;
 
 export type PlatformSettingsTab = (typeof SETTINGS_TABS)[number]['value'];
@@ -75,6 +78,7 @@ export default function PlatformSettingsHubPage() {
       {activeTab === 'finance' && <PlatformFinanceSettingsPage embedded />}
       {activeTab === 'operations' && <PlatformOperationsSettingsPage embedded />}
       {activeTab === 'ai' && <PlatformAiSettingsPage embedded />}
+      {activeTab === 'ratings' && <RatingCriteriaConfigTab />}
     </Box>
   );
 }

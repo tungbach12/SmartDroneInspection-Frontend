@@ -552,7 +552,7 @@ export function OverviewStakeholdersSection({
                 {customerName}
               </Typography>
               <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
-                {t('Customer Organization Representative')} · {customerEmail}
+                {t('Customer Representative')} · {customerEmail}
               </Typography>
             </Box>
           </Stack>

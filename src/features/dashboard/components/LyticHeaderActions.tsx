@@ -31,9 +31,9 @@ export const DashboardHeaderActions: React.FC<DashboardHeaderActionsProps> = ({
   };
 
   const roles: Array<{ id: RoleId; label: string }> = [
-    { id: 'CUSTOMER', label: 'Org Manager' },
-    { id: 'ADMIN', label: 'Platform Admin' },
-    { id: 'MANAGER', label: 'Platform Manager' },
+    { id: 'CUSTOMER', label: 'Customer' },
+    { id: 'ADMIN', label: 'Admin' },
+    { id: 'MANAGER', label: 'Manager' },
     { id: 'INSPECTOR', label: 'Inspector' },
   ];
 
