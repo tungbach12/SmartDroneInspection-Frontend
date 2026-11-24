@@ -224,7 +224,8 @@ describe('finance history page', () => {
     renderPage('payouts');
     expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
     expect(mocks.listManager).toHaveBeenCalledWith(0, 20, 'PAYOUTS');
-    fireEvent.click(screen.getByRole('button', { name: 'Payout eligible (1)' }));
+    fireEvent.mouseDown(screen.getByLabelText('Status'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Payout eligible (1)' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByText(/0071001234567/)).toBeTruthy();
@@ -344,8 +345,11 @@ describe('finance history page', () => {
 
     renderPage('payouts');
     expect(await screen.findByText('East Bridge')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'All records (2)' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Payout settled (1)' })).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText('Status'));
+    expect(await screen.findByRole('option', { name: 'All statuses (2)' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Payout settled (1)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: 'All statuses (2)' }));
 
     fireEvent.mouseDown(screen.getByLabelText('Inspector'));
     fireEvent.click(await screen.findByRole('option', { name: 'Do Thi Phi Cong' }));

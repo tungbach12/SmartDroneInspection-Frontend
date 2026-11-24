@@ -622,16 +622,40 @@ export default function FinanceHistoryPage({
                           label: t('Status'),
                           value: payoutFilter,
                           options: [
-                            { value: 'ALL', label: t('All statuses') },
-                            { value: 'ELIGIBLE', label: t('Payout eligible') },
-                            { value: 'PENDING', label: t('Pending / On hold') },
-                            { value: 'PAID', label: t('Payout settled') },
+                            {
+                              value: 'ALL',
+                              label:
+                                payoutStatusCounts.all > 0
+                                  ? `${t('All statuses')} (${payoutStatusCounts.all})`
+                                  : t('All statuses'),
+                            },
+                            {
+                              value: 'ELIGIBLE',
+                              label:
+                                eligibleCountInPage > 0
+                                  ? `${t('Payout eligible')} (${eligibleCountInPage})`
+                                  : t('Payout eligible'),
+                            },
+                            {
+                              value: 'PENDING',
+                              label:
+                                payoutStatusCounts.pending > 0
+                                  ? `${t('Pending / On hold')} (${payoutStatusCounts.pending})`
+                                  : t('Pending / On hold'),
+                            },
+                            {
+                              value: 'PAID',
+                              label:
+                                payoutStatusCounts.paid > 0
+                                  ? `${t('Payout settled')} (${payoutStatusCounts.paid})`
+                                  : t('Payout settled'),
+                            },
                           ],
                           onChange: (value) => {
                             setPayoutFilter(value as PayoutFilter);
                             resetPageParam();
                           },
-                          width: 150,
+                          width: 195,
                         },
                         {
                           key: 'inspector',
@@ -708,77 +732,6 @@ export default function FinanceHistoryPage({
             <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: 'background.paper', boxShadow: 'none' }}>
             {manager ? (
               <>
-                {isPayoutView && (
-                  <Stack
-                    direction="row"
-                    spacing={0.75}
-                    sx={{
-                      px: 2,
-                      py: 1.25,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      flexWrap: 'wrap',
-                      gap: 0.75,
-                      alignItems: 'center',
-                    }}
-                  >
-                    {(
-                      [
-                        {
-                          id: 'ALL',
-                          label:
-                            payoutStatusCounts.all > 0
-                              ? `${t('All records')} (${payoutStatusCounts.all})`
-                              : t('All records'),
-                        },
-                        {
-                          id: 'ELIGIBLE',
-                          label:
-                            eligibleCountInPage > 0
-                              ? `${t('Payout eligible')} (${eligibleCountInPage})`
-                              : t('Payout eligible'),
-                        },
-                        {
-                          id: 'PENDING',
-                          label:
-                            payoutStatusCounts.pending > 0
-                              ? `${t('Pending / On hold')} (${payoutStatusCounts.pending})`
-                              : t('Pending / On hold'),
-                        },
-                        {
-                          id: 'PAID',
-                          label:
-                            payoutStatusCounts.paid > 0
-                              ? `${t('Payout settled')} (${payoutStatusCounts.paid})`
-                              : t('Payout settled'),
-                        },
-                      ] as const
-                    ).map((option) => {
-                      const active = payoutFilter === option.id;
-                      return (
-                        <Chip
-                          key={option.id}
-                          size="small"
-                          clickable
-                          label={option.label}
-                          color={active ? 'primary' : 'default'}
-                          variant={active ? 'filled' : 'outlined'}
-                          onClick={() => {
-                            setPayoutFilter(option.id as PayoutFilter);
-                            resetPageParam();
-                          }}
-                          sx={{
-                            borderRadius: '8px',
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            borderColor: active ? undefined : 'divider',
-                          }}
-                        />
-                      );
-                    })}
-                  </Stack>
-                )}
-
                 {filteredManagerItems.length === 0 ? (
                   <Box sx={{ p: 4 }}>
                     <EmptyState

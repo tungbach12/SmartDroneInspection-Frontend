@@ -705,32 +705,6 @@ export default function Mf1ReviewPage({
         </Tabs>
       )}
 
-      <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center', mb: 1.5 }}>
-        {statusOptions.map((option) => {
-          const active = statusFilter === option.value;
-          return (
-            <Chip
-              key={option.value}
-              size="small"
-              clickable
-              label={option.label}
-              color={active ? 'primary' : 'default'}
-              variant={active ? 'filled' : 'outlined'}
-              onClick={() => {
-                setStatusFilter(option.value);
-                setPage(0);
-              }}
-              sx={{
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                borderColor: active ? undefined : 'divider',
-              }}
-            />
-          );
-        })}
-      </Stack>
-
       <AdminTableToolbar
         searchValue={search}
         onSearchChange={(value) => {
@@ -739,7 +713,7 @@ export default function Mf1ReviewPage({
         }}
         searchPlaceholder={
           queue === 'inspectors'
-            ? tr('Tìm tên, email, SĐT, bằng lái, CCCD…', 'Search name, email, phone, license, ID…')
+            ? tr('Tìm tên, email, SĐT, bằng lái…', 'Search name, email, phone, license…')
             : queue === 'drones'
               ? tr('Tìm model, serial, đăng ký, inspector…', 'Search drone, serial, reg, applicant…')
               : tr('Tìm khách hàng, mã, tài sản hoặc vùng bay…', 'Search customer, code, asset, or airspace…')
@@ -750,6 +724,17 @@ export default function Mf1ReviewPage({
         filters={
           queue === 'inspectors'
             ? [
+                {
+                  key: 'status',
+                  label: tr('Trạng thái', 'Status'),
+                  value: statusFilter,
+                  options: statusOptions,
+                  onChange: (value) => {
+                    setStatusFilter(value);
+                    setPage(0);
+                  },
+                  width: 155,
+                },
                 {
                   key: 'licenseClass',
                   label: tr('Hạng bằng lái', 'License class'),
@@ -763,7 +748,7 @@ export default function Mf1ReviewPage({
                     setLicenseClassFilter(value as LicenseClassFilter);
                     setPage(0);
                   },
-                  width: 155,
+                  width: 125,
                 },
                 {
                   key: 'scan',
@@ -778,7 +763,7 @@ export default function Mf1ReviewPage({
                     setScanFilter(value as ScanFilter);
                     setPage(0);
                   },
-                  width: 165,
+                  width: 135,
                 },
                 {
                   key: 'sort',
@@ -791,11 +776,22 @@ export default function Mf1ReviewPage({
                     { value: 'NAME_ASC', label: tr('Tên A–Z', 'Name A–Z') },
                   ],
                   onChange: (value) => setSort(value as SortOption),
-                  width: 150,
+                  width: 125,
                 },
               ]
             : queue === 'drones'
               ? [
+                  {
+                    key: 'status',
+                    label: tr('Trạng thái', 'Status'),
+                    value: statusFilter,
+                    options: statusOptions,
+                    onChange: (value) => {
+                      setStatusFilter(value);
+                      setPage(0);
+                    },
+                    width: 155,
+                  },
                   {
                     key: 'tier',
                     label: tr('Phân hạng MTOW', 'Aircraft tier'),
@@ -810,7 +806,7 @@ export default function Mf1ReviewPage({
                       setDroneTierFilter(value as DroneTierFilter);
                       setPage(0);
                     },
-                    width: 195,
+                    width: 185,
                   },
                   {
                     key: 'sort',
@@ -823,10 +819,21 @@ export default function Mf1ReviewPage({
                       { value: 'NAME_ASC', label: tr('Model A–Z', 'Model A–Z') },
                     ],
                     onChange: (value) => setSort(value as SortOption),
-                    width: 150,
+                    width: 145,
                   },
                 ]
               : [
+                  {
+                    key: 'status',
+                    label: tr('Trạng thái', 'Status'),
+                    value: statusFilter,
+                    options: statusOptions,
+                    onChange: (value) => {
+                      setStatusFilter(value);
+                      setPage(0);
+                    },
+                    width: 155,
+                  },
                   {
                     key: 'sort',
                     label: tr('Sắp xếp', 'Sort'),

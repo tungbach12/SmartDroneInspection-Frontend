@@ -250,7 +250,12 @@ describe('MF1 review queues', () => {
     );
     expect(await screen.findByText('Pilot Class A')).toBeTruthy();
     expect(screen.getByText('Pilot Class B')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Awaiting contract \(1\)|Chờ hợp đồng \(1\)/i })).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByLabelText(/Status|Trạng thái/i));
+    expect(
+      await screen.findByRole('option', { name: /Awaiting contract \(1\)|Chờ hợp đồng \(1\)/i }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: /All \(2\)|Tất cả \(2\)/i }));
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '0987654321' } });
     expect(screen.getByText('Pilot Class B')).toBeTruthy();
