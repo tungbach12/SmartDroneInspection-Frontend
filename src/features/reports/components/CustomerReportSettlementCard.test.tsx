@@ -258,7 +258,8 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
       </LocaleProvider>,
     );
 
-    expect(await screen.findByText('Accepted · v1')).toBeTruthy();
+    expect(await screen.findByText('Accepted')).toBeTruthy();
+    expect(screen.queryByText(/Accepted · v1/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Accept Report' })).toBeNull();
   });
 

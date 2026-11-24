@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -40,6 +39,7 @@ import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { QueryState } from '@/shared/ui/QueryState';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 
@@ -358,12 +358,7 @@ export default function CustomerReportDeliverablePage({
                 flightPermitFileName={resolvedPermitFileName}
                 headerBadge={
                   openVersion.status === 'PUBLISHED' && (isReportAccepted || isPaid) ? (
-                    <Chip
-                      size="small"
-                      color="success"
-                      label={`${t('Accepted')} · v${openVersion.versionNo}`}
-                      sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
-                    />
+                    <StatusChip status="accepted" label="Accepted" tone="success" />
                   ) : undefined
                 }
               />
