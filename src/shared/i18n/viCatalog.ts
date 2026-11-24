@@ -3045,4 +3045,8 @@
   "Unpaid order": "Đơn chưa thanh toán",
   "Wire reference (e.g. FT261123)": "Mã giao dịch (VD: FT261123)",
   "Confirm payment": "Xác nhận thu tiền",
+  "Accept report in Step 2 to unlock payment.": "Chấp nhận báo cáo ở Bước 2 để mở khóa thanh toán.",
+  "Go to Inspection Report": "Về Báo cáo kiểm định",
+  "Could not accept report.": "Không thể chấp nhận báo cáo.",
+  "Payment checkout could not be started.": "Không thể khởi tạo thanh toán.",
 };

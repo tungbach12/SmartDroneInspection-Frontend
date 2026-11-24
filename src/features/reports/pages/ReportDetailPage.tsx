@@ -24,7 +24,6 @@ import {
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   useAcceptReportVersion,
-  useCancelUnpaidInspectionPaymentOrder,
   useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
   useReviewReportVersion,
@@ -43,7 +42,10 @@ import ManagerReportReviewPage from './ManagerReportReviewPage';
 import CustomerReportDeliverablePage from './CustomerReportDeliverablePage';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
-import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import {
+  CustomerReportAcceptanceBar,
+  CustomerReportSettlementCard,
+} from '@/features/reports/components/CustomerReportSettlementCard';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -95,7 +97,6 @@ export default function ReportDetailPage() {
   const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
-  const cancelUnpaidOrder = useCancelUnpaidInspectionPaymentOrder(inspectionId);
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
   const returnedPaymentSuccess = searchParams.get('payment') === 'success';
@@ -363,41 +364,59 @@ export default function ReportDetailPage() {
 
               {/* Customer Report Acceptance & Payment Gate (Customer view only) */}
               {openVersion.status === 'PUBLISHED' && isClientPortal && (
-                <CustomerReportSettlementCard
-                  inspectionId={inspectionId}
-                  versionId={openVersion.id}
-                  versionNo={openVersion.versionNo}
-                  summary={openVersion.summary}
-                  findings={findings.data ?? []}
-                  isPaid={isPaid}
-                  isReportAccepted={isReportAccepted}
-                  isPaymentCancelled={isPaymentCancelled}
-                  isPaymentConfirming={isPaymentConfirming}
-                  paymentStatus={paymentStatus}
-                  acceptPending={acceptReport.isPending}
-                  sepayPending={sepayLink.isPending}
-                  vnpayPending={vnpayLink.isPending}
-                  cancelOrderPending={cancelUnpaidOrder.isPending}
-                  disputeSubmitted={disputeSubmitted}
-                  disputeReason={disputeReason.trim() || null}
-                  disputeSubmittedAt={disputeSubmittedAt}
-                  onAcceptReport={() =>
-                    acceptReport.mutate(openVersion.id, {
-                      onSuccess: () => {
-                        void paymentStatusQuery.refetch();
-                      },
-                    })
-                  }
-                  onProceedToSepay={() => {
-                    setSepayQrOpen(false);
-                    sepayLink.mutate(undefined, {
-                      onSuccess: () => setSepayQrOpen(true),
-                    });
-                  }}
-                  onProceedToVnPay={() => vnpayLink.mutate()}
-                  onCancelUnpaidOrder={() => cancelUnpaidOrder.mutate()}
-                  onOpenDispute={() => setDisputeOpen(true)}
-                />
+                isReportAccepted || isPaid ? (
+                  <CustomerReportSettlementCard
+                    inspectionId={inspectionId}
+                    versionId={openVersion.id}
+                    versionNo={openVersion.versionNo}
+                    isPaid={isPaid}
+                    isReportAccepted={isReportAccepted}
+                    isPaymentCancelled={isPaymentCancelled}
+                    isPaymentConfirming={isPaymentConfirming}
+                    paymentStatus={paymentStatus}
+                    acceptPending={acceptReport.isPending}
+                    sepayPending={sepayLink.isPending}
+                    vnpayPending={vnpayLink.isPending}
+                    gatewayError={sepayLink.error ?? vnpayLink.error}
+                    disputeSubmitted={disputeSubmitted}
+                    disputeReason={disputeReason.trim() || null}
+                    disputeSubmittedAt={disputeSubmittedAt}
+                    onAcceptReport={() =>
+                      acceptReport.mutate(openVersion.id, {
+                        onSuccess: () => {
+                          void paymentStatusQuery.refetch();
+                        },
+                      })
+                    }
+                    onProceedToSepay={() => {
+                      setSepayQrOpen(false);
+                      sepayLink.mutate(undefined, {
+                        onSuccess: () => setSepayQrOpen(true),
+                      });
+                    }}
+                    onProceedToVnPay={() => vnpayLink.mutate()}
+                    onOpenDispute={() => setDisputeOpen(true)}
+                  />
+                ) : (
+                  <CustomerReportAcceptanceBar
+                    acceptPending={acceptReport.isPending}
+                    acceptError={acceptReport.error}
+                    disputeSubmitted={disputeSubmitted}
+                    disputeReason={disputeReason.trim() || null}
+                    disputeSubmittedAt={disputeSubmittedAt}
+                    amountVnd={
+                      paymentStatus?.amount ? `${formatNumber(paymentStatus.amount)} ₫` : null
+                    }
+                    onAcceptReport={() =>
+                      acceptReport.mutate(openVersion.id, {
+                        onSuccess: () => {
+                          void paymentStatusQuery.refetch();
+                        },
+                      })
+                    }
+                    onOpenDispute={() => setDisputeOpen(true)}
+                  />
+                )
               )}
 
               <SepayQrDialog

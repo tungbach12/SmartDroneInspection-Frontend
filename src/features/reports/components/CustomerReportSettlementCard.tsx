@@ -18,21 +18,158 @@ import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import {
   inspectionApi,
-  type Finding,
   type ReportPaymentStatusDetails,
 } from '@/features/inspections/api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
-import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+export interface CustomerReportAcceptanceBarProps {
+  acceptPending: boolean;
+  disputeSubmitted: boolean;
+  disputeReason?: string | null | undefined;
+  disputeSubmittedAt?: string | null | undefined;
+  acceptError?: unknown;
+  amountVnd?: string | null | undefined;
+  onAcceptReport: () => void;
+  onOpenDispute: () => void;
+}
+
+/**
+ * Compact report acceptance & clarification bar shown at Step 2 (Inspection Report).
+ */
+export function CustomerReportAcceptanceBar({
+  acceptPending,
+  disputeSubmitted,
+  disputeReason,
+  disputeSubmittedAt,
+  acceptError,
+  amountVnd,
+  onAcceptReport,
+  onOpenDispute,
+}: CustomerReportAcceptanceBarProps) {
+  const { formatDateTime, t } = useLocale();
+  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: '10px',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 650, color: 'text.primary' }}>
+              {t('Report acceptance')}
+            </Typography>
+            <Chip
+              size="small"
+              label={t('Awaiting Acceptance')}
+              color="primary"
+              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
+            />
+            {amountVnd && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={amountVnd}
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 650, fontVariantNumeric: 'tabular-nums' }}
+              />
+            )}
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              color="warning"
+              onClick={onOpenDispute}
+              sx={{
+                fontWeight: 600,
+                borderRadius: '8px',
+                px: 2,
+                textTransform: 'none',
+              }}
+            >
+              {t('File a dispute / Request clarification')}
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={acceptPending}
+              onClick={() => setConfirmAcceptOpen(true)}
+              sx={{
+                fontWeight: 650,
+                borderRadius: '8px',
+                px: 2.5,
+                textTransform: 'none',
+              }}
+            >
+              {acceptPending ? t('Accepting…') : t('Accept Report')}
+            </Button>
+          </Stack>
+        </Stack>
+
+        {Boolean(acceptError) && (
+          <Alert severity="error" sx={{ borderRadius: '8px' }}>
+            {getErrorMessage(acceptError, t('Could not accept report.'))}
+          </Alert>
+        )}
+
+        {disputeSubmitted && (
+          <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {t(
+                'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+              )}
+            </Typography>
+            {disputeReason && (
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                <strong>{t('Dispute reason')}:</strong> {disputeReason}
+              </Typography>
+            )}
+            {disputeSubmittedAt && (
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
+                {t('Submitted')}: {formatDateTime(new Date(disputeSubmittedAt))}
+              </Typography>
+            )}
+          </Alert>
+        )}
+
+        <ConfirmDialog
+          open={confirmAcceptOpen}
+          title={t('Confirm Report Acceptance')}
+          message={t(
+            'Accepting the official inspection report locks your deliverable acceptance and proceeds to service invoice settlement. Would you like to accept this report?',
+          )}
+          confirmLabel={t('Confirm & Accept Report')}
+          cancelLabel={t('Cancel')}
+          confirmColor="success"
+          loading={acceptPending}
+          onCancel={() => setConfirmAcceptOpen(false)}
+          onConfirm={() => {
+            setConfirmAcceptOpen(false);
+            onAcceptReport();
+          }}
+        />
+      </Stack>
+    </Paper>
+  );
+}
 
 interface CustomerReportSettlementCardProps {
   inspectionId: string;
   versionId: string;
   versionNo: number;
-  summary?: string | null | undefined;
-  findings?: Finding[] | undefined;
   isPaid: boolean;
   isReportAccepted: boolean;
   isPaymentCancelled?: boolean;
@@ -41,14 +178,13 @@ interface CustomerReportSettlementCardProps {
   acceptPending: boolean;
   sepayPending: boolean;
   vnpayPending?: boolean;
-  cancelOrderPending?: boolean;
+  gatewayError?: unknown;
   disputeSubmitted: boolean;
   disputeReason?: string | null;
   disputeSubmittedAt?: string | null;
   onAcceptReport: () => void;
   onProceedToSepay: () => void;
   onProceedToVnPay?: () => void;
-  onCancelUnpaidOrder?: () => void;
   onOpenDispute: () => void;
   onViewReport?: (() => void) | undefined;
 }
@@ -74,8 +210,6 @@ export function CustomerReportSettlementCard({
   inspectionId,
   versionId,
   versionNo,
-  summary,
-  findings,
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
@@ -84,19 +218,17 @@ export function CustomerReportSettlementCard({
   acceptPending,
   sepayPending,
   vnpayPending = false,
-  cancelOrderPending = false,
+  gatewayError,
   disputeSubmitted,
   disputeReason,
   disputeSubmittedAt,
   onAcceptReport,
   onProceedToSepay,
   onProceedToVnPay,
-  onCancelUnpaidOrder,
   onOpenDispute,
   onViewReport,
 }: CustomerReportSettlementCardProps) {
-  const { formatDate, formatDateTime, formatNumber, t } = useLocale();
-  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
+  const { formatDate, formatNumber, t } = useLocale();
   const [previewingPdf, setPreviewingPdf] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -287,10 +419,6 @@ export function CustomerReportSettlementCard({
                 }}
               />
             </Stack>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-              {t('Official report version')} v{versionNo} · {t('Official PDF ready for preview & download')}
-              {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
-            </Typography>
             <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
               {onViewReport && (
                 <Button
@@ -583,7 +711,6 @@ export function CustomerReportSettlementCard({
                     disabled={vnpayPending || sepayPending}
                     endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
                     onClick={onProceedToVnPay}
-                    title={t('Opens VNPay in a new tab.')}
                     sx={{
                       fontWeight: 650,
                       borderRadius: '8px',
@@ -600,7 +727,7 @@ export function CustomerReportSettlementCard({
                 )}
                 <Button
                   variant="outlined"
-                  disabled={sepayPending || vnpayPending || cancelOrderPending}
+                  disabled={sepayPending || vnpayPending}
                   startIcon={<QrCode2Rounded sx={{ fontSize: 18 }} />}
                   onClick={onProceedToSepay}
                   sx={{
@@ -616,119 +743,24 @@ export function CustomerReportSettlementCard({
                     ? t('Connecting to Sepay gateway…')
                     : t('Pay with VietQR (Sepay)')}
                 </Button>
-                {Boolean(paymentStatus?.orderCode) && onCancelUnpaidOrder && (
-                  <Button
-                    variant="text"
-                    color="inherit"
-                    size="small"
-                    disabled={sepayPending || vnpayPending || cancelOrderPending}
-                    onClick={onCancelUnpaidOrder}
-                    sx={{
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      px: 1.5,
-                      py: 1,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {cancelOrderPending
-                      ? t('Cancelling…')
-                      : t('Reset order')}
-                  </Button>
-                )}
               </Stack>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {t('Opens VNPay in a new tab.')}
-              </Typography>
             </Stack>
-          </Stack>
-        ) : (
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
-                {t('Customer report acceptance')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                {t('Review the summary, then accept the report to continue to payment.')}
-              </Typography>
-            </Box>
-
-            <ReportAiSummaryCard
-              inspectionId={inspectionId}
-              versionId={versionId}
-              summary={summary}
-              findings={findings}
-            />
-
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                color="success"
-                disabled={acceptPending}
-                onClick={() => setConfirmAcceptOpen(true)}
-                sx={{
-                  fontWeight: 650,
-                  borderRadius: '8px',
-                  px: 2.5,
-                  textTransform: 'none',
-                }}
-              >
-                {acceptPending ? t('Accepting…') : t('Accept Report')}
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={onOpenDispute}
-                sx={{
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  px: 2,
-                  textTransform: 'none',
-                }}
-              >
-                {t('File a dispute / Request clarification')}
-              </Button>
-            </Stack>
-
-            {disputeSubmitted && (
-              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {t(
-                    'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
-                  )}
-                </Typography>
-                {disputeReason && (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>{t('Dispute reason')}:</strong> {disputeReason}
-                  </Typography>
-                )}
-                {disputeSubmittedAt && (
-                  <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
-                    {t('Submitted')}: {formatDateTime(new Date(disputeSubmittedAt))}
-                  </Typography>
-                )}
+            {Boolean(gatewayError) && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {getErrorMessage(gatewayError, t('Payment checkout could not be started.'))}
               </Alert>
             )}
-
-            <ConfirmDialog
-              open={confirmAcceptOpen}
-              title={t('Confirm Report Acceptance')}
-              message={t(
-                'Accepting the official inspection report locks your deliverable acceptance and proceeds to service invoice settlement. Would you like to accept this report?',
-              )}
-              confirmLabel={t('Confirm & Accept Report')}
-              cancelLabel={t('Cancel')}
-              confirmColor="success"
-              loading={acceptPending}
-              onCancel={() => setConfirmAcceptOpen(false)}
-              onConfirm={() => {
-                setConfirmAcceptOpen(false);
-                onAcceptReport();
-              }}
-            />
           </Stack>
+        ) : (
+          <CustomerReportAcceptanceBar
+            acceptPending={acceptPending}
+            disputeSubmitted={disputeSubmitted}
+            disputeReason={disputeReason}
+            disputeSubmittedAt={disputeSubmittedAt}
+            amountVnd={amountVnd}
+            onAcceptReport={onAcceptReport}
+            onOpenDispute={onOpenDispute}
+          />
         )}
       </Stack>
     </Paper>

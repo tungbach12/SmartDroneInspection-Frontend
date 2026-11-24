@@ -68,10 +68,10 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
 
     expect(screen.getByText('Paid via VNPay')).toBeTruthy();
     expect(screen.queryByText('Paid via Sepay')).toBeNull();
+    expect(screen.queryByText(/Official report version/)).toBeNull();
   });
 
-  it('offers Reset payment order when an unpaid order exists and calls onCancelUnpaidOrder', () => {
-    const onCancel = vi.fn();
+  it('hides removed helper texts and Reset order button on Customer settlement UI', () => {
     render(
       <LocaleProvider>
         <CustomerReportSettlementCard
@@ -95,14 +95,107 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
           onAcceptReport={vi.fn()}
           onProceedToSepay={vi.fn()}
           onProceedToVnPay={vi.fn()}
-          onCancelUnpaidOrder={onCancel}
           onOpenDispute={vi.fn()}
         />
       </LocaleProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset order' }));
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Official report version/)).toBeNull();
+    expect(screen.queryByText(/Official PDF ready/)).toBeNull();
+    expect(screen.queryByText('Opens VNPay in a new tab.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reset order' })).toBeNull();
+  });
+
+  it('renders Accept Report and Dispute directly at Step 2 (report) and prompts Step 2 at Step 3 (settlement) before acceptance', async () => {
+    mockedApi.getById.mockResolvedValue({
+      id: 'insp-1',
+      assetName: 'Bridge A',
+      inspectionType: 'INITIAL',
+    } as never);
+    mockedApi.listVersions.mockResolvedValue([
+      {
+        id: 'ver-1',
+        inspectionReportId: 'rep-1',
+        versionNo: 1,
+        status: 'PUBLISHED',
+        authorUserId: 'u-1',
+        submittedAt: null,
+        reviewerUserId: null,
+        reviewedAt: null,
+        returnReason: null,
+        publishedAt: '2026-11-20T10:00:00Z',
+        createdAt: '2026-11-20T09:00:00Z',
+        summary: 'Summary',
+        omissionDisclosure: null,
+      },
+    ]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.getReportPaymentStatus.mockResolvedValue({
+      reportAccepted: false,
+      paid: false,
+      paymentStatus: 'PENDING',
+      orderCode: null,
+      amount: 5000000,
+      checkoutUrl: null,
+      paymentMethod: null,
+    });
+    mockedApi.acceptReport.mockResolvedValue(undefined as never);
+
+    const reportClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { unmount } = render(
+      <LocaleProvider>
+        <QueryClientProvider client={reportClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/report']}>
+            <Routes>
+              <Route path="/client/inspections/:inspectionId">
+                <Route
+                  path="report"
+                  element={<CustomerReportDeliverablePage stage="report" />}
+                />
+                <Route
+                  path="settlement"
+                  element={<div>Settlement View</div>}
+                />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    const acceptBtn = await screen.findByRole('button', { name: 'Accept Report' });
+    expect(screen.getByRole('button', { name: 'File a dispute / Request clarification' })).toBeTruthy();
+    fireEvent.click(acceptBtn);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm & Accept Report' }));
+    await waitFor(() => {
+      expect(mockedApi.acceptReport).toHaveBeenCalledWith('insp-1', 'ver-1');
+    });
+    unmount();
+
+    const settlementClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <LocaleProvider>
+        <QueryClientProvider client={settlementClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/settlement']}>
+            <Routes>
+              <Route
+                path="/client/inspections/:inspectionId/settlement"
+                element={<CustomerReportDeliverablePage stage="settlement" />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText('Accept report in Step 2 to unlock payment.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go to Inspection Report' })).toBeTruthy();
   });
 
   it('does not treat ?payment=success as paid when backend payment status is still PAYMENT_DUE', async () => {

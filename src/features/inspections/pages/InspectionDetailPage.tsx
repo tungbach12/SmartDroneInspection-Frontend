@@ -646,7 +646,7 @@ export default function InspectionDetailPage() {
         return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
       }
       if (stepValue === 'report') {
-        return hasPublishedVersion;
+        return hasPublishedVersion && (isCustomerAccepted || isPaymentSettled);
       }
       if (stepValue === 'settlement') {
         return (
