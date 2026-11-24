@@ -632,6 +632,16 @@ export const contractApi = {
     return data;
   },
 
+  async cancelUnpaidPaymentOrder(
+    requestId: string,
+    occurrenceId: string,
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/cancel-unpaid-order`,
+    );
+    return data;
+  },
+
   async initiateOccurrenceRefund(requestId: string, occurrenceId: string, input: {
     amount: number; requestReference: string; reasonCode: string; serviceStage: string;
     reason: string; contractClauseReference: string; evidenceReference: string;

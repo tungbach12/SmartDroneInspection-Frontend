@@ -925,12 +925,16 @@ export function useAcceptReportVersion(inspectionId: string | null) {
 }
 
 export function useCreateInspectionSepayLink(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createSepayPaymentLink(inspectionId!),
     // Sepay has no hosted checkout page: it returns a VietQR image URL that must be shown in-app,
     // so the caller renders a QR dialog instead of navigating away.
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (!data?.checkoutUrl) {
         showToast('The VietQR code could not be generated.', 'error');
       }
@@ -941,10 +945,14 @@ export function useCreateInspectionSepayLink(inspectionId: string | null) {
 }
 
 export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createVnPayPaymentUrl(inspectionId!),
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (data?.checkoutUrl) {
         window.location.assign(data.checkoutUrl);
       }
@@ -954,15 +962,37 @@ export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
   });
 }
 
+export function useCancelUnpaidInspectionPaymentOrder(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.cancelUnpaidPaymentOrder(inspectionId!),
+    onSuccess: () => {
+      showToast('Unpaid payment order cleared. You can choose a payment method again.');
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not cancel the active payment order.'), 'error'),
+  });
+}
+
 export function useReportPaymentStatus(
   inspectionId: string | null,
-  options?: { pollIntervalMs?: number | false },
+  options?: { pollIntervalMs?: number | false; pollWhenUnpaid?: boolean },
 ) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],
     queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
     enabled: Boolean(inspectionId),
-    refetchInterval: options?.pollIntervalMs ?? false,
+    refetchInterval: (query) => {
+      if (options?.pollWhenUnpaid) {
+        const data = query.state.data;
+        return data?.paid || data?.paymentStatus === 'PAID' ? false : 3000;
+      }
+      return options?.pollIntervalMs ?? false;
+    },
   });
 }
 

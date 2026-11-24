@@ -3036,4 +3036,13 @@
   "Target checkpoints": "Hạng mục kiểm tra mục tiêu",
   "Asset photos": "Ảnh công trình",
   "No asset photos uploaded yet.": "Chưa có ảnh công trình.",
+  "Paid via": "Đã thanh toán qua",
+  "Bank transfer": "Chuyển khoản ngân hàng",
+  "VNPay or Sepay VietQR payment": "Thanh toán VNPay hoặc Sepay VietQR",
+  "Confirming payment…": "Đang xác nhận thanh toán…",
+  "Reset order": "Đổi cổng",
+  "Cancelling…": "Đang hủy…",
+  "Unpaid order": "Đơn chưa thanh toán",
+  "Wire reference (e.g. FT261123)": "Mã giao dịch (VD: FT261123)",
+  "Confirm payment": "Xác nhận thu tiền",
 };

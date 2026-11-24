@@ -24,6 +24,7 @@ import {
 import { useAuthStore } from '@/features/auth/store/authStore';
 import {
   useAcceptReportVersion,
+  useCancelUnpaidInspectionPaymentOrder,
   useCreateInspectionSepayLink,
   useCreateInspectionVnPayUrl,
   useReviewReportVersion,
@@ -94,17 +95,18 @@ export default function ReportDetailPage() {
   const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
-  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
-    pollIntervalMs: sepayQrOpen ? 3000 : false,
-  });
-  const paymentStatus = paymentStatusQuery.data;
+  const cancelUnpaidOrder = useCancelUnpaidInspectionPaymentOrder(inspectionId);
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
+  const returnedPaymentSuccess = searchParams.get('payment') === 'success';
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
+    pollWhenUnpaid: sepayQrOpen || returnedPaymentSuccess,
+  });
+  const paymentStatus = paymentStatusQuery.data;
   const isPaid = Boolean(
-    paymentStatus?.paid ||
-      paymentStatus?.paymentStatus === 'PAID' ||
-      searchParams.get('payment') === 'success',
+    paymentStatus?.paid || paymentStatus?.paymentStatus === 'PAID',
   );
+  const isPaymentConfirming = returnedPaymentSuccess && !isPaid;
   const isReportAccepted = Boolean(paymentStatus?.reportAccepted);
   const priorClarificationCount = inspectionQuery.data?.clarificationCount ?? 0;
 
@@ -370,10 +372,12 @@ export default function ReportDetailPage() {
                   isPaid={isPaid}
                   isReportAccepted={isReportAccepted}
                   isPaymentCancelled={isPaymentCancelled}
+                  isPaymentConfirming={isPaymentConfirming}
                   paymentStatus={paymentStatus}
                   acceptPending={acceptReport.isPending}
                   sepayPending={sepayLink.isPending}
                   vnpayPending={vnpayLink.isPending}
+                  cancelOrderPending={cancelUnpaidOrder.isPending}
                   disputeSubmitted={disputeSubmitted}
                   disputeReason={disputeReason.trim() || null}
                   disputeSubmittedAt={disputeSubmittedAt}
@@ -391,6 +395,7 @@ export default function ReportDetailPage() {
                     });
                   }}
                   onProceedToVnPay={() => vnpayLink.mutate()}
+                  onCancelUnpaidOrder={() => cancelUnpaidOrder.mutate()}
                   onOpenDispute={() => setDisputeOpen(true)}
                 />
               )}

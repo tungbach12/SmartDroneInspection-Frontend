@@ -36,18 +36,29 @@ interface CustomerReportSettlementCardProps {
   isPaid: boolean;
   isReportAccepted: boolean;
   isPaymentCancelled?: boolean;
+  isPaymentConfirming?: boolean;
   paymentStatus?: ReportPaymentStatusDetails | undefined;
   acceptPending: boolean;
   sepayPending: boolean;
   vnpayPending?: boolean;
+  cancelOrderPending?: boolean;
   disputeSubmitted: boolean;
   disputeReason?: string | null;
   disputeSubmittedAt?: string | null;
   onAcceptReport: () => void;
   onProceedToSepay: () => void;
   onProceedToVnPay?: () => void;
+  onCancelUnpaidOrder?: () => void;
   onOpenDispute: () => void;
   onViewReport?: (() => void) | undefined;
+}
+
+function formatPaymentMethodLabel(method: string | null | undefined, t: (key: string) => string): string {
+  const normalized = (method ?? '').trim().toUpperCase();
+  if (normalized === 'VNPAY') return 'VNPay';
+  if (normalized === 'SEPAY') return 'Sepay (VietQR)';
+  if (normalized === 'MANUAL_WIRE') return t('Bank transfer');
+  return method?.trim() || 'Sepay';
 }
 
 /**
@@ -68,16 +79,19 @@ export function CustomerReportSettlementCard({
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
+  isPaymentConfirming = false,
   paymentStatus,
   acceptPending,
   sepayPending,
   vnpayPending = false,
+  cancelOrderPending = false,
   disputeSubmitted,
   disputeReason,
   disputeSubmittedAt,
   onAcceptReport,
   onProceedToSepay,
   onProceedToVnPay,
+  onCancelUnpaidOrder,
   onOpenDispute,
   onViewReport,
 }: CustomerReportSettlementCardProps) {
@@ -191,6 +205,8 @@ export function CustomerReportSettlementCard({
       )
     : t('Pay within 15 days to complete your service.');
 
+  const paymentMethodLabel = formatPaymentMethodLabel(paymentStatus?.paymentMethod, t);
+
   const steps = [
     {
       title: t('Report acceptance'),
@@ -204,7 +220,9 @@ export function CustomerReportSettlementCard({
     {
       title: t('Service fee'),
       subtitle: isPaid
-        ? t('Paid')
+        ? paymentStatus?.paymentMethod
+          ? `${t('Paid via')} ${paymentMethodLabel}`
+          : t('Paid')
         : isReportAccepted
           ? t('Awaiting payment')
           : t('After acceptance'),
@@ -247,11 +265,13 @@ export function CustomerReportSettlementCard({
                 label={
                   isPaid
                     ? t('Paid & Fulfilled')
-                    : isReportAccepted
-                      ? t('Payment Due')
-                      : t('Awaiting Acceptance')
+                    : isPaymentConfirming
+                      ? t('Confirming payment…')
+                      : isReportAccepted
+                        ? t('Payment Due')
+                        : t('Awaiting Acceptance')
                 }
-                color={isPaid ? 'success' : isReportAccepted ? 'warning' : 'primary'}
+                color={isPaid ? 'success' : isPaymentConfirming ? 'info' : isReportAccepted ? 'warning' : 'primary'}
                 sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
               />
               <Chip
@@ -580,7 +600,7 @@ export function CustomerReportSettlementCard({
                 )}
                 <Button
                   variant="outlined"
-                  disabled={sepayPending || vnpayPending}
+                  disabled={sepayPending || vnpayPending || cancelOrderPending}
                   startIcon={<QrCode2Rounded sx={{ fontSize: 18 }} />}
                   onClick={onProceedToSepay}
                   sx={{
@@ -596,6 +616,28 @@ export function CustomerReportSettlementCard({
                     ? t('Connecting to Sepay gateway…')
                     : t('Pay with VietQR (Sepay)')}
                 </Button>
+                {Boolean(paymentStatus?.orderCode) && onCancelUnpaidOrder && (
+                  <Button
+                    variant="text"
+                    color="inherit"
+                    size="small"
+                    disabled={sepayPending || vnpayPending || cancelOrderPending}
+                    onClick={onCancelUnpaidOrder}
+                    sx={{
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      px: 1.5,
+                      py: 1,
+                      textTransform: 'none',
+                      whiteSpace: 'nowrap',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {cancelOrderPending
+                      ? t('Cancelling…')
+                      : t('Reset order')}
+                  </Button>
+                )}
               </Stack>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {t('Opens VNPay in a new tab.')}

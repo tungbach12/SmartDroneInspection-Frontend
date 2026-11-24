@@ -13,7 +13,11 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { ServiceRequestOccurrence } from '../../api/contractApi';
-import { useRecordOccurrencePayout } from '../../hooks/useContracts';
+import {
+  useCancelUnpaidPaymentOrder,
+  useConfirmOccurrencePayment,
+  useRecordOccurrencePayout,
+} from '../../hooks/useContracts';
 import { RefundControls } from '../../components/RefundControls';
 import { extractContractErrorText } from '../../shared/contractStage';
 
@@ -35,7 +39,10 @@ export function OccurrenceFinanceDrawer({
 }: OccurrenceFinanceDrawerProps) {
   const { formatNumber, t } = useLocale();
   const [payoutRef, setPayoutRef] = useState('');
+  const [paymentRef, setPaymentRef] = useState('');
   const [drawerError, setDrawerError] = useState('');
+  const confirmPayment = useConfirmOccurrencePayment(requestId, occurrence?.id ?? '');
+  const cancelUnpaidOrder = useCancelUnpaidPaymentOrder(requestId, occurrence?.id ?? '');
   const recordPayout = useRecordOccurrencePayout(requestId, occurrence?.id ?? '');
 
   if (!occurrence) return null;
@@ -46,6 +53,14 @@ export function OccurrenceFinanceDrawer({
   const invoice = occurrence.invoice;
   const payment = occurrence.payment;
   const payout = occurrence.payout;
+  const isReportAccepted = Boolean(occurrence.reportAcceptedAt ?? invoice?.reportAcceptedAt);
+  const canConfirmManualPayment =
+    occurrence.paymentStatus === 'PAYMENT_DUE' &&
+    isReportAccepted &&
+    totalPrice != null &&
+    totalPrice > 0;
+  const hasUnpaidGatewayOrder =
+    occurrence.paymentStatus === 'PAYMENT_DUE' && Boolean(payment?.gatewayOrderCode);
   const canSettlePayout =
     isPaid &&
     !payout?.heldForRefund &&
@@ -55,6 +70,7 @@ export function OccurrenceFinanceDrawer({
 
   const handleClose = () => {
     setDrawerError('');
+    setPaymentRef('');
     onClose();
   };
 
@@ -170,6 +186,71 @@ export function OccurrenceFinanceDrawer({
             )}
           </Stack>
         </Box>
+
+        {hasUnpaidGatewayOrder && (
+          <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {t('Unpaid order')} #{payment?.gatewayOrderCode}
+            </Typography>
+            <LoadingButton
+              size="small"
+              variant="outlined"
+              color="warning"
+              loading={cancelUnpaidOrder.isPending}
+              onClick={async () => {
+                setDrawerError('');
+                try {
+                  await cancelUnpaidOrder.mutateAsync();
+                  onChanged();
+                } catch (err) {
+                  setDrawerError(
+                    extractContractErrorText(err, 'Could not cancel the active payment order.'),
+                  );
+                }
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              {t('Reset order')}
+            </LoadingButton>
+          </Stack>
+        )}
+
+        {canConfirmManualPayment && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <TextField
+              size="small"
+              placeholder={t('Wire reference (e.g. FT261123)')}
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+              sx={{ flex: 1 }}
+            />
+            <LoadingButton
+              size="small"
+              variant="contained"
+              color="success"
+              loading={confirmPayment.isPending}
+              disabled={!paymentRef.trim()}
+              onClick={async () => {
+                setDrawerError('');
+                try {
+                  await confirmPayment.mutateAsync({
+                    paymentReference: paymentRef.trim(),
+                    amount: totalPrice,
+                  });
+                  setPaymentRef('');
+                  onChanged();
+                } catch (err) {
+                  setDrawerError(
+                    extractContractErrorText(err, 'Could not confirm customer payment.'),
+                  );
+                }
+              }}
+              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', boxShadow: 'none' }}
+            >
+              {t('Confirm payment')}
+            </LoadingButton>
+          </Stack>
+        )}
 
         {canSettlePayout && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
