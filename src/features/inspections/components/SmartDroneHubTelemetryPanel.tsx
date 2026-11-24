@@ -151,6 +151,9 @@ export function SmartDroneHubTelemetryPanel({
   const queryClient = useQueryClient();
   const isInspector = useAuthStore((state) => state.roles.includes('INSPECTOR'));
   const activeFlightKey = flightId ?? 'session';
+  const flightReportQueryKey = flightId
+    ? ['smartdronehub', 'flight-report', inspectionId, fieldSessionId, flightId]
+    : ['smartdronehub', 'flight-report', inspectionId, fieldSessionId];
   const [startedByKey, setStartedByKey] = useState<Record<string, boolean>>({});
   const [completedByKey, setCompletedByKey] = useState<Record<string, boolean>>({});
   const started = Boolean(startedByKey[activeFlightKey]);
@@ -183,17 +186,16 @@ export function SmartDroneHubTelemetryPanel({
   const saveReport = (report: SmartDroneHubFlightReport) => {
     setSavedReportsByKey((prev) => ({ ...prev, [activeFlightKey]: report }));
     setUploadError(null);
-    queryClient.setQueryData(
-      ['smartdronehub', 'flight-report', inspectionId, fieldSessionId, activeFlightKey],
-      report,
-    );
+    queryClient.setQueryData(flightReportQueryKey, report);
     void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.forInspection(inspectionId) });
     void queryClient.invalidateQueries({ queryKey: fieldSessionKeys.flightsForInspection(inspectionId) });
   };
 
   const startMission = useMutation({
     mutationFn: (source: 'AUTO' | 'MAVLINK' | 'SIMULATION' = 'AUTO') =>
-      smartDroneHubApi.start(inspectionId, fieldSessionId, source, flightId ?? undefined),
+      flightId
+        ? smartDroneHubApi.start(inspectionId, fieldSessionId, source, flightId)
+        : smartDroneHubApi.start(inspectionId, fieldSessionId, source),
     onSuccess: (res) => {
       setFlightCompleted(false);
       setStarted(true);
@@ -206,7 +208,10 @@ export function SmartDroneHubTelemetryPanel({
   });
 
   const completeFlight = useMutation({
-    mutationFn: () => smartDroneHubApi.complete(inspectionId, fieldSessionId, flightId ?? undefined),
+    mutationFn: () =>
+      flightId
+        ? smartDroneHubApi.complete(inspectionId, fieldSessionId, flightId)
+        : smartDroneHubApi.complete(inspectionId, fieldSessionId),
     onSuccess: (report) => {
       saveReport(report);
       setStarted(false);
@@ -230,20 +235,19 @@ export function SmartDroneHubTelemetryPanel({
     },
   });
   const declareManualFlight = useMutation({
-    mutationFn: () =>
-      smartDroneHubApi.declareManualFlight(
-        inspectionId,
-        fieldSessionId,
-        {
-          reasonCode,
-          estimatedDurationMinutes: duration,
-          maxAltitudeMeters: maxAltitudeMeters.trim() ? altitude : null,
-          notes: notes.trim(),
-          ...(flightMeta?.flightDate ? { flightDate: flightMeta.flightDate } : {}),
-          ...(flightMeta?.flightLabel ? { flightLabel: flightMeta.flightLabel } : {}),
-        },
-        flightId ?? undefined,
-      ),
+    mutationFn: () => {
+      const payload = {
+        reasonCode,
+        estimatedDurationMinutes: duration,
+        maxAltitudeMeters: maxAltitudeMeters.trim() ? altitude : null,
+        notes: notes.trim(),
+        ...(flightMeta?.flightDate ? { flightDate: flightMeta.flightDate } : {}),
+        ...(flightMeta?.flightLabel ? { flightLabel: flightMeta.flightLabel } : {}),
+      };
+      return flightId
+        ? smartDroneHubApi.declareManualFlight(inspectionId, fieldSessionId, payload, flightId)
+        : smartDroneHubApi.declareManualFlight(inspectionId, fieldSessionId, payload);
+    },
     onSuccess: (report) => {
       saveReport(report);
       setSelectedFile(null);
@@ -257,8 +261,11 @@ export function SmartDroneHubTelemetryPanel({
 
   const canImportFallbackLog = (sessionActive || allowFlightLogImport) && isInspector;
   const persistedReport = useQuery({
-    queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId, activeFlightKey],
-    queryFn: () => smartDroneHubApi.flightReport(inspectionId, fieldSessionId, flightId ?? undefined),
+    queryKey: flightReportQueryKey,
+    queryFn: () =>
+      flightId
+        ? smartDroneHubApi.flightReport(inspectionId, fieldSessionId, flightId)
+        : smartDroneHubApi.flightReport(inspectionId, fieldSessionId),
     enabled:
       (!sessionActive || Boolean(flightMeta?.hasFlightReport)) &&
       effectiveHasReport &&
