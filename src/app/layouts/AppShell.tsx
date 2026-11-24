@@ -385,6 +385,17 @@ export function AppShell({ portal }: AppShellProps) {
         height: '100%',
         minHeight: 0,
         flexDirection: 'column',
+        overflow: 'hidden',
+        borderRadius: { xs: 0, md: applyBgToSidebar && isDesktop ? '16px' : 0 },
+        border: {
+          xs: 'none',
+          md:
+            applyBgToSidebar && isDesktop
+              ? isDark
+                ? '1px solid #27272A'
+                : '1px solid rgba(229, 229, 229, 0.9)'
+              : 'none',
+        },
         bgcolor: applyBgToSidebar ? sidebarOverlayColor : 'background.default',
         backdropFilter: applyBgToSidebar ? 'blur(12px)' : undefined,
       }}
@@ -669,6 +680,11 @@ export function AppShell({ portal }: AppShellProps) {
             width: DRAWER_WIDTH,
             height: '100dvh',
             boxSizing: 'border-box',
+            p: {
+              xs: 0,
+              md: applyBgToSidebar ? '12px 0 12px 12px' : 0,
+              lg: applyBgToSidebar ? '16px 0 16px 16px' : 0,
+            },
             bgcolor: applyBgToSidebar ? 'transparent' : 'background.default',
             ...(applyBgToSidebar &&
             (!applyBgToEntireShell || !isDesktop) &&
@@ -697,7 +713,7 @@ export function AppShell({ portal }: AppShellProps) {
           minWidth: 0,
           height: '100dvh',
           overflow: 'hidden',
-          p: { xs: 0, lg: '16px 16px 16px 0' },
+          p: { xs: 0, md: '12px', lg: '16px' },
           ...(applyBgToWorkspace && !applyBgToEntireShell && activeBackgroundUrl
             ? {
                 backgroundImage: `url("${activeBackgroundUrl}")`,
@@ -713,10 +729,10 @@ export function AppShell({ portal }: AppShellProps) {
           sx={{
             height: '100%',
             minHeight: 0,
-            borderRadius: { xs: 0, lg: '16px' },
+            borderRadius: { xs: 0, md: '16px' },
             border: {
               xs: 'none',
-              lg: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
+              md: isDark ? '1px solid #27272A' : '1px solid #E5E5E5',
             },
             bgcolor: applyBgToWorkspace ? workspaceOverlayColor : solidWorkspaceColor,
             backdropFilter: applyBgToWorkspace ? 'blur(14px)' : undefined,
