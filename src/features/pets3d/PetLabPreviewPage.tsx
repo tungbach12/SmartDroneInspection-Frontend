@@ -4,8 +4,10 @@ import {
   Button,
   Chip,
   Divider,
+  FormControlLabel,
   Paper,
   Stack,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -16,6 +18,11 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { Link as RouterLink } from 'react-router-dom';
 import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { GlassMoonIcon, GlassSunIcon } from '@/shared/ui/GradientGlassIcons';
+import {
+  PetAnimationController,
+  type PetAnimationMode,
+  type PointerNDC,
+} from './petAnimations';
 import {
   disposeObject3D,
   PET_MODEL_CATALOG,
@@ -31,12 +38,22 @@ const CAMERA_POSITIONS: Record<CameraView, [number, number, number]> = {
   top: [0.01, 4.0, 0.25],
 };
 
+const ACTION_LABELS: Record<PetModelId, string> = {
+  'aero-shiba': 'Trot / Walk',
+  'cyber-cat': 'Playful Pounce',
+  'spot-rover': 'Patrol Gait',
+  'drone-buddy': 'Patrol Hover',
+  'sky-owl': 'Wing Flap',
+};
+
 export default function PetLabPreviewPage() {
   const isDark = useIsDarkMode();
   const { toggle: toggleColorMode } = useColorMode();
   const mountRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedId, setSelectedId] = useState<PetModelId>('aero-shiba');
+  const [animMode, setAnimMode] = useState<PetAnimationMode>('idle');
+  const [followCursor, setFollowCursor] = useState(true);
   const [wireframe, setWireframe] = useState(false);
   const [showPedestal, setShowPedestal] = useState(true);
   const [cameraView, setCameraView] = useState<CameraView>('iso');
@@ -50,16 +67,32 @@ export default function PetLabPreviewPage() {
     [selectedId],
   );
 
+  const animStateRef = useRef<{
+    mode: PetAnimationMode;
+    followCursor: boolean;
+    pointerNDC: PointerNDC | null;
+  }>({
+    mode: animMode,
+    followCursor,
+    pointerNDC: null,
+  });
+
+  useEffect(() => {
+    animStateRef.current.mode = animMode;
+    animStateRef.current.followCursor = followCursor;
+  }, [animMode, followCursor]);
+
   const sceneRefs = useRef<{
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
     controls: OrbitControls;
     pedestal: THREE.Group;
     petGroup: THREE.Group | null;
+    controller: PetAnimationController | null;
     renderOnce: () => void;
   } | null>(null);
 
-  // Initialize Three.js static studio viewport (OrbitControls only; zero model animation)
+  // Initialize Three.js studio viewport with animation loop + OrbitControls
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
@@ -94,7 +127,8 @@ export default function PetLabPreviewPage() {
     camera.position.set(...CAMERA_POSITIONS.iso);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
     controls.target.set(0, 0.85, 0);
     controls.minDistance = 1.5;
     controls.maxDistance = 7;
@@ -115,7 +149,6 @@ export default function PetLabPreviewPage() {
     rimLight.position.set(-4, 3, -4);
     scene.add(rimLight);
 
-    // Studio floor & pedestal
     const pedestal = new THREE.Group();
     const discGeo = new THREE.CylinderGeometry(1.15, 1.24, 0.08, 48);
     const discMat = new THREE.MeshStandardMaterial({
@@ -137,7 +170,55 @@ export default function PetLabPreviewPage() {
       renderer?.render(scene, camera);
     };
 
-    controls.addEventListener('change', renderOnce);
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = container.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      animStateRef.current.pointerNDC = {
+        x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -(((e.clientY - rect.top) / rect.height) * 2 - 1),
+      };
+    };
+
+    const handlePointerLeave = () => {
+      animStateRef.current.pointerNDC = null;
+    };
+
+    let downPos = { x: 0, y: 0 };
+    const handlePointerDown = (e: PointerEvent) => {
+      downPos = { x: e.clientX, y: e.clientY };
+    };
+    const handlePointerUp = (e: PointerEvent) => {
+      const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+      if (dist < 6 && sceneRefs.current?.controller) {
+        sceneRefs.current.controller.triggerHappy(1.6);
+      }
+    };
+
+    container.addEventListener('pointermove', handlePointerMove, { passive: true });
+    container.addEventListener('pointerleave', handlePointerLeave);
+    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener('pointerup', handlePointerUp);
+
+    let rafId = 0;
+    let lastTime = performance.now();
+    const animate = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      controls.update();
+      const refs = sceneRefs.current;
+      if (refs?.controller) {
+        const st = animStateRef.current;
+        if (st.mode === 'paused') {
+          refs.controller.resetToRestPose();
+        } else {
+          refs.controller.update(dt, st.mode, st.followCursor ? st.pointerNDC : null);
+        }
+      }
+      renderer?.render(scene, camera);
+      rafId = window.requestAnimationFrame(animate);
+    };
+    rafId = window.requestAnimationFrame(animate);
 
     const handleResize = () => {
       const w = container.clientWidth || 800;
@@ -155,14 +236,17 @@ export default function PetLabPreviewPage() {
       controls,
       pedestal,
       petGroup: null,
+      controller: null,
       renderOnce,
     };
 
-    renderOnce();
-
     return () => {
+      window.cancelAnimationFrame(rafId);
       window.removeEventListener('resize', handleResize);
-      controls.removeEventListener('change', renderOnce);
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerleave', handlePointerLeave);
+      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener('pointerup', handlePointerUp);
       controls.dispose();
       if (sceneRefs.current?.petGroup) {
         scene.remove(sceneRefs.current.petGroup);
@@ -178,15 +262,13 @@ export default function PetLabPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update studio background when light/dark changes
   useEffect(() => {
     const refs = sceneRefs.current;
     if (!refs) return;
     refs.scene.background = new THREE.Color(isDark ? '#0B0F17' : '#F1F5F9');
-    refs.renderOnce();
   }, [isDark]);
 
-  // Swap static 3D pet model
+  // Swap 3D pet model and bind animation controller
   useEffect(() => {
     const refs = sceneRefs.current;
     if (!refs) return;
@@ -195,6 +277,7 @@ export default function PetLabPreviewPage() {
       refs.scene.remove(refs.petGroup);
       disposeObject3D(refs.petGroup);
       refs.petGroup = null;
+      refs.controller = null;
     }
 
     const model = activeSpec.build();
@@ -218,16 +301,14 @@ export default function PetLabPreviewPage() {
 
     refs.scene.add(model);
     refs.petGroup = model;
+    refs.controller = new PetAnimationController(activeSpec.id, model);
     setMeshStats({ meshes: meshCount, triangles: Math.round(triCount) });
-    refs.renderOnce();
   }, [activeSpec, wireframe]);
 
-  // Pedestal visibility
   useEffect(() => {
     const refs = sceneRefs.current;
     if (!refs) return;
     refs.pedestal.visible = showPedestal;
-    refs.renderOnce();
   }, [showPedestal]);
 
   const setView = (view: CameraView) => {
@@ -237,7 +318,6 @@ export default function PetLabPreviewPage() {
     refs.camera.position.set(...CAMERA_POSITIONS[view]);
     refs.controls.target.set(0, 0.85, 0);
     refs.controls.update();
-    refs.renderOnce();
   };
 
   return (
@@ -257,12 +337,12 @@ export default function PetLabPreviewPage() {
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                3D Pet Models Lab (Static — No Animation Yet)
+                3D Pet Models Lab — Interactive Animations
               </Typography>
-              <Chip size="small" color="primary" label="5 Three.js Models" />
+              <Chip size="small" color="primary" label="5 Animated Pets" />
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              Kéo chuột để xoay 360°, cuộn để zoom kiểm tra tỷ lệ &amp; khớp model trước khi gắn animation.
+              Kéo chuột để xoay 360°, click trực tiếp vào Pet để xem biểu cảm Happy, hoặc chuyển chế độ Idle / Action / Follow Cursor.
             </Typography>
           </Box>
 
@@ -295,7 +375,6 @@ export default function PetLabPreviewPage() {
             gap: 2,
           }}
         >
-          {/* Left: 5 Model Selector Cards */}
           <Stack spacing={1.25}>
             {PET_MODEL_CATALOG.map((spec) => {
               const selected = spec.id === selectedId;
@@ -368,12 +447,11 @@ export default function PetLabPreviewPage() {
               </Stack>
               <Divider sx={{ my: 1 }} />
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                Meshes: {meshStats.meshes} • Triangles: ~{meshStats.triangles} • Static Pose
+                Meshes: {meshStats.meshes} • Triangles: ~{meshStats.triangles}
               </Typography>
             </Paper>
           </Stack>
 
-          {/* Right: 3D Viewport */}
           <Paper
             variant="outlined"
             sx={{
@@ -394,32 +472,77 @@ export default function PetLabPreviewPage() {
                 flexWrap: 'wrap',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: 1,
+                gap: 1.25,
               }}
             >
-              <ToggleButtonGroup
-                size="small"
-                exclusive
-                value={cameraView}
-                onChange={(_e, next: CameraView | null) => {
-                  if (next) setView(next);
-                }}
-                sx={{
-                  '& .MuiToggleButton-root': {
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    px: 1.25,
-                  },
-                }}
-              >
-                <ToggleButton value="iso">Isometric</ToggleButton>
-                <ToggleButton value="front">Front</ToggleButton>
-                <ToggleButton value="side">Side</ToggleButton>
-                <ToggleButton value="top">Top</ToggleButton>
-              </ToggleButtonGroup>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={animMode}
+                  onChange={(_e, next: PetAnimationMode | null) => {
+                    if (next) setAnimMode(next);
+                  }}
+                  aria-label="Animation mode"
+                  sx={{
+                    '& .MuiToggleButton-root': {
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      px: 1.25,
+                    },
+                  }}
+                >
+                  <ToggleButton value="idle">Idle</ToggleButton>
+                  <ToggleButton value="action">{ACTION_LABELS[selectedId]}</ToggleButton>
+                  <ToggleButton value="paused">Static</ToggleButton>
+                </ToggleButtonGroup>
 
-              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => sceneRefs.current?.controller?.triggerHappy(1.6)}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  Trigger Happy
+                </Button>
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      checked={followCursor}
+                      onChange={(_e, checked) => setFollowCursor(checked)}
+                    />
+                  }
+                  label={<Typography variant="caption" sx={{ fontWeight: 600 }}>Follow Cursor</Typography>}
+                  sx={{ ml: 0.5 }}
+                />
+              </Stack>
+
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={cameraView}
+                  onChange={(_e, next: CameraView | null) => {
+                    if (next) setView(next);
+                  }}
+                  sx={{
+                    '& .MuiToggleButton-root': {
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      px: 1,
+                    },
+                  }}
+                >
+                  <ToggleButton value="iso">Iso</ToggleButton>
+                  <ToggleButton value="front">Front</ToggleButton>
+                  <ToggleButton value="side">Side</ToggleButton>
+                  <ToggleButton value="top">Top</ToggleButton>
+                </ToggleButtonGroup>
+
                 <Button
                   size="small"
                   variant={wireframe ? 'contained' : 'outlined'}
@@ -434,7 +557,7 @@ export default function PetLabPreviewPage() {
                   onClick={() => setShowPedestal((prev) => !prev)}
                   sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                 >
-                  Grid &amp; Pedestal
+                  Grid
                 </Button>
               </Stack>
             </Box>

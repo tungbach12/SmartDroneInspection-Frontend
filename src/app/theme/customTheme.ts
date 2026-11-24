@@ -2,6 +2,7 @@ import {
   CURSOR_STYLE_OPTIONS,
   type CursorStyleId,
 } from './cursorDesigns';
+import type { PetModelId } from '@/features/pets3d/petModels';
 
 export type ThemePresetId =
   | 'default'
@@ -14,7 +15,24 @@ export type ThemePresetId =
 export type BackgroundSource = 'default' | 'preset' | 'custom';
 export type BackgroundTarget = 'both' | 'sidebar' | 'workspace';
 export type CursorEffectId = 'none' | 'trail' | 'spotlight' | 'reticle' | 'ripple';
+export type PetCompanionId = 'none' | PetModelId;
 export type { CursorStyleId };
+
+export interface PetCompanionOption {
+  id: PetCompanionId;
+  nameEn: string;
+  nameVi: string;
+  badgeColor: string;
+}
+
+export const PET_COMPANION_OPTIONS: readonly PetCompanionOption[] = [
+  { id: 'none', nameEn: 'Off', nameVi: 'Tắt', badgeColor: '#64748B' },
+  { id: 'aero-shiba', nameEn: 'Aero Shiba', nameVi: 'Aero Shiba', badgeColor: '#D97706' },
+  { id: 'cyber-cat', nameEn: 'Cyber Kitty', nameVi: 'Mèo Cyber', badgeColor: '#06B6D4' },
+  { id: 'spot-rover', nameEn: 'Spot Rover', nameVi: 'Robot Spot', badgeColor: '#F59E0B' },
+  { id: 'drone-buddy', nameEn: 'Drone Buddy', nameVi: 'Drone Buddy', badgeColor: '#0EA5E9' },
+  { id: 'sky-owl', nameEn: 'Sky Owl', nameVi: 'Cú Sky Owl', badgeColor: '#14B8A6' },
+] as const;
 
 export interface CursorEffectOption {
   id: CursorEffectId;
@@ -64,6 +82,7 @@ export interface UserThemePreferences {
   cursorStyle: CursorStyleId;
   cursorColor: string;
   cursorEffect: CursorEffectId;
+  petCompanionId: PetCompanionId;
 }
 
 export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
@@ -209,6 +228,7 @@ export const DEFAULT_USER_THEME_PREFERENCES: UserThemePreferences = {
   cursorStyle: 'waypoint-diamond',
   cursorColor: 'theme',
   cursorEffect: 'trail',
+  petCompanionId: 'none',
 };
 
 export const THEME_STORAGE_KEY_PREFIX = 'sdi_custom_theme_v1';
@@ -281,6 +301,13 @@ function isValidCursorEffectId(value: unknown): value is CursorEffectId {
   );
 }
 
+function isValidPetCompanionId(value: unknown): value is PetCompanionId {
+  return (
+    typeof value === 'string' &&
+    PET_COMPANION_OPTIONS.some((option) => option.id === value)
+  );
+}
+
 export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
   if (!raw || typeof raw !== 'object') {
     return { ...DEFAULT_USER_THEME_PREFERENCES };
@@ -321,6 +348,9 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
   const cursorEffect = isValidCursorEffectId(obj.cursorEffect)
     ? obj.cursorEffect
     : DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
+  const petCompanionId = isValidPetCompanionId(obj.petCompanionId)
+    ? obj.petCompanionId
+    : DEFAULT_USER_THEME_PREFERENCES.petCompanionId;
 
   const normalizedSource: BackgroundSource =
     backgroundSource === 'preset' && !backgroundPresetId
@@ -340,6 +370,7 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     cursorStyle,
     cursorColor,
     cursorEffect,
+    petCompanionId,
   };
 }
 

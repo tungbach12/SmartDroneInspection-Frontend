@@ -66,10 +66,15 @@ describe('ThemeCustomizationPanel', () => {
     fireEvent.click(screen.getByTestId('cursor-effect-reticle'));
     expect(screen.getByTestId('cursor-effect-reticle').getAttribute('aria-pressed')).toBe('true');
 
+    expect(screen.getByTestId('pet-companion-none').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByTestId('pet-companion-drone-buddy'));
+    expect(screen.getByTestId('pet-companion-drone-buddy').getAttribute('aria-pressed')).toBe('true');
+
     fireEvent.click(screen.getByTestId('theme-reset-default-button'));
     expect(screen.getByTestId('theme-preset-default').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('cursor-style-waypoint-diamond').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('cursor-effect-trail').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('pet-companion-none').getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByTestId('bg-target-both')).toBeNull();
   });
 

@@ -13,6 +13,7 @@ import {
   type BackgroundTarget,
   type CursorEffectId,
   type CursorStyleId,
+  type PetCompanionId,
   type ThemePresetId,
   type UserThemePreferences,
 } from './customTheme';
@@ -178,6 +179,13 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
     [updatePreferences],
   );
 
+  const setPetCompanionId = useCallback(
+    (petCompanionId: PetCompanionId) => {
+      updatePreferences((prev) => ({ ...prev, petCompanionId }));
+    },
+    [updatePreferences],
+  );
+
   const resetToDefault = useCallback(() => {
     updatePreferences(() => ({ ...DEFAULT_USER_THEME_PREFERENCES }));
   }, [updatePreferences]);
@@ -202,6 +210,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       setCursorStyle,
       setCursorColor,
       setCursorEffect,
+      setPetCompanionId,
       resetToDefault,
     }),
     [
@@ -221,6 +230,7 @@ function CustomThemeScopedProvider({ userId, children }: ScopedProviderProps) {
       setCursorStyle,
       setCursorColor,
       setCursorEffect,
+      setPetCompanionId,
       resetToDefault,
     ],
   );

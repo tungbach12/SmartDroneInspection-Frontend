@@ -21,6 +21,7 @@ function ThemeProbe() {
     removeCustomBackground,
     setBackgroundTarget,
     setSurfaceOpacity,
+    setPetCompanionId,
     resetToDefault,
   } = useCustomTheme();
 
@@ -32,8 +33,12 @@ function ThemeProbe() {
       <span data-testid="bg-url">{activeBackgroundUrl ?? 'none'}</span>
       <span data-testid="bg-target">{preferences.backgroundTarget}</span>
       <span data-testid="opacity">{preferences.surfaceOpacity}</span>
+      <span data-testid="pet-id">{preferences.petCompanionId}</span>
       <button type="button" onClick={() => setPresetId('aero-teal')}>
         Set Teal
+      </button>
+      <button type="button" onClick={() => setPetCompanionId('drone-buddy')}>
+        Set Pet Drone
       </button>
       <button type="button" onClick={() => selectBackgroundPreset(BACKGROUND_PRESETS[0]!.id)}>
         Set Preset Bg
@@ -94,11 +99,13 @@ describe('CustomThemeProvider', () => {
 
     expect(screen.getByTestId('preset-id').textContent).toBe(DEFAULT_USER_THEME_PREFERENCES.presetId);
     expect(screen.getByTestId('bg-url').textContent).toBe('none');
+    expect(screen.getByTestId('pet-id').textContent).toBe('none');
 
     fireEvent.click(screen.getByText('Set Teal'));
     fireEvent.click(screen.getByText('Set Preset Bg'));
     fireEvent.click(screen.getByText('Target Sidebar'));
     fireEvent.click(screen.getByText('Set Opacity'));
+    fireEvent.click(screen.getByText('Set Pet Drone'));
 
     expect(screen.getByTestId('preset-id').textContent).toBe('aero-teal');
     expect(screen.getByTestId('primary-color').textContent).toBe('#087E8B');
@@ -106,9 +113,11 @@ describe('CustomThemeProvider', () => {
     expect(screen.getByTestId('bg-url').textContent).toBe(BACKGROUND_PRESETS[0]!.imageUrl);
     expect(screen.getByTestId('bg-target').textContent).toBe('sidebar');
     expect(screen.getByTestId('opacity').textContent).toBe('0.8');
+    expect(screen.getByTestId('pet-id').textContent).toBe('drone-buddy');
 
     const storedA = window.localStorage.getItem(getUserThemeStorageKey('user-a'));
     expect(storedA).toContain('aero-teal');
+    expect(storedA).toContain('drone-buddy');
 
     // Switching user isolates theme preferences
     act(() => {
@@ -126,6 +135,7 @@ describe('CustomThemeProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('preset-id').textContent).toBe('default');
       expect(screen.getByTestId('bg-url').textContent).toBe('none');
+      expect(screen.getByTestId('pet-id').textContent).toBe('none');
     });
   });
 

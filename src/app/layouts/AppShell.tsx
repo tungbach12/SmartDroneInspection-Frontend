@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useState,
   useEffect,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -97,6 +99,10 @@ import { useUnreadChatSummary } from '@/features/contracts/hooks/useContracts';
 import { useInspections } from '@/features/inspections/hooks/useInspections';
 
 const DRAWER_WIDTH = layoutTokens.shellRailWidth;
+
+const PetCompanionWidget = lazy(
+  () => import('@/features/pets3d/PetCompanionWidget'),
+);
 
 const NAV_ITEMS = [
   { section: 'dashboard', icon: <GlassDashboardIcon /> },
@@ -1384,6 +1390,12 @@ export function AppShell({ portal }: AppShellProps) {
         open={themeDrawerOpen}
         onClose={() => setThemeDrawerOpen(false)}
       />
+
+      {themePreferences.petCompanionId !== 'none' && (
+        <Suspense fallback={null}>
+          <PetCompanionWidget petId={themePreferences.petCompanionId} />
+        </Suspense>
+      )}
     </Box>
   );
 }

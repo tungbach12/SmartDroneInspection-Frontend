@@ -5,6 +5,7 @@ import {
   type BackgroundTarget,
   type CursorEffectId,
   type CursorStyleId,
+  type PetCompanionId,
   type ThemePresetDefinition,
   type ThemePresetId,
   type UserThemePreferences,
@@ -27,6 +28,7 @@ export interface CustomThemeContextValue {
   setCursorStyle: (style: CursorStyleId) => void;
   setCursorColor: (color: string) => void;
   setCursorEffect: (effect: CursorEffectId) => void;
+  setPetCompanionId: (petId: PetCompanionId) => void;
   resetToDefault: () => void;
 }
 
@@ -49,6 +51,7 @@ export const CustomThemeContext = createContext<CustomThemeContextValue>({
   setCursorStyle: noop,
   setCursorColor: noop,
   setCursorEffect: noop,
+  setPetCompanionId: noop,
   resetToDefault: noop,
 });
 

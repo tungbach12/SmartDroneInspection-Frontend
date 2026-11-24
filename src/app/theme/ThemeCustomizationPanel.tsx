@@ -28,10 +28,12 @@ import {
   BACKGROUND_PRESETS,
   CURSOR_EFFECT_OPTIONS,
   DEFAULT_USER_THEME_PREFERENCES,
+  PET_COMPANION_OPTIONS,
   THEME_PRESETS,
   type BackgroundSource,
   type BackgroundTarget,
   type CursorEffectId,
+  type PetCompanionId,
 } from './customTheme';
 import { useCustomTheme } from './CustomThemeContext';
 
@@ -65,6 +67,7 @@ export function ThemeCustomizationPanel({
     setCursorStyle,
     setCursorColor,
     setCursorEffect,
+    setPetCompanionId,
     resetToDefault,
   } = useCustomTheme();
 
@@ -83,7 +86,8 @@ export function ThemeCustomizationPanel({
     preferences.surfaceOpacity !== DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity ||
     preferences.cursorStyle !== DEFAULT_USER_THEME_PREFERENCES.cursorStyle ||
     preferences.cursorColor !== DEFAULT_USER_THEME_PREFERENCES.cursorColor ||
-    preferences.cursorEffect !== DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
+    preferences.cursorEffect !== DEFAULT_USER_THEME_PREFERENCES.cursorEffect ||
+    preferences.petCompanionId !== DEFAULT_USER_THEME_PREFERENCES.petCompanionId;
 
   const handleSourceChange = (
     _event: React.MouseEvent<HTMLElement>,
@@ -906,6 +910,89 @@ export function ThemeCustomizationPanel({
             ))}
           </ToggleButtonGroup>
         </Box>
+      </Stack>
+
+      <Divider />
+
+      {/* 3D Pet Companion (Optional, OFF by default) */}
+      <Stack spacing={1.25}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'text.primary' }}>
+              {isVi ? 'Thú cưng 3D góc màn hình' : '3D Pet Companion'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {isVi
+                ? 'Mặc định tắt cho mọi tài khoản. Chọn linh vật 3D tương tác ở góc dưới phải.'
+                : 'Off by default. Pick an animated 3D buddy for the bottom-right corner.'}
+            </Typography>
+          </Box>
+          <Button
+            component="a"
+            href="/pet-lab"
+            target="_blank"
+            rel="noopener noreferrer"
+            size="small"
+            variant="text"
+            sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+          >
+            {isVi ? 'Xem 3D Lab' : '3D Lab'}
+          </Button>
+        </Stack>
+
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={preferences.petCompanionId}
+          onChange={(_e, nextPetId: PetCompanionId | null) => {
+            if (nextPetId) setPetCompanionId(nextPetId);
+          }}
+          aria-label={isVi ? 'Thú cưng 3D góc màn hình' : '3D Pet Companion'}
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.75,
+            '& .MuiToggleButtonGroup-grouped': {
+              borderRadius: '8px !important',
+              border: '1px solid var(--mui-palette-divider) !important',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              px: 1.25,
+              py: 0.625,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+            },
+            '& .MuiToggleButton-root.Mui-selected': {
+              borderColor: 'var(--mui-palette-primary-main) !important',
+            },
+          }}
+        >
+          {PET_COMPANION_OPTIONS.map((pet) => (
+            <ToggleButton
+              key={pet.id}
+              value={pet.id}
+              data-testid={`pet-companion-${pet.id}`}
+            >
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: pet.badgeColor,
+                  flexShrink: 0,
+                }}
+              />
+              {isVi ? pet.nameVi : pet.nameEn}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
       </Stack>
     </Stack>
   );

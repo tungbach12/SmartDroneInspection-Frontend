@@ -270,6 +270,7 @@ export function buildCyberCatModel(): THREE.Group {
   chassis.add(chestPanel);
 
   const coreHeart = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.018, 12, 24), cyanGlow);
+  coreHeart.name = 'coreHeart';
   coreHeart.position.set(0, 0.68, 0.34);
   chassis.add(coreHeart);
 
@@ -299,6 +300,7 @@ export function buildCyberCatModel(): THREE.Group {
       new THREE.TorusGeometry(0.072, 0.022, 10, 20, Math.PI * 0.95),
       cyanGlow,
     );
+    eyeArc.name = side < 0 ? 'leftEyeArc' : 'rightEyeArc';
     eyeArc.position.set(side * 0.15, 0.02, 0.43);
     eyeArc.rotation.z = 0.08;
     head.add(eyeArc);
@@ -385,6 +387,7 @@ export function buildCyberCatModel(): THREE.Group {
   });
 
   const tailTipOrb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), cyanGlow);
+  tailTipOrb.name = 'tailTipOrb';
   tailTipOrb.position.set(0, 0.72, -0.25);
   tailGroup.add(tailTipOrb);
 
