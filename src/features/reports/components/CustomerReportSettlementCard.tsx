@@ -328,10 +328,9 @@ export function CustomerReportSettlementCard({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
-  const prevAcceptedRef = useRef(isReportAccepted);
   const prevPaidRef = useRef(isPaid);
 
-  const downloadPaymentDocument = useCallback(async (kind: 'notice' | 'receipt') => {
+  const downloadPaymentReceipt = useCallback(async () => {
     setDocumentBusy(true);
     setDocumentError(null);
     try {
@@ -339,7 +338,7 @@ export function CustomerReportSettlementCard({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `SDI-payment-${kind}-${inspectionId.slice(0, 8)}.pdf`;
+      link.download = `SDI-payment-receipt-${inspectionId.slice(0, 8)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -350,14 +349,6 @@ export function CustomerReportSettlementCard({
       setDocumentBusy(false);
     }
   }, [inspectionId]);
-
-  useEffect(() => {
-    const becameAccepted = !prevAcceptedRef.current && isReportAccepted;
-    prevAcceptedRef.current = isReportAccepted;
-    if (becameAccepted && !isPaid) {
-      void downloadPaymentDocument('notice');
-    }
-  }, [isReportAccepted, isPaid, downloadPaymentDocument]);
 
   useEffect(() => {
     const becamePaid = !prevPaidRef.current && isPaid;
@@ -376,9 +367,9 @@ export function CustomerReportSettlementCard({
       }
     }
     if (becamePaid || firstReceiptAfterCheckout) {
-      void downloadPaymentDocument('receipt');
+      void downloadPaymentReceipt();
     }
-  }, [isPaid, inspectionId, downloadPaymentDocument]);
+  }, [isPaid, inspectionId, downloadPaymentReceipt]);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
   const reportPdfFileName = `SDI-RPT-${_versionId.slice(0, 8).toUpperCase()}-V${_versionNo}.pdf`;
@@ -628,25 +619,6 @@ export function CustomerReportSettlementCard({
                   </Typography>
                 </Stack>
               </Box>
-
-              {isReportAccepted && !isPaid && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  disabled={documentBusy}
-                  startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
-                  onClick={() => void downloadPaymentDocument('notice')}
-                  sx={{
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    minHeight: 36,
-                    textTransform: 'none',
-                  }}
-                >
-                  {documentBusy ? t('Generating PDF…') : t('Download payment notice (PDF)')}
-                </Button>
-              )}
             </Box>
           )}
 
@@ -688,7 +660,7 @@ export function CustomerReportSettlementCard({
                     size="small"
                     disabled={documentBusy}
                     startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
-                    onClick={() => void downloadPaymentDocument('receipt')}
+                    onClick={() => void downloadPaymentReceipt()}
                     sx={{
                       fontWeight: 600,
                       borderRadius: '8px',
@@ -796,25 +768,6 @@ export function CustomerReportSettlementCard({
                     </Button>
                   )}
                 </Stack>
-
-                {!amountVnd && (
-                  <Box>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      disabled={documentBusy}
-                      startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
-                      onClick={() => void downloadPaymentDocument('notice')}
-                      sx={{
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        textTransform: 'none',
-                      }}
-                    >
-                      {documentBusy ? t('Generating PDF…') : t('Download payment notice (PDF)')}
-                    </Button>
-                  </Box>
-                )}
 
                 {Boolean(gatewayError) && (
                   <Alert severity="error" sx={{ borderRadius: '8px' }}>
