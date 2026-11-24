@@ -937,7 +937,11 @@ function PartnerDroneDetailDialog({
 
   const registration = (historyQuery.data ?? []).find((app) => app.droneId === drone.droneId) ?? null;
   const hasImage = Boolean(droneRecord?.hasImage || (registration?.imageFileKeys?.length ?? 0) > 0);
-  const titleText = droneRecord?.model || registration?.model || drone.fallbackLabel;
+  const rawTitleText = droneRecord?.model || registration?.model || drone.fallbackLabel;
+  const titleText =
+    rawTitleText
+      .replace(/\s*\[[^\]]*(?:MTOW:|Thời gian bay:|Flight time:|Camera(?:\s*\/\s*Sensor)?:)[^\]]*\]\s*$/i, '')
+      .trim() || rawTitleText;
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: '12px' } } }}>
@@ -1024,6 +1028,18 @@ function PartnerDroneDetailDialog({
             )}
             {registration?.opticalZoomLevel && (
               <DroneDetailRow label={t('Optical zoom')} value={registration.opticalZoomLevel} />
+            )}
+            {registration?.mtowKg != null && (
+              <DroneDetailRow label="MTOW" value={`${registration.mtowKg} kg`} />
+            )}
+            {registration?.maxFlightTimeMinutes != null && (
+              <DroneDetailRow
+                label={t('Max flight time')}
+                value={`${registration.maxFlightTimeMinutes} min`}
+              />
+            )}
+            {registration?.cameraSensor && (
+              <DroneDetailRow label={t('Camera / Sensor')} value={registration.cameraSensor} />
             )}
           </Stack>
 

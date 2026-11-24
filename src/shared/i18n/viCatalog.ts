@@ -3097,4 +3097,6 @@
   "Inspector applications": "Đơn đăng ký Inspector",
   "Drone registrations": "Đăng ký Drone",
   "Customer airspace": "Vùng bay khách hàng",
+  "Max flight time": "Thời gian bay tối đa",
+  "Camera / Sensor": "Camera / Cảm biến",
 };

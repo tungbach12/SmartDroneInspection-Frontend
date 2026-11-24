@@ -63,28 +63,18 @@ interface EvidenceDoc {
   failed?: boolean;
 }
 
-function classifyDroneLegalTier(rawText?: string | null): {
+function stripLegacySpecsFromModel(rawModel?: string | null): string {
+  if (!rawModel) return '';
+  return rawModel
+    .replace(/\s*\[[^\]]*(?:MTOW:|Thời gian bay:|Flight time:|Camera(?:\s*\/\s*Sensor)?:)[^\]]*\]\s*$/i, '')
+    .trim();
+}
+
+function resolveMtowCategoryInfo(mtow: number): {
   categoryLabel: string;
   requiredPilotLicenseLabel: string;
   requiresClassB: boolean;
 } {
-  const text = (rawText ?? '').toLowerCase();
-  const match = rawText?.match(/(?:MTOW:\s*)?(\d+(?:[.,]\d+)?)\s*(?:kg)?/i);
-  const parsedMtow = match?.[1] ? Number(match[1].replace(',', '.')) : NaN;
-  const mtow =
-    Number.isFinite(parsedMtow) && parsedMtow > 0
-      ? parsedMtow
-      : text.includes('matrice') ||
-          text.includes('m300') ||
-          text.includes('m350') ||
-          text.includes('m30') ||
-          text.includes('inspire') ||
-          text.includes('agras')
-        ? 9.2
-        : text.includes('mini')
-          ? 0.249
-          : 0.92;
-
   if (mtow < 0.25) {
     return {
       categoryLabel: 'Loại 1 (< 0.25 kg)',
@@ -118,6 +108,72 @@ function classifyDroneLegalTier(rawText?: string | null): {
     requiredPilotLicenseLabel: 'Bằng Hạng B (≥ 2 kg)',
     requiresClassB: true,
   };
+}
+
+function extractLegacyDroneSpecs(rawModel?: string | null): {
+  mtowKg: number | null;
+  maxFlightTimeMinutes: number | null;
+  cameraSensor: string | null;
+} {
+  if (!rawModel) return { mtowKg: null, maxFlightTimeMinutes: null, cameraSensor: null };
+  const mtowMatch = rawModel.match(/MTOW:\s*(\d+(?:[.,]\d+)?)/i);
+  const timeMatch = rawModel.match(/(?:Thời gian bay|Flight time):\s*(\d+)/i);
+  const camMatch = rawModel.match(/Camera(?:\s*\/\s*Sensor)?:\s*([^|\]]+)/i);
+  const parsedMtow = mtowMatch?.[1] ? Number(mtowMatch[1].replace(',', '.')) : NaN;
+  const parsedTime = timeMatch?.[1] ? Number(timeMatch[1]) : NaN;
+  return {
+    mtowKg: Number.isFinite(parsedMtow) && parsedMtow > 0 ? parsedMtow : null,
+    maxFlightTimeMinutes: Number.isFinite(parsedTime) && parsedTime > 0 ? parsedTime : null,
+    cameraSensor: camMatch?.[1]?.trim() || null,
+  };
+}
+
+function classifyDroneLegalTier(
+  applicationOrRaw?: DroneRegistrationApplication | string | null,
+): {
+  categoryLabel: string;
+  requiredPilotLicenseLabel: string;
+  requiresClassB: boolean;
+} {
+  const application =
+    typeof applicationOrRaw === 'object' && applicationOrRaw !== null ? applicationOrRaw : null;
+  const rawText = typeof applicationOrRaw === 'string' ? applicationOrRaw : application?.model;
+
+  if (application?.mtowKg != null && application.mtowKg > 0) {
+    return resolveMtowCategoryInfo(application.mtowKg);
+  }
+  if (application?.legalCategory) {
+    const categoryRepresentativeMtow: Record<string, number> = {
+      CATEGORY_1: 0.2,
+      CATEGORY_2: 1.0,
+      CATEGORY_3: 5.0,
+      CATEGORY_4: 50.0,
+      CATEGORY_5: 160.0,
+    };
+    const mappedMtow = categoryRepresentativeMtow[application.legalCategory];
+    if (mappedMtow != null) {
+      return resolveMtowCategoryInfo(mappedMtow);
+    }
+  }
+
+  const legacySpecs = extractLegacyDroneSpecs(rawText);
+  if (legacySpecs.mtowKg != null) {
+    return resolveMtowCategoryInfo(legacySpecs.mtowKg);
+  }
+
+  const text = (rawText ?? '').toLowerCase();
+  const fallbackMtow =
+    text.includes('matrice') ||
+    text.includes('m300') ||
+    text.includes('m350') ||
+    text.includes('m30') ||
+    text.includes('inspire') ||
+    text.includes('agras')
+      ? 9.2
+      : text.includes('mini')
+        ? 0.249
+        : 0.92;
+  return resolveMtowCategoryInfo(fallbackMtow);
 }
 
 export default function Mf1ReviewPage({
@@ -735,9 +791,22 @@ export default function Mf1ReviewPage({
             ariaLabel={tr('Đăng ký Drone', 'Drone registrations')}
           >
             {droneRows.map(({ status, application }) => {
-              const tier = classifyDroneLegalTier(application.model);
+              const cleanModel = stripLegacySpecsFromModel(application.model) || application.model;
+              const legacySpecs = extractLegacyDroneSpecs(application.model);
+              const mtowKg = application.mtowKg ?? legacySpecs.mtowKg;
+              const maxFlightTime =
+                application.maxFlightTimeMinutes ?? legacySpecs.maxFlightTimeMinutes;
+              const cameraSensor = application.cameraSensor ?? legacySpecs.cameraSensor;
+              const tier = classifyDroneLegalTier(application);
               const licenseWarning =
                 tier.requiresClassB && application.inspectorPilotLicenseClass === 'CLASS_A';
+              const specLine = [
+                mtowKg != null ? `${mtowKg} kg` : null,
+                maxFlightTime != null ? `${maxFlightTime} ${tr('phút', 'min')}` : null,
+                cameraSensor,
+              ]
+                .filter(Boolean)
+                .join(' · ');
               return (
                 <TableRow
                   key={application.id}
@@ -756,11 +825,16 @@ export default function Mf1ReviewPage({
                 >
                   <TableCell>
                     <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
-                      {application.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
+                      {cleanModel || tr('Thiết bị Drone', 'Drone Aircraft')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {application.manufacturer || '—'} · {tier.categoryLabel}
                     </Typography>
+                    {specLine && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                        {specLine}
+                      </Typography>
+                    )}
                     {licenseWarning && (
                       <Typography variant="caption" sx={{ display: 'block', color: 'warning.main' }}>
                         {tr('Cần Bằng Hạng B', 'Class B license required')}
@@ -917,24 +991,52 @@ export default function Mf1ReviewPage({
                         gap: 1.5,
                       }}
                     >
-                      <DetailField label={tr('Drone', 'Drone')} value={(selected as DroneRegistrationApplication).model} />
-                      <DetailField label={tr('Serial', 'Serial')} value={(selected as DroneRegistrationApplication).serialNumber} />
-                      <DetailField
-                        label={tr('Số đăng ký', 'Registration')}
-                        value={(selected as DroneRegistrationApplication).registrationNumber}
-                      />
-                      <DetailField
-                        label={tr('Người gửi', 'Applicant')}
-                        value={(selected as DroneRegistrationApplication).inspectorFullName}
-                      />
-                      <DetailField
-                        label={tr('Email', 'Email')}
-                        value={(selected as DroneRegistrationApplication).inspectorEmail}
-                      />
-                      <DetailField
-                        label={tr('Bằng lái', 'Pilot license')}
-                        value={(selected as DroneRegistrationApplication).inspectorPilotLicenseNumber}
-                      />
+                      {(() => {
+                        const droneApp = selected as DroneRegistrationApplication;
+                        const legacy = extractLegacyDroneSpecs(droneApp.model);
+                        const mtowVal = droneApp.mtowKg ?? legacy.mtowKg;
+                        const flightTimeVal =
+                          droneApp.maxFlightTimeMinutes ?? legacy.maxFlightTimeMinutes;
+                        const cameraVal = droneApp.cameraSensor ?? legacy.cameraSensor;
+                        return (
+                          <>
+                            <DetailField
+                              label={tr('Drone', 'Drone')}
+                              value={stripLegacySpecsFromModel(droneApp.model) || droneApp.model}
+                            />
+                            <DetailField label={tr('Serial', 'Serial')} value={droneApp.serialNumber} />
+                            <DetailField
+                              label={tr('Số đăng ký', 'Registration')}
+                              value={droneApp.registrationNumber}
+                            />
+                            {mtowVal != null && <DetailField label="MTOW" value={`${mtowVal} kg`} />}
+                            {flightTimeVal != null && (
+                              <DetailField
+                                label={tr('Thời gian bay tối đa', 'Max flight time')}
+                                value={`${flightTimeVal} ${tr('phút', 'min')}`}
+                              />
+                            )}
+                            {cameraVal && (
+                              <DetailField
+                                label={tr('Camera / Cảm biến', 'Camera / Sensor')}
+                                value={cameraVal}
+                              />
+                            )}
+                            <DetailField
+                              label={tr('Người gửi', 'Applicant')}
+                              value={droneApp.inspectorFullName}
+                            />
+                            <DetailField
+                              label={tr('Email', 'Email')}
+                              value={droneApp.inspectorEmail}
+                            />
+                            <DetailField
+                              label={tr('Bằng lái', 'Pilot license')}
+                              value={droneApp.inspectorPilotLicenseNumber}
+                            />
+                          </>
+                        );
+                      })()}
                     </Box>
                     <Divider />
                     <Box>
