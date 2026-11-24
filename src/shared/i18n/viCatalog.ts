@@ -3104,7 +3104,7 @@
   "Approve report": "Duyệt báo cáo",
   "Approving…": "Đang duyệt…",
   "Approve report?": "Duyệt báo cáo?",
-  "Approves the report and unlocks Inspector payout. You will publish it to the Customer after settling the Inspector payout.": "Xác nhận duyệt báo cáo và mở khóa chi trả cho Inspector. Sau khi hoàn tất chi trả Inspector, bạn mới phát hành báo cáo sang Khách hàng.",
+  "Are you sure you want to approve this report? By approving, you confirm the inspection results are accurate and take responsibility for this decision.": "Bạn có chắc chắn muốn duyệt báo cáo này không? Khi phê duyệt, bạn xác nhận nội dung kiểm định chính xác và chịu trách nhiệm về quyết định này.",
   "Approved": "Đã duyệt",
   "Inspector payout required before publishing to Customer": "Cần chi trả cho Inspector trước khi phát hành báo cáo cho Khách hàng",
   "Settle Inspector payout to unlock publishing.": "Vui lòng tất toán thù lao Inspector để mở khóa nút phát hành cho Khách hàng.",

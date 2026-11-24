@@ -515,7 +515,7 @@ export default function ManagerReportReviewPage({
                 confirmTitle={portal === 'manager' ? t('Approve report?') : undefined}
                 confirmMessage={
                   portal === 'manager'
-                    ? t('Approves the report and unlocks Inspector payout. You will publish it to the Customer after settling the Inspector payout.')
+                    ? t('Are you sure you want to approve this report? By approving, you confirm the inspection results are accurate and take responsibility for this decision.')
                     : undefined
                 }
                 confirmLabel={portal === 'manager' ? t('Approve report') : undefined}
