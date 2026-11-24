@@ -455,9 +455,6 @@ export function DroneDocumentConfigTab() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenDialog(false)} color="inherit">
-              {tr('Hủy', 'Cancel')}
-            </Button>
             <Button
               type="submit"
               form="doc-config-form"

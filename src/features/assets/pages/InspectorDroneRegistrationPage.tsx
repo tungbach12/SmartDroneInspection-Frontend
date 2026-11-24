@@ -8,6 +8,7 @@ import {
   CardMedia,
   Checkbox,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,9 +25,11 @@ import {
   Typography,
 } from '@mui/material';
 import AddCircleOutlineRounded from '@mui/icons-material/AddCircleOutlineRounded';
+import AddRounded from '@mui/icons-material/AddRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
@@ -34,6 +37,7 @@ import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import BuildCircleOutlined from '@mui/icons-material/BuildCircleOutlined';
 import AppRegistrationOutlined from '@mui/icons-material/AppRegistrationOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import { droneDocumentConfigApi } from '../api/droneDocumentConfigApi';
 import { droneFeatureConfigApi } from '../api/droneFeatureConfigApi';
 import {
@@ -76,7 +80,7 @@ const initialForm: DroneFormState = {
   maxWindResistanceMps: '12',
   maxAltitudeMeters: '',
   opticalZoomLevel: '1',
-  features: ['RTK_POSITIONING'],
+  features: [],
 };
 
 type ConfiguredDroneDocument = {
@@ -87,20 +91,6 @@ type ConfiguredDroneDocument = {
   descriptionEn: string;
   isRequired: boolean;
 };
-
-const DEFAULT_FEATURES: Array<{
-  code: string;
-  nameVi: string;
-  nameEn: string;
-  category: string;
-}> = [
-  { code: 'RTK_POSITIONING', nameVi: 'Định vị chính xác RTK', nameEn: 'RTK GNSS Positioning', category: 'CAPABILITY' },
-  { code: 'THERMAL_CAMERA', nameVi: 'Camera nhiệt (Thermal)', nameEn: 'Thermal Camera', category: 'CAPABILITY' },
-  { code: 'LIDAR_SCANNER', nameVi: 'Cảm biến quét LiDAR', nameEn: 'LiDAR Scanner', category: 'CAPABILITY' },
-  { code: 'OBSTACLE_AVOIDANCE', nameVi: 'Tránh va chạm đa hướng', nameEn: 'Omnidirectional Obstacle Sensing', category: 'SAFETY' },
-  { code: 'FAILSAFE_RTH', nameVi: 'Tự quay về khi mất sóng (RTH)', nameEn: 'Failsafe Return-to-Home (RTH)', category: 'SAFETY' },
-  { code: 'WEATHERPROOF_IP', nameVi: 'Kháng nước & bụi (IP54/IP55)', nameEn: 'Weatherproof (IP54/IP55)', category: 'SAFETY' },
-];
 
 const DEFAULT_DOCUMENTS: ConfiguredDroneDocument[] = [
   {
@@ -222,6 +212,8 @@ export default function InspectorDroneRegistrationPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [openRegisterDialog, setOpenRegisterDialog] = useState(false);
+  const [capabilitiesExpanded, setCapabilitiesExpanded] = useState(false);
+  const [customFeatureInput, setCustomFeatureInput] = useState('');
   const [tabIndex, setTabIndex] = useState<'APPROVED' | 'APPLICATIONS'>('APPROVED');
 
   const queryClient = useQueryClient();
@@ -239,7 +231,7 @@ export default function InspectorDroneRegistrationPage() {
     queryFn: () => droneFeatureConfigApi.list(false),
   });
   const activeFeatureConfigs = featureConfigsQuery.data ?? [];
-  const effectiveFeatures = activeFeatureConfigs.length > 0 ? activeFeatureConfigs : DEFAULT_FEATURES;
+  const effectiveFeatures = activeFeatureConfigs;
 
   const applications = useQuery({
     queryKey: ['inspector-drone-applications'],
@@ -251,6 +243,14 @@ export default function InspectorDroneRegistrationPage() {
 
   const [droneToDelete, setDroneToDelete] = useState<InspectorDrone | null>(null);
   const [fleetActionError, setFleetActionError] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<{
+    drone?: InspectorDrone | undefined;
+    application?: DroneRegistrationApplication | undefined;
+  } | null>(null);
+  const [detailDocs, setDetailDocs] = useState<
+    Array<{ label: string; type: string; url: string; isPdf: boolean; failed?: boolean }>
+  >([]);
+  const [detailDocsLoading, setDetailDocsLoading] = useState(false);
 
   const serviceabilityMutation = useMutation({
     mutationFn: ({ droneId, serviceability }: { droneId: string; serviceability: 'ACTIVE' | 'MAINTENANCE' }) =>
@@ -515,8 +515,32 @@ export default function InspectorDroneRegistrationPage() {
     setImageFiles([]);
     setImagePreviews([]);
     setExistingImageKeys(existingApp?.imageFileKeys ? [...existingApp.imageFileKeys] : []);
+    setCapabilitiesExpanded(false);
+    setCustomFeatureInput('');
     setOpenRegisterDialog(true);
   };
+
+  const handleAddCustomFeature = () => {
+    const trimmed = customFeatureInput.trim();
+    if (!trimmed) return;
+    const normalized = trimmed.toLowerCase();
+    const matchedConfig = effectiveFeatures.find(
+      (f) =>
+        f.code.toLowerCase() === normalized ||
+        f.nameVi.toLowerCase() === normalized ||
+        f.nameEn.toLowerCase() === normalized,
+    );
+    const valueToAdd = matchedConfig ? matchedConfig.code : trimmed;
+    setForm((curr) => {
+      const exists = curr.features.some((c) => c.toLowerCase() === valueToAdd.toLowerCase());
+      return exists ? curr : { ...curr, features: [...curr.features, valueToAdd] };
+    });
+    setCustomFeatureInput('');
+  };
+
+  const customFeatures = form.features.filter(
+    (code) => !effectiveFeatures.some((f) => f.code === code),
+  );
 
   const hasAtLeastOneImage = imageFiles.length > 0 || existingImageKeys.length > 0;
   const requiredDocumentCodes = new Set(effectiveConfigs.filter((doc) => doc.isRequired).map((doc) => doc.code));
@@ -526,6 +550,125 @@ export default function InspectorDroneRegistrationPage() {
     if (code === 'INSPECTION') return Boolean(files[code] || existingFileKeys[code]);
     return Boolean(files[code] || existingFileKeys[code]);
   });
+
+  const revokeDetailDocs = (
+    docs: Array<{ label: string; type: string; url: string; isPdf: boolean; failed?: boolean }>,
+  ) => {
+    docs.forEach((doc) => {
+      if (doc.url) URL.revokeObjectURL(doc.url);
+    });
+  };
+
+  const closeDetailModal = () => {
+    setDetailTarget(null);
+    setDetailDocs((prev) => {
+      revokeDetailDocs(prev);
+      return [];
+    });
+    setDetailDocsLoading(false);
+  };
+
+  const loadApplicationEvidence = async (application: DroneRegistrationApplication) => {
+    setDetailDocsLoading(true);
+    try {
+      const docEntries: Array<{ code: string; label: string }> = [];
+      if (application.documentFiles && Object.keys(application.documentFiles).length > 0) {
+        Object.entries(application.documentFiles).forEach(([code, key]) => {
+          if (!key) return;
+          const cfg = effectiveConfigs.find((c) => c.code === code);
+          docEntries.push({
+            code,
+            label: cfg ? (locale === 'vi' ? cfg.titleVi : cfg.titleEn) : code,
+          });
+        });
+      } else {
+        if (application.registrationFileKey) {
+          docEntries.push({ code: 'REGISTRATION', label: tr('Đăng ký drone', 'Drone Registration') });
+        }
+        if (application.ownershipFileKey) {
+          docEntries.push({ code: 'OWNERSHIP', label: tr('Chứng từ sở hữu', 'Proof of Ownership') });
+        }
+        if (application.inspectionFileKey) {
+          docEntries.push({ code: 'INSPECTION', label: tr('Kiểm định kỹ thuật', 'Technical Inspection') });
+        }
+      }
+      if (docEntries.length === 0) {
+        setDetailDocs([]);
+        return;
+      }
+      const results = await Promise.allSettled(
+        docEntries.map(async (entry) => {
+          const blob = await mf1DroneApi.evidence(application.id, entry.code);
+          return {
+            label: entry.label,
+            type: entry.code,
+            url: URL.createObjectURL(blob),
+            isPdf: blob.type === 'application/pdf' || blob.type.endsWith('/pdf'),
+          };
+        }),
+      );
+      setDetailDocs(
+        results.map((result, idx) =>
+          result.status === 'fulfilled'
+            ? result.value
+            : {
+              label: docEntries[idx]?.label ?? tr('Tài liệu', 'Document'),
+              type: docEntries[idx]?.code ?? 'UNKNOWN',
+              url: '',
+              isPdf: false,
+              failed: true,
+            },
+        ),
+      );
+    } finally {
+      setDetailDocsLoading(false);
+    }
+  };
+
+  const openDroneDetail = (drone: InspectorDrone) => {
+    const matchedApp = applicationList.find(
+      (a) => a.droneId === drone.id || a.serialNumber === drone.serialNumber,
+    );
+    setDetailDocs((prev) => {
+      revokeDetailDocs(prev);
+      return [];
+    });
+    setDetailTarget({ drone, ...(matchedApp ? { application: matchedApp } : {}) });
+    if (matchedApp) {
+      void loadApplicationEvidence(matchedApp);
+    } else {
+      setDetailDocsLoading(false);
+    }
+  };
+
+  const openApplicationDetail = (application: DroneRegistrationApplication) => {
+    setDetailDocs((prev) => {
+      revokeDetailDocs(prev);
+      return [];
+    });
+    setDetailTarget({ application });
+    void loadApplicationEvidence(application);
+  };
+
+  const renderDroneFeatures = (
+    features?: string[] | null,
+    hasThermalCamera?: boolean,
+    hasRtk?: boolean,
+  ) => {
+    const items =
+      features && features.length > 0
+        ? features.map((code) => {
+          const f = effectiveFeatures.find((item) => item.code === code);
+          return { code, label: f ? (locale === 'vi' ? f.nameVi : f.nameEn) : code };
+        })
+        : [
+          ...(hasRtk ? [{ code: 'RTK_POSITIONING', label: 'RTK GNSS' }] : []),
+          ...(hasThermalCamera
+            ? [{ code: 'THERMAL_CAMERA', label: tr('Camera nhiệt', 'Thermal Camera') }]
+            : []),
+        ];
+    return items;
+  };
 
   return (
     <Box className="workspace-page">
@@ -700,6 +843,7 @@ export default function InspectorDroneRegistrationPage() {
                     <Card
                       key={drone.id}
                       variant="outlined"
+                      onClick={() => openDroneDetail(drone)}
                       sx={{
                         p: 2.5,
                         borderRadius: '10px',
@@ -708,6 +852,12 @@ export default function InspectorDroneRegistrationPage() {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          boxShadow: '0 4px 14px rgba(15,23,42,0.08)',
+                        },
                       }}
                     >
                       <Box>
@@ -822,7 +972,7 @@ export default function InspectorDroneRegistrationPage() {
                                     drone.registrationRemainingDays ??
                                     Math.floor(
                                       (new Date(drone.registrationExpiresAt).getTime() - Date.now()) /
-                                        (1000 * 60 * 60 * 24),
+                                      (1000 * 60 * 60 * 24),
                                     );
                                   if (daysLeft < 0) {
                                     return (
@@ -910,6 +1060,7 @@ export default function InspectorDroneRegistrationPage() {
                       </Box>
 
                       <Box
+                        onClick={(e) => e.stopPropagation()}
                         sx={{
                           mt: 2.5,
                           pt: 1.5,
@@ -936,8 +1087,8 @@ export default function InspectorDroneRegistrationPage() {
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
                           {drone.serviceability === 'ACTIVE'
-                            ? tr('Unactive (Đang sửa chữa)', 'Set Unactive (Maintenance)')
-                            : tr('Kích hoạt lại (Active)', 'Set Active')}
+                            ? tr('Chuyển sang Bảo trì', 'Mark Maintenance')
+                            : tr('Mở lại Hoạt động', 'Mark Active')}
                         </Button>
                         <Button
                           size="small"
@@ -976,13 +1127,13 @@ export default function InspectorDroneRegistrationPage() {
                               },
                               matchedApp
                                 ? {
-                                    id: matchedApp.id,
-                                    registrationFileKey: matchedApp.registrationFileKey ?? null,
-                                    ownershipFileKey: matchedApp.ownershipFileKey ?? null,
-                                    inspectionFileKey: matchedApp.inspectionFileKey ?? null,
-                                    documentFiles: matchedApp.documentFiles ?? null,
-                                    imageFileKeys: matchedApp.imageFileKeys ?? null,
-                                  }
+                                  id: matchedApp.id,
+                                  registrationFileKey: matchedApp.registrationFileKey ?? null,
+                                  ownershipFileKey: matchedApp.ownershipFileKey ?? null,
+                                  inspectionFileKey: matchedApp.inspectionFileKey ?? null,
+                                  documentFiles: matchedApp.documentFiles ?? null,
+                                  imageFileKeys: matchedApp.imageFileKeys ?? null,
+                                }
                                 : undefined,
                             );
                           }}
@@ -1037,6 +1188,7 @@ export default function InspectorDroneRegistrationPage() {
                     <Paper
                       key={app.id}
                       variant="outlined"
+                      onClick={() => openApplicationDetail(app)}
                       sx={{
                         p: 2.5,
                         borderRadius: '10px',
@@ -1052,6 +1204,12 @@ export default function InspectorDroneRegistrationPage() {
                         justifyContent: 'space-between',
                         alignItems: { xs: 'flex-start', md: 'center' },
                         gap: 2,
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          boxShadow: '0 4px 14px rgba(15,23,42,0.08)',
+                        },
                       }}
                     >
                       <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', minWidth: 0, flex: 1 }}>
@@ -1077,95 +1235,98 @@ export default function InspectorDroneRegistrationPage() {
                           </Box>
                         )}
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                        {(() => {
-                          const parsed = parseDroneModelDisplay(app.model);
-                          const displayMtow =
-                            app.mtowKg != null ? `${app.mtowKg} kg` : parsed.mtow;
-                          const displayFlightTime =
-                            app.maxFlightTimeMinutes != null
-                              ? `${app.maxFlightTimeMinutes} ${tr('phút', 'min')}`
-                              : parsed.flightTime;
-                          const displayCamera = app.cameraSensor ?? parsed.camera;
-                          const specSummary = [
-                            displayMtow,
-                            displayFlightTime,
-                            displayCamera,
-                            app.maxWindResistanceMps != null ? `${tr('Gió', 'Wind')} ${app.maxWindResistanceMps} m/s` : null,
-                            app.maxAltitudeMeters != null ? `${tr('Trần bay tối đa', 'Maximum altitude')} ${app.maxAltitudeMeters} m` : null,
-                            app.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(app.opticalZoomLevel)
-                              ? `Zoom ${app.opticalZoomLevel}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ');
+                          {(() => {
+                            const parsed = parseDroneModelDisplay(app.model);
+                            const displayMtow =
+                              app.mtowKg != null ? `${app.mtowKg} kg` : parsed.mtow;
+                            const displayFlightTime =
+                              app.maxFlightTimeMinutes != null
+                                ? `${app.maxFlightTimeMinutes} ${tr('phút', 'min')}`
+                                : parsed.flightTime;
+                            const displayCamera = app.cameraSensor ?? parsed.camera;
+                            const specSummary = [
+                              displayMtow,
+                              displayFlightTime,
+                              displayCamera,
+                              app.maxWindResistanceMps != null ? `${tr('Gió', 'Wind')} ${app.maxWindResistanceMps} m/s` : null,
+                              app.maxAltitudeMeters != null ? `${tr('Trần bay tối đa', 'Maximum altitude')} ${app.maxAltitudeMeters} m` : null,
+                              app.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(app.opticalZoomLevel)
+                                ? `Zoom ${app.opticalZoomLevel}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ');
 
-                          const featureLabels =
-                            app.features && app.features.length > 0
-                              ? app.features.map((code) => {
+                            const featureLabels =
+                              app.features && app.features.length > 0
+                                ? app.features.map((code) => {
                                   const f = effectiveFeatures.find((item) => item.code === code);
                                   return { code, label: f ? (locale === 'vi' ? f.nameVi : f.nameEn) : code };
                                 })
-                              : [
+                                : [
                                   ...(app.hasRtk ? [{ code: 'RTK_POSITIONING', label: 'RTK GNSS' }] : []),
                                   ...(app.hasThermalCamera ? [{ code: 'THERMAL_CAMERA', label: tr('Camera nhiệt', 'Thermal Camera') }] : []),
                                 ];
 
-                          return (
-                            <>
-                              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
-                                <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem' }}>
-                                  {parsed.name}
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                                  · {app.manufacturer || tr('Hãng chưa rõ', 'Unknown manufacturer')}
-                                </Typography>
-                              </Box>
-
-                              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, fontSize: '0.82rem' }}>
-                                {tr('Serial:', 'Serial:')}{' '}
-                                <strong style={{ fontFamily: 'monospace', color: 'inherit' }}>{app.serialNumber}</strong> ·{' '}
-                                {tr('Số ĐK:', 'Reg No.:')} <strong>{app.registrationNumber}</strong> ·{' '}
-                                {tr('Nộp:', 'Submitted:')}{' '}
-                                {new Date(app.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
-                              </Typography>
-
-                              {specSummary && (
-                                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.5 }}>
-                                  {specSummary}
-                                </Typography>
-                              )}
-
-                              {featureLabels.length > 0 && (
-                                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1 }}>
-                                  {featureLabels.map((item) => (
-                                    <Chip
-                                      key={item.code}
-                                      size="small"
-                                      label={item.label}
-                                      sx={{
-                                        height: 22,
-                                        fontSize: '0.75rem',
-                                        fontWeight: 500,
-                                        borderRadius: '6px',
-                                        bgcolor: 'action.hover',
-                                        color: 'text.primary',
-                                      }}
-                                    />
-                                  ))}
+                            return (
+                              <>
+                                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
+                                  <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem' }}>
+                                    {parsed.name}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                                    · {app.manufacturer || tr('Hãng chưa rõ', 'Unknown manufacturer')}
+                                  </Typography>
                                 </Box>
-                              )}
-                            </>
-                          );
-                        })()}
-                        {app.reviewNote && (
-                          <Alert severity={app.status === 'REJECTED' ? 'error' : 'info'} sx={{ mt: 1.25, py: 0.25, px: 1.5, fontSize: '0.75rem' }}>
-                            <strong>{tr('Phản hồi của Manager:', 'Manager review note:')}</strong> {app.reviewNote}
-                          </Alert>
-                        )}
+
+                                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, fontSize: '0.82rem' }}>
+                                  {tr('Serial:', 'Serial:')}{' '}
+                                  <strong style={{ fontFamily: 'monospace', color: 'inherit' }}>{app.serialNumber}</strong> ·{' '}
+                                  {tr('Số ĐK:', 'Reg No.:')} <strong>{app.registrationNumber}</strong> ·{' '}
+                                  {tr('Nộp:', 'Submitted:')}{' '}
+                                  {new Date(app.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
+                                </Typography>
+
+                                {specSummary && (
+                                  <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.5 }}>
+                                    {specSummary}
+                                  </Typography>
+                                )}
+
+                                {featureLabels.length > 0 && (
+                                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1 }}>
+                                    {featureLabels.map((item) => (
+                                      <Chip
+                                        key={item.code}
+                                        size="small"
+                                        label={item.label}
+                                        sx={{
+                                          height: 22,
+                                          fontSize: '0.75rem',
+                                          fontWeight: 500,
+                                          borderRadius: '6px',
+                                          bgcolor: 'action.hover',
+                                          color: 'text.primary',
+                                        }}
+                                      />
+                                    ))}
+                                  </Box>
+                                )}
+                              </>
+                            );
+                          })()}
+                          {app.reviewNote && (
+                            <Alert severity={app.status === 'REJECTED' ? 'error' : 'info'} sx={{ mt: 1.25, py: 0.25, px: 1.5, fontSize: '0.75rem' }}>
+                              <strong>{tr('Phản hồi của Manager:', 'Manager review note:')}</strong> {app.reviewNote}
+                            </Alert>
+                          )}
                         </Box>
                       </Box>
 
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+                      <Box
+                        onClick={(e) => e.stopPropagation()}
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0, flexWrap: 'wrap' }}
+                      >
                         <Chip
                           label={
                             app.status === 'APPROVED'
@@ -1278,7 +1439,6 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.droneName}
                   onChange={updateField('droneName')}
                   error={submitAttempted && !form.droneName.trim()}
-                  helperText={tr('Tên thương mại đầy đủ của thiết bị', 'Full commercial model designation')}
                 />
                 <TextField
                   required
@@ -1287,51 +1447,31 @@ export default function InspectorDroneRegistrationPage() {
                   value={form.manufacturer}
                   onChange={updateField('manufacturer')}
                   error={submitAttempted && !form.manufacturer.trim()}
-                  helperText={tr('Hãng chế tạo nguyên chiếc', 'Airframe manufacturer')}
                 />
                 <TextField
                   required
-                  label={tr('Số Serial thân máy (Airframe Serial Number) *', 'Airframe Serial Number *')}
+                  label={tr('Số Serial thân máy *', 'Airframe Serial Number *')}
                   placeholder={tr('VD: 1581F4B0C2301001', 'e.g. 1581F4B0C2301001')}
                   value={form.serialNumber}
                   onChange={updateField('serialNumber')}
                   error={submitAttempted && !form.serialNumber.trim()}
-                  helperText={tr('Mã số duy nhất in trên tem thân máy (phải khớp hóa đơn/tờ khai)', 'Unique airframe serial number')}
                 />
                 <TextField
                   required
-                  label={tr('Số Đăng ký Phương tiện bay (Bộ Công an cấp) *', 'UAV Registration Number (Police Authority) *')}
+                  label={tr('Số Đăng ký phương tiện *', 'UAV Registration Number *')}
                   placeholder={tr('VD: ĐK-2026-00892', 'e.g. DK-2026-00892')}
                   value={form.registrationNumber}
                   onChange={updateField('registrationNumber')}
                   error={submitAttempted && !form.registrationNumber.trim()}
-                  helperText={tr(
-                    'Số trên Giấy chứng nhận đăng ký do Công an tỉnh/TP hoặc Cục A05 cấp',
-                    'Registration number issued by Provincial Police or Cyber Security Dept (A05)',
-                  )}
                 />
                 <TextField
                   required
                   type="date"
-                  label={tr('Ngày hết hạn đăng ký / kiểm định *', 'Registration / Airworthiness Expiry Date *')}
+                  label={tr('Ngày hết hạn đăng ký *', 'Registration Expiry *')}
                   value={form.registrationExpiresAt}
                   onChange={updateField('registrationExpiresAt')}
                   slotProps={{ inputLabel: { shrink: true } }}
                   error={submitAttempted && !form.registrationExpiresAt}
-                  helperText={tr(
-                    'Thời hạn kiểm định/đăng ký phương tiện bay',
-                    'Airworthiness registration validity period',
-                  )}
-                />
-                <TextField
-                  label={tr('Trọng lượng cất cánh tối đa MTOW (kg) *', 'Max Takeoff Weight MTOW (kg) *')}
-                  placeholder={tr('VD: 4.07', 'e.g. 4.07')}
-                  value={form.mtowKg}
-                  onChange={updateField('mtowKg')}
-                  helperText={tr(
-                    'Căn cứ phân Loại 1 – Loại 5 phương tiện bay theo Điều 4 Nghị định 288/2025/NĐ-CP',
-                    'Basis for Category 1 to 5 classification under Decree 288/2025/ND-CP',
-                  )}
                 />
                 {(() => {
                   const legalInfo = classifyDroneByMtow(form.mtowKg);
@@ -1385,13 +1525,12 @@ export default function InspectorDroneRegistrationPage() {
                   slotProps={{ htmlInput: { step: '0.5' } }}
                 />
                 <TextField
-                  label={tr('Trần bay tối đa theo thông số hãng', 'Manufacturer maximum flight altitude')}
+                  label={tr('Trần bay tối đa', 'Max Altitude')}
                   placeholder={tr('VD: 5000', 'e.g. 5000')}
                   value={form.maxAltitudeMeters}
                   onChange={updateField('maxAltitudeMeters')}
                   type="number"
                   slotProps={{ htmlInput: { min: 0, step: '0.1' }, input: { endAdornment: <InputAdornment position="end">m</InputAdornment> } }}
-                  helperText={tr('Không bắt buộc. Giá trị khai báo xấp xỉ; không phải xác nhận clearance/giấy phép bay.', 'Optional. Approximate declared value; not flight clearance or permit confirmation.')}
                   error={form.maxAltitudeMeters.trim() !== '' && (!Number.isFinite(Number(form.maxAltitudeMeters)) || Number(form.maxAltitudeMeters) < 0)}
                 />
                 <TextField
@@ -1405,7 +1544,6 @@ export default function InspectorDroneRegistrationPage() {
                       endAdornment: <InputAdornment position="end">x</InputAdornment>,
                     },
                   }}
-                  helperText={tr('Mặc định 1x nếu không có zoom', 'Default 1x if no zoom')}
                 />
                 <TextField
                   label={tr('Độ phân giải Camera (MP)', 'Camera Resolution (MP)')}
@@ -1414,50 +1552,184 @@ export default function InspectorDroneRegistrationPage() {
                   onChange={updateField('cameraSensor')}
                 />
                 <Box sx={{ gridColumn: { xs: '1 / -1' }, mt: 0.5 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                    {tr('Tính năng & An toàn', 'Capabilities & Safety Checklist')}
-                  </Typography>
                   <Box
                     sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                      gap: 1,
-                      p: 1.5,
                       borderRadius: '8px',
                       border: 1,
                       borderColor: 'divider',
                       bgcolor: 'background.default',
+                      overflow: 'hidden',
                     }}
                   >
-                    {effectiveFeatures.map((feat) => {
-                      const checked = form.features.includes(feat.code);
-                      return (
-                        <FormControlLabel
-                          key={feat.code}
-                          sx={{ m: 0 }}
-                          control={
-                            <Checkbox
+                    <Box
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setCapabilitiesExpanded((v) => !v)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setCapabilitiesExpanded((v) => !v);
+                        }
+                      }}
+                      aria-expanded={capabilitiesExpanded}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        px: 1.5,
+                        py: 1.1,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            {tr('Tính năng & An toàn', 'Capabilities & Safety Checklist')}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            color={form.features.length > 0 ? 'primary' : 'default'}
+                            variant="outlined"
+                            label={tr(`${form.features.length} đã chọn`, `${form.features.length} selected`)}
+                            sx={{ height: 22, fontSize: '0.74rem', fontWeight: 600 }}
+                          />
+                        </Box>
+                      <ExpandMoreRounded
+                        fontSize="small"
+                        sx={{
+                          color: 'text.secondary',
+                          transform: capabilitiesExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 160ms ease',
+                        }}
+                      />
+                    </Box>
+
+                    {!capabilitiesExpanded && form.features.length > 0 && (
+                      <Box sx={{ px: 1.5, pb: 1.25, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                        {form.features.map((code) => {
+                          const feat = effectiveFeatures.find((item) => item.code === code);
+                          const label = feat ? (locale === 'vi' ? feat.nameVi : feat.nameEn) : code;
+                          return (
+                            <Chip
+                              key={code}
                               size="small"
-                              checked={checked}
-                              onChange={(e) => {
-                                const isChecked = e.target.checked;
+                              label={label}
+                              onDelete={() =>
                                 setForm((curr) => ({
                                   ...curr,
-                                  features: isChecked
-                                    ? [...curr.features, feat.code]
-                                    : curr.features.filter((c) => c !== feat.code),
-                                }));
-                              }}
+                                  features: curr.features.filter((c) => c !== code),
+                                }))
+                              }
+                              sx={{ fontSize: '0.76rem' }}
                             />
-                          }
-                          label={
-                            <Typography variant="body2" sx={{ fontSize: '0.84rem', fontWeight: checked ? 600 : 400 }}>
-                              {locale === 'vi' ? feat.nameVi : feat.nameEn}
-                            </Typography>
-                          }
-                        />
-                      );
-                    })}
+                          );
+                        })}
+                      </Box>
+                    )}
+
+                    <Collapse in={capabilitiesExpanded} unmountOnExit>
+                      <Divider />
+                      <Box sx={{ p: 1.5 }}>
+                        {effectiveFeatures.length === 0 ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            {tr(
+                              'Chưa có danh mục tính năng cấu hình sẵn. Bạn có thể tự thêm tính năng bên dưới.',
+                              'No pre-configured capabilities yet. Add custom capabilities below.',
+                            )}
+                          </Typography>
+                        ) : (
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                              gap: 1,
+                            }}
+                          >
+                            {effectiveFeatures.map((feat) => {
+                              const checked = form.features.includes(feat.code);
+                              return (
+                                <FormControlLabel
+                                  key={feat.code}
+                                  sx={{ m: 0 }}
+                                  control={
+                                    <Checkbox
+                                      size="small"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        const isChecked = e.target.checked;
+                                        setForm((curr) => ({
+                                          ...curr,
+                                          features: isChecked
+                                            ? [...curr.features, feat.code]
+                                            : curr.features.filter((c) => c !== feat.code),
+                                        }));
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Typography variant="body2" sx={{ fontSize: '0.84rem', fontWeight: checked ? 600 : 400 }}>
+                                      {locale === 'vi' ? feat.nameVi : feat.nameEn}
+                                    </Typography>
+                                  }
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
+
+                        {customFeatures.length > 0 && (
+                          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
+                            {customFeatures.map((custom) => (
+                              <Chip
+                                key={custom}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                label={custom}
+                                onDelete={() =>
+                                  setForm((curr) => ({
+                                    ...curr,
+                                    features: curr.features.filter((c) => c !== custom),
+                                  }))
+                                }
+                              />
+                            ))}
+                          </Box>
+                        )}
+
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1.5, alignItems: 'center' }}>
+                          <TextField
+                            size="small"
+                            fullWidth
+                            placeholder={tr(
+                              'Thêm tính năng khác (VD: Loa phát thanh, Cảm biến khí)...',
+                              'Add custom capability (e.g. Loudspeaker, Gas sensor)...',
+                            )}
+                            value={customFeatureInput}
+                            onChange={(e) => setCustomFeatureInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomFeature();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="small"
+                            variant="outlined"
+                            startIcon={<AddRounded />}
+                            onClick={handleAddCustomFeature}
+                            disabled={!customFeatureInput.trim()}
+                            sx={{ textTransform: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            {tr('Thêm', 'Add')}
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Collapse>
                   </Box>
                 </Box>
               </Box>
@@ -1472,11 +1744,8 @@ export default function InspectorDroneRegistrationPage() {
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     {tr('2. Hình ảnh thiết bị bay * (Tối thiểu 1 ảnh)', '2. Drone Images * (Min 1 photo)')}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {tr(
-                      'Tải lên ảnh chụp thực tế thân máy, tem số serial hoặc cụm camera (PNG, JPG, WebP tối đa 10 MB/ảnh).',
-                      'Upload clear photos of the drone, serial tag, or camera payload (PNG, JPG, WebP up to 10 MB per photo).',
-                    )}
+                  <Typography variant="caption" color="text.secondary">
+                    {tr('PNG, JPG, WebP · tối đa 10 MB/ảnh', 'PNG, JPG, WebP · up to 10 MB/photo')}
                   </Typography>
                 </Box>
                 <Button
@@ -1769,9 +2038,6 @@ export default function InspectorDroneRegistrationPage() {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenRegisterDialog(false)} color="inherit" sx={{ textTransform: 'none', fontWeight: 600 }}>
-            {tr('Hủy', 'Cancel')}
-          </Button>
           <Button
             type="submit"
             form="drone-register-form"
@@ -1841,6 +2107,329 @@ export default function InspectorDroneRegistrationPage() {
             {deleteDroneMutation.isPending ? tr('Đang xóa…', 'Deleting…') : tr('Xác nhận xóa', 'Delete')}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* MODAL DIALOG: XEM CHI TIẾT DRONE / HỒ SƠ ĐÃ GỬI */}
+      <Dialog
+        open={Boolean(detailTarget)}
+        onClose={closeDetailModal}
+        maxWidth="md"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '12px' } } }}
+      >
+        {detailTarget && (() => {
+          const drone = detailTarget.drone;
+          const app = detailTarget.application;
+          const rawModel = drone?.model ?? app?.model ?? null;
+          const parsed = parseDroneModelDisplay(rawModel);
+          const manufacturer = drone?.manufacturer ?? app?.manufacturer;
+          const serialNumber = drone?.serialNumber ?? app?.serialNumber ?? '—';
+          const registrationNumber = drone?.registrationNumber ?? app?.registrationNumber ?? '—';
+          const registrationExpiresAt = drone?.registrationExpiresAt ?? app?.registrationExpiresAt;
+          const mtowKg = drone?.mtowKg ?? app?.mtowKg;
+          const maxFlightTimeMinutes = drone?.maxFlightTimeMinutes ?? app?.maxFlightTimeMinutes;
+          const cameraSensor = drone?.cameraSensor ?? app?.cameraSensor ?? parsed.camera;
+          const maxWindResistanceMps = drone?.maxWindResistanceMps ?? app?.maxWindResistanceMps;
+          const maxAltitudeMeters = drone?.maxAltitudeMeters ?? app?.maxAltitudeMeters;
+          const opticalZoomLevel = drone?.opticalZoomLevel ?? app?.opticalZoomLevel;
+          const legalClass = classifyDroneByMtow(mtowKg ?? rawModel);
+          const featureItems = renderDroneFeatures(
+            drone?.features ?? app?.features,
+            drone?.hasThermalCamera ?? app?.hasThermalCamera,
+            drone?.hasRtk ?? app?.hasRtk,
+          );
+          const photoUrls =
+            drone && drone.imageFileKeys && drone.imageFileKeys.length > 0
+              ? drone.imageFileKeys.map(
+                (_, idx) => `/api/v1/drone-registration-applications/drones/${drone.id}/image?index=${idx}`,
+              )
+              : app && app.imageFileKeys && app.imageFileKeys.length > 0
+                ? app.imageFileKeys.map(
+                  (_, idx) => `/api/v1/drone-registration-applications/${app.id}/evidence/DRONE_IMAGE_${idx}`,
+                )
+                : [];
+
+          return (
+            <>
+              <DialogTitle
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  fontWeight: 700,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', minWidth: 0 }}>
+                  <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
+                    {parsed.name}
+                  </Typography>
+                  {drone ? (
+                    <Chip
+                      size="small"
+                      color={drone.serviceability === 'ACTIVE' ? 'success' : 'warning'}
+                      label={
+                        drone.serviceability === 'ACTIVE'
+                          ? tr('ĐANG HOẠT ĐỘNG', 'ACTIVE')
+                          : tr('ĐANG BẢO TRÌ', 'MAINTENANCE')
+                      }
+                      sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+                    />
+                  ) : app ? (
+                    <Chip
+                      size="small"
+                      color={
+                        app.status === 'APPROVED'
+                          ? 'success'
+                          : app.status === 'REJECTED'
+                            ? 'error'
+                            : 'warning'
+                      }
+                      label={app.status}
+                      sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+                    />
+                  ) : null}
+                </Box>
+                <IconButton
+                  size="small"
+                  onClick={closeDetailModal}
+                  aria-label={tr('Đóng', 'Close')}
+                >
+                  <CloseRounded fontSize="small" />
+                </IconButton>
+              </DialogTitle>
+
+              <DialogContent dividers>
+                <Stack spacing={2.5}>
+                  {app?.reviewNote && (
+                    <Alert severity={app.status === 'REJECTED' ? 'error' : 'info'}>
+                      <strong>{tr('Phản hồi của Manager:', 'Manager review note:')}</strong> {app.reviewNote}
+                    </Alert>
+                  )}
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Hãng sản xuất', 'Manufacturer')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {manufacturer || '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Số Serial thân máy', 'Airframe Serial Number')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                        {serialNumber}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Số đăng ký phương tiện', 'Registration Number')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {registrationNumber}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Hạn đăng kiểm / đăng ký', 'Registration Expiry')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {registrationExpiresAt
+                          ? new Date(registrationExpiresAt).toLocaleDateString(
+                            locale === 'vi' ? 'vi-VN' : 'en-US',
+                          )
+                          : '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        MTOW
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {mtowKg != null ? `${mtowKg} kg` : parsed.mtow || '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Thời gian bay tối đa', 'Max Flight Time')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {maxFlightTimeMinutes != null
+                          ? `${maxFlightTimeMinutes} ${tr('phút', 'min')}`
+                          : parsed.flightTime || '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Camera / Cảm biến', 'Camera / Sensor')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {cameraSensor || '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Kháng gió tối đa', 'Wind Resistance')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {maxWindResistanceMps != null ? `${maxWindResistanceMps} m/s` : '—'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Trần bay & Zoom', 'Max Altitude & Zoom')}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {[
+                          maxAltitudeMeters != null ? `${maxAltitudeMeters} m` : null,
+                          opticalZoomLevel ? `Zoom ${opticalZoomLevel}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || '—'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {legalClass && (
+                    <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'action.hover' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {legalClass.categoryLabel}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {tr('Yêu cầu bằng lái:', 'Required pilot license:')} {legalClass.requiredLicenseLabel}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {featureItems.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                        {tr('Tính năng & An toàn', 'Capabilities & Safety')}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                        {featureItems.map((item) => (
+                          <Chip
+                            key={item.code}
+                            size="small"
+                            label={item.label}
+                            sx={{ borderRadius: '6px', fontWeight: 500 }}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {photoUrls.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                        {tr('Hình ảnh thiết bị bay', 'Drone Photos')}
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                          gap: 1.5,
+                        }}
+                      >
+                        {photoUrls.map((url, idx) => (
+                          <Paper
+                            key={url}
+                            variant="outlined"
+                            sx={{
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              p: 1,
+                              display: 'flex',
+                              justifyContent: 'center',
+                              bgcolor: 'background.default',
+                            }}
+                          >
+                            <AuthenticatedImage
+                              src={url}
+                              alt={`${parsed.name} #${idx + 1}`}
+                              maxHeight={220}
+                            />
+                          </Paper>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                      {tr('Giấy tờ pháp lý đính kèm', 'Attached Legal Documents')}
+                    </Typography>
+                    {detailDocsLoading ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {tr('Đang tải tài liệu…', 'Loading documents…')}
+                      </Typography>
+                    ) : detailDocs.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {tr('Không có tài liệu đính kèm khả dụng.', 'No attached legal documents available.')}
+                      </Typography>
+                    ) : (
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                          gap: 1.5,
+                        }}
+                      >
+                        {detailDocs.map((doc) => (
+                          <Paper key={doc.type} variant="outlined" sx={{ p: 1.5, borderRadius: '8px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
+                              {doc.label}
+                            </Typography>
+                            {doc.failed ? (
+                              <Alert severity="warning">
+                                {tr('Không thể tải xem trước tài liệu.', 'Unable to preview document.')}
+                              </Alert>
+                            ) : doc.isPdf ? (
+                              <Box
+                                component="iframe"
+                                src={doc.url}
+                                title={doc.label}
+                                sx={{ width: '100%', height: 220, border: 0, borderRadius: '6px' }}
+                              />
+                            ) : (
+                              <Box
+                                component="img"
+                                src={doc.url}
+                                alt={doc.label}
+                                sx={{
+                                  width: '100%',
+                                  maxHeight: 220,
+                                  objectFit: 'contain',
+                                  borderRadius: '6px',
+                                  bgcolor: 'background.default',
+                                }}
+                              />
+                            )}
+                            {doc.url && !doc.failed && (
+                              <Button
+                                size="small"
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                startIcon={<OpenInNewRounded fontSize="small" />}
+                                sx={{ mt: 0.75, textTransform: 'none' }}
+                              >
+                                {tr('Mở toàn màn hình', 'Open full size')}
+                              </Button>
+                            )}
+                          </Paper>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </Stack>
+              </DialogContent>
+            </>
+          );
+        })()}
       </Dialog>
     </Box>
   );

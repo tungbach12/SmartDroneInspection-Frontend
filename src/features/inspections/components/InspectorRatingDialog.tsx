@@ -217,9 +217,6 @@ export function InspectorRatingDialog({
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none' }}>
-            {t('Cancel')}
-          </Button>
           <Button
             type="submit"
             variant="contained"

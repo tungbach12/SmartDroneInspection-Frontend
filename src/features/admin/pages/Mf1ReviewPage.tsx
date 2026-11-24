@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   Link,
   Pagination,
   Paper,
@@ -26,6 +27,7 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
 import HighlightOffRounded from '@mui/icons-material/HighlightOffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
@@ -45,6 +47,7 @@ import {
   inspectorApplicationApi,
   type InspectorApplication,
 } from '@/features/auth/api/inspectorApplicationApi';
+import { droneFeatureConfigApi } from '@/features/assets/api/droneFeatureConfigApi';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -222,16 +225,17 @@ export default function Mf1ReviewPage({
   // Review dialog state for drone registrations and customer airspace
   const [selected, setSelected] = useState<ReviewItem | null>(null);
   const [reviewQueue, setReviewQueue] = useState<'drones' | 'customers'>('drones');
-  const [action, setAction] = useState<'approve' | 'reject'>('approve');
+  const [pendingDecision, setPendingDecision] = useState<'approve' | 'reject' | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [evidenceDocs, setEvidenceDocs] = useState<EvidenceDoc[]>([]);
+  const [droneImages, setDroneImages] = useState<Array<{ label: string; url: string; failed?: boolean }>>([]);
   const [telemetryLoading, setTelemetryLoading] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Inspector application review dialog state
   const [selectedApplication, setSelectedApplication] = useState<InspectorApplication | null>(null);
-  const [appAction, setAppAction] = useState<'approve' | 'reject'>('approve');
+  const [appPendingDecision, setAppPendingDecision] = useState<'approve' | 'reject' | null>(null);
   const [appRejectReason, setAppRejectReason] = useState('');
   const [appScanUrl, setAppScanUrl] = useState<string | null>(null);
   const [appScanIsPdf, setAppScanIsPdf] = useState(false);
@@ -278,6 +282,13 @@ export default function Mf1ReviewPage({
     retry: false,
     refetchInterval: 8000,
   });
+
+  const featureConfigsQuery = useQuery({
+    queryKey: ['drone-feature-configs-active'],
+    queryFn: () => droneFeatureConfigApi.list(false),
+    retry: false,
+  });
+  const droneFeatureConfigs = featureConfigsQuery.data ?? [];
 
   const changeQueue = (next: QueueId) => {
     setSelectedQueue(next);
@@ -462,11 +473,16 @@ export default function Mf1ReviewPage({
 
   const clearReview = () => {
     setSelected(null);
+    setPendingDecision(null);
     setReviewNote('');
     evidenceDocs.forEach((doc) => {
       if (doc.url) URL.revokeObjectURL(doc.url);
     });
+    droneImages.forEach((img) => {
+      if (img.url) URL.revokeObjectURL(img.url);
+    });
     setEvidenceDocs([]);
+    setDroneImages([]);
     setTelemetryLoading(false);
     setError(null);
   };
@@ -475,7 +491,6 @@ export default function Mf1ReviewPage({
     clearReview();
     setReviewQueue('drones');
     setSelected(application);
-    setAction('approve');
     setTelemetryLoading(true);
     try {
       const documents = Object.keys(application.documentFiles ?? {}).length
@@ -496,19 +511,35 @@ export default function Mf1ReviewPage({
               load: () => mf1ReviewApi.droneEvidence(application.id, 'OWNERSHIP'),
             },
           ];
-      const results = await Promise.allSettled(
-        documents.map(async (doc) => {
-          const blob = await doc.load();
-          return {
-            label: doc.label,
-            type: doc.type,
-            url: URL.createObjectURL(blob),
-            isPdf: blob.type === 'application/pdf' || blob.type.endsWith('/pdf'),
-          };
-        }),
-      );
+      const imageEntries = (application.imageFileKeys ?? []).map((_, index) => ({
+        label: tr(`Ảnh drone #${index + 1}`, `Drone photo #${index + 1}`),
+        type: `DRONE_IMAGE_${index}`,
+        load: () => mf1ReviewApi.droneEvidence(application.id, `DRONE_IMAGE_${index}`),
+      }));
+      const [docResults, imageResults] = await Promise.all([
+        Promise.allSettled(
+          documents.map(async (doc) => {
+            const blob = await doc.load();
+            return {
+              label: doc.label,
+              type: doc.type,
+              url: URL.createObjectURL(blob),
+              isPdf: blob.type === 'application/pdf' || blob.type.endsWith('/pdf'),
+            };
+          }),
+        ),
+        Promise.allSettled(
+          imageEntries.map(async (entry) => {
+            const blob = await entry.load();
+            return {
+              label: entry.label,
+              url: URL.createObjectURL(blob),
+            };
+          }),
+        ),
+      ]);
       setEvidenceDocs(
-        results.map((result, index) =>
+        docResults.map((result, index) =>
           result.status === 'fulfilled'
             ? result.value
             : {
@@ -516,6 +547,17 @@ export default function Mf1ReviewPage({
                 type: documents[index]?.type ?? 'UNKNOWN',
                 url: '',
                 isPdf: false,
+                failed: true,
+              },
+        ),
+      );
+      setDroneImages(
+        imageResults.map((result, index) =>
+          result.status === 'fulfilled'
+            ? result.value
+            : {
+                label: imageEntries[index]?.label ?? tr('Ảnh drone', 'Drone photo'),
+                url: '',
                 failed: true,
               },
         ),
@@ -531,26 +573,26 @@ export default function Mf1ReviewPage({
     clearReview();
     setReviewQueue('customers');
     setSelected(review);
-    setAction('approve');
   };
 
-  const submitReview = async () => {
+  const submitReview = async (decision: 'approve' | 'reject') => {
     if (!selected) return;
-    if (action === 'reject' && !reviewNote.trim()) {
+    if (decision === 'reject' && !reviewNote.trim()) {
       setError(tr('Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại.', 'Please provide a clear rejection reason so the applicant can resubmit.'));
       return;
     }
-    if (reviewQueue === 'customers' && action === 'approve' && !reviewNote.trim()) {
+    if (reviewQueue === 'customers' && decision === 'approve' && !reviewNote.trim()) {
       setError(tr('Ghi chú xét duyệt là bắt buộc đối với vùng bay khách hàng.', 'A review note is required when approving customer airspace.'));
       return;
     }
     setPending(true);
+    setPendingDecision(decision);
     setError(null);
     try {
       if (reviewQueue === 'customers') {
-        if (action === 'approve') await mf1ReviewApi.approveCustomer(selected.id, reviewNote.trim());
+        if (decision === 'approve') await mf1ReviewApi.approveCustomer(selected.id, reviewNote.trim());
         else await mf1ReviewApi.rejectCustomer(selected.id, reviewNote.trim());
-      } else if (action === 'approve') {
+      } else if (decision === 'approve') {
         await mf1ReviewApi.approveDrone(selected.id);
       } else {
         await mf1ReviewApi.rejectDrone(selected.id, reviewNote.trim());
@@ -561,13 +603,14 @@ export default function Mf1ReviewPage({
       setError(tr('Không thể lưu quyết định duyệt. Vui lòng tải lại trang và thử lại.', 'Could not save review decision. Please reload and try again.'));
     } finally {
       setPending(false);
+      setPendingDecision(null);
     }
   };
 
   const closeInspectorAppDialog = () => {
     if (appPending) return;
     setSelectedApplication(null);
-    setAppAction('approve');
+    setAppPendingDecision(null);
     setAppRejectReason('');
     if (appScanUrl) URL.revokeObjectURL(appScanUrl);
     setAppScanUrl(null);
@@ -581,7 +624,7 @@ export default function Mf1ReviewPage({
     setAppScanUrl(null);
     setAppScanIsPdf(false);
     setSelectedApplication(application);
-    setAppAction('approve');
+    setAppPendingDecision(null);
     setAppRejectReason('');
     setAppError(null);
     if (!application.hasLicenseScan) return;
@@ -597,16 +640,17 @@ export default function Mf1ReviewPage({
     }
   };
 
-  const submitInspectorAppReview = async () => {
+  const submitInspectorAppReview = async (decision: 'approve' | 'reject') => {
     if (!selectedApplication) return;
     setAppError(null);
-    if (appAction === 'reject' && appRejectReason.trim().length === 0) {
+    if (decision === 'reject' && appRejectReason.trim().length === 0) {
       setAppError(tr('Vui lòng nhập lý do từ chối để hệ thống gửi email thông báo cho ứng viên.', 'Please enter a rejection reason to notify the applicant by email.'));
       return;
     }
     setAppPending(true);
+    setAppPendingDecision(decision);
     try {
-      if (appAction === 'approve') await inspectorApplicationApi.approve(selectedApplication.id);
+      if (decision === 'approve') await inspectorApplicationApi.approve(selectedApplication.id);
       else await inspectorApplicationApi.reject(selectedApplication.id, appRejectReason.trim());
       await queryClient.invalidateQueries({ queryKey: ['mf1-reviews', 'inspector-applications'] });
       await queryClient.invalidateQueries({ queryKey: ['platform-users'] });
@@ -615,6 +659,7 @@ export default function Mf1ReviewPage({
       setAppError(err instanceof Error ? err.message : tr('Không thể xử lý đơn đăng ký Inspector. Vui lòng thử lại.', 'Could not process this inspector application. Please try again.'));
     } finally {
       setAppPending(false);
+      setAppPendingDecision(null);
     }
   };
 
@@ -1231,8 +1276,25 @@ export default function Mf1ReviewPage({
       <Dialog open={Boolean(selected)} onClose={() => (pending ? undefined : clearReview())} fullWidth maxWidth="md">
         {selected && (
           <>
-            <DialogTitle sx={{ fontWeight: 700 }}>
-              {tr('Thẩm định hồ sơ Phương tiện Drone', 'Review Compliance Application')}
+            <DialogTitle
+              sx={{
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1.5,
+              }}
+            >
+              <span>{tr('Thẩm định hồ sơ Phương tiện Drone', 'Review Compliance Application')}</span>
+              <IconButton
+                size="small"
+                onClick={clearReview}
+                disabled={pending}
+                aria-label={tr('Đóng', 'Close')}
+                sx={{ color: 'text.secondary' }}
+              >
+                <CloseRounded fontSize="small" />
+              </IconButton>
             </DialogTitle>
             <DialogContent dividers>
               <Stack spacing={2}>
@@ -1294,7 +1356,101 @@ export default function Mf1ReviewPage({
                         );
                       })()}
                     </Box>
+                    {(() => {
+                      const droneApp = selected as DroneRegistrationApplication;
+                      const featureCodes =
+                        droneApp.features && droneApp.features.length > 0
+                          ? droneApp.features
+                          : [
+                              ...(droneApp.hasRtk ? ['RTK_POSITIONING'] : []),
+                              ...(droneApp.hasThermalCamera ? ['THERMAL_CAMERA'] : []),
+                            ];
+                      if (featureCodes.length === 0) return null;
+                      return (
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                            {tr('Tính năng & An toàn khai báo', 'Declared Capabilities & Safety')}
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                            {featureCodes.map((code) => {
+                              const cfg = droneFeatureConfigs.find((item) => item.code === code);
+                              const label = cfg ? (locale === 'vi' ? cfg.nameVi : cfg.nameEn) : code;
+                              return <Chip key={code} size="small" label={label} variant="outlined" />;
+                            })}
+                          </Box>
+                        </Box>
+                      );
+                    })()}
                     <Divider />
+                    {((selected as DroneRegistrationApplication).imageFileKeys?.length ?? 0) > 0 && (
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', mb: 1 }}>
+                          {tr('Hình ảnh thiết bị bay', 'Drone photos')}
+                        </Typography>
+                        {telemetryLoading ? (
+                          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', py: 2 }}>
+                            <CircularProgress size={22} />
+                            <Typography color="text.secondary">
+                              {tr('Đang tải ảnh drone…', 'Loading drone photos…')}
+                            </Typography>
+                          </Stack>
+                        ) : (
+                          <Box
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                              gap: 1.5,
+                            }}
+                          >
+                            {droneImages.map((img) => (
+                              <Box
+                                key={img.label}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: '8px',
+                                  p: 1.25,
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.75 }}>
+                                  {img.label}
+                                </Typography>
+                                {img.failed || !img.url ? (
+                                  <Typography variant="caption" color="error.main">
+                                    {tr('Không tải được ảnh', 'Photo unavailable')}
+                                  </Typography>
+                                ) : (
+                                  <Box
+                                    component="img"
+                                    src={img.url}
+                                    alt={img.label}
+                                    sx={{
+                                      width: '100%',
+                                      height: 180,
+                                      objectFit: 'contain',
+                                      borderRadius: '6px',
+                                      bgcolor: 'background.default',
+                                    }}
+                                  />
+                                )}
+                                {img.url && (
+                                  <Link
+                                    href={img.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    underline="hover"
+                                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.75, fontSize: '0.75rem' }}
+                                  >
+                                    <OpenInNewRounded sx={{ fontSize: 14 }} />
+                                    {tr('Mở toàn màn hình', 'Open full size')}
+                                  </Link>
+                                )}
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    )}
                     <Box>
                       <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', mb: 1 }}>
                         {tr('Tài liệu đính kèm', 'Evidence documents')}
@@ -1415,67 +1571,51 @@ export default function Mf1ReviewPage({
                     )}
                   </Alert>
                 ) : (
-                  <>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant={action === 'approve' ? 'contained' : 'outlined'}
-                        color="success"
-                        startIcon={<CheckCircleOutlineRounded />}
-                        onClick={() => setAction('approve')}
-                      >
-                        {tr('Duyệt', 'Approve')}
-                      </Button>
-                      <Button
-                        variant={action === 'reject' ? 'contained' : 'outlined'}
-                        color="error"
-                        startIcon={<HighlightOffRounded />}
-                        onClick={() => setAction('reject')}
-                      >
-                        {tr('Từ chối', 'Reject')}
-                      </Button>
-                    </Stack>
-
-                    <TextField
-                      multiline
-                      minRows={3}
-                      label={
-                        action === 'reject'
-                          ? tr('Lý do từ chối (bắt buộc)', 'Rejection reason (required)')
-                          : tr('Ghi chú duyệt', 'Review note')
-                      }
-                      value={reviewNote}
-                      onChange={(event) => setReviewNote(event.target.value)}
-                    />
-                  </>
+                  <TextField
+                    multiline
+                    minRows={3}
+                    label={
+                      reviewQueue === 'customers'
+                        ? tr('Ghi chú duyệt / Lý do từ chối (bắt buộc)', 'Review note / Rejection reason (required)')
+                        : tr('Ghi chú duyệt / Lý do từ chối (bắt buộc nếu từ chối)', 'Review note / Rejection reason (required to reject)')
+                    }
+                    value={reviewNote}
+                    onChange={(event) => setReviewNote(event.target.value)}
+                  />
                 )}
               </Stack>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2 }}>
-              {reviewQueue === 'drones' &&
-              (selected as DroneRegistrationApplication).status !== 'PENDING' ? (
-                <Button onClick={clearReview} color="inherit">
-                  {tr('Đóng', 'Close')}
+            {!(
+              reviewQueue === 'drones' &&
+              (selected as DroneRegistrationApplication).status !== 'PENDING'
+            ) && (
+              <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<HighlightOffRounded />}
+                  onClick={() => void submitReview('reject')}
+                  disabled={pending}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+                >
+                  {pending && pendingDecision === 'reject'
+                    ? tr('Đang lưu…', 'Saving…')
+                    : tr('Từ chối', 'Reject')}
                 </Button>
-              ) : (
-                <>
-                  <Button onClick={clearReview} disabled={pending} color="inherit">
-                    {tr('Hủy', 'Cancel')}
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color={action === 'reject' ? 'error' : 'primary'}
-                    onClick={() => void submitReview()}
-                    disabled={pending}
-                  >
-                    {pending
-                      ? tr('Đang lưu…', 'Saving…')
-                      : action === 'reject'
-                        ? tr('Xác nhận từ chối', 'Confirm rejection')
-                        : tr('Xác nhận duyệt', 'Confirm approval')}
-                  </Button>
-                </>
-              )}
-            </DialogActions>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<CheckCircleOutlineRounded />}
+                  onClick={() => void submitReview('approve')}
+                  disabled={pending}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+                >
+                  {pending && pendingDecision === 'approve'
+                    ? tr('Đang lưu…', 'Saving…')
+                    : tr('Duyệt', 'Approve')}
+                </Button>
+              </DialogActions>
+            )}
           </>
         )}
       </Dialog>
@@ -1484,8 +1624,25 @@ export default function Mf1ReviewPage({
       <Dialog open={Boolean(selectedApplication)} onClose={closeInspectorAppDialog} fullWidth maxWidth="md">
         {selectedApplication && (
           <>
-            <DialogTitle sx={{ fontWeight: 700 }}>
-              {tr('Thẩm định Đơn đăng ký Inspector', 'Review Inspector Application')}
+            <DialogTitle
+              sx={{
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1.5,
+              }}
+            >
+              <span>{tr('Thẩm định Đơn đăng ký Inspector', 'Review Inspector Application')}</span>
+              <IconButton
+                size="small"
+                onClick={closeInspectorAppDialog}
+                disabled={appPending}
+                aria-label={tr('Đóng', 'Close')}
+                sx={{ color: 'text.secondary' }}
+              >
+                <CloseRounded fontSize="small" />
+              </IconButton>
             </DialogTitle>
             <DialogContent dividers>
               <Stack spacing={2}>
@@ -1589,52 +1746,42 @@ export default function Mf1ReviewPage({
 
                 <Divider />
 
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant={appAction === 'approve' ? 'contained' : 'outlined'}
-                    color="success"
-                    startIcon={<CheckCircleOutlineRounded />}
-                    onClick={() => setAppAction('approve')}
-                  >
-                    {tr('Duyệt', 'Approve')}
-                  </Button>
-                  <Button
-                    variant={appAction === 'reject' ? 'contained' : 'outlined'}
-                    color="error"
-                    startIcon={<HighlightOffRounded />}
-                    onClick={() => setAppAction('reject')}
-                  >
-                    {tr('Từ chối', 'Reject')}
-                  </Button>
-                </Stack>
-
-                {appAction === 'reject' && (
-                  <TextField
-                    multiline
-                    minRows={3}
-                    required
-                    label={tr('Lý do từ chối', 'Rejection reason')}
-                    value={appRejectReason}
-                    onChange={(event) => setAppRejectReason(event.target.value)}
-                  />
-                )}
+                <TextField
+                  multiline
+                  minRows={3}
+                  label={tr(
+                    'Lý do từ chối (bắt buộc nếu từ chối)',
+                    'Rejection reason (required when rejecting)',
+                  )}
+                  value={appRejectReason}
+                  onChange={(event) => setAppRejectReason(event.target.value)}
+                />
               </Stack>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2 }}>
-              <Button onClick={closeInspectorAppDialog} disabled={appPending} color="inherit">
-                {tr('Hủy', 'Cancel')}
+            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<HighlightOffRounded />}
+                onClick={() => void submitInspectorAppReview('reject')}
+                disabled={appPending}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+              >
+                {appPending && appPendingDecision === 'reject'
+                  ? tr('Đang lưu…', 'Saving…')
+                  : tr('Từ chối', 'Reject')}
               </Button>
               <Button
                 variant="contained"
-                color={appAction === 'reject' ? 'error' : 'primary'}
-                onClick={() => void submitInspectorAppReview()}
+                color="success"
+                startIcon={<CheckCircleOutlineRounded />}
+                onClick={() => void submitInspectorAppReview('approve')}
                 disabled={appPending}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
               >
-                {appPending
+                {appPending && appPendingDecision === 'approve'
                   ? tr('Đang lưu…', 'Saving…')
-                  : appAction === 'reject'
-                    ? tr('Xác nhận từ chối', 'Confirm rejection')
-                    : tr('Xác nhận duyệt', 'Confirm approval')}
+                  : tr('Duyệt', 'Approve')}
               </Button>
             </DialogActions>
           </>
