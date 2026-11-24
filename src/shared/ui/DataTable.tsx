@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Box,
+  Button,
   InputAdornment,
   Pagination,
   Paper,
@@ -15,6 +16,7 @@ import {
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 export interface DataTableColumn<T> {
   id: string;
@@ -36,6 +38,7 @@ interface DataTableProps<T> {
   searchPredicate?: (row: T, query: string) => boolean;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
+  emptyContent?: ReactNode;
   actions?: ReactNode;
   dense?: boolean;
   maxHeight?: number | string;
@@ -52,11 +55,13 @@ export function DataTable<T>({
   searchPredicate,
   onRowClick,
   emptyMessage = 'No records found',
+  emptyContent,
   actions,
   dense = false,
   maxHeight,
   stickyHeader = false,
 }: DataTableProps<T>) {
+  const { t } = useLocale();
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const [query, setQuery] = useState('');
@@ -84,7 +89,9 @@ export function DataTable<T>({
     });
   }, [columns, filtered, sortBy, sortDir]);
 
-  const paged = sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const maxPage = Math.max(0, Math.ceil(sorted.length / rowsPerPage) - 1);
+  const safePage = Math.min(page, maxPage);
+  const paged = sorted.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage);
 
   const toggleSort = (columnId: string) => {
     if (sortBy === columnId) {
@@ -136,9 +143,25 @@ export function DataTable<T>({
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: '#71717A' }} />
+                      <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
+                  endAdornment: normalizedQuery ? (
+                    <InputAdornment position="end">
+                      <Button
+                        size="small"
+                        color="inherit"
+                        aria-label={t('Clear search')}
+                        onClick={() => {
+                          setQuery('');
+                          setPage(0);
+                        }}
+                        sx={{ minWidth: 0, p: 0.25, fontSize: '1rem', lineHeight: 1, color: 'text.secondary' }}
+                      >
+                        ×
+                      </Button>
+                    </InputAdornment>
+                  ) : undefined,
                 },
               }}
               sx={{
@@ -215,9 +238,13 @@ export function DataTable<T>({
             {paged.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
-                    {emptyMessage}
-                  </Typography>
+                  {emptyContent ? (
+                    <Box sx={{ py: 2 }}>{emptyContent}</Box>
+                  ) : (
+                    <Typography color="text.secondary" sx={{ py: 6, textAlign: 'center', fontSize: '0.875rem' }}>
+                      {emptyMessage}
+                    </Typography>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
@@ -285,15 +312,15 @@ export function DataTable<T>({
           gap: 1.5,
         }}
       >
-        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem', fontVariantNumeric: 'tabular-nums' }}>
           {filtered.length > 0
-            ? `Showing ${page * rowsPerPage + 1}–${Math.min((page + 1) * rowsPerPage, filtered.length)} From ${filtered.length}`
-            : 'Showing 0 From 0'}
+            ? `${t('Showing')} ${safePage * rowsPerPage + 1}–${Math.min((safePage + 1) * rowsPerPage, filtered.length)} ${t('of')} ${filtered.length}`
+            : `${t('Showing')} 0 ${t('of')} 0`}
         </Typography>
 
         <Pagination
           count={Math.max(1, Math.ceil(filtered.length / rowsPerPage))}
-          page={page + 1}
+          page={safePage + 1}
           onChange={(_, nextPage) => setPage(nextPage - 1)}
           shape="rounded"
           size="small"

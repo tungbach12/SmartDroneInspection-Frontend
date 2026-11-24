@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -26,6 +27,7 @@ import {
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 import type { SepayCheckoutDetails } from '@/features/inspections/api/inspectionApi';
 import { SepayPayoutQrDialog } from '@/features/reports/components/SepayPayoutQrDialog';
 import { formatVietQrBankDisplay } from '@/shared/constants/vietQrBanks';
@@ -73,7 +75,25 @@ function money(value: number | null | undefined, locale: string, currency = 'VND
 }
 
 type PayoutFilter = 'ALL' | 'ELIGIBLE' | 'PENDING' | 'PAID';
-type RevenueFilter = 'ALL' | 'REFUNDED';
+type RevenueFilter = 'ALL' | 'PAID_ONLY' | 'REFUNDED';
+type FinanceSort = 'DATE_DESC' | 'DATE_ASC' | 'AMOUNT_DESC' | 'SECONDARY_DESC';
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  if (!first) return '?';
+  if (parts.length === 1 || !last) return first.slice(0, 2).toUpperCase();
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+}
+
+function getItemSortTimestamp(item: ManagerFinanceHistoryItem, isPayoutView: boolean): number {
+  const raw = isPayoutView
+    ? (item.payoutRecordedAt ?? item.paymentConfirmedAt ?? item.payoutUpdatedAt ?? null)
+    : (item.paymentConfirmedAt ?? item.payoutUpdatedAt ?? null);
+  return raw ? new Date(raw).getTime() : 0;
+}
 
 function resolvePayoutChipMeta(status: string | null | undefined) {
   const normalized = (status ?? 'PENDING').toUpperCase();
@@ -105,7 +125,20 @@ export default function FinanceHistoryPage({
   const page = Math.max(0, Number(params.get('page') ?? '0') || 0);
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>('ALL');
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('ALL');
+  const [revenueMethodFilter, setRevenueMethodFilter] = useState<string>('ALL');
+  const [payoutInspectorFilter, setPayoutInspectorFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState<FinanceSort>('DATE_DESC');
   const [requestError, setRequestError] = useState<string | null>(null);
+
+  const resetPageParam = () => {
+    setParams((current) => {
+      if (!current.has('page')) return current;
+      const next = new URLSearchParams(current);
+      next.delete('page');
+      return next;
+    });
+  };
 
   const historyQuery = useQuery({
     queryKey: ['finance-history', inspector ? 'inspector' : 'customer', page],
@@ -115,12 +148,21 @@ export default function FinanceHistoryPage({
       : contractApi.listCustomerFinanceHistory(page, 20),
   });
 
-  const hasActiveFilter = isPayoutView ? payoutFilter !== 'ALL' : revenueFilter !== 'ALL';
+  const hasActiveFilter = isPayoutView
+    ? payoutFilter !== 'ALL' ||
+      payoutInspectorFilter !== 'ALL' ||
+      search.trim().length > 0 ||
+      sortOrder !== 'DATE_DESC'
+    : revenueFilter !== 'ALL' ||
+      revenueMethodFilter !== 'ALL' ||
+      search.trim().length > 0 ||
+      sortOrder !== 'DATE_DESC';
   const managerPageSize = hasActiveFilter ? 100 : 20;
   const managerScope = isPayoutView ? 'PAYOUTS' : 'REVENUE';
   const managerHistoryQuery = useQuery({
     queryKey: ['finance-history', 'manager', isPayoutView ? 'payouts' : 'revenue', page, managerPageSize],
     enabled: manager,
+    placeholderData: (previousData) => previousData,
     queryFn: () => contractApi.listManagerFinanceHistory(page, managerPageSize, managerScope),
   });
 
@@ -128,23 +170,142 @@ export default function FinanceHistoryPage({
   const items = manager
     ? (managerHistoryQuery.data?.content ?? null)
     : (historyQuery.data?.content ?? null);
+
+  const managerContent = useMemo(
+    () => managerHistoryQuery.data?.content ?? [],
+    [managerHistoryQuery.data?.content],
+  );
+
+  const revenueMethodOptions = useMemo(() => {
+    const methods = new Set<string>(['VNPAY', 'SEPAY']);
+    managerContent.forEach((item) => {
+      if (item.paymentMethod) {
+        methods.add(item.paymentMethod.toUpperCase());
+      }
+    });
+    return [
+      { value: 'ALL', label: t('All methods') },
+      ...Array.from(methods)
+        .sort()
+        .map((method) => ({ value: method, label: method })),
+    ];
+  }, [managerContent, t]);
+
+  const payoutInspectorOptions = useMemo(() => {
+    const byKey = new Map<string, string>();
+    managerContent.forEach((item) => {
+      const label = item.inspectorName?.trim();
+      const key = item.inspectorId ?? label;
+      if (key && label && !byKey.has(key)) {
+        byKey.set(key, label);
+      }
+    });
+    return [
+      { value: 'ALL', label: t('All inspectors') },
+      ...Array.from(byKey.entries())
+        .sort((a, b) => a[1].localeCompare(b[1], locale, { sensitivity: 'base' }))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [locale, managerContent, t]);
+
+  const clearAllManagerControls = () => {
+    setSearch('');
+    setPayoutFilter('ALL');
+    setRevenueFilter('ALL');
+    setRevenueMethodFilter('ALL');
+    setPayoutInspectorFilter('ALL');
+    setSortOrder('DATE_DESC');
+    resetPageParam();
+  };
+
   const filteredManagerItems = useMemo(() => {
-    const content = managerHistoryQuery.data?.content ?? [];
-    if (isPayoutView) {
-      if (payoutFilter === 'ALL') return content;
-      return content.filter((item) => (item.payoutStatus ?? 'PENDING').toUpperCase() === payoutFilter);
+    const query = search.trim().toLowerCase();
+    const filtered = managerContent.filter((item) => {
+      if (isPayoutView) {
+        if (payoutFilter !== 'ALL' && (item.payoutStatus ?? 'PENDING').toUpperCase() !== payoutFilter) {
+          return false;
+        }
+        if (payoutInspectorFilter !== 'ALL') {
+          const itemInspectorKey = item.inspectorId ?? item.inspectorName?.trim() ?? '';
+          if (itemInspectorKey !== payoutInspectorFilter) return false;
+        }
+      } else {
+        if (revenueFilter === 'REFUNDED' && !(item.refundedAmount > 0)) {
+          return false;
+        }
+        if (revenueFilter === 'PAID_ONLY' && item.refundedAmount > 0) {
+          return false;
+        }
+        if (
+          revenueMethodFilter !== 'ALL' &&
+          (item.paymentMethod ?? '').toUpperCase() !== revenueMethodFilter
+        ) {
+          return false;
+        }
+      }
+
+      if (!query) return true;
+      return (
+        (item.assetName ?? '').toLowerCase().includes(query) ||
+        (item.requestDescription ?? '').toLowerCase().includes(query) ||
+        (item.customerName ?? '').toLowerCase().includes(query) ||
+        (item.inspectorName ?? '').toLowerCase().includes(query) ||
+        (item.paymentReference ?? '').toLowerCase().includes(query) ||
+        (item.payoutReference ?? '').toLowerCase().includes(query) ||
+        (item.paymentMethod ?? '').toLowerCase().includes(query)
+      );
+    });
+
+    return [...filtered].sort((left, right) => {
+      if (sortOrder === 'DATE_ASC') {
+        return getItemSortTimestamp(left, isPayoutView) - getItemSortTimestamp(right, isPayoutView);
+      }
+      if (sortOrder === 'AMOUNT_DESC') {
+        const leftAmount = isPayoutView ? (left.inspectorNetPayout ?? 0) : (left.netPlatformInflow ?? 0);
+        const rightAmount = isPayoutView ? (right.inspectorNetPayout ?? 0) : (right.netPlatformInflow ?? 0);
+        return rightAmount - leftAmount;
+      }
+      if (sortOrder === 'SECONDARY_DESC') {
+        if (isPayoutView) {
+          return (left.inspectorName ?? '').localeCompare(right.inspectorName ?? '', locale, {
+            sensitivity: 'base',
+          });
+        }
+        return (right.netCommissionAmount ?? 0) - (left.netCommissionAmount ?? 0);
+      }
+      return getItemSortTimestamp(right, isPayoutView) - getItemSortTimestamp(left, isPayoutView);
+    });
+  }, [
+    isPayoutView,
+    locale,
+    managerContent,
+    payoutFilter,
+    payoutInspectorFilter,
+    revenueFilter,
+    revenueMethodFilter,
+    search,
+    sortOrder,
+  ]);
+
+  const payoutStatusCounts = useMemo(() => {
+    let eligible = 0;
+    let pending = 0;
+    let paid = 0;
+    for (const item of managerContent) {
+      const status = (item.payoutStatus ?? 'PENDING').toUpperCase();
+      if (status === 'ELIGIBLE') eligible += 1;
+      else if (status === 'PAID' || status === 'SETTLED') paid += 1;
+      else pending += 1;
     }
-    if (revenueFilter === 'REFUNDED') {
-      return content.filter((item) => item.refundedAmount > 0);
-    }
-    return content;
-  }, [isPayoutView, managerHistoryQuery.data?.content, payoutFilter, revenueFilter]);
+    return { all: managerContent.length, eligible, pending, paid };
+  }, [managerContent]);
+
   const eligibleItemsInPage = useMemo(
     () =>
-      (managerHistoryQuery.data?.content ?? []).filter(
+      managerContent.filter(
         (item) => (item.payoutStatus ?? '').toUpperCase() === 'ELIGIBLE',
       ),
-    [managerHistoryQuery.data?.content],
+    [managerContent],
   );
   const eligibleCountInPage = eligibleItemsInPage.length;
   const eligibleTotalInPage = useMemo(
@@ -436,10 +597,118 @@ export default function FinanceHistoryPage({
         )}
 
         {!loading && Boolean(items?.length) && (
-          <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: 'background.paper', boxShadow: 'none' }}>
+          <Stack spacing={0}>
+            {manager && (
+              <AdminTableToolbar
+                searchValue={search}
+                onSearchChange={(value) => {
+                  setSearch(value);
+                  resetPageParam();
+                }}
+                searchPlaceholder={
+                  isPayoutView
+                    ? t('Search inspector, asset, payout ref…')
+                    : t('Search asset, customer, reference…')
+                }
+                searchLabel={isPayoutView ? t('Search payouts') : t('Search revenue')}
+                visibleCount={filteredManagerItems.length}
+                totalCount={managerContent.length}
+                onClearAll={clearAllManagerControls}
+                filters={
+                  isPayoutView
+                    ? [
+                        {
+                          key: 'status',
+                          label: t('Status'),
+                          value: payoutFilter,
+                          options: [
+                            { value: 'ALL', label: t('All statuses') },
+                            { value: 'ELIGIBLE', label: t('Payout eligible') },
+                            { value: 'PENDING', label: t('Pending / On hold') },
+                            { value: 'PAID', label: t('Payout settled') },
+                          ],
+                          onChange: (value) => {
+                            setPayoutFilter(value as PayoutFilter);
+                            resetPageParam();
+                          },
+                          width: 150,
+                        },
+                        {
+                          key: 'inspector',
+                          label: t('Inspector'),
+                          value: payoutInspectorFilter,
+                          options: payoutInspectorOptions,
+                          onChange: (value) => {
+                            setPayoutInspectorFilter(value);
+                            resetPageParam();
+                          },
+                          width: 170,
+                        },
+                        {
+                          key: 'sort',
+                          label: t('Sort'),
+                          value: sortOrder,
+                          allValue: 'DATE_DESC',
+                          options: [
+                            { value: 'DATE_DESC', label: t('Newest first') },
+                            { value: 'DATE_ASC', label: t('Oldest first') },
+                            { value: 'AMOUNT_DESC', label: t('Highest payout') },
+                            { value: 'SECONDARY_DESC', label: t('Inspector A–Z') },
+                          ],
+                          onChange: (value) => setSortOrder(value as FinanceSort),
+                          width: 150,
+                        },
+                      ]
+                    : [
+                        {
+                          key: 'status',
+                          label: t('Status'),
+                          value: revenueFilter,
+                          options: [
+                            { value: 'ALL', label: t('All statuses') },
+                            { value: 'PAID_ONLY', label: t('Paid only') },
+                            { value: 'REFUNDED', label: t('Refunded') },
+                          ],
+                          onChange: (value) => {
+                            setRevenueFilter(value as RevenueFilter);
+                            resetPageParam();
+                          },
+                          width: 145,
+                        },
+                        {
+                          key: 'method',
+                          label: t('Method'),
+                          value: revenueMethodFilter,
+                          options: revenueMethodOptions,
+                          onChange: (value) => {
+                            setRevenueMethodFilter(value);
+                            resetPageParam();
+                          },
+                          width: 140,
+                        },
+                        {
+                          key: 'sort',
+                          label: t('Sort'),
+                          value: sortOrder,
+                          allValue: 'DATE_DESC',
+                          options: [
+                            { value: 'DATE_DESC', label: t('Newest first') },
+                            { value: 'DATE_ASC', label: t('Oldest first') },
+                            { value: 'AMOUNT_DESC', label: t('Highest inflow') },
+                            { value: 'SECONDARY_DESC', label: t('Highest commission') },
+                          ],
+                          onChange: (value) => setSortOrder(value as FinanceSort),
+                          width: 175,
+                        },
+                      ]
+                }
+              />
+            )}
+
+            <Paper variant="outlined" sx={{ borderRadius: '12px', overflow: 'hidden', bgcolor: 'background.paper', boxShadow: 'none' }}>
             {manager ? (
               <>
-                {(isPayoutView || (managerSummary?.totalRefunded ?? 0) > 0) && (
+                {isPayoutView && (
                   <Stack
                     direction="row"
                     spacing={0.75}
@@ -453,27 +722,39 @@ export default function FinanceHistoryPage({
                       alignItems: 'center',
                     }}
                   >
-                    {(isPayoutView
-                      ? ([
-                          { id: 'ALL', label: t('All records') },
-                          {
-                            id: 'ELIGIBLE',
-                            label:
-                              eligibleCountInPage > 0
-                                ? `${t('Payout eligible')} (${eligibleCountInPage})`
-                                : t('Payout eligible'),
-                          },
-                          { id: 'PENDING', label: t('Pending / On hold') },
-                          { id: 'PAID', label: t('Payout settled') },
-                        ] as const)
-                      : ([
-                          { id: 'ALL', label: t('All records') },
-                          { id: 'REFUNDED', label: t('Refunded') },
-                        ] as const)
+                    {(
+                      [
+                        {
+                          id: 'ALL',
+                          label:
+                            payoutStatusCounts.all > 0
+                              ? `${t('All records')} (${payoutStatusCounts.all})`
+                              : t('All records'),
+                        },
+                        {
+                          id: 'ELIGIBLE',
+                          label:
+                            eligibleCountInPage > 0
+                              ? `${t('Payout eligible')} (${eligibleCountInPage})`
+                              : t('Payout eligible'),
+                        },
+                        {
+                          id: 'PENDING',
+                          label:
+                            payoutStatusCounts.pending > 0
+                              ? `${t('Pending / On hold')} (${payoutStatusCounts.pending})`
+                              : t('Pending / On hold'),
+                        },
+                        {
+                          id: 'PAID',
+                          label:
+                            payoutStatusCounts.paid > 0
+                              ? `${t('Payout settled')} (${payoutStatusCounts.paid})`
+                              : t('Payout settled'),
+                        },
+                      ] as const
                     ).map((option) => {
-                      const active = isPayoutView
-                        ? payoutFilter === option.id
-                        : revenueFilter === option.id;
+                      const active = payoutFilter === option.id;
                       return (
                         <Chip
                           key={option.id}
@@ -483,16 +764,8 @@ export default function FinanceHistoryPage({
                           color={active ? 'primary' : 'default'}
                           variant={active ? 'filled' : 'outlined'}
                           onClick={() => {
-                            if (isPayoutView) {
-                              setPayoutFilter(option.id as PayoutFilter);
-                            } else {
-                              setRevenueFilter(option.id as RevenueFilter);
-                            }
-                            setParams((current) => {
-                              const next = new URLSearchParams(current);
-                              next.delete('page');
-                              return next;
-                            });
+                            setPayoutFilter(option.id as PayoutFilter);
+                            resetPageParam();
                           }}
                           sx={{
                             borderRadius: '8px',
@@ -514,11 +787,29 @@ export default function FinanceHistoryPage({
                           ? t('No matching payout records')
                           : t('No matching revenue records')
                       }
+                      description={t('Try adjusting your search or clearing the active filters.')}
+                      action={
+                        hasActiveFilter ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={clearAllManagerControls}
+                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                          >
+                            {t('Clear filters')}
+                          </Button>
+                        ) : undefined
+                      }
                     />
                   </Box>
                 ) : (
                   <TableContainer>
-                    <Table size="medium">
+                    <Table
+                      size="medium"
+                      sx={{
+                        '& th, & td': { px: 1.5 },
+                      }}
+                    >
                       <TableHead>
                         <TableRow sx={{ bgcolor: 'background.default' }}>
                           <TableCell sx={{ whiteSpace: 'nowrap' }}>{t('Date')}</TableCell>
@@ -556,19 +847,39 @@ export default function FinanceHistoryPage({
                                     )
                                   : formatShortDate(item.paymentConfirmedAt)}
                               </TableCell>
-                              {isPayoutView ? (
+                               {isPayoutView ? (
                                 <>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                      {item.inspectorName ?? '—'}
-                                    </Typography>
+                                  <TableCell sx={{ maxWidth: 195, overflow: 'hidden' }}>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                                      <Avatar
+                                        sx={{
+                                          width: 28,
+                                          height: 28,
+                                          flexShrink: 0,
+                                          fontSize: '0.75rem',
+                                          fontWeight: 700,
+                                          bgcolor: 'primary.main',
+                                          color: 'primary.contrastText',
+                                        }}
+                                      >
+                                        {getInitials(item.inspectorName)}
+                                      </Avatar>
+                                      <Typography
+                                        variant="body2"
+                                        noWrap
+                                        title={item.inspectorName ?? undefined}
+                                        sx={{ fontWeight: 600, color: 'text.primary', minWidth: 0 }}
+                                      >
+                                        {item.inspectorName ?? '—'}
+                                      </Typography>
+                                    </Stack>
                                   </TableCell>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  <TableCell sx={{ maxWidth: 210, overflow: 'hidden' }}>
+                                    <Typography variant="body2" noWrap title={item.assetName ?? undefined} sx={{ fontWeight: 500 }}>
                                       {item.assetName ?? t('Asset')}
                                     </Typography>
                                     {subtitle && (
-                                      <Typography variant="caption" color="text.secondary">
+                                      <Typography variant="caption" color="text.secondary" noWrap title={subtitle} sx={{ display: 'block' }}>
                                         {subtitle}
                                       </Typography>
                                     )}
@@ -599,20 +910,40 @@ export default function FinanceHistoryPage({
                                 </>
                               ) : (
                                 <>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  <TableCell sx={{ maxWidth: 185, overflow: 'hidden' }}>
+                                    <Typography variant="body2" noWrap title={item.assetName ?? undefined} sx={{ fontWeight: 600 }}>
                                       {item.assetName ?? t('Asset')}
                                     </Typography>
                                     {subtitle && (
-                                      <Typography variant="caption" color="text.secondary">
+                                      <Typography variant="caption" color="text.secondary" noWrap title={subtitle} sx={{ display: 'block' }}>
                                         {subtitle}
                                       </Typography>
                                     )}
                                   </TableCell>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                      {item.customerName ?? '—'}
-                                    </Typography>
+                                  <TableCell sx={{ maxWidth: 165, overflow: 'hidden' }}>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
+                                      <Avatar
+                                        sx={{
+                                          width: 28,
+                                          height: 28,
+                                          flexShrink: 0,
+                                          fontSize: '0.75rem',
+                                          fontWeight: 700,
+                                          bgcolor: 'action.selected',
+                                          color: 'text.primary',
+                                        }}
+                                      >
+                                        {getInitials(item.customerName)}
+                                      </Avatar>
+                                      <Typography
+                                        variant="body2"
+                                        noWrap
+                                        title={item.customerName ?? undefined}
+                                        sx={{ fontWeight: 500, minWidth: 0 }}
+                                      >
+                                        {item.customerName ?? '—'}
+                                      </Typography>
+                                    </Stack>
                                   </TableCell>
                                   <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
                                     {item.paymentMethod ?? '—'}
@@ -696,14 +1027,45 @@ export default function FinanceHistoryPage({
                 ))}</TableBody>
               </Table>
             )}
-            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
-              <Typography variant="body2" color="text.secondary">{total} {t('records')}</Typography>
+            <Stack
+              direction="row"
+              sx={{
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                px: 2.5,
+                py: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                {manager
+                  ? `${t('Showing')} ${filteredManagerItems.length} ${t('of')} ${total} ${t('records')}`
+                  : `${total} ${t('records')}`}
+              </Typography>
               <Stack direction="row" sx={{ gap: 1 }}>
-                <Button disabled={page === 0} onClick={() => setParams({ page: String(page - 1) })}>{t('Previous')}</Button>
-                <Button disabled={(page + 1) * pageSize >= total} onClick={() => setParams({ page: String(page + 1) })}>{t('Next')}</Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={page === 0}
+                  onClick={() => setParams({ page: String(page - 1) })}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('Previous')}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={(page + 1) * pageSize >= total}
+                  onClick={() => setParams({ page: String(page + 1) })}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {t('Next')}
+                </Button>
               </Stack>
             </Stack>
           </Paper>
+          </Stack>
         )}
       </Stack>
 
