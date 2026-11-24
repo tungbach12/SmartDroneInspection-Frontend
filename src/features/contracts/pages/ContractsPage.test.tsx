@@ -6,6 +6,7 @@ import ContractsPage from './ContractsPage';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import * as contractsHook from '../hooks/useContracts';
 import * as assetsHook from '@/features/assets/hooks/useAssets';
+import * as assetDocumentsHook from '@/features/assets/hooks/useAssetDocuments';
 import * as catalogHook from '@/features/assets/hooks/useCatalog';
 import { mf1ReviewApi } from '@/features/admin/api/mf1ReviewApi';
 import { inspectorProfileApi } from '@/features/admin/api/inspectorProfileApi';
@@ -13,6 +14,7 @@ import type { PartnerCandidate } from '../api/contractApi';
 
 vi.mock('../hooks/useContracts');
 vi.mock('@/features/assets/hooks/useAssets');
+vi.mock('@/features/assets/hooks/useAssetDocuments');
 vi.mock('@/features/assets/hooks/useCatalog');
 
 function makeEligibleCandidate(
@@ -89,6 +91,12 @@ describe('ContractsPage', () => {
         status: 'ACTIVE',
         inspectionItems: [],
       },
+      isPending: false,
+      isError: false,
+      error: null,
+    } as any);
+    vi.spyOn(assetDocumentsHook, 'useAssetDocuments').mockReturnValue({
+      data: [],
       isPending: false,
       isError: false,
       error: null,

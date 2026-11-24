@@ -22,6 +22,11 @@ vi.mock('@/features/assets/hooks/useCatalog', () => ({
 vi.mock('../../hooks/useContracts', () => ({
   usePartnerDrones: (enabled?: boolean) => usePartnerDronesMock(enabled),
 }));
+vi.mock('@/shared/ui/AuthenticatedImage', () => ({
+  AuthenticatedImage: ({ src, alt }: { src: string; alt: string }) => (
+    <img src={src} alt={alt} data-testid="authenticated-asset-image" />
+  ),
+}));
 vi.mock('@/shared/i18n/LocaleProvider', () => ({
   useLocale: () => ({
     t: (key: string) => key,
@@ -313,5 +318,50 @@ describe('ManagerAssetOverview', () => {
     expect(dialog.textContent).toContain('Configured for this request');
     expect(dialog.textContent).toContain('Thermal roof sweep');
     expect(dialog.textContent).toContain('Anchor bolts');
+  });
+
+  it('renders the primary asset photo thumbnail in the overview header when an image document exists', () => {
+    useAssetMock.mockReturnValue({
+      data: {
+        id: 'asset-1',
+        name: 'Bridge 1',
+        code: 'BR-1',
+        status: 'ACTIVE',
+        inspectionItems: [],
+      },
+      isPending: false,
+    });
+    useAssetDocumentsMock.mockReturnValue({
+      data: [
+        {
+          id: 'doc-pdf',
+          documentType: 'OWNERSHIP',
+          fileName: 'blueprint.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 2048,
+          checksumSha256: 'a',
+          documentDate: null,
+          createdAt: '2026-10-01T00:00:00Z',
+        },
+        {
+          id: 'img-1',
+          documentType: 'ASSET_PHOTO',
+          fileName: 'bridge-photo.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 4096,
+          checksumSha256: 'b',
+          documentDate: null,
+          createdAt: '2026-10-02T00:00:00Z',
+        },
+      ],
+      isPending: false,
+      isError: false,
+    });
+
+    render(<ManagerAssetOverview request={assignedRequest()} />);
+
+    const img = screen.getByTestId('authenticated-asset-image');
+    expect(img.getAttribute('src')).toBe('/assets/asset-1/documents/img-1/content');
+    expect(img.getAttribute('alt')).toBe('Bridge 1');
   });
 });
