@@ -204,7 +204,7 @@ export default function ManagerReportReviewPage({
         </Stack>
       ) : showSettlementStage && stage === 'settlement' ? (
         <Stack spacing={2.5}>
-          {customerStatusNotice}
+          {notPublished && customerStatusNotice}
           <PlatformSettlementInvoiceCard
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}

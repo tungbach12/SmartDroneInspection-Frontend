@@ -3053,4 +3053,6 @@
   "Service fee payment": "Thanh toán phí dịch vụ",
   "Review & Acceptance": "Xem xét & Chấp nhận",
   "Sepay, VNPay & Receipt": "Sepay, VNPay & Biên lai",
+  "Commission & payout": "Hoa hồng & Chi trả",
+  "Inspector gross payout": "Thu nhập kiểm định viên (trước thuế)",
 };
