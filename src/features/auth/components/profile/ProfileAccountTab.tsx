@@ -19,6 +19,7 @@ import {
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useColorMode, useIsDarkMode } from '@/app/layouts/ColorModeContext';
+import { ThemeCustomizationPanel } from '@/app/theme/ThemeCustomizationPanel';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { NextAdminMoonIcon, NextAdminSunIcon } from '@/shared/ui/NextAdminIcons';
 import {
@@ -409,6 +410,10 @@ export function ProfileAccountTab() {
               </Button>
             </Stack>
           </Stack>
+
+          <Divider />
+
+          <ThemeCustomizationPanel />
         </Stack>
       </Box>
 

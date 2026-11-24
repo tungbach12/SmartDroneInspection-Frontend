@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { CustomThemeProvider } from '@/app/theme/CustomThemeProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { logoutCurrentSession } from '@/features/auth/api/authApi';
 import { notificationApi } from '@/features/notifications/api/notificationApi';
@@ -49,11 +50,13 @@ vi.mock('react-router-dom', async () => {
 function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: PropsWithChildren) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/operations/dashboard']}>
-          {children}
-        </MemoryRouter>
-      </QueryClientProvider>
+      <CustomThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/operations/dashboard']}>
+            {children}
+          </MemoryRouter>
+        </QueryClientProvider>
+      </CustomThemeProvider>
     );
   };
 }
@@ -140,6 +143,34 @@ describe('AppShell with NotificationBell integration', () => {
     // Verify notification query data is purged from cache
     expect(queryClient.getQueryData(notificationKeys.unreadCount('inspector-1'))).toBeUndefined();
     expect(queryClient.getQueryData(notificationKeys.list('inspector-1'))).toBeUndefined();
+  });
+
+  it('opens the theme customizer drawer and applies preset wallpaper to the shell', async () => {
+    window.localStorage.clear();
+    render(<AppShell portal="operations" />, {
+      wrapper: createWrapper(queryClient),
+    });
+
+    fireEvent.click(screen.getByTestId('theme-customizer-trigger'));
+    expect(await screen.findByTestId('theme-customization-panel')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('bg-preset-teal-mesh'));
+    await waitFor(() => {
+      const root = screen.getByTestId('appshell-root');
+      expect(window.getComputedStyle(root).backgroundImage).toContain('teal-soft-dark-v1.png');
+    });
+
+    fireEvent.click(screen.getByTestId('bg-target-workspace'));
+    await waitFor(() => {
+      const outer = screen.getByTestId('appshell-workspace-outer');
+      expect(window.getComputedStyle(outer).backgroundImage).toContain('teal-soft-dark-v1.png');
+    });
+
+    fireEvent.click(screen.getByTestId('theme-reset-default-button'));
+    await waitFor(() => {
+      const root = screen.getByTestId('appshell-root');
+      expect(window.getComputedStyle(root).backgroundImage).not.toContain('teal-soft-dark-v1.png');
+    });
   });
 });
 

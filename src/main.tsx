@@ -1,11 +1,12 @@
-import { StrictMode } from 'react';
-import type { PropsWithChildren } from 'react';
+import { StrictMode, useMemo, type PropsWithChildren } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
 import { ColorModeContext } from './app/layouts/ColorModeContext';
-import { theme } from './app/theme/theme';
+import { CustomThemeProvider } from './app/theme/CustomThemeProvider';
+import { useCustomTheme } from './app/theme/CustomThemeContext';
+import { createAppTheme } from './app/theme/theme';
 import { RouterWithToast } from './app/router/router';
 import '@fontsource/geist-sans/400.css';
 import '@fontsource/geist-sans/500.css';
@@ -42,9 +43,15 @@ function ColorModeBridge({ children }: PropsWithChildren) {
 }
 
 function ThemedApp() {
+  const { preferences } = useCustomTheme();
+  const activeTheme = useMemo(
+    () => createAppTheme(preferences.presetId),
+    [preferences.presetId],
+  );
+
   return (
     <ThemeProvider
-      theme={theme}
+      theme={activeTheme}
       defaultMode="light"
       modeStorageKey="sdi-mode"
     >
@@ -61,7 +68,9 @@ function ThemedApp() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LocaleProvider>
-      <ThemedApp />
+      <CustomThemeProvider>
+        <ThemedApp />
+      </CustomThemeProvider>
     </LocaleProvider>
   </StrictMode>,
 );
