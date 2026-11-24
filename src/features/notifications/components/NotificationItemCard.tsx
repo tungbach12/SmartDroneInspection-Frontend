@@ -1,4 +1,4 @@
-﻿import {
+import {
   Box,
   IconButton,
   ListItem,
@@ -8,14 +8,20 @@
   Typography,
 } from '@mui/material';
 import CheckRounded from '@mui/icons-material/CheckRounded';
-import CreditCardOutlined from '@mui/icons-material/CreditCardOutlined';
-import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
-import MailOutlineRounded from '@mui/icons-material/MailOutlineRounded';
-import NotificationsNoneRounded from '@mui/icons-material/NotificationsNoneRounded';
-import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import type { PortalId } from '@/app/permissions/accessPolicy';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import {
+  GlassBellIcon,
+  GlassChatIcon,
+  GlassIconBadge,
+  GlassInspectionIcon,
+  GlassPaymentIcon,
+  GlassPermitIcon,
+  GlassReportIcon,
+  GlassWarningIcon,
+  type GlassTone,
+} from '@/shared/ui/GradientGlassIcons';
 import type { NotificationItem } from '../api/notificationApi';
 import {
   formatRelativeNotificationTime,
@@ -35,18 +41,28 @@ interface NotificationItemCardProps {
   compact?: boolean;
 }
 
-function CategoryIcon({ category }: { category: NotificationCategory }) {
+function resolveNotificationGlassBadge(
+  category: NotificationCategory,
+  eventType: string,
+): { tone: GlassTone; icon: React.ReactNode } {
+  const upper = eventType.toUpperCase();
+  if (upper.includes('PERMIT') || upper.includes('DRONE')) {
+    return { tone: 'blue', icon: <GlassPermitIcon size={20} /> };
+  }
+  if (upper.includes('REPORT')) {
+    return { tone: 'blue', icon: <GlassReportIcon size={20} /> };
+  }
   switch (category) {
     case 'message':
-      return <MailOutlineRounded sx={{ fontSize: 19 }} />;
+      return { tone: 'cyan', icon: <GlassChatIcon size={20} /> };
     case 'payment':
-      return <CreditCardOutlined sx={{ fontSize: 19 }} />;
+      return { tone: 'emerald', icon: <GlassPaymentIcon size={20} /> };
     case 'warning':
-      return <WarningAmberRounded sx={{ fontSize: 19 }} />;
+      return { tone: 'amber', icon: <GlassWarningIcon size={20} /> };
     case 'mission':
-      return <FlightTakeoffRounded sx={{ fontSize: 19 }} />;
+      return { tone: 'indigo', icon: <GlassInspectionIcon size={20} /> };
     default:
-      return <NotificationsNoneRounded sx={{ fontSize: 19 }} />;
+      return { tone: 'amber', icon: <GlassBellIcon size={20} /> };
   }
 }
 
@@ -81,7 +97,7 @@ export function NotificationItemCard({
     })();
 
   const isUnread = resolved.isUnread;
-  const isWarning = resolved.category === 'warning';
+  const badgeConfig = resolveNotificationGlassBadge(resolved.category, resolved.eventType);
   const timeLabel = formatRelativeNotificationTime(
     resolved.createdAt,
     locale,
@@ -163,29 +179,16 @@ export function NotificationItemCard({
           },
         }}
       >
-        {/* 40px circular icon badge */}
-        <Box
-          aria-hidden="true"
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            flexShrink: 0,
-            display: 'grid',
-            placeItems: 'center',
-            mt: 0.25,
-            bgcolor: isUnread
-              ? isWarning
-                ? '#B45309'
-                : 'primary.main'
-              : 'background.paper',
-            color: isUnread ? '#FFFFFF' : 'text.secondary',
-            border: isUnread ? 'none' : '1px solid',
-            borderColor: 'divider',
-          }}
+        {/* Style 5: Gradient Glass squircle icon tile */}
+        <GlassIconBadge
+          size={40}
+          borderRadius="12px"
+          muted={!isUnread}
+          tone={badgeConfig.tone}
+          sx={{ mt: 0.25 }}
         >
-          <CategoryIcon category={resolved.category} />
-        </Box>
+          {badgeConfig.icon}
+        </GlassIconBadge>
 
         {/* Content */}
         <Stack spacing={0.35} sx={{ minWidth: 0, flex: 1 }}>

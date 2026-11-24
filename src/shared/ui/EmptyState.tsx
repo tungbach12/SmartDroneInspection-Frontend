@@ -1,6 +1,6 @@
-import { InboxOutlined } from '@mui/icons-material';
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
+import { GlassIconBadge, GlassInboxIcon } from './GradientGlassIcons';
 
 interface EmptyStateProps {
   title?: string;
@@ -25,20 +25,9 @@ export function EmptyState({
       }}
     >
       <Stack spacing={1.25} sx={{ alignItems: 'center' }}>
-        <Box
-          aria-hidden="true"
-          sx={{
-            display: 'grid',
-            placeItems: 'center',
-            width: 42,
-            height: 42,
-            borderRadius: 1.25,
-            bgcolor: 'action.hover',
-            color: 'text.secondary',
-          }}
-        >
-          <InboxOutlined fontSize="small" />
-        </Box>
+        <GlassIconBadge size={44} borderRadius="12px" tone="blue">
+          <GlassInboxIcon size={21} />
+        </GlassIconBadge>
         <Typography variant="h6">{title}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440 }}>
           {description}
