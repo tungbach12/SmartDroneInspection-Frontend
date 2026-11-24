@@ -345,6 +345,10 @@ describe('finance history page', () => {
 
     renderPage('payouts');
     expect(await screen.findByText('East Bridge')).toBeTruthy();
+    expect(screen.getByText('Eligible for payout')).toBeTruthy();
+    expect(screen.getByText('Settled payouts')).toBeTruthy();
+    expect(screen.getByText('Total net payout')).toBeTruthy();
+    expect(screen.getByText('49% settled')).toBeTruthy();
 
     fireEvent.mouseDown(screen.getByLabelText('Status'));
     expect(await screen.findByRole('option', { name: 'All statuses (2)' })).toBeTruthy();

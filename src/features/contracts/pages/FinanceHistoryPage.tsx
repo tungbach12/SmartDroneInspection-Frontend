@@ -35,6 +35,7 @@ import { SepayVietQrLogoMark } from '@/shared/ui/PaymentBrandLogos';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
+import { MetricCard } from '@/shared/ui/MetricCard';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { useToastStore } from '@/shared/ui/Toast';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -516,69 +517,91 @@ export default function FinanceHistoryPage({
           )
         )}
         {manager && managerSummary && (
-          <Paper
-            variant="outlined"
+          <Box
             sx={{
-              borderRadius: '12px',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              overflow: 'hidden',
-              boxShadow: 'none',
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+              gap: 2,
             }}
           >
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-              }}
-            >
-              {isPayoutView ? (
-                <>
-                  <SummaryStatCell
-                    label={t('Eligible for payout')}
-                    value={money(eligibleTotalInPage, locale, managerSummary.currency)}
-                    note={`${eligibleCountInPage} ${t('ready')}`}
-                    accent={eligibleCountInPage > 0 ? 'warning' : 'default'}
-                  />
-                  <SummaryStatCell
-                    label={t('Pending payout')}
-                    value={money(managerSummary.pendingInspectorPayout, locale, managerSummary.currency)}
-                    divided
-                  />
-                  <SummaryStatCell
-                    label={t('Settled payouts')}
-                    value={money(managerSummary.paidInspectorPayout, locale, managerSummary.currency)}
-                    note={`TNCN ${money(managerSummary.totalTncnWithheld, locale, managerSummary.currency)}`}
-                    divided
-                  />
-                </>
-              ) : (
-                <>
-                  <SummaryStatCell
-                    label={t('Collected (Net)')}
-                    value={money(managerSummary.netPlatformInflow, locale, managerSummary.currency)}
-                    note={`${managerSummary.transactionCount} ${t('transactions')}`}
-                  />
-                  <SummaryStatCell
-                    label={t('Commission earned')}
-                    value={money(managerSummary.totalCommissionEarned, locale, managerSummary.currency)}
-                    note={
-                      managerSummary.totalRefunded > 0
-                        ? `${t('Refunded amount')}: ${money(managerSummary.totalRefunded, locale, managerSummary.currency)}`
-                        : undefined
-                    }
-                    accent="success"
-                    divided
-                  />
-                  <SummaryStatCell
-                    label={t('VAT collected')}
-                    value={money(managerSummary.totalVatAmount, locale, managerSummary.currency)}
-                    divided
-                  />
-                </>
-              )}
-            </Box>
-          </Paper>
+            {isPayoutView ? (
+              (() => {
+                const onHoldAmount = Math.max(0, managerSummary.pendingInspectorPayout - eligibleTotalInPage);
+                const settledRatio =
+                  managerSummary.totalInspectorNetPayout > 0
+                    ? Math.round((managerSummary.paidInspectorPayout / managerSummary.totalInspectorNetPayout) * 100)
+                    : 0;
+                return (
+                  <>
+                    <MetricCard
+                      label={t('Eligible for payout')}
+                      value={money(eligibleTotalInPage, locale, managerSummary.currency)}
+                      change={eligibleCountInPage > 0 ? `${eligibleCountInPage} ${t('ready')}` : t('Up to date')}
+                      showTrend={false}
+                      subtext={t('cleared for VietQR disbursement')}
+                      iconType="shield"
+                    />
+                    <MetricCard
+                      label={t('Settled payouts')}
+                      value={money(managerSummary.paidInspectorPayout, locale, managerSummary.currency)}
+                      change={t('Disbursed')}
+                      showTrend={false}
+                      subtext={`${t('TNCN withheld')}: ${money(managerSummary.totalTncnWithheld, locale, managerSummary.currency)}`}
+                      iconType="wallet"
+                    />
+                    <MetricCard
+                      label={t('Total net payout')}
+                      value={money(managerSummary.totalInspectorNetPayout, locale, managerSummary.currency)}
+                      change={`${settledRatio}% ${t('settled')}`}
+                      showTrend={false}
+                      subtext={
+                        onHoldAmount > 0
+                          ? `${t('On hold')}: ${money(onHoldAmount, locale, managerSummary.currency)}`
+                          : t('total inspector net obligation')
+                      }
+                      iconType="building"
+                    />
+                  </>
+                );
+              })()
+            ) : (
+              <>
+                <MetricCard
+                  label={t('Collected (Net)')}
+                  value={money(managerSummary.netPlatformInflow, locale, managerSummary.currency)}
+                  change={`${managerSummary.transactionCount} ${t('transactions')}`}
+                  showTrend={false}
+                  subtext={
+                    managerSummary.totalRefunded > 0
+                      ? `${t('Refunded')}: ${money(managerSummary.totalRefunded, locale, managerSummary.currency)}`
+                      : t('gross customer inflow net of refunds')
+                  }
+                  iconType="building"
+                />
+                <MetricCard
+                  label={t('Commission earned')}
+                  value={money(managerSummary.totalCommissionEarned, locale, managerSummary.currency)}
+                  change={
+                    managerSummary.netPlatformInflow > 0
+                      ? `${((managerSummary.totalCommissionEarned / managerSummary.netPlatformInflow) * 100).toFixed(1)}% ${t('of net')}`
+                      : undefined
+                  }
+                  showTrend={managerSummary.totalCommissionEarned > 0}
+                  positive
+                  subtext={t('platform service fee revenue')}
+                  iconType="wallet"
+                />
+                <MetricCard
+                  label={t('VAT collected')}
+                  value={money(managerSummary.totalVatAmount, locale, managerSummary.currency)}
+                  change={t('Tax reserve')}
+                  showTrend={false}
+                  subtext={t('output value-added tax')}
+                  iconType="shield"
+                />
+              </>
+            )}
+          </Box>
         )}
 
         {error && <Alert severity="error" onClose={() => setRequestError(null)}>{error}</Alert>}
@@ -1412,54 +1435,4 @@ export default function FinanceHistoryPage({
 
 function Detail({ label, value }: { label: string; value: string | number | null | undefined }) {
   return <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2 }}><Typography color="text.secondary">{label}</Typography><Typography sx={{ textAlign: 'right', fontWeight: 500 }}>{value ?? '—'}</Typography></Stack>;
-}
-
-function SummaryStatCell({
-  label,
-  value,
-  note,
-  accent = 'default',
-  divided = false,
-}: {
-  label: string;
-  value: string;
-  note?: string | undefined;
-  accent?: 'default' | 'success' | 'warning';
-  divided?: boolean;
-}) {
-  const valueColor =
-    accent === 'success'
-      ? 'success.main'
-      : accent === 'warning'
-        ? 'warning.dark'
-        : 'text.primary';
-  return (
-    <Box
-      sx={{
-        p: { xs: 2, sm: 2.25 },
-        borderTop: divided ? { xs: '1px solid', sm: 'none' } : 'none',
-        borderLeft: divided ? { xs: 'none', sm: '1px solid' } : 'none',
-        borderColor: 'divider',
-      }}
-    >
-      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
-        {label}
-      </Typography>
-      <Typography
-        variant="h6"
-        sx={{
-          fontWeight: 700,
-          color: valueColor,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value}
-      </Typography>
-      {note && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, fontVariantNumeric: 'tabular-nums' }}>
-          {note}
-        </Typography>
-      )}
-    </Box>
-  );
 }
