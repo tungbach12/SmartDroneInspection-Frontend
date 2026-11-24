@@ -86,4 +86,51 @@ describe('PlatformSettlementInvoiceCard', () => {
     expect(screen.getByText(/Pay by/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download payment notice (PDF)' })).toBeTruthy();
   });
+
+  it('settles payout inline via UNC reference when eligible and offers secondary drawer button', async () => {
+    const onSettlePayout = vi.fn().mockResolvedValue(undefined);
+    const onManageFinance = vi.fn();
+
+    render(
+      <LocaleProvider>
+        <PlatformSettlementInvoiceCard
+          inspectionId="insp-3"
+          inspectorName="Đỗ Thị Phi Công"
+          onSettlePayout={onSettlePayout}
+          onManageFinance={onManageFinance}
+          paymentDetails={{
+            reportAccepted: true,
+            paid: true,
+            paymentStatus: 'PAID',
+            orderCode: 1858020523,
+            amount: 12000000,
+            serviceBaseAmount: 10909090.91,
+            vatRate: 10,
+            vatAmount: 1090909.09,
+            commissionRate: 15,
+            commissionAmount: 1636363.64,
+            inspectorGrossPayout: 9272727.27,
+            tncnRate: 10,
+            tncnAmount: 927272.73,
+            inspectorNetPayout: 8345454.54,
+            payoutStatus: 'ELIGIBLE',
+            paymentMethod: 'VNPAY',
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    const input = screen.getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
+    const settleBtn = screen.getByRole('button', { name: 'Settle Inspector payout' });
+    expect((settleBtn as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(input, { target: { value: 'UNC-VCB-20261124' } });
+    expect((settleBtn as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(settleBtn);
+    expect(onSettlePayout).toHaveBeenCalledWith('UNC-VCB-20261124');
+
+    const secondaryBtn = screen.getByRole('button', { name: 'Refunds & wire transfer' });
+    fireEvent.click(secondaryBtn);
+    expect(onManageFinance).toHaveBeenCalledTimes(1);
+  });
 });

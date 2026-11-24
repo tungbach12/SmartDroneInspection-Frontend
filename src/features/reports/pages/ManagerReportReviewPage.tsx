@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { contractApi } from '@/features/contracts/api/contractApi';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { contractApi, contractQueryKeys, type ServiceRequestOccurrence } from '@/features/contracts/api/contractApi';
+import { OccurrenceFinanceDrawer } from '@/features/contracts/manager/components/OccurrenceFinanceDrawer';
+import { useToastStore } from '@/shared/ui/Toast';
 import {
   Alert,
   Box,
@@ -49,7 +52,8 @@ export default function ManagerReportReviewPage({
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const userId = useAuthStore((state) => state.userId);
@@ -61,6 +65,10 @@ export default function ManagerReportReviewPage({
   const [reviewReason, setReviewReason] = useState('');
   const [showReturnBox, setShowReturnBox] = useState(false);
   const [permitPreviewOpen, setPermitPreviewOpen] = useState(false);
+  const [financeDrawerTarget, setFinanceDrawerTarget] = useState<{
+    requestId: string;
+    occurrence: ServiceRequestOccurrence;
+  } | null>(null);
 
   const inspectionQuery = useInspection(inspectionId);
   const fieldSessionsQuery = useFieldSessions(inspectionId);
@@ -122,21 +130,55 @@ export default function ManagerReportReviewPage({
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
 
-  const handleOpenContractsFinance = async () => {
-    const basePath = getSectionPath(portal, 'contracts');
+  const findMatchedOccurrence = async () => {
+    const requests = await contractApi.listRequests();
+    for (const req of requests) {
+      const occ = req.occurrences?.find((item) => item.inspectionId === inspectionId);
+      if (occ) {
+        return { requestId: req.id, occurrence: occ };
+      }
+    }
+    return null;
+  };
+
+  const refreshFinanceContext = async () => {
+    await Promise.all([
+      paymentStatusQuery.refetch(),
+      inspectionQuery.refetch(),
+      queryClient.invalidateQueries({ queryKey: ['finance-history'] }),
+      queryClient.invalidateQueries({ queryKey: contractQueryKeys.requests() }),
+    ]);
+    if (financeDrawerTarget) {
+      const latest = await findMatchedOccurrence().catch(() => null);
+      if (latest) {
+        setFinanceDrawerTarget(latest);
+      }
+    }
+  };
+
+  const handleOpenFinanceDrawer = async () => {
     try {
-      const requests = await contractApi.listRequests();
-      const matched = requests.find((req) =>
-        req.occurrences?.some((occ) => occ.inspectionId === inspectionId),
-      );
-      if (matched) {
-        navigate(`${basePath}?requestId=${matched.id}`);
+      const matched = await findMatchedOccurrence();
+      if (!matched) {
+        showToast(t('Linked service request occurrence could not be found.'), 'error');
         return;
       }
+      setFinanceDrawerTarget(matched);
     } catch {
-      // Fallback to Contracts index if request lookup fails
+      showToast(t('Unable to load financial drawer.'), 'error');
     }
-    navigate(basePath);
+  };
+
+  const handleInlineSettlePayout = async (payoutReference: string) => {
+    const matched = await findMatchedOccurrence();
+    if (!matched) {
+      throw new Error(t('Linked service request occurrence could not be found.'));
+    }
+    await contractApi.recordOccurrencePayout(matched.requestId, matched.occurrence.id, {
+      payoutReference,
+    });
+    showToast(t('Inspector partner payout settled.'), 'success');
+    await refreshFinanceContext();
   };
 
   return (
@@ -228,8 +270,9 @@ export default function ManagerReportReviewPage({
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}
             inspectorName={inspectionQuery.data?.inspectorName}
+            onSettlePayout={portal === 'manager' ? handleInlineSettlePayout : undefined}
             onManageFinance={
-              portal === 'manager' ? () => void handleOpenContractsFinance() : undefined
+              portal === 'manager' ? () => void handleOpenFinanceDrawer() : undefined
             }
           />
         </Stack>
@@ -259,8 +302,9 @@ export default function ManagerReportReviewPage({
                 inspectionId={inspectionId}
                 paymentDetails={paymentStatusQuery.data}
                 inspectorName={inspectionQuery.data?.inspectorName}
+                onSettlePayout={portal === 'manager' ? handleInlineSettlePayout : undefined}
                 onManageFinance={
-                  portal === 'manager' ? () => void handleOpenContractsFinance() : undefined
+                  portal === 'manager' ? () => void handleOpenFinanceDrawer() : undefined
                 }
               />
             )}
@@ -318,6 +362,14 @@ export default function ManagerReportReviewPage({
         )}
       </QueryState>
       )}
+
+      <OccurrenceFinanceDrawer
+        open={Boolean(financeDrawerTarget)}
+        onClose={() => setFinanceDrawerTarget(null)}
+        requestId={financeDrawerTarget?.requestId ?? ''}
+        occurrence={financeDrawerTarget?.occurrence ?? null}
+        onChanged={() => void refreshFinanceContext()}
+      />
     </Box>
   );
 }

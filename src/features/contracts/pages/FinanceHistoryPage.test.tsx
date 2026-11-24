@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getCustomerDetail: vi.fn(),
   getInspectorDetail: vi.fn(),
   getManagerDetail: vi.fn(),
+  recordPayout: vi.fn(),
 }));
 
 vi.mock('@/features/auth/store/authStore', () => ({
@@ -22,11 +23,15 @@ vi.mock('@/shared/i18n/LocaleProvider', () => ({
   useLocale: () => ({
     locale: 'en',
     t: (value: string) => value,
+    formatDate: (value: string | Date) => String(value),
     formatDateTime: (value: string) => value,
   }),
 }));
 
 vi.mock('../api/contractApi', () => ({
+  contractQueryKeys: {
+    requests: () => ['contracts', 'requests'] as const,
+  },
   contractApi: {
     listCustomerFinanceHistory: mocks.listCustomer,
     listInspectorFinanceHistory: mocks.listInspector,
@@ -34,14 +39,15 @@ vi.mock('../api/contractApi', () => ({
     getCustomerFinanceHistoryDetail: mocks.getCustomerDetail,
     getInspectorFinanceHistoryDetail: mocks.getInspectorDetail,
     getManagerFinanceHistoryDetail: mocks.getManagerDetail,
+    recordOccurrencePayout: mocks.recordPayout,
   },
 }));
 
-function renderPage() {
+function renderPage(mode?: 'revenue' | 'payouts') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><FinanceHistoryPage /></MemoryRouter>
+      <MemoryRouter><FinanceHistoryPage mode={mode} /></MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -155,5 +161,55 @@ describe('finance history page', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getAllByText(/2,045,455/).length).toBeGreaterThan(0);
     expect(mocks.getManagerDetail).toHaveBeenCalledWith('occ-3');
+  });
+
+  it('lets Manager filter eligible payouts and settle via UNC reference directly inside Finance drawer', async () => {
+    mocks.roles = ['MANAGER'];
+    mocks.listManager.mockResolvedValue({
+      summary: {
+        currency: 'VND',
+        transactionCount: 1,
+        totalCustomerPaid: 12000000,
+        totalRefunded: 0,
+        netPlatformInflow: 12000000,
+        totalCommissionEarned: 1636364,
+        totalVatAmount: 1090909,
+        totalTncnWithheld: 927273,
+        totalInspectorNetPayout: 8345454,
+        paidInspectorPayout: 0,
+        pendingInspectorPayout: 8345454,
+      },
+      content: [{
+        occurrenceId: 'occ-4', requestId: 'req-4', occurrenceIndex: 1,
+        requestDescription: 'Highlands survey', assetId: 'asset-4', assetName: 'Highlands Coffee',
+        customerId: 'cust-1', customerName: 'Sai Gon Infra', inspectorId: 'ins-2', inspectorName: 'Do Thi Phi Cong',
+        currency: 'VND', customerPaidAmount: 12000000, serviceBaseAmount: 10909091,
+        vatRate: 10, vatAmount: 1090909, commissionRate: 15, commissionAmount: 1636364, netCommissionAmount: 1636364,
+        tncnRate: 10, tncnAmount: 927273, inspectorNetPayout: 8345454, refundedAmount: 0, netPlatformInflow: 12000000,
+        paymentStatus: 'PAID', paymentMethod: 'VNPAY', paymentReference: 'VN-4', paymentConfirmedAt: '2026-11-24T05:00:00Z',
+        payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
+      }],
+      totalElements: 1, page: 0, size: 20,
+    });
+    mocks.getManagerDetail.mockResolvedValue({
+      occurrenceId: 'occ-4', requestId: 'req-4', occurrenceIndex: 1, currency: 'VND',
+      totalPrice: 12000000, paymentAmount: 12000000, paymentStatus: 'PAID', serviceBaseAmount: 10909091,
+      vatRate: 10, vatAmount: 1090909, commissionRate: 15, commissionAmount: 1636364,
+      inspectorGrossPayout: 9272727, tncnRate: 10, tncnAmount: 927273, inspectorNetPayout: 8345454,
+      payoutStatus: 'ELIGIBLE', payoutReference: null, payoutRecordedAt: null,
+      paymentConfirmedAt: '2026-11-24T05:00:00Z', refunds: [],
+      payment: { status: 'PAID', method: 'VNPAY', reference: 'VN-4' },
+    });
+    mocks.recordPayout.mockResolvedValue({});
+
+    renderPage('payouts');
+    expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Payout eligible (1)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Settle payout' }));
+    const drawer = await screen.findByRole('dialog');
+    const uncInput = within(drawer).getByPlaceholderText('Bank transfer reference (e.g. UNC-VCB-20261110)');
+    fireEvent.change(uncInput, { target: { value: 'UNC-VCB-20261124' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Settle Inspector payout' }));
+    expect(mocks.recordPayout).toHaveBeenCalledWith('req-4', 'occ-4', { payoutReference: 'UNC-VCB-20261124' });
   });
 });

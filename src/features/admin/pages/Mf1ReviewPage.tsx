@@ -10,7 +10,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  InputAdornment,
   Link,
+  MenuItem,
   Paper,
   Stack,
   Tab,
@@ -22,13 +24,12 @@ import {
   TableRow,
   Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import HighlightOffRounded from '@mui/icons-material/HighlightOffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
@@ -44,10 +45,10 @@ import {
   inspectorApplicationApi,
   type InspectorApplication,
 } from '@/features/auth/api/inspectorApplicationApi';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { QueryState } from '@/shared/ui/QueryState';
-import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -119,8 +120,12 @@ function classifyDroneLegalTier(rawText?: string | null): {
   };
 }
 
-export default function Mf1ReviewPage() {
-  const { locale } = useLocale();
+export default function Mf1ReviewPage({
+  fixedQueue,
+}: {
+  fixedQueue?: QueueId;
+} = {}) {
+  const { locale, t } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
@@ -136,7 +141,8 @@ export default function Mf1ReviewPage() {
       : []),
   ];
 
-  const [queue, setQueue] = useState<QueueId>('drones');
+  const [selectedQueue, setSelectedQueue] = useState<QueueId>('drones');
+  const queue = fixedQueue ?? selectedQueue;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sort, setSort] = useState<SortOption>('NEWEST');
@@ -165,13 +171,14 @@ export default function Mf1ReviewPage() {
   const customers = useQuery({
     queryKey: ['mf1-reviews', 'customers'],
     queryFn: mf1ReviewApi.pendingCustomers,
-    enabled: isAdmin,
+    enabled: isAdmin && (!fixedQueue || fixedQueue === 'customers'),
     retry: false,
   });
 
   const drones = useQuery({
     queryKey: ['mf1-reviews', 'drones'],
     queryFn: mf1ReviewApi.pendingDrones,
+    enabled: !fixedQueue || fixedQueue === 'drones',
     retry: false,
     refetchInterval: 5000,
   });
@@ -179,6 +186,7 @@ export default function Mf1ReviewPage() {
   const droneHistory = useQuery({
     queryKey: ['mf1-reviews', 'drones-history'],
     queryFn: mf1ReviewApi.droneHistory,
+    enabled: !fixedQueue || fixedQueue === 'drones',
     retry: false,
     refetchInterval: 8000,
   });
@@ -186,6 +194,7 @@ export default function Mf1ReviewPage() {
   const pendingInspectorApps = useQuery({
     queryKey: ['mf1-reviews', 'inspector-applications', 'pending'],
     queryFn: inspectorApplicationApi.listPending,
+    enabled: !fixedQueue || fixedQueue === 'inspectors',
     retry: false,
     refetchInterval: 8000,
   });
@@ -193,12 +202,13 @@ export default function Mf1ReviewPage() {
   const awaitingContractApps = useQuery({
     queryKey: ['mf1-reviews', 'inspector-applications', 'awaiting-contract'],
     queryFn: inspectorApplicationApi.listApprovedAwaitingContract,
+    enabled: !fixedQueue || fixedQueue === 'inspectors',
     retry: false,
     refetchInterval: 8000,
   });
 
   const changeQueue = (next: QueueId) => {
-    setQueue(next);
+    setSelectedQueue(next);
     setSearch('');
     setStatusFilter('ALL');
     setSort('NEWEST');
@@ -483,99 +493,135 @@ export default function Mf1ReviewPage() {
     queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneRows.length : customerRows.length;
   const totalCount = queueCounts[queue];
 
+  const pageTitle = fixedQueue
+    ? fixedQueue === 'inspectors'
+      ? t('Inspector applications')
+      : fixedQueue === 'drones'
+        ? t('Drone registrations')
+        : t('Customer airspace')
+    : tr('Xét duyệt hồ sơ (MF1)', 'Compliance reviews');
+
   return (
     <Box className="workspace-page" sx={{ maxWidth: 1200, mx: 'auto', pb: 6 }}>
       <PageHeader
-        title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
-        subtitle={tr(
-          'Xác minh hồ sơ Inspector, đăng ký Drone và vùng bay khách hàng trước khi cấp phép hoạt động.',
-          'Verify inspector applications, drone registrations, and customer airspace before operations begin.',
-        )}
+        title={pageTitle}
         breadcrumbs={[
           { label: tr('Quản trị', 'Governance'), to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
-          { label: tr('Duyệt onboarding', 'Onboarding reviews') },
+          { label: pageTitle },
         ]}
       />
 
-      <Tabs
-        value={queue}
-        onChange={(_, value: QueueId) => changeQueue(value)}
-        aria-label="MF1 review queues"
-        variant="scrollable"
-        scrollButtons="auto"
+      {!fixedQueue && (
+        <Tabs
+          value={queue}
+          onChange={(_, value: QueueId) => changeQueue(value)}
+          aria-label="MF1 review queues"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 2,
+            '& .MuiTab-root': {
+              minHeight: 44,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              px: 1.75,
+              gap: 0.75,
+            },
+          }}
+        >
+          {queues.map((entry) => (
+            <Tab
+              key={entry.id}
+              value={entry.id}
+              icon={entry.icon}
+              iconPosition="start"
+              label={`${entry.label} (${queueCounts[entry.id]})`}
+            />
+          ))}
+        </Tabs>
+      )}
+
+      <Paper
+        variant="outlined"
         sx={{
-          borderBottom: 1,
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: '12px',
           borderColor: 'divider',
-          mb: 2.5,
-          '& .MuiTab-root': {
-            minHeight: 44,
-            fontWeight: 600,
-            textTransform: 'none',
-            fontSize: '0.875rem',
-            px: 1.75,
-            gap: 0.75,
-          },
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+          mb: 2,
         }}
       >
-        {queues.map((entry) => (
-          <Tab
-            key={entry.id}
-            value={entry.id}
-            icon={entry.icon}
-            iconPosition="start"
-            label={`${entry.label} (${queueCounts[entry.id]})`}
-          />
-        ))}
-      </Tabs>
-
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1.5 }}
-      >
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={statusFilter}
-          onChange={(_, value: string | null) => {
-            if (value) setStatusFilter(value);
-          }}
-          aria-label={tr('Trạng thái duyệt', 'Review status')}
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
         >
-          {statusOptions.map((option) => (
-            <ToggleButton key={option.value} value={option.value} sx={{ px: 1.75, fontWeight: 600 }}>
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Stack>
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+            {statusOptions.map((option) => {
+              const active = statusFilter === option.value;
+              return (
+                <Chip
+                  key={option.value}
+                  size="small"
+                  clickable
+                  label={option.label}
+                  color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'}
+                  onClick={() => setStatusFilter(option.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    borderColor: active ? undefined : 'divider',
+                  }}
+                />
+              );
+            })}
+          </Stack>
 
-      <AdminTableToolbar
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder={
-          queue === 'inspectors'
-            ? tr('Tìm theo tên, email, CCCD hoặc bằng lái', 'Search name, email, citizen ID, or license')
-            : queue === 'drones'
-              ? tr('Tìm theo drone, serial hoặc người gửi', 'Search drone, serial, or applicant')
-              : tr('Tìm theo tổ chức, tài sản hoặc vùng bay', 'Search organization, asset, or airspace')
-        }
-        visibleCount={visibleCount}
-        totalCount={totalCount}
-        onClearAll={() => setStatusFilter('ALL')}
-        filters={[
-          {
-            key: 'sort',
-            label: tr('Sắp xếp', 'Sort'),
-            value: sort,
-            options: [
-              { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
-              { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
-            ],
-            onChange: (value) => setSort(value as SortOption),
-          },
-        ]}
-      />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <TextField
+              size="small"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={
+                queue === 'inspectors'
+                  ? tr('Tìm theo tên, email, bằng lái…', 'Search name, email, license…')
+                  : queue === 'drones'
+                    ? tr('Tìm drone, serial, người gửi…', 'Search drone, serial, applicant…')
+                    : tr('Tìm tổ chức, công trình…', 'Search organization, asset…')
+              }
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRounded fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ width: { xs: '100%', sm: 250 } }}
+            />
+            <TextField
+              select
+              size="small"
+              value={sort}
+              onChange={(event) => setSort(event.target.value as SortOption)}
+              sx={{ minWidth: 130 }}
+            >
+              <MenuItem value="NEWEST">{tr('Mới nhất', 'Newest')}</MenuItem>
+              <MenuItem value="OLDEST">{tr('Cũ nhất', 'Oldest')}</MenuItem>
+            </TextField>
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+              {visibleCount}/{totalCount}
+            </Typography>
+          </Stack>
+        </Stack>
+      </Paper>
 
       {queue === 'inspectors' && (
         <QueryState
@@ -586,7 +632,7 @@ export default function Mf1ReviewPage() {
             void awaitingContractApps.refetch();
           }}
           isEmpty={inspectorRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có hồ sơ Inspector nào khớp bộ lọc.', 'No inspector applications match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có hồ sơ Inspector nào.', 'No inspector applications')} />}
         >
           <QueueTable
             headers={[
@@ -650,12 +696,13 @@ export default function Mf1ReviewPage() {
                 <TableCell align="right">
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="outlined"
                     startIcon={<FactCheckOutlined />}
                     onClick={(event) => {
                       event.stopPropagation();
                       void openInspectorAppReview(application);
                     }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
                     {tr('Xem hồ sơ & Duyệt', 'Review application')}
                   </Button>
@@ -675,7 +722,7 @@ export default function Mf1ReviewPage() {
             void droneHistory.refetch();
           }}
           isEmpty={droneRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có hồ sơ drone nào khớp bộ lọc.', 'No drone registrations match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có hồ sơ drone nào.', 'No drone registrations')} />}
         >
           <QueueTable
             headers={[
@@ -754,12 +801,13 @@ export default function Mf1ReviewPage() {
                     {status === 'PENDING' && (
                       <Button
                         size="small"
-                        variant="contained"
+                        variant="outlined"
                         startIcon={<FactCheckOutlined />}
                         onClick={(event) => {
                           event.stopPropagation();
                           void openDroneReview(application);
                         }}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                       >
                         {tr('Thẩm định hồ sơ', 'Review application')}
                       </Button>
@@ -778,7 +826,7 @@ export default function Mf1ReviewPage() {
           error={customers.error}
           onRetry={() => void customers.refetch()}
           isEmpty={customerRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có vùng bay khách hàng nào khớp bộ lọc.', 'No customer airspace reviews match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có vùng bay khách hàng nào.', 'No customer airspace reviews')} />}
         >
           <QueueTable
             headers={[
@@ -832,12 +880,13 @@ export default function Mf1ReviewPage() {
                 <TableCell align="right">
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="outlined"
                     startIcon={<FactCheckOutlined />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openCustomerReview(review);
                     }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
                     {tr('Thẩm định', 'Review')}
                   </Button>

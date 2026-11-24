@@ -26,6 +26,7 @@ interface OccurrenceFinanceDrawerProps {
   onClose: () => void;
   requestId: string;
   occurrence: ServiceRequestOccurrence | null;
+  isOneTime?: boolean;
   onChanged: () => void;
   onError?: (message: string) => void;
 }
@@ -35,6 +36,7 @@ export function OccurrenceFinanceDrawer({
   onClose,
   requestId,
   occurrence,
+  isOneTime = false,
   onChanged,
 }: OccurrenceFinanceDrawerProps) {
   const { formatNumber, t } = useLocale();
@@ -92,7 +94,9 @@ export function OccurrenceFinanceDrawer({
       <Stack spacing={2}>
         <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {t('Occurrence')} {occurrence.occurrenceIndex} · {t('Service invoice')}
+            {isOneTime
+              ? t('Service invoice')
+              : `${t('Occurrence')} ${occurrence.occurrenceIndex} · ${t('Service invoice')}`}
           </Typography>
           <IconButton size="small" onClick={handleClose} aria-label={t('Close')}>
             <CloseRoundedIcon fontSize="small" />

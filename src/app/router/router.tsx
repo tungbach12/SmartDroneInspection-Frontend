@@ -130,11 +130,14 @@ const SECTION_ELEMENTS: Record<SectionId, ReactNode> = {
   reports: <ReportsPage />,
   'platform-users': <PlatformUsersPage />,
   'platform-settings': <PlatformSettingsHubPage />,
-  'onboarding-reviews': <Mf1ReviewPage />,
+  'onboarding-reviews': <Mf1ReviewPage fixedQueue="inspectors" />,
+  'drone-registrations': <Mf1ReviewPage fixedQueue="drones" />,
+  'customer-airspace': <Mf1ReviewPage fixedQueue="customers" />,
   'audit-logs': <AdminAuditLogPage />,
   'inspector-drones': <InspectorDroneRegistrationPage />,
   notifications: <NotificationsPage />,
   'finance-history': <FinanceHistoryPage />,
+  'payout-settlements': <FinanceHistoryPage mode="payouts" />,
   settings: <AccountSecurityPage />,
 };
 

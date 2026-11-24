@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 import {
@@ -18,6 +19,7 @@ export interface PlatformSettlementInvoiceCardProps {
   listRow?: Partial<InspectionListItem> | null | undefined;
   paymentDetails?: Partial<ReportPaymentStatusDetails> | null | undefined;
   inspectorName?: string | null | undefined;
+  onSettlePayout?: ((payoutReference: string) => Promise<void>) | undefined;
   onManageFinance?: (() => void) | undefined;
 }
 
@@ -102,11 +104,15 @@ export function PlatformSettlementInvoiceCard({
   listRow,
   paymentDetails,
   inspectorName,
+  onSettlePayout,
   onManageFinance,
 }: PlatformSettlementInvoiceCardProps) {
   const { formatDate, formatNumber, t } = useLocale();
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentError, setDocumentError] = useState<string | null>(null);
+  const [payoutRefInput, setPayoutRefInput] = useState('');
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, listRow, paymentDetails);
 
   if (!finance) {
@@ -355,31 +361,93 @@ export function PlatformSettlementInvoiceCard({
               />
             </Box>
 
-            {onManageFinance && (
-              <Box>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  size="small"
-                  endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
-                  onClick={onManageFinance}
-                  sx={{
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    color: 'text.primary',
-                    textTransform: 'none',
-                    whiteSpace: 'nowrap',
-                    '&:hover': {
-                      borderColor: 'text.secondary',
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  {t('Manage payout & refunds')}
-                </Button>
-              </Box>
+            {((!finance.isDisbursed && finance.isPaid && Boolean(onSettlePayout)) || Boolean(onManageFinance)) && (
+              <Stack
+                spacing={1.25}
+                sx={{ pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}
+              >
+                {!finance.isDisbursed && finance.isPaid && onSettlePayout && (
+                  <Stack spacing={1}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                      {t('Record partner transfer')}
+                    </Typography>
+                    {payoutError && (
+                      <Alert severity="error" onClose={() => setPayoutError(null)} sx={{ borderRadius: '8px' }}>
+                        {payoutError}
+                      </Alert>
+                    )}
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <TextField
+                        size="small"
+                        placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
+                        value={payoutRefInput}
+                        onChange={(e) => setPayoutRefInput(e.target.value)}
+                        sx={{ flex: 1 }}
+                      />
+                      <LoadingButton
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        loading={payoutBusy}
+                        disabled={!payoutRefInput.trim()}
+                        onClick={async () => {
+                          setPayoutBusy(true);
+                          setPayoutError(null);
+                          try {
+                            await onSettlePayout(payoutRefInput.trim());
+                            setPayoutRefInput('');
+                          } catch (error) {
+                            setPayoutError(
+                              getErrorMessage(error, t('Could not settle payout.')),
+                            );
+                          } finally {
+                            setPayoutBusy(false);
+                          }
+                        }}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 650,
+                          whiteSpace: 'nowrap',
+                          borderRadius: '8px',
+                          boxShadow: 'none',
+                        }}
+                      >
+                        {t('Settle Inspector payout')}
+                      </LoadingButton>
+                    </Stack>
+                  </Stack>
+                )}
+
+                {onManageFinance && (
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                      onClick={onManageFinance}
+                      sx={{
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        color: 'text.secondary',
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          borderColor: 'text.secondary',
+                          color: 'text.primary',
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      {onSettlePayout && finance.isPaid
+                        ? t('Refunds & wire transfer')
+                        : t('Manage payout & refunds')}
+                    </Button>
+                  </Box>
+                )}
+              </Stack>
             )}
           </Box>
         </Box>
