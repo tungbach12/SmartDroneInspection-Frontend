@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
@@ -319,9 +319,8 @@ export function CustomerReportSettlementCard({
   const { formatDate, formatNumber, t } = useLocale();
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
-  const prevPaidRef = useRef(isPaid);
 
-  const downloadPaymentReceipt = useCallback(async () => {
+  const downloadPaymentReceipt = async () => {
     setDocumentBusy(true);
     setDocumentError(null);
     try {
@@ -339,28 +338,7 @@ export function CustomerReportSettlementCard({
     } finally {
       setDocumentBusy(false);
     }
-  }, [inspectionId]);
-
-  useEffect(() => {
-    const becamePaid = !prevPaidRef.current && isPaid;
-    prevPaidRef.current = isPaid;
-    let firstReceiptAfterCheckout = false;
-    if (isPaid && typeof window !== 'undefined') {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const key = `sdi_payment_receipt_downloaded_${inspectionId}`;
-        if (params.get('payment') === 'success' && !sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, '1');
-          firstReceiptAfterCheckout = true;
-        }
-      } catch {
-        // ignore storage errors
-      }
-    }
-    if (becamePaid || firstReceiptAfterCheckout) {
-      void downloadPaymentReceipt();
-    }
-  }, [isPaid, inspectionId, downloadPaymentReceipt]);
+  };
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
   const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;

@@ -325,4 +325,64 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
       expect(mockedApi.downloadPaymentDocument).not.toHaveBeenCalled();
     });
   });
+
+  it('does not auto-download the receipt PDF when settled with ?payment=success', async () => {
+    mockedApi.getById.mockResolvedValue({
+      id: 'insp-1',
+      assetName: 'Bridge A',
+      inspectionType: 'INITIAL',
+    } as never);
+    mockedApi.listVersions.mockResolvedValue([
+      {
+        id: 'ver-1',
+        inspectionReportId: 'rep-1',
+        versionNo: 1,
+        status: 'PUBLISHED',
+        authorUserId: 'u-1',
+        submittedAt: null,
+        reviewerUserId: null,
+        reviewedAt: null,
+        returnReason: null,
+        publishedAt: '2026-11-20T10:00:00Z',
+        createdAt: '2026-11-20T09:00:00Z',
+        summary: 'Summary',
+        omissionDisclosure: null,
+      },
+    ]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.getReportPaymentStatus.mockResolvedValue({
+      reportAccepted: true,
+      paid: true,
+      paymentStatus: 'PAID',
+      orderCode: 100047,
+      amount: 5000000,
+      checkoutUrl: null,
+      paymentMethod: 'VNPAY',
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/settlement?payment=success']}>
+            <Routes>
+              <Route
+                path="/client/inspections/:inspectionId/settlement"
+                element={<CustomerReportDeliverablePage stage="settlement" />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText('Paid & Fulfilled')).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedApi.downloadPaymentDocument).not.toHaveBeenCalled();
+    });
+  });
 });
