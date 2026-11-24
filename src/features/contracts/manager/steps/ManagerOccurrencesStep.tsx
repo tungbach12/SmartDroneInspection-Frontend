@@ -21,7 +21,6 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import FlightOutlinedIcon from '@mui/icons-material/FlightOutlined';
