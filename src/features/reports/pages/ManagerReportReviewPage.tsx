@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { contractApi } from '@/features/contracts/api/contractApi';
 import {
   Alert,
   Box,
@@ -48,6 +49,7 @@ export default function ManagerReportReviewPage({
   const { t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
     PORTAL_IDS[0]) as PortalId;
   const userId = useAuthStore((state) => state.userId);
@@ -119,6 +121,23 @@ export default function ManagerReportReviewPage({
   );
 
   const isEmbeddedInInspectionWorkspace = location.pathname.includes('/inspections/');
+
+  const handleOpenContractsFinance = async () => {
+    const basePath = getSectionPath(portal, 'contracts');
+    try {
+      const requests = await contractApi.listRequests();
+      const matched = requests.find((req) =>
+        req.occurrences?.some((occ) => occ.inspectionId === inspectionId),
+      );
+      if (matched) {
+        navigate(`${basePath}?requestId=${matched.id}`);
+        return;
+      }
+    } catch {
+      // Fallback to Contracts index if request lookup fails
+    }
+    navigate(basePath);
+  };
 
   return (
     <Box className="workspace-page workspace-page--reports" sx={{ width: '100%', maxWidth: '1440px', mx: 'auto' }}>
@@ -208,6 +227,10 @@ export default function ManagerReportReviewPage({
           <PlatformSettlementInvoiceCard
             inspectionId={inspectionId}
             paymentDetails={paymentStatusQuery.data}
+            inspectorName={inspectionQuery.data?.inspectorName}
+            onManageFinance={
+              portal === 'manager' ? () => void handleOpenContractsFinance() : undefined
+            }
           />
         </Stack>
       ) : (
@@ -235,6 +258,10 @@ export default function ManagerReportReviewPage({
               <PlatformSettlementInvoiceCard
                 inspectionId={inspectionId}
                 paymentDetails={paymentStatusQuery.data}
+                inspectorName={inspectionQuery.data?.inspectorName}
+                onManageFinance={
+                  portal === 'manager' ? () => void handleOpenContractsFinance() : undefined
+                }
               />
             )}
 

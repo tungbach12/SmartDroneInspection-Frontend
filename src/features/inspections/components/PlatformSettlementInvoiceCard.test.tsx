@@ -1,14 +1,25 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/shared/i18n/LocaleProvider';
+import { inspectionApi } from '../api/inspectionApi';
 import { PlatformSettlementInvoiceCard } from './PlatformSettlementInvoiceCard';
 
+vi.mock('../api/inspectionApi', () => ({
+  inspectionApi: {
+    downloadPaymentDocument: vi.fn().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' })),
+  },
+}));
+
 describe('PlatformSettlementInvoiceCard', () => {
-  it('shows Commission & payout alongside Service invoice cleanly without duplicate revenue callouts', () => {
+  it('shows separate collection and payout pills, recipient, reference, PDF download, and finance link when paid', async () => {
+    const onManageFinance = vi.fn();
+
     render(
       <LocaleProvider>
         <PlatformSettlementInvoiceCard
           inspectionId="insp-1"
+          inspectorName="Đỗ Thị Phi Công"
+          onManageFinance={onManageFinance}
           paymentDetails={{
             reportAccepted: true,
             paid: true,
@@ -26,17 +37,53 @@ describe('PlatformSettlementInvoiceCard', () => {
             inspectorNetPayout: 8345454.54,
             payoutStatus: 'ELIGIBLE',
             paymentMethod: 'VNPAY',
+            paymentReference: 'VNPAY-14998899',
           }}
         />
       </LocaleProvider>,
     );
 
     expect(screen.getByText('Order & settlement breakdown')).toBeTruthy();
-    expect(screen.getByText('Customer paid · payout pending')).toBeTruthy();
     expect(screen.getByText('INV-1858020523')).toBeTruthy();
-    expect(screen.getByText('Paid via VNPay · Order #1858020523')).toBeTruthy();
+    expect(screen.getByText('Customer paid')).toBeTruthy();
+    expect(screen.getByText('Payout eligible')).toBeTruthy();
+    expect(screen.getByText('Paid via VNPay · Order #1858020523 · Ref: VNPAY-14998899')).toBeTruthy();
     expect(screen.getByText('Inspector gross payout')).toBeTruthy();
+    expect(screen.getByText('Đỗ Thị Phi Công · Eligible for manager payout')).toBeTruthy();
     expect(screen.getAllByText(/Platform commission/)).toHaveLength(1);
     expect(screen.queryByText('Platform revenue')).toBeNull();
+
+    const receiptBtn = screen.getByRole('button', { name: 'Download receipt (PDF)' });
+    fireEvent.click(receiptBtn);
+    expect(vi.mocked(inspectionApi.downloadPaymentDocument)).toHaveBeenCalledWith('insp-1');
+
+    const manageBtn = screen.getByRole('button', { name: 'Manage payout & refunds' });
+    fireEvent.click(manageBtn);
+    expect(onManageFinance).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows due date and Payment Notice download when report is accepted but unpaid', () => {
+    render(
+      <LocaleProvider>
+        <PlatformSettlementInvoiceCard
+          inspectionId="insp-2"
+          inspectorName="Phạm Văn Bay"
+          paymentDetails={{
+            reportAccepted: true,
+            paid: false,
+            paymentStatus: 'PAYMENT_DUE',
+            orderCode: 1048968707,
+            amount: 12000000,
+            paymentDueAt: '2026-12-08T00:00:00Z',
+            payoutStatus: 'PENDING',
+          }}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByText('Awaiting payment')).toBeTruthy();
+    expect(screen.getByText('Payout pending')).toBeTruthy();
+    expect(screen.getByText(/Pay by/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download payment notice (PDF)' })).toBeTruthy();
   });
 });

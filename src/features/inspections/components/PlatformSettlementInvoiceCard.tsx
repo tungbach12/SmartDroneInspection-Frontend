@@ -1,14 +1,24 @@
-import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
+import { getErrorMessage } from '@/shared/api/errorMessage';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
-import type { InspectionListItem, ReportPaymentStatusDetails } from '../api/inspectionApi';
+import {
+  inspectionApi,
+  type InspectionListItem,
+  type ReportPaymentStatusDetails,
+} from '../api/inspectionApi';
 
 export interface PlatformSettlementInvoiceCardProps {
   inspectionId: string;
   listRow?: Partial<InspectionListItem> | null | undefined;
   paymentDetails?: Partial<ReportPaymentStatusDetails> | null | undefined;
+  inspectorName?: string | null | undefined;
+  onManageFinance?: (() => void) | undefined;
 }
 
 function formatPaymentMethodLabel(method: string | null | undefined, t: (key: string) => string): string {
@@ -91,24 +101,70 @@ export function PlatformSettlementInvoiceCard({
   inspectionId,
   listRow,
   paymentDetails,
+  inspectorName,
+  onManageFinance,
 }: PlatformSettlementInvoiceCardProps) {
-  const { formatNumber, t } = useLocale();
+  const { formatDate, formatNumber, t } = useLocale();
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const [documentError, setDocumentError] = useState<string | null>(null);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, listRow, paymentDetails);
 
   if (!finance) {
     return null;
   }
 
-  const statusConfig = finance.isDisbursed
-    ? { status: 'paid', label: 'Paid & settled', tone: 'success' as const }
+  const customerChip = finance.isPaid
+    ? { status: 'paid', label: 'Customer paid', tone: 'success' as const }
+    : paymentDetails?.reportAccepted
+      ? { status: 'payment_due', label: 'Awaiting payment', tone: 'info' as const }
+      : { status: 'awaiting', label: 'Awaiting customer', tone: 'default' as const };
+
+  const payoutChip = finance.isDisbursed
+    ? { status: 'settled', label: 'Payout settled', tone: 'success' as const }
     : finance.isPaid
-      ? { status: 'payout_pending', label: 'Customer paid · payout pending', tone: 'warning' as const }
-      : paymentDetails?.reportAccepted
-        ? { status: 'payment_due', label: 'Awaiting payment', tone: 'info' as const }
-        : { status: 'awaiting', label: 'Awaiting customer', tone: 'default' as const };
+      ? { status: 'payout_pending', label: 'Payout eligible', tone: 'warning' as const }
+      : { status: 'payout_locked', label: 'Payout pending', tone: 'default' as const };
 
   const invoiceRef = paymentDetails?.orderCode ? `INV-${paymentDetails.orderCode}` : null;
   const methodLabel = formatPaymentMethodLabel(paymentDetails?.paymentMethod, t);
+  const canDownloadDocument = Boolean(finance.isPaid || paymentDetails?.reportAccepted);
+  const dueLabel = paymentDetails?.paymentDueAt
+    ? t('Pay by {date}').replace(
+        '{date}',
+        formatDate(paymentDetails.paymentDueAt, { dateStyle: 'medium' }),
+      )
+    : null;
+  const payoutRef = paymentDetails?.payoutReference;
+  const payoutStatusNote = finance.isDisbursed
+    ? payoutRef
+      ? `${t('Settled')} · ${t('Ref')}: ${payoutRef}`
+      : t('Payout recorded')
+    : finance.isPaid
+      ? t('Eligible for manager payout')
+      : t('Payable after customer payment');
+  const payoutSublabel = inspectorName
+    ? `${inspectorName} · ${payoutStatusNote}`
+    : payoutStatusNote;
+
+  const handleDownloadDocument = async () => {
+    setDocumentBusy(true);
+    setDocumentError(null);
+    try {
+      const blob = await inspectionApi.downloadPaymentDocument(inspectionId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${finance.isPaid ? 'SDI-payment-receipt' : 'SDI-payment-notice'}-${inspectionId.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDocumentError(getErrorMessage(error, t('Payment document could not be downloaded.')));
+    } finally {
+      setDocumentBusy(false);
+    }
+  };
 
   return (
     <Paper
@@ -126,11 +182,6 @@ export function PlatformSettlementInvoiceCard({
           <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
             {t('Order & settlement breakdown')}
           </Typography>
-          <StatusChip
-            status={statusConfig.status}
-            label={statusConfig.label}
-            tone={statusConfig.tone}
-          />
           {invoiceRef && (
             <Chip
               size="small"
@@ -148,7 +199,23 @@ export function PlatformSettlementInvoiceCard({
               }}
             />
           )}
+          <StatusChip
+            status={customerChip.status}
+            label={customerChip.label}
+            tone={customerChip.tone}
+          />
+          <StatusChip
+            status={payoutChip.status}
+            label={payoutChip.label}
+            tone={payoutChip.tone}
+          />
         </Stack>
+
+        {documentError && (
+          <Alert severity="error" sx={{ borderRadius: '8px' }}>
+            {documentError}
+          </Alert>
+        )}
 
         <Divider />
 
@@ -193,11 +260,58 @@ export function PlatformSettlementInvoiceCard({
                 bold
               />
             </Box>
-            {finance.isPaid && methodLabel && (
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                {`${t('Paid via')} ${methodLabel}`}
-                {paymentDetails?.orderCode ? ` · ${t('Order')} #${paymentDetails.orderCode}` : ''}
-              </Typography>
+
+            {(finance.isPaid || dueLabel || canDownloadDocument) && (
+              <Stack spacing={1.25}>
+                {finance.isPaid ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {methodLabel ? `${t('Paid via')} ${methodLabel}` : t('Paid')}
+                    {paymentDetails?.orderCode ? ` · ${t('Order')} #${paymentDetails.orderCode}` : ''}
+                    {paymentDetails?.paymentReference
+                      ? ` · ${t('Ref')}: ${paymentDetails.paymentReference}`
+                      : ''}
+                  </Typography>
+                ) : dueLabel ? (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {dueLabel}
+                  </Typography>
+                ) : null}
+
+                {canDownloadDocument && (
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      disabled={documentBusy}
+                      startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
+                      onClick={() => void handleDownloadDocument()}
+                      sx={{
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
+                        textTransform: 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          borderColor: 'text.secondary',
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      {documentBusy
+                        ? t('Generating PDF…')
+                        : finance.isPaid
+                          ? t('Download receipt (PDF)')
+                          : t('Download payment notice (PDF)')}
+                    </Button>
+                  </Box>
+                )}
+              </Stack>
             )}
           </Box>
 
@@ -211,6 +325,7 @@ export function PlatformSettlementInvoiceCard({
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
+              gap: 1.5,
             }}
           >
             <Box>
@@ -234,17 +349,38 @@ export function PlatformSettlementInvoiceCard({
               <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
               <StatementLine
                 label={t('Inspector net payout')}
-                sublabel={
-                  finance.isDisbursed
-                    ? t('Payout recorded')
-                    : finance.isPaid
-                      ? t('Eligible for manager payout')
-                      : t('Payable after customer payment')
-                }
+                sublabel={payoutSublabel}
                 amount={`${formatNumber(finance.netPayoutAmount)} ₫`}
                 bold
               />
             </Box>
+
+            {onManageFinance && (
+              <Box>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  size="small"
+                  endIcon={<ArrowForwardRounded sx={{ fontSize: 15 }} />}
+                  onClick={onManageFinance}
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    color: 'text.primary',
+                    textTransform: 'none',
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      borderColor: 'text.secondary',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  {t('Manage payout & refunds')}
+                </Button>
+              </Box>
+            )}
           </Box>
         </Box>
       </Stack>

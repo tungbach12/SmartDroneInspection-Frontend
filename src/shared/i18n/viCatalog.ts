@@ -3055,4 +3055,11 @@
   "Sepay, VNPay & Receipt": "Sepay, VNPay & Biên lai",
   "Commission & payout": "Hoa hồng & Chi trả",
   "Inspector gross payout": "Thu nhập kiểm định viên (trước thuế)",
+  "Customer paid": "Khách đã thanh toán",
+  "Payout settled": "Đã chi trả kiểm định viên",
+  "Payout eligible": "Chờ chi trả kiểm định viên",
+  "Payout pending": "Chờ khách thanh toán",
+  "Download receipt (PDF)": "Tải biên lai (PDF)",
+  "Manage payout & refunds": "Quản lý chi trả & hoàn tiền",
+  "Ref": "Mã GD",
 };
