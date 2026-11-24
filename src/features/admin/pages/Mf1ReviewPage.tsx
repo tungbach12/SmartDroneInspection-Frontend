@@ -639,6 +639,11 @@ export default function Mf1ReviewPage({
             })}
           </Stack>
 
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <TextField
+              size="small"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder={
                 queue === 'inspectors'
                   ? tr('Tìm theo tên, email, bằng lái…', 'Search name, email, license…')
