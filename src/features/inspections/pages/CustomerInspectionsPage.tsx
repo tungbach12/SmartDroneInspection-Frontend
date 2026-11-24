@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Chip,
   Divider,
   IconButton,
   InputAdornment,
@@ -28,6 +27,7 @@ import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
+import SwapVertRounded from '@mui/icons-material/SwapVertRounded';
 import { getSectionPath } from '@/app/permissions/accessPolicy';
 import { useAssets } from '@/features/assets/hooks/useAssets';
 import { useAuthStore } from '@/features/auth/store/authStore';
@@ -95,6 +95,7 @@ export function CustomerInspectionsPage() {
 
   const [quickFilter, setQuickFilter] = useState<CustomerQuickFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'DEFAULT' | 'SCHEDULE_DESC' | 'SCHEDULE_ASC' | 'AMOUNT_DESC'>('DEFAULT');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [selectedWorkDetailId, setSelectedWorkDetailId] = useState<string | null>(null);
@@ -223,7 +224,7 @@ export function CustomerInspectionsPage() {
   );
 
   const displayedItems = useMemo(() => {
-    return enrichedItems.filter((item) => {
+    const filtered = enrichedItems.filter((item) => {
       if (quickFilter === 'IN_PROGRESS' && item.reportStatus === 'PUBLISHED') return false;
       if (quickFilter === 'REPORT_READY' && item.reportStatus !== 'PUBLISHED') return false;
       if (quickFilter === 'ACTION_NEEDED') {
@@ -239,6 +240,8 @@ export function CustomerInspectionsPage() {
           item.resolvedAssetName,
           item.resolvedAssetCode ?? '',
           item.resolvedObjective,
+          item.assetLocation ?? '',
+          item.inspectorName ?? '',
           item.id,
         ]
           .join(' ')
@@ -248,7 +251,17 @@ export function CustomerInspectionsPage() {
 
       return true;
     });
-  }, [enrichedItems, quickFilter, searchQuery]);
+
+    if (sortOrder === 'DEFAULT') return filtered;
+    return [...filtered].sort((left, right) => {
+      if (sortOrder === 'AMOUNT_DESC') {
+        return (right.resolvedPaymentAmount ?? 0) - (left.resolvedPaymentAmount ?? 0);
+      }
+      const leftTs = new Date(left.plannedStartAt ?? left.updatedAt).getTime();
+      const rightTs = new Date(right.plannedStartAt ?? right.updatedAt).getTime();
+      return sortOrder === 'SCHEDULE_ASC' ? leftTs - rightTs : rightTs - leftTs;
+    });
+  }, [enrichedItems, quickFilter, searchQuery, sortOrder]);
 
   const pagedItems = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -268,7 +281,7 @@ export function CustomerInspectionsPage() {
 
   const formatVnd = (amount: number | null) => {
     if (amount == null || amount <= 0) return null;
-    return `${formatNumber(amount)} ₫`;
+    return `${formatNumber(Math.round(amount))} ₫`;
   };
 
   const renderActionMenuButton = (row: EnrichedCustomerInspection) => (
@@ -319,6 +332,23 @@ export function CustomerInspectionsPage() {
                   ? t('No inspection missions match your current filter criteria.')
                   : t('Inspections scheduled for your organization will appear here.')
               }
+              action={
+                quickFilter !== 'ALL' || searchQuery.trim() || sortOrder !== 'DEFAULT' ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      setQuickFilter('ALL');
+                      setSearchQuery('');
+                      setSortOrder('DEFAULT');
+                      setPage(1);
+                    }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {t('Clear filters')}
+                  </Button>
+                ) : undefined
+              }
             />
           }
         >
@@ -349,23 +379,41 @@ export function CustomerInspectionsPage() {
             >
               <TextField
                 size="small"
-                placeholder={t('Search by asset, code, or scope…')}
+                placeholder={t('Search asset, code, scope, inspector…')}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
                 slotProps={{
+                  htmlInput: { 'aria-label': t('Search inspections') },
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchRounded fontSize="small" sx={{ color: '#71717A' }} />
+                        <SearchRounded fontSize="small" sx={{ color: 'text.secondary' }} />
                       </InputAdornment>
                     ),
+                    endAdornment: searchQuery.trim() ? (
+                      <InputAdornment position="end">
+                        <Button
+                          size="small"
+                          color="inherit"
+                          aria-label={t('Clear search')}
+                          onClick={() => {
+                            setSearchQuery('');
+                            setPage(1);
+                          }}
+                          sx={{ minWidth: 0, p: 0.25, fontSize: '1rem', lineHeight: 1, color: 'text.secondary' }}
+                        >
+                          ×
+                        </Button>
+                      </InputAdornment>
+                    ) : undefined,
                   },
                 }}
                 sx={{
-                  width: { xs: '100%', sm: 280, md: 320 },
+                  flex: { xs: '1 1 auto', md: '0 1 300px' },
+                  minWidth: { xs: 0, sm: 210 },
                   '& .MuiOutlinedInput-root': {
                     height: 40,
                     borderRadius: '8px',
@@ -385,16 +433,17 @@ export function CustomerInspectionsPage() {
                     setPage(1);
                   }}
                   slotProps={{
+                    htmlInput: { 'aria-label': t('Filter inspections') },
                     input: {
                       startAdornment: (
                         <InputAdornment position="start">
-                          <FilterListRounded fontSize="small" sx={{ color: '#71717A' }} />
+                          <FilterListRounded fontSize="small" sx={{ color: 'text.secondary' }} />
                         </InputAdornment>
                       ),
                     },
                   }}
                   sx={{
-                    minWidth: 170,
+                    minWidth: 165,
                     '& .MuiOutlinedInput-root': {
                       height: 40,
                       borderRadius: '8px',
@@ -407,6 +456,40 @@ export function CustomerInspectionsPage() {
                   <MenuItem value="IN_PROGRESS">{t('In progress')} ({inProgressCount})</MenuItem>
                   <MenuItem value="REPORT_READY">{t('Report available')} ({publishedReportsCount})</MenuItem>
                   <MenuItem value="ACTION_NEEDED">{t('Action needed')} ({actionNeededItems.length})</MenuItem>
+                </TextField>
+
+                <TextField
+                  select
+                  size="small"
+                  value={sortOrder}
+                  onChange={(e) => {
+                    setSortOrder(e.target.value as 'DEFAULT' | 'SCHEDULE_DESC' | 'SCHEDULE_ASC' | 'AMOUNT_DESC');
+                    setPage(1);
+                  }}
+                  slotProps={{
+                    htmlInput: { 'aria-label': t('Sort inspections') },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SwapVertRounded fontSize="small" sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    minWidth: 155,
+                    '& .MuiOutlinedInput-root': {
+                      height: 40,
+                      borderRadius: '8px',
+                      bgcolor: 'background.paper',
+                      fontSize: '0.875rem',
+                    },
+                  }}
+                >
+                  <MenuItem value="DEFAULT">{t('Default order')}</MenuItem>
+                  <MenuItem value="SCHEDULE_DESC">{t('Latest schedule')}</MenuItem>
+                  <MenuItem value="SCHEDULE_ASC">{t('Upcoming first')}</MenuItem>
+                  <MenuItem value="AMOUNT_DESC">{t('Highest fee')}</MenuItem>
                 </TextField>
 
                 <Button
@@ -455,12 +538,11 @@ export function CustomerInspectionsPage() {
                   <TableRow>
                     <TableCell
                       sx={{
-                        bgcolor: 'background.default',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
                         py: 1.5,
                         px: 1.5,
                         minWidth: 200,
@@ -470,15 +552,14 @@ export function CustomerInspectionsPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'background.default',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
                         py: 1.5,
                         px: 1.5,
-                        width: 130,
+                        width: 145,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -486,31 +567,30 @@ export function CustomerInspectionsPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'background.default',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
                         py: 1.5,
                         px: 1.5,
-                        width: 145,
+                        width: 165,
                         whiteSpace: 'nowrap',
                       }}
                     >
                       {t('Stage')}
                     </TableCell>
                     <TableCell
+                      align="right"
                       sx={{
-                        bgcolor: 'background.default',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
                         py: 1.5,
                         px: 1.5,
-                        width: 125,
+                        width: 145,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -519,15 +599,14 @@ export function CustomerInspectionsPage() {
                     <TableCell
                       align="right"
                       sx={{
-                        bgcolor: 'background.default',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
                         color: 'text.secondary',
                         fontSize: '0.75rem',
-                        fontWeight: 650,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
                         py: 1.5,
                         px: 1.5,
-                        width: 80,
+                        width: 68,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -583,44 +662,32 @@ export function CustomerInspectionsPage() {
                         }}
                       >
                         {/* Col 1: Asset & Location (Clean 2 lines) */}
-                        <TableCell sx={{ py: 1.75, px: 1.5 }}>
+                        <TableCell sx={{ py: 1.5, px: 1.5, maxWidth: 280, overflow: 'hidden' }}>
                           <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                             <Stack
                               direction="row"
-                              spacing={1}
+                              spacing={0.75}
                               sx={{ alignItems: 'center', minWidth: 0 }}
                             >
                               <Typography
                                 variant="body2"
+                                noWrap
                                 title={row.resolvedAssetName}
                                 sx={{
                                   fontWeight: 650,
                                   color: 'text.primary',
                                   fontSize: '0.875rem',
+                                  minWidth: 0,
                                 }}
                               >
                                 {row.resolvedAssetName}
                               </Typography>
-                              {row.resolvedAssetCode && (
-                                <Chip
-                                  size="small"
-                                  label={row.resolvedAssetCode}
-                                  variant="outlined"
-                                  sx={{
-                                    height: 18,
-                                    borderRadius: '5px',
-                                    fontSize: '0.75rem',
-                                    fontFamily: 'monospace',
-                                    fontWeight: 600,
-                                    flexShrink: 0,
-                                  }}
-                                />
-                              )}
                             </Stack>
 
                             <Typography
                               variant="caption"
-                              title={locationLabel ?? row.resolvedObjective}
+                              noWrap
+                              title={[locationLabel ?? row.resolvedObjective, row.inspectorName ? `${t('Inspector')}: ${row.inspectorName}` : null].filter(Boolean).join(' · ')}
                               sx={{
                                 color: 'text.secondary',
                                 display: 'block',
@@ -632,7 +699,7 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 2: Schedule */}
-                        <TableCell sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
+                        <TableCell sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
                           <Stack spacing={0.25}>
                             <Typography
                               variant="body2"
@@ -678,8 +745,8 @@ export function CustomerInspectionsPage() {
                         </TableCell>
 
                         {/* Col 4: Service Fee */}
-                        <TableCell sx={{ py: 1.75, px: 1.5, whiteSpace: 'nowrap' }}>
-                          <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+                        <TableCell align="right" sx={{ py: 1.5, px: 1.5, whiteSpace: 'nowrap' }}>
+                          <Stack spacing={0.25} sx={{ alignItems: 'flex-end' }}>
                             <Typography
                               variant="body2"
                               sx={{
@@ -698,9 +765,9 @@ export function CustomerInspectionsPage() {
                                 fontSize: '0.75rem',
                                 color:
                                   row.resolvedPaymentStatus === 'PAID'
-                                    ? '#176B52'
+                                    ? 'success.main'
                                     : row.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                      ? '#8C520B'
+                                      ? 'warning.main'
                                       : 'text.secondary',
                               }}
                             >

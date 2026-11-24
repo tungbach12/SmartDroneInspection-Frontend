@@ -167,8 +167,8 @@ describe('InspectionListTable multi-day schedule formatting', () => {
 
     expect(screen.getByText('Pending acceptance')).toBeTruthy();
     expect(screen.getByText(/Scheduled/)).toBeTruthy();
-    // Only the asset code chip + one status chip in the row (never two stacked status badges)
-    expect(container.querySelectorAll('.MuiChip-root')).toHaveLength(2);
+    // Only one status chip in the row (asset code badge removed)
+    expect(container.querySelectorAll('.MuiChip-root')).toHaveLength(1);
   });
 
   it('shows role-scoped counterpart/drone columns and Customer payment instead of Net Payout', () => {
@@ -257,5 +257,67 @@ describe('InspectionListTable multi-day schedule formatting', () => {
     expect(screen.getByText('Payment')).toBeTruthy();
     expect(screen.getByText('Payment due')).toBeTruthy();
     expect(screen.queryByText('Net Payout')).toBeNull();
+  });
+
+  it('rounds VND platform fees without decimals and folds report version into stage when report column is hidden', () => {
+    const managerRow: InspectionListItem = {
+      id: 'insp-round',
+      ownerCustomerId: 'cust-1',
+      ownerCustomerName: 'Saigon Infrastructure Co.',
+      assetId: 'asset-1',
+      assetName: 'Highlands Coffee',
+      assetCode: 'AST-3JPWR',
+      inspectorId: 'ins-1',
+      inspectorName: 'Do Thi Phi Cong',
+      droneModel: 'DJI Matrice 30T',
+      plannedStartAt: '2026-11-23T07:38:00Z',
+      plannedEndAt: '2026-11-23T09:38:00Z',
+      status: 'COMPLETED',
+      reportId: 'rep-1',
+      reportStatus: 'PUBLISHED',
+      reportVersionNo: 1,
+      pendingAction: 'NONE',
+      paymentAmount: 12000000,
+      commissionRate: 15,
+      createdAt: '2026-11-01T00:00:00Z',
+      updatedAt: '2026-11-01T00:00:00Z',
+    };
+
+    const onSearchChange = vi.fn();
+    const onSortOrderChange = vi.fn();
+
+    render(
+      <InspectionListTable
+        rows={[managerRow]}
+        page={1}
+        pageSize={10}
+        totalCount={1}
+        totalPages={1}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+        onOpen={vi.fn()}
+        roleView="manager"
+        searchQuery="Highlands"
+        onSearchChange={onSearchChange}
+        sortOrder="DEFAULT"
+        onSortOrderChange={onSortOrderChange}
+        sortOptions={[
+          { value: 'DEFAULT', label: 'Default order' },
+          { value: 'AMOUNT_DESC', label: 'Highest value' },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText('Report')).toBeNull();
+    expect(screen.queryByText('AST-3JPWR')).toBeNull();
+    expect(screen.queryByText(/\bv1\b/)).toBeNull();
+    expect(screen.getByText('+1,636,364 ₫')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(onSearchChange).toHaveBeenCalledWith('');
+
+    fireEvent.mouseDown(screen.getByLabelText('Sort inspections'));
+    fireEvent.click(screen.getByRole('option', { name: 'Highest value' }));
+    expect(onSortOrderChange).toHaveBeenCalledWith('AMOUNT_DESC');
   });
 });

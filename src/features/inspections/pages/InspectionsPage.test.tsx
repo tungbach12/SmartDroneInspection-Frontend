@@ -450,8 +450,8 @@ describe('InspectionsPage', () => {
     renderPage('/client/inspections');
 
     expect((await screen.findAllByText('Ba Son Cable-Stayed Bridge')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('BR-BASON-01').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Report ready · v1/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('BR-BASON-01')).toBeNull();
+    expect(screen.getAllByText(/Step 2\/3 · Report ready$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/4,500,000 ₫/).length).toBeGreaterThan(0);
 
     // Open 3-dot action menu and click "View report" -> must navigate to /report, never hijacked to /corrective
@@ -558,4 +558,54 @@ describe('InspectionsPage', () => {
     expect(screen.getByText('Already Accepted Bridge')).toBeTruthy();
   });
 
+  it('hides redundant Report column on Manager list and supports searching by inspector or customer', async () => {
+    signInAs(['MANAGER']);
+    mocks.listQuery = {
+      data: {
+        items: [
+          {
+            ...listedInspection(),
+            id: 'mgr-1',
+            assetName: 'Highlands Coffee',
+            assetCode: 'AST-1',
+            ownerCustomerName: 'Saigon Infra',
+            inspectorName: 'Do Thi Phi Cong',
+            droneModel: 'DJI Matrice 30T',
+            status: 'COMPLETED',
+            reportStatus: 'PUBLISHED',
+            reportVersionNo: 1,
+            paymentAmount: 12000000,
+          },
+          {
+            ...listedInspection(),
+            id: 'mgr-2',
+            assetName: 'Bitexco Tower',
+            assetCode: 'BTC-1',
+            ownerCustomerName: 'Alpha Holdings',
+            inspectorName: 'Pham Van Bay',
+            droneModel: 'DJI Matrice 350 RTK',
+            status: 'SCHEDULED',
+            paymentAmount: 15000000,
+          },
+        ],
+        page: 1,
+        pageSize: 10,
+        totalCount: 2,
+        totalPages: 1,
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderPage('/manager/inspections');
+    expect(await screen.findByText('Highlands Coffee')).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Report' })).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search asset, customer, inspector, drone…' }), {
+      target: { value: 'Pham Van Bay' },
+    });
+    expect(screen.getByText('Bitexco Tower')).toBeTruthy();
+    expect(screen.queryByText('Highlands Coffee')).toBeNull();
+  });
 });
