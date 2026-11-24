@@ -9,11 +9,16 @@ describe('PetAnimationController', () => {
       const controller = new PetAnimationController(spec.id, model);
 
       // Idle mode with pointer tracking
-      controller.update(0.16, 'idle', { x: 0.6, y: -0.35 });
-      controller.update(0.24, 'idle', { x: -0.4, y: 0.45 });
+      for (let i = 0; i < 6; i += 1) {
+        controller.update(0.05, 'idle', { x: 0.6, y: -0.35 });
+      }
+      const prevRootY = model.position.y;
 
-      // Action mode
-      controller.update(0.2, 'action', { x: 0.2, y: 0.1 });
+      // Single-step switch into action should blend smoothly rather than jumping
+      controller.update(0.016, 'action', { x: -0.4, y: 0.45 });
+      expect(Math.abs(model.position.y - prevRootY)).toBeLessThan(0.06);
+
+      controller.update(0.05, 'action', { x: 0.2, y: 0.1 });
 
       // Trigger happy burst, confirm active then expires across realistic frame steps
       controller.triggerHappy(0.5);

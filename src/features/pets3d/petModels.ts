@@ -519,120 +519,253 @@ export function buildSpotRoverModel(): THREE.Group {
 }
 
 /**
- * 04 — Drone Buddy (Floating SmartDrone Mascot)
- * Cobalt-indigo aerospace sphere companion with curved glass visor & top micro-rotor.
+ * 04 — Drone Buddy (Cute Kawaii Chibi Sky-Drone Companion)
+ * Pastel periwinkle-lavender & sky-blue floating buddy with honey-cream & mint accents,
+ * sparkling OLED face, rosy pink cheeks & chibi wing-rotors.
  */
 export function buildDroneBuddyModel(): THREE.Group {
   const root = new THREE.Group();
   root.name = 'pet-drone-buddy';
 
-  const bodyIndigo = makePhysicalMat({
-    color: '#3758F9',
-    roughness: 0.25,
-    metalness: 0.32,
-    clearcoat: 0.9,
+  const pastelLavender = makePhysicalMat({
+    color: '#A5B4FC',
+    roughness: 0.24,
+    metalness: 0.14,
+    clearcoat: 0.88,
     clearcoatRoughness: 0.1,
   });
-  const shellSlate = makeMat({ color: '#1E293B', roughness: 0.42, metalness: 0.6 });
+  const pastelSky = makePhysicalMat({
+    color: '#60A5FA',
+    roughness: 0.26,
+    metalness: 0.16,
+    clearcoat: 0.85,
+    clearcoatRoughness: 0.12,
+  });
+  const pastelMint = makePhysicalMat({
+    color: '#5EEAD4',
+    roughness: 0.26,
+    metalness: 0.12,
+    clearcoat: 0.82,
+  });
+  const pastelButter = makePhysicalMat({
+    color: '#FDE68A',
+    roughness: 0.26,
+    metalness: 0.18,
+    clearcoat: 0.78,
+  });
   const visorGlass = makePhysicalMat({
-    color: '#09090B',
-    roughness: 0.05,
-    metalness: 0.25,
+    color: '#0F172A',
+    roughness: 0.06,
+    metalness: 0.18,
     clearcoat: 1,
+    clearcoatRoughness: 0.04,
   });
-  const ledCyan = makeMat({
-    color: '#38BDF8',
+  const eyeAqua = makeMat({
+    color: '#67E8F9',
     emissive: '#38BDF8',
-    emissiveIntensity: 1.4,
-    roughness: 0.15,
+    emissiveIntensity: 1.5,
+    roughness: 0.12,
   });
-  const metallicTrim = makeMat({ color: '#E2E8F0', roughness: 0.22, metalness: 0.85 });
+  const sparkleGlow = makeMat({
+    color: '#FEF9C3',
+    emissive: '#FEF08A',
+    emissiveIntensity: 1.75,
+    roughness: 0.1,
+  });
+  const blushPink = makeMat({
+    color: '#FDA4AF',
+    emissive: '#FB7185',
+    emissiveIntensity: 0.9,
+    roughness: 0.24,
+  });
+  const ledMint = makeMat({
+    color: '#99F6E4',
+    emissive: '#2DD4BF',
+    emissiveIntensity: 1.3,
+    roughness: 0.16,
+  });
 
-  // Floating sphere core
+  // Floating chubby capsule core
   const coreGroup = new THREE.Group();
   coreGroup.name = 'core';
   coreGroup.position.set(0, 0.98, 0);
 
-  const sphereShell = new THREE.Mesh(new THREE.SphereGeometry(0.48, 32, 32), bodyIndigo);
-  sphereShell.scale.set(1.06, 0.96, 1.02);
-  coreGroup.add(sphereShell);
+  // Chubby sky-blue lower belly
+  const lowerHull = new THREE.Mesh(new THREE.SphereGeometry(0.44, 32, 24), pastelSky);
+  lowerHull.scale.set(1.12, 0.88, 1.02);
+  lowerHull.position.y = -0.05;
+  coreGroup.add(lowerHull);
 
-  const equatorBand = new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.032, 12, 36), shellSlate);
+  // Pastel periwinkle-lavender top helmet dome
+  const upperFairing = new THREE.Mesh(
+    new THREE.SphereGeometry(0.46, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.56),
+    pastelLavender,
+  );
+  upperFairing.scale.set(1.12, 0.86, 1.03);
+  upperFairing.position.y = 0.02;
+  coreGroup.add(upperFairing);
+
+  // Soft pastel mint trim collar ring
+  const equatorBand = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.024, 12, 40), pastelMint);
   equatorBand.rotation.x = Math.PI / 2;
+  equatorBand.scale.set(1.09, 1.01, 1);
+  equatorBand.position.y = 0.01;
   coreGroup.add(equatorBand);
 
-  // Curved glass face visor
-  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.41, 28, 28), visorGlass);
-  visor.position.set(0, 0.02, 0.16);
-  visor.scale.set(0.95, 0.68, 0.82);
+  // Cute round buttercream mini bubble backpack on the back
+  const backpack = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 22, 20),
+    pastelMint,
+  );
+  backpack.position.set(0, -0.01, -0.36);
+  backpack.scale.set(1.15, 0.92, 0.7);
+  coreGroup.add(backpack);
+
+  const backpackCharm = new THREE.Mesh(new THREE.SphereGeometry(0.068, 16, 16), blushPink);
+  backpackCharm.position.set(0, 0.02, -0.5);
+  backpackCharm.scale.set(1.2, 0.9, 0.5);
+  coreGroup.add(backpackCharm);
+
+  // Smooth rounded dark-indigo OLED face visor
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.425, 32, 26), visorGlass);
+  visor.position.set(0, 0.03, 0.165);
+  visor.scale.set(0.95, 0.65, 0.82);
   coreGroup.add(visor);
 
-  // Dual glowing optic eyes
+  // Big sparkling kawaii eyes + rosy blush cheeks + cute smile arc
   [-1, 1].forEach((side) => {
-    const opticRing = new THREE.Mesh(new THREE.TorusGeometry(0.072, 0.02, 12, 24), ledCyan);
-    opticRing.position.set(side * 0.15, 0.04, 0.49);
-    coreGroup.add(opticRing);
+    const eyeGroup = new THREE.Group();
+    eyeGroup.position.set(side * 0.145, 0.05, 0.495);
+    eyeGroup.rotation.y = side * 0.2;
 
-    const opticPupil = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 12), ledCyan);
-    opticPupil.position.set(side * 0.15, 0.04, 0.5);
-    coreGroup.add(opticPupil);
+    const irisDisc = new THREE.Mesh(new THREE.SphereGeometry(0.068, 18, 18), eyeAqua);
+    irisDisc.scale.set(0.95, 1.18, 0.4);
+    eyeGroup.add(irisDisc);
 
-    // Side wing / stabilizer thruster pods
+    // Big bright kawaii catchlight dot + tiny sparkle dot
+    const catchlightMain = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 12), sparkleGlow);
+    catchlightMain.position.set(0.018, 0.028, 0.025);
+    catchlightMain.scale.set(1, 1, 0.45);
+    eyeGroup.add(catchlightMain);
+
+    const catchlightMini = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 10), sparkleGlow);
+    catchlightMini.position.set(-0.02, -0.022, 0.025);
+    catchlightMini.scale.set(1, 1, 0.45);
+    eyeGroup.add(catchlightMini);
+
+    coreGroup.add(eyeGroup);
+
+    // Rosy coral-pink blush oval under each eye
+    const blush = new THREE.Mesh(new THREE.SphereGeometry(0.044, 14, 12), blushPink);
+    blush.position.set(side * 0.215, -0.045, 0.465);
+    blush.rotation.y = side * 0.34;
+    blush.scale.set(1.25, 0.68, 0.35);
+    coreGroup.add(blush);
+
+    // Cute Chibi Pastel Ear-Wing Ducted Thruster Pods
     const wingGroup = new THREE.Group();
     wingGroup.name = side < 0 ? 'leftWing' : 'rightWing';
-    wingGroup.position.set(side * 0.54, 0, -0.02);
+    wingGroup.position.set(side * 0.51, 0.04, -0.02);
 
-    const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 16), metallicTrim);
-    mount.rotation.z = Math.PI / 2;
-    wingGroup.add(mount);
+    const stubbyArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.048, 0.1, 10, 14), pastelLavender);
+    stubbyArm.rotation.z = Math.PI / 2;
+    stubbyArm.position.x = side * 0.04;
+    wingGroup.add(stubbyArm);
 
-    const wingFin = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.28), bodyIndigo);
-    wingFin.position.set(side * 0.12, -0.03, -0.03);
-    wingFin.rotation.z = -side * 0.28;
-    wingGroup.add(wingFin);
+    const ductGroup = new THREE.Group();
+    ductGroup.position.set(side * 0.21, 0.04, 0);
+    ductGroup.rotation.z = -side * 0.14;
 
-    const thrusterRim = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 10, 20), ledCyan);
-    thrusterRim.position.set(side * 0.14, -0.04, -0.17);
-    wingGroup.add(thrusterRim);
+    const ductShroud = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.038, 16, 28), pastelSky);
+    ductShroud.rotation.x = Math.PI / 2;
+    ductGroup.add(ductShroud);
 
+    const ductLedRim = new THREE.Mesh(new THREE.TorusGeometry(0.132, 0.012, 10, 28), ledMint);
+    ductLedRim.rotation.x = Math.PI / 2;
+    ductLedRim.position.y = -0.016;
+    ductGroup.add(ductLedRim);
+
+    const motorCap = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 14), pastelButter);
+    ductGroup.add(motorCap);
+
+    const microProp = new THREE.Mesh(new THREE.CapsuleGeometry(0.014, 0.2, 8, 12), pastelMint);
+    microProp.name = side < 0 ? 'leftRotorBlade' : 'rightRotorBlade';
+    microProp.rotation.z = Math.PI / 2;
+    microProp.position.y = 0.02;
+    ductGroup.add(microProp);
+
+    wingGroup.add(ductGroup);
     coreGroup.add(wingGroup);
   });
 
-  // Top Rotor Mast & Halo Guard
+  // Cute tiny happy smile pixel arc in the middle
+  const smileArc = new THREE.Mesh(
+    new THREE.TorusGeometry(0.048, 0.011, 8, 18, Math.PI * 0.8),
+    eyeAqua,
+  );
+  smileArc.position.set(0, -0.035, 0.505);
+  smileArc.rotation.z = Math.PI * 1.1;
+  coreGroup.add(smileArc);
+
+  // Cute little underbelly buttercream & mint gem charm
+  const gimbalGroup = new THREE.Group();
+  gimbalGroup.name = 'gimbalCamera';
+  gimbalGroup.position.set(0, -0.4, 0.12);
+
+  const charmCollar = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.02, 10, 20), pastelButter);
+  charmCollar.rotation.x = Math.PI / 2;
+  gimbalGroup.add(charmCollar);
+
+  const charmOrb = new THREE.Mesh(new THREE.SphereGeometry(0.068, 18, 18), pastelMint);
+  charmOrb.position.y = -0.045;
+  gimbalGroup.add(charmOrb);
+
+  coreGroup.add(gimbalGroup);
+
+  // Cute Beanie Crown Rotor + Pastel Halo Ring
   const rotorGroup = new THREE.Group();
   rotorGroup.name = 'topRotor';
-  rotorGroup.position.set(0, 0.52, 0);
+  rotorGroup.position.set(0, 0.42, 0);
 
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.16, 16), metallicTrim);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.055, 0.1, 16), pastelButter);
   rotorGroup.add(mast);
 
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.06, 18), shellSlate);
-  hub.position.y = 0.09;
-  rotorGroup.add(hub);
+  const beanieCap = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 16), pastelLavender);
+  beanieCap.position.y = 0.085;
+  beanieCap.scale.set(1, 0.8, 1);
+  rotorGroup.add(beanieCap);
 
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.018, 0.09), metallicTrim);
-  blade.position.y = 0.11;
-  blade.rotation.y = 0.45;
-  rotorGroup.add(blade);
+  const bladeA = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.54, 8, 14), pastelButter);
+  bladeA.rotation.z = Math.PI / 2;
+  bladeA.position.y = 0.075;
+  bladeA.rotation.y = 0.35;
+  rotorGroup.add(bladeA);
 
-  const haloGuard = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.018, 12, 36), ledCyan);
-  haloGuard.rotation.x = Math.PI / 2;
-  haloGuard.position.y = 0.09;
-  rotorGroup.add(haloGuard);
+  const bladeB = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.54, 8, 14), pastelMint);
+  bladeB.rotation.z = Math.PI / 2;
+  bladeB.position.y = 0.075;
+  bladeB.rotation.y = Math.PI / 2 + 0.35;
+  rotorGroup.add(bladeB);
+
+  const crownHalo = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.013, 12, 36), ledMint);
+  crownHalo.rotation.x = Math.PI / 2;
+  crownHalo.position.y = 0.075;
+  rotorGroup.add(crownHalo);
 
   coreGroup.add(rotorGroup);
   root.add(coreGroup);
 
-  // Subtle magnetic landing base pad below
+  // Soft pastel floating levitation ring below
   const padGroup = new THREE.Group();
   padGroup.name = 'haloRing';
-  const baseDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.52, 0.08, 32), shellSlate);
-  baseDisc.position.y = 0.04;
-  padGroup.add(baseDisc);
-  const baseGlow = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.018, 12, 36), ledCyan);
-  baseGlow.rotation.x = Math.PI / 2;
-  baseGlow.position.y = 0.09;
-  padGroup.add(baseGlow);
+  const repulsorOuter = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.014, 10, 32), pastelLavender);
+  repulsorOuter.rotation.x = Math.PI / 2;
+  repulsorOuter.position.y = 0.12;
+  padGroup.add(repulsorOuter);
+  const repulsorCore = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.011, 10, 28), ledMint);
+  repulsorCore.rotation.x = Math.PI / 2;
+  repulsorCore.position.y = 0.14;
+  padGroup.add(repulsorCore);
   root.add(padGroup);
 
   enableShadows(root);
