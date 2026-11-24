@@ -330,56 +330,64 @@ export function SepayPayoutQrDialog({
           aria-live="polite"
           sx={{ alignItems: 'center', minWidth: 0 }}
         >
-          {checking || mockBusy ? (
-            <CircularProgress size={12} thickness={5} />
-          ) : (
-            <Box
-              aria-hidden="true"
-              sx={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                bgcolor: copiedKey === 'content' ? 'success.main' : 'primary.main',
-                flexShrink: 0,
-              }}
-            />
-          )}
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-            {checking || mockBusy
-              ? t('Checking…')
-              : copiedKey === 'content'
-                ? t('Transfer content copied.')
-                : t('Awaiting SePay confirmation')}
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {mockBusy ? (
+              <CircularProgress size={10} thickness={5} />
+            ) : (
+              <Box
+                aria-hidden="true"
+                sx={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  bgcolor: copiedKey === 'content' ? 'success.main' : 'primary.main',
+                }}
+              />
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>
+            {copiedKey === 'content'
+              ? t('Transfer content copied.')
+              : t('Awaiting SePay confirmation')}
           </Typography>
           {onMockPay && (
-            <Button
+            <IconButton
               size="small"
-              disabled={mockBusy || checking}
+              disabled={mockBusy}
               aria-label="Mock pay"
               onClick={() => {
                 setMockBusy(true);
                 void onMockPay().finally(() => setMockBusy(false));
               }}
               sx={{
-                minWidth: 'auto',
-                px: 1,
-                py: 0.25,
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                borderRadius: '6px',
-                color: 'text.secondary',
-                opacity: 0.04,
-                transition: 'opacity 150ms ease',
-                '&:hover, &:focus-visible': {
-                  opacity: 1,
-                  bgcolor: 'action.hover',
-                  color: 'text.primary',
+                p: 0.5,
+                '&:hover .mock-dot': {
+                  bgcolor: '#60A5FA',
+                  transform: 'scale(1.2)',
                 },
               }}
             >
-              Mock pay
-            </Button>
+              <Box
+                className="mock-dot"
+                aria-hidden="true"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: '#BAE6FD',
+                  transition: 'background-color 150ms ease, transform 150ms ease',
+                }}
+              />
+            </IconButton>
           )}
         </Stack>
 
@@ -387,12 +395,26 @@ export function SepayPayoutQrDialog({
           {onCheckNow && (
             <Button
               onClick={onCheckNow}
-              disabled={checking}
               size="small"
-              startIcon={<RefreshRounded sx={{ fontSize: 15 }} />}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', color: 'text.secondary' }}
+              startIcon={
+                <RefreshRounded
+                  sx={{
+                    fontSize: 15,
+                    ...(checking
+                      ? {
+                          '@keyframes spinPoll': {
+                            from: { transform: 'rotate(0deg)' },
+                            to: { transform: 'rotate(360deg)' },
+                          },
+                          animation: 'spinPoll 0.9s linear infinite',
+                        }
+                      : undefined),
+                  }}
+                />
+              }
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', color: 'text.secondary', whiteSpace: 'nowrap' }}
             >
-              {checking ? t('Checking…') : t('Check payout status')}
+              {t('Check payout status')}
             </Button>
           )}
           <Button
