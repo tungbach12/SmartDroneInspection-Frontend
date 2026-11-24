@@ -3115,4 +3115,8 @@
   "Report approved and Inspector payout settled. Ready to publish to Customer.": "Báo cáo đã được duyệt và đã chi trả cho Inspector. Sẵn sàng phát hành cho Khách hàng.",
   "Approved by the Platform Manager and awaiting immutable PDF publication.": "Báo cáo đã được Quản lý duyệt, đang chờ chi trả Inspector và phát hành PDF chính thức.",
   "Step 2/3 · Approved · Settle payout to publish": "Bước 2/3 · Đã duyệt · Chờ chi trả Inspector để phát hành",
+  "Report decision & payout gate": "Duyệt báo cáo & chi trả Inspector",
+  "Go to payout": "Đi tới chi trả",
+  "Go to publish": "Đi tới phát hành",
+  "Go to Commission & Settlement": "Chuyển sang Hoa hồng & Thanh toán",
 };

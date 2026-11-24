@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { contractApi, contractQueryKeys, type ServiceRequestOccurrence } from '@/features/contracts/api/contractApi';
@@ -77,6 +77,7 @@ export default function ManagerReportReviewPage({
   const [prePublishPayoutRef, setPrePublishPayoutRef] = useState('');
   const [prePublishPayoutBusy, setPrePublishPayoutBusy] = useState(false);
   const [prePublishPayoutError, setPrePublishPayoutError] = useState<string | null>(null);
+  const payoutGateRef = useRef<HTMLDivElement>(null);
   const [financeDrawerTarget, setFinanceDrawerTarget] = useState<{
     requestId: string;
     occurrence: ServiceRequestOccurrence;
@@ -325,143 +326,26 @@ export default function ManagerReportReviewPage({
             {showReviewStage && openVersion.status === 'PUBLISHED' && customerStatusNotice}
 
             {showReviewStage && openVersion.status === 'APPROVED' && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2.5,
-                  borderRadius: '12px',
-                  borderColor: isPayoutSettled ? 'divider' : 'warning.main',
-                  bgcolor: 'background.paper',
-                  boxShadow: 'none',
-                }}
+              <Alert
+                severity={isPayoutSettled ? 'success' : 'warning'}
+                sx={{ borderRadius: '10px', alignItems: 'center' }}
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() =>
+                      payoutGateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
+                    sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap' }}
+                  >
+                    {isPayoutSettled ? t('Go to publish') : t('Go to payout')}
+                  </Button>
+                }
               >
-                <Stack spacing={2}>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                      {t('Report decision & payout gate')}
-                    </Typography>
-                    <StatusChip status="approved" label={t('Approved')} tone="info" />
-                    <StatusChip
-                      status={isPayoutSettled ? 'settled' : 'payout_pending'}
-                      label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
-                      tone={isPayoutSettled ? 'success' : 'warning'}
-                    />
-                  </Stack>
-
-                  {!isPayoutSettled ? (
-                    <>
-                      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {t('Inspector payout required before publishing to Customer')}
-                        </Typography>
-                        {(inspectionQuery.data?.inspectorName || financeBreakdown) && (
-                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                            {inspectionQuery.data?.inspectorName ? `${inspectionQuery.data.inspectorName}` : t('Inspector')}
-                            {financeBreakdown
-                              ? ` · ${t('Inspector net payout')}: ${formatNumber(financeBreakdown.netPayoutAmount)} ₫`
-                              : ''}
-                          </Typography>
-                        )}
-                      </Alert>
-
-                      {prePublishPayoutError && (
-                        <Alert
-                          severity="error"
-                          onClose={() => setPrePublishPayoutError(null)}
-                          sx={{ borderRadius: '8px' }}
-                        >
-                          {prePublishPayoutError}
-                        </Alert>
-                      )}
-
-                      {portal === 'manager' && (
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-                          <TextField
-                            size="small"
-                            placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
-                            value={prePublishPayoutRef}
-                            onChange={(e) => setPrePublishPayoutRef(e.target.value)}
-                            sx={{ flex: 1 }}
-                          />
-                          <LoadingButton
-                            size="small"
-                            variant="contained"
-                            color="primary"
-                            loading={prePublishPayoutBusy}
-                            disabled={!prePublishPayoutRef.trim()}
-                            onClick={async () => {
-                              setPrePublishPayoutBusy(true);
-                              setPrePublishPayoutError(null);
-                              try {
-                                await handleInlineSettlePayout(prePublishPayoutRef.trim());
-                                setPrePublishPayoutRef('');
-                              } catch (err) {
-                                setPrePublishPayoutError(
-                                  getErrorMessage(err, t('Could not settle payout.')),
-                                );
-                              } finally {
-                                setPrePublishPayoutBusy(false);
-                              }
-                            }}
-                            sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', borderRadius: '8px', boxShadow: 'none' }}
-                          >
-                            {t('Settle Inspector payout')}
-                          </LoadingButton>
-                          <Button
-                            component={RouterLink}
-                            to="/manager/payout-settlements"
-                            size="small"
-                            variant="outlined"
-                            color="inherit"
-                            sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px', borderColor: 'divider' }}
-                          >
-                            {t('Open Inspector payouts')}
-                          </Button>
-                        </Stack>
-                      )}
-
-                      <Divider />
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('Settle Inspector payout to unlock publishing.')}
-                        </Typography>
-                        <Button
-                          variant="contained"
-                          disabled
-                          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none' }}
-                        >
-                          {t('Publish to Customer')}
-                        </Button>
-                      </Stack>
-                    </>
-                  ) : (
-                    <>
-                      <Alert severity="success" sx={{ borderRadius: '8px' }}>
-                        {t('Inspector payout settled')}
-                        {paymentStatusQuery.data?.payoutReference
-                          ? ` · ${t('Ref')}: ${paymentStatusQuery.data.payoutReference}`
-                          : ''}
-                      </Alert>
-                      <MutationProblemAlert
-                        error={publishReport.error}
-                        isError={publishReport.isError}
-                        fallbackMessage={t('The report could not be published.')}
-                      />
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <LoadingButton
-                          variant="contained"
-                          color="primary"
-                          loading={publishReport.isPending}
-                          onClick={() => publishReport.mutate({ versionId: openVersion.id })}
-                          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none' }}
-                        >
-                          {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
-                        </LoadingButton>
-                      </Box>
-                    </>
-                  )}
-                </Stack>
-              </Paper>
+                {isPayoutSettled
+                  ? t('Report approved and Inspector payout settled. Ready to publish to Customer.')
+                  : t('Report approved. Settle Inspector payout before publishing to Customer.')}
+              </Alert>
             )}
 
             {showSettlementStage && (
@@ -490,6 +374,158 @@ export default function ManagerReportReviewPage({
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
               />
+            )}
+
+            {showReviewStage && openVersion.status === 'APPROVED' && (
+              <Box ref={payoutGateRef}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: '12px',
+                    borderColor: isPayoutSettled ? 'divider' : 'warning.main',
+                    bgcolor: 'background.paper',
+                    boxShadow: 'none',
+                  }}
+                >
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        {t('Report decision & payout gate')}
+                      </Typography>
+                      <StatusChip status="approved" label={t('Approved')} tone="info" />
+                      <StatusChip
+                        status={isPayoutSettled ? 'settled' : 'payout_pending'}
+                        label={isPayoutSettled ? t('Payout settled') : t('Payout eligible')}
+                        tone={isPayoutSettled ? 'success' : 'warning'}
+                      />
+                    </Stack>
+
+                    {!isPayoutSettled ? (
+                      <>
+                        <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {t('Inspector payout required before publishing to Customer')}
+                          </Typography>
+                          {(inspectionQuery.data?.inspectorName || financeBreakdown) && (
+                            <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                              {inspectionQuery.data?.inspectorName ? `${inspectionQuery.data.inspectorName}` : t('Inspector')}
+                              {financeBreakdown
+                                ? ` · ${t('Inspector net payout')}: ${formatNumber(financeBreakdown.netPayoutAmount)} ₫`
+                                : ''}
+                            </Typography>
+                          )}
+                        </Alert>
+
+                        {prePublishPayoutError && (
+                          <Alert
+                            severity="error"
+                            onClose={() => setPrePublishPayoutError(null)}
+                            sx={{ borderRadius: '8px' }}
+                          >
+                            {prePublishPayoutError}
+                          </Alert>
+                        )}
+
+                        {portal === 'manager' && (
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}>
+                            <TextField
+                              size="small"
+                              placeholder={t('Bank transfer reference (e.g. UNC-VCB-20261110)')}
+                              value={prePublishPayoutRef}
+                              onChange={(e) => setPrePublishPayoutRef(e.target.value)}
+                              sx={{ flex: 1, minWidth: { sm: 240 } }}
+                            />
+                            <LoadingButton
+                              size="small"
+                              variant="contained"
+                              color="primary"
+                              loading={prePublishPayoutBusy}
+                              disabled={!prePublishPayoutRef.trim()}
+                              onClick={async () => {
+                                setPrePublishPayoutBusy(true);
+                                setPrePublishPayoutError(null);
+                                try {
+                                  await handleInlineSettlePayout(prePublishPayoutRef.trim());
+                                  setPrePublishPayoutRef('');
+                                } catch (err) {
+                                  setPrePublishPayoutError(
+                                    getErrorMessage(err, t('Could not settle payout.')),
+                                  );
+                                } finally {
+                                  setPrePublishPayoutBusy(false);
+                                }
+                              }}
+                              sx={{ textTransform: 'none', fontWeight: 650, whiteSpace: 'nowrap', borderRadius: '8px', boxShadow: 'none' }}
+                            >
+                              {t('Settle Inspector payout')}
+                            </LoadingButton>
+                            <Button
+                              component={RouterLink}
+                              to="../settlement"
+                              size="small"
+                              variant="outlined"
+                              color="inherit"
+                              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px', borderColor: 'divider' }}
+                            >
+                              {t('Go to Commission & Settlement')}
+                            </Button>
+                            <Button
+                              component={RouterLink}
+                              to="/manager/payout-settlements"
+                              size="small"
+                              variant="outlined"
+                              color="inherit"
+                              sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '8px', borderColor: 'divider' }}
+                            >
+                              {t('Open Inspector payouts')}
+                            </Button>
+                          </Stack>
+                        )}
+
+                        <Divider />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {t('Settle Inspector payout to unlock publishing.')}
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            disabled
+                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', boxShadow: 'none' }}
+                          >
+                            {t('Publish to Customer')}
+                          </Button>
+                        </Stack>
+                      </>
+                    ) : (
+                      <>
+                        <Alert severity="success" sx={{ borderRadius: '8px' }}>
+                          {t('Inspector payout settled')}
+                          {paymentStatusQuery.data?.payoutReference
+                            ? ` · ${t('Ref')}: ${paymentStatusQuery.data.payoutReference}`
+                            : ''}
+                        </Alert>
+                        <MutationProblemAlert
+                          error={publishReport.error}
+                          isError={publishReport.isError}
+                          fallbackMessage={t('The report could not be published.')}
+                        />
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <LoadingButton
+                            variant="contained"
+                            color="primary"
+                            loading={publishReport.isPending}
+                            onClick={() => publishReport.mutate({ versionId: openVersion.id })}
+                            sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.5, boxShadow: 'none' }}
+                          >
+                            {publishReport.isPending ? t('Publishing…') : t('Publish to Customer')}
+                          </LoadingButton>
+                        </Box>
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              </Box>
             )}
 
             {showReviewStage && openVersion.status === 'SUBMITTED' && !isAuthor && (
