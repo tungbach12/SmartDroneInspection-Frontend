@@ -122,36 +122,28 @@ describe('ManagerAssetOverview', () => {
     });
   });
 
-  it('hides overview details by default and shows them when toggled', () => {
+  it('shows compact request-level context without redundant asset specs, location, code, or invoice details', () => {
     render(<ManagerAssetOverview request={assignedRequest()} />);
 
     expect(screen.getByText('Bridge 1')).toBeTruthy();
     expect(screen.getByText('Saigon Infrastructure Co.')).toBeTruthy();
     expect(screen.getByText('Platform Manager')).toBeTruthy();
     expect(screen.getByText('2026-12-01 · 08:00 – 17:00')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
     expect(screen.queryByText('BR-1')).toBeNull();
-    expect(screen.queryByText('DJI M300 · SN-001')).toBeNull();
+    expect(screen.queryByText('Bridge survey')).toBeNull();
     expect(screen.queryByText('signed-contract.pdf')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.getByText('BR-1')).toBeTruthy();
-    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
-    expect(screen.getByText('signed-contract.pdf')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.queryByText('BR-1')).toBeNull();
     expect(screen.queryByText('DJI M300 · SN-001')).toBeNull();
-    expect(screen.queryByText('signed-contract.pdf')).toBeNull();
   });
 
-  it('shows asset specs, location, quote, and recurring dispatch progress for Manager', () => {
+  it('shows checkpoints directly and toggles recurring occurrence progress when clicked', () => {
     useAssetMock.mockReturnValue({
       data: {
         id: 'asset-1',
         name: 'Bridge 1',
         code: 'BR-1',
         status: 'ACTIVE',
-        locationText: '{"label":"Ninh Kieu, Can Tho","latitude":10.0341,"longitude":105.788}',
+        locationText: '{"label":"Pinned Location (10.7812, 106.7364)","latitude":10.7812,"longitude":106.7364}',
         structureHeightMeters: 42,
         footprintAreaSquareMeters: 1200,
         inspectionItems: ['Deck', 'Piers', 'Cables'],
@@ -161,22 +153,6 @@ describe('ManagerAssetOverview', () => {
     const req = assignedRequest();
     req.requestType = 'RECURRING';
     req.occurrenceCount = 2;
-    req.currentQuote = {
-      id: 'q-1',
-      scopeSnapshot: 'Full bridge scan',
-      firstOccurrenceStartAt: '2026-12-01T01:00:00Z',
-      firstOccurrenceEndAt: '2026-12-01T03:00:00Z',
-      inspectorId: 'inspector-1',
-      droneId: 'drone-1',
-      pricePerOccurrenceVnd: 2000000,
-      pricePerOccurrenceUsd: 80,
-      issuedByUserId: 'manager-1',
-      createdAt: '2026-11-19T00:00:00Z',
-      updatedAt: '2026-11-19T00:00:00Z',
-      updatedByUserId: 'manager-1',
-      rowVersion: 1,
-      requiredDroneFeatureCodes: [],
-    };
     req.occurrences = [
       {
         ...req.occurrences[0]!,
@@ -195,17 +171,21 @@ describe('ManagerAssetOverview', () => {
     ];
 
     render(<ManagerAssetOverview request={req} />);
+    expect(screen.getByText('3 checkpoints')).toBeTruthy();
+    expect(screen.queryByText('Asset suggested')).toBeNull();
+    expect(screen.queryByText('1/2 occurrences assigned')).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
-    expect(screen.getByText('Ninh Kieu, Can Tho')).toBeTruthy();
-    expect(screen.getByText('42 m · 1,200 m²')).toBeTruthy();
-    expect(screen.getByText('3 checkpoints')).toBeTruthy();
-    expect(screen.getByText('Asset suggested')).toBeTruthy();
-    expect(screen.getByText('Partner Alice')).toBeTruthy();
-    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
     expect(screen.getByText('1/2 occurrences assigned')).toBeTruthy();
-    expect(screen.getByText(/2,000,000 VND \/ occurrence/)).toBeTruthy();
-    expect(screen.getByText('signed-contract.pdf')).toBeTruthy();
+    expect(screen.queryByText('BR-1')).toBeNull();
+    expect(screen.queryByText('42 m · 1,200 m²')).toBeNull();
+    expect(screen.queryByText('10.7812, 106.7364')).toBeNull();
+    expect(screen.queryByText(/VND \/ occurrence/)).toBeNull();
+    expect(screen.queryByText('signed-contract.pdf')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(screen.queryByText('1/2 occurrences assigned')).toBeNull();
   });
 
   it('shows customer-scoped overview fields without internal manager specs', () => {
@@ -230,22 +210,19 @@ describe('ManagerAssetOverview', () => {
       phoneNumber: '0900000000',
       avatarUrl: null,
     };
-    req.occurrences[0]!.inspectorName = 'Partner Alice';
-    req.occurrences[0]!.droneLabel = 'DJI M300 · SN-001';
 
     render(<RequestOverviewCard request={req} role="CUSTOMER" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('Can Tho Riverbank')).toBeTruthy();
     expect(screen.getByText('2 checkpoints')).toBeTruthy();
-    expect(screen.getByText('Asset suggested')).toBeTruthy();
     expect(screen.getByText('MF2 Test Manager')).toBeTruthy();
-    expect(screen.getByText('Pending quote')).toBeTruthy();
-    expect(screen.getByText('Partner Alice')).toBeTruthy();
-    expect(screen.getByText('DJI M300 · SN-001')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Overview' })).toBeNull();
+    expect(screen.queryByText('Asset suggested')).toBeNull();
+    expect(screen.queryByText('Pending quote')).toBeNull();
     expect(screen.queryByText('Saigon Infrastructure Co.')).toBeNull();
     expect(screen.queryByText('Asset specs')).toBeNull();
     expect(screen.queryByText('ACTIVE')).toBeNull();
+    expect(screen.queryByText('BR-1')).toBeNull();
   });
 
   it('opens full asset details dialog when clicking the Asset field', () => {
@@ -314,10 +291,8 @@ describe('ManagerAssetOverview', () => {
     req.inspectionItems = ['Thermal roof sweep', 'Anchor bolts'];
 
     render(<ManagerAssetOverview request={req} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
 
     expect(screen.getByText('2 checkpoints')).toBeTruthy();
-    expect(screen.getByText('Thermal roof sweep')).toBeTruthy();
     expect(screen.queryByText('Asset suggested')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /View checkpoints/i }));

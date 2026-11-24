@@ -13,7 +13,6 @@ import { AssetOverviewDialog } from './AssetOverviewDialog';
 import { CheckpointsOverviewDialog } from './CheckpointsOverviewDialog';
 import {
   type ContractRole,
-  formatQuotedPriceSummary,
   formatRequestScheduleSummary,
   getEffectiveRequestStatus,
   getStatusLabel,
@@ -21,37 +20,23 @@ import {
   statusTone,
 } from './contractStage';
 
-interface FallbackDrone {
-  id: string;
-  model?: string | null;
-  serialNumber?: string | null;
-}
-
 interface RequestOverviewCardProps {
   request: ServiceRequest;
   role: ContractRole;
   effectiveStatus?: ServiceRequest['status'];
-  fallbackDrones?: FallbackDrone[] | undefined;
 }
 
 function OverviewField({
   label,
   value,
   tabular = false,
-  spanTwo = false,
 }: {
   label: string;
   value: ReactNode;
   tabular?: boolean;
-  spanTwo?: boolean;
 }) {
   return (
-    <Box
-      sx={{
-        minWidth: 0,
-        gridColumn: spanTwo ? { xs: 'span 2', md: 'span 2' } : undefined,
-      }}
-    >
+    <Box sx={{ minWidth: 0 }}>
       <Typography
         variant="caption"
         sx={{
@@ -140,7 +125,6 @@ export function RequestOverviewCard({
   request,
   role,
   effectiveStatus,
-  fallbackDrones,
 }: RequestOverviewCardProps) {
   const { locale, t, formatDate } = useLocale();
   const [expanded, setExpanded] = useState(false);
@@ -160,58 +144,25 @@ export function RequestOverviewCard({
 
   const resolvedStatus = effectiveStatus ?? getEffectiveRequestStatus(request);
   const scheduleLabel = formatRequestScheduleSummary(request, formatDate, locale, t);
-  const quotedPriceLabel = formatQuotedPriceSummary(request, locale);
+  const compactLocation = assetDisplay.location
+    ? assetDisplay.location.replace(/^Pinned Location\s*\(([^)]+)\)$/i, '$1')
+    : '—';
   const activeOccurrences = (request.occurrences ?? []).filter((occ) => occ.status !== 'CANCELLED');
   const assignedOccurrences = activeOccurrences.filter(
     (occ) => occ.status === 'ASSIGNED' || Boolean(occ.inspectorId) || Boolean(occ.droneId),
   );
-  const primaryAssigned = assignedOccurrences[0] ?? null;
-  const assignedInspectorName = primaryAssigned?.inspectorName?.trim() || null;
-  let assignedDroneLabel = primaryAssigned?.droneLabel?.trim() || '';
-  if (!assignedDroneLabel && primaryAssigned?.droneId && fallbackDrones?.length) {
-    const matched = fallbackDrones.find((d) => d.id === primaryAssigned.droneId);
-    if (matched) {
-      assignedDroneLabel = [matched.model, matched.serialNumber].filter(Boolean).join(' · ');
-    }
-  }
   const recurringProgressLabel =
     request.requestType === 'RECURRING' && activeOccurrences.length > 1
       ? locale === 'vi'
         ? `${assignedOccurrences.length}/${activeOccurrences.length} đợt đã gán`
         : `${assignedOccurrences.length}/${activeOccurrences.length} ${t('occurrences assigned')}`
       : null;
-  const inspectorValue: ReactNode = assignedInspectorName ? (
-    renderStakeholderValue(assignedInspectorName)
-  ) : (
-    <Typography
-      component="span"
-      variant="body2"
-      noWrap
-      sx={{ fontWeight: 500, fontSize: '0.84rem', color: 'text.secondary', lineHeight: 1.35 }}
-    >
-      {t('Unassigned')}
-    </Typography>
-  );
 
-  const specParts: string[] = [];
-  if (assetDisplay.heightMeters != null) {
-    specParts.push(`${assetDisplay.heightMeters} m`);
-  }
-  if (assetDisplay.footprintAreaSquareMeters != null) {
-    specParts.push(
-      `${assetDisplay.footprintAreaSquareMeters.toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')} m²`,
-    );
-  }
-  const specsLabel = specParts.length > 0 ? specParts.join(' · ') : '—';
   const checkpointCount = assetDisplay.checkpointLabels.length;
   const checkpointsCountLabel =
     checkpointCount === 1
       ? `1 ${t('checkpoint')}`
       : `${checkpointCount} ${t('checkpoints')}`;
-  const checkpointsPreview =
-    assetDisplay.checkpointsSource === 'ASSET_SUGGESTED'
-      ? t('Asset suggested')
-      : assetDisplay.checkpointLabels[0] ?? '';
   const checkpointsValue: ReactNode =
     checkpointCount === 0 ? (
       '—'
@@ -222,9 +173,8 @@ export function RequestOverviewCard({
         aria-label={`${t('View checkpoints')}: ${checkpointsCountLabel}`}
         sx={{
           display: 'inline-flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           justifyContent: 'flex-start',
-          gap: 0.5,
           maxWidth: '100%',
           textAlign: 'left',
           borderRadius: '6px',
@@ -243,8 +193,8 @@ export function RequestOverviewCard({
         <Typography
           component="span"
           className="checkpoints-count-label"
+          noWrap
           sx={{
-            flexShrink: 0,
             fontWeight: 600,
             fontSize: '0.84rem',
             color: 'text.primary',
@@ -254,22 +204,6 @@ export function RequestOverviewCard({
         >
           {checkpointsCountLabel}
         </Typography>
-        {checkpointsPreview && (
-          <>
-            <Typography component="span" sx={{ color: 'text.secondary', fontSize: '0.84rem' }}>
-              ·
-            </Typography>
-            <Typography
-              component="span"
-              color="text.secondary"
-              noWrap
-              title={checkpointsPreview}
-              sx={{ fontWeight: 500, fontSize: '0.84rem', lineHeight: 1.35, minWidth: 0 }}
-            >
-              {checkpointsPreview}
-            </Typography>
-          </>
-        )}
       </ButtonBase>
     );
 
@@ -306,53 +240,22 @@ export function RequestOverviewCard({
       ? [
           { label: t('Customer'), value: renderStakeholderValue(request.ownerCustomerName || '—') },
           { label: t('Manager'), value: managerValue },
-          { label: t('Inspector'), value: inspectorValue },
-          { label: t('Schedule'), value: scheduleLabel, tabular: true },
+          { label: t('Checkpoints'), value: checkpointsValue },
+          { label: t('Requested window'), value: scheduleLabel, tabular: true },
         ]
       : [
           { label: t('Service manager'), value: managerValue },
-          { label: t('Inspector'), value: inspectorValue },
-          { label: t('Schedule'), value: scheduleLabel, tabular: true },
-          {
-            label: t('Quoted price'),
-            value: quotedPriceLabel || t('Pending quote'),
-            tabular: Boolean(quotedPriceLabel),
-          },
+          { label: t('Location'), value: compactLocation },
+          { label: t('Checkpoints'), value: checkpointsValue },
+          { label: t('Requested window'), value: scheduleLabel, tabular: true },
         ];
 
-  const detailFields: Array<{ label: string; value: ReactNode; tabular?: boolean; spanTwo?: boolean }> =
-    role === 'MANAGER'
-      ? [
-          { label: t('Request'), value: request.description || '—' },
-          ...(assetDisplay.code
-            ? [{ label: t('Code'), value: assetDisplay.code, tabular: true }]
-            : []),
-          { label: t('Location'), value: assetDisplay.location || '—' },
-          { label: t('Asset specs'), value: specsLabel, tabular: true },
-          { label: t('Checkpoints'), value: checkpointsValue },
-          { label: t('Drone'), value: assignedDroneLabel || t('Unassigned'), tabular: true },
-          ...(recurringProgressLabel
-            ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
-            : []),
-          ...(quotedPriceLabel
-            ? [{ label: t('Quoted price'), value: quotedPriceLabel, tabular: true }]
-            : []),
-          ...(request.contractFileName
-            ? [{ label: t('Signed contract'), value: request.contractFileName, spanTwo: true }]
-            : []),
-        ]
-      : [
-          { label: t('Request'), value: request.description || '—' },
-          ...(assetDisplay.code
-            ? [{ label: t('Code'), value: assetDisplay.code, tabular: true }]
-            : []),
-          { label: t('Location'), value: assetDisplay.location || '—' },
-          { label: t('Checkpoints'), value: checkpointsValue },
-          { label: t('Drone'), value: assignedDroneLabel || t('Unassigned'), tabular: true },
-          ...(recurringProgressLabel
-            ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
-            : []),
-        ];
+  const detailFields: Array<{ label: string; value: ReactNode; tabular?: boolean }> =
+    recurringProgressLabel
+      ? [{ label: t('Occurrences'), value: recurringProgressLabel, tabular: true }]
+      : [];
+
+  const hasOverviewPanel = detailFields.length > 0;
 
   return (
     <>
@@ -473,22 +376,24 @@ export function RequestOverviewCard({
               )}
             </Stack>
 
-            <Button
-              size="small"
-              variant="text"
-              aria-expanded={expanded}
-              endIcon={
-                expanded ? (
-                  <ExpandLessRoundedIcon fontSize="small" />
-                ) : (
-                  <ExpandMoreRoundedIcon fontSize="small" />
-                )
-              }
-              onClick={() => setExpanded((value) => !value)}
-              sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
-            >
-              {t('Overview')}
-            </Button>
+            {hasOverviewPanel && (
+              <Button
+                size="small"
+                variant="text"
+                aria-expanded={expanded}
+                endIcon={
+                  expanded ? (
+                    <ExpandLessRoundedIcon fontSize="small" />
+                  ) : (
+                    <ExpandMoreRoundedIcon fontSize="small" />
+                  )
+                }
+                onClick={() => setExpanded((value) => !value)}
+                sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
+              >
+                {t('Overview')}
+              </Button>
+            )}
           </Stack>
 
           <Box
@@ -516,7 +421,7 @@ export function RequestOverviewCard({
           </Box>
         </Stack>
 
-        {expanded && (
+        {hasOverviewPanel && expanded && (
           <Box
             sx={{
               mt: 1.5,
@@ -538,7 +443,6 @@ export function RequestOverviewCard({
                 label={field.label}
                 value={field.value}
                 tabular={Boolean(field.tabular)}
-                spanTwo={Boolean(field.spanTwo)}
               />
             ))}
           </Box>

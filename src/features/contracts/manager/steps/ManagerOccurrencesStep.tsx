@@ -5,6 +5,7 @@ import {
   Avatar,
   Box,
   Button,
+  ButtonBase,
   Chip,
   CircularProgress,
   Dialog,
@@ -17,9 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
-import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
@@ -53,7 +52,6 @@ import {
   PartnerCandidateResults,
 } from '../../components/PartnerCandidateResults';
 import { extractContractErrorText } from '../../shared/contractStage';
-import { OccurrenceFinanceDrawer } from '../components/OccurrenceFinanceDrawer';
 
 interface ManagerOccurrencesStepProps {
   request: ServiceRequest;
@@ -70,7 +68,6 @@ export function ManagerOccurrencesStep({
   const [searchParams] = useSearchParams();
   const activeOccurrenceId = searchParams.get('occurrenceId');
   const stepActive = activeOccurrenceId !== null;
-  const [financeOccurrenceId, setFinanceOccurrenceId] = useState<string | null>(null);
   const [detailInspectorId, setDetailInspectorId] = useState<string | null>(null);
   const [detailDrone, setDetailDrone] = useState<{
     droneId: string;
@@ -79,8 +76,6 @@ export function ManagerOccurrencesStep({
   } | null>(null);
   const partnerDronesQuery = usePartnerDrones(Boolean(detailDrone));
 
-  const financeOccurrence =
-    request.occurrences.find((item) => item.id === financeOccurrenceId) ?? null;
   const isOneTime =
     request.requestType === 'ONE_TIME' && request.occurrences.length <= 1;
 
@@ -130,7 +125,6 @@ export function ManagerOccurrencesStep({
                   activePairSelection={isActive}
                   onChanged={onChanged}
                   onError={onError}
-                  onOpenFinance={() => setFinanceOccurrenceId(occurrence.id)}
                   onOpenInspector={(inspectorId) => setDetailInspectorId(inspectorId)}
                   onOpenDrone={(droneId, inspectorName, fallbackLabel) =>
                     setDetailDrone({ droneId, inspectorName, fallbackLabel })
@@ -141,16 +135,6 @@ export function ManagerOccurrencesStep({
           })}
         </Stack>
       </Box>
-
-      <OccurrenceFinanceDrawer
-        open={Boolean(financeOccurrence)}
-        onClose={() => setFinanceOccurrenceId(null)}
-        requestId={request.id}
-        occurrence={financeOccurrence}
-        isOneTime={isOneTime}
-        onChanged={onChanged}
-        onError={onError}
-      />
 
       {detailInspectorId && (
         <InspectorProfileDialog
@@ -178,7 +162,6 @@ function ManagerOccurrenceRow({
   activePairSelection,
   onChanged,
   onError,
-  onOpenFinance,
   onOpenInspector,
   onOpenDrone,
 }: {
@@ -188,7 +171,6 @@ function ManagerOccurrenceRow({
   activePairSelection: boolean;
   onChanged: () => void;
   onError: (message: string) => void;
-  onOpenFinance: () => void;
   onOpenInspector: (inspectorId: string) => void;
   onOpenDrone: (droneId: string, inspectorName: string | null, fallbackLabel: string) => void;
 }) {
@@ -342,8 +324,12 @@ function ManagerOccurrenceRow({
     occurrence.totalPrice != null && occurrence.totalPrice > 0
       ? `${formatNumber(occurrence.totalPrice)} ₫`
       : null;
+  const assignedInspectorRecord = (inspectors.data ?? []).find(
+    (item) => item.id === occurrence.inspectorId,
+  );
   const assignedInspectorName =
-    (inspectors.data ?? []).find((item) => item.id === occurrence.inspectorId)?.fullName ??
+    assignedInspectorRecord?.fullName ??
+    occurrence.inspectorName ??
     (occurrence.inspectorId ? t('Inspector') : null);
   const assignedDroneRecord = (drones.data ?? []).find((item) => item.id === occurrence.droneId);
   const assignedDroneLabel = assignedDroneRecord
@@ -425,33 +411,6 @@ function ManagerOccurrenceRow({
                 {feeVnd}
               </Typography>
             )}
-            {(isAssigned ||
-              Boolean(occurrence.invoice || occurrence.payment || occurrence.payout)) && (
-              <Button
-                size="small"
-                variant="outlined"
-                color="inherit"
-                startIcon={<AccountBalanceWalletOutlinedIcon sx={{ fontSize: 15 }} />}
-                onClick={onOpenFinance}
-                sx={{
-                  borderRadius: '8px',
-                  borderColor: 'divider',
-                  color: 'text.secondary',
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  '&:hover': {
-                    borderColor: 'text.secondary',
-                    color: 'text.primary',
-                    bgcolor: 'action.hover',
-                  },
-                }}
-              >
-                {t('Service invoice')}
-              </Button>
-            )}
             {isAssigned && occurrence.inspectionId && (
               <Button
                 component={Link}
@@ -476,111 +435,250 @@ function ManagerOccurrenceRow({
 
         {isAssigned ? (
           <Stack
-            spacing={1.25}
-            sx={{ pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}
+            spacing={1.5}
+            sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}
           >
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1.5}
-              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  md: 'minmax(0, 1fr) minmax(0, 1fr) auto',
+                },
+                gap: { xs: 1.5, md: 2 },
+                alignItems: 'center',
+              }}
             >
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={{ xs: 0.75, sm: 2.5 }}
-                sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap', minWidth: 0 }}
-              >
-                {assignedInspectorName && (
-                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-                    {occurrence.inspectorId ? (
-                      <Button
-                        type="button"
-                        size="small"
-                        variant="text"
-                        startIcon={<BadgeOutlinedIcon sx={{ fontSize: 16 }} />}
-                        onClick={() => onOpenInspector(occurrence.inspectorId as string)}
+              {assignedInspectorName && (() => {
+                const inspectorContent = (
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
+                    <Avatar
+                      src={assignedInspectorRecord?.avatarUrl ?? undefined}
+                      alt={assignedInspectorName}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'action.hover',
+                        color: 'text.primary',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {getInspectorInitials(assignedInspectorName)}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        component="div"
+                        variant="caption"
+                        noWrap
                         sx={{
-                          minWidth: 0,
-                          px: 0.75,
-                          py: 0.25,
-                          ml: -0.75,
-                          borderRadius: '6px',
-                          textTransform: 'none',
+                          color: 'text.secondary',
+                          fontSize: '0.75rem',
                           fontWeight: 600,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {t('Inspector')}
+                        {occurrence.assignmentStatus === 'ACCEPTED' && (
+                          <Box
+                            component="span"
+                            sx={{
+                              color: 'success.main',
+                              textTransform: 'none',
+                              letterSpacing: 0,
+                              ml: 0.5,
+                            }}
+                          >
+                            · {t('Confirmed')}
+                          </Box>
+                        )}
+                        {occurrence.assignmentStatus === 'PENDING_ACCEPTANCE' && (
+                          <Box
+                            component="span"
+                            sx={{
+                              color: 'warning.main',
+                              textTransform: 'none',
+                              letterSpacing: 0,
+                              ml: 0.5,
+                            }}
+                          >
+                            · {t('Awaiting confirmation')}
+                          </Box>
+                        )}
+                      </Typography>
+                      <Typography
+                        className="pair-primary-text"
+                        variant="body2"
+                        noWrap
+                        title={assignedInspectorName}
+                        sx={{
+                          fontWeight: 650,
                           fontSize: '0.875rem',
                           color: 'text.primary',
-                          '&:hover': {
-                            color: 'primary.main',
-                            bgcolor: 'action.hover',
-                            textDecoration: 'underline',
-                          },
+                          lineHeight: 1.35,
+                          mt: 0.15,
                         }}
                       >
                         {assignedInspectorName}
-                      </Button>
-                    ) : (
-                      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
-                        <BadgeOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                          {assignedInspectorName}
-                        </Typography>
-                      </Stack>
-                    )}
-                    {occurrence.assignmentStatus === 'ACCEPTED' && (
-                      <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
-                        · {t('Confirmed')}
                       </Typography>
-                    )}
-                    {occurrence.assignmentStatus === 'PENDING_ACCEPTANCE' && (
-                      <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>
-                        · {t('Awaiting confirmation')}
-                      </Typography>
-                    )}
+                    </Box>
                   </Stack>
-                )}
-                {assignedDroneLabel && (
-                  occurrence.droneId ? (
-                    <Button
-                      type="button"
-                      size="small"
-                      variant="text"
-                      startIcon={<FlightOutlinedIcon sx={{ fontSize: 16 }} />}
-                      onClick={() =>
-                        onOpenDrone(
-                          occurrence.droneId as string,
-                          assignedInspectorName,
-                          assignedDroneLabel,
-                        )
-                      }
+                );
+
+                return occurrence.inspectorId ? (
+                  <ButtonBase
+                    type="button"
+                    aria-label={assignedInspectorName}
+                    onClick={() => onOpenInspector(occurrence.inspectorId as string)}
+                    sx={{
+                      width: '100%',
+                      textAlign: 'left',
+                      justifyContent: 'flex-start',
+                      borderRadius: '8px',
+                      p: 0.75,
+                      m: -0.75,
+                      transition: 'background-color 150ms ease, color 150ms ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                      '&:hover .pair-primary-text': {
+                        color: 'primary.main',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    {inspectorContent}
+                  </ButtonBase>
+                ) : (
+                  inspectorContent
+                );
+              })()}
+
+              {assignedDroneLabel && (() => {
+                const dronePrimaryTitle = assignedDroneRecord?.model || assignedDroneLabel;
+                const droneSubLabel = assignedDroneRecord?.serialNumber || null;
+                const droneContent = (
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
+                    <Box
                       sx={{
-                        minWidth: 0,
-                        px: 0.75,
-                        py: 0.25,
-                        ml: { sm: -0.75 },
-                        borderRadius: '6px',
-                        textTransform: 'none',
-                        fontWeight: 500,
-                        fontSize: '0.875rem',
-                        color: 'text.secondary',
-                        '&:hover': {
-                          color: 'primary.main',
-                          bgcolor: 'action.hover',
-                          textDecoration: 'underline',
-                        },
+                        width: 56,
+                        height: 40,
+                        flexShrink: 0,
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'action.hover',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      {assignedDroneLabel}
-                    </Button>
-                  ) : (
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
-                      <FlightOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        {assignedDroneLabel}
+                      {occurrence.droneId && assignedDroneRecord?.hasImage ? (
+                        <AuthenticatedImage
+                          src={`/drone-registration-applications/drones/${occurrence.droneId}/image?index=0`}
+                          alt={assignedDroneLabel}
+                          maxHeight={40}
+                          sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      ) : (
+                        <FlightOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      )}
+                    </Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        component="div"
+                        variant="caption"
+                        noWrap
+                        sx={{
+                          color: 'text.secondary',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {t('Drone')}
+                        {droneSubLabel && (
+                          <Box
+                            component="span"
+                            sx={{
+                              textTransform: 'none',
+                              letterSpacing: 0,
+                              fontVariantNumeric: 'tabular-nums',
+                              fontWeight: 500,
+                              ml: 0.5,
+                            }}
+                          >
+                            · {droneSubLabel}
+                          </Box>
+                        )}
                       </Typography>
-                    </Stack>
-                  )
-                )}
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, flexShrink: 0 }}>
+                      <Typography
+                        className="pair-primary-text"
+                        variant="body2"
+                        noWrap
+                        title={assignedDroneLabel}
+                        sx={{
+                          fontWeight: 650,
+                          fontSize: '0.875rem',
+                          color: 'text.primary',
+                          lineHeight: 1.35,
+                          mt: 0.15,
+                        }}
+                      >
+                        {dronePrimaryTitle}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                );
+
+                return occurrence.droneId ? (
+                  <ButtonBase
+                    type="button"
+                    aria-label={assignedDroneLabel}
+                    onClick={() =>
+                      onOpenDrone(
+                        occurrence.droneId as string,
+                        assignedInspectorName,
+                        assignedDroneLabel,
+                      )
+                    }
+                    sx={{
+                      width: '100%',
+                      textAlign: 'left',
+                      justifyContent: 'flex-start',
+                      borderRadius: '8px',
+                      p: 0.75,
+                      m: -0.75,
+                      transition: 'background-color 150ms ease, color 150ms ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                      '&:hover .pair-primary-text': {
+                        color: 'primary.main',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    {droneContent}
+                  </ButtonBase>
+                ) : (
+                  droneContent
+                );
+              })()}
+
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ flexWrap: 'wrap', gap: 1, flexShrink: 0, justifySelf: { md: 'end' } }}
+              >
                 {remainingUnassignedOther.length > 0 &&
                   occurrence.inspectorId &&
                   occurrence.droneId && (
@@ -626,7 +724,7 @@ function ManagerOccurrenceRow({
                   </Button>
                 )}
               </Stack>
-            </Stack>
+            </Box>
 
             {occurrence.reassignmentRequired && (
               <Alert
