@@ -1,4 +1,4 @@
-import { type ReactNode, Fragment, useEffect, useRef, useState } from 'react';
+import { type ReactNode, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   Avatar,
@@ -11,6 +11,9 @@ import {
   DialogTitle,
   IconButton,
   InputBase,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
   Typography,
@@ -21,6 +24,8 @@ import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import { api } from '@/shared/api/client';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
@@ -367,16 +372,28 @@ function MessageAttachment({
   );
 }
 
+export interface ChatContextThreadItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  meta?: string | undefined;
+  actionTo: string;
+  unreadCount: number;
+  messages: ServiceRequestMessage[];
+  getAttachmentPath: (messageId: string, attachmentId: string) => string;
+}
+
 interface ChatConversationPanelProps {
   threadId: string;
   partnerName: string;
   partnerAvatarUrl?: string | null | undefined;
   subtitle: string;
-  actionLabel: string;
-  actionTo: string;
   emptyTitle: string;
   emptyDescription: string;
   contextStrip?: ReactNode | undefined;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
+  contextPickerLabel?: string | undefined;
   messages: ServiceRequestMessage[];
   isSending: boolean;
   onSend: (input: { body: string; files: File[] }) => Promise<void>;
@@ -407,11 +424,12 @@ function ChatConversationPanel({
   partnerName,
   partnerAvatarUrl,
   subtitle,
-  actionLabel,
-  actionTo,
   emptyTitle,
   emptyDescription,
   contextStrip,
+  contextThreads,
+  onSelectContext,
+  contextPickerLabel,
   messages,
   isSending,
   onSend,
@@ -424,10 +442,48 @@ function ChatConversationPanel({
   const currentUser = useAuthStore((state) => state.user);
   const [body, setBody] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [contextMenuAnchor, setContextMenuAnchor] = useState<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onMarkReadRef = useRef(onMarkRead);
   const lastMarkedKeyRef = useRef<string>('');
+
+  const hasMultipleContexts = Boolean(contextThreads && contextThreads.length > 1);
+  const activeContextItem = useMemo(
+    () =>
+      contextThreads?.find((item) => item.id === threadId) ??
+      contextThreads?.[0],
+    [contextThreads, threadId],
+  );
+
+  const timelineEntries = useMemo(() => {
+    if (!hasMultipleContexts || !contextThreads) {
+      return messages.map((message) => ({
+        key: `${threadId}:${message.id}`,
+        message,
+        contextId: threadId,
+        contextTitle: activeContextItem?.title ?? '',
+        contextSubtitle: activeContextItem?.subtitle ?? '',
+        contextActionTo: activeContextItem?.actionTo ?? '',
+        getAttachmentPath,
+      }));
+    }
+    return contextThreads
+      .flatMap((ctx) =>
+        ctx.messages.map((message, index) => ({
+          key: `${ctx.id}:${message.id}`,
+          message,
+          contextId: ctx.id,
+          contextTitle: ctx.title,
+          contextSubtitle: ctx.subtitle,
+          contextActionTo: ctx.actionTo,
+          getAttachmentPath: ctx.getAttachmentPath,
+          sortTime: Date.parse(message.createdAt) || 0,
+          sortOrder: index,
+        })),
+      )
+      .sort((a, b) => a.sortTime - b.sortTime || a.sortOrder - b.sortOrder);
+  }, [hasMultipleContexts, contextThreads, messages, threadId, activeContextItem, getAttachmentPath]);
 
   useEffect(() => {
     onMarkReadRef.current = onMarkRead;
@@ -441,7 +497,7 @@ function ChatConversationPanel({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [timelineEntries]);
 
   useEffect(() => {
     if (!latestUnreadId) return;
@@ -494,7 +550,9 @@ function ChatConversationPanel({
   };
 
   const partnerInitial = partnerName.trim().charAt(0).toUpperCase() || 'U';
-  const myMessages = messages.filter((m) => m.authorUserId === currentUser?.id);
+  const myMessages = timelineEntries
+    .map((entry) => entry.message)
+    .filter((m) => m.authorUserId === currentUser?.id);
   const lastMyMessage = myMessages[myMessages.length - 1];
 
   return (
@@ -568,26 +626,6 @@ function ChatConversationPanel({
             )}
           </Box>
         </Stack>
-
-        <Button
-          component={Link}
-          to={actionTo}
-          size="small"
-          variant="outlined"
-          endIcon={<ArrowOutwardRoundedIcon sx={{ fontSize: 15 }} />}
-          sx={{
-            borderRadius: '8px',
-            textTransform: 'none',
-            fontWeight: 600,
-            fontSize: '0.75rem',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            borderColor: 'divider',
-            color: 'text.primary',
-          }}
-        >
-          {actionLabel}
-        </Button>
       </Box>
 
       <Box
@@ -605,7 +643,7 @@ function ChatConversationPanel({
           scrollBehavior: 'smooth',
         }}
       >
-        {messages.length === 0 ? (
+        {timelineEntries.length === 0 ? (
           <Box
             sx={{
               display: 'flex',
@@ -642,16 +680,26 @@ function ChatConversationPanel({
             </Typography>
           </Box>
         ) : (
-          messages.map((message, index) => {
+          timelineEntries.map((entry, index) => {
+            const { message } = entry;
             const isMe = currentUser?.id === message.authorUserId;
             const isLastFromMe = isMe && message.id === lastMyMessage?.id;
-            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const prevEntry = index > 0 ? timelineEntries[index - 1] : null;
             const showDateHeader =
-              !prevMessage ||
-              getDateGroupKey(prevMessage.createdAt) !== getDateGroupKey(message.createdAt);
+              !prevEntry ||
+              getDateGroupKey(prevEntry.message.createdAt) !== getDateGroupKey(message.createdAt);
+            const showContextTag =
+              Boolean(entry.contextActionTo || hasMultipleContexts) &&
+              (!prevEntry || prevEntry.contextId !== entry.contextId);
+            const isActiveContext = entry.contextId === threadId;
+            const contextChipLabel = `${entry.contextTitle}${
+              entry.contextSubtitle && !entry.contextSubtitle.startsWith(entry.contextTitle)
+                ? ` · ${entry.contextSubtitle}`
+                : ''
+            }`;
 
             return (
-              <Fragment key={message.id}>
+              <Fragment key={entry.key}>
                 {showDateHeader && (
                   <Box sx={{ textAlign: 'center', my: 0.5 }}>
                     <Typography
@@ -661,6 +709,63 @@ function ChatConversationPanel({
                     >
                       {formatDateHeading(message.createdAt, locale)}
                     </Typography>
+                  </Box>
+                )}
+
+                {showContextTag && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 0.25 }}>
+                    {entry.contextActionTo ? (
+                      <Chip
+                        component={Link}
+                        to={entry.contextActionTo}
+                        size="small"
+                        clickable
+                        icon={<LinkRoundedIcon sx={{ fontSize: 14 }} />}
+                        label={
+                          <Box
+                            component="span"
+                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.45 }}
+                          >
+                            <span>{contextChipLabel}</span>
+                            <ArrowOutwardRoundedIcon sx={{ fontSize: 13, opacity: 0.85 }} />
+                          </Box>
+                        }
+                        sx={{
+                          height: 24,
+                          fontSize: '0.75rem',
+                          fontWeight: isActiveContext ? 600 : 500,
+                          textDecoration: 'none',
+                          bgcolor: isActiveContext
+                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                            : 'action.hover',
+                          color: isActiveContext ? 'primary.main' : 'text.secondary',
+                          borderRadius: '6px',
+                          '&:hover': {
+                            bgcolor:
+                              'color-mix(in srgb, var(--mui-palette-primary-main) 16%, transparent)',
+                            color: 'primary.main',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        size="small"
+                        icon={<LinkRoundedIcon sx={{ fontSize: 14 }} />}
+                        label={contextChipLabel}
+                        onClick={() => onSelectContext?.(entry.contextId)}
+                        clickable={Boolean(onSelectContext)}
+                        sx={{
+                          height: 24,
+                          fontSize: '0.75rem',
+                          fontWeight: isActiveContext ? 600 : 500,
+                          bgcolor: isActiveContext
+                            ? 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)'
+                            : 'action.hover',
+                          color: isActiveContext ? 'primary.main' : 'text.secondary',
+                          borderRadius: '6px',
+                        }}
+                      />
+                    )}
                   </Box>
                 )}
 
@@ -726,7 +831,7 @@ function ChatConversationPanel({
                       {(message.attachments ?? []).map((attachment) => (
                         <MessageAttachment
                           key={attachment.id}
-                          attachmentPath={getAttachmentPath(message.id, attachment.id)}
+                          attachmentPath={entry.getAttachmentPath(message.id, attachment.id)}
                           attachment={attachment}
                           locale={locale}
                           onError={onError}
@@ -804,6 +909,98 @@ function ChatConversationPanel({
             accept="image/png,image/jpeg,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={selectFiles}
           />
+
+          {hasMultipleContexts && activeContextItem && contextThreads && (
+            <Box sx={{ px: 1.25, pt: 1, pb: 0.25, display: 'flex', alignItems: 'center' }}>
+              <Chip
+                size="small"
+                icon={<LinkRoundedIcon sx={{ fontSize: 15 }} />}
+                deleteIcon={<KeyboardArrowDownRoundedIcon sx={{ fontSize: 17 }} />}
+                onDelete={(event) => setContextMenuAnchor(event.currentTarget.closest('div'))}
+                onClick={(event) => setContextMenuAnchor(event.currentTarget)}
+                aria-label={locale === 'vi' ? 'Chọn mục đính kèm' : 'Select attached context'}
+                label={`${contextPickerLabel ? `${contextPickerLabel}: ` : ''}${activeContextItem.title}${activeContextItem.subtitle && !activeContextItem.subtitle.startsWith(activeContextItem.title) ? ` · ${activeContextItem.subtitle}` : ''}`}
+                sx={{
+                  maxWidth: '100%',
+                  height: 26,
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)',
+                  color: 'primary.main',
+                  '& .MuiChip-icon': { color: 'primary.main' },
+                  '& .MuiChip-deleteIcon': { color: 'primary.main', ml: 0.25 },
+                }}
+              />
+              <Menu
+                anchorEl={contextMenuAnchor}
+                open={Boolean(contextMenuAnchor)}
+                onClose={() => setContextMenuAnchor(null)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      maxWidth: 420,
+                      maxHeight: 320,
+                      borderRadius: '8px',
+                      border: '1px solid var(--mui-palette-divider)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                    },
+                  },
+                }}
+              >
+                {contextThreads.map((item) => {
+                  const selected = item.id === activeContextItem.id;
+                  return (
+                    <MenuItem
+                      key={item.id}
+                      selected={selected}
+                      onClick={() => {
+                        setContextMenuAnchor(null);
+                        onSelectContext?.(item.id);
+                      }}
+                      sx={{ py: 0.85, px: 1.5, gap: 1 }}
+                    >
+                      <ListItemText
+                        primary={item.title}
+                        secondary={
+                          [item.subtitle, item.meta].filter(Boolean).join(' · ') || undefined
+                        }
+                        slotProps={{
+                          primary: {
+                            noWrap: true,
+                            sx: { fontSize: '0.8125rem', fontWeight: selected ? 700 : 600 },
+                          },
+                          secondary: {
+                            noWrap: true,
+                            sx: { fontSize: '0.75rem' },
+                          },
+                        }}
+                      />
+                      {item.unreadCount > 0 && (
+                        <Box
+                          sx={{
+                            px: 0.75,
+                            py: 0.1,
+                            borderRadius: '999px',
+                            bgcolor: 'primary.main',
+                            color: '#ffffff',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {item.unreadCount}
+                        </Box>
+                      )}
+                      {selected && <CheckRoundedIcon fontSize="small" color="primary" />}
+                    </MenuItem>
+                  );
+                })}
+              </Menu>
+            </Box>
+          )}
 
           {selectedFiles.length > 0 && (
             <Stack direction="row" spacing={0.75} sx={{ p: 1.25, pb: 0, flexWrap: 'wrap' }}>
@@ -904,12 +1101,23 @@ function ChatConversationPanel({
 
 interface RequestChatPanelProps {
   request: ServiceRequest;
+  partnerNameOverride?: string | undefined;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
 }
 
-export function RequestChatPanel({ request, onChanged, onError, onBack }: RequestChatPanelProps) {
+export function RequestChatPanel({
+  request,
+  partnerNameOverride,
+  contextThreads,
+  onSelectContext,
+  onChanged,
+  onError,
+  onBack,
+}: RequestChatPanelProps) {
   const { locale, t } = useLocale();
   const currentUser = useAuthStore((state) => state.user);
   const userRoles = useAuthStore((state) => state.roles);
@@ -921,7 +1129,10 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
     .reverse()
     .find((m) => m.authorUserId !== currentUser?.id && m.authorName);
   const partnerName =
-    otherPartyMessage?.authorName || (isManagerRole ? t('Customer') : t('Service Manager'));
+    partnerNameOverride ||
+    (isManagerRole ? request.ownerCustomerName : request.serviceManager?.fullName) ||
+    otherPartyMessage?.authorName ||
+    (isManagerRole ? t('Customer') : t('Service Manager'));
   const currentQuote = resolveCurrentQuote(request);
   const statusLabel = getStatusLabel(getEffectiveRequestStatus(request), t);
   const quoteAmount = Number(
@@ -934,14 +1145,15 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
       partnerName={partnerName}
       partnerAvatarUrl={!isManagerRole ? request.serviceManager?.avatarUrl : undefined}
       subtitle={`${request.description} · ${statusLabel}`}
-      actionLabel={locale === 'vi' ? 'Xem yêu cầu' : 'Open request'}
-      actionTo={`/${isManagerRole ? 'manager' : 'client'}/contracts?requestId=${request.id}`}
       emptyTitle={locale === 'vi' ? 'Chưa có tin nhắn đàm phán nào' : 'No messages yet'}
       emptyDescription={
         locale === 'vi'
           ? 'Gửi tin nhắn để trao đổi chi tiết về phạm vi, khung giờ bay và thống nhất báo giá hợp đồng.'
           : 'Send a message to discuss inspection scope, flight timing, and quotation terms.'
       }
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Yêu cầu' : 'Request'}
       contextStrip={
         <>
           <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -978,6 +1190,8 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
 
 interface InspectionChatPanelProps {
   thread: InspectionChatThread;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
@@ -985,6 +1199,8 @@ interface InspectionChatPanelProps {
 
 export function InspectionChatPanel({
   thread,
+  contextThreads,
+  onSelectContext,
   onChanged,
   onError,
   onBack,
@@ -1003,8 +1219,9 @@ export function InspectionChatPanel({
       }
       partnerAvatarUrl={thread.counterpartAvatarUrl}
       subtitle={`${thread.assetName} · ${getInspectionStatusLabel(thread.status, t)}`}
-      actionLabel={locale === 'vi' ? 'Mở đợt kiểm tra' : 'Open inspection'}
-      actionTo={`/${isInspectorRole ? 'operations' : 'client'}/inspections/${thread.inspectionId}`}
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Đợt kiểm tra' : 'Inspection'}
       emptyTitle={
         locale === 'vi'
           ? 'Chưa có trao đổi nào cho đợt kiểm tra này'
@@ -1053,6 +1270,8 @@ export function InspectionChatPanel({
 
 interface PartnerChatPanelProps {
   thread: PartnerChatThread;
+  contextThreads?: ChatContextThreadItem[] | undefined;
+  onSelectContext?: ((contextId: string) => void) | undefined;
   onChanged: () => void;
   onError: (message: string) => void;
   onBack?: () => void;
@@ -1060,6 +1279,8 @@ interface PartnerChatPanelProps {
 
 export function PartnerChatPanel({
   thread,
+  contextThreads,
+  onSelectContext,
   onChanged,
   onError,
   onBack,
@@ -1079,20 +1300,9 @@ export function PartnerChatPanel({
       }
       partnerAvatarUrl={thread.counterpartAvatarUrl}
       subtitle={`${thread.assetName}${thread.assetCode ? ` (${thread.assetCode})` : ''} · ${thread.requestDescription}`}
-      actionLabel={
-        isManagerRole
-          ? locale === 'vi'
-            ? 'Xem yêu cầu'
-            : 'Open request'
-          : locale === 'vi'
-            ? 'Danh sách đợt bay'
-            : 'Open inspections'
-      }
-      actionTo={
-        isManagerRole
-          ? `/manager/contracts?requestId=${thread.requestId}`
-          : '/operations/inspections'
-      }
+      contextThreads={contextThreads}
+      onSelectContext={onSelectContext}
+      contextPickerLabel={locale === 'vi' ? 'Yêu cầu' : 'Request'}
       emptyTitle={
         locale === 'vi'
           ? 'Chưa có trao đổi điều phối nào'
