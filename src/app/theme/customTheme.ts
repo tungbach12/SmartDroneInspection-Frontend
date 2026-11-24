@@ -8,6 +8,21 @@ export type ThemePresetId =
 
 export type BackgroundSource = 'default' | 'preset' | 'custom';
 export type BackgroundTarget = 'both' | 'sidebar' | 'workspace';
+export type CursorEffectId = 'none' | 'trail' | 'spotlight' | 'reticle' | 'ripple';
+
+export interface CursorEffectOption {
+  id: CursorEffectId;
+  labelEn: string;
+  labelVi: string;
+}
+
+export const CURSOR_EFFECT_OPTIONS: readonly CursorEffectOption[] = [
+  { id: 'trail', labelEn: 'Flight Trail', labelVi: 'Vệt bay' },
+  { id: 'spotlight', labelEn: 'Spotlight Glow', labelVi: 'Quầng sáng' },
+  { id: 'reticle', labelEn: 'Drone Reticle', labelVi: 'Tâm ngắm' },
+  { id: 'ripple', labelEn: 'Click Ripple', labelVi: 'Sóng chạm' },
+  { id: 'none', labelEn: 'Off', labelVi: 'Tắt' },
+] as const;
 
 export interface ThemePresetDefinition {
   id: ThemePresetId;
@@ -40,6 +55,7 @@ export interface UserThemePreferences {
   customBackgroundName: string | null;
   backgroundTarget: BackgroundTarget;
   surfaceOpacity: number;
+  cursorEffect: CursorEffectId;
 }
 
 export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
@@ -182,6 +198,7 @@ export const DEFAULT_USER_THEME_PREFERENCES: UserThemePreferences = {
   customBackgroundName: null,
   backgroundTarget: 'both',
   surfaceOpacity: 0.88,
+  cursorEffect: 'trail',
 };
 
 export const THEME_STORAGE_KEY_PREFIX = 'sdi_custom_theme_v1';
@@ -233,6 +250,13 @@ function isValidBackgroundTarget(value: unknown): value is BackgroundTarget {
   return value === 'both' || value === 'sidebar' || value === 'workspace';
 }
 
+function isValidCursorEffectId(value: unknown): value is CursorEffectId {
+  return (
+    typeof value === 'string' &&
+    CURSOR_EFFECT_OPTIONS.some((option) => option.id === value)
+  );
+}
+
 export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
   if (!raw || typeof raw !== 'object') {
     return { ...DEFAULT_USER_THEME_PREFERENCES };
@@ -264,6 +288,9 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     typeof obj.surfaceOpacity === 'number'
       ? clampSurfaceOpacity(obj.surfaceOpacity)
       : DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity;
+  const cursorEffect = isValidCursorEffectId(obj.cursorEffect)
+    ? obj.cursorEffect
+    : DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
 
   const normalizedSource: BackgroundSource =
     backgroundSource === 'preset' && !backgroundPresetId
@@ -280,6 +307,7 @@ export function sanitizeThemePreferences(raw: unknown): UserThemePreferences {
     customBackgroundName,
     backgroundTarget,
     surfaceOpacity,
+    cursorEffect,
   };
 }
 

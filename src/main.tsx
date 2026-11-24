@@ -6,6 +6,7 @@ import { useColorScheme } from '@mui/material/styles';
 import { ColorModeContext } from './app/layouts/ColorModeContext';
 import { CustomThemeProvider } from './app/theme/CustomThemeProvider';
 import { useCustomTheme } from './app/theme/CustomThemeContext';
+import { CursorEffectOverlay } from './app/theme/CursorEffectOverlay';
 import { createAppTheme } from './app/theme/theme';
 import { RouterWithToast } from './app/router/router';
 import '@fontsource/geist-sans/400.css';
@@ -57,6 +58,7 @@ function ThemedApp() {
     >
       <ColorModeBridge>
         <CssBaseline />
+        <CursorEffectOverlay />
         <QueryClientProvider client={queryClient}>
           <RouterWithToast />
         </QueryClientProvider>

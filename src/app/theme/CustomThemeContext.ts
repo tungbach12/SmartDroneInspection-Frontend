@@ -3,6 +3,7 @@ import {
   DEFAULT_USER_THEME_PREFERENCES,
   getThemePreset,
   type BackgroundTarget,
+  type CursorEffectId,
   type ThemePresetDefinition,
   type ThemePresetId,
   type UserThemePreferences,
@@ -22,6 +23,7 @@ export interface CustomThemeContextValue {
   removeCustomBackground: () => void;
   setBackgroundTarget: (target: BackgroundTarget) => void;
   setSurfaceOpacity: (opacity: number) => void;
+  setCursorEffect: (effect: CursorEffectId) => void;
   resetToDefault: () => void;
 }
 
@@ -41,6 +43,7 @@ export const CustomThemeContext = createContext<CustomThemeContextValue>({
   removeCustomBackground: noop,
   setBackgroundTarget: noop,
   setSurfaceOpacity: noop,
+  setCursorEffect: noop,
   resetToDefault: noop,
 });
 

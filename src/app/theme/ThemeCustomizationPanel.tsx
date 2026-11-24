@@ -20,10 +20,12 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { NextAdminMoonIcon, NextAdminSunIcon } from '@/shared/ui/NextAdminIcons';
 import {
   BACKGROUND_PRESETS,
+  CURSOR_EFFECT_OPTIONS,
   DEFAULT_USER_THEME_PREFERENCES,
   THEME_PRESETS,
   type BackgroundSource,
   type BackgroundTarget,
+  type CursorEffectId,
 } from './customTheme';
 import { useCustomTheme } from './CustomThemeContext';
 
@@ -53,6 +55,7 @@ export function ThemeCustomizationPanel({
     removeCustomBackground,
     setBackgroundTarget,
     setSurfaceOpacity,
+    setCursorEffect,
     resetToDefault,
   } = useCustomTheme();
 
@@ -63,7 +66,8 @@ export function ThemeCustomizationPanel({
     preferences.presetId !== DEFAULT_USER_THEME_PREFERENCES.presetId ||
     preferences.backgroundSource !== DEFAULT_USER_THEME_PREFERENCES.backgroundSource ||
     preferences.backgroundTarget !== DEFAULT_USER_THEME_PREFERENCES.backgroundTarget ||
-    preferences.surfaceOpacity !== DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity;
+    preferences.surfaceOpacity !== DEFAULT_USER_THEME_PREFERENCES.surfaceOpacity ||
+    preferences.cursorEffect !== DEFAULT_USER_THEME_PREFERENCES.cursorEffect;
 
   const handleSourceChange = (
     _event: React.MouseEvent<HTMLElement>,
@@ -634,6 +638,56 @@ export function ThemeCustomizationPanel({
           </Box>
         )}
       </Stack>
+
+      <Divider />
+
+      {/* Cursor Effect Selector */}
+      <Box>
+        <Typography sx={{ fontWeight: 600, fontSize: '0.9375rem', color: 'text.primary' }}>
+          {isVi ? 'Hiệu ứng con trỏ chuột' : 'Cursor effect'}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+          {isVi
+            ? 'Tự động tắt khi bật chế độ giảm chuyển động của hệ thống.'
+            : 'Automatically respects system reduced-motion preferences.'}
+        </Typography>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={preferences.cursorEffect}
+          onChange={(_e, nextEffect: CursorEffectId | null) => {
+            if (nextEffect) setCursorEffect(nextEffect);
+          }}
+          aria-label={isVi ? 'Hiệu ứng con trỏ chuột' : 'Cursor effect'}
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.75,
+            '& .MuiToggleButtonGroup-grouped': {
+              borderRadius: '8px !important',
+              border: '1px solid var(--mui-palette-divider) !important',
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              px: 1.25,
+              py: 0.625,
+            },
+            '& .MuiToggleButton-root.Mui-selected': {
+              borderColor: 'var(--mui-palette-primary-main) !important',
+            },
+          }}
+        >
+          {CURSOR_EFFECT_OPTIONS.map((opt) => (
+            <ToggleButton
+              key={opt.id}
+              value={opt.id}
+              data-testid={`cursor-effect-${opt.id}`}
+            >
+              {isVi ? opt.labelVi : opt.labelEn}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
     </Stack>
   );
 }
