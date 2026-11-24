@@ -229,7 +229,7 @@ describe('ContractInboxPage', () => {
           counterpartUserId: 'cust-1',
           counterpartName: 'Saigon Customer',
           counterpartRole: 'CUSTOMER',
-          counterpartAvatarUrl: null,
+          counterpartAvatarUrl: 'data:image/jpeg;base64,CUSTAVATAR',
           messages: [],
         },
       ],
@@ -262,7 +262,7 @@ describe('ContractInboxPage', () => {
           counterpartUserId: 'mgr-1',
           counterpartName: 'Tran Manager',
           counterpartRole: 'MANAGER',
-          counterpartAvatarUrl: null,
+          counterpartAvatarUrl: 'data:image/jpeg;base64,MGRAVATAR',
           occurrenceCount: 1,
           nextPlannedStartAt: '2026-12-26T01:00:00Z',
           nextPlannedEndAt: '2026-12-26T03:00:00Z',
@@ -298,10 +298,17 @@ describe('ContractInboxPage', () => {
 
     renderInbox(['/operations/messages']);
 
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Messages' })).toBeNull();
+    const customerAvatars = document.querySelectorAll('img[src="data:image/jpeg;base64,CUSTAVATAR"]');
+    expect(customerAvatars.length).toBe(2);
+
     expect(screen.getAllByText('Saigon Customer').length).toBeGreaterThan(0);
     const managerTab = screen.getByRole('button', { name: /Manager/ });
     fireEvent.click(managerTab);
 
+    const managerAvatars = document.querySelectorAll('img[src="data:image/jpeg;base64,MGRAVATAR"]');
+    expect(managerAvatars.length).toBe(2);
     expect(screen.getAllByText('Tran Manager').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Please verify permit before takeoff.').length).toBeGreaterThan(0);
 
@@ -312,5 +319,93 @@ describe('ContractInboxPage', () => {
       body: 'Permit verified and ready.',
       files: [],
     });
+  });
+
+  it('renders the assigned service manager avatar for Customer request threads', () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['CUSTOMER'],
+      user: {
+        id: 'cust-1',
+        email: 'customer@test.local',
+        fullName: 'Saigon Customer',
+        roles: ['CUSTOMER'],
+      } as any,
+      userId: 'cust-1',
+      userName: 'Saigon Customer',
+      email: 'customer@test.local',
+    });
+
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [
+        {
+          id: 'req-cust-1',
+          ownerCustomerId: 'cust-1',
+          assetId: 'asset-1',
+          description: 'Solar farm survey',
+          requestedFrom: '2026-12-10',
+          requestedUntil: '2026-12-10',
+          timezone: 'Asia/Ho_Chi_Minh',
+          windowStart: '08:00',
+          windowEnd: '17:00',
+          requestType: 'ONE_TIME',
+          recurrenceUnit: null,
+          recurrenceInterval: null,
+          occurrenceCount: null,
+          recurrenceEndDate: null,
+          status: 'OPEN',
+          acceptedQuoteId: null,
+          acceptedAt: null,
+          acceptedByUserId: null,
+          acceptedTermsSnapshot: null,
+          contractFileName: null,
+          contractContentType: null,
+          contractSizeBytes: null,
+          contractUploadedAt: null,
+          createdAt: '2026-11-14T01:00:00Z',
+          currentQuote: null,
+          serviceManager: {
+            id: 'mgr-1',
+            fullName: 'Primary Manager',
+            avatarUrl: 'data:image/jpeg;base64,SVCMGRAVATAR',
+          },
+          occurrences: [],
+          messages: [],
+        },
+      ],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePostRequestMessage').mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useMarkMessagesRead').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useInspectionChatThreads').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerChatThreads').mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+
+    renderInbox(['/client/messages']);
+
+    const svcManagerAvatars = document.querySelectorAll(
+      'img[src="data:image/jpeg;base64,SVCMGRAVATAR"]',
+    );
+    expect(svcManagerAvatars.length).toBe(2);
   });
 });

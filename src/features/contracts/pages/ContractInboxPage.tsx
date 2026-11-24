@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import { PageHeader } from '@/shared/ui/PageHeader';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { type InspectionChatThread, type PartnerChatThread, type ServiceRequest } from '../api/contractApi';
@@ -359,21 +358,11 @@ export default function ContractInboxPage() {
   const hasSelection = Boolean(selectedRequest || selectedInspectionThread || selectedPartnerThread);
   const totalAvailableAnyChannel =
     requestList.length + threadList.length + partnerThreadList.length;
-  const dashboardPath = isCustomer
-    ? '/client/dashboard'
-    : isInspector
-      ? '/operations/dashboard'
-      : '/manager/dashboard';
 
   return (
-    <Box sx={{ maxWidth: 1440, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      <PageHeader
-        title={t('Messages')}
-        breadcrumbs={[{ label: t('Operations'), to: dashboardPath }, { label: t('Messages') }]}
-      />
-
+    <Box sx={{ width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2, borderRadius: '8px' }}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ m: 2, mb: 1, borderRadius: '8px', flexShrink: 0 }}>
           {error}
         </Alert>
       )}
@@ -381,7 +370,14 @@ export default function ContractInboxPage() {
       {totalAvailableAnyChannel === 0 ? (
         <Paper
           variant="outlined"
-          sx={{ p: 4, borderRadius: '10px', textAlign: 'center', borderColor: 'divider', boxShadow: 'none' }}
+          sx={{
+            m: { xs: 2, md: 3 },
+            p: 4,
+            borderRadius: '10px',
+            textAlign: 'center',
+            borderColor: 'divider',
+            boxShadow: 'none',
+          }}
         >
           <Typography color="text.secondary">
             {isInspector
@@ -396,13 +392,11 @@ export default function ContractInboxPage() {
           sx={{
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '10px',
+            flex: 1,
+            minHeight: 0,
+            width: '100%',
             bgcolor: 'background.paper',
             overflow: 'hidden',
-            height: { xs: 'calc(100dvh - 180px)', md: 'calc(100dvh - 190px)' },
-            minHeight: { xs: 460, md: 500 },
           }}
         >
           {/* Left Conversations Sidebar */}
@@ -580,6 +574,7 @@ export default function ContractInboxPage() {
                         }}
                       >
                         <Avatar
+                          src={!isManager ? item.serviceManager?.avatarUrl?.trim() || undefined : undefined}
                           sx={{
                             width: 40,
                             height: 40,
@@ -692,6 +687,7 @@ export default function ContractInboxPage() {
                         }}
                       >
                         <Avatar
+                          src={thread.counterpartAvatarUrl?.trim() || undefined}
                           sx={{
                             width: 40,
                             height: 40,
@@ -804,6 +800,7 @@ export default function ContractInboxPage() {
                       }}
                     >
                       <Avatar
+                        src={thread.counterpartAvatarUrl?.trim() || undefined}
                         sx={{
                           width: 40,
                           height: 40,

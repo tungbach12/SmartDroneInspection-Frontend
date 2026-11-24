@@ -1007,14 +1007,35 @@ export function AppShell({ portal }: AppShellProps) {
               flex: 1,
               minHeight: 0,
               minWidth: 0,
-              overflowY: 'auto',
-              overscrollBehavior: 'contain',
-              scrollPaddingTop: { xs: 2, md: 3.5 },
-              px: layoutTokens.pageGutter,
-              py: { xs: 2.5, md: 3.5 },
+              ...(location.pathname.endsWith('/messages')
+                ? {
+                    p: 0,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }
+                : {
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                    scrollPaddingTop: { xs: 2, md: 3.5 },
+                    px: layoutTokens.pageGutter,
+                    py: { xs: 2.5, md: 3.5 },
+                  }),
             }}
           >
-            <Box sx={{ width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }}>
+            <Box
+              sx={
+                location.pathname.endsWith('/messages')
+                  ? {
+                      width: '100%',
+                      flex: 1,
+                      minHeight: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }
+                  : { width: '100%', maxWidth: layoutTokens.contentMaxWidth, mx: 'auto' }
+              }
+            >
               <Outlet />
             </Box>
           </Box>

@@ -369,6 +369,7 @@ function MessageAttachment({
 interface ChatConversationPanelProps {
   threadId: string;
   partnerName: string;
+  partnerAvatarUrl?: string | null | undefined;
   subtitle: string;
   actionLabel: string;
   actionTo: string;
@@ -403,6 +404,7 @@ function formatDateHeading(isoDate: string, locale: string): string {
 function ChatConversationPanel({
   threadId,
   partnerName,
+  partnerAvatarUrl,
   subtitle,
   actionLabel,
   actionTo,
@@ -529,6 +531,7 @@ function ChatConversationPanel({
             </IconButton>
           )}
           <Avatar
+            src={partnerAvatarUrl?.trim() || undefined}
             sx={{
               bgcolor: 'color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)',
               color: 'primary.main',
@@ -932,6 +935,7 @@ export function RequestChatPanel({ request, onChanged, onError, onBack }: Reques
     <ChatConversationPanel
       threadId={request.id}
       partnerName={partnerName}
+      partnerAvatarUrl={!isManagerRole ? request.serviceManager?.avatarUrl : undefined}
       subtitle={`${request.description} · ${statusLabel}`}
       actionLabel={locale === 'vi' ? 'Xem yêu cầu' : 'Open request'}
       actionTo={`/${isManagerRole ? 'manager' : 'client'}/contracts?requestId=${request.id}`}
@@ -1000,6 +1004,7 @@ export function InspectionChatPanel({
       partnerName={
         thread.counterpartName || (isInspectorRole ? t('Customer') : t('Inspector'))
       }
+      partnerAvatarUrl={thread.counterpartAvatarUrl}
       subtitle={`${thread.assetName} · ${t(thread.status)}`}
       actionLabel={locale === 'vi' ? 'Mở đợt kiểm tra' : 'Open inspection'}
       actionTo={`/${isInspectorRole ? 'operations' : 'client'}/inspections/${thread.inspectionId}`}
@@ -1075,6 +1080,7 @@ export function PartnerChatPanel({
       partnerName={
         thread.counterpartName || (isManagerRole ? t('Inspector') : t('Service Manager'))
       }
+      partnerAvatarUrl={thread.counterpartAvatarUrl}
       subtitle={`${thread.assetName}${thread.assetCode ? ` (${thread.assetCode})` : ''} · ${thread.requestDescription}`}
       actionLabel={
         isManagerRole
