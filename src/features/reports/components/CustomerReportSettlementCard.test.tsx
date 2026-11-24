@@ -66,9 +66,10 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByText('Paid via VNPay')).toBeTruthy();
-    expect(screen.queryByText('Paid via Sepay')).toBeNull();
+    expect(screen.getByText(/Paid via VNPay/)).toBeTruthy();
+    expect(screen.queryByText(/Paid via Sepay/)).toBeNull();
     expect(screen.queryByText(/Official report version/)).toBeNull();
+    expect(screen.queryByText('Fulfilment')).toBeNull();
   });
 
   it('hides removed helper texts and Reset order button on Customer settlement UI', () => {

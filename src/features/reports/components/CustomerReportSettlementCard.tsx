@@ -208,8 +208,8 @@ function formatPaymentMethodLabel(method: string | null | undefined, t: (key: st
  */
 export function CustomerReportSettlementCard({
   inspectionId,
-  versionId,
-  versionNo,
+  versionId: _versionId,
+  versionNo: _versionNo,
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
@@ -287,13 +287,13 @@ export function CustomerReportSettlementCard({
   }, [isPaid, inspectionId, downloadPaymentDocument]);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
-  const reportPdfFileName = `SDI-RPT-${versionId.slice(0, 8).toUpperCase()}-V${versionNo}.pdf`;
+  const reportPdfFileName = `SDI-RPT-${_versionId.slice(0, 8).toUpperCase()}-V${_versionNo}.pdf`;
 
   const handlePreviewPdf = async () => {
     setPreviewingPdf(true);
     setPdfError(null);
     try {
-      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
+      const blob = await inspectionApi.downloadReport(inspectionId, _versionId);
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -308,7 +308,7 @@ export function CustomerReportSettlementCard({
     setDownloadingPdf(true);
     setPdfError(null);
     try {
-      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
+      const blob = await inspectionApi.downloadReport(inspectionId, _versionId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -338,36 +338,6 @@ export function CustomerReportSettlementCard({
     : t('Pay within 15 days to complete your service.');
 
   const paymentMethodLabel = formatPaymentMethodLabel(paymentStatus?.paymentMethod, t);
-
-  const steps = [
-    {
-      title: t('Report acceptance'),
-      subtitle:
-        isReportAccepted || isPaid
-          ? `${t('Accepted')} · v${versionNo}`
-          : t('Review & accept the report'),
-      done: isReportAccepted || isPaid,
-      active: !isReportAccepted && !isPaid,
-    },
-    {
-      title: t('Service fee'),
-      subtitle: isPaid
-        ? paymentStatus?.paymentMethod
-          ? `${t('Paid via')} ${paymentMethodLabel}`
-          : t('Paid')
-        : isReportAccepted
-          ? t('Awaiting payment')
-          : t('After acceptance'),
-      done: isPaid,
-      active: isReportAccepted && !isPaid,
-    },
-    {
-      title: t('Fulfilment'),
-      subtitle: isPaid ? t('Deliverables verified') : t('After payment'),
-      done: isPaid,
-      active: false,
-    },
-  ];
 
   return (
     <Paper
@@ -541,83 +511,6 @@ export function CustomerReportSettlementCard({
           )}
         </Stack>
 
-        {/* Settlement trace: hairline dividers, one active step, no nested cards */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-          }}
-        >
-          {steps.map((step, index) => (
-            <Box
-              key={step.title}
-              aria-current={step.active ? 'step' : undefined}
-              sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 1.25,
-                py: { xs: 1.25, md: 0 },
-                pl: { md: index === 0 ? 0 : 2 },
-                borderTop: { xs: index === 0 ? 'none' : '1px solid', md: 'none' },
-                borderLeft: { xs: 'none', md: index === 0 ? 'none' : '1px solid' },
-                borderColor: 'divider',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  border: '1px solid',
-                  borderColor: step.active ? 'primary.main' : 'divider',
-                  bgcolor: step.active
-                    ? 'primary.main'
-                    : step.done
-                      ? 'action.hover'
-                      : 'background.paper',
-                  color: step.active
-                    ? 'common.white'
-                    : step.done
-                      ? 'text.secondary'
-                      : 'text.disabled',
-                }}
-              >
-                {step.done ? (
-                  <CheckCircleRounded sx={{ fontSize: 16 }} />
-                ) : (
-                  <Typography
-                    variant="caption"
-                    sx={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: 1 }}
-                  >
-                    {index + 1}
-                  </Typography>
-                )}
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 650,
-                    fontSize: '0.875rem',
-                    color: step.done && isPaid ? '#176B52' : 'text.primary',
-                  }}
-                >
-                  {step.title}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {step.subtitle}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-
         <Divider />
 
         {/* Dynamic Action State */}
@@ -642,9 +535,11 @@ export function CustomerReportSettlementCard({
                   variant="caption"
                   sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
                 >
-                  {paymentStatus?.orderCode
-                    ? `${paymentStatus.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
-                    : t('Official receipt verified')}
+                  {paymentStatus?.paymentMethod
+                    ? `${t('Paid via')} ${paymentMethodLabel}`
+                    : t('Paid')}
+                  {paymentStatus?.orderCode ? ` · ${t('Order')} #${paymentStatus.orderCode}` : ''}
+                  {` · ${t('Official receipt verified')}`}
                 </Typography>
               </Box>
             </Stack>
