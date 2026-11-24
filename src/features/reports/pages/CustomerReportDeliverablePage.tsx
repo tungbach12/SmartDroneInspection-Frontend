@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -258,13 +259,6 @@ export default function CustomerReportDeliverablePage({
                   }}
                   onProceedToVnPay={() => vnpayLink.mutate()}
                   onOpenDispute={() => setDisputeOpen(true)}
-                  onViewReport={
-                    !showReportContent
-                      ? () => {
-                          void navigate('../report');
-                        }
-                      : undefined
-                  }
                 />
               ) : stage === 'settlement' ? (
                 <Paper
@@ -362,6 +356,16 @@ export default function CustomerReportDeliverablePage({
                 assetName={inspectionQuery.data?.assetName}
                 droneSummary={resolvedDroneSummary}
                 flightPermitFileName={resolvedPermitFileName}
+                headerBadge={
+                  openVersion.status === 'PUBLISHED' && (isReportAccepted || isPaid) ? (
+                    <Chip
+                      size="small"
+                      color="success"
+                      label={`${t('Accepted')} · v${openVersion.versionNo}`}
+                      sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
+                    />
+                  ) : undefined
+                }
               />
             )}
           </Stack>

@@ -10,9 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
-import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import {
   inspectionApi,
@@ -280,7 +278,6 @@ interface CustomerReportSettlementCardProps {
   onProceedToSepay: () => void;
   onProceedToVnPay?: () => void;
   onOpenDispute: () => void;
-  onViewReport?: (() => void) | undefined;
 }
 
 function formatPaymentMethodLabel(method: string | null | undefined, t: (key: string) => string): string {
@@ -302,8 +299,6 @@ function formatPaymentMethodLabel(method: string | null | undefined, t: (key: st
  */
 export function CustomerReportSettlementCard({
   inspectionId,
-  versionId: _versionId,
-  versionNo: _versionNo,
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
@@ -320,12 +315,8 @@ export function CustomerReportSettlementCard({
   onProceedToSepay,
   onProceedToVnPay,
   onOpenDispute,
-  onViewReport,
 }: CustomerReportSettlementCardProps) {
   const { formatDate, formatNumber, t } = useLocale();
-  const [previewingPdf, setPreviewingPdf] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
   const prevPaidRef = useRef(isPaid);
@@ -372,43 +363,6 @@ export function CustomerReportSettlementCard({
   }, [isPaid, inspectionId, downloadPaymentReceipt]);
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
 
-  const reportPdfFileName = `SDI-RPT-${_versionId.slice(0, 8).toUpperCase()}-V${_versionNo}.pdf`;
-
-  const handlePreviewPdf = async () => {
-    setPreviewingPdf(true);
-    setPdfError(null);
-    try {
-      const blob = await inspectionApi.downloadReport(inspectionId, _versionId);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (error) {
-      setPdfError(getErrorMessage(error, t('The report preview could not be produced.')));
-    } finally {
-      setPreviewingPdf(false);
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    setDownloadingPdf(true);
-    setPdfError(null);
-    try {
-      const blob = await inspectionApi.downloadReport(inspectionId, _versionId);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = reportPdfFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setPdfError(getErrorMessage(error, t('The report document could not be downloaded.')));
-    } finally {
-      setDownloadingPdf(false);
-    }
-  };
-
   const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;
   const amountVnd =
     rawTotal != null && rawTotal > 0 ? `${formatNumber(rawTotal)} ₫` : null;
@@ -437,78 +391,32 @@ export function CustomerReportSettlementCard({
       }}
     >
       <Stack spacing={2.25}>
-        {/* Header Bar: Title + Status + Report Document Actions */}
-        <Stack
-          direction={{ xs: 'column', lg: 'row' }}
-          spacing={1.5}
-          sx={{ justifyContent: 'space-between', alignItems: { lg: 'center' } }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
-              {t('Report acceptance & service fee payment')}
-            </Typography>
-            {(isPaid || isPaymentConfirming) && (
-              <Chip
-                size="small"
-                label={isPaid ? t('Paid & Fulfilled') : t('Confirming payment…')}
-                color={isPaid ? 'success' : 'info'}
-                sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
-              />
-            )}
+        {/* Header Bar: Title + Status + Invoice Ref */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
+            {t('Report acceptance & service fee payment')}
+          </Typography>
+          {(isPaid || isPaymentConfirming) && (
             <Chip
               size="small"
-              variant="outlined"
-              icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
-              label={invoiceRef}
-              sx={{
-                height: 22,
-                fontSize: '0.75rem',
-                fontWeight: 650,
-                fontFamily: 'monospace',
-              }}
+              label={isPaid ? t('Paid & Fulfilled') : t('Confirming payment…')}
+              color={isPaid ? 'success' : 'info'}
+              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
             />
-          </Stack>
-
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-            {onViewReport && (
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DescriptionOutlined fontSize="small" />}
-                onClick={onViewReport}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {t('View report')}
-              </Button>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<PictureAsPdfRounded fontSize="small" />}
-              onClick={() => void handlePreviewPdf()}
-              disabled={previewingPdf}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-            >
-              {previewingPdf ? t('Rendering…') : t('Preview PDF')}
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DownloadRounded fontSize="small" />}
-              onClick={() => void handleDownloadPdf()}
-              disabled={downloadingPdf}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-            >
-              {downloadingPdf ? t('Downloading…') : t('Download report')}
-            </Button>
-          </Stack>
+          )}
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
+            label={invoiceRef}
+            sx={{
+              height: 22,
+              fontSize: '0.75rem',
+              fontWeight: 650,
+              fontFamily: 'monospace',
+            }}
+          />
         </Stack>
-
-        {pdfError && (
-          <Alert severity="error" sx={{ borderRadius: '8px' }} onClose={() => setPdfError(null)}>
-            {pdfError}
-          </Alert>
-        )}
 
         {documentError && (
           <Alert severity="error" sx={{ borderRadius: '8px' }}>

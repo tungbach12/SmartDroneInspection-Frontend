@@ -105,6 +105,9 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
     expect(screen.queryByText(/Official PDF ready/)).toBeNull();
     expect(screen.queryByText('Opens VNPay in a new tab.')).toBeNull();
     expect(screen.queryByText('Payment Due')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Preview PDF' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View report' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Download report' })).toBeNull();
     expect(screen.queryByRole('button', { name: /payment notice/i })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reset order' })).toBeNull();
   });
@@ -199,6 +202,64 @@ describe('CustomerReportSettlementCard & CustomerReportDeliverablePage', () => {
 
     expect(await screen.findByText('Accept report in Step 2 to unlock payment.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Go to Inspection Report' })).toBeTruthy();
+  });
+
+  it('shows the Accepted status chip next to Report details in Step 2 once accepted', async () => {
+    mockedApi.getById.mockResolvedValue({
+      id: 'insp-1',
+      assetName: 'Bridge A',
+      inspectionType: 'INITIAL',
+    } as never);
+    mockedApi.listVersions.mockResolvedValue([
+      {
+        id: 'ver-1',
+        inspectionReportId: 'rep-1',
+        versionNo: 1,
+        status: 'PUBLISHED',
+        authorUserId: 'u-1',
+        submittedAt: null,
+        reviewerUserId: null,
+        reviewedAt: null,
+        returnReason: null,
+        publishedAt: '2026-11-20T10:00:00Z',
+        createdAt: '2026-11-20T09:00:00Z',
+        summary: 'Summary',
+        omissionDisclosure: null,
+      },
+    ]);
+    mockedApi.listFindings.mockResolvedValue([]);
+    mockedApi.listEvidence.mockResolvedValue([]);
+    mockedApi.getReportPaymentStatus.mockResolvedValue({
+      reportAccepted: true,
+      paid: false,
+      paymentStatus: 'PAYMENT_DUE',
+      orderCode: 100048,
+      amount: 5000000,
+      checkoutUrl: null,
+      paymentMethod: 'SEPAY',
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/client/inspections/insp-1/report']}>
+            <Routes>
+              <Route
+                path="/client/inspections/:inspectionId/report"
+                element={<CustomerReportDeliverablePage stage="report" />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </LocaleProvider>,
+    );
+
+    expect(await screen.findByText('Accepted · v1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accept Report' })).toBeNull();
   });
 
   it('does not treat ?payment=success as paid when backend payment status is still PAYMENT_DUE', async () => {
