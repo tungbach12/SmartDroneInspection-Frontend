@@ -36,13 +36,16 @@ import {
   useInspection,
   useReinspectionVerifications,
   useReportPaymentStatus,
+  useRequestReportClarification,
 } from '@/features/inspections/hooks/useInspections';
 import ManagerReportReviewPage from './ManagerReportReviewPage';
 import CustomerReportDeliverablePage from './CustomerReportDeliverablePage';
 import { ReportDeliverableTabs } from '@/features/reports/components/ReportDeliverableTabs';
-import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { ReportReviewDecisionBar } from '@/features/reports/components/ReportReviewDecisionBar';
-import { CustomerReportSettlementCard } from '@/features/reports/components/CustomerReportSettlementCard';
+import {
+  CustomerReportAcceptanceBar,
+  CustomerReportSettlementCard,
+} from '@/features/reports/components/CustomerReportSettlementCard';
 import { SepayQrDialog } from '@/features/reports/components/SepayQrDialog';
 import { InspectorPayoutSummaryBar } from '@/features/inspections/components/InspectorPayoutSummaryBar';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -53,14 +56,15 @@ import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  SUBMITTED: 'Waiting for a qualified reviewer to publish or return.',
+  SUBMITTED: 'Waiting for a qualified reviewer to approve or return.',
+  APPROVED: 'Approved by Manager — pending Inspector payout and publication to Customer.',
   RETURNED: 'Returned to the author for revision.',
   PUBLISHED: 'Published. This version is immutable.',
   SUPERSEDED: 'Superseded by a later version.',
 };
 
 export default function ReportDetailPage() {
-  const { t } = useLocale();
+  const { formatNumber, t } = useLocale();
   const { inspectionId = '' } = useParams<{ inspectionId: string }>();
   const location = useLocation();
   const portal = (location.pathname.split('/').filter(Boolean)[0] ??
@@ -77,30 +81,6 @@ export default function ReportDetailPage() {
   const [disputeSubmittedAt, setDisputeSubmittedAt] = useState<string | null>(null);
   const [sepayQrOpen, setSepayQrOpen] = useState(false);
 
-  useEffect(() => {
-    if (!inspectionId || typeof localStorage === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(`sdi_report_dispute_${inspectionId}`);
-      if (!raw) {
-        setDisputeSubmitted(false);
-        setDisputeReason('');
-        setDisputeSubmittedAt(null);
-        return;
-      }
-      const parsed = JSON.parse(raw) as { reason?: string; submittedAt?: string };
-      if (parsed && typeof parsed.reason === 'string') {
-        setDisputeReason(parsed.reason);
-        setDisputeSubmittedAt(typeof parsed.submittedAt === 'string' ? parsed.submittedAt : null);
-        setDisputeSubmitted(true);
-      } else {
-        setDisputeReason(raw);
-        setDisputeSubmitted(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, [inspectionId]);
-
   const isClientPortal = portal === 'client';
   const isManagerPortal = portal === 'admin' || portal === 'manager';
   const findings = useInspectionFindings(inspectionId);
@@ -115,22 +95,22 @@ export default function ReportDetailPage() {
   const withdraw = useWithdrawReportVersion(inspectionId);
   const review = useReviewReportVersion(inspectionId);
   const acceptReport = useAcceptReportVersion(inspectionId);
+  const requestClarification = useRequestReportClarification(inspectionId);
   const sepayLink = useCreateInspectionSepayLink(inspectionId);
   const vnpayLink = useCreateInspectionVnPayUrl(inspectionId);
-  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
-    pollIntervalMs: sepayQrOpen ? 3000 : false,
-  });
-  const paymentStatus = paymentStatusQuery.data;
   const searchParams = new URLSearchParams(location.search);
   const isPaymentCancelled = searchParams.get('payment') === 'cancelled';
+  const returnedPaymentSuccess = searchParams.get('payment') === 'success';
+  const paymentStatusQuery = useReportPaymentStatus(inspectionId, {
+    pollWhenUnpaid: sepayQrOpen || returnedPaymentSuccess,
+  });
+  const paymentStatus = paymentStatusQuery.data;
   const isPaid = Boolean(
-    paymentStatus?.paid ||
-      paymentStatus?.paymentStatus === 'PAID' ||
-      searchParams.get('payment') === 'success',
+    paymentStatus?.paid || paymentStatus?.paymentStatus === 'PAID',
   );
-  const isReportAccepted = Boolean(
-    paymentStatus?.reportAccepted || acceptReport.isSuccess,
-  );
+  const isPaymentConfirming = returnedPaymentSuccess && !isPaid;
+  const isReportAccepted = Boolean(paymentStatus?.reportAccepted);
+  const priorClarificationCount = inspectionQuery.data?.clarificationCount ?? 0;
 
   useEffect(() => {
     if (sepayQrOpen && isPaid) {
@@ -345,7 +325,7 @@ export default function ReportDetailPage() {
                           {submit.isPending ? t('Submitting…') : t('Resubmit for review')}
                         </Button>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {t('Resubmits this revised report for Platform Manager review.')}
+                          {t('Resubmits this revised report for Manager review.')}
                         </Typography>
                       </Stack>
                     )}
@@ -383,56 +363,68 @@ export default function ReportDetailPage() {
                 </Paper>
               )}
 
-              {canReviewReport && !isAuthor && openVersion.status === 'SUBMITTED' && (
-                <ReportAiSummaryCard
-                  inspectionId={inspectionId}
-                  versionId={openVersion.id}
-                  summary={openVersion.summary}
-                  findings={findings.data ?? []}
-                />
-              )}
-
               {/* Customer Report Acceptance & Payment Gate (Customer view only) */}
               {openVersion.status === 'PUBLISHED' && isClientPortal && (
-                <CustomerReportSettlementCard
-                  inspectionId={inspectionId}
-                  versionId={openVersion.id}
-                  versionNo={openVersion.versionNo}
-                  summary={openVersion.summary}
-                  findings={findings.data ?? []}
-                  isPaid={isPaid}
-                  isReportAccepted={isReportAccepted}
-                  isPaymentCancelled={isPaymentCancelled}
-                  paymentStatus={paymentStatus}
-                  acceptPending={acceptReport.isPending}
-                  sepayPending={sepayLink.isPending}
-                  vnpayPending={vnpayLink.isPending}
-                  disputeSubmitted={disputeSubmitted}
-                  disputeReason={disputeReason.trim() || null}
-                  disputeSubmittedAt={disputeSubmittedAt}
-                  onAcceptReport={() =>
-                    acceptReport.mutate(openVersion.id, {
-                      onSuccess: () => {
-                        void paymentStatusQuery.refetch();
-                      },
-                    })
-                  }
-                  onProceedToSepay={() => {
-                    setSepayQrOpen(false);
-                    sepayLink.mutate(undefined, {
-                      onSuccess: () => setSepayQrOpen(true),
-                    });
-                  }}
-                  onProceedToVnPay={() => vnpayLink.mutate()}
-                  onOpenDispute={() => setDisputeOpen(true)}
-                />
+                isReportAccepted || isPaid ? (
+                  <CustomerReportSettlementCard
+                    inspectionId={inspectionId}
+                    versionId={openVersion.id}
+                    versionNo={openVersion.versionNo}
+                    isPaid={isPaid}
+                    isReportAccepted={isReportAccepted}
+                    isPaymentCancelled={isPaymentCancelled}
+                    isPaymentConfirming={isPaymentConfirming}
+                    paymentStatus={paymentStatus}
+                    acceptPending={acceptReport.isPending}
+                    sepayPending={sepayLink.isPending}
+                    vnpayPending={vnpayLink.isPending}
+                    gatewayError={sepayLink.error ?? vnpayLink.error}
+                    disputeSubmitted={disputeSubmitted}
+                    disputeReason={disputeReason.trim() || null}
+                    disputeSubmittedAt={disputeSubmittedAt}
+                    onAcceptReport={() =>
+                      acceptReport.mutate(openVersion.id, {
+                        onSuccess: () => {
+                          void paymentStatusQuery.refetch();
+                        },
+                      })
+                    }
+                    onProceedToSepay={() => {
+                      setSepayQrOpen(false);
+                      sepayLink.mutate(undefined, {
+                        onSuccess: () => setSepayQrOpen(true),
+                      });
+                    }}
+                    onProceedToVnPay={() => vnpayLink.mutate()}
+                    onOpenDispute={() => setDisputeOpen(true)}
+                  />
+                ) : (
+                  <CustomerReportAcceptanceBar
+                    acceptPending={acceptReport.isPending}
+                    acceptError={acceptReport.error}
+                    disputeSubmitted={disputeSubmitted}
+                    disputeReason={disputeReason.trim() || null}
+                    disputeSubmittedAt={disputeSubmittedAt}
+                    amountVnd={
+                      paymentStatus?.amount ? `${formatNumber(paymentStatus.amount)} ₫` : null
+                    }
+                    onAcceptReport={() =>
+                      acceptReport.mutate(openVersion.id, {
+                        onSuccess: () => {
+                          void paymentStatusQuery.refetch();
+                        },
+                      })
+                    }
+                    onOpenDispute={() => setDisputeOpen(true)}
+                  />
+                )
               )}
 
               <SepayQrDialog
                 details={sepayQrOpen ? sepayLink.data : undefined}
                 amountVnd={
                   paymentStatus?.amount
-                    ? `${paymentStatus.amount.toLocaleString('vi-VN')} VND`
+                    ? `${formatNumber(paymentStatus.amount)} ₫`
                     : undefined
                 }
                 checking={paymentStatusQuery.isFetching}
@@ -440,7 +432,7 @@ export default function ReportDetailPage() {
                 onClose={() => setSepayQrOpen(false)}
               />
 
-              {/* Platform Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
+              {/* Manager / Inspector Revenue, Commission & Auto-Disbursement Summary */}
               {!isClientPortal && (
                 <InspectorPayoutSummaryBar
                   inspectionId={inspectionId}
@@ -497,9 +489,14 @@ export default function ReportDetailPage() {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {priorClarificationCount >= 2 && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t('Clarification limit reached. Contact your Manager.')}
+              </Alert>
+            )}
             <Typography variant="body2" color="text.secondary">
               {t(
-                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Platform Manager will review and provide a response.',
+                'Please describe the discrepancies, unclear points, or questions regarding this inspection report. The Manager will review and provide a response.',
               )}
             </Typography>
             <TextField
@@ -512,6 +509,11 @@ export default function ReportDetailPage() {
               fullWidth
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
+            {requestClarification.isError && (
+              <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                {t('Request not sent. Try again.')}
+              </Alert>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -521,23 +523,19 @@ export default function ReportDetailPage() {
           <Button
             variant="contained"
             color="warning"
-            disabled={!disputeReason.trim()}
+            disabled={priorClarificationCount >= 2 || !disputeReason.trim() || requestClarification.isPending}
             onClick={() => {
-              const timestamp = new Date().toISOString();
-              try {
-                localStorage.setItem(
-                  `sdi_report_dispute_${inspectionId}`,
-                  JSON.stringify({
-                    reason: disputeReason.trim(),
-                    submittedAt: timestamp,
-                  }),
-                );
-              } catch {
-                // ignore
-              }
-              setDisputeSubmittedAt(timestamp);
-              setDisputeSubmitted(true);
-              setDisputeOpen(false);
+              if (!openVersion) return;
+              requestClarification.mutate(
+                { versionId: openVersion.id, reason: disputeReason.trim() },
+                {
+                  onSuccess: () => {
+                    setDisputeSubmittedAt(new Date().toISOString());
+                    setDisputeSubmitted(true);
+                    setDisputeOpen(false);
+                  },
+                },
+              );
             }}
             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
           >

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
+  ButtonBase,
   Card,
   CardContent,
   Chip,
@@ -472,56 +473,35 @@ export function getOrGeneratePersistedAiSummary({
 }
 
 function getSoftRiskChipSx(risk: ReportAiSummary['overallRisk']) {
-  if (risk === 'CRITICAL' || risk === 'HIGH') {
-    return {
-      fontWeight: 600,
-      fontSize: '0.75rem',
-      bgcolor: '#fef2f2',
-      color: '#991b1b',
-      borderColor: '#fecaca',
-      '& .MuiChip-icon': { color: '#b91c1c' },
-    };
-  }
-  if (risk === 'MEDIUM') {
-    return {
-      fontWeight: 600,
-      fontSize: '0.75rem',
-      bgcolor: '#fef9c3',
-      color: '#713f12',
-      borderColor: '#fde047',
-      '& .MuiChip-icon': { color: '#a16207' },
-    };
-  }
+  const tone =
+    risk === 'CRITICAL' || risk === 'HIGH'
+      ? 'error.main'
+      : risk === 'MEDIUM'
+        ? 'warning.main'
+        : 'success.main';
   return {
     fontWeight: 600,
     fontSize: '0.75rem',
-    bgcolor: '#f0fdf4',
-    color: '#166534',
-    borderColor: '#bbf7d0',
-    '& .MuiChip-icon': { color: '#15803d' },
+    bgcolor: 'action.hover',
+    color: tone,
+    borderColor: tone,
+    '& .MuiChip-icon': { color: tone },
   };
 }
 
 function getSoftSeverityBadgeSx(severity: string) {
   const upper = severity.toUpperCase();
-  if (upper === 'CRITICAL' || upper === 'HIGH') {
-    return {
-      bgcolor: '#fef2f2',
-      color: '#991b1b',
-      border: '1px solid #fecaca',
-    };
-  }
-  if (upper === 'MEDIUM') {
-    return {
-      bgcolor: '#fef9c3',
-      color: '#713f12',
-      border: '1px solid #fde047',
-    };
-  }
+  const tone =
+    upper === 'CRITICAL' || upper === 'HIGH'
+      ? 'error.main'
+      : upper === 'MEDIUM'
+        ? 'warning.main'
+        : 'success.main';
   return {
-    bgcolor: '#f0fdf4',
-    color: '#166534',
-    border: '1px solid #bbf7d0',
+    bgcolor: 'action.hover',
+    color: tone,
+    border: '1px solid',
+    borderColor: tone,
   };
 }
 
@@ -683,19 +663,16 @@ export function ReportAiSummaryCard({
       <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
         {/* Always-visible compact summary header; click to show/hide full AI digest */}
         <Box
-          onClick={() => setExpanded((prev) => !prev)}
           sx={{
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 1.25,
-            cursor: 'pointer',
-            userSelect: 'none',
           }}
         >
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            <Typography component="h2" variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {t('AI Executive Summary')}
             </Typography>
           </Stack>
@@ -946,16 +923,18 @@ export function ReportAiSummaryCard({
 
             {canQueryKnowledge && (
               <Box sx={{ pt: 0.75, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Box
+                <ButtonBase
                   data-testid="matched-knowledge-bar"
                   onClick={() => setKnowledgeOpen((value) => !value)}
+                  aria-expanded={knowledgeOpen}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: 1,
-                    cursor: 'pointer',
-                    userSelect: 'none',
+                    width: '100%',
+                    minHeight: 44,
+                    textAlign: 'left',
                   }}
                 >
                   <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
@@ -963,7 +942,7 @@ export function ReportAiSummaryCard({
                       variant="caption"
                       sx={{
                         fontWeight: 700,
-                        fontSize: '0.7rem',
+                        fontSize: '0.75rem',
                         textTransform: 'uppercase',
                         letterSpacing: 0.5,
                         color: 'text.secondary',
@@ -977,14 +956,14 @@ export function ReportAiSummaryCard({
                         size="small"
                         variant="outlined"
                         label={ref.codeOrLabel}
-                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600, '& .MuiChip-label': { px: 0.75 } }}
+                        sx={{ height: 20, fontSize: '0.75rem', fontWeight: 600, '& .MuiChip-label': { px: 0.75 } }}
                       />
                     ))}
                     {knowledgeRefs.length > 0 && (
                       <Chip
                         size="small"
                         label={`${knowledgeRefs.length} ${knowledgeRefs.length === 1 ? t('similar case') : t('similar cases')}`}
-                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
+                        sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
                       />
                     )}
                   </Stack>
@@ -993,7 +972,7 @@ export function ReportAiSummaryCard({
                   ) : (
                     <ExpandMoreRounded sx={{ fontSize: 18, color: 'text.secondary' }} />
                   )}
-                </Box>
+                </ButtonBase>
                 <Collapse in={knowledgeOpen} unmountOnExit>
                   <MatchedKnowledgeBody inspectionId={inspectionId} />
                 </Collapse>

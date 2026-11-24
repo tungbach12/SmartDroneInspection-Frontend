@@ -33,26 +33,6 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '../utils/inspectorFinance';
 
-const INSPECTOR_PORTRAIT_SVG =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
-      <rect width="96" height="96" rx="48" fill="#E6F4F1"/>
-      <circle cx="48" cy="36" r="16" fill="#228B6E"/>
-      <path d="M20 82C20 66.536 32.536 54 48 54C63.464 54 76 66.536 76 82" fill="#228B6E"/>
-    </svg>`,
-  );
-
-const CUSTOMER_PORTRAIT_SVG =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
-      <rect width="96" height="96" rx="48" fill="#EFF6FF"/>
-      <circle cx="48" cy="36" r="16" fill="#2563EB"/>
-      <path d="M20 82C20 66.536 32.536 54 48 54C63.464 54 76 66.536 76 82" fill="#2563EB"/>
-    </svg>`,
-  );
-
 interface OverviewStakeholdersSectionProps {
   inspection: InspectionDetail;
   portal: PortalId;
@@ -142,13 +122,18 @@ export function OverviewStakeholdersSection({
     inspectorProfile?.email ||
     matchedInspectorUser?.email ||
     'inspector@mf3bridge.test';
-  const inspectorAvatar = inspectorProfile?.avatarUrl || INSPECTOR_PORTRAIT_SVG;
+  const inspectorAvatar =
+    inspection.inspectorAvatarUrl ||
+    inspectorProfile?.avatarUrl ||
+    undefined;
 
   const customerName =
     matchedCustomerUser?.fullName ||
+    inspection.ownerCustomerName ||
     `${t('Customer')} #${inspection.ownerCustomerId.slice(0, 8)}`;
   const customerEmail =
-    matchedCustomerUser?.email || 'customer@mf3bridge.test';
+    matchedCustomerUser?.email || inspection.ownerCustomerEmail || 'customer@mf3bridge.test';
+  const customerAvatar = inspection.ownerCustomerAvatarUrl || undefined;
 
   const finance = resolveInspectorFinanceBreakdown(inspection.id, null);
 
@@ -171,6 +156,7 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
+              minHeight: 44,
               borderRadius: '10px',
               bgcolor: 'background.paper',
               border: '1px solid',
@@ -190,7 +176,7 @@ export function OverviewStakeholdersSection({
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
                 src={inspectorAvatar}
-                alt={inspectorName}
+                alt=""
                 sx={{ width: 40, height: 40, bgcolor: '#e6f4f1', color: '#176b52', fontWeight: 700 }}
               >
                 {inspectorName.slice(0, 1)}
@@ -227,6 +213,7 @@ export function OverviewStakeholdersSection({
             }}
             sx={{
               p: 1.75,
+              minHeight: 44,
               borderRadius: '10px',
               bgcolor: 'background.paper',
               border: '1px solid',
@@ -245,7 +232,7 @@ export function OverviewStakeholdersSection({
           >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
               <Avatar
-                src={CUSTOMER_PORTRAIT_SVG}
+                src={customerAvatar}
                 alt={customerName}
                 sx={{ width: 40, height: 40, bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700 }}
               >
@@ -289,7 +276,7 @@ export function OverviewStakeholdersSection({
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
             <Avatar
               src={inspectorAvatar}
-              alt={inspectorName}
+              alt=""
               sx={{ width: 48, height: 48, border: '2px solid #228b6e' }}
             />
             <Box sx={{ minWidth: 0 }}>
@@ -556,29 +543,16 @@ export function OverviewStakeholdersSection({
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
             <Avatar
-              src={CUSTOMER_PORTRAIT_SVG}
+              src={customerAvatar}
               alt={customerName}
               sx={{ width: 48, height: 48, border: '2px solid #2563eb' }}
             />
             <Box sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {customerName}
-                </Typography>
-                <Chip
-                  size="small"
-                  label="CUSTOMER"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    bgcolor: '#eff6ff',
-                    color: '#1d4ed8',
-                  }}
-                />
-              </Stack>
+              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {customerName}
+              </Typography>
               <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
-                {t('Customer Organization Representative')} · {customerEmail}
+                {t('Customer Representative')} · {customerEmail}
               </Typography>
             </Box>
           </Stack>

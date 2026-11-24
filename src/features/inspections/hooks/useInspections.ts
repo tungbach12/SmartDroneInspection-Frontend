@@ -19,7 +19,6 @@ import {
   type ManualFindingInput,
   type PlatformAiAnalytics,
   type ReviewFindingInput,
-  type ReviewFlightPermitInput,
   type UpdatePlatformAiSettingsInput,
   type UploadFlightPermitInput,
 } from '../api/inspectionApi';
@@ -285,28 +284,7 @@ export function useUploadFlightPermit(inspectionId: string | null) {
   });
 }
 
-export function useReviewFlightPermit(inspectionId: string | null) {
-  const client = useQueryClient();
-  const showToast = useToastStore((state) => state.showToast);
-  return useMutation({
-    mutationFn: (payload: ReviewFlightPermitInput) =>
-      inspectionApi.reviewFlightPermit(inspectionId!, payload),
-    onSuccess: (_data, payload) => {
-      showToast(
-        payload.decision === 'APPROVED'
-          ? 'Flight permit approved'
-          : 'Flight permit rejected',
-      );
-      if (!inspectionId) return;
-      void client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
-      void client.invalidateQueries({ queryKey: inspectionKeys.all });
-    },
-    onError: (error) =>
-      showToast(getErrorMessage(error, 'Could not review flight permit.'), 'error'),
-  });
-}
-
-export type { FlightPermitVerificationStatus, ReviewFlightPermitInput, UploadFlightPermitInput };
+export type { FlightPermitVerificationStatus, UploadFlightPermitInput };
 
 export interface EvidenceQueryFilters {
   status: 'ACTIVE' | 'RETIRED' | 'ALL';
@@ -349,6 +327,14 @@ export function useFieldSessions(inspectionId: string | null, enabled = true) {
   return useQuery({
     queryKey: fieldSessionKeys.forInspection(inspectionId ?? ''),
     queryFn: () => fieldSessionApi.list(inspectionId!),
+    enabled: Boolean(inspectionId) && enabled,
+  });
+}
+
+export function useInspectionFlights(inspectionId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: fieldSessionKeys.flightsForInspection(inspectionId ?? ''),
+    queryFn: () => fieldSessionApi.listAllFlights(inspectionId!),
     enabled: Boolean(inspectionId) && enabled,
   });
 }
@@ -854,7 +840,7 @@ export function useSubmitReportVersion(inspectionId: string | null) {
     mutationFn: (versionId: string) =>
       inspectionApi.submitVersion(inspectionId!, versionId),
     onSuccess: () => {
-      showToast('Report submitted for Organization Manager review.');
+      showToast('Report submitted for Manager review.');
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
       }
@@ -871,7 +857,13 @@ export function useReviewReportVersion(inspectionId: string | null) {
     mutationFn: ({ versionId, reason }: { versionId: string; reason?: string }) =>
       inspectionApi.reviewVersion(inspectionId!, versionId, reason),
     onSuccess: (result) => {
-      showToast(result.publishedAt ? 'Report approved and published.' : 'Report returned to the Inspector.');
+      showToast(
+        result.status === 'APPROVED'
+          ? 'Report approved. Settle Inspector payout before publishing to Customer.'
+          : result.publishedAt
+            ? 'Report approved and published.'
+            : 'Report returned to the Inspector.',
+      );
       if (inspectionId) {
         client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
         client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
@@ -880,9 +872,38 @@ export function useReviewReportVersion(inspectionId: string | null) {
         client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
         client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
         client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
       }
     },
     onError: (error) => showToast(getErrorMessage(error, 'The report review was not recorded.'), 'error'),
+  });
+}
+
+export function usePublishReportVersion(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: ({ versionId }: { versionId: string }) =>
+      inspectionApi.publishVersion(inspectionId!, versionId),
+    onSuccess: () => {
+      showToast('Report published to Customer.');
+      if (inspectionId) {
+        client.invalidateQueries({ queryKey: inspectionKeys.reportVersions(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.findings(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.workflowState(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.evidence(inspectionId) });
+        client.invalidateQueries({ queryKey: inspectionKeys.list({}) });
+        client.invalidateQueries({ queryKey: inspectionKeys.listWithReports({}) });
+        client.invalidateQueries({ queryKey: [...inspectionKeys.all, 'detail', inspectionId] });
+        client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+        client.invalidateQueries({ queryKey: ['finance-history'] });
+        client.invalidateQueries({ queryKey: ['contracts', 'requests'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'The report could not be published.'), 'error'),
   });
 }
 
@@ -947,12 +968,16 @@ export function useAcceptReportVersion(inspectionId: string | null) {
 }
 
 export function useCreateInspectionSepayLink(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createSepayPaymentLink(inspectionId!),
     // Sepay has no hosted checkout page: it returns a VietQR image URL that must be shown in-app,
     // so the caller renders a QR dialog instead of navigating away.
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (!data?.checkoutUrl) {
         showToast('The VietQR code could not be generated.', 'error');
       }
@@ -962,11 +987,33 @@ export function useCreateInspectionSepayLink(inspectionId: string | null) {
   });
 }
 
+export function useCreateInspectionSepayPayoutLink(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.createSepayPayoutLink(inspectionId!),
+    onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+      if (!data?.checkoutUrl) {
+        showToast('The VietQR code could not be generated.', 'error');
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not create SePay payout QR link.'), 'error'),
+  });
+}
+
 export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
+  const client = useQueryClient();
   const showToast = useToastStore((state) => state.showToast);
   return useMutation({
     mutationFn: () => inspectionApi.createVnPayPaymentUrl(inspectionId!),
     onSuccess: (data) => {
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
       if (data?.checkoutUrl) {
         window.location.assign(data.checkoutUrl);
       }
@@ -976,15 +1023,45 @@ export function useCreateInspectionVnPayUrl(inspectionId: string | null) {
   });
 }
 
+export function useCancelUnpaidInspectionPaymentOrder(inspectionId: string | null) {
+  const client = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
+  return useMutation({
+    mutationFn: () => inspectionApi.cancelUnpaidPaymentOrder(inspectionId!),
+    onSuccess: () => {
+      showToast('Unpaid payment order cleared. You can choose a payment method again.');
+      if (inspectionId) {
+        void client.invalidateQueries({ queryKey: ['inspections', inspectionId, 'payment-status'] });
+      }
+    },
+    onError: (error) =>
+      showToast(getErrorMessage(error, 'Could not cancel the active payment order.'), 'error'),
+  });
+}
+
 export function useReportPaymentStatus(
   inspectionId: string | null,
-  options?: { pollIntervalMs?: number | false },
+  options?: {
+    pollIntervalMs?: number | false;
+    pollWhenUnpaid?: boolean;
+    pollWhenPayoutUnpaid?: boolean;
+  },
 ) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'payment-status'],
     queryFn: () => inspectionApi.getReportPaymentStatus(inspectionId!),
     enabled: Boolean(inspectionId),
-    refetchInterval: options?.pollIntervalMs ?? false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (options?.pollWhenUnpaid) {
+        return data?.paid || data?.paymentStatus === 'PAID' ? false : 3000;
+      }
+      if (options?.pollWhenPayoutUnpaid) {
+        const payoutStatus = (data?.payoutStatus ?? '').toUpperCase();
+        return payoutStatus === 'PAID' || payoutStatus === 'SETTLED' ? false : 3000;
+      }
+      return options?.pollIntervalMs ?? false;
+    },
   });
 }
 
@@ -999,6 +1076,9 @@ export type StartFieldSessionVariables =
   | {
       preFlightChecklistNote: string;
       startNow?: boolean;
+      sessionDate?: string | null;
+      preFlightChecklistSnapshot?: import('../api/fieldSessionApi').ChecklistItemSnapshot[];
+      preFlightConditions?: import('../api/fieldSessionApi').PreFlightConditions | null;
     };
 
 export function useStartFieldSession(inspectionId: string | null) {
@@ -1009,6 +1089,13 @@ export function useStartFieldSession(inspectionId: string | null) {
       if (typeof variables === 'string') {
         return fieldSessionApi.start(inspectionId!, variables);
       }
+      if (
+        variables.sessionDate !== undefined ||
+        variables.preFlightChecklistSnapshot !== undefined ||
+        variables.preFlightConditions !== undefined
+      ) {
+        return fieldSessionApi.start(inspectionId!, variables);
+      }
       return variables.startNow
         ? fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote, true)
         : fieldSessionApi.start(inspectionId!, variables.preFlightChecklistNote);
@@ -1017,6 +1104,9 @@ export function useStartFieldSession(inspectionId: string | null) {
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.flightsForInspection(inspectionId),
         });
         void client.invalidateQueries({ queryKey: inspectionKeys.all });
       }
@@ -1034,13 +1124,20 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       sessionId,
       outcome,
       reason,
+      postFlightChecklistSnapshot,
     }: {
       sessionId: string;
       outcome: 'abort' | 'complete';
       reason: string;
+      postFlightChecklistSnapshot?: import('../api/fieldSessionApi').ChecklistItemSnapshot[];
     }) => {
       if (outcome === 'complete') {
-        return fieldSessionApi.complete(inspectionId!, sessionId, reason);
+        return postFlightChecklistSnapshot && postFlightChecklistSnapshot.length > 0
+          ? fieldSessionApi.complete(inspectionId!, sessionId, {
+              outcomeNotes: reason,
+              postFlightChecklistSnapshot,
+            })
+          : fieldSessionApi.complete(inspectionId!, sessionId, reason);
       }
       return fieldSessionApi.abort(inspectionId!, sessionId, reason);
     },
@@ -1048,6 +1145,9 @@ export function useFieldSessionOutcome(inspectionId: string | null) {
       if (inspectionId) {
         void client.invalidateQueries({
           queryKey: fieldSessionKeys.forInspection(inspectionId),
+        });
+        void client.invalidateQueries({
+          queryKey: fieldSessionKeys.flightsForInspection(inspectionId),
         });
         void client.invalidateQueries({
           queryKey: inspectionKeys.workflowState(inspectionId),

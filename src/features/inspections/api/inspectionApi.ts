@@ -1,14 +1,20 @@
 import { api } from '@/shared/api/client';
 import type { PartnerCandidate } from '@/features/contracts/api/contractApi';
+import type {
+  ChecklistItemSnapshot,
+  FieldSessionFlight,
+  PreFlightConditions,
+} from './fieldSessionApi';
 
 
 /**
  * MF3 report lifecycle. The human gates are explicit: the author verifies what the model drafted,
- * and a Platform Manager / Admin reviewer who is not the author decides.
+ * and a Manager / Admin reviewer who is not the author decides.
  */
 export type ReportStatus =
   | 'DRAFT'
   | 'SUBMITTED'
+  | 'APPROVED'
   | 'RETURNED'
   | 'PUBLISHED'
   | 'SUPERSEDED';
@@ -68,7 +74,12 @@ export interface InspectionReportContext {
     droneManufacturer: string | null;
     droneModel: string | null;
     telemetrySource?: string | null;
+    sessionDate?: string | null;
+    preFlightChecklistSnapshot?: ChecklistItemSnapshot[];
+    preFlightConditions?: PreFlightConditions | null;
+    postFlightChecklistSnapshot?: ChecklistItemSnapshot[];
   }>;
+  flights?: FieldSessionFlight[];
   reviewerQualificationDisclosure: string | null;
   findingsConfirmedAt: string | null;
 }
@@ -314,6 +325,12 @@ export interface ReportPaymentStatusDetails {
   payoutReference?: string | null;
   paymentMethod?: string | null;
   paymentReference?: string | null;
+  paymentDueAt?: string | null;
+  paymentConfirmedAt?: string | null;
+  inspectorBankName?: string | null;
+  inspectorBankAccountNumber?: string | null;
+  inspectorBankAccountHolder?: string | null;
+  inspectorBankBranch?: string | null;
 }
 
 export interface ManualDraftInput {}
@@ -513,16 +530,8 @@ export interface UploadFlightPermitInput {
   maxAltitudeM?: number | null | undefined;
 }
 
-/** Platform manager / admin verification decision payload for an uploaded flight permit. */
-export interface ReviewFlightPermitInput {
-  decision: 'APPROVED' | 'REJECTED';
-  reason?: string | null | undefined;
-  notes?: string | null | undefined;
-}
-
 /** The phase an organization manageristrator is being asked to decide. */
 export type PendingAction =
-  | 'PERMIT_REVIEW'
   | 'REPORT_REVIEW'
   | 'NONE';
 
@@ -548,16 +557,22 @@ export interface InspectionDetail {
   ownerCustomerName?: string | null;
   ownerCustomerEmail?: string | null;
   ownerCustomerPhone?: string | null;
+  ownerCustomerAvatarUrl?: string | null;
   managerName?: string | null;
   managerEmail?: string | null;
   managerPhone?: string | null;
+  managerAvatarUrl?: string | null;
   assetId: string;
   assetName: string | null;
+  assetPhotoDocumentIds?: string[];
   locationText?: string | null | undefined;
   assetLatitude?: number | null | undefined;
   assetLongitude?: number | null | undefined;
   inspectorId: string;
   inspectorName: string | null;
+  inspectorAvatarUrl?: string | null;
+  inspectorAverageRating?: number | null;
+  inspectorRatingCount?: number;
   droneId: string | null;
   droneSerialNumber: string | null;
   droneModel?: string | null;
@@ -598,6 +613,7 @@ export interface InspectionDetail {
   clarificationCount?: number;
   assignmentStatus?: AssignmentStatus | null;
   assignmentAcceptedAt?: string | null;
+  findingsConfirmedAt?: string | null;
   workOrderId?: string | null;
   sourceReportVersionId?: string | null;
 }
@@ -638,26 +654,7 @@ export interface CreateReinspectionPayload {
   plannedEndAt?: string | null;
 }
 
-export type FieldSessionStatus =
-  | 'PLANNED'
-  | 'IN_PROGRESS'
-  | 'FIELD_COMPLETED'
-  | 'POSTPONED'
-  | 'ABORTED';
-
-export interface FieldSession {
-  id: string;
-  inspectionId: string;
-  status: FieldSessionStatus;
-  preFlightChecklistNote: string | null;
-  startedAt: string | null;
-  endedAt: string | null;
-  postponementReason: string | null;
-  abortReason: string | null;
-  outcomeNotes: string | null;
-  telemetrySource?: string | null;
-  hasFlightReport?: boolean;
-}
+export type { FieldSession, FieldSessionStatus } from './fieldSessionApi';
 
 export const inspectionApi = {
   create: (input: CreateInspectionInput) =>
@@ -691,11 +688,6 @@ export const inspectionApi = {
       .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit`, form)
       .then((response) => response.data);
   },
-
-  reviewFlightPermit: (inspectionId: string, payload: ReviewFlightPermitInput) =>
-    api
-      .post<InspectionDetail>(`/inspections/${inspectionId}/flight-permit/review`, payload)
-      .then((response) => response.data),
 
   flightPermitContentUrl: (inspectionId: string) =>
     `${api.defaults.baseURL}/inspections/${inspectionId}/flight-permit/content`,
@@ -1094,6 +1086,13 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  publishVersion: (inspectionId: string, versionId: string) =>
+    api
+      .post<ReportReviewResult>(
+        `/inspections/${inspectionId}/report/versions/${versionId}/publish`,
+      )
+      .then((response) => response.data),
+
   listVersions: (inspectionId: string) =>
     api
       .get<InspectionReport[]>(
@@ -1190,6 +1189,14 @@ export const inspectionApi = {
       )
       .then((response) => response.data),
 
+  /** Generates a Sepay VietQR payout link targeting the assigned Inspector's bank account. */
+  createSepayPayoutLink: (inspectionId: string) =>
+    api
+      .post<SepayCheckoutDetails>(
+        `/inspections/${inspectionId}/sepay/create-payout-link`,
+      )
+      .then((response) => response.data),
+
   /** Generates a signed VNPay online checkout URL for an accepted inspection. */
   createVnPayPaymentUrl: (inspectionId: string) =>
     api
@@ -1208,6 +1215,12 @@ export const inspectionApi = {
       .get<ReportPaymentStatusDetails>(
         `/inspections/${inspectionId}/report/payment-status`,
       )
+      .then((response) => response.data),
+
+  /** Clears a resolvable unpaid gateway order on the accepted inspection so another method can be used. */
+  cancelUnpaidPaymentOrder: (inspectionId: string) =>
+    api
+      .post<void>(`/inspections/${inspectionId}/report/cancel-unpaid-order`)
       .then((response) => response.data),
 
   /** Customer or Manager creates a quick RE_INSPECTION directly from a completed inspection. */

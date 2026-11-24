@@ -54,21 +54,6 @@ describe('inspectionApi MF3 simplified contracts', () => {
     expect((form as FormData).get('maxAltitudeM')).toBe('120');
   });
 
-  it('submits manager verification decisions through the flight-permit review endpoint', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({
-      data: { id: 'inspection-1', flightPermitVerificationStatus: 'APPROVED' },
-    } as never);
-
-    await inspectionApi.reviewFlightPermit('inspection-1', {
-      decision: 'APPROVED',
-      notes: 'Stamped certificate matches CAAV registry.',
-    });
-
-    expect(post).toHaveBeenCalledWith('/inspections/inspection-1/flight-permit/review', {
-      decision: 'APPROVED',
-      notes: 'Stamped certificate matches CAAV registry.',
-    });
-  });
 });
 
 describe('inspectionApi.generateDraft', () => {

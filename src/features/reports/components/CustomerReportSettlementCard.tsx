@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
@@ -10,40 +10,173 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
-import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
-import PaidOutlined from '@mui/icons-material/PaidOutlined';
-import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
-import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded';
-import RadioButtonCheckedRounded from '@mui/icons-material/RadioButtonCheckedRounded';
-import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
-import VerifiedOutlined from '@mui/icons-material/VerifiedOutlined';
 import {
   inspectionApi,
-  type Finding,
   type ReportPaymentStatusDetails,
 } from '@/features/inspections/api/inspectionApi';
 import { resolveInspectorFinanceBreakdown } from '@/features/inspections/utils/inspectorFinance';
-import { ReportAiSummaryCard } from '@/features/reports/components/ReportAiSummaryCard';
 import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { SepayVietQrLogoMark, VnPayLogoMark } from '@/shared/ui/PaymentBrandLogos';
+import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+
+export interface CustomerReportAcceptanceBarProps {
+  acceptPending: boolean;
+  disputeSubmitted: boolean;
+  disputeReason?: string | null | undefined;
+  disputeSubmittedAt?: string | null | undefined;
+  acceptError?: unknown;
+  amountVnd?: string | null | undefined;
+  onAcceptReport: () => void;
+  onOpenDispute: () => void;
+}
+
+/**
+ * Compact report acceptance & clarification bar shown at Step 2 (Inspection Report).
+ */
+export function CustomerReportAcceptanceBar({
+  acceptPending,
+  disputeSubmitted,
+  disputeReason,
+  disputeSubmittedAt,
+  acceptError,
+  amountVnd,
+  onAcceptReport,
+  onOpenDispute,
+}: CustomerReportAcceptanceBarProps) {
+  const { formatDateTime, t } = useLocale();
+  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: '10px',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 650, color: 'text.primary' }}>
+              {t('Report acceptance')}
+            </Typography>
+            <Chip
+              size="small"
+              label={t('Awaiting Acceptance')}
+              color="primary"
+              sx={{ height: 22, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 650 }}
+            />
+            {amountVnd && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={amountVnd}
+                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 650, fontVariantNumeric: 'tabular-nums' }}
+              />
+            )}
+          </Stack>
+          <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              color="warning"
+              onClick={onOpenDispute}
+              sx={{
+                fontWeight: 600,
+                borderRadius: '8px',
+                px: 2,
+                textTransform: 'none',
+              }}
+            >
+              {t('File a dispute / Request clarification')}
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={acceptPending}
+              onClick={() => setConfirmAcceptOpen(true)}
+              sx={{
+                fontWeight: 650,
+                borderRadius: '8px',
+                px: 2.5,
+                textTransform: 'none',
+              }}
+            >
+              {acceptPending ? t('Accepting…') : t('Accept Report')}
+            </Button>
+          </Stack>
+        </Stack>
+
+        {Boolean(acceptError) && (
+          <Alert severity="error" sx={{ borderRadius: '8px' }}>
+            {getErrorMessage(acceptError, t('Could not accept report.'))}
+          </Alert>
+        )}
+
+        {disputeSubmitted && (
+          <Alert severity="warning" sx={{ borderRadius: '10px' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {t(
+                'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+              )}
+            </Typography>
+            {disputeReason && (
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                <strong>{t('Dispute reason')}:</strong> {disputeReason}
+              </Typography>
+            )}
+            {disputeSubmittedAt && (
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
+                {t('Submitted')}: {formatDateTime(new Date(disputeSubmittedAt))}
+              </Typography>
+            )}
+          </Alert>
+        )}
+
+        <ConfirmDialog
+          open={confirmAcceptOpen}
+          title={t('Confirm Report Acceptance')}
+          message={t(
+            'Accepting the official inspection report locks your deliverable acceptance and proceeds to service invoice settlement. Would you like to accept this report?',
+          )}
+          confirmLabel={t('Confirm & Accept Report')}
+          cancelLabel={t('Cancel')}
+          confirmColor="success"
+          loading={acceptPending}
+          onCancel={() => setConfirmAcceptOpen(false)}
+          onConfirm={() => {
+            setConfirmAcceptOpen(false);
+            onAcceptReport();
+          }}
+        />
+      </Stack>
+    </Paper>
+  );
+}
 
 interface CustomerReportSettlementCardProps {
   inspectionId: string;
   versionId: string;
   versionNo: number;
-  summary?: string | null | undefined;
-  findings?: Finding[] | undefined;
   isPaid: boolean;
   isReportAccepted: boolean;
   isPaymentCancelled?: boolean;
+  isPaymentConfirming?: boolean;
   paymentStatus?: ReportPaymentStatusDetails | undefined;
   acceptPending: boolean;
   sepayPending: boolean;
   vnpayPending?: boolean;
+  gatewayError?: unknown;
   disputeSubmitted: boolean;
   disputeReason?: string | null;
   disputeSubmittedAt?: string | null;
@@ -51,7 +184,40 @@ interface CustomerReportSettlementCardProps {
   onProceedToSepay: () => void;
   onProceedToVnPay?: () => void;
   onOpenDispute: () => void;
-  onViewReport?: (() => void) | undefined;
+}
+
+function formatPaymentMethodLabel(method: string | null | undefined, t: (key: string) => string): string {
+  const normalized = (method ?? '').trim().toUpperCase();
+  if (normalized === 'VNPAY') return 'VNPay';
+  if (normalized === 'SEPAY') return 'Sepay (VietQR)';
+  if (normalized === 'MANUAL_WIRE') return t('Bank transfer');
+  return method?.trim() || 'Sepay';
+}
+
+function PaymentMethodLogoMark({ method }: { method: string | null | undefined }) {
+  const normalized = (method ?? '').trim().toUpperCase();
+  if (normalized === 'VNPAY') return <VnPayLogoMark />;
+  if (normalized === 'SEPAY') return <SepayVietQrLogoMark />;
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 44,
+        height: 32,
+        borderRadius: '6px',
+        bgcolor: 'background.paper',
+        border: '1px solid',
+        borderColor: 'divider',
+        color: 'text.secondary',
+        flexShrink: 0,
+      }}
+    >
+      <ReceiptLongOutlined sx={{ fontSize: 18 }} />
+    </Box>
+  );
 }
 
 /**
@@ -65,17 +231,15 @@ interface CustomerReportSettlementCardProps {
  */
 export function CustomerReportSettlementCard({
   inspectionId,
-  versionId,
-  versionNo,
-  summary,
-  findings,
   isPaid,
   isReportAccepted,
   isPaymentCancelled = false,
+  isPaymentConfirming = false,
   paymentStatus,
   acceptPending,
   sepayPending,
   vnpayPending = false,
+  gatewayError,
   disputeSubmitted,
   disputeReason,
   disputeSubmittedAt,
@@ -83,19 +247,12 @@ export function CustomerReportSettlementCard({
   onProceedToSepay,
   onProceedToVnPay,
   onOpenDispute,
-  onViewReport,
 }: CustomerReportSettlementCardProps) {
-  const { formatDateTime, formatNumber, t } = useLocale();
-  const [confirmAcceptOpen, setConfirmAcceptOpen] = useState(false);
-  const [previewingPdf, setPreviewingPdf] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const { formatDate, formatNumber, t } = useLocale();
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
-  const prevAcceptedRef = useRef(isReportAccepted);
-  const prevPaidRef = useRef(isPaid);
 
-  const downloadPaymentDocument = useCallback(async (kind: 'notice' | 'receipt') => {
+  const downloadPaymentReceipt = async () => {
     setDocumentBusy(true);
     setDocumentError(null);
     try {
@@ -103,7 +260,7 @@ export function CustomerReportSettlementCard({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `SDI-payment-${kind}-${inspectionId.slice(0, 8)}.pdf`;
+      link.download = `SDI-payment-receipt-${inspectionId.slice(0, 8)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -113,74 +270,8 @@ export function CustomerReportSettlementCard({
     } finally {
       setDocumentBusy(false);
     }
-  }, [inspectionId]);
-
-  useEffect(() => {
-    const becameAccepted = !prevAcceptedRef.current && isReportAccepted;
-    prevAcceptedRef.current = isReportAccepted;
-    if (becameAccepted && !isPaid) {
-      void downloadPaymentDocument('notice');
-    }
-  }, [isReportAccepted, isPaid, downloadPaymentDocument]);
-
-  useEffect(() => {
-    const becamePaid = !prevPaidRef.current && isPaid;
-    prevPaidRef.current = isPaid;
-    let firstReceiptAfterCheckout = false;
-    if (isPaid && typeof window !== 'undefined') {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const key = `sdi_payment_receipt_downloaded_${inspectionId}`;
-        if (params.get('payment') === 'success' && !sessionStorage.getItem(key)) {
-          sessionStorage.setItem(key, '1');
-          firstReceiptAfterCheckout = true;
-        }
-      } catch {
-        // ignore storage errors
-      }
-    }
-    if (becamePaid || firstReceiptAfterCheckout) {
-      void downloadPaymentDocument('receipt');
-    }
-  }, [isPaid, inspectionId, downloadPaymentDocument]);
+  };
   const finance = resolveInspectorFinanceBreakdown(inspectionId, null, paymentStatus);
-
-  const reportPdfFileName = `SDI-RPT-${versionId.slice(0, 8).toUpperCase()}-V${versionNo}.pdf`;
-
-  const handlePreviewPdf = async () => {
-    setPreviewingPdf(true);
-    setPdfError(null);
-    try {
-      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (error) {
-      setPdfError(getErrorMessage(error, t('The report preview could not be produced.')));
-    } finally {
-      setPreviewingPdf(false);
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    setDownloadingPdf(true);
-    setPdfError(null);
-    try {
-      const blob = await inspectionApi.downloadReport(inspectionId, versionId);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = reportPdfFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setPdfError(getErrorMessage(error, t('The report document could not be downloaded.')));
-    } finally {
-      setDownloadingPdf(false);
-    }
-  };
 
   const rawTotal = paymentStatus?.amount ?? finance?.totalPrice ?? null;
   const amountVnd =
@@ -188,501 +279,357 @@ export function CustomerReportSettlementCard({
   const invoiceRef = paymentStatus?.orderCode
     ? `INV-${paymentStatus.orderCode}`
     : `INV-${inspectionId.slice(0, 8).toUpperCase()}`;
+  const dueLabel = paymentStatus?.paymentDueAt
+    ? t('Pay by {date}').replace(
+        '{date}',
+        formatDate(paymentStatus.paymentDueAt, { dateStyle: 'medium' }),
+      )
+    : t('Pay within 15 days to complete your service.');
 
-  const steps = [
-    {
-      title: t('1. Accept Official Report'),
-      subtitle:
-        isReportAccepted || isPaid
-          ? `${t('Accepted')} · v${versionNo}`
-          : t('Review report & confirm acceptance'),
-      done: isReportAccepted || isPaid,
-      active: !isReportAccepted && !isPaid,
-      icon: DescriptionOutlined,
-    },
-    {
-      title: t('2. Service Fee Payment'),
-      subtitle: isPaid
-        ? t('Paid via Sepay')
-        : amountVnd
-          ? `${t('Due')}: ${amountVnd}`
-          : t('Sepay VietQR payment'),
-      done: isPaid,
-      active: isReportAccepted && !isPaid,
-      icon: PaidOutlined,
-    },
-    {
-      title: t('3. Order Fulfilled'),
-      subtitle: isPaid
-        ? t('Deliverables verified & fulfilled')
-        : t('Fulfilled upon payment confirmation'),
-      done: isPaid,
-      active: false,
-      icon: VerifiedOutlined,
-    },
-  ];
+  const paymentMethodLabel = formatPaymentMethodLabel(paymentStatus?.paymentMethod, t);
 
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: 2.5,
-        borderRadius: '10px',
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: '12px',
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
+        boxShadow: 'none',
       }}
     >
-      <Stack spacing={2}>
-        {/* Top Commercial Summary Header */}
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-        >
-          <Box>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
-                {t('Report acceptance & service fee payment')}
-              </Typography>
-              <Chip
-                size="small"
-                label={
-                  isPaid
-                    ? t('Paid & Fulfilled')
-                    : isReportAccepted
-                      ? t('Payment Due')
-                      : t('Awaiting Acceptance')
-                }
-                color={isPaid ? 'success' : isReportAccepted ? 'warning' : 'primary'}
-                sx={{ height: 22, borderRadius: '5px', fontSize: '0.75rem', fontWeight: 650 }}
-              />
-              <Chip
-                size="small"
-                variant="outlined"
-                icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
-                label={invoiceRef}
-                sx={{
-                  height: 22,
-                  fontSize: '0.75rem',
-                  fontWeight: 650,
-                  fontFamily: 'monospace',
-                }}
-              />
-            </Stack>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-              {t('Official report version')} v{versionNo} · {t('Official PDF ready for preview & download')}
-              {paymentStatus?.orderCode ? ` · ${paymentStatus?.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode}` : ''}
-            </Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
-              {onViewReport && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<DescriptionOutlined fontSize="small" />}
-                  onClick={onViewReport}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-                >
-                  {t('View report')}
-                </Button>
-              )}
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<PictureAsPdfRounded fontSize="small" />}
-                onClick={() => void handlePreviewPdf()}
-                disabled={previewingPdf}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {previewingPdf ? t('Rendering…') : t('Preview PDF')}
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DownloadRounded fontSize="small" />}
-                onClick={() => void handleDownloadPdf()}
-                disabled={downloadingPdf}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-              >
-                {downloadingPdf ? t('Downloading…') : t('Download report')}
-              </Button>
-            </Stack>
-            {pdfError && (
-              <Alert severity="error" sx={{ mt: 1, borderRadius: '8px' }} onClose={() => setPdfError(null)}>
-                {pdfError}
-              </Alert>
-            )}
-          </Box>
-
-          {amountVnd && (
-            <Box
-              sx={{
-                p: 1.75,
-                minWidth: { sm: 290 },
-                borderRadius: '10px',
-                border: '1px solid',
-                borderColor: isPaid ? '#176B52' : 'divider',
-                bgcolor: 'background.default',
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'text.secondary',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  display: 'block',
-                  mb: 0.75,
-                }}
-              >
-                {t('Service invoice')}
-              </Typography>
-              {finance && (
-                <>
-                  <Stack
-                    direction="row"
-                    spacing={2}
-                    sx={{ justifyContent: 'space-between', py: 0.35 }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      {t('Pre-VAT base')}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {formatNumber(finance.serviceBaseAmount)} ₫
-                    </Typography>
-                  </Stack>
-                  <Stack
-                    direction="row"
-                    spacing={2}
-                    sx={{ justifyContent: 'space-between', py: 0.35 }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      VAT ({finance.vatRate}%)
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'text.secondary' }}
-                    >
-                      +{formatNumber(finance.vatAmount)} ₫
-                    </Typography>
-                  </Stack>
-                  <Divider sx={{ my: 0.65, borderStyle: 'dashed' }} />
-                </>
-              )}
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{ justifyContent: 'space-between', alignItems: 'baseline', pt: 0.25 }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.875rem' }}>
-                  {isPaid ? t('Total paid') : t('Amount to pay')}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: '1.125rem',
-                    fontWeight: 800,
-                    color: isPaid ? '#176B52' : 'primary.main',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {amountVnd}
-                </Typography>
-              </Stack>
-            </Box>
+      <Stack spacing={2.25}>
+        {/* Header Bar: Title + Status + Invoice Ref */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 650, color: 'text.primary' }}>
+            {t('Service fee payment')}
+          </Typography>
+          {(isPaid || isPaymentConfirming) && (
+            <StatusChip
+              status={isPaid ? 'paid' : 'confirming'}
+              label={isPaid ? 'Paid & Fulfilled' : 'Confirming payment…'}
+              tone={isPaid ? 'success' : 'info'}
+            />
           )}
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<ReceiptLongOutlined sx={{ fontSize: 13 }} />}
+            label={invoiceRef}
+            sx={{
+              height: 24,
+              borderRadius: '6px',
+              borderColor: 'divider',
+              color: 'text.secondary',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+            }}
+          />
         </Stack>
 
-        {/* 3-Step Commercial Settlement Strip */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-            gap: 1.5,
-          }}
-        >
-          {steps.map((step) => {
-            const Icon = step.icon;
-            return (
-              <Box
-                key={step.title}
-                sx={{
-                  p: 1.5,
-                  borderRadius: '10px',
-                  border: '1px solid',
-                  borderColor: step.active ? 'primary.main' : 'divider',
-                  bgcolor: step.active ? 'action.hover' : 'background.default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.25,
-                }}
-              >
-                {step.done ? (
-                  <CheckCircleRounded sx={{ fontSize: 20, color: '#176B52', flexShrink: 0 }} />
-                ) : step.active ? (
-                  <RadioButtonCheckedRounded
-                    sx={{ fontSize: 20, color: 'primary.main', flexShrink: 0 }}
-                  />
-                ) : (
-                  <RadioButtonUncheckedRounded
-                    sx={{ fontSize: 20, color: 'text.disabled', flexShrink: 0 }}
-                  />
-                )}
-                <Box sx={{ minWidth: 0 }}>
-                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 650,
-                        fontSize: '0.875rem',
-                        color: step.done ? '#176B52' : 'text.primary',
-                      }}
-                    >
-                      {step.title}
-                    </Typography>
-                    <Icon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                  </Stack>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
-                  >
-                    {step.subtitle}
-                  </Typography>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-
-        <Divider />
-
-        {/* Dynamic Action State */}
         {documentError && (
           <Alert severity="error" sx={{ borderRadius: '8px' }}>
             {documentError}
           </Alert>
         )}
-        {isPaid ? (
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-          >
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <CheckCircleRounded sx={{ fontSize: 22, color: '#176B52', flexShrink: 0 }} />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 650, color: '#176B52' }}>
-                  {t('Payment successful! Inspection service is officially fulfilled and deliverables are verified.')}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {paymentStatus?.orderCode
-                    ? `${paymentStatus.paymentMethod ?? 'Sepay'} ${t('Order')} #${paymentStatus.orderCode} · ${t('Official receipt verified')}`
-                    : t('Official receipt verified')}
-                </Typography>
-              </Box>
-            </Stack>
-            <Button
-              variant="outlined"
-              size="small"
-              disabled={documentBusy}
-              startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
-              onClick={() => void downloadPaymentDocument('receipt')}
+
+        <Divider />
+
+        {/* Main 2-Column Body: Service Invoice (Left) + Payment Action / Status (Right) */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              md: amountVnd ? 'minmax(270px, 5fr) minmax(0, 7fr)' : '1fr',
+            },
+            gap: 2.5,
+            alignItems: 'stretch',
+          }}
+        >
+          {amountVnd && (
+            <Box
               sx={{
-                fontWeight: 600,
-                borderRadius: '8px',
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
+                p: 2,
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 1.5,
               }}
             >
-              {documentBusy ? t('Generating PDF…') : t('Download payment receipt (PDF)')}
-            </Button>
-          </Stack>
-        ) : isReportAccepted ? (
-          <Stack spacing={1.5}>
-            {isPaymentCancelled && (
-              <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                {t(
-                  'The previous online payment session was cancelled or did not complete. Please select a payment method below to retry.',
-                )}
-              </Alert>
-            )}
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={2}
-              sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-            >
               <Box>
-                <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
-                  {t('Report accepted')}
-                  {amountVnd ? ` · ${t('Payment due')}: ${amountVnd}` : ''}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                  {t(
-                    'Please complete the online service payment via VNPay or Sepay (VietQR). Once payment is confirmed, your inspection service is completed and deliverables are officially archived.',
-                  )}
-                </Typography>
-                <Alert severity="info" sx={{ mt: 1, py: 0.25, px: 1.25, fontSize: '0.75rem', borderRadius: '6px' }}>
-                  <strong>{t('Net 15 payment window:')}</strong>{' '}
-                  {t('Please complete payment within 15 days. PDF files downloaded before payment carry a "Preview" watermark and are not yet legally binding.')}
-                </Alert>
-              </Box>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  disabled={documentBusy}
-                  startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
-                  onClick={() => void downloadPaymentDocument('notice')}
-                  sx={{
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    px: 2,
-                    py: 1,
-                    textTransform: 'none',
-                    whiteSpace: 'nowrap',
-                  }}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ justifyContent: 'space-between', alignItems: 'baseline', mb: 1.25 }}
                 >
-                  {documentBusy ? t('Generating PDF…') : t('Download payment notice (PDF)')}
-                </Button>
-                {onProceedToVnPay && (
-                  <Button
-                    variant="contained"
-                    disabled={vnpayPending || sepayPending}
-                    endIcon={<OpenInNewRounded sx={{ fontSize: 16 }} />}
-                    onClick={onProceedToVnPay}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {t('Service invoice')}
+                  </Typography>
+                  {!isPaid && isReportAccepted && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {dueLabel}
+                    </Typography>
+                  )}
+                </Stack>
+                {finance && (
+                  <>
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      sx={{ justifyContent: 'space-between', py: 0.4 }}
+                    >
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+                        {t('Base fee')}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontSize: '0.8125rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {formatNumber(finance.serviceBaseAmount)} ₫
+                      </Typography>
+                    </Stack>
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      sx={{ justifyContent: 'space-between', py: 0.4 }}
+                    >
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: 'text.secondary' }}>
+                        VAT ({finance.vatRate}%)
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          fontVariantNumeric: 'tabular-nums',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        +{formatNumber(finance.vatAmount)} ₫
+                      </Typography>
+                    </Stack>
+                    <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
+                  </>
+                )}
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 650, fontSize: '0.875rem', color: 'text.primary' }}>
+                    {isPaid ? t('Total paid') : t('Amount to pay')}
+                  </Typography>
+                  <Typography
                     sx={{
-                      fontWeight: 650,
-                      borderRadius: '8px',
-                      px: 2.5,
-                      py: 1,
-                      textTransform: 'none',
-                      whiteSpace: 'nowrap',
-                      bgcolor: '#005baa',
-                      '&:hover': { bgcolor: '#004684' },
+                      fontSize: '0.9375rem',
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      fontVariantNumeric: 'tabular-nums',
                     }}
                   >
-                    {vnpayPending
-                      ? t('Connecting to VNPay gateway…')
-                      : t('Pay with VNPay')}
-                  </Button>
-                )}
-                <Button
-                  variant={onProceedToVnPay ? 'outlined' : 'contained'}
-                  color="primary"
-                  disabled={sepayPending || vnpayPending}
-                  startIcon={<QrCode2Rounded sx={{ fontSize: 18 }} />}
-                  onClick={onProceedToSepay}
-                  sx={{
-                    fontWeight: 650,
-                    borderRadius: '8px',
-                    px: 2.5,
-                    py: 1,
-                    textTransform: 'none',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {sepayPending
-                    ? t('Connecting to Sepay gateway…')
-                    : t('Pay with VietQR (Sepay)')}
-                </Button>
-              </Stack>
-            </Stack>
-          </Stack>
-        ) : (
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary' }}>
-                {t('Customer report acceptance')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                {t(
-                  'Review the executive summary below or open the full report & official PDF above. Click "Accept Report" when satisfied to proceed to online payment (VNPay or Sepay VietQR).',
-                )}
-              </Typography>
+                    {amountVnd}
+                  </Typography>
+                </Stack>
+              </Box>
             </Box>
+          )}
 
-            <ReportAiSummaryCard
-              inspectionId={inspectionId}
-              versionId={versionId}
-              summary={summary}
-              findings={findings}
-            />
-
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                color="success"
-                disabled={acceptPending}
-                onClick={() => setConfirmAcceptOpen(true)}
+          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+            {isPaid ? (
+              <Stack
+                spacing={2}
                 sx={{
-                  fontWeight: 650,
-                  borderRadius: '8px',
-                  px: 2.5,
-                  textTransform: 'none',
+                  p: 2,
+                  height: '100%',
+                  justifyContent: 'space-between',
+                  borderRadius: '10px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
                 }}
               >
-                {acceptPending ? t('Accepting…') : t('Accept Report')}
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={onOpenDispute}
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <CheckCircleRounded sx={{ fontSize: 18, color: '#16A34A', flexShrink: 0 }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {t('Payment confirmed')}
+                    </Typography>
+                  </Stack>
+
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                    <PaymentMethodLogoMark method={paymentStatus?.paymentMethod} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        {paymentStatus?.paymentMethod
+                          ? `${t('Paid via')} ${paymentMethodLabel}`
+                          : t('Paid')}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                          fontVariantNumeric: 'tabular-nums',
+                          display: 'block',
+                        }}
+                      >
+                        {paymentStatus?.orderCode
+                          ? `${t('Order')} #${paymentStatus.orderCode}`
+                          : t('Official receipt verified')}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Stack>
+
+                <Box>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    size="small"
+                    disabled={documentBusy}
+                    startIcon={<DownloadRounded sx={{ fontSize: 16 }} />}
+                    onClick={() => void downloadPaymentReceipt()}
+                    sx={{
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      textTransform: 'none',
+                      whiteSpace: 'nowrap',
+                      '&:hover': {
+                        borderColor: 'text.secondary',
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    {documentBusy ? t('Generating PDF…') : t('Download payment receipt (PDF)')}
+                  </Button>
+                </Box>
+              </Stack>
+            ) : isReportAccepted ? (
+              <Stack
+                spacing={1.25}
                 sx={{
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  px: 2,
-                  textTransform: 'none',
+                  p: 2,
+                  height: '100%',
+                  borderRadius: '10px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
                 }}
               >
-                {t('File a dispute / Request clarification')}
-              </Button>
-            </Stack>
+                {isPaymentCancelled && (
+                  <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+                    {t(
+                      'The previous online payment session was cancelled or did not complete. Please select a payment method below to retry.',
+                    )}
+                  </Alert>
+                )}
 
-            {disputeSubmitted && (
-              <Alert severity="warning" sx={{ borderRadius: '10px' }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {t(
-                    'You have submitted a dispute/clarification request regarding this report. The Platform Manager has been notified and will review your inquiry.',
+                <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    {t('Choose a payment method')}
+                  </Typography>
+                  {!amountVnd && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {dueLabel}
+                    </Typography>
                   )}
-                </Typography>
-                {disputeReason && (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    <strong>{t('Dispute reason')}:</strong> {disputeReason}
-                  </Typography>
-                )}
-                {disputeSubmittedAt && (
-                  <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'text.secondary' }}>
-                    {t('Submitted')}: {formatDateTime(new Date(disputeSubmittedAt))}
-                  </Typography>
-                )}
-              </Alert>
-            )}
+                </Stack>
 
-            <ConfirmDialog
-              open={confirmAcceptOpen}
-              title={t('Confirm Report Acceptance')}
-              message={t(
-                'Accepting the official inspection report locks your deliverable acceptance and proceeds to service invoice settlement. Would you like to accept this report?',
-              )}
-              confirmLabel={t('Confirm & Accept Report')}
-              cancelLabel={t('Cancel')}
-              confirmColor="success"
-              loading={acceptPending}
-              onCancel={() => setConfirmAcceptOpen(false)}
-              onConfirm={() => {
-                setConfirmAcceptOpen(false);
-                onAcceptReport();
-              }}
-            />
-          </Stack>
-        )}
+                <Stack spacing={1.25}>
+                  <Button
+                    variant="outlined"
+                    disabled={sepayPending || vnpayPending}
+                    onClick={onProceedToSepay}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      px: 1.75,
+                      py: 1.25,
+                      minHeight: 58,
+                      borderRadius: '10px',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      color: 'text.primary',
+                      textTransform: 'none',
+                      fontWeight: 650,
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    <SepayVietQrLogoMark />
+                    <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
+                      {sepayPending
+                        ? t('Connecting to Sepay gateway…')
+                        : t('Pay with VietQR (Sepay)')}
+                    </Typography>
+                  </Button>
+
+                  {onProceedToVnPay && (
+                    <Button
+                      variant="outlined"
+                      disabled={vnpayPending || sepayPending}
+                      onClick={onProceedToVnPay}
+                      sx={{
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        px: 1.75,
+                        py: 1.25,
+                        minHeight: 58,
+                        borderRadius: '10px',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
+                        textTransform: 'none',
+                        fontWeight: 650,
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <VnPayLogoMark />
+                      <Typography variant="body2" sx={{ fontWeight: 650, textAlign: 'left' }}>
+                        {vnpayPending
+                          ? t('Connecting to VNPay gateway…')
+                          : t('Pay with VNPay')}
+                      </Typography>
+                    </Button>
+                  )}
+                </Stack>
+
+                {Boolean(gatewayError) && (
+                  <Alert severity="error" sx={{ borderRadius: '8px' }}>
+                    {getErrorMessage(gatewayError, t('Payment checkout could not be started.'))}
+                  </Alert>
+                )}
+              </Stack>
+            ) : (
+              <CustomerReportAcceptanceBar
+                acceptPending={acceptPending}
+                disputeSubmitted={disputeSubmitted}
+                disputeReason={disputeReason}
+                disputeSubmittedAt={disputeSubmittedAt}
+                amountVnd={amountVnd}
+                onAcceptReport={onAcceptReport}
+                onOpenDispute={onOpenDispute}
+              />
+            )}
+          </Box>
+        </Box>
       </Stack>
     </Paper>
   );

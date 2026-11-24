@@ -7,6 +7,8 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import * as contractsHook from '../hooks/useContracts';
 import * as assetsHook from '@/features/assets/hooks/useAssets';
 import * as catalogHook from '@/features/assets/hooks/useCatalog';
+import { mf1ReviewApi } from '@/features/admin/api/mf1ReviewApi';
+import { inspectorProfileApi } from '@/features/admin/api/inspectorProfileApi';
 import type { PartnerCandidate } from '../api/contractApi';
 
 vi.mock('../hooks/useContracts');
@@ -785,7 +787,7 @@ describe('ContractsPage', () => {
     });
     renderPage();
     expect(
-      screen.getByText(/Service requests are available to Customer and Platform Manager accounts\./),
+      screen.getByText(/Service requests are available to Customer and Manager accounts\./),
     ).toBeTruthy();
   });
 
@@ -973,13 +975,15 @@ describe('ContractsPage', () => {
 
     renderPage();
     openTrackProgress();
-    expect(screen.getByText('Occurrence 1')).toBeTruthy();
+    expect(screen.getByText('Scheduled flight & assignment')).toBeTruthy();
+    expect(screen.getByText('Inspection flight')).toBeTruthy();
+    expect(screen.queryByText(/occurrences/i)).toBeNull();
     const assignButton = screen.getByRole('button', { name: 'Assign occurrence' });
     expect(assignButton.hasAttribute('disabled')).toBe(true);
     expect(screen.queryByLabelText('Inspector')).toBeNull();
     expect(screen.queryByLabelText('Drone')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Find eligible partners' }));
-    expect(await screen.findByText('Select partner Inspector and drone · Occurrence 1')).toBeTruthy();
+    expect(await screen.findByText('Select partner Inspector and drone')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
     fireEvent.click(screen.getByRole('button', { name: 'Assign occurrence' }));
     expect(mutateAsync).toHaveBeenCalledWith({
@@ -1339,5 +1343,111 @@ describe('ContractsPage', () => {
         'Thermal roof sweep',
       ]),
     );
+  });
+
+  it('opens inspector profile and partner drone detail dialogs when clicked on an assigned flight', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      roles: ['MANAGER'],
+      userId: 'manager-1',
+      userName: 'Platform Manager',
+      email: 'manager@test.local',
+    });
+    vi.spyOn(contractsHook, 'useServiceRequests').mockReturnValue({
+      data: [{
+        id: 'req-assigned',
+        assignedManagerId: 'manager-1',
+        ownerCustomerId: 'org-1',
+        assetId: 'asset-1',
+        description: 'Highlands survey',
+        requestedFrom: '2026-12-13',
+        requestedUntil: '2026-12-13',
+        timezone: 'Asia/Ho_Chi_Minh',
+        windowStart: '08:00',
+        windowEnd: '10:00',
+        requestType: 'ONE_TIME',
+        recurrenceUnit: null,
+        recurrenceInterval: null,
+        occurrenceCount: null,
+        recurrenceEndDate: null,
+        status: 'ASSIGNED',
+        acceptedQuoteId: 'quote-1',
+        acceptedAt: '2026-11-20T00:00:00Z',
+        acceptedByUserId: 'cust-1',
+        acceptedTermsSnapshot: null,
+        contractFileName: 'contract.pdf',
+        contractContentType: 'application/pdf',
+        contractSizeBytes: 1024,
+        contractUploadedAt: '2026-11-20T00:00:00Z',
+        createdAt: '2026-11-19T00:00:00Z',
+        currentQuote: null,
+        occurrences: [{
+          id: 'occ-1',
+          occurrenceIndex: 1,
+          plannedStartAt: '2026-12-13T01:00:00Z',
+          plannedEndAt: '2026-12-13T03:00:00Z',
+          status: 'ASSIGNED',
+          inspectorId: 'p-insp-1',
+          droneId: 'p-drone-1',
+          inspectionId: 'insp-9',
+          assignedAt: '2026-11-20T01:00:00Z',
+          assignmentStatus: 'ACCEPTED',
+          paymentStatus: 'PAID',
+          totalPrice: 12000000,
+        }],
+        messages: [],
+      }],
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any);
+    vi.spyOn(contractsHook, 'useServiceRequest').mockReturnValue({ data: undefined, isFetching: false } as any);
+    vi.spyOn(contractsHook, 'usePartnerInspectors').mockReturnValue({
+      data: [{ id: 'p-insp-1', fullName: 'Partner Alice', licenseExpiresAt: null, avatarUrl: null }],
+    } as any);
+    vi.spyOn(contractsHook, 'usePartnerDrones').mockReturnValue({
+      data: [{ id: 'p-drone-1', inspectorOwnerId: 'p-insp-1', serialNumber: 'DJI-M30T-SG-0002', model: 'DJI Matrice 30T', hasImage: false }],
+      isPending: false,
+    } as any);
+    vi.spyOn(mf1ReviewApi, 'droneHistory').mockResolvedValue([{
+      id: 'app-1',
+      inspectorUserId: 'p-insp-1',
+      inspectorFullName: 'Partner Alice',
+      serialNumber: 'DJI-M30T-SG-0002',
+      model: 'DJI Matrice 30T',
+      manufacturer: 'DJI',
+      registrationNumber: 'VN-DR-0002',
+      registrationFileKey: 'reg.pdf',
+      registrationExpiresAt: '2027-12-31T00:00:00Z',
+      ownershipFileKey: 'own.pdf',
+      maxAltitudeMeters: 120,
+      maxWindResistanceMps: 15,
+      hasThermalCamera: true,
+      hasRtk: true,
+      status: 'APPROVED',
+      reviewNote: null,
+      droneId: 'p-drone-1',
+      createdAt: '2026-11-01T00:00:00Z',
+    }]);
+    const getInspectorSpy = vi.spyOn(inspectorProfileApi, 'get').mockResolvedValue({
+      userId: 'p-insp-1',
+      email: 'alice@test.local',
+      fullName: 'Partner Alice',
+      phoneNumber: '0901234567',
+      roles: ['INSPECTOR'],
+    } as any);
+    vi.spyOn(inspectorProfileApi, 'listFlightLogs').mockResolvedValue([]);
+
+    renderPage();
+    openTrackProgress();
+
+    fireEvent.click(screen.getByRole('button', { name: 'DJI Matrice 30T (DJI-M30T-SG-0002)' }));
+    expect(await screen.findByText('VN-DR-0002')).toBeTruthy();
+    expect(screen.getByText('120 m')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partner Alice' }));
+    await waitFor(() => expect(getInspectorSpy).toHaveBeenCalledWith('p-insp-1'));
   });
 });

@@ -29,7 +29,7 @@ import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { InspectorProfileDialog } from '../components/InspectorProfileDialog';
 
 /**
- * Dedicated Partner Inspectors roster page for Platform Manager (/manager/platform-users).
+ * Dedicated Partner Inspectors roster page for Manager (/manager/platform-users).
  * Displays only Partner Inspector accounts with pilot license & drone qualification profile inspection.
  */
 export default function ManagerPartnerInspectorsPage() {

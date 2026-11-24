@@ -78,15 +78,15 @@ export interface DashboardRoleConfig {
 }
 
 export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
-  // 1. CUSTOMER (Organization Manager) - Report 3 Customer Enterprise Authority
+  // 1. CUSTOMER - Customer Account Authority
   CUSTOMER: {
     id: 'CUSTOMER',
-    name: 'Organization Manager',
-    badge: 'Enterprise Authority',
+    name: 'Customer',
+    badge: 'Customer Account',
     report3RoleName: 'CUSTOMER',
-    roleDescription: 'Customer organization authority: asset registration, inspection readiness, published report acceptance, and service fee settlement.',
+    roleDescription: 'Customer account authority: asset registration, inspection readiness, published report acceptance, and service fee settlement.',
     overviewTitle: 'Asset overview',
-    overviewSubtitle: 'Recent structures, fleet readiness, and workflow approvals registered to your organization.',
+    overviewSubtitle: 'Recent structures, fleet readiness, and workflow approvals registered to your account.',
     stats: [
       {
         id: 'registered_assets',
@@ -94,7 +94,7 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
         value: '12',
         change: '+100% paired',
         positive: true,
-        subtext: 'in your organization',
+        subtext: 'in your account',
         iconType: 'building',
       },
       {
@@ -163,7 +163,7 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
     },
     table: {
       title: 'Asset overview',
-      subtitle: 'Recent structures registered to your organization.',
+      subtitle: 'Recent structures registered to your account.',
       headers: ['ASSET', 'LOCATION', 'PAIR / PILOT', 'STATUS', 'ACTION'],
       rows: [
         { col1: 'North Bridge (BR-014)', col2: 'River district', col3: 'T. Halloway + DJI M350', col4: 'Active', col5: '3.2%', status: 'positive', link: '/client/assets' },
@@ -176,20 +176,20 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
     },
   },
 
-  // 2. ADMIN (Platform Admin) - Report 3 Platform SaaS Governance
+  // 2. ADMIN - Platform Governance
   ADMIN: {
     id: 'ADMIN',
-    name: 'Platform Administrator',
-    badge: 'Platform SaaS Governance',
+    name: 'Administrator',
+    badge: 'Platform Governance',
     report3RoleName: 'ADMIN',
-    roleDescription: 'Platform-wide multi-tenant governance, partner operations, MinIO vault storage, and system availability.',
+    roleDescription: 'Platform-wide governance, partner operations, MinIO vault storage, and system availability.',
     overviewTitle: 'Platform overview',
-    overviewSubtitle: 'Multi-tenant organization accounts, partner operations, and MinIO storage infrastructure.',
+    overviewSubtitle: 'Customer accounts, partner operations, and MinIO storage infrastructure.',
     stats: [
       {
-        id: 'organizations',
-        label: 'Organizations',
-        value: '142 Orgs',
+        id: 'customers',
+        label: 'Customers',
+        value: '142 Accounts',
         change: '+14.2% MoM',
         positive: true,
         subtext: 'summary not available',
@@ -274,20 +274,20 @@ export const REPORT3_ROLE_DASHBOARDS: Record<RoleId, DashboardRoleConfig> = {
     },
   },
 
-  // 2b. MANAGER (Platform Manager) - Service Request & Partner Dispatch Operations
+  // 2b. MANAGER - Service Request & Partner Dispatch Operations
   MANAGER: {
     id: 'MANAGER',
-    name: 'Platform Manager',
+    name: 'Manager',
     badge: 'Service Operations',
     report3RoleName: 'MANAGER',
-    roleDescription: 'Platform operations manager: reviews customer service requests, coordinates partner Inspectors and drones, and oversees commercial settlement.',
+    roleDescription: 'Service operations manager: reviews customer service requests, coordinates partner Inspectors and drones, and oversees commercial settlement.',
     overviewTitle: 'Platform overview',
     overviewSubtitle: 'Customer requests, partner dispatch, and inspection service activity.',
     stats: [
       {
-        id: 'organizations',
-        label: 'Organizations',
-        value: '142 Orgs',
+        id: 'customers',
+        label: 'Customers',
+        value: '142 Accounts',
         change: '+14.2% MoM',
         positive: true,
         subtext: 'summary not available',

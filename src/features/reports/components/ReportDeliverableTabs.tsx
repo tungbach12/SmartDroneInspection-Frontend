@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Box, Chip, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import FlightTakeoffRounded from '@mui/icons-material/FlightTakeoffRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
@@ -26,6 +26,7 @@ export interface ReportDeliverableTabsProps {
   assetName?: string | null | undefined;
   droneSummary?: string | null | undefined;
   flightPermitFileName?: string | null | undefined;
+  headerBadge?: ReactNode | undefined;
 }
 
 export function ReportDeliverableTabs({
@@ -41,6 +42,7 @@ export function ReportDeliverableTabs({
   assetName,
   droneSummary,
   flightPermitFileName,
+  headerBadge,
 }: ReportDeliverableTabsProps) {
   const { t } = useLocale();
   const [activeDocTab, setActiveDocTab] = useState<'inspection' | 'flight'>('inspection');
@@ -128,11 +130,17 @@ export function ReportDeliverableTabs({
               canEdit={canEdit}
               droneSummary={droneSummary}
               flightPermitFileName={flightPermitFileName}
+              headerBadge={headerBadge}
             />
           ) : (
             <FlightOperationsReportView
               inspectionId={inspectionId}
               fieldSessionId={openVersion.reportContext?.fieldSessions?.at(-1)?.id ?? null}
+              flights={
+                openVersion.reportContext?.flights ??
+                fieldSessions?.flatMap((s) => s.flights ?? [])
+              }
+              sessions={fieldSessions}
               version={openVersion}
               evidenceList={evidenceList}
               assetName={openVersion.reportContext?.assetName ?? assetName}

@@ -74,6 +74,9 @@ export function resolveInitialStepForRow(
     if (row?.reportStatus === 'PUBLISHED' || row?.status === 'COMPLETED') {
       return 'settlement';
     }
+    if (row?.reportStatus === 'APPROVED') {
+      return 'payout';
+    }
     if (
       !isReportsQueue &&
       (row?.status === 'SCHEDULED' || row?.status === 'IN_PROGRESS')
@@ -108,6 +111,7 @@ export function resolveInitialStepForRow(
   // Inspector ('operations' portal)
   if (
     row?.reportStatus === 'PUBLISHED' ||
+    row?.reportStatus === 'APPROVED' ||
     row?.reportStatus === 'SUBMITTED' ||
     row?.reportStatus === 'RETURNED' ||
     row?.status === 'UNDER_REVIEW' ||
@@ -141,22 +145,22 @@ export function resolveRowStageSubtitle(
   if (roleView === 'manager') {
     if (row.reportStatus === 'PUBLISHED' || row.status === 'COMPLETED') {
       return row.paymentStatus === 'PAID'
-        ? 'Step 3/3 · Settled'
-        : 'Step 3/3 · Commission & Settlement';
+        ? 'Step 4/4 · Settled'
+        : 'Step 4/4 · Customer Settlement';
+    }
+    if (row.reportStatus === 'APPROVED') {
+      return 'Step 3/4 · Inspector Payout';
     }
     if (row.status === 'UNDER_REVIEW' || row.reportStatus === 'SUBMITTED') {
-      return `Step 2/3 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;
+      return `Step 2/4 · Report Decision${row.reportVersionNo ? ` · v${row.reportVersionNo}` : ''}`;
     }
     if (row.reportStatus === 'RETURNED') {
-      return 'Step 2/3 · Returned for Revision';
-    }
-    if (row.pendingAction === 'PERMIT_REVIEW') {
-      return 'Step 1/3 · Permit Review Due';
+      return 'Step 2/4 · Returned for Revision';
     }
     if (row.status === 'FIELD_COMPLETED') {
-      return 'Step 2/3 · Awaiting report submission';
+      return 'Step 2/4 · Awaiting report submission';
     }
-    return 'Step 1/3 · Field & Evidence Audit';
+    return 'Step 1/4 · Field & Evidence Audit';
   }
 
   if (roleView === 'customer') {
@@ -220,8 +224,10 @@ export function resolveOverviewGuidance(
       case 'SCHEDULED':
         if (permitStatus === 'PENDING_REVIEW') {
           return {
-            tip: t('Flight permit submitted and awaiting your verification before flight takeoff.'),
-            actionLabel: t('Verify flight permit'),
+            tip: t(
+              'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+            ),
+            actionLabel: t('Open field & evidence audit'),
             subpath: 'audit',
           };
         }
@@ -280,21 +286,23 @@ export function resolveOverviewGuidance(
     case 'SCHEDULED':
       if (permitStatus === 'APPROVED') {
         return {
-          tip: t('Flight permit verified by Platform Manager. Complete the pre-flight safety checklist to start flight operation.'),
+          tip: t('Flight permit verified by Manager. Complete the pre-flight safety checklist to start flight operation.'),
           actionLabel: t('Open pre-flight check'),
           subpath: 'pre-flight',
         };
       }
       if (permitStatus === 'PENDING_REVIEW') {
         return {
-          tip: t('Flight permit uploaded and awaiting Platform Manager verification before pre-flight checks can begin.'),
+          tip: t(
+            'The drone or schedule changed. The assigned Inspector must upload an updated permit before pre-flight.',
+          ),
           actionLabel: t('Review permit status'),
           subpath: 'permit',
         };
       }
       if (permitStatus === 'REJECTED') {
         return {
-          tip: t('Flight permit was rejected by the Platform Manager. Upload a corrected permit to unlock pre-flight checks.'),
+          tip: t('Flight permit was rejected by the Manager. Upload a corrected permit to unlock pre-flight checks.'),
           actionLabel: t('Upload replacement permit'),
           subpath: 'permit',
         };
@@ -318,7 +326,7 @@ export function resolveOverviewGuidance(
       };
     case 'UNDER_REVIEW':
       return {
-        tip: t('Report submitted. Awaiting Platform Manager review and publication.'),
+        tip: t('Report submitted. Awaiting Manager review and publication.'),
         actionLabel: t('View submitted report'),
         subpath: 'report',
       };

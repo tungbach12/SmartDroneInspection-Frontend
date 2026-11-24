@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link as RouterLink, NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   ButtonBase,
@@ -33,6 +34,7 @@ import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import ChatOutlined from '@mui/icons-material/ChatOutlined';
 import MoreVertRounded from '@mui/icons-material/MoreVertRounded';
+import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { PageBreadcrumbs } from '@/shared/ui/PageBreadcrumbs';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
@@ -58,10 +60,16 @@ import {
   useRescheduleInspection,
 } from '../hooks/useInspections';
 import { InspectorPayoutSummaryBar } from '../components/InspectorPayoutSummaryBar';
-import { InspectionOverviewDetails } from '../components/InspectionOverviewDetails';
+import {
+  InspectionContextDialogs,
+  type InspectionContextModalType,
+} from '../components/InspectionContextDialogs';
 import { OverviewStakeholdersSection } from '../components/OverviewStakeholdersSection';
 import { ReassignInspectionDialog } from '../components/ReassignInspectionDialog';
-import { resolveInspectionMetadata } from '../utils/inspectorFinance';
+import {
+  resolveInspectionMetadata,
+  resolveInspectorFinanceBreakdown,
+} from '../utils/inspectorFinance';
 import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
@@ -211,10 +219,10 @@ const REINSPECTION_STEPS: readonly WorkflowStep[] = [
 ] as const;
 
 /**
- * Platform Manager workspace stages (3 steps):
- * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Commission & Settlement
+ * Platform Manager workspace stages (4 steps):
+ * 1. Field & Evidence Audit -> 2. Report Decision -> 3. Inspector Payout -> 4. Customer Settlement
  */
-const REVIEWER_STEPS: readonly WorkflowStep[] = [
+const MANAGER_REVIEWER_STEPS: readonly WorkflowStep[] = [
   {
     step: 1,
     value: 'audit',
@@ -229,18 +237,48 @@ const REVIEWER_STEPS: readonly WorkflowStep[] = [
     value: 'review',
     label: 'Report Decision',
     title: 'Report Decision',
-    sublabel: 'Publish or Return',
+    sublabel: 'Approve or Return',
     to: 'review',
     icon: AssignmentTurnedInOutlined,
   },
   {
     step: 3,
+    value: 'payout',
+    label: 'Inspector Payout',
+    title: 'Inspector Payout',
+    sublabel: 'Transfer & Publish',
+    to: 'payout',
+    icon: FactCheckOutlined,
+  },
+  {
+    step: 4,
     value: 'settlement',
-    label: 'Commission',
-    title: 'Commission & Settlement',
-    sublabel: 'Fee & Payout',
+    label: 'Customer Settlement',
+    title: 'Customer Settlement',
+    sublabel: 'Invoice & Payment',
     to: 'settlement',
     icon: FactCheckOutlined,
+  },
+] as const;
+
+const ADMIN_REVIEWER_STEPS: readonly WorkflowStep[] = [
+  {
+    step: 1,
+    value: 'audit',
+    label: 'Field Audit',
+    title: 'Field & Evidence Audit',
+    sublabel: 'Flight & Captures',
+    to: 'audit',
+    icon: FlightTakeoffRounded,
+  },
+  {
+    step: 2,
+    value: 'review',
+    label: 'Report Decision',
+    title: 'Report Decision',
+    sublabel: 'Inspect Deliverable',
+    to: 'review',
+    icon: AssignmentTurnedInOutlined,
   },
 ] as const;
 
@@ -259,7 +297,7 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     value: 'report',
     label: 'Official Report',
     title: 'Inspection Report',
-    sublabel: 'Published Deliverable',
+    sublabel: 'Review & Acceptance',
     to: 'report',
     icon: AssignmentTurnedInOutlined,
   },
@@ -267,8 +305,8 @@ const CUSTOMER_STEPS: readonly WorkflowStep[] = [
     step: 3,
     value: 'settlement',
     label: 'Settlement',
-    title: 'Acceptance & Payment',
-    sublabel: 'Accept & Sepay',
+    title: 'Service Payment',
+    sublabel: 'Sepay, VNPay & Receipt',
     to: 'settlement',
     icon: FactCheckOutlined,
   },
@@ -296,6 +334,7 @@ export default function InspectionDetailPage() {
   const [forceAbortOpen, setForceAbortOpen] = useState(false);
   const [forceAbortReason, setForceAbortReason] = useState('');
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+  const [contextModal, setContextModal] = useState<InspectionContextModalType>(null);
   const stageContentRef = useRef<HTMLDivElement>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -326,10 +365,12 @@ export default function InspectionDetailPage() {
   const inspectionQuery = useInspection(inspectionId);
   const inspection = inspectionQuery.data;
   const isReinspection = inspection?.inspectionType === 'RE_INSPECTION';
+  const reviewerSteps =
+    reviewerPortal === 'manager' ? MANAGER_REVIEWER_STEPS : ADMIN_REVIEWER_STEPS;
   const steps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
-      ? REVIEWER_STEPS
+      ? reviewerSteps
       : isReinspection
         ? REINSPECTION_STEPS
         : INSPECTOR_STEPS;
@@ -368,10 +409,11 @@ export default function InspectionDetailPage() {
     inspection?.inspectorName ||
     matchedInspector?.fullName ||
     (inspection?.inspectorId ? `#${inspection.inspectorId.slice(0, 8)}` : null);
-  const managerLabel =
-    inspection?.managerName ||
-    inspection?.flightPermitVerifiedByName ||
-    null;
+  const managerLabel = inspection?.managerName || null;
+  const customerAvatarUrl = inspection?.ownerCustomerAvatarUrl || null;
+  const inspectorAvatarUrl = inspection?.inspectorAvatarUrl || null;
+  const managerAvatarUrl = inspection?.managerAvatarUrl || null;
+  const primaryAssetPhotoId = inspection?.assetPhotoDocumentIds?.[0] ?? null;
   const droneShortName =
     inspection?.droneModel || inspection?.droneSerialNumber || t('Unassigned');
   const shortScheduleLabel = inspection?.plannedStartAt
@@ -380,8 +422,14 @@ export default function InspectionDetailPage() {
   const hasPublishedVersion = Boolean(
     versions.data?.some((version) => version.status === 'PUBLISHED'),
   );
+  const hasApprovedVersion = Boolean(
+    versions.data?.some((version) => version.status === 'APPROVED'),
+  );
   const paymentStatusQuery = useReportPaymentStatus?.(
-    hasPublishedVersion && (isReviewerAdmin || isCustomer) ? inspectionId : null,
+    (hasPublishedVersion || (hasApprovedVersion && isReviewerAdmin)) &&
+      (isReviewerAdmin || isCustomer)
+      ? inspectionId
+      : null,
   );
   const isCustomerAccepted = Boolean(paymentStatusQuery?.data?.reportAccepted);
   const isPaymentSettled =
@@ -586,7 +634,7 @@ export default function InspectionDetailPage() {
   const visibleSteps = isCustomer
     ? CUSTOMER_STEPS
     : isReviewerAdmin
-      ? REVIEWER_STEPS
+      ? reviewerSteps
       : steps;
 
   const reviewerSourceRoutes = ['evidence', 'findings'];
@@ -616,6 +664,7 @@ export default function InspectionDetailPage() {
         'findings',
         'audit',
         'review',
+        'payout',
       ];
       if (forbiddenForCustomer.includes(current)) {
         const dest = hasPublishedVersion ? 'report' : 'tracking';
@@ -636,7 +685,7 @@ export default function InspectionDetailPage() {
         return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
       }
       if (stepValue === 'report') {
-        return hasPublishedVersion;
+        return hasPublishedVersion && (isCustomerAccepted || isPaymentSettled);
       }
       if (stepValue === 'settlement') {
         return (
@@ -648,9 +697,16 @@ export default function InspectionDetailPage() {
     }
     if (isReviewerAdmin) {
       if (stepValue === 'audit') {
-        return ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) || hasPublishedVersion;
+        return (
+          ['FIELD_COMPLETED', 'UNDER_REVIEW', 'COMPLETED'].includes(status) ||
+          hasApprovedVersion ||
+          hasPublishedVersion
+        );
       }
       if (stepValue === 'review') {
+        return hasApprovedVersion || hasPublishedVersion;
+      }
+      if (stepValue === 'payout') {
         return hasPublishedVersion;
       }
       if (stepValue === 'settlement') {
@@ -753,11 +809,18 @@ export default function InspectionDetailPage() {
     if (step.value === 'evidence' && !isFieldWorkComplete) return 'blocked';
     if (step.value === 'findings' && !hasEvidence) return 'blocked';
     if (step.value === 'report' && !findingsComplete) return 'blocked';
+    if (step.value === 'payout' && !hasApprovedVersion && !hasPublishedVersion) return 'blocked';
+    if (step.value === 'settlement' && !hasPublishedVersion) return 'blocked';
     if (tabValue === step.value) return 'active';
     if (step.value === 'permit' || step.value === 'audit') return 'ready';
     if (step.value === 'field-session') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'review') return versions.data?.length ? 'ready' : 'blocked';
-    if (step.value === 'settlement') return hasPublishedVersion ? 'ready' : 'blocked';
+    if (step.value === 'payout') {
+      return hasApprovedVersion || hasPublishedVersion ? 'ready' : 'blocked';
+    }
+    if (step.value === 'settlement') {
+      return hasPublishedVersion ? 'ready' : 'blocked';
+    }
     if (step.value === 'pre-flight') return hasPermitReady ? 'ready' : 'blocked';
     if (step.value === 'post-flight') return hasSessionStarted ? 'ready' : 'blocked';
     if (step.value === 'evidence') return isFieldWorkComplete ? 'ready' : 'blocked';
@@ -781,12 +844,14 @@ export default function InspectionDetailPage() {
     }
     if ((step.value === 'pre-flight' || step.value === 'field-session') && !hasPermitReady) {
       if (permitVerificationStatus === 'PENDING_REVIEW') {
-        return t('Flight permit is pending Platform Manager verification before starting the pre-flight checklist.');
+        return t(
+          'The drone or schedule changed — upload an updated flight permit before starting the pre-flight checklist.',
+        );
       }
       if (permitVerificationStatus === 'REJECTED') {
-        return t('Flight permit was rejected by the Platform Manager. Upload a replacement permit before starting the pre-flight checklist.');
+        return t('Upload a replacement flight permit before starting the pre-flight checklist.');
       }
-      return t('Upload the flight permit and await Manager approval before starting the pre-flight checklist.');
+      return t('Upload the flight permit before starting the pre-flight checklist.');
     }
     if (step.value === 'post-flight' && !hasSessionStarted) return t('Record flight activity using live telemetry, an imported log, or a manual declaration before completing post-flight checks.');
     if (step.value === 'evidence' && !isFieldWorkComplete) return t('Complete the field session first.');
@@ -798,8 +863,11 @@ export default function InspectionDetailPage() {
     if (step.value === 'review' && !versions.data?.length) {
       return t('Awaiting Inspector report submission before manager review.');
     }
+    if (step.value === 'payout' && !hasApprovedVersion && !hasPublishedVersion) {
+      return t('Approve the inspection report before settling Inspector payout.');
+    }
     if (step.value === 'settlement' && !hasPublishedVersion) {
-      return t('Publish the official inspection report before reviewing settlement.');
+      return t('Settle Inspector payout and publish the report before tracking customer settlement.');
     }
     return null;
   };
@@ -829,7 +897,7 @@ export default function InspectionDetailPage() {
       }
       if (isWindowExpired) {
         return {
-          description: t('The scheduled flight window has elapsed. Contact the Platform Manager to reschedule before starting a new session.'),
+          description: t('The scheduled flight window has elapsed. Contact the Manager to reschedule before starting a new session.'),
           continueAction: null,
         };
       }
@@ -837,8 +905,8 @@ export default function InspectionDetailPage() {
         return {
           description:
             tabValue === 'permit'
-              ? t('Upload a valid flight permit below before starting a new session, or contact the Platform Manager to reschedule.')
-              : t('The flight session was stopped before completion. Upload a valid flight permit to prepare a new session, or contact the Platform Manager to reschedule.'),
+              ? t('Upload a valid flight permit below before starting a new session, or contact the Manager to reschedule.')
+              : t('The flight session was stopped before completion. Upload a valid flight permit to prepare a new session, or contact the Manager to reschedule.'),
           continueAction:
             tabValue === 'permit'
               ? { scrollToContent: true, label: t('Upload Flight Permit') }
@@ -848,8 +916,8 @@ export default function InspectionDetailPage() {
       return {
         description:
           tabValue === 'pre-flight'
-            ? t('Complete the pre-flight checklist below to start a new session when conditions are safe, or contact the Platform Manager to reschedule.')
-            : t('The flight session was stopped before completion. You can prepare a new session when conditions are safe, or contact the Platform Manager to reschedule.'),
+            ? t('Complete the pre-flight checklist below to start a new session when conditions are safe, or contact the Manager to reschedule.')
+            : t('The flight session was stopped before completion. You can prepare a new session when conditions are safe, or contact the Manager to reschedule.'),
         continueAction:
           tabValue === 'pre-flight'
             ? { scrollToContent: true, label: t('Complete Pre-flight Checklist') }
@@ -857,7 +925,7 @@ export default function InspectionDetailPage() {
       };
     }
     return {
-      description: t('The flight session was stopped before completion. The Platform Manager will reschedule or reassign this inspection as needed.'),
+      description: t('The flight session was stopped before completion. The Manager will reschedule or reassign this inspection as needed.'),
       continueAction: null,
     };
   })();
@@ -935,15 +1003,36 @@ export default function InspectionDetailPage() {
         />
 
         {inspection && (() => {
-          const contextSummaryColumns: Array<{ label: string; value: string; tabular?: boolean }> = [];
+          const contextSummaryColumns: Array<{
+            label: string;
+            value: string;
+            tabular?: boolean;
+            modalKey?: Exclude<InspectionContextModalType, null>;
+            avatarUrl?: string | null;
+          }> = [];
           if (!isCustomer && customerLabel) {
-            contextSummaryColumns.push({ label: t('Customer'), value: customerLabel });
+            contextSummaryColumns.push({
+              label: t('Customer'),
+              value: customerLabel,
+              modalKey: 'customer',
+              avatarUrl: customerAvatarUrl,
+            });
           }
           if ((isReviewerAdmin || isCustomer) && inspectorLabel) {
-            contextSummaryColumns.push({ label: t('Inspector'), value: inspectorLabel });
+            contextSummaryColumns.push({
+              label: t('Inspector'),
+              value: inspectorLabel,
+              modalKey: 'inspector',
+              avatarUrl: inspectorAvatarUrl,
+            });
           }
           if (!isReviewerAdmin && managerLabel) {
-            contextSummaryColumns.push({ label: t('Manager'), value: managerLabel });
+            contextSummaryColumns.push({
+              label: t('Manager'),
+              value: managerLabel,
+              modalKey: 'manager',
+              avatarUrl: managerAvatarUrl,
+            });
           }
           if (!isCustomer) {
             contextSummaryColumns.push({ label: t('Drone'), value: droneShortName });
@@ -951,6 +1040,11 @@ export default function InspectionDetailPage() {
           if (!isReviewerAdmin && shortScheduleLabel) {
             contextSummaryColumns.push({ label: t('Schedule'), value: shortScheduleLabel, tabular: true });
           }
+          const hasOverviewPanel =
+            isReviewerAdmin ||
+            (!isOrganizationAdmin &&
+              !isCustomer &&
+              Boolean(resolveInspectorFinanceBreakdown(inspection.id, null)));
           return (
             <Paper
               elevation={0}
@@ -979,22 +1073,68 @@ export default function InspectionDetailPage() {
                   <Stack
                     direction="row"
                     spacing={1.25}
-                    onClick={() => setContextOverviewOpen((prev) => !prev)}
                     sx={{
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       rowGap: 0.5,
-                      cursor: 'pointer',
                       minWidth: 0,
                       flex: 1,
                     }}
                   >
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
+                    <ButtonBase
+                      onClick={() => setContextModal('asset')}
+                      aria-label={t('View asset details')}
+                      title={t('View asset details')}
+                      sx={{
+                        textAlign: 'left',
+                        borderRadius: '8px',
+                        px: 0.5,
+                        mx: -0.5,
+                        py: 0.25,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 1.25,
+                        transition: 'color 150ms ease, background-color 150ms ease',
+                        '&:hover': {
+                          color: 'primary.main',
+                          bgcolor: 'action.hover',
+                        },
+                        '&:hover .asset-title-text': {
+                          color: 'primary.main',
+                          textDecoration: 'underline',
+                        },
+                      }}
                     >
-                      {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
-                    </Typography>
+                      {primaryAssetPhotoId && (
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            flexShrink: 0,
+                            borderRadius: '8px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'action.hover',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <AuthenticatedImage
+                            src={`/inspections/${inspection.id}/asset-photos/${primaryAssetPhotoId}/content`}
+                            alt={inspection.assetName || t('Asset')}
+                            maxHeight={36}
+                            sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        </Box>
+                      )}
+                      <Typography
+                        component="span"
+                        variant="subtitle2"
+                        className="asset-title-text"
+                        sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.95rem', lineHeight: 1.35 }}
+                      >
+                        {inspection.assetName || resolveInspectionMetadata(inspection).displayName}
+                      </Typography>
+                    </ButtonBase>
 
                     {inspection.inspectionType === 'RE_INSPECTION' && (
                       <Chip
@@ -1015,16 +1155,18 @@ export default function InspectionDetailPage() {
                     )}
                   </Stack>
 
-                  <Button
-                    size="small"
-                    variant="text"
-                    aria-expanded={contextOverviewOpen}
-                    endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
-                    onClick={() => setContextOverviewOpen((prev) => !prev)}
-                    sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
-                  >
-                    {t('Overview')}
-                  </Button>
+                  {hasOverviewPanel && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      aria-expanded={contextOverviewOpen}
+                      endIcon={contextOverviewOpen ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                      onClick={() => setContextOverviewOpen((prev) => !prev)}
+                      sx={{ textTransform: 'none', fontWeight: 600, minWidth: 'auto', px: 1, flexShrink: 0 }}
+                    >
+                      {t('Overview')}
+                    </Button>
+                  )}
                 </Stack>
 
                 {contextSummaryColumns.length > 0 && (
@@ -1059,77 +1201,111 @@ export default function InspectionDetailPage() {
                         >
                           {col.label}
                         </Typography>
-                        <Typography
-                          variant="body2"
-                          noWrap
-                          title={col.value}
-                          sx={{
-                            color: 'text.primary',
-                            fontWeight: 600,
-                            fontSize: '0.84rem',
-                            fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
-                          }}
-                        >
-                          {col.value}
-                        </Typography>
+                        {col.modalKey ? (
+                          <ButtonBase
+                            onClick={() => setContextModal(col.modalKey!)}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-start',
+                              gap: 0.75,
+                              width: '100%',
+                              maxWidth: '100%',
+                              textAlign: 'left',
+                              borderRadius: '4px',
+                              px: 0.5,
+                              mx: -0.5,
+                              transition: 'background-color 150ms ease',
+                              '&:hover': {
+                                bgcolor: 'action.hover',
+                              },
+                              '&:hover .context-col-value': {
+                                color: 'primary.main',
+                                textDecoration: 'underline',
+                              },
+                            }}
+                          >
+                            <Avatar
+                              src={col.avatarUrl ?? undefined}
+                              alt={col.value}
+                              sx={{ width: 22, height: 22, fontSize: '0.68rem', fontWeight: 700, flexShrink: 0 }}
+                            >
+                              {col.value.slice(0, 1).toUpperCase()}
+                            </Avatar>
+                            <Typography
+                              variant="body2"
+                              noWrap
+                              title={col.value}
+                              className="context-col-value"
+                              sx={{
+                                color: 'text.primary',
+                                fontWeight: 600,
+                                fontSize: '0.84rem',
+                                fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
+                              }}
+                            >
+                              {col.value}
+                            </Typography>
+                          </ButtonBase>
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            noWrap
+                            title={col.value}
+                            sx={{
+                              color: 'text.primary',
+                              fontWeight: 600,
+                              fontSize: '0.84rem',
+                              fontVariantNumeric: col.tabular ? 'tabular-nums' : undefined,
+                            }}
+                          >
+                            {col.value}
+                          </Typography>
+                        )}
                       </Box>
                     ))}
                   </Box>
                 )}
               </Stack>
 
-              <Collapse in={contextOverviewOpen} unmountOnExit>
-                <Stack
-                  spacing={2}
-                  sx={{
-                    mt: 1.5,
-                    pt: 1.5,
-                    borderTop: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <InspectionOverviewDetails
-                    inspection={inspection}
-                    isCustomer={isCustomer}
-                    isReviewerAdmin={isReviewerAdmin}
-                    droneShortName={droneShortName}
-                  />
+              <InspectionContextDialogs
+                inspection={inspection}
+                openModal={contextModal}
+                onClose={() => setContextModal(null)}
+                isCustomer={isCustomer}
+                droneShortName={droneShortName}
+                chatInboxPath={chatInboxPath}
+                canOpenInspectionChat={canOpenInspectionChat}
+                customerAvatarUrl={customerAvatarUrl}
+                managerAvatarUrl={managerAvatarUrl}
+                inspectorAvatarUrl={inspectorAvatarUrl}
+              />
 
-                  {!isCustomer ? (
-                    <Box
-                      role="region"
-                      className="inspection-evidence-trace"
-                      aria-label={t('Inspection evidence trace')}
-                      sx={{ p: 0, border: 'none !important', bgcolor: 'transparent' }}
-                    >
-                      <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                        <Typography variant="body2"><strong>{t('Captures')}</strong> · {activeEvidenceCount}</Typography>
-                        <Typography variant="body2"><strong>{t('Confirmed findings')}</strong> · {isStepCompleted('findings') ? t('Confirmed') : t('Not confirmed')}</Typography>
-                        <Typography variant="body2"><strong>{t('Report')}</strong> · {versions.data?.[0] ? `v${versions.data[0].versionNo} ${t(versions.data[0].status)}` : t('No version')}</Typography>
-                      </Stack>
-                    </Box>
-                  ) : (
-                    <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>{t('Report')}</strong> ·{' '}
-                        {hasPublishedVersion ? t('Published') : t('Pending')}
-                      </Typography>
-                    </Stack>
-                  )}
+              {hasOverviewPanel && (
+                <Collapse in={contextOverviewOpen} unmountOnExit>
+                  <Stack
+                    spacing={2}
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {!isOrganizationAdmin && !isCustomer && (
+                      <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
+                    )}
 
-                  {!isOrganizationAdmin && !isCustomer && (
-                    <InspectorPayoutSummaryBar inspectionId={inspection.id} roleView="inspector" />
-                  )}
-
-                  {isReviewerAdmin && (
-                    <OverviewStakeholdersSection
-                      inspection={inspection}
-                      portal={reviewerPortal}
-                      onNavigateAway={() => setContextOverviewOpen(false)}
-                    />
-                  )}
-                </Stack>
-              </Collapse>
+                    {isReviewerAdmin && (
+                      <OverviewStakeholdersSection
+                        inspection={inspection}
+                        portal={reviewerPortal}
+                        onNavigateAway={() => setContextOverviewOpen(false)}
+                      />
+                    )}
+                  </Stack>
+                </Collapse>
+              )}
             </Paper>
           );
         })()}
@@ -1248,7 +1424,7 @@ export default function InspectionDetailPage() {
                 <Typography variant="body2" sx={{ mt: 0.25 }}>
                   {canDispatch
                     ? t('The scheduled flight window elapsed with no active field session recorded. Follow up, reschedule, or reassign as needed.')
-                    : t('The scheduled flight window elapsed with no active field session recorded. Pending Platform Manager follow-up, rescheduling, or reassignment.')}
+                    : t('The scheduled flight window elapsed with no active field session recorded. Pending Manager follow-up, rescheduling, or reassignment.')}
                 </Typography>
               </Box>
               {renderDispatchRecoveryActions('reschedule')}
@@ -1298,7 +1474,7 @@ export default function InspectionDetailPage() {
               const prevCompleted = prevStep ? readinessFor(prevStep) === 'complete' : false;
               const isCompleted = state === 'complete';
               const completeGreen = '#176B52';
-              const activePrimary = '#2B84EB';
+              const activePrimary = 'primary.main';
 
               return (
                 <ButtonBase
@@ -1446,7 +1622,7 @@ export default function InspectionDetailPage() {
                             mt: 0.25,
                             fontSize: '0.72rem',
                             fontWeight: 600,
-                            color: '#2B84EB',
+                            color: 'primary.main',
                             lineHeight: 1.2,
                             whiteSpace: 'nowrap',
                           }}
@@ -1474,7 +1650,7 @@ export default function InspectionDetailPage() {
                   const isCurrent = tabValue === step.value;
                   const isCompleted = state === 'complete';
                   const completeGreen = '#176B52';
-                  const activePrimary = '#2B84EB';
+                  const activePrimary = 'primary.main';
                   return (
                     <Box
                       key={step.value}
@@ -1484,6 +1660,7 @@ export default function InspectionDetailPage() {
                         component={NavLink}
                         to={step.to}
                         aria-current={isCurrent ? 'step' : undefined}
+                        aria-disabled={state === 'blocked' ? true : undefined}
                         aria-label={`${t(step.label)}: ${t(STEP_STATE_COPY[state])}`}
                         title={`${t(step.title)} · ${t(STEP_STATE_COPY[state])}`}
                         sx={{
@@ -1504,7 +1681,7 @@ export default function InspectionDetailPage() {
                             : isCurrent
                               ? activePrimary
                               : 'text.secondary',
-                          boxShadow: isCurrent ? '0 0 0 3px rgba(43, 132, 235, 0.2)' : 'none',
+                          boxShadow: isCurrent ? '0 0 0 3px rgba(55, 88, 249, 0.2)' : 'none',
                           fontWeight: 700,
                           fontSize: '0.75rem',
                         }}
@@ -1532,19 +1709,6 @@ export default function InspectionDetailPage() {
         )}
       </Box>
 
-      {inspection?.inspectionType === 'RE_INSPECTION' && !isCustomer && !isReviewerAdmin && (
-        <Box sx={{ mt: { xs: 2, md: 2.5 } }}>
-          <Alert severity="info">
-            {t('This mission verifies the original repair outcome. Complete the normal permit, field session, evidence and report steps; a new permit is required for every re-inspection.')}
-            {inspection.sourceInspectionId && (
-              <>
-                {' '}
-                {t('Source inspection')}: {inspection.sourceInspectionId.slice(0, 8)}
-              </>
-            )}
-          </Alert>
-        </Box>
-      )}
       <Box ref={stageContentRef} className="trace-stage-content" sx={{ mt: { xs: 2, md: 2.5 } }}>
         {isExecutionLockedByAssignment ? (
           <Paper
@@ -1617,7 +1781,7 @@ export default function InspectionDetailPage() {
                 required
                 value={declineReason}
                 onChange={(e) => setDeclineReason(e.target.value)}
-                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+                helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
               />
               <MutationProblemAlert
                 error={declineMutation.error}

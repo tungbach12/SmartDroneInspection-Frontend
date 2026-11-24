@@ -8,15 +8,20 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Paper,
+  Popover,
   Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded';
+import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
@@ -28,7 +33,6 @@ import {
   MINIMUM_INSPECTION_LEAD_DAYS,
 } from '../api/recurrenceSchedule';
 import { useCreateServiceRequest } from '../hooks/useContracts';
-import { CalendarDateField, formatCalendarIsoDate } from '../shared/CalendarDateField';
 
 interface CreateRequestDialogProps {
   open: boolean;
@@ -62,6 +66,11 @@ const MAX_RECURRENCE_MONTHS = 120;
 const MAX_OCCURRENCES = 100;
 const RECURRENCE_PRESETS = ['1', '3', '6', '9', '12'];
 
+function toIsoDate(year: number, monthIndex: number, day: number): string {
+  const date = new Date(Date.UTC(year, monthIndex, day));
+  return date.toISOString().slice(0, 10);
+}
+
 function dateInZone(timezone: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -71,6 +80,179 @@ function dateInZone(timezone: string): string {
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatDate(dateString: string, locale: string): string {
+  const [yearValue, monthValue, dayValue] = dateString.split('-').map(Number);
+  const year = yearValue ?? 2000;
+  const month = monthValue ?? 1;
+  const day = dayValue ?? 1;
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day, 12)));
+}
+
+interface CalendarDateFieldProps {
+  label: string;
+  value: string;
+  minDate: string;
+  locale: string;
+  onChange: (value: string) => void;
+}
+
+function CalendarDateField({ label, value, minDate, locale, onChange }: CalendarDateFieldProps) {
+  const { t } = useLocale();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [blockedMessage, setBlockedMessage] = useState('');
+  const initial = value ? new Date(`${value}T12:00:00`) : new Date();
+  const [visibleYear, setVisibleYear] = useState(initial.getFullYear());
+  const [visibleMonth, setVisibleMonth] = useState(initial.getMonth());
+  const open = Boolean(anchorEl);
+  const minDay = Number(minDate.slice(8, 10));
+  const minMonth = Number(minDate.slice(5, 7)) - 1;
+  const minYear = Number(minDate.slice(0, 4));
+
+  const monthLabel = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(visibleYear, visibleMonth, 15)));
+  const firstWeekday = (new Date(visibleYear, visibleMonth, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(visibleYear, visibleMonth + 1, 0).getDate();
+  const weekDays =
+    locale === 'vi'
+      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const moveMonth = (amount: number) => {
+    const next = new Date(visibleYear, visibleMonth + amount, 1);
+    setVisibleYear(next.getFullYear());
+    setVisibleMonth(next.getMonth());
+    setBlockedMessage('');
+  };
+
+  const selectDay = (day: number) => {
+    const dateString = toIsoDate(visibleYear, visibleMonth, day);
+    if (dateString < minDate) {
+      setBlockedMessage(
+        t('For scheduling and preparation, choose a date at least 20 days from today.'),
+      );
+      return;
+    }
+    onChange(dateString);
+    setBlockedMessage('');
+    setAnchorEl(null);
+  };
+
+  const openPicker = (target: HTMLElement) => {
+    const current = value ? new Date(`${value}T12:00:00`) : new Date(`${minDate}T12:00:00`);
+    setVisibleYear(current.getFullYear());
+    setVisibleMonth(current.getMonth());
+    setBlockedMessage('');
+    setAnchorEl(target);
+  };
+
+  return (
+    <>
+      <TextField
+        fullWidth
+        size="small"
+        label={label}
+        value={value ? formatDate(value, locale) : ''}
+        helperText={`${t('Select a date at least 20 days from today. Earliest date')}: ${formatDate(minDate, locale)}`}
+        onClick={(event) => openPicker(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openPicker(event.currentTarget);
+          }
+        }}
+        sx={{
+          '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'background.paper' },
+          '& .MuiFormHelperText-root': { mx: 0.25, mt: 0.75, fontSize: '0.75rem' },
+        }}
+        slotProps={{
+          input: {
+            readOnly: true,
+            endAdornment: <CalendarMonthRoundedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />,
+          },
+          htmlInput: { 'aria-label': label, readOnly: true, role: 'button', 'aria-haspopup': 'dialog' },
+        }}
+      />
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { mt: 0.75, p: 1.5, width: 304, borderRadius: '8px' } } }}
+      >
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <IconButton size="small" aria-label={t('Previous month')} onClick={() => moveMonth(-1)}>
+            <ChevronLeftRoundedIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+            {monthLabel}
+          </Typography>
+          <IconButton size="small" aria-label={t('Next month')} onClick={() => moveMonth(1)}>
+            <ChevronRightRoundedIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.25, mb: 0.5 }}>
+          {weekDays.map((day) => (
+            <Typography key={day} variant="caption" color="text.secondary" sx={{ textAlign: 'center', py: 0.5 }}>
+              {day}
+            </Typography>
+          ))}
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.25 }}>
+          {Array.from({ length: firstWeekday }, (_, index) => (
+            <Box key={`empty-${index}`} sx={{ height: 34 }} />
+          ))}
+          {Array.from({ length: daysInMonth }, (_, index) => {
+            const day = index + 1;
+            const beforeMinimum =
+              visibleYear < minYear ||
+              (visibleYear === minYear && visibleMonth < minMonth) ||
+              (visibleYear === minYear && visibleMonth === minMonth && day < minDay);
+            const selected = value === toIsoDate(visibleYear, visibleMonth, day);
+            return (
+              <Button
+                key={day}
+                aria-disabled={beforeMinimum}
+                aria-label={formatDate(toIsoDate(visibleYear, visibleMonth, day), locale)}
+                onClick={() => selectDay(day)}
+                sx={{
+                  minWidth: 0,
+                  height: 34,
+                  p: 0,
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  color: beforeMinimum ? 'text.disabled' : selected ? 'primary.contrastText' : 'text.primary',
+                  opacity: beforeMinimum ? 0.4 : 1,
+                  bgcolor: selected ? 'primary.main' : 'transparent',
+                  '&:hover': { bgcolor: selected ? 'primary.dark' : 'action.hover' },
+                }}
+              >
+                {day}
+              </Button>
+            );
+          })}
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          {t('Earliest available date')}: {formatDate(minDate, locale)}
+        </Typography>
+        {blockedMessage && (
+          <Alert severity="info" sx={{ mt: 1, py: 0, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
+            {blockedMessage}
+          </Alert>
+        )}
+      </Popover>
+    </>
+  );
 }
 
 export function CreateRequestDialog({
@@ -227,62 +409,158 @@ export function CreateRequestDialog({
   };
 
   const earliestSecondOccurrence = from && isValidInterval ? addAnchoredMonths(from, intervalMonths) : '';
+  const activeAssetSelection = assetId || initialAssetId || '';
+  const lockedReinspectionAsset = Boolean(sourceInspectionId && initialAssetId);
+  const selectedAsset = selectableAssets.find((asset) => asset.id === activeAssetSelection);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <AddBusinessRoundedIcon color="primary" />
-        {t('Create inspection request')}
-      </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: {
+            maxWidth: 480,
+            borderRadius: '12px',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 20px 48px rgba(15, 23, 42, 0.14)',
+            bgcolor: 'background.paper',
+          },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 3,
+          pt: 2.5,
+          pb: 1.5,
+        }}
+      >
+        <DialogTitle
+          sx={{
+            p: 0,
+            fontSize: '1rem',
+            fontWeight: 700,
+            letterSpacing: '-0.015em',
+            color: 'text.primary',
+          }}
+        >
+          {t('Create inspection request')}
+        </DialogTitle>
+        <IconButton
+          size="small"
+          aria-label={t('Cancel')}
+          onClick={onClose}
+          sx={{ color: 'text.secondary', mr: -0.5 }}
+        >
+          <CloseRounded fontSize="small" />
+        </IconButton>
+      </Box>
+
+      <DialogContent sx={{ px: 3, pt: 0.75, pb: 2.5 }}>
+        <Stack spacing={2.25}>
           {validationError && (
-            <Alert severity="error" onClose={() => setValidationError('')}>
+            <Alert severity="error" onClose={() => setValidationError('')} sx={{ borderRadius: '10px' }}>
               {validationError}
             </Alert>
           )}
 
-          {sourceInspectionId && (
-            <Alert severity="info" sx={{ borderRadius: '8px' }}>
-              {t('Re-inspection linked to source inspection')}
-              {sourceInspectionLabel ? `: ${sourceInspectionLabel}` : ` #${sourceInspectionId.slice(0, 8)}`}
-            </Alert>
-          )}
-
-          {selectableAssets.length === 0 ? (
-            <Alert severity="info" sx={{ borderRadius: '8px' }}>
-              {t('No active assets found. Register an asset before submitting a service request.')}
-            </Alert>
+          {lockedReinspectionAsset ? (
+            <Box
+              sx={{
+                px: 1.75,
+                py: 1.25,
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                {t('Re-inspection linked to source inspection')}
+                {sourceInspectionLabel
+                  ? `: ${sourceInspectionLabel}`
+                  : ` #${sourceInspectionId?.slice(0, 8)}`}
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 650, color: 'text.primary', mt: 0.25 }}>
+                {selectedAsset
+                  ? selectedAsset.code
+                    ? `${selectedAsset.code} — ${selectedAsset.name}`
+                    : selectedAsset.name
+                  : (sourceInspectionLabel ?? t('Inspected structure'))}
+              </Typography>
+            </Box>
           ) : (
-            <FormControl fullWidth size="small" required>
-              <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
-              <Select
-                labelId="dialog-asset-label"
-                label={t('Asset / structure')}
-                value={activeAssetIds.has(assetId || initialAssetId || '') ? '' : (assetId || initialAssetId || '')}
-                disabled={Boolean(sourceInspectionId && initialAssetId)}
-                onChange={(event) => setAssetId(event.target.value)}
-              >
-                {selectableAssets.map((asset) => {
-                  const hasActiveRequest = activeAssetIds.has(asset.id);
-                  return (
-                    <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
-                      {asset.code} — {asset.name}
-                      {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
+            <>
+              {sourceInspectionId && (
+                <Box
+                  sx={{
+                    px: 1.75,
+                    py: 1,
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {t('Re-inspection linked to source inspection')}
+                    {sourceInspectionLabel
+                      ? `: ${sourceInspectionLabel}`
+                      : ` #${sourceInspectionId.slice(0, 8)}`}
+                  </Typography>
+                </Box>
+              )}
+
+              {selectableAssets.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: '10px' }}>
+                  {t('No active assets found. Register an asset before submitting a service request.')}
+                </Alert>
+              ) : (
+                <FormControl
+                  fullWidth
+                  size="small"
+                  required
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                >
+                  <InputLabel id="dialog-asset-label">{t('Asset / structure')}</InputLabel>
+                  <Select
+                    labelId="dialog-asset-label"
+                    label={t('Asset / structure')}
+                    value={activeAssetIds.has(activeAssetSelection) ? '' : activeAssetSelection}
+                    onChange={(event) => setAssetId(event.target.value)}
+                  >
+                    {selectableAssets.map((asset) => {
+                      const hasActiveRequest = activeAssetIds.has(asset.id);
+                      return (
+                        <MenuItem key={asset.id} value={asset.id} disabled={hasActiveRequest}>
+                          {asset.code ? `${asset.code} — ${asset.name}` : asset.name}
+                          {hasActiveRequest ? ` (${t('Already has active request')})` : ''}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+              )}
+            </>
           )}
 
-          {allAssetsBusy && (
-            <Alert severity="info">
+          {!lockedReinspectionAsset && allAssetsBusy && (
+            <Alert severity="info" sx={{ borderRadius: '10px' }}>
               {t('All available assets already have an active service request in progress.')}
             </Alert>
           )}
 
-          <FormControl fullWidth size="small">
+          <FormControl
+            fullWidth
+            size="small"
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          >
             <InputLabel id="dialog-type-label">{t('Inspection frequency')}</InputLabel>
             <Select
               labelId="dialog-type-label"
@@ -403,7 +681,7 @@ export function CreateRequestDialog({
                     <Stack direction="row" sx={{ gap: 0.75, flexWrap: 'wrap' }}>
                       {previewDates.map((date, index) => (
                         <Typography key={`${date}-${index}`} variant="caption" color="text.secondary">
-                          {date === '…' ? '…' : formatCalendarIsoDate(date ?? '', locale)}
+                          {date === '…' ? '…' : formatDate(date ?? '', locale)}
                           {index < previewDates.length - 1 && date !== '…' ? ' ·' : ''}
                         </Typography>
                       ))}
@@ -423,17 +701,31 @@ export function CreateRequestDialog({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          gap: 1,
+        }}
+      >
+        <Button
+          onClick={onClose}
+          color="inherit"
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', px: 1.75 }}
+        >
           {t('Cancel')}
         </Button>
         <LoadingButton
           variant="contained"
+          disableElevation
           loading={create.isPending}
           onClick={() => void handleSubmit()}
+          sx={{ textTransform: 'none', fontWeight: 650, borderRadius: '8px', px: 2.25 }}
           disabled={
-            !(assetId || initialAssetId) ||
-            (!sourceInspectionId && activeAssetIds.has(assetId || initialAssetId || '')) ||
+            !activeAssetSelection ||
+            (!sourceInspectionId && activeAssetIds.has(activeAssetSelection)) ||
             !from ||
             from < minStartDate
           }

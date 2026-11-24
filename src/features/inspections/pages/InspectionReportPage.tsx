@@ -32,6 +32,7 @@ import {
   useWithdrawReportVersion,
 } from '../hooks/useInspections';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { useToastStore } from '@/shared/ui/Toast';
 import { DraftProgressTracker } from '../components/DraftProgressTracker';
 import { StepActionBar } from '../components/StepActionBar';
 import { getOrGeneratePersistedAiSummary } from '@/features/reports/components/ReportAiSummaryCard';
@@ -44,19 +45,20 @@ import type { ReinspectionVerificationItem } from '../api/inspectionApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
 const NEXT_STEP: Record<string, string> = {
-  SUBMITTED: 'Submitted for Platform Manager review. Report sections and sources are locked while awaiting review.',
+  SUBMITTED: 'Submitted for Manager review. Report sections and sources are locked while awaiting review.',
   RETURNED: 'Returned for revision. Re-evaluate findings and submit again.',
-  APPROVED: 'Approved by the Platform Manager and awaiting immutable PDF publication.',
+  APPROVED: 'Approved by the Manager and awaiting immutable PDF publication.',
   PUBLISHED: 'Published. This report version and its PDF are immutable.',
   SUPERSEDED: 'Superseded by a newer published version.',
 };
 
 /**
  * Step 7: Report Synthesis — automated compilation from confirmed findings,
- * submission for Platform Manager review, and version history.
+ * submission for Manager review, and version history.
  */
 export default function InspectionReportPage() {
   const { t, locale } = useLocale();
+  const showToast = useToastStore((state) => state.showToast);
   const outletContext = useOutletContext<{ onReportDirtyChange?: (dirty: boolean) => void }>() as
     | { onReportDirtyChange?: (dirty: boolean) => void }
     | null;
@@ -224,7 +226,7 @@ export default function InspectionReportPage() {
       {openVersion && <VerdictExpiryBanner verifications={reinspectionVerifications?.data} />}
       {!isInspector && (
         <Alert severity="info" sx={{ borderRadius: '12px' }}>
-          {t('Organization Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
+          {t('Manager review actions are available on the Review report tab. This stage is retained for read-only status and version history.')}
         </Alert>
       )}
 
@@ -327,11 +329,6 @@ export default function InspectionReportPage() {
             )}
 
             {createDraft.isPending && <DraftProgressTracker />}
-            {createDraft.isSuccess && (
-              <Alert severity="success" sx={{ borderRadius: '10px' }}>
-                {t('Report compiled successfully. Review the sections below.')}
-              </Alert>
-            )}
             {createDraft.isError && (
               <Alert severity="warning" sx={{ borderRadius: '10px' }}>
                 {getErrorMessage(createDraft.error, 'The report was not generated.')}
@@ -401,7 +398,7 @@ export default function InspectionReportPage() {
                 <Typography variant="body2" color="text.secondary">
                   {findingsConfirmed
                     ? t('Check both reports before submitting.')
-                    : t('Confirm findings before compiling the reports.')}
+                    : t('Confirm findings to continue.')}
                 </Typography>
               </Box>
 
@@ -462,6 +459,11 @@ export default function InspectionReportPage() {
                 <FlightOperationsReportView
                   inspectionId={inspectionId}
                   fieldSessionId={latestFieldSessionId}
+                  flights={
+                    draftPreviewVersion.reportContext?.flights ??
+                    fieldSessionsQuery?.data?.flatMap((s) => s.flights ?? [])
+                  }
+                  sessions={fieldSessionsQuery?.data}
                   version={draftPreviewVersion}
                   evidenceList={activeEvidenceList}
                   assetName={inspectionData?.assetName}
@@ -537,6 +539,11 @@ export default function InspectionReportPage() {
                 <FlightOperationsReportView
                   inspectionId={inspectionId}
                   fieldSessionId={latestFieldSessionId}
+                  flights={
+                    openVersion.reportContext?.flights ??
+                    fieldSessionsQuery?.data?.flatMap((s) => s.flights ?? [])
+                  }
+                  sessions={fieldSessionsQuery?.data}
                   version={openVersion}
                   evidenceList={activeEvidenceList}
                   assetName={openVersion.reportContext?.assetName ?? inspectionData?.assetName}
@@ -633,7 +640,10 @@ export default function InspectionReportPage() {
             });
           } else {
             createDraft.mutate(draftPreviewVersion.summary, {
-              onSuccess: () => setConfirmSubmitOpen(false),
+              onSuccess: () => {
+                setConfirmSubmitOpen(false);
+                showToast(t('Report compiled successfully. Review the sections below.'));
+              },
             });
           }
         }}

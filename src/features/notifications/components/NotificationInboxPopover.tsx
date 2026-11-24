@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import OpenInFullRounded from '@mui/icons-material/OpenInFullRounded';
 import { getSectionPath, type PortalId } from '@/app/permissions/accessPolicy';
+import { useIsDarkMode } from '@/app/layouts/ColorModeContext';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -51,6 +52,7 @@ export function NotificationInboxPopover({
   unreadChatItems,
 }: NotificationInboxPopoverProps) {
   const { t } = useLocale();
+  const isDark = useIsDarkMode();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -244,10 +246,7 @@ export function NotificationInboxPopover({
                   sx={{
                     px: 2.5,
                     py: 1,
-                    bgcolor: (theme) =>
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(255, 255, 255, 0.03)'
-                        : '#F9FAFB',
+                    bgcolor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F9FAFB',
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                   }}

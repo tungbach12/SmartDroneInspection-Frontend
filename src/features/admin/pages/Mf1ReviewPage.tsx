@@ -10,7 +10,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  InputAdornment,
   Link,
+  MenuItem,
   Paper,
   Stack,
   Tab,
@@ -22,13 +24,12 @@ import {
   TableRow,
   Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded';
 import HighlightOffRounded from '@mui/icons-material/HighlightOffRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
 import UploadFileRounded from '@mui/icons-material/UploadFileRounded';
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined';
 import AssignmentIndOutlined from '@mui/icons-material/AssignmentIndOutlined';
@@ -44,10 +45,10 @@ import {
   inspectorApplicationApi,
   type InspectorApplication,
 } from '@/features/auth/api/inspectorApplicationApi';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { StatusChip } from '@/shared/ui/StatusChip';
 import { QueryState } from '@/shared/ui/QueryState';
-import { AdminTableToolbar } from '../components/AdminTableToolbar';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 
@@ -62,28 +63,18 @@ interface EvidenceDoc {
   failed?: boolean;
 }
 
-function classifyDroneLegalTier(rawText?: string | null): {
+function stripLegacySpecsFromModel(rawModel?: string | null): string {
+  if (!rawModel) return '';
+  return rawModel
+    .replace(/\s*\[[^\]]*(?:MTOW:|Thời gian bay:|Flight time:|Camera(?:\s*\/\s*Sensor)?:)[^\]]*\]\s*$/i, '')
+    .trim();
+}
+
+function resolveMtowCategoryInfo(mtow: number): {
   categoryLabel: string;
   requiredPilotLicenseLabel: string;
   requiresClassB: boolean;
 } {
-  const text = (rawText ?? '').toLowerCase();
-  const match = rawText?.match(/(?:MTOW:\s*)?(\d+(?:[.,]\d+)?)\s*(?:kg)?/i);
-  const parsedMtow = match?.[1] ? Number(match[1].replace(',', '.')) : NaN;
-  const mtow =
-    Number.isFinite(parsedMtow) && parsedMtow > 0
-      ? parsedMtow
-      : text.includes('matrice') ||
-          text.includes('m300') ||
-          text.includes('m350') ||
-          text.includes('m30') ||
-          text.includes('inspire') ||
-          text.includes('agras')
-        ? 9.2
-        : text.includes('mini')
-          ? 0.249
-          : 0.92;
-
   if (mtow < 0.25) {
     return {
       categoryLabel: 'Loại 1 (< 0.25 kg)',
@@ -119,8 +110,78 @@ function classifyDroneLegalTier(rawText?: string | null): {
   };
 }
 
-export default function Mf1ReviewPage() {
-  const { locale } = useLocale();
+function extractLegacyDroneSpecs(rawModel?: string | null): {
+  mtowKg: number | null;
+  maxFlightTimeMinutes: number | null;
+  cameraSensor: string | null;
+} {
+  if (!rawModel) return { mtowKg: null, maxFlightTimeMinutes: null, cameraSensor: null };
+  const mtowMatch = rawModel.match(/MTOW:\s*(\d+(?:[.,]\d+)?)/i);
+  const timeMatch = rawModel.match(/(?:Thời gian bay|Flight time):\s*(\d+)/i);
+  const camMatch = rawModel.match(/Camera(?:\s*\/\s*Sensor)?:\s*([^|\]]+)/i);
+  const parsedMtow = mtowMatch?.[1] ? Number(mtowMatch[1].replace(',', '.')) : NaN;
+  const parsedTime = timeMatch?.[1] ? Number(timeMatch[1]) : NaN;
+  return {
+    mtowKg: Number.isFinite(parsedMtow) && parsedMtow > 0 ? parsedMtow : null,
+    maxFlightTimeMinutes: Number.isFinite(parsedTime) && parsedTime > 0 ? parsedTime : null,
+    cameraSensor: camMatch?.[1]?.trim() || null,
+  };
+}
+
+function classifyDroneLegalTier(
+  applicationOrRaw?: DroneRegistrationApplication | string | null,
+): {
+  categoryLabel: string;
+  requiredPilotLicenseLabel: string;
+  requiresClassB: boolean;
+} {
+  const application =
+    typeof applicationOrRaw === 'object' && applicationOrRaw !== null ? applicationOrRaw : null;
+  const rawText = typeof applicationOrRaw === 'string' ? applicationOrRaw : application?.model;
+
+  if (application?.mtowKg != null && application.mtowKg > 0) {
+    return resolveMtowCategoryInfo(application.mtowKg);
+  }
+  if (application?.legalCategory) {
+    const categoryRepresentativeMtow: Record<string, number> = {
+      CATEGORY_1: 0.2,
+      CATEGORY_2: 1.0,
+      CATEGORY_3: 5.0,
+      CATEGORY_4: 50.0,
+      CATEGORY_5: 160.0,
+    };
+    const mappedMtow = categoryRepresentativeMtow[application.legalCategory];
+    if (mappedMtow != null) {
+      return resolveMtowCategoryInfo(mappedMtow);
+    }
+  }
+
+  const legacySpecs = extractLegacyDroneSpecs(rawText);
+  if (legacySpecs.mtowKg != null) {
+    return resolveMtowCategoryInfo(legacySpecs.mtowKg);
+  }
+
+  const text = (rawText ?? '').toLowerCase();
+  const fallbackMtow =
+    text.includes('matrice') ||
+    text.includes('m300') ||
+    text.includes('m350') ||
+    text.includes('m30') ||
+    text.includes('inspire') ||
+    text.includes('agras')
+      ? 9.2
+      : text.includes('mini')
+        ? 0.249
+        : 0.92;
+  return resolveMtowCategoryInfo(fallbackMtow);
+}
+
+export default function Mf1ReviewPage({
+  fixedQueue,
+}: {
+  fixedQueue?: QueueId;
+} = {}) {
+  const { locale, t } = useLocale();
   const tr = (vi: string, en: string) => (locale === 'vi' ? vi : en);
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
@@ -136,7 +197,8 @@ export default function Mf1ReviewPage() {
       : []),
   ];
 
-  const [queue, setQueue] = useState<QueueId>('drones');
+  const [selectedQueue, setSelectedQueue] = useState<QueueId>('drones');
+  const queue = fixedQueue ?? selectedQueue;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sort, setSort] = useState<SortOption>('NEWEST');
@@ -165,13 +227,14 @@ export default function Mf1ReviewPage() {
   const customers = useQuery({
     queryKey: ['mf1-reviews', 'customers'],
     queryFn: mf1ReviewApi.pendingCustomers,
-    enabled: isAdmin,
+    enabled: isAdmin && (!fixedQueue || fixedQueue === 'customers'),
     retry: false,
   });
 
   const drones = useQuery({
     queryKey: ['mf1-reviews', 'drones'],
     queryFn: mf1ReviewApi.pendingDrones,
+    enabled: !fixedQueue || fixedQueue === 'drones',
     retry: false,
     refetchInterval: 5000,
   });
@@ -179,6 +242,7 @@ export default function Mf1ReviewPage() {
   const droneHistory = useQuery({
     queryKey: ['mf1-reviews', 'drones-history'],
     queryFn: mf1ReviewApi.droneHistory,
+    enabled: !fixedQueue || fixedQueue === 'drones',
     retry: false,
     refetchInterval: 8000,
   });
@@ -186,6 +250,7 @@ export default function Mf1ReviewPage() {
   const pendingInspectorApps = useQuery({
     queryKey: ['mf1-reviews', 'inspector-applications', 'pending'],
     queryFn: inspectorApplicationApi.listPending,
+    enabled: !fixedQueue || fixedQueue === 'inspectors',
     retry: false,
     refetchInterval: 8000,
   });
@@ -193,12 +258,13 @@ export default function Mf1ReviewPage() {
   const awaitingContractApps = useQuery({
     queryKey: ['mf1-reviews', 'inspector-applications', 'awaiting-contract'],
     queryFn: inspectorApplicationApi.listApprovedAwaitingContract,
+    enabled: !fixedQueue || fixedQueue === 'inspectors',
     retry: false,
     refetchInterval: 8000,
   });
 
   const changeQueue = (next: QueueId) => {
-    setQueue(next);
+    setSelectedQueue(next);
     setSearch('');
     setStatusFilter('ALL');
     setSort('NEWEST');
@@ -483,99 +549,135 @@ export default function Mf1ReviewPage() {
     queue === 'inspectors' ? inspectorRows.length : queue === 'drones' ? droneRows.length : customerRows.length;
   const totalCount = queueCounts[queue];
 
+  const pageTitle = fixedQueue
+    ? fixedQueue === 'inspectors'
+      ? t('Inspector applications')
+      : fixedQueue === 'drones'
+        ? t('Drone registrations')
+        : t('Customer airspace')
+    : tr('Xét duyệt hồ sơ (MF1)', 'Compliance reviews');
+
   return (
     <Box className="workspace-page" sx={{ maxWidth: 1200, mx: 'auto', pb: 6 }}>
       <PageHeader
-        title={tr('Xét duyệt hồ sơ Onboarding (MF1)', 'Onboarding & Compliance Reviews (MF1)')}
-        subtitle={tr(
-          'Xác minh hồ sơ Inspector, đăng ký Drone và vùng bay khách hàng trước khi cấp phép hoạt động.',
-          'Verify inspector applications, drone registrations, and customer airspace before operations begin.',
-        )}
+        title={pageTitle}
         breadcrumbs={[
           { label: tr('Quản trị', 'Governance'), to: isAdmin ? '/admin/dashboard' : '/manager/dashboard' },
-          { label: tr('Duyệt onboarding', 'Onboarding reviews') },
+          { label: pageTitle },
         ]}
       />
 
-      <Tabs
-        value={queue}
-        onChange={(_, value: QueueId) => changeQueue(value)}
-        aria-label="MF1 review queues"
-        variant="scrollable"
-        scrollButtons="auto"
+      {!fixedQueue && (
+        <Tabs
+          value={queue}
+          onChange={(_, value: QueueId) => changeQueue(value)}
+          aria-label="MF1 review queues"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 2,
+            '& .MuiTab-root': {
+              minHeight: 44,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              px: 1.75,
+              gap: 0.75,
+            },
+          }}
+        >
+          {queues.map((entry) => (
+            <Tab
+              key={entry.id}
+              value={entry.id}
+              icon={entry.icon}
+              iconPosition="start"
+              label={`${entry.label} (${queueCounts[entry.id]})`}
+            />
+          ))}
+        </Tabs>
+      )}
+
+      <Paper
+        variant="outlined"
         sx={{
-          borderBottom: 1,
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: '12px',
           borderColor: 'divider',
-          mb: 2.5,
-          '& .MuiTab-root': {
-            minHeight: 44,
-            fontWeight: 600,
-            textTransform: 'none',
-            fontSize: '0.875rem',
-            px: 1.75,
-            gap: 0.75,
-          },
+          bgcolor: 'background.paper',
+          boxShadow: 'none',
+          mb: 2,
         }}
       >
-        {queues.map((entry) => (
-          <Tab
-            key={entry.id}
-            value={entry.id}
-            icon={entry.icon}
-            iconPosition="start"
-            label={`${entry.label} (${queueCounts[entry.id]})`}
-          />
-        ))}
-      </Tabs>
-
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', mb: 1.5 }}
-      >
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={statusFilter}
-          onChange={(_, value: string | null) => {
-            if (value) setStatusFilter(value);
-          }}
-          aria-label={tr('Trạng thái duyệt', 'Review status')}
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
         >
-          {statusOptions.map((option) => (
-            <ToggleButton key={option.value} value={option.value} sx={{ px: 1.75, fontWeight: 600 }}>
-              {option.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </Stack>
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+            {statusOptions.map((option) => {
+              const active = statusFilter === option.value;
+              return (
+                <Chip
+                  key={option.value}
+                  size="small"
+                  clickable
+                  label={option.label}
+                  color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'}
+                  onClick={() => setStatusFilter(option.value)}
+                  sx={{
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    borderColor: active ? undefined : 'divider',
+                  }}
+                />
+              );
+            })}
+          </Stack>
 
-      <AdminTableToolbar
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder={
-          queue === 'inspectors'
-            ? tr('Tìm theo tên, email, CCCD hoặc bằng lái', 'Search name, email, citizen ID, or license')
-            : queue === 'drones'
-              ? tr('Tìm theo drone, serial hoặc người gửi', 'Search drone, serial, or applicant')
-              : tr('Tìm theo tổ chức, tài sản hoặc vùng bay', 'Search organization, asset, or airspace')
-        }
-        visibleCount={visibleCount}
-        totalCount={totalCount}
-        onClearAll={() => setStatusFilter('ALL')}
-        filters={[
-          {
-            key: 'sort',
-            label: tr('Sắp xếp', 'Sort'),
-            value: sort,
-            options: [
-              { value: 'NEWEST', label: tr('Mới nhất', 'Newest first') },
-              { value: 'OLDEST', label: tr('Cũ nhất', 'Oldest first') },
-            ],
-            onChange: (value) => setSort(value as SortOption),
-          },
-        ]}
-      />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <TextField
+              size="small"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={
+                queue === 'inspectors'
+                  ? tr('Tìm theo tên, email, bằng lái…', 'Search name, email, license…')
+                  : queue === 'drones'
+                    ? tr('Tìm drone, serial, người gửi…', 'Search drone, serial, applicant…')
+                    : tr('Tìm khách hàng, tài sản hoặc vùng bay…', 'Search customer, asset, or airspace…')
+              }
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRounded fontSize="small" sx={{ color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ width: { xs: '100%', sm: 250 } }}
+            />
+            <TextField
+              select
+              size="small"
+              value={sort}
+              onChange={(event) => setSort(event.target.value as SortOption)}
+              sx={{ minWidth: 130 }}
+            >
+              <MenuItem value="NEWEST">{tr('Mới nhất', 'Newest')}</MenuItem>
+              <MenuItem value="OLDEST">{tr('Cũ nhất', 'Oldest')}</MenuItem>
+            </TextField>
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+              {visibleCount}/{totalCount}
+            </Typography>
+          </Stack>
+        </Stack>
+      </Paper>
 
       {queue === 'inspectors' && (
         <QueryState
@@ -586,7 +688,7 @@ export default function Mf1ReviewPage() {
             void awaitingContractApps.refetch();
           }}
           isEmpty={inspectorRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có hồ sơ Inspector nào khớp bộ lọc.', 'No inspector applications match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có hồ sơ Inspector nào.', 'No inspector applications')} />}
         >
           <QueueTable
             headers={[
@@ -650,12 +752,13 @@ export default function Mf1ReviewPage() {
                 <TableCell align="right">
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="outlined"
                     startIcon={<FactCheckOutlined />}
                     onClick={(event) => {
                       event.stopPropagation();
                       void openInspectorAppReview(application);
                     }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
                     {tr('Xem hồ sơ & Duyệt', 'Review application')}
                   </Button>
@@ -675,7 +778,7 @@ export default function Mf1ReviewPage() {
             void droneHistory.refetch();
           }}
           isEmpty={droneRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có hồ sơ drone nào khớp bộ lọc.', 'No drone registrations match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có hồ sơ drone nào.', 'No drone registrations')} />}
         >
           <QueueTable
             headers={[
@@ -688,9 +791,22 @@ export default function Mf1ReviewPage() {
             ariaLabel={tr('Đăng ký Drone', 'Drone registrations')}
           >
             {droneRows.map(({ status, application }) => {
-              const tier = classifyDroneLegalTier(application.model);
+              const cleanModel = stripLegacySpecsFromModel(application.model) || application.model;
+              const legacySpecs = extractLegacyDroneSpecs(application.model);
+              const mtowKg = application.mtowKg ?? legacySpecs.mtowKg;
+              const maxFlightTime =
+                application.maxFlightTimeMinutes ?? legacySpecs.maxFlightTimeMinutes;
+              const cameraSensor = application.cameraSensor ?? legacySpecs.cameraSensor;
+              const tier = classifyDroneLegalTier(application);
               const licenseWarning =
                 tier.requiresClassB && application.inspectorPilotLicenseClass === 'CLASS_A';
+              const specLine = [
+                mtowKg != null ? `${mtowKg} kg` : null,
+                maxFlightTime != null ? `${maxFlightTime} ${tr('phút', 'min')}` : null,
+                cameraSensor,
+              ]
+                .filter(Boolean)
+                .join(' · ');
               return (
                 <TableRow
                   key={application.id}
@@ -709,11 +825,16 @@ export default function Mf1ReviewPage() {
                 >
                   <TableCell>
                     <Typography sx={{ fontWeight: 650, fontSize: '0.875rem' }}>
-                      {application.model ?? tr('Thiết bị Drone', 'Drone Aircraft')}
+                      {cleanModel || tr('Thiết bị Drone', 'Drone Aircraft')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {application.manufacturer || '—'} · {tier.categoryLabel}
                     </Typography>
+                    {specLine && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                        {specLine}
+                      </Typography>
+                    )}
                     {licenseWarning && (
                       <Typography variant="caption" sx={{ display: 'block', color: 'warning.main' }}>
                         {tr('Cần Bằng Hạng B', 'Class B license required')}
@@ -754,12 +875,13 @@ export default function Mf1ReviewPage() {
                     {status === 'PENDING' && (
                       <Button
                         size="small"
-                        variant="contained"
+                        variant="outlined"
                         startIcon={<FactCheckOutlined />}
                         onClick={(event) => {
                           event.stopPropagation();
                           void openDroneReview(application);
                         }}
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                       >
                         {tr('Thẩm định hồ sơ', 'Review application')}
                       </Button>
@@ -778,11 +900,11 @@ export default function Mf1ReviewPage() {
           error={customers.error}
           onRetry={() => void customers.refetch()}
           isEmpty={customerRows.length === 0}
-          empty={<Alert severity="info">{tr('Không có vùng bay khách hàng nào khớp bộ lọc.', 'No customer airspace reviews match the filters.')}</Alert>}
+          empty={<EmptyState title={tr('Không có vùng bay khách hàng nào.', 'No customer airspace reviews')} />}
         >
           <QueueTable
             headers={[
-              tr('Tổ chức', 'Organization'),
+              tr('Khách hàng', 'Customer'),
               tr('Tài sản', 'Asset'),
               tr('Phân loại vùng bay', 'Airspace'),
               tr('Ngày nộp', 'Submitted'),
@@ -832,12 +954,13 @@ export default function Mf1ReviewPage() {
                 <TableCell align="right">
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="outlined"
                     startIcon={<FactCheckOutlined />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openCustomerReview(review);
                     }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                   >
                     {tr('Thẩm định', 'Review')}
                   </Button>
@@ -868,24 +991,52 @@ export default function Mf1ReviewPage() {
                         gap: 1.5,
                       }}
                     >
-                      <DetailField label={tr('Drone', 'Drone')} value={(selected as DroneRegistrationApplication).model} />
-                      <DetailField label={tr('Serial', 'Serial')} value={(selected as DroneRegistrationApplication).serialNumber} />
-                      <DetailField
-                        label={tr('Số đăng ký', 'Registration')}
-                        value={(selected as DroneRegistrationApplication).registrationNumber}
-                      />
-                      <DetailField
-                        label={tr('Người gửi', 'Applicant')}
-                        value={(selected as DroneRegistrationApplication).inspectorFullName}
-                      />
-                      <DetailField
-                        label={tr('Email', 'Email')}
-                        value={(selected as DroneRegistrationApplication).inspectorEmail}
-                      />
-                      <DetailField
-                        label={tr('Bằng lái', 'Pilot license')}
-                        value={(selected as DroneRegistrationApplication).inspectorPilotLicenseNumber}
-                      />
+                      {(() => {
+                        const droneApp = selected as DroneRegistrationApplication;
+                        const legacy = extractLegacyDroneSpecs(droneApp.model);
+                        const mtowVal = droneApp.mtowKg ?? legacy.mtowKg;
+                        const flightTimeVal =
+                          droneApp.maxFlightTimeMinutes ?? legacy.maxFlightTimeMinutes;
+                        const cameraVal = droneApp.cameraSensor ?? legacy.cameraSensor;
+                        return (
+                          <>
+                            <DetailField
+                              label={tr('Drone', 'Drone')}
+                              value={stripLegacySpecsFromModel(droneApp.model) || droneApp.model}
+                            />
+                            <DetailField label={tr('Serial', 'Serial')} value={droneApp.serialNumber} />
+                            <DetailField
+                              label={tr('Số đăng ký', 'Registration')}
+                              value={droneApp.registrationNumber}
+                            />
+                            {mtowVal != null && <DetailField label="MTOW" value={`${mtowVal} kg`} />}
+                            {flightTimeVal != null && (
+                              <DetailField
+                                label={tr('Thời gian bay tối đa', 'Max flight time')}
+                                value={`${flightTimeVal} ${tr('phút', 'min')}`}
+                              />
+                            )}
+                            {cameraVal && (
+                              <DetailField
+                                label={tr('Camera / Cảm biến', 'Camera / Sensor')}
+                                value={cameraVal}
+                              />
+                            )}
+                            <DetailField
+                              label={tr('Người gửi', 'Applicant')}
+                              value={droneApp.inspectorFullName}
+                            />
+                            <DetailField
+                              label={tr('Email', 'Email')}
+                              value={droneApp.inspectorEmail}
+                            />
+                            <DetailField
+                              label={tr('Bằng lái', 'Pilot license')}
+                              value={droneApp.inspectorPilotLicenseNumber}
+                            />
+                          </>
+                        );
+                      })()}
                     </Box>
                     <Divider />
                     <Box>
@@ -969,8 +1120,8 @@ export default function Mf1ReviewPage() {
                   <Box
                     sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}
                   >
-                    <DetailField label={tr('Tổ chức', 'Organization')} value={(selected as ProspectiveCustomerReview).organizationName} />
-                    <DetailField label={tr('Mã tổ chức', 'Organization code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
+                    <DetailField label={tr('Khách hàng', 'Customer')} value={(selected as ProspectiveCustomerReview).organizationName} />
+                    <DetailField label={tr('Mã khách hàng', 'Customer code')} value={(selected as ProspectiveCustomerReview).organizationCode} />
                     <DetailField label={tr('Tài sản', 'Asset')} value={(selected as ProspectiveCustomerReview).assetName} />
                     <DetailField label={tr('Mã tài sản', 'Asset code')} value={(selected as ProspectiveCustomerReview).assetCode} />
                     <DetailField

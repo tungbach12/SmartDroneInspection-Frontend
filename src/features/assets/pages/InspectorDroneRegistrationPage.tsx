@@ -328,30 +328,21 @@ export default function InspectorDroneRegistrationPage() {
         );
       }
 
-      const specsParts: string[] = [];
-      if (formData.mtowKg) {
-        const mtow = formData.mtowKg.toLowerCase().includes('kg') ? formData.mtowKg.trim() : `${formData.mtowKg.trim()} kg`;
-        specsParts.push(`MTOW: ${mtow}`);
-      }
-      if (formData.maxFlightTimeMinutes) {
-        const time =
-          formData.maxFlightTimeMinutes.toLowerCase().includes('phút') || formData.maxFlightTimeMinutes.toLowerCase().includes('p')
-            ? formData.maxFlightTimeMinutes.trim()
-            : `${formData.maxFlightTimeMinutes.trim()} phút`;
-        specsParts.push(`Thời gian bay: ${time}`);
-      }
-      if (formData.cameraSensor) {
-        const cam = formData.cameraSensor.toUpperCase().includes('MP') ? formData.cameraSensor.trim() : `${formData.cameraSensor.trim()} MP`;
-        specsParts.push(`Camera: ${cam}`);
-      }
+      const rawMtow = formData.mtowKg ? Number(formData.mtowKg.replace(',', '.').replace(/[^\d.]/g, '')) : NaN;
+      const parsedMtowKg = Number.isFinite(rawMtow) && rawMtow > 0 ? Number(rawMtow.toFixed(2)) : undefined;
+      const rawFlightMinutes = formData.maxFlightTimeMinutes
+        ? parseInt(formData.maxFlightTimeMinutes.replace(/[^\d]/g, ''), 10)
+        : NaN;
+      const parsedFlightMinutes =
+        Number.isFinite(rawFlightMinutes) && rawFlightMinutes > 0 ? rawFlightMinutes : undefined;
+      const cleanedCameraSensor = formData.cameraSensor.trim() || undefined;
       const zoomValue = formData.opticalZoomLevel ? formData.opticalZoomLevel.replace(/[^0-9.]/g, '') : '';
       const features = formData.features;
       const hasThermal = features.includes('THERMAL_CAMERA');
       const hasRtk = features.includes('RTK_POSITIONING');
 
-      const formattedModel =
-        specsParts.length > 0 ? `${formData.droneName.trim()} [${specsParts.join(' | ')}]` : formData.droneName.trim();
-      const finalModel = formattedModel.length > 1000 ? formattedModel.slice(0, 1000) : formattedModel;
+      const rawName = formData.droneName.trim();
+      const finalModel = rawName.length > 1000 ? rawName.slice(0, 1000) : rawName;
 
       const input: DroneRegistrationInput = {
         serialNumber: formData.serialNumber.trim(),
@@ -366,6 +357,9 @@ export default function InspectorDroneRegistrationPage() {
         maxAltitudeMeters:
           formData.maxAltitudeMeters.trim() === '' ? undefined : Number(formData.maxAltitudeMeters),
         opticalZoomLevel: zoomValue ? `${zoomValue}x` : '1x',
+        mtowKg: parsedMtowKg,
+        maxFlightTimeMinutes: parsedFlightMinutes,
+        cameraSensor: cleanedCameraSensor,
         hasThermalCamera: hasThermal,
         hasRtk,
         documentFiles: uploadedMap,
@@ -394,8 +388,8 @@ export default function InspectorDroneRegistrationPage() {
       setExistingImageKeys([]);
       setMessage(
         locale === 'vi'
-          ? 'Đã gửi hồ sơ đăng ký thiết bị drone thành công! Platform Manager sẽ xác minh giấy tờ trước khi kích hoạt.'
-          : 'Drone registration application submitted! Platform Manager will verify the documents before activation.',
+          ? 'Đã gửi hồ sơ đăng ký thiết bị drone thành công! Manager sẽ xác minh giấy tờ trước khi kích hoạt.'
+          : 'Drone registration application submitted! Manager will verify the documents before activation.',
       );
       setOpenRegisterDialog(false);
       setTabIndex('APPLICATIONS');
@@ -681,8 +675,8 @@ export default function InspectorDroneRegistrationPage() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto', mt: 0.5, mb: 2.5 }}>
                     {tr(
-                      'Hãy gửi hồ sơ đăng ký thiết bị bay kèm đầy đủ giấy tờ kỹ thuật. Platform Manager sẽ kiểm tra và kích hoạt để bạn sử dụng trong các ca kiểm định.',
-                      'Submit a drone registration application with the required technical documents. The Platform Manager will verify and activate your drone for field inspections.',
+                      'Hãy gửi hồ sơ đăng ký thiết bị bay kèm đầy đủ giấy tờ kỹ thuật. Manager sẽ kiểm tra và kích hoạt để bạn sử dụng trong các ca kiểm định.',
+                      'Submit a drone registration application with the required technical documents. The Manager will verify and activate your drone for field inspections.',
                     )}
                   </Typography>
                   <Button
@@ -743,6 +737,11 @@ export default function InspectorDroneRegistrationPage() {
                             <Box sx={{ minWidth: 0 }}>
                               {(() => {
                                 const parsed = parseDroneModelDisplay(drone.model);
+                                const displayCamera = drone.cameraSensor ?? parsed.camera;
+                                const displayFlightTime =
+                                  drone.maxFlightTimeMinutes != null
+                                    ? `${drone.maxFlightTimeMinutes} ${tr('phút', 'min')}`
+                                    : parsed.flightTime;
                                 return (
                                   <>
                                     <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}>
@@ -751,8 +750,8 @@ export default function InspectorDroneRegistrationPage() {
                                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
                                       {tr('Hãng sản xuất:', 'Manufacturer:')}{' '}
                                       <strong>{drone.manufacturer || tr('Chưa cập nhật', 'Not specified')}</strong>
-                                      {parsed.camera ? ` · Cam: ${parsed.camera}` : ''}
-                                      {parsed.flightTime ? ` · ${parsed.flightTime}` : ''}
+                                      {displayCamera ? ` · Cam: ${displayCamera}` : ''}
+                                      {displayFlightTime ? ` · ${displayFlightTime}` : ''}
                                     </Typography>
                                   </>
                                 );
@@ -948,20 +947,28 @@ export default function InspectorDroneRegistrationPage() {
                             const matchedApp = applicationList.find(
                               (a) => a.droneId === drone.id || a.serialNumber === drone.serialNumber,
                             );
-                            const mtowMatch = drone.model?.match(/MTOW:\s*([\d.,]+)/i);
+                            const parsed = parseDroneModelDisplay(drone.model);
                             const fallbackFeatures: string[] = [];
                             if (drone.hasRtk) fallbackFeatures.push('RTK_POSITIONING');
                             if (drone.hasThermalCamera) fallbackFeatures.push('THERMAL_CAMERA');
                             handleOpenRegister(
                               {
-                                droneName: drone.model?.split('[')[0]?.trim() || '',
+                                droneName: parsed.name === 'Drone' && !drone.model ? '' : parsed.name,
                                 manufacturer: drone.manufacturer || '',
                                 serialNumber: drone.serialNumber || '',
                                 registrationNumber: drone.registrationNumber || '',
                                 registrationExpiresAt: drone.registrationExpiresAt
                                   ? drone.registrationExpiresAt.slice(0, 10)
                                   : '',
-                                mtowKg: mtowMatch?.[1] || (drone.mtowKg ? String(drone.mtowKg) : ''),
+                                mtowKg:
+                                  drone.mtowKg != null
+                                    ? String(drone.mtowKg)
+                                    : parsed.mtow?.replace(/[^\d.,]/g, '') || '',
+                                maxFlightTimeMinutes:
+                                  drone.maxFlightTimeMinutes != null
+                                    ? String(drone.maxFlightTimeMinutes)
+                                    : parsed.flightTime?.replace(/[^\d]/g, '') || '',
+                                cameraSensor: drone.cameraSensor || parsed.camera || '',
                                 maxWindResistanceMps: drone.maxWindResistanceMps != null ? String(drone.maxWindResistanceMps) : '12',
                                 maxAltitudeMeters: drone.maxAltitudeMeters != null ? String(drone.maxAltitudeMeters) : '',
                                 opticalZoomLevel: drone.opticalZoomLevel ? drone.opticalZoomLevel.replace(/x/i, '') : '1',
@@ -1072,10 +1079,17 @@ export default function InspectorDroneRegistrationPage() {
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                         {(() => {
                           const parsed = parseDroneModelDisplay(app.model);
+                          const displayMtow =
+                            app.mtowKg != null ? `${app.mtowKg} kg` : parsed.mtow;
+                          const displayFlightTime =
+                            app.maxFlightTimeMinutes != null
+                              ? `${app.maxFlightTimeMinutes} ${tr('phút', 'min')}`
+                              : parsed.flightTime;
+                          const displayCamera = app.cameraSensor ?? parsed.camera;
                           const specSummary = [
-                            parsed.mtow,
-                            parsed.flightTime,
-                            parsed.camera,
+                            displayMtow,
+                            displayFlightTime,
+                            displayCamera,
                             app.maxWindResistanceMps != null ? `${tr('Gió', 'Wind')} ${app.maxWindResistanceMps} m/s` : null,
                             app.maxAltitudeMeters != null ? `${tr('Trần bay tối đa', 'Maximum altitude')} ${app.maxAltitudeMeters} m` : null,
                             app.opticalZoomLevel && !['1', '1x', 'NONE_1X'].includes(app.opticalZoomLevel)
@@ -1175,20 +1189,28 @@ export default function InspectorDroneRegistrationPage() {
                             variant="outlined"
                             color="error"
                             onClick={() => {
-                              const mtowMatch = app.model?.match(/MTOW:\s*([\d.,]+)/i);
+                              const parsed = parseDroneModelDisplay(app.model);
                               const fallbackFeatures: string[] = [];
                               if (app.hasRtk) fallbackFeatures.push('RTK_POSITIONING');
                               if (app.hasThermalCamera) fallbackFeatures.push('THERMAL_CAMERA');
                               handleOpenRegister(
                                 {
-                                  droneName: app.model?.split('[')[0]?.trim() || '',
+                                  droneName: parsed.name === 'Drone' && !app.model ? '' : parsed.name,
                                   manufacturer: app.manufacturer || '',
                                   serialNumber: app.serialNumber || '',
                                   registrationNumber: app.registrationNumber || '',
                                   registrationExpiresAt: app.registrationExpiresAt
                                     ? app.registrationExpiresAt.slice(0, 10)
                                     : '',
-                                  mtowKg: mtowMatch?.[1] || '',
+                                  mtowKg:
+                                    app.mtowKg != null
+                                      ? String(app.mtowKg)
+                                      : parsed.mtow?.replace(/[^\d.,]/g, '') || '',
+                                  maxFlightTimeMinutes:
+                                    app.maxFlightTimeMinutes != null
+                                      ? String(app.maxFlightTimeMinutes)
+                                      : parsed.flightTime?.replace(/[^\d]/g, '') || '',
+                                  cameraSensor: app.cameraSensor || parsed.camera || '',
                                   maxWindResistanceMps: app.maxWindResistanceMps != null ? String(app.maxWindResistanceMps) : '12',
                                   maxAltitudeMeters: app.maxAltitudeMeters != null ? String(app.maxAltitudeMeters) : '',
                                   opticalZoomLevel: app.opticalZoomLevel ? app.opticalZoomLevel.replace(/x/i, '') : '1',

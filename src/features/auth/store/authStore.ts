@@ -24,6 +24,10 @@ export interface AuthUser {
   pilotLicenseClass?: string | undefined;
   pilotLicenseExpiresAt?: string | undefined;
   pilotLicenseFileKey?: string | undefined;
+  payoutBankName?: string | undefined;
+  payoutBankAccountNumber?: string | undefined;
+  payoutBankAccountHolder?: string | undefined;
+  payoutBankBranch?: string | undefined;
 }
 
 interface AuthSession {
@@ -87,8 +91,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 
 export function normalizeRole(role: string): Role | null {
-  if (role === 'PLATFORM_MANAGER') return 'MANAGER';
-  if (role === 'ORG_MANAGER') return 'CUSTOMER';
   if (ROLE_CODES.includes(role as Role)) return role as Role;
   return null;
 }

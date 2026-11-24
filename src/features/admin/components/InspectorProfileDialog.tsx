@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pilotLicenseClassApi } from '@/features/auth/api/pilotLicenseClassApi';
 import {
@@ -37,6 +38,7 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import VerifiedUserOutlined from '@mui/icons-material/VerifiedUserOutlined';
 import DownloadRounded from '@mui/icons-material/DownloadRounded';
+import StarRounded from '@mui/icons-material/StarRounded';
 import {
   inspectorProfileApi,
   type UpdateInspectorProfileInput,
@@ -44,6 +46,9 @@ import {
 } from '../api/inspectorProfileApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { VietQrBankAutocomplete } from '@/shared/ui/VietQrBankAutocomplete';
+import { useInspectorRatingProfile } from '@/features/inspections/hooks/useInspectorRatings';
+import { InspectorRatingsBreakdownPanel } from '@/features/inspections/components/InspectorRatingDialog';
 
 interface InspectorProfileDialogProps {
   open: boolean;
@@ -57,9 +62,17 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
   const dateLocale = locale === 'vi' ? 'vi-VN' : 'en-US';
 
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
   const canApprovePartner = roles.includes('ADMIN') || roles.includes('MANAGER');
+  const portalBase = roles.includes('ADMIN') ? '/admin' : '/manager';
   const [currentTab, setCurrentTab] = useState(0);
+  const ratingProfileQuery = useInspectorRatingProfile(
+    inspectorId ?? undefined,
+    0,
+    10,
+    open && Boolean(inspectorId) && currentTab === 5,
+  );
 
   // Profile Query
   const profileQuery = useQuery({
@@ -97,6 +110,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
     certifiedDroneModels: '',
     specializations: '',
     experienceSummary: '',
+    payoutBankName: '',
+    payoutBankAccountNumber: '',
+    payoutBankAccountHolder: '',
+    payoutBankBranch: '',
   });
 
   // Flight Log Form State
@@ -148,6 +165,10 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
         certifiedDroneModels: p.certifiedDroneModels || '',
         specializations: p.specializations || '',
         experienceSummary: p.experienceSummary || '',
+        payoutBankName: p.payoutBankName || '',
+        payoutBankAccountNumber: p.payoutBankAccountNumber || '',
+        payoutBankAccountHolder: p.payoutBankAccountHolder || '',
+        payoutBankBranch: p.payoutBankBranch || '',
       });
 
       // Fetch license scan if available
@@ -592,6 +613,12 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     )}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   />
+                  <Tab
+                    icon={<StarRounded />}
+                    iconPosition="start"
+                    label={tr('6. Đánh giá', '6. Ratings')}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  />
                 </Tabs>
               </Box>
 
@@ -662,6 +689,43 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         onChange={(e) => setForm({ ...form, notes: e.target.value })}
                       />
                     </Box>
+                    <Box sx={{ gridColumn: { xs: 'span 1', sm: 'span 2' }, pt: 1 }}>
+                      <Divider sx={{ mb: 2 }} />
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 700, fontSize: '0.84rem', color: 'text.primary' }}
+                      >
+                        {tr('Tài khoản ngân hàng nhận chi trả', 'Payout bank account')}
+                      </Typography>
+                    </Box>
+                    <VietQrBankAutocomplete
+                      fullWidth
+                      label={tr('Ngân hàng', 'Bank name')}
+                      value={form.payoutBankName || ''}
+                      onChange={(code) => setForm({ ...form, payoutBankName: code })}
+                    />
+                    <TextField
+                      fullWidth
+                      label={tr('Số tài khoản', 'Bank account number')}
+                      value={form.payoutBankAccountNumber || ''}
+                      onChange={(e) =>
+                        setForm({ ...form, payoutBankAccountNumber: e.target.value })
+                      }
+                    />
+                    <TextField
+                      fullWidth
+                      label={tr('Tên chủ tài khoản', 'Account holder name')}
+                      value={form.payoutBankAccountHolder || ''}
+                      onChange={(e) =>
+                        setForm({ ...form, payoutBankAccountHolder: e.target.value })
+                      }
+                    />
+                    <TextField
+                      fullWidth
+                      label={tr('Chi nhánh', 'Branch')}
+                      value={form.payoutBankBranch || ''}
+                      onChange={(e) => setForm({ ...form, payoutBankBranch: e.target.value })}
+                    />
                   </Box>
 
                   <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1195,8 +1259,8 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                       ) : (
                         <Alert severity={profile.onboardingStatus === 'APPROVED' ? 'success' : 'info'}>
                           {profile.onboardingStatus === 'APPROVED'
-                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Platform Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
-                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Platform Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
+                            ? 'Hồ sơ và Hợp đồng Đối tác của bạn đã được Manager phê duyệt. Bạn đã đủ điều kiện nhận nhiệm vụ bay!'
+                            : 'Sau khi bạn tải lên đủ (1) Bản scan Bằng lái ở Tab 2 và (2) Bản scan Hợp đồng đã ký ở trên, Manager sẽ kiểm tra và bấm Phê duyệt kích hoạt tài khoản của bạn.'}
                         </Alert>
                       )}
                     </Paper>
@@ -1473,6 +1537,30 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         </Paper>
                       ))}
                     </Box>
+                  )}
+                </Box>
+              )}
+
+              {/* TAB 5: INSPECTOR RATINGS */}
+              {currentTab === 5 && (
+                <Box sx={{ p: 3 }}>
+                  {ratingProfileQuery.isLoading ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : ratingProfileQuery.data ? (
+                    <InspectorRatingsBreakdownPanel
+                      profile={ratingProfileQuery.data}
+                      portalBase={portalBase}
+                      onNavigate={(to) => {
+                        onClose();
+                        navigate(to);
+                      }}
+                    />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {tr('Chưa có dữ liệu đánh giá.', 'No rating data available.')}
+                    </Typography>
                   )}
                 </Box>
               )}

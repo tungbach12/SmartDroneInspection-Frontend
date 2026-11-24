@@ -34,17 +34,17 @@ const PLATFORM_ADMIN = {
   roles: ['ADMIN'],
 };
 
-const PLATFORM_MANAGER = {
+const MANAGER_USER = {
   id: 'manager-1',
-  email: 'platform.manager@example.test',
-  fullName: 'Platform Manager',
+  email: 'manager@example.test',
+  fullName: 'Manager User',
   roles: ['MANAGER'],
 };
 
 const CUSTOMER = {
-  id: 'org-manager-1',
-  email: 'org.manager@example.test',
-  fullName: 'Organization Manager',
+  id: 'customer-1',
+  email: 'customer@example.test',
+  fullName: 'Customer User',
   roles: ['CUSTOMER'],
 };
 
@@ -62,7 +62,7 @@ function renderWithClient() {
 describe('PlatformUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.list.mockResolvedValue([PLATFORM_ADMIN, PLATFORM_MANAGER, CUSTOMER]);
+    mocks.list.mockResolvedValue([PLATFORM_ADMIN, MANAGER_USER, CUSTOMER]);
     mocks.create.mockResolvedValue({
       user: { ...PLATFORM_ADMIN, id: 'new-1', email: 'new.admin@example.test' },
       temporaryPassword: 'Temp-Password-123',
@@ -82,7 +82,7 @@ describe('PlatformUsersPage', () => {
     renderWithClient();
 
     expect(await screen.findByText('platform.admin@example.test')).toBeTruthy();
-    expect(screen.getByText('org.manager@example.test')).toBeTruthy();
+    expect(screen.getByText('customer@example.test')).toBeTruthy();
     expect(screen.getAllByText('ADMIN').length).toBeGreaterThan(0);
     expect(screen.getAllByText('CUSTOMER').length).toBeGreaterThan(0);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -93,16 +93,16 @@ describe('PlatformUsersPage', () => {
     await screen.findByText('platform.admin@example.test');
 
     fireEvent.change(screen.getByLabelText('Search accounts'), {
-      target: { value: 'org.manager' },
+      target: { value: 'customer@example' },
     });
-    expect(screen.getByText('org.manager@example.test')).toBeTruthy();
+    expect(screen.getByText('customer@example.test')).toBeTruthy();
     expect(screen.queryByText('platform.admin@example.test')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Role' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Admin' }));
     expect(screen.getByText('platform.admin@example.test')).toBeTruthy();
-    expect(screen.queryByText('org.manager@example.test')).toBeNull();
+    expect(screen.queryByText('customer@example.test')).toBeNull();
   });
 
   it('opens a centered account dialog with the account and security tab', async () => {
@@ -111,7 +111,7 @@ describe('PlatformUsersPage', () => {
     fireEvent.click(await screen.findByText('Platform Admin'));
 
     expect(await screen.findByRole('tab', { name: 'Account & Security' })).toBeTruthy();
-    expect(screen.getByText('Platform admin')).toBeTruthy();
+    expect(screen.getByText('Admin')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reset password' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Suspend' })).toBeTruthy();
     const dialog = screen.getByRole('dialog');
@@ -126,7 +126,7 @@ describe('PlatformUsersPage', () => {
 
     expect(
       screen.getByText(
-        /last active platform administrator/i,
+        /last active administrator/i,
       ),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Suspend' }).hasAttribute('disabled')).toBe(true);
@@ -148,7 +148,7 @@ describe('PlatformUsersPage', () => {
     expect(screen.getByText('Temp-Password-123')).toBeTruthy();
   });
 
-  it('allows selecting Platform manager role when creating a platform account', async () => {
+  it('allows selecting Manager role when creating an account', async () => {
     renderWithClient();
 
     fireEvent.click(await screen.findByRole('button', { name: 'New account' }));
@@ -157,16 +157,16 @@ describe('PlatformUsersPage', () => {
       target: { value: 'pm@example.test' },
     });
     fireEvent.change(within(createDialog).getByLabelText(/Full name/), {
-      target: { value: 'Platform Manager User' },
+      target: { value: 'Manager Account' },
     });
     fireEvent.mouseDown(within(createDialog).getByLabelText(/^Role$/));
-    fireEvent.click(await screen.findByRole('option', { name: 'Platform manager' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Manager' }));
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() =>
       expect(mocks.create).toHaveBeenCalledWith({
         email: 'pm@example.test',
-        fullName: 'Platform Manager User',
+        fullName: 'Manager Account',
         roles: ['MANAGER'],
       }),
     );
@@ -175,7 +175,7 @@ describe('PlatformUsersPage', () => {
   it('resets the password of another account from the account dialog', async () => {
     renderWithClient();
 
-    fireEvent.click(await screen.findByText('Organization Manager'));
+    fireEvent.click(await screen.findByText('Customer User'));
     await screen.findByRole('tab', { name: 'Account & Security' });
     fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
 
@@ -194,7 +194,7 @@ describe('PlatformUsersPage', () => {
   it('suspends an account through the named status change', async () => {
     renderWithClient();
 
-    fireEvent.click(await screen.findByText('Organization Manager'));
+    fireEvent.click(await screen.findByText('Customer User'));
     await screen.findByRole('tab', { name: 'Account & Security' });
     fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 

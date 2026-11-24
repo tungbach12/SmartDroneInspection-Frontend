@@ -169,4 +169,38 @@ describe('MF1 review queues', () => {
     ).toBeTruthy();
     expect(inspectorApplicationApi.getLicenseScanBlob).toHaveBeenCalledWith('app-1');
   });
+
+  it('uses structured MTOW and clean model name so DJI Matrice 350 RTK is classified accurately as Category 3', async () => {
+    vi.mocked(mf1ReviewApi.pendingDrones).mockResolvedValue([]);
+    vi.mocked(mf1ReviewApi.droneHistory).mockResolvedValue([
+      {
+        id: 'drone-history-350',
+        inspectorUserId: 'pilot-1',
+        inspectorFullName: 'Inspector Two',
+        inspectorEmail: 'inspector2@test.com',
+        serialNumber: 'DJI-M350-SG-0001',
+        model: 'DJI Matrice 350 RTK',
+        manufacturer: 'DJI',
+        registrationNumber: 'REG-350-1',
+        registrationFileKey: 'drone/reg',
+        registrationExpiresAt: '2027-12-31T00:00:00Z',
+        ownershipFileKey: 'drone/owner',
+        mtowKg: 6.47,
+        maxFlightTimeMinutes: 55,
+        cameraSensor: '20 MP',
+        legalCategory: 'CATEGORY_3',
+        status: 'APPROVED',
+        reviewNote: null,
+        droneId: 'drone-uuid-350',
+        createdAt: '2026-11-24T00:00:00Z',
+      },
+    ]);
+
+    renderPage();
+    expect(await screen.findByText('DJI Matrice 350 RTK')).toBeTruthy();
+    expect(screen.getByText(/Loại 3 \(2 – < 25 kg\)/)).toBeTruthy();
+    expect(screen.queryByText(/Loại 5/)).toBeNull();
+    expect(screen.getByText(/6\.47 kg/)).toBeTruthy();
+    expect(screen.getByText(/20 MP/)).toBeTruthy();
+  });
 });

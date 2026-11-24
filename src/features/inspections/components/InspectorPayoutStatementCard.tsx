@@ -166,11 +166,11 @@ export function InspectorPayoutStatementCard({
               label={
                 finance.isDisbursed
                   ? t('Paid to inspector account')
-                  : finance.isPaid
+                  : finance.isPayoutEligible
                     ? t('Eligible for payout · awaiting transfer')
-                    : t('Pending customer payment')
+                    : t('Pending report approval')
               }
-              color={finance.isDisbursed ? 'success' : finance.isPaid ? 'primary' : 'default'}
+              color={finance.isDisbursed ? 'success' : finance.isPayoutEligible ? 'primary' : 'default'}
               variant={finance.isDisbursed ? 'filled' : 'outlined'}
               sx={{
                 height: 24,
@@ -200,7 +200,7 @@ export function InspectorPayoutStatementCard({
 
           <Stack spacing={0}>
             <StatementLine
-              label={t('Pre-VAT base')}
+              label={t('Base fee')}
               amount={`${formatNumber(finance.serviceBaseAmount)} ₫`}
             />
             <StatementLine

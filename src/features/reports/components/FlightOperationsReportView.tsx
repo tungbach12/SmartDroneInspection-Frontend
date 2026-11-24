@@ -43,6 +43,10 @@ import type {
   EvidenceItem,
   InspectionReport,
 } from '@/features/inspections/api/inspectionApi';
+import type {
+  FieldSession,
+  FieldSessionFlight,
+} from '@/features/inspections/api/fieldSessionApi';
 import { FlightPermitPreviewDialog } from '@/features/inspections/components/FlightPermitPreviewDialog';
 import { QueryState } from '@/shared/ui/QueryState';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
@@ -51,6 +55,9 @@ import { MapLibreFlightTrajectoryCanvas } from './MapLibreFlightTrajectoryCanvas
 export interface FlightOperationsReportViewProps {
   inspectionId: string;
   fieldSessionId: string | null | undefined;
+  flightId?: string | null | undefined;
+  flights?: FieldSessionFlight[] | undefined;
+  sessions?: FieldSession[] | undefined;
   version?: InspectionReport | null | undefined;
   evidenceList?: EvidenceItem[] | undefined;
   assetName?: string | null | undefined;
@@ -161,6 +168,9 @@ function parseFlightReportNote(
 export function FlightOperationsReportView({
   inspectionId,
   fieldSessionId,
+  flightId: propFlightId,
+  flights: propFlights,
+  sessions: _propSessions,
   version,
   evidenceList = [],
   assetName,
@@ -169,7 +179,7 @@ export function FlightOperationsReportView({
   collapsible = false,
   defaultExpanded = false,
 }: FlightOperationsReportViewProps) {
-  const { t, formatDateTime } = useLocale();
+  const { locale, t, formatDateTime } = useLocale();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const pal = isDark ? VIZ_PALETTE.dark : VIZ_PALETTE.light;
@@ -178,11 +188,68 @@ export function FlightOperationsReportView({
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(!collapsible || defaultExpanded);
+  const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
+
+  const allFlights = useMemo(() => {
+    const source =
+      propFlights && propFlights.length > 0
+        ? propFlights
+        : version?.reportContext?.flights ?? [];
+    return source.filter((item) => item.hasFlightReport || item.telemetrySource);
+  }, [propFlights, version?.reportContext?.flights]);
+
+  const activeFlight = useMemo(() => {
+    if (allFlights.length === 0) return null;
+    const requestedId = propFlightId ?? selectedFlightId;
+    if (requestedId) {
+      const matched = allFlights.find((item) => item.id === requestedId);
+      if (matched) return matched;
+    }
+    return allFlights.at(-1) ?? null;
+  }, [allFlights, propFlightId, selectedFlightId]);
+
+  const effectiveSessionId = activeFlight?.fieldSessionId ?? fieldSessionId ?? null;
+  const effectiveFlightId = activeFlight?.id ?? propFlightId ?? null;
+
+  const multiFlightTotals = useMemo(() => {
+    if (allFlights.length <= 1) return null;
+    const uniqueDays = new Set(allFlights.map((f) => f.flightDate).filter(Boolean)).size;
+    const totalDurationSeconds = allFlights.reduce(
+      (sum, f) => sum + (f.flightDurationSeconds ?? 0),
+      0,
+    );
+    const totalDistanceMeters = allFlights.reduce(
+      (sum, f) => sum + (f.distanceFlownMeters ?? 0),
+      0,
+    );
+    const maxAltitudeMeters = allFlights.reduce(
+      (max, f) => Math.max(max, f.maxAltitudeMeters ?? 0),
+      0,
+    );
+    return {
+      count: allFlights.length,
+      days: Math.max(1, uniqueDays),
+      totalDurationSeconds,
+      totalDistanceMeters,
+      maxAltitudeMeters,
+    };
+  }, [allFlights]);
 
   const flightReportQuery = useQuery({
-    queryKey: ['smartdronehub', 'flight-report', inspectionId, fieldSessionId],
-    queryFn: () => smartDroneHubApi.flightReport(inspectionId, fieldSessionId!),
-    enabled: Boolean(inspectionId && fieldSessionId) && expanded,
+    queryKey: [
+      'smartdronehub',
+      'flight-report',
+      inspectionId,
+      effectiveSessionId,
+      effectiveFlightId ?? 'session',
+    ],
+    queryFn: () =>
+      smartDroneHubApi.flightReport(
+        inspectionId,
+        effectiveSessionId!,
+        effectiveFlightId ?? undefined,
+      ),
+    enabled: Boolean(inspectionId && effectiveSessionId) && expanded,
     retry: false,
   });
 
@@ -353,7 +420,7 @@ export function FlightOperationsReportView({
         report.note),
   );
 
-  if (!fieldSessionId) {
+  if (!effectiveSessionId) {
     return (
       <Alert severity="info" sx={{ borderRadius: '10px' }}>
         {t('No completed field session was found for this inspection.')}
@@ -361,13 +428,82 @@ export function FlightOperationsReportView({
     );
   }
 
-  const content = (
-    <QueryState
-      isLoading={flightReportQuery.isLoading}
-      error={flightReportQuery.error}
-      onRetry={() => void flightReportQuery.refetch()}
-      loadingLabel={t('Loading recorded flight data…')}
+  const multiFlightSwitcher = multiFlightTotals ? (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        mb: 2,
+        borderRadius: '10px',
+        bgcolor: 'background.paper',
+        borderColor: 'divider',
+      }}
     >
+      <Stack spacing={1.25}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', flexWrap: 'wrap' }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {locale === 'vi'
+              ? `Nhật ký nhiều chuyến bay (${multiFlightTotals.count} chuyến · ${multiFlightTotals.days} ngày)`
+              : `Multi-day Flight Log (${multiFlightTotals.count} flights · ${multiFlightTotals.days} days)`}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`${t('Total time')}: ${fmtDuration(multiFlightTotals.totalDurationSeconds)}`}
+            />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`${t('Total distance')}: ${fmtNum(multiFlightTotals.totalDistanceMeters, 0)} m`}
+            />
+            {multiFlightTotals.maxAltitudeMeters > 0 && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`${t('Max altitude')}: ${fmtNum(multiFlightTotals.maxAltitudeMeters, 1)} m`}
+              />
+            )}
+          </Stack>
+        </Stack>
+
+        <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+          {allFlights.map((flight) => {
+            const selected = flight.id === effectiveFlightId;
+            return (
+              <Chip
+                key={flight.id}
+                size="small"
+                clickable
+                color={selected ? 'primary' : 'default'}
+                variant={selected ? 'filled' : 'outlined'}
+                onClick={() => {
+                  setHoverIdx(null);
+                  setSelectedFlightId(flight.id);
+                }}
+                label={`#${flight.flightNumber} · ${flight.flightDate}${flight.flightLabel ? ` · ${flight.flightLabel}` : ''}${flight.flightDurationSeconds ? ` (${fmtDuration(flight.flightDurationSeconds)})` : ''}`}
+                sx={{ fontWeight: selected ? 700 : 500 }}
+              />
+            );
+          })}
+        </Stack>
+      </Stack>
+    </Paper>
+  ) : null;
+
+  const content = (
+    <Box>
+      {multiFlightSwitcher}
+      <QueryState
+        isLoading={flightReportQuery.isLoading}
+        error={flightReportQuery.error}
+        onRetry={() => void flightReportQuery.refetch()}
+        loadingLabel={t('Loading recorded flight data…')}
+      >
       {report && isManualDeclaration ? (
         <Stack spacing={1.5}>
           <Alert severity="warning" sx={{ borderRadius: '10px' }}>
@@ -442,7 +578,7 @@ export function FlightOperationsReportView({
                         : t('Flight report')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {`REF: SDI-FLT-${fieldSessionId.slice(0, 8).toUpperCase()} · ${telemetrySourceLabel}`}
+                    {`REF: SDI-FLT-${(effectiveFlightId ?? effectiveSessionId).slice(0, 8).toUpperCase()} · ${telemetrySourceLabel}`}
                   </Typography>
                 </Box>
               </Stack>
@@ -705,7 +841,8 @@ export function FlightOperationsReportView({
           </Alert>
         )
       }
-    </QueryState>
+      </QueryState>
+    </Box>
   );
 
   if (!collapsible) {
@@ -1518,7 +1655,7 @@ function BatteryAndModeSummaryCard({
                     flexGrow: Math.max(item.pct, 4),
                     flexBasis: 0,
                     bgcolor: item.color,
-                    borderRadius: '5px',
+                    borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     px: 1,
@@ -1557,7 +1694,7 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
         sx={{
           width: 10,
           height: 10,
-          borderRadius: '2px',
+          borderRadius: '6px',
           bgcolor: color,
           flexShrink: 0,
         }}

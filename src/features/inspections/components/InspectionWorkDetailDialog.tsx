@@ -226,7 +226,7 @@ export function InspectionWorkDetailDialog({
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  {t('This flight cannot start until the Platform Manager reassigns or reschedules it.')}
+                  {t('This flight cannot start until the Manager reassigns or reschedules it.')}
                 </Typography>
               </Alert>
             )}
@@ -623,7 +623,7 @@ export function InspectionWorkDetailDialog({
                 required
                 value={declineReason}
                 onChange={(e) => setDeclineReason(e.target.value)}
-                helperText={t('Explain why you cannot perform this inspection so the Platform Manager can reassign it.')}
+                helperText={t('Explain why you cannot perform this inspection so the Manager can reassign it.')}
               />
               <MutationProblemAlert
                 error={decline.error}

@@ -1,25 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { InspectionDetail } from '../api/inspectionApi';
 import { FlightPermitVerificationPanel } from './FlightPermitVerificationPanel';
-
-const mocks = vi.hoisted(() => ({
-  reviewFlightPermit: vi.fn(),
-}));
-
-vi.mock('../api/inspectionApi', async () => {
-  const actual = await vi.importActual<typeof import('../api/inspectionApi')>(
-    '../api/inspectionApi',
-  );
-  return {
-    ...actual,
-    inspectionApi: {
-      ...actual.inspectionApi,
-      reviewFlightPermit: mocks.reviewFlightPermit,
-    },
-  };
-});
 
 const BASE_INSPECTION: InspectionDetail = {
   id: 'inspection-1',
@@ -54,146 +37,92 @@ const BASE_INSPECTION: InspectionDetail = {
   updatedAt: new Date(Date.now() - 1_800_000).toISOString(),
 };
 
-function renderPanel(inspection: InspectionDetail, canReview = true) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+type PanelProps = Partial<ComponentProps<typeof FlightPermitVerificationPanel>>;
+
+function renderPanel(inspection: InspectionDetail, props: PanelProps = {}) {
   return render(
-    <QueryClientProvider client={client}>
-      <FlightPermitVerificationPanel
-        inspection={inspection}
-        canReview={canReview}
-        onPreviewPermit={vi.fn()}
-      />
-    </QueryClientProvider>,
+    <FlightPermitVerificationPanel
+      inspection={inspection}
+      onPreviewPermit={vi.fn()}
+      {...props}
+    />,
   );
 }
 
 describe('FlightPermitVerificationPanel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.reviewFlightPermit.mockResolvedValue({
-      ...BASE_INSPECTION,
-      flightPermitVerificationStatus: 'APPROVED',
-    });
-  });
-
   afterEach(() => cleanup());
 
-  it('allows approving in CLEAR_ZONE when manager verification is required', async () => {
-    renderPanel(BASE_INSPECTION, true);
+  it('is read-only and explains that a changed drone or schedule needs a re-upload', () => {
+    renderPanel(BASE_INSPECTION);
 
+    expect(screen.getByText('Flight Permit')).toBeTruthy();
+    expect(screen.queryByText('Flight Permit Verification')).toBeNull();
+    expect(screen.getByText('Re-upload required')).toBeTruthy();
+    expect(
+      screen.getByText(
+        /The drone or schedule changed\. The assigned Inspector must upload an updated permit before pre-flight\./,
+      ),
+    ).toBeTruthy();
     expect(screen.getByText(/Clear Zone/i)).toBeTruthy();
-    expect(screen.getByText(/Submitted by the Inspector — review the document and approve or reject/i)).toBeTruthy();
     expect(screen.getByText('184/GP-TC')).toBeTruthy();
     expect(screen.getByText(/Matches drone/i)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText(/Verification notes/i), {
-      target: { value: 'Verified against official CAAV docket' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Approve flight permit' }));
-
-    await waitFor(() =>
-      expect(mocks.reviewFlightPermit).toHaveBeenCalledWith('inspection-1', {
-        decision: 'APPROVED',
-        notes: 'Verified against official CAAV docket',
-      }),
-    );
-  });
-
-  it('requires a reason when rejecting a flight permit', async () => {
-    renderPanel(BASE_INSPECTION, true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Reject flight permit' }));
-    const confirmBtn = screen.getByRole('button', { name: 'Confirm permit rejection' }) as HTMLButtonElement;
-    expect(confirmBtn.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText(/Rejection reason/i), {
-      target: { value: 'Authority signature is illegible' },
-    });
-    expect(confirmBtn.disabled).toBe(false);
-
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() =>
-      expect(mocks.reviewFlightPermit).toHaveBeenCalledWith('inspection-1', {
-        decision: 'REJECTED',
-        reason: 'Authority signature is illegible',
-        notes: undefined,
-      }),
-    );
-  });
-
-  it('disables Approve button when permit UAV serial mismatches assigned drone', () => {
-    renderPanel(
-      {
-        ...BASE_INSPECTION,
-        flightPermitDroneSerial: 'SN-WRONG-99',
-      },
-      true,
-    );
-
-    expect(screen.getByText(/Permit UAV serial does not match the assigned drone serial/i)).toBeTruthy();
-    expect(
-      (screen.getByRole('button', { name: 'Approve flight permit' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-  });
-
-  it('replaces Approve with a disabled Already approved sign once permit is APPROVED', () => {
-    renderPanel(
-      {
-        ...BASE_INSPECTION,
-        flightPermitVerificationStatus: 'APPROVED',
-        flightPermitVerifiedByName: 'Platform Manager 2',
-        flightPermitVerifiedAt: new Date().toISOString(),
-      },
-      true,
-    );
-
-    expect(screen.queryByRole('button', { name: 'Approve flight permit' })).toBeNull();
-    const alreadyApproved = screen.getByRole('button', { name: 'Already approved' }) as HTMLButtonElement;
-    expect(alreadyApproved.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Reject flight permit' })).toBeTruthy();
-  });
-
-  it('hides verification decision controls when permit is REJECTED', () => {
-    renderPanel(
-      {
-        ...BASE_INSPECTION,
-        flightPermitVerificationStatus: 'REJECTED',
-        flightPermitRejectionReason: 'Blurry scan',
-      },
-      true,
-    );
-
-    expect(screen.queryByText('Manager Verification Decision')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Approve flight permit' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reject flight permit' })).toBeNull();
+    expect(screen.queryByText('Manager Verification Decision')).toBeNull();
   });
 
-  it('hides airspace strip and pending review prompt when showAirspace and showPendingPrompt are false', () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  it('labels self-attested permits as submitted by the Inspector', () => {
+    renderPanel({ ...BASE_INSPECTION, flightPermitVerificationStatus: 'APPROVED' });
+
+    expect(screen.getByText('Submitted by Inspector')).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Uploaded and self-attested by the assigned Inspector for this mission window\./,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Verified by/i)).toBeNull();
+  });
+
+  it('labels invalid permits and only shows a rejection reason when one is recorded', () => {
+    renderPanel({
+      ...BASE_INSPECTION,
+      flightPermitVerificationStatus: 'REJECTED',
+      flightPermitRejectionReason: 'Blurry scan',
+      flightPermitReviewNotes: 'Legacy review note',
     });
-    render(
-      <QueryClientProvider client={client}>
-        <FlightPermitVerificationPanel
-          inspection={{ ...BASE_INSPECTION, flightPermitVerificationStatus: 'APPROVED' }}
-          canReview
-          onPreviewPermit={vi.fn()}
-          compact
-          showAirspace={false}
-          showPendingPrompt={false}
-        />
-      </QueryClientProvider>,
+
+    expect(screen.getByText('Invalid — re-upload required')).toBeTruthy();
+    expect(screen.getByText(/Rejection reason: Blurry scan/)).toBeTruthy();
+    expect(screen.queryByText(/Reviewed by/i)).toBeNull();
+    expect(screen.queryByText('Reviewer Notes')).toBeNull();
+    expect(screen.queryByText('Legacy review note')).toBeNull();
+  });
+
+  it('does not show a rejection reason when the legacy field is empty', () => {
+    renderPanel({ ...BASE_INSPECTION, flightPermitVerificationStatus: 'REJECTED' });
+
+    expect(screen.getByText('Invalid — re-upload required')).toBeTruthy();
+    expect(screen.queryByText('Rejection reason')).toBeNull();
+  });
+
+  it('hides the airspace strip, pending prompt and approval text when requested', () => {
+    renderPanel(
+      { ...BASE_INSPECTION, flightPermitVerificationStatus: 'APPROVED' },
+      {
+        compact: true,
+        hideHeader: true,
+        hideEmptyNotice: true,
+        showAirspace: false,
+        showPendingPrompt: false,
+      },
     );
 
     expect(screen.queryByText(/Airspace:/i)).toBeNull();
     expect(screen.queryByText(/Clear Zone/i)).toBeNull();
-    expect(screen.queryByText(/Submitted by the Inspector — review the document and approve or reject/i)).toBeNull();
+    expect(screen.queryByText(/The drone or schedule changed/i)).toBeNull();
     expect(screen.queryByText('SHA-256 Digest')).toBeNull();
-    expect(screen.queryByText('Verified and approved for this mission window.')).toBeNull();
+    expect(screen.queryByText(/Uploaded and self-attested/i)).toBeNull();
     expect(screen.getByText('Validity Window')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Already approved' })).toBeTruthy();
   });
 });
