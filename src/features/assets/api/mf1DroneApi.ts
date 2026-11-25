@@ -123,4 +123,10 @@ export const mf1DroneApi = {
       .then((response) => unwrap(response.data)),
   deleteMyDrone: (droneId: string) =>
     api.delete<void>(`/drone-registration-applications/mine/drones/${droneId}`),
+  evidence: (applicationId: string, type: string) =>
+    api
+      .get<Blob>(`/drone-registration-applications/${applicationId}/evidence/${type}`, {
+        responseType: 'blob',
+      })
+      .then((response) => response.data),
 };

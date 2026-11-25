@@ -475,15 +475,6 @@ function RequestCheckpointsForm({
             )}
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button
-              size="small"
-              variant="text"
-              disabled={saveMutation.isPending}
-              onClick={handleCloseDialog}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
-            >
-              {t('Cancel')}
-            </Button>
             <LoadingButton
               loading={saveMutation.isPending}
               disabled={!isDirty}

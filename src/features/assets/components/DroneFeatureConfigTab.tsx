@@ -43,8 +43,21 @@ import {
   type UpdateDroneFeatureConfigInput,
 } from '../api/droneFeatureConfigApi';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
+import { getErrorMessage } from '@/shared/api/errorMessage';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
+
+function generateFeatureCode(raw: string): string {
+  return raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64);
+}
 
 interface FormState {
   code: string;
@@ -63,7 +76,7 @@ const initialForm: FormState = {
   nameEn: '',
   descriptionVi: '',
   descriptionEn: '',
-  category: 'SAFETY',
+  category: 'CAPABILITY',
   isActive: true,
   displayOrder: 1,
 };
@@ -76,6 +89,7 @@ export function DroneFeatureConfigTab() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<DroneFeatureConfig | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -101,8 +115,7 @@ export function DroneFeatureConfigTab() {
       await invalidate();
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to create feature config';
-      setErrorMsg(msg);
+      setErrorMsg(getErrorMessage(err, 'Failed to create feature config'));
     },
   });
 
@@ -117,8 +130,7 @@ export function DroneFeatureConfigTab() {
       await invalidate();
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to update feature config';
-      setErrorMsg(msg);
+      setErrorMsg(getErrorMessage(err, 'Failed to update feature config'));
     },
   });
 
@@ -139,6 +151,7 @@ export function DroneFeatureConfigTab() {
     setEditingItem(null);
     const maxOrder = Math.max(0, ...(configsQuery.data ?? []).map((c) => c.displayOrder));
     setForm({ ...initialForm, displayOrder: maxOrder + 1 });
+    setCodeManuallyEdited(false);
     setErrorMsg(null);
     setOpenDialog(true);
   };
@@ -155,18 +168,30 @@ export function DroneFeatureConfigTab() {
       isActive: item.isActive,
       displayOrder: item.displayOrder,
     });
+    setCodeManuallyEdited(true);
     setErrorMsg(null);
     setOpenDialog(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const resolvedNameVi = form.nameVi.trim() || form.nameEn.trim();
+    const resolvedNameEn = form.nameEn.trim() || form.nameVi.trim();
+    if (!resolvedNameVi || !resolvedNameEn) {
+      setErrorMsg(tr('Vui lòng nhập ít nhất tên tiếng Việt hoặc tiếng Anh.', 'Please provide a feature name.'));
+      return;
+    }
+    const resolvedCode = form.code.trim().toUpperCase() || generateFeatureCode(resolvedNameEn);
+    if (!resolvedCode) {
+      setErrorMsg(tr('Vui lòng nhập mã tính năng hợp lệ.', 'Please enter a valid feature code.'));
+      return;
+    }
     if (editingItem) {
       updateMutation.mutate({
         id: editingItem.id,
         input: {
-          nameVi: form.nameVi.trim(),
-          nameEn: form.nameEn.trim(),
+          nameVi: resolvedNameVi,
+          nameEn: resolvedNameEn,
           descriptionVi: form.descriptionVi.trim(),
           descriptionEn: form.descriptionEn.trim(),
           category: form.category,
@@ -176,9 +201,9 @@ export function DroneFeatureConfigTab() {
       });
     } else {
       createMutation.mutate({
-        code: form.code.trim().toUpperCase(),
-        nameVi: form.nameVi.trim(),
-        nameEn: form.nameEn.trim(),
+        code: resolvedCode,
+        nameVi: resolvedNameVi,
+        nameEn: resolvedNameEn,
         descriptionVi: form.descriptionVi.trim(),
         descriptionEn: form.descriptionEn.trim(),
         category: form.category,
@@ -215,10 +240,7 @@ export function DroneFeatureConfigTab() {
               {tr('Cấu hình Tính năng & An toàn Drone', 'Drone Features & Safety Checklist')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {tr(
-                'Quản lý danh sách checkbox tính năng (cảm biến, RTK, an toàn) hiển thị khi Inspector đăng ký drone.',
-                'Configure capability and safety checklist items shown on the Inspector drone registration form.',
-              )}
+              {tr('Quản lý danh sách tính năng & an toàn của Drone.', 'Manage drone capability and safety options.')}
             </Typography>
           </Box>
           <Button
@@ -382,30 +404,52 @@ export function DroneFeatureConfigTab() {
           <DialogContent dividers>
             <Stack component="form" id="feature-config-form" spacing={2.5} onSubmit={handleSubmit} sx={{ pt: 1 }}>
               {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+              <TextField
+                required={!form.nameEn.trim()}
+                label={tr('Tên tiếng Việt', 'Vietnamese Name')}
+                placeholder="VD: Loa phát thanh / Cảm biến khí"
+                value={form.nameVi}
+                onChange={(e) => {
+                  const nextVi = e.target.value;
+                  setForm((curr) => ({
+                    ...curr,
+                    nameVi: nextVi,
+                    code:
+                      !editingItem && !codeManuallyEdited && !curr.nameEn.trim()
+                        ? generateFeatureCode(nextVi)
+                        : curr.code,
+                  }));
+                }}
+              />
+              <TextField
+                required={!form.nameVi.trim()}
+                label={tr('Tên tiếng Anh', 'English Name')}
+                placeholder="e.g. Loudspeaker Payload"
+                value={form.nameEn}
+                onChange={(e) => {
+                  const nextEn = e.target.value;
+                  setForm((curr) => ({
+                    ...curr,
+                    nameEn: nextEn,
+                    code:
+                      !editingItem && !codeManuallyEdited
+                        ? generateFeatureCode(nextEn || curr.nameVi)
+                        : curr.code,
+                  }));
+                }}
+              />
               {!editingItem && (
                 <TextField
-                  required
-                  label={tr('Mã tính năng (Code)', 'Feature Code')}
-                  placeholder="VD: OBSTACLE_AVOIDANCE, THERMAL_CAMERA"
+                  label={tr('Mã tính năng (Code - tự tạo nếu để trống)', 'Feature Code (auto-generated if omitted)')}
+                  placeholder="VD: LOUDSPEAKER_PAYLOAD"
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') })}
-                  helperText={tr('Chữ hoa không dấu, gạch dưới (A-Z, 0-9, _)', 'Uppercase letters, numbers, underscore only')}
+                  onChange={(e) => {
+                    setCodeManuallyEdited(true);
+                    setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') });
+                  }}
+                  helperText={tr('Tự tạo nếu để trống (A-Z, 0-9, _)', 'Auto-generated if blank (A-Z, 0-9, _)')}
                 />
               )}
-              <TextField
-                required
-                label={tr('Tên tiếng Việt', 'Vietnamese Name')}
-                placeholder="VD: Tránh va chạm đa hướng"
-                value={form.nameVi}
-                onChange={(e) => setForm({ ...form, nameVi: e.target.value })}
-              />
-              <TextField
-                required
-                label={tr('Tên tiếng Anh', 'English Name')}
-                placeholder="e.g. Omnidirectional Obstacle Sensing"
-                value={form.nameEn}
-                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-              />
               <TextField
                 multiline
                 rows={2}
@@ -453,9 +497,6 @@ export function DroneFeatureConfigTab() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenDialog(false)} color="inherit">
-              {tr('Hủy', 'Cancel')}
-            </Button>
             <Button
               type="submit"
               form="feature-config-form"

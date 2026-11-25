@@ -710,13 +710,6 @@ export function CreateRequestDialog({
           gap: 1,
         }}
       >
-        <Button
-          onClick={onClose}
-          color="inherit"
-          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', px: 1.75 }}
-        >
-          {t('Cancel')}
-        </Button>
         <LoadingButton
           variant="contained"
           disableElevation

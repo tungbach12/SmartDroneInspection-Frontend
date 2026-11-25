@@ -43,6 +43,12 @@ vi.mock('@/features/auth/api/inspectorApplicationApi', () => ({
   },
 }));
 
+vi.mock('@/features/assets/api/droneFeatureConfigApi', () => ({
+  droneFeatureConfigApi: {
+    list: vi.fn().mockResolvedValue([]),
+  },
+}));
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -94,6 +100,7 @@ describe('MF1 review queues', () => {
         registrationExpiresAt: '2027-12-31T00:00:00Z',
         ownershipFileKey: 'drone/owner',
         inspectionFileKey: 'drone/inspection',
+        imageFileKeys: ['drone/img-0'],
         status: 'PENDING',
         reviewNote: null,
         droneId: null,
@@ -110,16 +117,15 @@ describe('MF1 review queues', () => {
     expect(
       await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i),
     ).toBeTruthy();
+    expect(await screen.findByText(/Drone photos|Hình ảnh thiết bị bay/i)).toBeTruthy();
   });
 
   it('requires a rejection note before refusing a drone application', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Review application|Thẩm định hồ sơ/i }));
     await screen.findByText(/Review Compliance Application|Thẩm định hồ sơ Phương tiện Drone/i);
-    const rejectActionBtn = await screen.findByRole('button', { name: /Reject|Từ chối/i });
-    fireEvent.click(rejectActionBtn);
-    const confirmRejectBtn = screen.getByRole('button', { name: /Confirm rejection|Xác nhận từ chối/i });
-    fireEvent.click(confirmRejectBtn);
+    const rejectBtn = await screen.findByRole('button', { name: /^Reject$|^Từ chối$/i });
+    fireEvent.click(rejectBtn);
     expect(
       await screen.findByText(
         /Please provide a clear rejection reason so the applicant can resubmit\.|Vui lòng nêu rõ lý do từ chối để Inspector bổ sung lại\./i,
@@ -207,7 +213,7 @@ describe('MF1 review queues', () => {
     expect(
       await screen.findByText(/Drone registration approved|Hồ sơ drone đã được phê duyệt/i),
     ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Confirm approval|Xác nhận duyệt/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Approve$|^Duyệt$/i })).toBeNull();
   });
 
   it('filters inspector applications by license class, phone search, and awaiting contract status', async () => {
