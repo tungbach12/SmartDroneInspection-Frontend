@@ -1004,4 +1004,41 @@ describe('InspectionDetailPage', () => {
       ),
     ).toBeTruthy();
   });
+
+  it('shows restricted airspace alert and one-click permit decline chip when assignment is pending acceptance', async () => {
+    signInAs('INSPECTOR');
+    mocks.inspectionQuery = {
+      data: {
+        id: 'inspection-1',
+        assetId: 'asset-1',
+        assetLatitude: 10.7789,
+        assetLongitude: 106.7082,
+        status: 'SCHEDULED',
+        assignmentStatus: 'PENDING_ACCEPTANCE',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mocks.workflowQuery = {
+      data: {
+        status: 'SCHEDULED',
+        findingsConfirmedAt: null,
+        flightPermitVerificationStatus: 'NOT_UPLOADED',
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+
+    renderInspectionPage({ route: '/operations/inspections/inspection-1/permit' });
+    expect(await screen.findByText(/Max ceiling 120 m AGL/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Decline mission' }));
+    const chip = await screen.findByText('Unable to obtain restricted-airspace flight permit');
+    fireEvent.click(chip);
+    const textbox = screen.getByLabelText(/Decline reason/) as HTMLInputElement;
+    expect(textbox.value).toBe('Unable to obtain restricted-airspace flight permit');
+  });
 });

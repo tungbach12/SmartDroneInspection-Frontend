@@ -25,6 +25,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { getErrorMessage } from '@/shared/api/errorMessage';
+import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { type CreateServiceRequestInput, type ServiceRequest } from '../api/contractApi';
 import {
   addAnchoredMonths,
@@ -37,7 +38,16 @@ import { useCreateServiceRequest } from '../hooks/useContracts';
 interface CreateRequestDialogProps {
   open: boolean;
   onClose: () => void;
-  assets: { id: string; name: string; code: string; status?: string }[];
+  assets: {
+    id: string;
+    name: string;
+    code: string;
+    status?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    structureHeightMeters?: number | null;
+    footprintAreaSquareMeters?: number | null;
+  }[];
   existingRequests?: ServiceRequest[];
   onCreated: (requestId: string) => void;
   onError: (message: string) => void;
@@ -50,7 +60,7 @@ function isActiveServiceRequest(request: ServiceRequest): boolean {
   if (request.status === 'CANCELLED') {
     return false;
   }
-  if (request.status !== 'ASSIGNED') {
+  if (request.status !== 'ASSIGNED' && request.status !== 'CONTRACT_SIGNED') {
     return true;
   }
   if (!request.occurrences || request.occurrences.length === 0) {
@@ -554,6 +564,16 @@ export function CreateRequestDialog({
             <Alert severity="info" sx={{ borderRadius: '10px' }}>
               {t('All available assets already have an active service request in progress.')}
             </Alert>
+          )}
+
+          {selectedAsset && (
+            <RestrictedAirspaceAlert
+              role="CUSTOMER"
+              latitude={selectedAsset.latitude}
+              longitude={selectedAsset.longitude}
+              structureHeightMeters={selectedAsset.structureHeightMeters}
+              footprintAreaSquareMeters={selectedAsset.footprintAreaSquareMeters}
+            />
           )}
 
           <FormControl

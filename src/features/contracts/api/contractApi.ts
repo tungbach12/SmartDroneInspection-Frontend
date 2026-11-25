@@ -522,6 +522,26 @@ export const contractApi = {
     return data;
   },
 
+  async cancelRequest(requestId: string, reason?: string): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/cancel`,
+      reason?.trim() ? { reason: reason.trim() } : {},
+    );
+    return data;
+  },
+
+  async cancelOccurrence(
+    requestId: string,
+    occurrenceId: string,
+    reason?: string,
+  ): Promise<ServiceRequest> {
+    const { data } = await api.post<ServiceRequest>(
+      `/contracts/requests/${requestId}/occurrences/${occurrenceId}/cancel`,
+      reason?.trim() ? { reason: reason.trim() } : {},
+    );
+    return data;
+  },
+
   async postMessage(requestId: string, body: string, files: File[] = []): Promise<ServiceRequest> {
     const form = new FormData();
     if (body.trim()) form.append('body', body.trim());

@@ -72,6 +72,11 @@ import {
   buildGoogleMapsExternalUrl,
 } from '../components/AssetLocationPickerModal';
 import { evaluateAirspace } from '@/shared/airspace/airspaceZones';
+import {
+  RestrictedAirspaceAlert,
+  RestrictedAirspaceChip,
+} from '@/shared/airspace/RestrictedAirspaceNotice';
+import { estimateFootprintRadiusMeters } from '@/shared/airspace/airspaceZones';
 
 const DOCUMENT_TYPES = ['OWNERSHIP', 'INSPECTION_HISTORY', 'MAINTENANCE_RECORD', 'OTHER'] as const;
 
@@ -258,7 +263,10 @@ function AssetCard({
               </Stack>
             </Box>
           </Box>
-          <StatusChip status={asset.status} />
+          <Stack spacing={0.5} sx={{ alignItems: 'flex-end', flexShrink: 0 }}>
+            <StatusChip status={asset.status} />
+            <RestrictedAirspaceChip latitude={asset.latitude} longitude={asset.longitude} />
+          </Stack>
         </Box>
 
         <Divider sx={{ my: 1.75 }} />
@@ -499,9 +507,9 @@ export function AssetsPage() {
           <MetricCard
             label={t('Active Assets')}
             value={isLoading ? '…' : formatNumber(activeCount)}
-            change="CLEAR"
+            change={t('ACTIVE')}
             positive
-            subtext="airspace clearance verified"
+            subtext="active building assets"
             iconType="check-circle"
           />
           <MetricCard
@@ -982,6 +990,13 @@ function CreateAssetDialogForm({
               setLocationText('');
             }}
           />
+          <RestrictedAirspaceAlert
+            role="CUSTOMER"
+            latitude={latitude}
+            longitude={longitude}
+            structureHeightMeters={heightValue}
+            footprintAreaSquareMeters={areaValue}
+          />
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
@@ -1009,7 +1024,11 @@ function CreateAssetDialogForm({
               helperText={
                 areaValue === undefined
                   ? t('Enter a number of 0 or more')
-                  : undefined
+                  : areaValue != null && areaValue > 0
+                    ? locale === 'vi'
+                      ? `Bán kính phạm vi ước tính ~${Math.round(estimateFootprintRadiusMeters(areaValue))} m quanh điểm ghim`
+                      : `Estimated perimeter radius ~${Math.round(estimateFootprintRadiusMeters(areaValue))} m around pinned point`
+                    : undefined
               }
             />
           </Stack>
@@ -1839,6 +1858,9 @@ function AssetDetailDrawer({
                   {asset?.name}
                 </Typography>
                 {asset && <StatusChip status={asset.status} />}
+                {asset && (
+                  <RestrictedAirspaceChip latitude={asset.latitude} longitude={asset.longitude} />
+                )}
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                 {asset?.code}
@@ -1890,6 +1912,13 @@ function AssetDetailDrawer({
                   setEditLocation('');
                 }}
               />
+              <RestrictedAirspaceAlert
+                role="CUSTOMER"
+                latitude={editLatitude}
+                longitude={editLongitude}
+                structureHeightMeters={parsedEditHeight}
+                footprintAreaSquareMeters={parsedEditArea}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
                   label={t('Structure height (m)')}
@@ -1930,6 +1959,15 @@ function AssetDetailDrawer({
                 <Alert severity="info" sx={{ borderRadius: '10px', fontSize: '0.875rem' }}>
                   {t('Upload at least one photo so it displays on the asset card and helps pilots recognize the structure.')}
                 </Alert>
+              )}
+              {asset && (
+                <RestrictedAirspaceAlert
+                  role={isClient ? 'CUSTOMER' : 'MANAGER'}
+                  latitude={asset.latitude}
+                  longitude={asset.longitude}
+                  structureHeightMeters={asset.structureHeightMeters}
+                  footprintAreaSquareMeters={asset.footprintAreaSquareMeters}
+                />
               )}
 
               {/* Split Overview: Media Gallery + Specifications */}

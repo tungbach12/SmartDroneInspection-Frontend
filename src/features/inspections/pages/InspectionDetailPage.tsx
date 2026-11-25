@@ -73,6 +73,10 @@ import {
   isFlightPermitVerified,
   resolveFlightPermitVerificationStatus,
 } from '../utils/workflowStepResolver';
+import {
+  RestrictedAirspaceAlert,
+  RestrictedAirspaceChip,
+} from '@/shared/airspace/RestrictedAirspaceNotice';
 
 interface WorkflowStep {
   step: number;
@@ -1152,6 +1156,10 @@ export default function InspectionDetailPage() {
                         }}
                       />
                     )}
+                    <RestrictedAirspaceChip
+                      latitude={inspection.assetLatitude}
+                      longitude={inspection.assetLongitude}
+                    />
                   </Stack>
 
                   {hasOverviewPanel && (
@@ -1300,6 +1308,15 @@ export default function InspectionDetailPage() {
             </Paper>
           );
         })()}
+
+        {inspection && (
+          <RestrictedAirspaceAlert
+            role={isCustomer ? 'CUSTOMER' : isReviewerAdmin ? 'MANAGER' : 'INSPECTOR'}
+            latitude={inspection.assetLatitude}
+            longitude={inspection.assetLongitude}
+            sx={{ mt: 1.5, borderRadius: '10px' }}
+          />
+        )}
 
         {isPendingAcceptance && (
           <Alert severity="info" sx={{ mt: 1.5, borderRadius: '10px', '& .MuiAlert-message': { width: '100%' } }}>
@@ -1765,6 +1782,18 @@ export default function InspectionDetailPage() {
           <DialogTitle sx={{ fontWeight: 700 }}>{t('Decline assigned mission?')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  clickable
+                  label={t('Unable to obtain restricted-airspace flight permit')}
+                  onClick={() =>
+                    setDeclineReason(t('Unable to obtain restricted-airspace flight permit'))
+                  }
+                />
+              </Stack>
               <TextField
                 label={t('Decline reason')}
                 multiline

@@ -27,6 +27,8 @@ import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
 import { Link, useSearchParams } from 'react-router-dom';
 import { InspectorProfileDialog } from '@/features/admin/components/InspectorProfileDialog';
 import { mf1ReviewApi } from '@/features/admin/api/mf1ReviewApi';
+import { useAsset } from '@/features/assets/hooks/useAssets';
+import { RestrictedAirspaceAlert } from '@/shared/airspace/RestrictedAirspaceNotice';
 import { AuthenticatedImage } from '@/shared/ui/AuthenticatedImage';
 import { LoadingButton } from '@/shared/ui/LoadingButton';
 import { StatusChip } from '@/shared/ui/StatusChip';
@@ -42,6 +44,7 @@ import { dateTimeInputToInstant, instantToDateTimeInput } from '../../api/schedu
 import {
   useAssignRemainingOccurrences,
   useAssignServiceOccurrence,
+  useCancelServiceOccurrence,
   useEvaluatePartnerCandidates,
   usePartnerDrones,
   usePartnerInspectors,
@@ -75,6 +78,7 @@ export function ManagerOccurrencesStep({
     fallbackLabel: string;
   } | null>(null);
   const partnerDronesQuery = usePartnerDrones(Boolean(detailDrone));
+  const assetQuery = useAsset(request.assetId);
 
   const isOneTime =
     request.requestType === 'ONE_TIME' && request.occurrences.length <= 1;
@@ -111,6 +115,17 @@ export function ManagerOccurrencesStep({
               </Typography>
             )}
           </Stack>
+        )}
+
+        {!stepActive && (
+          <RestrictedAirspaceAlert
+            role="MANAGER"
+            latitude={assetQuery.data?.latitude}
+            longitude={assetQuery.data?.longitude}
+            structureHeightMeters={assetQuery.data?.structureHeightMeters}
+            footprintAreaSquareMeters={assetQuery.data?.footprintAreaSquareMeters}
+            sx={{ mb: 2 }}
+          />
         )}
 
         <Stack spacing={stepActive ? 0 : 1.5}>
@@ -177,11 +192,14 @@ function ManagerOccurrenceRow({
   const { formatNumber, locale, t } = useLocale();
   const assign = useAssignServiceOccurrence(request.id, occurrence.id);
   const bulkAssign = useAssignRemainingOccurrences(request.id);
+  const cancelOccurrence = useCancelServiceOccurrence(request.id, occurrence.id);
   const evaluate = useEvaluatePartnerCandidates(request.id);
   const inspectors = usePartnerInspectors(true);
   const drones = usePartnerDrones(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [bulkPair, setBulkPair] = useState<{ inspectorId: string; droneId: string } | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const remainingUnassignedOther = request.occurrences.filter(
     (item) => item.status === 'PENDING_ASSIGNMENT' && item.id !== occurrence.id,
@@ -731,13 +749,34 @@ function ManagerOccurrenceRow({
                 severity="error"
                 sx={{ borderRadius: '8px', alignItems: 'flex-start' }}
                 action={
-                  occurrence.inspectionId ? (
+                  <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap' }}>
+                    {occurrence.inspectionId && (
+                      <Button
+                        component={Link}
+                        to={`/manager/inspections/${occurrence.inspectionId}?action=reassign`}
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        sx={{
+                          borderRadius: '8px',
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {t('Assign another team')}
+                      </Button>
+                    )}
                     <Button
-                      component={Link}
-                      to={`/manager/inspections/${occurrence.inspectionId}?action=reassign`}
                       size="small"
                       variant="outlined"
                       color="error"
+                      onClick={() => {
+                        setCancelReason(
+                          occurrence.declineReason || t('Unable to obtain restricted-airspace flight permit'),
+                        );
+                        setCancelOpen(true);
+                      }}
                       sx={{
                         borderRadius: '8px',
                         textTransform: 'none',
@@ -745,9 +784,9 @@ function ManagerOccurrenceRow({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {t('Assign another team')}
+                      {t('Cancel flight')}
                     </Button>
-                  ) : undefined
+                  </Stack>
                 }
               >
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -756,23 +795,41 @@ function ManagerOccurrenceRow({
                 <Typography variant="body2" sx={{ mt: 0.25 }}>
                   {occurrence.declineReason
                     ? `${t('Decline reason')}: ${occurrence.declineReason}`
-                    : t('Reassign this flight to another Inspector.')}
+                    : t('Reassign this flight to another Inspector or cancel it.')}
                 </Typography>
               </Alert>
             )}
 
             {occurrence.assignmentStatus === 'PENDING_ACCEPTANCE' && (
-              <Typography variant="caption" color="text.secondary">
-                {occurrence.acceptanceDeadlineAt
-                  ? locale === 'vi'
-                    ? `Đang chờ Inspector xác nhận trước ${new Date(
-                        occurrence.acceptanceDeadlineAt,
-                      ).toLocaleString(undefined, { timeZone: request.timezone })}.`
-                    : `Waiting for the Inspector to confirm before ${new Date(
-                        occurrence.acceptanceDeadlineAt,
-                      ).toLocaleString(undefined, { timeZone: request.timezone })}.`
-                  : t('Waiting for the Inspector to confirm the flight.')}
-              </Typography>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {occurrence.acceptanceDeadlineAt
+                    ? locale === 'vi'
+                      ? `Đang chờ Inspector xác nhận trước ${new Date(
+                          occurrence.acceptanceDeadlineAt,
+                        ).toLocaleString(undefined, { timeZone: request.timezone })}.`
+                      : `Waiting for the Inspector to confirm before ${new Date(
+                          occurrence.acceptanceDeadlineAt,
+                        ).toLocaleString(undefined, { timeZone: request.timezone })}.`
+                    : t('Waiting for the Inspector to confirm the flight.')}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  color="error"
+                  onClick={() => {
+                    setCancelReason('');
+                    setCancelOpen(true);
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 600, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                >
+                  {t('Cancel flight')}
+                </Button>
+              </Stack>
             )}
           </Stack>
         ) : (
@@ -954,6 +1011,18 @@ function ManagerOccurrenceRow({
                   >
                     {t('Assign occurrence')}
                   </LoadingButton>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    onClick={() => {
+                      setCancelReason('');
+                      setCancelOpen(true);
+                    }}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                  >
+                    {t('Cancel flight')}
+                  </Button>
                   {remainingUnassignedOther.length > 0 && selectedCandidate && (
                     <Button
                       size="small"
@@ -1031,6 +1100,51 @@ function ManagerOccurrenceRow({
             {t('Apply to remaining')}
           </LoadingButton>
         </DialogActions>
+      </Dialog>
+
+      <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} maxWidth="xs" fullWidth>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!cancelReason.trim()) return;
+            try {
+              await cancelOccurrence.mutateAsync({ reason: cancelReason.trim() });
+              setCancelOpen(false);
+              onChanged();
+            } catch (error) {
+              onError(extractContractErrorText(error, 'Could not cancel scheduled flight.'));
+            }
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>{t('Cancel scheduled flight?')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label={t('Cancellation reason')}
+                multiline
+                minRows={3}
+                required
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                helperText={t(
+                  'Enter why this flight is cancelled (e.g., restricted-airspace permit unavailable).',
+                )}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setCancelOpen(false)}>{t('Back')}</Button>
+            <LoadingButton
+              type="submit"
+              color="error"
+              variant="contained"
+              loading={Boolean(cancelOccurrence?.isPending)}
+              disabled={!cancelReason.trim()}
+            >
+              {t('Confirm cancellation')}
+            </LoadingButton>
+          </DialogActions>
+        </form>
       </Dialog>
     </Box>
   );

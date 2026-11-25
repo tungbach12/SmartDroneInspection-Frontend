@@ -169,6 +169,14 @@ describe('ContractsPage', () => {
       mutateAsync: vi.fn().mockResolvedValue({ id: 'req-1' }),
       isPending: false,
     } as any);
+    vi.spyOn(contractsHook, 'useCancelServiceRequest').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-1' }),
+      isPending: false,
+    } as any);
+    vi.spyOn(contractsHook, 'useCancelServiceOccurrence').mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'req-1' }),
+      isPending: false,
+    } as any);
     vi.spyOn(catalogHook, 'useCategories').mockReturnValue({
       data: [],
       isPending: false,

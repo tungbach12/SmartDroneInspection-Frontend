@@ -211,6 +211,115 @@ export function evaluateAirspace(latitude: number, longitude: number): AirspaceE
   };
 }
 
+export interface RestrictedAirspaceSummary {
+  zoneCode: string;
+  zoneName: string;
+  authority: string;
+  maxAltitudeMetersAgl: number;
+  advisoryMessage: string;
+}
+
+export function getRestrictedAirspaceSummary(
+  latitude?: number | null,
+  longitude?: number | null,
+): RestrictedAirspaceSummary | null {
+  if (
+    typeof latitude !== 'number' ||
+    Number.isNaN(latitude) ||
+    typeof longitude !== 'number' ||
+    Number.isNaN(longitude)
+  ) {
+    return null;
+  }
+  const evaluation = evaluateAirspace(latitude, longitude);
+  if (evaluation.classification !== 'RESTRICTED_ZONE') {
+    return null;
+  }
+  const primary = evaluation.matchingZones[0];
+  if (!primary) {
+    return null;
+  }
+  return {
+    zoneCode: primary.code,
+    zoneName: primary.name,
+    authority: primary.authority,
+    maxAltitudeMetersAgl: primary.maxAltitudeMetersAgl,
+    advisoryMessage: evaluation.advisoryMessage,
+  };
+}
+
+export interface FootprintNoFlyOverlap {
+  zoneCode: string;
+  zoneName: string;
+  authority: string;
+  edgeDistanceMeters: number;
+  footprintRadiusMeters: number;
+  overlapMeters: number;
+}
+
+export function estimateFootprintRadiusMeters(
+  footprintAreaSquareMeters?: number | null,
+): number {
+  if (
+    typeof footprintAreaSquareMeters !== 'number' ||
+    !Number.isFinite(footprintAreaSquareMeters) ||
+    footprintAreaSquareMeters <= 0
+  ) {
+    return 0;
+  }
+  return Math.sqrt(footprintAreaSquareMeters / Math.PI);
+}
+
+/**
+ * Checks whether an asset's estimated circular footprint around its pinned center touches
+ * or crosses into an adjacent NO_FLY_ZONE boundary.
+ */
+export function evaluateFootprintNoFlyOverlap(
+  latitude?: number | null,
+  longitude?: number | null,
+  footprintAreaSquareMeters?: number | null,
+): FootprintNoFlyOverlap | null {
+  if (
+    typeof latitude !== 'number' ||
+    Number.isNaN(latitude) ||
+    typeof longitude !== 'number' ||
+    Number.isNaN(longitude)
+  ) {
+    return null;
+  }
+  const footprintRadiusMeters = estimateFootprintRadiusMeters(footprintAreaSquareMeters);
+  if (footprintRadiusMeters <= 0) {
+    return null;
+  }
+
+  let closest: FootprintNoFlyOverlap | null = null;
+  for (const zone of VIETNAM_AIRSPACE_ZONES) {
+    if (zone.zoneType !== 'NO_FLY_ZONE') continue;
+    const distance = Math.round(
+      haversineDistanceMeters(latitude, longitude, zone.latitude, zone.longitude),
+    );
+    if (distance <= zone.radiusMeters) {
+      // Center is already inside the no-fly zone; standard NO_FLY_ZONE blocking handles it.
+      continue;
+    }
+    const edgeDistanceMeters = distance - zone.radiusMeters;
+    if (edgeDistanceMeters <= footprintRadiusMeters) {
+      const candidate: FootprintNoFlyOverlap = {
+        zoneCode: zone.code,
+        zoneName: zone.name,
+        authority: zone.authority,
+        edgeDistanceMeters,
+        footprintRadiusMeters: Math.round(footprintRadiusMeters),
+        overlapMeters: Math.max(1, Math.round(footprintRadiusMeters - edgeDistanceMeters)),
+      };
+      if (!closest || candidate.edgeDistanceMeters < closest.edgeDistanceMeters) {
+        closest = candidate;
+      }
+    }
+  }
+  return closest;
+}
+
 export function extractCoordinates(
   locationText?: string | null,
   explicitLatitude?: number | null,

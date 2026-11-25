@@ -280,6 +280,22 @@ export function useCancelUnpaidPaymentOrder(requestId: string, occurrenceId: str
   );
 }
 
+export function useCancelServiceRequest(requestId: string) {
+  return useContractMutation<{ reason?: string }>(
+    (input) => contractApi.cancelRequest(requestId, input.reason),
+    'Service request cancelled.',
+    requestId,
+  );
+}
+
+export function useCancelServiceOccurrence(requestId: string, occurrenceId: string) {
+  return useContractMutation<{ reason?: string }>(
+    (input) => contractApi.cancelOccurrence(requestId, occurrenceId, input.reason),
+    'Scheduled flight cancelled.',
+    requestId,
+  );
+}
+
 export function useInitiateOccurrenceRefund(requestId: string, occurrenceId: string) {
   return useContractMutation<{ amount: number; requestReference: string; reasonCode: string; serviceStage: string; reason: string; contractClauseReference: string; evidenceReference: string; inspectorReceivableAmount: number; platformAbsorbedAmount: number }>(
     (input) => contractApi.initiateOccurrenceRefund(requestId, occurrenceId, input),
