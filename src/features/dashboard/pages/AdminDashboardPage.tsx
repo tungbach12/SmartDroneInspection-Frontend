@@ -116,12 +116,6 @@ export function AdminDashboardPage({
           >
             {t('Platform overview')}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-            {tr(
-              'Giám sát người dùng, hồ sơ thẩm định MF1, hoạt động AI Vision và nhật ký kiểm toán.',
-              'Monitor platform users, MF1 compliance reviews, AI Vision activity, and audit logs.',
-            )}
-          </Typography>
         </Box>
 
         <DashboardHeaderActions

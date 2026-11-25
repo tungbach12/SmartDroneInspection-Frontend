@@ -180,18 +180,6 @@ export function InspectorDashboardPage() {
             >
               {t('Inspector Dashboard')}
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#71717A',
-                fontSize: '0.875rem',
-                fontWeight: 400,
-                lineHeight: '1.25rem',
-                mt: '4px',
-              }}
-            >
-              {t('Personal monthly revenue, commission deductions, and flight mission overview.')}
-            </Typography>
           </Box>
 
           <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
@@ -429,7 +417,6 @@ export function InspectorDashboardPage() {
                 : t('All up to date')
             }
             positive={inProgressMissions === 0}
-            subtext={t('drone field surveys')}
             iconType="plane"
           />
 
@@ -442,7 +429,6 @@ export function InspectorDashboardPage() {
                 : `${totalAssigned - publishedReports} ${t('in review/progress')}`
             }
             positive={true}
-            subtext={t('verified deliverables')}
             iconType="shield"
           />
 
@@ -451,7 +437,6 @@ export function InspectorDashboardPage() {
             value={`${formatNumber(totalNet)} ₫`}
             change={`${disbursementPercent}% ${t('disbursed')}`}
             positive={true}
-            subtext={t('after 15% platform commission')}
             iconType="wallet"
           />
 
@@ -460,7 +445,6 @@ export function InspectorDashboardPage() {
             value={`${activeDroneCount} / ${droneCount}`}
             change={`${myProfile?.totalFlightHours ?? 0}h ${t('flight hrs')}`}
             positive={activeDroneCount > 0}
-            subtext={myProfile?.pilotLicenseClass || t('fleet readiness')}
             iconType="users"
           />
         </Box>
@@ -738,17 +722,12 @@ export function InspectorDashboardPage() {
               borderColor: 'divider',
             }}
           >
-            <Box>
-              <Typography
-                component="h2"
-                sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
-              >
-                {t('Monthly Settlement Breakdown')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#71717A', fontSize: '0.875rem' }}>
-                {t('Consolidated monthly orders, platform commission, and disbursement records')}
-              </Typography>
-            </Box>
+            <Typography
+              component="h2"
+              sx={{ fontSize: '1rem', fontWeight: 600, color: 'text.primary' }}
+            >
+              {t('Monthly Settlement Breakdown')}
+            </Typography>
             <Button
               size="small"
               variant="text"

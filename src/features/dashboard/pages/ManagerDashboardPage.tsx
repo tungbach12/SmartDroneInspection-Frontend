@@ -123,12 +123,6 @@ export function ManagerDashboardPage({
           >
             {tr('Điều phối & Thương mại', 'Operations & Commercial Overview')}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-            {tr(
-              'Theo dõi báo giá, điều phối đội bay đối tác và duyệt xuất bản báo cáo.',
-              'Track quotations, partner dispatch, and report publication.',
-            )}
-          </Typography>
         </Box>
 
         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>

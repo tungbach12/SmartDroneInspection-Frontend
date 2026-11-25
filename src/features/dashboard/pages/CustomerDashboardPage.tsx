@@ -253,18 +253,6 @@ export function CustomerDashboardPage() {
           >
             {t('Organization portfolio & deliverables')}
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: '#71717A',
-              fontSize: '0.875rem',
-              fontWeight: 400,
-              lineHeight: '1.25rem',
-              mt: '4px',
-            }}
-          >
-            {t('Monitor registered assets, published inspection reports, and Sepay fee settlements.')}
-          </Typography>
         </Box>
 
         <Stack
