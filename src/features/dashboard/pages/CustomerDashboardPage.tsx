@@ -385,8 +385,8 @@ export function CustomerDashboardPage() {
                     <TableRow>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 500,
                           py: 1.5,
@@ -397,8 +397,8 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 500,
                           py: 1.5,
@@ -409,8 +409,8 @@ export function CustomerDashboardPage() {
                       </TableCell>
                       <TableCell
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 500,
                           py: 1.5,
@@ -422,8 +422,8 @@ export function CustomerDashboardPage() {
                       <TableCell
                         align="right"
                         sx={{
-                          bgcolor: 'rgba(244, 244, 245, 0.5)',
-                          color: '#71717A',
+                          bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                          color: 'text.secondary',
                           fontSize: '0.75rem',
                           fontWeight: 500,
                           py: 1.5,
@@ -472,12 +472,12 @@ export function CustomerDashboardPage() {
                           <TableCell sx={{ py: 1.5, px: 1.5 }}>
                             {isPublished ? (
                               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <CheckCircleRounded sx={{ fontSize: 15, color: '#176B52' }} />
+                                <CheckCircleRounded sx={{ fontSize: 15, color: 'success.main' }} />
                                 <Typography
                                   variant="caption"
                                   sx={{
                                     fontWeight: 650,
-                                    color: '#176B52',
+                                    color: 'success.main',
                                     fontVariantNumeric: 'tabular-nums',
                                     whiteSpace: 'nowrap',
                                   }}
@@ -488,12 +488,12 @@ export function CustomerDashboardPage() {
                               </Stack>
                             ) : (
                               <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                                <HourglassEmptyRounded sx={{ fontSize: 15, color: '#225F85' }} />
+                                <HourglassEmptyRounded sx={{ fontSize: 15, color: 'info.main' }} />
                                 <Typography
                                   variant="caption"
                                   sx={{
                                     fontWeight: 600,
-                                    color: '#225F85',
+                                    color: 'info.main',
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
@@ -522,9 +522,9 @@ export function CustomerDashboardPage() {
                               sx={{
                                 color:
                                   item.resolvedPaymentStatus === 'PAID'
-                                    ? '#176B52'
+                                    ? 'success.main'
                                     : item.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                      ? '#8C520B'
+                                      ? 'warning.main'
                                       : 'text.secondary',
                                 fontWeight: 600,
                               }}
@@ -623,12 +623,12 @@ export function CustomerDashboardPage() {
                       >
                         {isPublished ? (
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <CheckCircleRounded sx={{ fontSize: 14, color: '#176B52' }} />
+                            <CheckCircleRounded sx={{ fontSize: 14, color: 'success.main' }} />
                             <Typography
                               variant="caption"
                               sx={{
                                 fontWeight: 650,
-                                color: '#176B52',
+                                color: 'success.main',
                                 fontVariantNumeric: 'tabular-nums',
                                 whiteSpace: 'nowrap',
                               }}
@@ -639,12 +639,12 @@ export function CustomerDashboardPage() {
                           </Stack>
                         ) : (
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                            <HourglassEmptyRounded sx={{ fontSize: 14, color: '#225F85' }} />
+                            <HourglassEmptyRounded sx={{ fontSize: 14, color: 'info.main' }} />
                             <Typography
                               variant="caption"
                               sx={{
                                 fontWeight: 600,
-                                color: '#225F85',
+                                color: 'info.main',
                                 whiteSpace: 'nowrap',
                               }}
                             >
@@ -657,9 +657,9 @@ export function CustomerDashboardPage() {
                           sx={{
                             color:
                               item.resolvedPaymentStatus === 'PAID'
-                                ? '#176B52'
+                                ? 'success.main'
                                 : item.resolvedPaymentStatus === 'PAYMENT_DUE'
-                                  ? '#8C520B'
+                                  ? 'warning.main'
                                   : 'text.secondary',
                             fontWeight: 600,
                             whiteSpace: 'nowrap',
@@ -753,8 +753,8 @@ export function CustomerDashboardPage() {
                   <TableRow>
                     <TableCell
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 500,
                         py: 1.5,
@@ -765,8 +765,8 @@ export function CustomerDashboardPage() {
                     </TableCell>
                     <TableCell
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 500,
                         py: 1.5,
@@ -778,8 +778,8 @@ export function CustomerDashboardPage() {
                     <TableCell
                       align="right"
                       sx={{
-                        bgcolor: 'rgba(244, 244, 245, 0.5)',
-                        color: '#71717A',
+                        bgcolor: (muiTheme) => (muiTheme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : '#F9FAFB'),
+                        color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 500,
                         py: 1.5,

@@ -22,7 +22,7 @@ colors:
   error: "#DC2626"
   info: "#0284C7"
   dark-canvas: "#09090B"
-  dark-inset: "#111827"
+  dark-inset: "#111114"
   dark-surface: "#18181B"
   dark-raised: "#27272A"
   dark-text: "#F4F4F5"
@@ -102,7 +102,7 @@ SmartDroneInspection uses the **NextAdmin** visual architecture paired with the 
 
 ## Colors
 
-- **Canvas, Inset & Cards**: `#F4F4F5` outer canvas, `#FCFCFD` floating inset workspace, and `#FFFFFF` cards with `#E8E8E8` borders in light mode; `#09090B` outer canvas, `#111827` inset workspace, and `#18181B` cards with `#27272A` borders in dark mode.
+- **Canvas, Inset & Cards**: `#F4F4F5` outer canvas, `#FCFCFD` floating inset workspace, and `#FFFFFF` cards with `#E8E8E8` borders in light mode; `#09090B` outer canvas, `#111114` inset workspace, and `#18181B` cards with `#27272A` borders in dark mode.
 - **NextAdmin Indigo (`#3758F9`)**: Primary action (`dark: #2237EE`, `light: #06B6D4`, `soft: #EFF3FF`).
 - **Zinc Ink (`#18181B` / `#52525B` / `#71717A`)**: High-contrast primary, secondary, and tertiary typography.
 - **Status Accents**: Reserved strictly for actual workflow states (`#16A34A` success, `#CA8A04` warning, `#DC2626` error, `#0284C7` informational guidance).

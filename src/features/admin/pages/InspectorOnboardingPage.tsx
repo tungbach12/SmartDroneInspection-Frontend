@@ -623,14 +623,31 @@ export default function InspectorOnboardingPage({ embedded = false }: { embedded
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
-              sx={{
-                justifyContent: 'space-between',
-                alignItems: { sm: 'center' },
-                p: 2,
-                borderRadius: '10px',
-                border: '1px solid',
-                borderColor: myDrones.length > 0 ? '#bbf7d0' : '#fed7aa',
-                bgcolor: myDrones.length > 0 ? '#f0fdf4' : '#fffbeb',
+              sx={(muiTheme) => {
+                const dark = muiTheme.palette.mode === 'dark';
+                return {
+                  justifyContent: 'space-between',
+                  alignItems: { sm: 'center' },
+                  p: 2,
+                  borderRadius: '10px',
+                  border: '1px solid',
+                  borderColor:
+                    myDrones.length > 0
+                      ? dark
+                        ? 'rgba(16, 185, 129, 0.35)'
+                        : '#bbf7d0'
+                      : dark
+                        ? 'rgba(245, 158, 11, 0.35)'
+                        : '#fed7aa',
+                  bgcolor:
+                    myDrones.length > 0
+                      ? dark
+                        ? 'rgba(16, 185, 129, 0.12)'
+                        : '#f0fdf4'
+                      : dark
+                        ? 'rgba(245, 158, 11, 0.12)'
+                        : '#fffbeb',
+                };
               }}
             >
               <Box>

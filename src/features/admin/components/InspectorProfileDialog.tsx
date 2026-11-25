@@ -999,11 +999,18 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                     {/* BƯỚC 2: UPLOAD BẢN SCAN HỢP ĐỒNG ĐÃ KÝ + MÃ BĂM SHA-256 */}
                     <Paper
                       variant="outlined"
-                      sx={{
-                        p: 2.5,
-                        borderRadius: '12px',
-                        borderColor: profile.hasPartnerContract ? '#10b981' : '#cbd5e1',
-                        bgcolor: profile.hasPartnerContract ? '#f0fdf4' : '#ffffff',
+                      sx={(muiTheme) => {
+                        const dark = muiTheme.palette.mode === 'dark';
+                        return {
+                          p: 2.5,
+                          borderRadius: '12px',
+                          borderColor: profile.hasPartnerContract ? '#10b981' : 'divider',
+                          bgcolor: profile.hasPartnerContract
+                            ? dark
+                              ? 'rgba(16, 185, 129, 0.12)'
+                              : '#f0fdf4'
+                            : 'background.paper',
+                        };
                       }}
                     >
                       <Box
@@ -1017,7 +1024,7 @@ export function InspectorProfileDialog({ open, onClose, inspectorId }: Inspector
                         }}
                       >
                         <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                             Bước 2 — Upload Bản scan Hợp đồng đã ký (Khóa toàn vẹn SHA-256 trên MinIO)
                           </Typography>
                           <Typography variant="caption" color="text.secondary">

@@ -1299,7 +1299,7 @@ export function AppShell({ portal }: AppShellProps) {
             py: 1.5,
             borderTop: '1px solid',
             borderColor: 'divider',
-            bgcolor: isDark ? '#111827' : '#FCFCFD',
+            bgcolor: isDark ? activePreset.darkInset : '#FCFCFD',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

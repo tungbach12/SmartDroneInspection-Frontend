@@ -31,13 +31,31 @@ const microChip = {
 
 function severitySx(severity: string) {
   const upper = severity.toUpperCase();
-  if (upper === 'CRITICAL' || upper === 'HIGH') {
-    return { ...microChip, bgcolor: '#fef2f2', color: '#991b1b', borderColor: '#fecaca' };
-  }
-  if (upper === 'MEDIUM') {
-    return { ...microChip, bgcolor: '#fef9c3', color: '#713f12', borderColor: '#fde047' };
-  }
-  return { ...microChip, bgcolor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' };
+  return (muiTheme: { palette: { mode: string } }) => {
+    const dark = muiTheme.palette.mode === 'dark';
+    if (upper === 'CRITICAL' || upper === 'HIGH') {
+      return {
+        ...microChip,
+        bgcolor: dark ? 'rgba(239, 68, 68, 0.16)' : '#fef2f2',
+        color: dark ? '#FCA5A5' : '#991b1b',
+        borderColor: dark ? 'rgba(239, 68, 68, 0.35)' : '#fecaca',
+      };
+    }
+    if (upper === 'MEDIUM') {
+      return {
+        ...microChip,
+        bgcolor: dark ? 'rgba(245, 158, 11, 0.16)' : '#fef9c3',
+        color: dark ? '#FCD34D' : '#713f12',
+        borderColor: dark ? 'rgba(245, 158, 11, 0.35)' : '#fde047',
+      };
+    }
+    return {
+      ...microChip,
+      bgcolor: dark ? 'rgba(16, 185, 129, 0.16)' : '#f0fdf4',
+      color: dark ? '#6EE7B7' : '#166534',
+      borderColor: dark ? 'rgba(16, 185, 129, 0.35)' : '#bbf7d0',
+    };
+  };
 }
 
 function outcomeText(outcome: string): string {
