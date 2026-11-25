@@ -365,7 +365,10 @@ export function useRegisterPartnerDrone() {
 }
 
 export interface UnreadChatNotification {
+  channel: 'requests' | 'inspections' | 'partners';
   requestId: string;
+  inspectionId?: string;
+  inspectorId?: string;
   requestDescription: string;
   unreadCount: number;
   latestMessageBody: string;
@@ -518,6 +521,7 @@ export function useUnreadChatSummary() {
           totalUnread += unreadForThis;
           const latestIncoming = incomingMessages[incomingMessages.length - 1];
           items.push({
+            channel: 'requests',
             requestId: req.id,
             requestDescription: req.description || 'Service request',
             unreadCount: unreadForThis,
@@ -541,7 +545,9 @@ export function useUnreadChatSummary() {
           totalUnread += unreadForThis;
           const latestIncoming = incomingMessages[incomingMessages.length - 1];
           items.push({
+            channel: 'inspections',
             requestId: thread.inspectionId,
+            inspectionId: thread.inspectionId,
             requestDescription: thread.assetName || 'Inspection',
             unreadCount: unreadForThis,
             latestMessageBody: latestIncoming?.body || '',
@@ -564,7 +570,9 @@ export function useUnreadChatSummary() {
           totalUnread += unreadForThis;
           const latestIncoming = incomingMessages[incomingMessages.length - 1];
           items.push({
+            channel: 'partners',
             requestId: thread.requestId,
+            inspectorId: thread.inspectorId,
             requestDescription: thread.requestDescription || thread.assetName || 'Partner dispatch',
             unreadCount: unreadForThis,
             latestMessageBody: latestIncoming?.body || '',

@@ -25,6 +25,7 @@ import { StatusChip } from '@/shared/ui/StatusChip';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { AdminTableToolbar } from '@/features/admin/components/AdminTableToolbar';
 import { pilotLicenseClassApi, type PilotLicenseClass } from '@/features/auth/api/pilotLicenseClassApi';
+import { useToastStore } from '@/shared/ui/Toast';
 
 interface LicenseClassForm {
   name: string;
@@ -41,6 +42,7 @@ interface PilotLicenseClassesPageProps {
 export default function PilotLicenseClassesPage({ embedded = false }: PilotLicenseClassesPageProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
+  const showToast = useToastStore((state) => state.showToast);
   const classesQuery = useQuery({
     queryKey: ['pilot-license-classes', 'admin'],
     queryFn: pilotLicenseClassApi.listAll,
@@ -62,6 +64,7 @@ export default function PilotLicenseClassesPage({ embedded = false }: PilotLicen
         : pilotLicenseClassApi.create({ ...form, active: true }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['pilot-license-classes'] });
+      showToast(editing ? t('License class updated') : t('License class created'), 'success');
       setDialogOpen(false);
       setEditing(null);
       setForm(emptyForm);
@@ -71,6 +74,7 @@ export default function PilotLicenseClassesPage({ embedded = false }: PilotLicen
     mutationFn: (id: string) => pilotLicenseClassApi.deactivate(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['pilot-license-classes'] });
+      showToast(t('License class deactivated'), 'success');
       setDeactivating(null);
     },
   });

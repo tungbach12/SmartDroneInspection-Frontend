@@ -7,6 +7,7 @@ import { notificationApi } from '../api/notificationApi';
 import {
   clearNotificationCache,
   notificationKeys,
+  useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useNotifications,
   useNotificationUnreadCount,
@@ -17,6 +18,7 @@ vi.mock('../api/notificationApi', () => ({
     list: vi.fn(),
     getUnreadCount: vi.fn(),
     markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
   },
 }));
 
@@ -164,6 +166,33 @@ describe('useNotifications hooks', () => {
       clearNotificationCache(queryClient);
 
       expect(queryClient.getQueryData(notificationKeys.unreadCount('user-1'))).toBeUndefined();
+    });
+  });
+
+  describe('useMarkAllNotificationsAsRead', () => {
+    it('calls markAllAsRead and marks cached notifications read', async () => {
+      vi.mocked(notificationApi.markAllAsRead).mockResolvedValueOnce({ updatedCount: 2 });
+      const listKey = notificationKeys.list('user-1', { page: 1 });
+      queryClient.setQueryData(listKey, {
+        items: [
+          { id: 'n-1', status: 'SENT', read: false, readAt: null },
+          { id: 'n-2', status: 'SENT', read: false, readAt: null },
+        ],
+        page: 1,
+        pageSize: 20,
+        totalCount: 2,
+        totalPages: 1,
+      });
+
+      const { result } = renderHook(() => useMarkAllNotificationsAsRead(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await result.current.mutateAsync();
+
+      expect(notificationApi.markAllAsRead).toHaveBeenCalledTimes(1);
+      const cached = queryClient.getQueryData<any>(listKey);
+      expect(cached.items.every((i: any) => i.read && i.status === 'READ')).toBe(true);
     });
   });
 });

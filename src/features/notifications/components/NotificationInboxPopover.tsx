@@ -22,10 +22,13 @@ import { useAuthStore } from '@/features/auth/store/authStore';
 import { useLocale } from '@/shared/i18n/LocaleProvider';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import {
+  useMarkInspectionMessagesRead,
   useMarkMessagesRead,
+  useMarkPartnerMessagesRead,
   type UnreadChatNotification,
 } from '@/features/contracts/hooks/useContracts';
 import {
+  useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useNotifications,
 } from '../hooks/useNotifications';
@@ -51,7 +54,7 @@ export function NotificationInboxPopover({
   portal,
   unreadChatItems,
 }: NotificationInboxPopoverProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const isDark = useIsDarkMode();
   const navigate = useNavigate();
   const roles = useAuthStore((state) => state.roles);
@@ -72,15 +75,41 @@ export function NotificationInboxPopover({
   );
 
   const markReadMutation = useMarkNotificationAsRead();
+  const markAllReadMutation = useMarkAllNotificationsAsRead();
   const markChatReadMutation = useMarkMessagesRead();
+  const markInspectionChatReadMutation = useMarkInspectionMessagesRead('');
+  const markPartnerChatReadMutation = useMarkPartnerMessagesRead('', '');
+
+  const markChatEntryRead = (entry: UnifiedNotificationEntry) => {
+    const channel = entry.chatChannel ?? 'requests';
+    if (channel === 'inspections') {
+      const inspectionId = entry.chatInspectionId ?? entry.chatRequestId;
+      if (inspectionId) {
+        markInspectionChatReadMutation.mutate(inspectionId);
+      }
+      return;
+    }
+    if (channel === 'partners') {
+      if (entry.chatRequestId && entry.chatInspectorId) {
+        markPartnerChatReadMutation.mutate({
+          requestId: entry.chatRequestId,
+          inspectorId: entry.chatInspectorId,
+        });
+      }
+      return;
+    }
+    if (entry.chatRequestId) {
+      markChatReadMutation.mutate(entry.chatRequestId);
+    }
+  };
 
   const handleTabChange = (_: SyntheticEvent, newValue: number) => {
     setUnreadOnly(newValue === 1);
   };
 
   const handleEntrySelect = (entry: UnifiedNotificationEntry) => {
-    if (entry.kind === 'chat' && entry.chatRequestId) {
-      markChatReadMutation.mutate(entry.chatRequestId);
+    if (entry.kind === 'chat') {
+      markChatEntryRead(entry);
     } else if (entry.isUnread) {
       markReadMutation.mutate(entry.id);
     }
@@ -105,8 +134,9 @@ export function NotificationInboxPopover({
         portal,
         roles,
         unreadOnly,
+        locale,
       ),
-    [rawItems, unreadChatItems, portal, roles, unreadOnly],
+    [rawItems, unreadChatItems, portal, roles, unreadOnly, locale],
   );
   const dayGroups = useMemo(
     () => groupNotificationsByDay(unifiedEntries),
@@ -116,13 +146,12 @@ export function NotificationInboxPopover({
   const hasUnreadInView = unifiedEntries.some((entry) => entry.isUnread);
 
   const handleMarkAllInViewAsRead = () => {
+    if (unifiedEntries.some((entry) => entry.kind === 'notification' && entry.isUnread)) {
+      markAllReadMutation.mutate();
+    }
     for (const entry of unifiedEntries) {
-      if (!entry.isUnread) continue;
-      if (entry.kind === 'chat' && entry.chatRequestId) {
-        markChatReadMutation.mutate(entry.chatRequestId);
-      } else {
-        markReadMutation.mutate(entry.id);
-      }
+      if (!entry.isUnread || entry.kind !== 'chat') continue;
+      markChatEntryRead(entry);
     }
   };
 

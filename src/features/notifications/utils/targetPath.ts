@@ -159,6 +159,24 @@ export function resolveSafeNotificationRoute(
         return `/${targetPortal}/contracts?requestId=${requestId}`;
       }
     }
+    if (section === 'dashboard') {
+      const tab = new URLSearchParams(trimmed.split('#')[0]?.split('?')[1] ?? '').get('tab');
+      if (tab && /^[a-zA-Z0-9_-]+$/.test(tab)) {
+        return `/${targetPortal}/dashboard?tab=${tab}`;
+      }
+    }
+    if (section === 'messages') {
+      const params = new URLSearchParams(trimmed.split('#')[0]?.split('?')[1] ?? '');
+      const nextParams = new URLSearchParams();
+      for (const key of ['requestId', 'inspectionId', 'partnerRequestId', 'inspectorId'] as const) {
+        const val = params.get(key);
+        if (val && /^[a-zA-Z0-9_-]+$/.test(val)) {
+          nextParams.set(key, val);
+        }
+      }
+      const query = nextParams.toString();
+      return query ? `/${targetPortal}/messages?${query}` : `/${targetPortal}/messages`;
+    }
     return `/${targetPortal}/${section}`;
   }
 

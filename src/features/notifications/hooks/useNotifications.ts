@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import {
   useMutation,
   useQuery,
@@ -46,17 +46,33 @@ export function useNotificationUnreadCount(options?: {
   enabled?: boolean;
   refetchInterval?: number;
 }) {
+  const queryClient = useQueryClient();
   const userId = useAuthStore((state) => state.userId);
   const status = useAuthStore((state) => state.status);
   const isEnabled =
     (options?.enabled ?? true) && status === 'authenticated' && Boolean(userId);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: notificationKeys.unreadCount(userId),
     queryFn: () => notificationApi.getUnreadCount(),
     enabled: isEnabled,
     refetchInterval: options?.refetchInterval ?? 30_000,
   });
+
+  const previousCountRef = useRef<number | undefined>(undefined);
+  const currentCount = query.data?.unreadCount;
+  useEffect(() => {
+    if (currentCount === undefined) {
+      previousCountRef.current = undefined;
+      return;
+    }
+    if (previousCountRef.current !== undefined && previousCountRef.current !== currentCount) {
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.lists(userId) });
+    }
+    previousCountRef.current = currentCount;
+  }, [currentCount, queryClient, userId]);
+
+  return query;
 }
 
 export function useMarkNotificationAsRead() {
@@ -91,6 +107,44 @@ export function useMarkNotificationAsRead() {
           };
         },
       );
+    },
+  });
+}
+
+export function useMarkAllNotificationsAsRead() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.userId);
+
+  return useMutation({
+    mutationFn: () => notificationApi.markAllAsRead(),
+    onSuccess: () => {
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData(notificationKeys.unreadCount(userId), { unreadCount: 0 });
+      void queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(userId),
+      });
+      queryClient.setQueriesData<NotificationPageResponse>(
+        { queryKey: notificationKeys.lists(userId) },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.read && item.status === 'READ'
+                ? item
+                : {
+                    ...item,
+                    status: 'READ',
+                    read: true,
+                    readAt: item.readAt ?? nowIso,
+                  },
+            ),
+          };
+        },
+      );
+      void queryClient.invalidateQueries({
+        queryKey: notificationKeys.lists(userId),
+      });
     },
   });
 }
