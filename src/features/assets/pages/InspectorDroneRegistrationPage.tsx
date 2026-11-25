@@ -241,7 +241,6 @@ export default function InspectorDroneRegistrationPage() {
     retry: false,
   });
 
-  const [droneToDelete, setDroneToDelete] = useState<InspectorDrone | null>(null);
   const [fleetActionError, setFleetActionError] = useState<string | null>(null);
   const [detailTarget, setDetailTarget] = useState<{
     drone?: InspectorDrone | undefined;
@@ -253,33 +252,35 @@ export default function InspectorDroneRegistrationPage() {
   const [detailDocsLoading, setDetailDocsLoading] = useState(false);
 
   const serviceabilityMutation = useMutation({
-    mutationFn: ({ droneId, serviceability }: { droneId: string; serviceability: 'ACTIVE' | 'MAINTENANCE' }) =>
+    mutationFn: ({ droneId, serviceability }: { droneId: string; serviceability: 'ACTIVE' | 'RETIRED' }) =>
       mf1DroneApi.updateMyDroneServiceability(droneId, serviceability),
-    onSuccess: async () => {
+    onMutate: async ({ droneId, serviceability }) => {
       setFleetActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ['mf1', 'inspector', 'drones'] });
+      await queryClient.cancelQueries({ queryKey: ['inspector-drones'] });
+      const previousDrones = queryClient.getQueryData<InspectorDrone[]>(['inspector-drones']);
+      queryClient.setQueryData<InspectorDrone[]>(['inspector-drones'], (current) =>
+        current?.map((item) => (item.id === droneId ? { ...item, serviceability } : item)),
+      );
+      return { previousDrones };
     },
-    onError: (err) => {
+    onSuccess: (updatedDrone) => {
+      setFleetActionError(null);
+      queryClient.setQueryData<InspectorDrone[]>(['inspector-drones'], (current) =>
+        current?.map((item) => (item.id === updatedDrone.id ? updatedDrone : item)),
+      );
+      setDetailTarget((prev) =>
+        prev?.drone?.id === updatedDrone.id ? { ...prev, drone: updatedDrone } : prev,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['inspector-drones'] });
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousDrones) {
+        queryClient.setQueryData(['inspector-drones'], context.previousDrones);
+      }
       setFleetActionError(
         err instanceof Error
           ? err.message
           : tr('Không thể cập nhật trạng thái hoạt động của drone.', 'Could not update drone serviceability.'),
-      );
-    },
-  });
-
-  const deleteDroneMutation = useMutation({
-    mutationFn: (droneId: string) => mf1DroneApi.deleteMyDrone(droneId),
-    onSuccess: async () => {
-      setFleetActionError(null);
-      setDroneToDelete(null);
-      await queryClient.invalidateQueries({ queryKey: ['mf1', 'inspector', 'drones'] });
-    },
-    onError: (err) => {
-      setFleetActionError(
-        err instanceof Error
-          ? err.message
-          : tr('Không thể xóa drone. Vui lòng thử lại.', 'Could not delete drone. Please try again.'),
       );
     },
   });
@@ -293,6 +294,7 @@ export default function InspectorDroneRegistrationPage() {
   });
 
   const approvedDrones: InspectorDrone[] = drones.data ?? [];
+  const activeDronesCount = approvedDrones.filter((d) => d.serviceability === 'ACTIVE').length;
   const applicationList: DroneRegistrationApplication[] = applications.data ?? [];
   const pendingCount = applicationList.filter((a) => a.status === 'PENDING').length;
 
@@ -681,11 +683,11 @@ export default function InspectorDroneRegistrationPage() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
         <MetricCard
           label={tr('Drone sẵn sàng bay', 'Flight-ready Drones')}
-          value={approvedDrones.length.toString()}
-          change={approvedDrones.length > 0 ? tr('Sẵn sàng', 'Ready') : undefined}
-          subtext={tr('Đã duyệt', 'Verified docs')}
+          value={activeDronesCount.toString()}
+          change={activeDronesCount > 0 ? tr('Sẵn sàng', 'Ready') : undefined}
+          subtext={tr('Đang hoạt động', 'Active in fleet')}
           iconType="flight"
-          positive={approvedDrones.length > 0}
+          positive={activeDronesCount > 0}
         />
         <MetricCard
           label={tr('Hồ sơ đang chờ duyệt', 'Pending Applications')}
@@ -806,6 +808,15 @@ export default function InspectorDroneRegistrationPage() {
           {/* TAB 1: DANH SÁCH DRONE HOẠT ĐỘNG (APPROVED) */}
           {tabIndex === 'APPROVED' && (
             <Box>
+              {fleetActionError && (
+                <Alert
+                  severity="error"
+                  sx={{ mb: 2, borderRadius: '8px' }}
+                  onClose={() => setFleetActionError(null)}
+                >
+                  {fleetActionError}
+                </Alert>
+              )}
               {drones.isLoading ? (
                 <Typography color="text.secondary">
                   {tr('Đang tải danh sách Drone…', 'Loading drones…')}
@@ -853,6 +864,7 @@ export default function InspectorDroneRegistrationPage() {
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         cursor: 'pointer',
+                        opacity: drone.serviceability === 'RETIRED' ? 0.8 : 1,
                         transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                         '&:hover': {
                           borderColor: 'primary.main',
@@ -930,9 +942,26 @@ export default function InspectorDroneRegistrationPage() {
                             </Box>
                           </Box>
                           <Chip
-                            icon={<VerifiedUserOutlined style={{ fontSize: 14 }} />}
-                            label={tr('ĐÃ DUYỆT', 'APPROVED')}
-                            color="success"
+                            icon={drone.serviceability === 'ACTIVE' ? <VerifiedUserOutlined style={{ fontSize: 14 }} /> : undefined}
+                            label={
+                              drone.serviceability === 'ACTIVE'
+                                ? tr('ĐANG HOẠT ĐỘNG', 'ACTIVE')
+                                : drone.serviceability === 'RETIRED'
+                                  ? tr('NGƯNG HOẠT ĐỘNG', 'RETIRED')
+                                  : drone.serviceability === 'SUSPENDED'
+                                    ? tr('ĐÌNH CHỈ', 'SUSPENDED')
+                                    : tr('BẢO TRÌ', 'MAINTENANCE')
+                            }
+                            color={
+                              drone.serviceability === 'ACTIVE'
+                                ? 'success'
+                                : drone.serviceability === 'RETIRED'
+                                  ? 'default'
+                                  : drone.serviceability === 'SUSPENDED'
+                                    ? 'error'
+                                    : 'warning'
+                            }
+                            variant={drone.serviceability === 'RETIRED' ? 'outlined' : 'filled'}
                             size="small"
                             sx={{ fontWeight: 700, fontSize: '0.75rem', height: 24, flexShrink: 0 }}
                           />
@@ -1072,28 +1101,39 @@ export default function InspectorDroneRegistrationPage() {
                           gap: 1,
                         }}
                       >
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color={drone.serviceability === 'ACTIVE' ? 'warning' : 'success'}
-                          disabled={serviceabilityMutation.isPending}
-                          onClick={() =>
-                            serviceabilityMutation.mutate({
-                              droneId: drone.id,
-                              serviceability:
-                                drone.serviceability === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE',
-                            })
-                          }
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                        >
-                          {drone.serviceability === 'ACTIVE'
-                            ? tr('Chuyển sang Bảo trì', 'Mark Maintenance')
-                            : tr('Mở lại Hoạt động', 'Mark Active')}
-                        </Button>
+                        {(() => {
+                          const isActive = drone.serviceability === 'ACTIVE';
+                          const isSuspended = drone.serviceability === 'SUSPENDED';
+                          const isUpdatingThisDrone =
+                            serviceabilityMutation.isPending &&
+                            serviceabilityMutation.variables?.droneId === drone.id;
+                          return (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color={isActive ? 'warning' : 'success'}
+                              disabled={isUpdatingThisDrone || isSuspended}
+                              onClick={() =>
+                                serviceabilityMutation.mutate({
+                                  droneId: drone.id,
+                                  serviceability: isActive ? 'RETIRED' : 'ACTIVE',
+                                })
+                              }
+                              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
+                            >
+                              {isUpdatingThisDrone
+                                ? tr('Đang cập nhật…', 'Updating…')
+                                : isActive
+                                  ? tr('Ngưng hoạt động', 'Retire')
+                                  : tr('Kích hoạt lại', 'Set Active')}
+                            </Button>
+                          );
+                        })()}
                         <Button
                           size="small"
                           variant="outlined"
                           startIcon={<BuildCircleOutlined />}
+                          disabled={drone.serviceability === 'RETIRED' || drone.serviceability === 'SUSPENDED'}
                           onClick={() => {
                             const matchedApp = applicationList.find(
                               (a) => a.droneId === drone.id || a.serialNumber === drone.serialNumber,
@@ -1140,19 +1180,6 @@ export default function InspectorDroneRegistrationPage() {
                           sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
                           {tr('Cập nhật', 'Update')}
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="error"
-                          startIcon={<DeleteOutlineRounded />}
-                          onClick={() => {
-                            setFleetActionError(null);
-                            setDroneToDelete(drone);
-                          }}
-                          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
-                        >
-                          {tr('Xóa drone', 'Delete')}
                         </Button>
                       </Box>
                     </Card>
@@ -2060,55 +2087,6 @@ export default function InspectorDroneRegistrationPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={Boolean(droneToDelete)}
-        onClose={() => {
-          if (!deleteDroneMutation.isPending) setDroneToDelete(null);
-        }}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: '10px', p: 0.5 } } }}
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {tr('Xác nhận xóa drone', 'Confirm Delete Drone')}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            {tr(
-              `Bạn có chắc muốn xóa thiết bị ${droneToDelete?.model?.split('[')[0]?.trim() || droneToDelete?.serialNumber || ''} khỏi đội bay của bạn? Thiết bị sẽ ngừng hoạt động và không thể điều phối bay mới.`,
-              `Are you sure you want to remove ${droneToDelete?.model?.split('[')[0]?.trim() || droneToDelete?.serialNumber || ''} from your fleet? It will be retired and excluded from future dispatches.`,
-            )}
-          </Typography>
-          {fleetActionError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {fleetActionError}
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setDroneToDelete(null)}
-            disabled={deleteDroneMutation.isPending}
-            sx={{ textTransform: 'none' }}
-          >
-            {tr('Hủy', 'Cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            disabled={deleteDroneMutation.isPending || !droneToDelete}
-            onClick={() => {
-              if (droneToDelete) {
-                deleteDroneMutation.mutate(droneToDelete.id);
-              }
-            }}
-            sx={{ textTransform: 'none', fontWeight: 650 }}
-          >
-            {deleteDroneMutation.isPending ? tr('Đang xóa…', 'Deleting…') : tr('Xác nhận xóa', 'Delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* MODAL DIALOG: XEM CHI TIẾT DRONE / HỒ SƠ ĐÃ GỬI */}
       <Dialog
         open={Boolean(detailTarget)}
@@ -2167,11 +2145,24 @@ export default function InspectorDroneRegistrationPage() {
                   {drone ? (
                     <Chip
                       size="small"
-                      color={drone.serviceability === 'ACTIVE' ? 'success' : 'warning'}
+                      color={
+                        drone.serviceability === 'ACTIVE'
+                          ? 'success'
+                          : drone.serviceability === 'RETIRED'
+                            ? 'default'
+                            : drone.serviceability === 'SUSPENDED'
+                              ? 'error'
+                              : 'warning'
+                      }
+                      variant={drone.serviceability === 'RETIRED' ? 'outlined' : 'filled'}
                       label={
                         drone.serviceability === 'ACTIVE'
                           ? tr('ĐANG HOẠT ĐỘNG', 'ACTIVE')
-                          : tr('ĐANG BẢO TRÌ', 'MAINTENANCE')
+                          : drone.serviceability === 'RETIRED'
+                            ? tr('NGƯNG HOẠT ĐỘNG', 'RETIRED')
+                            : drone.serviceability === 'SUSPENDED'
+                              ? tr('ĐÌNH CHỈ', 'SUSPENDED')
+                              : tr('ĐANG BẢO TRÌ', 'MAINTENANCE')
                       }
                       sx={{ fontWeight: 700, fontSize: '0.72rem' }}
                     />

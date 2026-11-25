@@ -114,7 +114,7 @@ export const mf1DroneApi = {
     api.get<DroneRegistrationApplication[] | { data: DroneRegistrationApplication[] }>('/drone-registration-applications/mine').then((response) => unwrap(response.data)),
   drones: () =>
     api.get<InspectorDrone[] | { data: InspectorDrone[] }>('/drone-registration-applications/mine/drones').then((response) => unwrap(response.data)),
-  updateMyDroneServiceability: (droneId: string, serviceability: 'ACTIVE' | 'MAINTENANCE') =>
+  updateMyDroneServiceability: (droneId: string, serviceability: 'ACTIVE' | 'RETIRED' | 'MAINTENANCE') =>
     api
       .patch<InspectorDrone | { data: InspectorDrone }>(
         `/drone-registration-applications/mine/drones/${droneId}/serviceability`,
